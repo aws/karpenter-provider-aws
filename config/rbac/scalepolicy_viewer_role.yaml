@@ -1,0 +1,20 @@
+# permissions for end users to view scalepolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter-scalepolicy-viewer-role
+rules:
+- apiGroups:
+  - karpenter.my.domain
+  resources:
+  - scalepolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - karpenter.my.domain
+  resources:
+  - scalepolicies/status
+  verbs:
+  - get
