@@ -24,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	karpenterv1alpha1 "github.com/ellistarn/karpenter/api/v1alpha1"
+	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
 )
 
 // ScalePolicyReconciler reconciles a ScalePolicy object

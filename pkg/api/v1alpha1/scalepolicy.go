@@ -28,8 +28,8 @@ type ScalePolicySpec struct {
 	SQSQueueMetric    *SQSQueueMetric    `json:"sqsQueuePolicy,omitempty"`
 
 	NodeLabelSelector map[string]string `json:"selector,omitempty"`
-	MinReplicas       int32
-	MaxReplicas       int32
+	MinReplicas       int32             `json:"minReplicas"`
+	MaxReplicas       int32             `json:"maxReplicas"`
 }
 
 // UtilizationMetric defines a thermostat-like scaler for CPU, Memory, or Custom Resource types (i.e. GPU)

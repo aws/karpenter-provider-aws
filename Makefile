@@ -11,19 +11,19 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: manager
+all: build test
 
 # Run tests
 test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager main.go
+# Build controller binary
+build: generate fmt vet
+	go build -o bin/manager cmd/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go
+	go run cmd/main.go
 
 # Install CRDs into a cluster
 install: manifests

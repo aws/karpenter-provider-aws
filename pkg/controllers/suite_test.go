@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	karpenterv1alpha1 "github.com/ellistarn/karpenter/api/v1alpha1"
+	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
