@@ -21,7 +21,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
@@ -34,20 +34,24 @@ type ScalePolicyReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=karpenter.my.domain,resources=scalepolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=karpenter.my.domain,resources=scalepolicies/status,verbs=get;update;patch
-
-func (r *ScalePolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+// Reconcile executes a control loop for the ScalePolicy resource
+// +kubebuilder:rbac:groups=karpenter.sh,resources=scalepolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=karpenter.sh,resources=scalepolicies/status,verbs=get;update;patch
+func (r *ScalePolicyReconciler) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("scalepolicy", req.NamespacedName)
 
+	// Detect policy
+	// Add Node Group to state
+
 	// your logic here
 
-	return ctrl.Result{}, nil
+	return controllerruntime.Result{}, nil
 }
 
-func (r *ScalePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+// SetupWithManager attaches the reconciler to the provided Manager.
+func (r *ScalePolicyReconciler) SetupWithManager(mgr controllerruntime.Manager) error {
+	return controllerruntime.NewControllerManagedBy(mgr).
 		For(&karpenterv1alpha1.ScalePolicy{}).
 		Complete(r)
 }

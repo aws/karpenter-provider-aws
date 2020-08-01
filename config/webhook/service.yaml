@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: karpenter-webhook-service
-  namespace: karpenter-system
+  name: karpenter-webhook
+  namespace: karpenter
 spec:
   ports:
     - port: 443
       targetPort: 9443
   selector:
-    control-plane: karpenter-controller-manager
+    control-plane: karpenter

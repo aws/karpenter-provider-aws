@@ -5,7 +5,7 @@ metadata:
   name: karpenter-scalepolicy-viewer-role
 rules:
 - apiGroups:
-  - karpenter.my.domain
+  - karpenter.sh
   resources:
   - scalepolicies
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - karpenter.my.domain
+  - karpenter.sh
   resources:
   - scalepolicies/status
   verbs:

@@ -1,2 +1,11 @@
 resources:
 - manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter
+  newTag: latest
+- name: karpenter
+  newName: controller
+  newTag: latest

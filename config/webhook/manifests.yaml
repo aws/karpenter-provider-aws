@@ -4,19 +4,19 @@ apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
   creationTimestamp: null
-  name: mutating-webhook-configuration
+  name: karpenter-mutating-webhook-configuration
 webhooks:
 - clientConfig:
     caBundle: Cg==
     service:
-      name: webhook-service
+      name: karpenter-webhook
       namespace: system
-      path: /mutate-karpenter-my-domain-v1alpha1-scalepolicy
+      path: /mutate-karpenter-sh-v1alpha1-scalepolicy
   failurePolicy: Fail
   name: mscalepolicy.kb.io
   rules:
   - apiGroups:
-    - karpenter.my.domain
+    - karpenter.sh
     apiVersions:
     - v1alpha1
     operations:

@@ -40,21 +40,23 @@ spec:
             minReplicas:
               format: int32
               type: integer
-            selector:
-              additionalProperties:
-                type: string
-              type: object
-            sqsQueuePolicy:
-              description: SQSQueueMetric defines a scale policy that reacts to the
-                length of a queue and preemptively scales out
+            queueMetric:
+              description: QueueMetric defines a scale policy that reacts to the length
+                of a queue and preemptively scales out
               properties:
                 messagesPerNode:
+                  description: MessagesPerNode determines how quickly to scale out
+                    for a queue.
                   format: int32
                   type: integer
               required:
               - messagesPerNode
               type: object
-            utilizationPolicy:
+            selector:
+              additionalProperties:
+                type: string
+              type: object
+            utilizationMetric:
               description: UtilizationMetric defines a thermostat-like scaler for
                 CPU, Memory, or Custom Resource types (i.e. GPU)
               properties:

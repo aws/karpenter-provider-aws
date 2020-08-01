@@ -18,14 +18,14 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ScalePolicySpec defines the desired state of ScalePolicy
 type ScalePolicySpec struct {
-	UtilizationMetric *UtilizationMetric `json:"utilizationPolicy,omitempty"`
-	SQSQueueMetric    *SQSQueueMetric    `json:"sqsQueuePolicy,omitempty"`
+	UtilizationMetric *UtilizationMetric `json:"utilizationMetric,omitempty"`
+	QueueMetric       *QueueMetric       `json:"queueMetric,omitempty"`
 
 	NodeLabelSelector map[string]string `json:"selector,omitempty"`
 	MinReplicas       int32             `json:"minReplicas"`
@@ -40,8 +40,9 @@ type UtilizationMetric struct {
 	PodThreshhold    int32 `json:"podThreshhold"`
 }
 
-// SQSQueueMetric defines a scale policy that reacts to the length of a queue and preemptively scales out
-type SQSQueueMetric struct {
+// QueueMetric defines a scale policy that reacts to the length of a queue and preemptively scales out
+type QueueMetric struct {
+	// MessagesPerNode determines how quickly to scale out for a queue.
 	MessagesPerNode int32 `json:"messagesPerNode"`
 }
 
@@ -70,8 +71,8 @@ func init() {
 // log is for logging in this package.
 var scalepolicylog = logf.Log.WithName("scalepolicy-resource")
 
-func (r *ScalePolicy) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
+func (r *ScalePolicy) SetupWebhookWithManager(mgr controllerruntime.Manager) error {
+	return controllerruntime.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }

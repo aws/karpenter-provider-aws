@@ -1,7 +1,7 @@
 FROM golang:1.14.4 as builder
 
 # Copy src
-WORKDIR /go/src/github.com/aws/karpenter
+WORKDIR /go/src/github.com/ellistarn/karpenter
 COPY cmd/    cmd/
 COPY pkg/    pkg/
 COPY go.mod  go.mod
@@ -9,10 +9,10 @@ COPY go.sum  go.sum
 
 # Build src
 RUN go mod download
-RUN go build -o karpenter ./cmd/karpenter
+RUN go build -o karpenter ./cmd
 
 # Copy to slim image
 FROM gcr.io/distroless/static:latest
 WORKDIR /
-COPY --from=builder /go/src/github.com/aws/karpenter .
+COPY --from=builder /go/src/github.com/ellistarn/karpenter .
 ENTRYPOINT ["/karpenter"]

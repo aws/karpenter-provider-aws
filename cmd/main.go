@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	ctrl "sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
@@ -32,57 +32,65 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
+	log    = controllerruntime.Log.WithName("setup")
 )
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-
 	_ = karpenterv1alpha1.AddToScheme(scheme)
-	// +kubebuilder:scaffold:scheme
+}
+
+// Options for running this binary
+type Options struct {
+	EnableLeaderElection bool
+	EnableWebhook        bool
+	EnableReconciler     bool
+	MetricsAddr          string
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	options := Options{}
+	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&options.EnableLeaderElection, "enable-leader-election", true, "Enable leader election for this controller.")
+	flag.BoolVar(&options.EnableWebhook, "enable-webhook", true, "Enable webhook for this controller.")
+	flag.BoolVar(&options.EnableReconciler, "enable-reconciler", true, "Enable reconciler for this controller.")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	controllerruntime.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
+		MetricsBindAddress: options.MetricsAddr,
 		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "420af2d9.my.domain",
+		LeaderElection:     options.EnableLeaderElection,
+		LeaderElectionID:   "karpenter-leader-election",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		log.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ScalePolicyReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ScalePolicy"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ScalePolicy")
-		os.Exit(1)
+	if options.EnableReconciler {
+		if err = (&controllers.ScalePolicyReconciler{
+			Client: mgr.GetClient(),
+			Log:    controllerruntime.Log.WithName("controllers").WithName("ScalePolicy"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			log.Error(err, "unable to create controller", "controller", "ScalePolicy")
+			os.Exit(1)
+		}
 	}
-	if err = (&karpenterv1alpha1.ScalePolicy{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "ScalePolicy")
-		os.Exit(1)
+	if options.EnableWebhook {
+		if err = (&karpenterv1alpha1.ScalePolicy{}).SetupWebhookWithManager(mgr); err != nil {
+			log.Error(err, "unable to create webhook", "webhook", "ScalePolicy")
+			os.Exit(1)
+		}
 	}
-	// +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+	log.Info("starting manager")
+	if err := mgr.Start(controllerruntime.SetupSignalHandler()); err != nil {
+		log.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }
