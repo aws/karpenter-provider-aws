@@ -40,8 +40,8 @@ spec:
             behavior:
               description: Behavior configures the scaling behavior of the target
                 in both Up and Down directions (scaleUp and scaleDown fields respectively).
-                If not set, the default HPAScalingRules for scale up and scale down
-                are used.
+                If not set, the default ScalingRules for scale up and scale down are
+                used.
               properties:
                 scaleDown:
                   description: scaleDown is scaling policy for scaling Down. If not
@@ -52,11 +52,11 @@ spec:
                     policies:
                       description: policies is a list of potential scaling polices
                         which can be used during scaling. At least one policy must
-                        be specified, otherwise the HPAScalingRules will be discarded
+                        be specified, otherwise the ScalingRules will be discarded
                         as invalid
                       items:
-                        description: HPAScalingPolicy is a single policy which must
-                          hold true for a specified past interval.
+                        description: ScalingPolicy is a single policy which must hold
+                          true for a specified past interval.
                         properties:
                           periodSeconds:
                             description: PeriodSeconds specifies the window of time
@@ -105,11 +105,11 @@ spec:
                     policies:
                       description: policies is a list of potential scaling polices
                         which can be used during scaling. At least one policy must
-                        be specified, otherwise the HPAScalingRules will be discarded
+                        be specified, otherwise the ScalingRules will be discarded
                         as invalid
                       items:
-                        description: HPAScalingPolicy is a single policy which must
-                          hold true for a specified past interval.
+                        description: ScalingPolicy is a single policy which must hold
+                          true for a specified past interval.
                         properties:
                           periodSeconds:
                             description: PeriodSeconds specifies the window of time

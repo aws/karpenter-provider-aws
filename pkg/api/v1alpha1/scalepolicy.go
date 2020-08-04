@@ -53,9 +53,75 @@ type ScalePolicySpec struct {
 	Metrics []Metrics `json:"metrics,omitempty"`
 	// Behavior configures the scaling behavior of the target
 	// in both Up and Down directions (scaleUp and scaleDown fields respectively).
-	// If not set, the default HPAScalingRules for scale up and scale down are used.
+	// If not set, the default ScalingRules for scale up and scale down are used.
 	// +optional
-	Behavior v2beta2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
+	Behavior HorizontalAutoscalerBehavior `json:"behavior,omitempty"`
+}
+
+// HorizontalAutoscalerBehavior configures the scaling behavior of the target
+// in both Up and Down directions (scaleUp and scaleDown fields respectively).
+type HorizontalAutoscalerBehavior struct {
+	// scaleUp is scaling policy for scaling Up.
+	// If not set, the default value is the higher of:
+	//   * increase no more than 4 pods per 60 seconds
+	//   * double the number of pods per 60 seconds
+	// No stabilization is used.
+	// +optional
+	ScaleUp *ScalingRules `json:"scaleUp,omitempty"`
+	// scaleDown is scaling policy for scaling Down.
+	// If not set, the default value is to allow to scale down to minReplicas pods, with a
+	// 300 second stabilization window (i.e., the highest recommendation for
+	// the last 300sec is used).
+	// +optional
+	ScaleDown *ScalingRules `json:"scaleDown,omitempty"`
+}
+
+// ScalingRules configures the scaling behavior for one direction.
+// These Rules are applied after calculating DesiredReplicas from metrics for the HPA.
+// They can limit the scaling velocity by specifying scaling policies.
+// They can prevent flapping by specifying the stabilization window, so that the
+// number of replicas is not set instantly, instead, the safest value from the stabilization
+// window is chosen.
+type ScalingRules struct {
+	// StabilizationWindowSeconds is the number of seconds for which past recommendations should be
+	// considered while scaling up or scaling down.
+	// StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour).
+	// If not set, use the default values:
+	// - For scale up: 0 (i.e. no stabilization is done).
+	// - For scale down: 300 (i.e. the stabilization window is 300 seconds long).
+	// +optional
+	StabilizationWindowSeconds *int32 `json:"stabilizationWindowSeconds"`
+	// selectPolicy is used to specify which policy should be used.
+	// If not set, the default value MaxPolicySelect is used.
+	// +optional
+	SelectPolicy *v2beta2.ScalingPolicySelect `json:"selectPolicy,omitempty"`
+	// policies is a list of potential scaling polices which can be used during scaling.
+	// At least one policy must be specified, otherwise the ScalingRules will be discarded as invalid
+	// +optional
+	Policies []ScalingPolicy `json:"policies,omitempty"`
+}
+
+// ScalingPolicyType is the type of the policy which could be used while making scaling decisions.
+type ScalingPolicyType string
+
+const (
+	// CountScalingPolicy is a policy used to specify a change in absolute number of pods.
+	CountScalingPolicy ScalingPolicyType = "Count"
+	// PercentScalingPolicy is a policy used to specify a relative amount of change with respect to
+	// the current number of pods.
+	PercentScalingPolicy ScalingPolicyType = "Percent"
+)
+
+// ScalingPolicy is a single policy which must hold true for a specified past interval.
+type ScalingPolicy struct {
+	// Type is used to specify the scaling policy.
+	Type ScalingPolicyType `json:"type"`
+	// Value contains the amount of change which is permitted by the policy.
+	// It must be greater than zero
+	Value int32 `json:"value"`
+	// PeriodSeconds specifies the window of time for which the policy should hold true.
+	// PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+	PeriodSeconds int32 `json:"periodSeconds"`
 }
 
 // Metrics is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
@@ -63,7 +129,7 @@ type ScalePolicySpec struct {
 type Metrics struct {
 	// type is the type of metric source.  It should be one of "Object",
 	// "Nodes" or "Resource", each mapping to a matching field in the object.
-	Type MetricSourceType `json:"type" protobuf:"bytes,1,name=type"`
+	Type MetricSourceType `json:"type"`
 
 	// Nodes refers to a metric describing each pod in the current scale target
 	// (for example, transactions-processed-per-second).  The values will be
