@@ -32,7 +32,7 @@ type ScalePolicySpec struct {
 	// NodeGroup and Provider are identified from node.providerId and node.metadata.labels["NGName"].
 	NodeLabelSelector map[string]string `json:"selector"`
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler
-	// can scale down.  It defaults to 1 pod.  minReplicas is allowed to be 0 if the
+	// can scale down.  It defaults to 1.  minReplicas is allowed to be 0 if the
 	// alpha feature gate HPAScaleToZero is enabled and at least one Object or External
 	// metric is configured.  Scaling is active as long as at least one metric value is
 	// available.
@@ -45,7 +45,7 @@ type ScalePolicySpec struct {
 	// desired replica count (the maximum replica count across all metrics will
 	// be used).  The desired replica count is calculated multiplying the
 	// ratio between the target value and the current value by the current
-	// number of pods.  Ergo, metrics used must decrease as the pod count is
+	// number of replicas.  Ergo, metrics used must decrease as the replica count is
 	// increased, and vice-versa.  See the individual metric source types for
 	// more information about how each type of metric must respond.
 	// If not set, the default metric will be set to 80% average CPU utilization.
@@ -63,13 +63,13 @@ type ScalePolicySpec struct {
 type HorizontalAutoscalerBehavior struct {
 	// scaleUp is scaling policy for scaling Up.
 	// If not set, the default value is the higher of:
-	//   * increase no more than 4 pods per 60 seconds
-	//   * double the number of pods per 60 seconds
+	//   * increase no more than 4 replicas per 60 seconds
+	//   * double the number of replicas per 60 seconds
 	// No stabilization is used.
 	// +optional
 	ScaleUp *ScalingRules `json:"scaleUp,omitempty"`
 	// scaleDown is scaling policy for scaling Down.
-	// If not set, the default value is to allow to scale down to minReplicas pods, with a
+	// If not set, the default value is to allow to scale down to minReplicas, with a
 	// 300 second stabilization window (i.e., the highest recommendation for
 	// the last 300sec is used).
 	// +optional
@@ -105,10 +105,10 @@ type ScalingRules struct {
 type ScalingPolicyType string
 
 const (
-	// CountScalingPolicy is a policy used to specify a change in absolute number of pods.
+	// CountScalingPolicy is a policy used to specify a change in absolute number of replicas.
 	CountScalingPolicy ScalingPolicyType = "Count"
 	// PercentScalingPolicy is a policy used to specify a relative amount of change with respect to
-	// the current number of pods.
+	// the current number of replicas.
 	PercentScalingPolicy ScalingPolicyType = "Percent"
 )
 
@@ -128,38 +128,35 @@ type ScalingPolicy struct {
 // +optional
 type Metrics struct {
 	// type is the type of metric source.  It should be one of "Object",
-	// "Nodes" or "Resource", each mapping to a matching field in the object.
+	// "Replicas" or "Resource", each mapping to a matching field in the object.
 	Type MetricSourceType `json:"type"`
 
-	// Nodes refers to a metric describing each pod in the current scale target
+	// replicas refers to a metric describing each replica in the current scale target
 	// (for example, transactions-processed-per-second).  The values will be
 	// averaged together before being compared to the target value.
 	// +optional
-	Nodes *NodesMetricSource `json:"nodes,omitempty"`
+	Replicas *ReplicaMetricSource `json:"replicas,omitempty"`
 
 	// resource refers to a resource metric (such as those specified in
-	// requests and limits) known to Kubernetes describing each pod in the
+	// requests and limits) known to Kubernetes describing each replica in the
 	// current scale target (e.g. CPU or memory). Such metrics are built in to
 	// Kubernetes, and have special scaling options on top of those available
-	// to normal per-pod metrics using the "pods" source.
+	// to normal per-replica metrics using the "replicas" source.
 	// +optional
 	Resource *v2beta2.ResourceMetricSource `json:"resource,omitempty"`
 
-	// Object refers to a metric describing a single kubernetes object
+	// object refers to a metric describing a single kubernetes object
 	// (for example, hits-per-second on an Ingress object).
 	// +optional
 	Object *v2beta2.ObjectMetricSource `json:"object,omitempty"`
 
-	// External refers to a global metric that is not associated
+	// external refers to a global metric that is not associated
 	// with any Kubernetes object. It allows autoscaling based on information
 	// coming from components running outside of cluster
 	// (for example length of queue in cloud messaging service, or
 	// QPS from loadbalancer running outside of cluster).
 	// +optional
 	External *v2beta2.ExternalMetricSource `json:"external,omitempty"`
-
-	// Utilization       *Utilization      `json:"utilization,omitempty"`
-	// QueueMetricsSource *QueueMetricsSource `json:"queue,omitempty"`
 }
 
 // MetricSourceType indicates the type of metric.
@@ -169,15 +166,15 @@ const (
 	// ObjectMetricSourceType is a metric describing a kubernetes object
 	// (for example, hits-per-second on an Ingress object).
 	ObjectMetricSourceType MetricSourceType = "Object"
-	// NodesMetricSourceType is a metric describing each node in the current scale
+	// ReplicaMetricSourceType is a metric describing each replica in the current scale
 	// target (for example, transactions-processed-per-second).  The values
 	// will be averaged together before being compared to the target value.
-	NodesMetricSourceType MetricSourceType = "Nodes"
+	ReplicaMetricSourceType MetricSourceType = "Replicas"
 	// ResourceMetricSourceType is a resource metric known to Kubernetes, as
-	// specified in requests and limits, describing each pod in the current
+	// specified in requests and limits, describing each replica in the current
 	// scale target (e.g. CPU or memory).  Such metrics are built in to
 	// Kubernetes, and have special scaling options on top of those available
-	// to normal per-pod metrics (the "pods" source).
+	// to normal per-replica metrics (the "replicas" source).
 	ResourceMetricSourceType MetricSourceType = "Resource"
 	// ExternalMetricSourceType is a global metric that is not associated
 	// with any Kubernetes object. It allows autoscaling based on information
@@ -187,22 +184,16 @@ const (
 	ExternalMetricSourceType MetricSourceType = "External"
 )
 
-//
-type NodesMetricSource struct {
+// ReplicaMetricSource indicates how to scale on a metric describing each replica in
+// the current scale target (for example, transactions-processed-per-second).
+// The values will be averaged together before being compared to the target
+// value.
+type ReplicaMetricSource struct {
 	// Metric identifies the target metric by name and selector
 	Metric v2beta2.MetricIdentifier `json:"metric"`
 	// Target specifies the target value for the given metric
 	Target v2beta2.MetricTarget `json:"target"`
 }
-
-// // Utilization defines a thermostat-like scaler for CPU, Memory, or Custom Resource types (i.e. GPU)
-// type Utilization map[corev1.ResourceName]string
-
-// // Queue defines a scale policy that reacts to the length of a queue and preemptively scales out
-// type Queue struct {
-// 	// MessagesPerNode determines how quickly to scale out for a queue.
-// 	MessagesPerNode int32 `json:"messagesPerNode"`
-// }
 
 // ScalePolicy is the Schema for the scalepolicies API
 // +kubebuilder:object:root=true
