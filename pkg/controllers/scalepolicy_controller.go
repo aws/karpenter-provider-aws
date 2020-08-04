@@ -27,19 +27,19 @@ import (
 	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
 )
 
-// ScalePolicyReconciler reconciles a ScalePolicy object
-type ScalePolicyReconciler struct {
+// HorizontalAutoscalerReconciler reconciles a HorizontalAutoscaler object
+type HorizontalAutoscalerReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// Reconcile executes a control loop for the ScalePolicy resource
-// +kubebuilder:rbac:groups=karpenter.sh,resources=scalepolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=karpenter.sh,resources=scalepolicies/status,verbs=get;update;patch
-func (r *ScalePolicyReconciler) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+// Reconcile executes a control loop for the HorizontalAutoscaler resource
+// +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
+func (r *HorizontalAutoscalerReconciler) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("scalepolicy", req.NamespacedName)
+	_ = r.Log.WithValues("horizontalautoscaler", req.NamespacedName)
 
 	// Detect policy
 	// Add Node Group to state
@@ -50,8 +50,8 @@ func (r *ScalePolicyReconciler) Reconcile(req controllerruntime.Request) (contro
 }
 
 // SetupWithManager attaches the reconciler to the provided Manager.
-func (r *ScalePolicyReconciler) SetupWithManager(mgr controllerruntime.Manager) error {
+func (r *HorizontalAutoscalerReconciler) SetupWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewControllerManagedBy(mgr).
-		For(&karpenterv1alpha1.ScalePolicy{}).
+		For(&karpenterv1alpha1.HorizontalAutoscaler{}).
 		Complete(r)
 }

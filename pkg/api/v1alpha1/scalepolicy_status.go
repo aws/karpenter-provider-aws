@@ -1,5 +1,5 @@
 package v1alpha1
 
-// ScalePolicyStatus defines the observed state of ScalePolicy
-type ScalePolicyStatus struct {
+// HorizontalAutoscalerStatus defines the observed state of HorizontalAutoscaler
+type HorizontalAutoscalerStatus struct {
 }

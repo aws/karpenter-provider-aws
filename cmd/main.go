@@ -72,18 +72,18 @@ func main() {
 	}
 
 	if options.EnableReconciler {
-		if err = (&controllers.ScalePolicyReconciler{
+		if err = (&controllers.HorizontalAutoscalerReconciler{
 			Client: mgr.GetClient(),
-			Log:    controllerruntime.Log.WithName("controllers").WithName("ScalePolicy"),
+			Log:    controllerruntime.Log.WithName("controllers").WithName("HorizontalAutoscaler"),
 			Scheme: mgr.GetScheme(),
 		}).SetupWithManager(mgr); err != nil {
-			log.Error(err, "unable to create controller", "controller", "ScalePolicy")
+			log.Error(err, "unable to create controller", "controller", "HorizontalAutoscaler")
 			os.Exit(1)
 		}
 	}
 	if options.EnableWebhook {
-		if err = (&karpenterv1alpha1.ScalePolicy{}).SetupWebhookWithManager(mgr); err != nil {
-			log.Error(err, "unable to create webhook", "webhook", "ScalePolicy")
+		if err = (&karpenterv1alpha1.HorizontalAutoscaler{}).SetupWebhookWithManager(mgr); err != nil {
+			log.Error(err, "unable to create webhook", "webhook", "HorizontalAutoscaler")
 			os.Exit(1)
 		}
 	}

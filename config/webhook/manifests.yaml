@@ -11,9 +11,9 @@ webhooks:
     service:
       name: karpenter-webhook
       namespace: system
-      path: /mutate-karpenter-sh-v1alpha1-scalepolicy
+      path: /mutate-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
-  name: mscalepolicy.kb.io
+  name: mhorizontalautoscaler.kb.io
   rules:
   - apiGroups:
     - karpenter.sh
@@ -23,4 +23,4 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - scalepolicies
+    - horizontalautoscalers

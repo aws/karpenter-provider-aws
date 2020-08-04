@@ -9,7 +9,7 @@ rules:
 - apiGroups:
   - karpenter.sh
   resources:
-  - scalepolicies
+  - horizontalautoscalers
   verbs:
   - create
   - delete
@@ -21,7 +21,7 @@ rules:
 - apiGroups:
   - karpenter.sh
   resources:
-  - scalepolicies/status
+  - horizontalautoscalers/status
   verbs:
   - get
   - patch

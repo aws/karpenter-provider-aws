@@ -2,6 +2,6 @@ domain: my.domain
 repo: github.com/ellistarn/karpenter
 resources:
 - group: karpenter
-  kind: ScalePolicy
+  kind: HorizontalAutoscaler
   version: v1alpha1
 version: "2"

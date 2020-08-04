@@ -23,11 +23,11 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// ScalePolicySpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
+// HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
 // This enables parity of functionality between Pod and Node autoscaling, with a few minor differences.
-// 1. ObjectSelector is replaced by NodeSelector
-// 2. Metrics.PodsMetricSelector is replaced by NodeMetricsSelector
-type ScalePolicySpec struct {
+// 1. ObjectSelector is replaced by NodeSelector.
+// 2. Metrics.PodsMetricSelector is replaced by the more generic ReplicaMetricSelector.
+type HorizontalAutoscalerSpec struct {
 	// NodeLabelSelector identifies Nodes, which in turn identify NodeGroups controlled by this scale policy.
 	// NodeGroup and Provider are identified from node.providerId and node.metadata.labels["NGName"].
 	NodeLabelSelector map[string]string `json:"selector"`
@@ -195,32 +195,32 @@ type ReplicaMetricSource struct {
 	Target v2beta2.MetricTarget `json:"target"`
 }
 
-// ScalePolicy is the Schema for the scalepolicies API
+// HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true
-type ScalePolicy struct {
+type HorizontalAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ScalePolicySpec   `json:"spec,omitempty"`
-	Status ScalePolicyStatus `json:"status,omitempty"`
+	Spec   HorizontalAutoscalerSpec   `json:"spec,omitempty"`
+	Status HorizontalAutoscalerStatus `json:"status,omitempty"`
 }
 
-// ScalePolicyList contains a list of ScalePolicy
+// HorizontalAutoscalerList contains a list of HorizontalAutoscaler
 // +kubebuilder:object:root=true
-type ScalePolicyList struct {
+type HorizontalAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ScalePolicy `json:"items"`
+	Items           []HorizontalAutoscaler `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&ScalePolicy{}, &ScalePolicyList{})
+	SchemeBuilder.Register(&HorizontalAutoscaler{}, &HorizontalAutoscalerList{})
 }
 
 // log is for logging in this package.
-var scalepolicylog = logf.Log.WithName("scalepolicy-resource")
+var horizontalautoscalerlog = logf.Log.WithName("horizontalautoscaler-resource")
 
-func (r *ScalePolicy) SetupWebhookWithManager(mgr controllerruntime.Manager) error {
+func (r *HorizontalAutoscaler) SetupWebhookWithManager(mgr controllerruntime.Manager) error {
 	return controllerruntime.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
