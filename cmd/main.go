@@ -32,7 +32,6 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
-	// log    = controllerruntime.Log.WithName("setup")
 )
 
 func init() {

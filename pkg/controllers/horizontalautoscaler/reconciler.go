@@ -37,8 +37,8 @@ type Reconciler struct {
 
 // AutoscalerKey is a unique key for an Autoscaler
 type AutoscalerKey struct {
-	NodeGroupName                         string
-	HorizontalPodAutoscalerNamespacedName types.NamespacedName
+	NodeGroup               string
+	HorizontalPodAutoscaler types.NamespacedName
 }
 
 // Reconcile executes a control loop for the HorizontalAutoscaler resource
@@ -53,7 +53,7 @@ func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime
 			zap.S().Infof("Removing definition for %s.", req.NamespacedName)
 			delete(r.Autoscalers, AutoscalerKey{
 				// TODO: include NodeGroup
-				HorizontalPodAutoscalerNamespacedName: req.NamespacedName,
+				HorizontalPodAutoscaler: req.NamespacedName,
 			})
 			return reconcile.Result{}, nil
 		}
@@ -62,7 +62,7 @@ func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime
 
 	zap.S().Infof("Updating definition for %s.", req.NamespacedName)
 	r.Autoscalers[AutoscalerKey{
-		HorizontalPodAutoscalerNamespacedName: req.NamespacedName,
+		HorizontalPodAutoscaler: req.NamespacedName,
 	}] = Autoscaler{
 		// TODO: include NodeGroup
 		HorizontalAutoscaler: ha,
