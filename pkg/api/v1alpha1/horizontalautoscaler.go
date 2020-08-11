@@ -19,17 +19,15 @@ package v1alpha1
 import (
 	v2beta2 "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
 // This enables parity of functionality between Pod and Node autoscaling, with a few minor differences.
 // 1. ObjectSelector is replaced by NodeSelector.
-// 2. Metrics.PodsMetricSelector is replaced by the more generic ReplicaMetricSelector.
+// 2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
 type HorizontalAutoscalerSpec struct {
 	// NodeLabelSelector identifies Nodes, which in turn identify NodeGroups controlled by this scale policy.
-	// NodeGroup and Provider are identified from node.providerId and node.metadata.labels["NGName"].
+	// NodeGroup and Provider are identified from node.providerId and node.metadata.labels["k8s.amazonaws.com/node-group"]=node-group-arn.
 	NodeLabelSelector map[string]string `json:"selector"`
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler
 	// can scale down.  It defaults to 1.  minReplicas is allowed to be 0 if the
@@ -211,17 +209,4 @@ type HorizontalAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HorizontalAutoscaler `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&HorizontalAutoscaler{}, &HorizontalAutoscalerList{})
-}
-
-// log is for logging in this package.
-var horizontalautoscalerlog = logf.Log.WithName("horizontalautoscaler-resource")
-
-func (r *HorizontalAutoscaler) SetupWebhookWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
 }

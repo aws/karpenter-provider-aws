@@ -7,7 +7,5 @@ var _ webhook.Defaulter = &HorizontalAutoscaler{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *HorizontalAutoscaler) Default() {
-	horizontalautoscalerlog.Info("default", "name", r.Name)
-
 	// TODO(user): fill in your defaulting logic.
 }

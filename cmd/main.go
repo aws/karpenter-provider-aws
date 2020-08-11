@@ -18,22 +18,20 @@ package main
 
 import (
 	"flag"
-	"os"
 
+	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler"
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/controllers"
+	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
 	scheme = runtime.NewScheme()
-	log    = controllerruntime.Log.WithName("setup")
 )
 
 func init() {
@@ -57,9 +55,9 @@ func main() {
 	flag.BoolVar(&options.EnableReconciler, "enable-reconciler", true, "Enable reconciler for this controller.")
 	flag.Parse()
 
-	controllerruntime.SetLogger(zap.New(zap.UseDevMode(true)))
+	controllerruntime.SetLogger(controllerruntimezap.New(controllerruntimezap.UseDevMode(true)))
 
-	mgr, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
+	manager, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: options.MetricsAddr,
 		Port:               9443,
@@ -67,30 +65,29 @@ func main() {
 		LeaderElectionID:   "karpenter-leader-election",
 	})
 	if err != nil {
-		log.Error(err, "unable to start manager")
-		os.Exit(1)
+		zap.S().Fatalf("Unable to start manager, %v")
 	}
+
+	resource := &karpenterv1alpha1.HorizontalAutoscaler{}
+	reconciler := &horizontalautoscaler.Reconciler{
+		Client: manager.GetClient(),
+	}
+
+	go reconciler.Start()
 
 	if options.EnableReconciler {
-		if err = (&controllers.HorizontalAutoscalerReconciler{
-			Client: mgr.GetClient(),
-			Log:    controllerruntime.Log.WithName("controllers").WithName("HorizontalAutoscaler"),
-			Scheme: mgr.GetScheme(),
-		}).SetupWithManager(mgr); err != nil {
-			log.Error(err, "unable to create controller", "controller", "HorizontalAutoscaler")
-			os.Exit(1)
-		}
-	}
-	if options.EnableWebhook {
-		if err = (&karpenterv1alpha1.HorizontalAutoscaler{}).SetupWebhookWithManager(mgr); err != nil {
-			log.Error(err, "unable to create webhook", "webhook", "HorizontalAutoscaler")
-			os.Exit(1)
+		if err := controllerruntime.NewControllerManagedBy(manager).For(resource).Complete(reconciler); err != nil {
+			zap.S().Fatalf("Unable to create controller for manager, %v", err)
 		}
 	}
 
-	log.Info("starting manager")
-	if err := mgr.Start(controllerruntime.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
-		os.Exit(1)
+	if options.EnableWebhook {
+		if err = controllerruntime.NewWebhookManagedBy(manager).For(resource).Complete(); err != nil {
+			zap.S().Fatalf("Unable to create webhook, %v", err)
+		}
+	}
+
+	if err := manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
+		zap.S().Fatalf("Unable to start manager, %v", err)
 	}
 }

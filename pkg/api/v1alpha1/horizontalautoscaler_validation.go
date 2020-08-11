@@ -10,7 +10,6 @@ var _ webhook.Validator = &HorizontalAutoscaler{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *HorizontalAutoscaler) ValidateCreate() error {
-	horizontalautoscalerlog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
 	return nil
@@ -18,7 +17,6 @@ func (r *HorizontalAutoscaler) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *HorizontalAutoscaler) ValidateUpdate(old runtime.Object) error {
-	horizontalautoscalerlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
 	return nil
@@ -26,7 +24,6 @@ func (r *HorizontalAutoscaler) ValidateUpdate(old runtime.Object) error {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *HorizontalAutoscaler) ValidateDelete() error {
-	horizontalautoscalerlog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
