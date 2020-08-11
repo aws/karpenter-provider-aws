@@ -19,8 +19,6 @@ package v1alpha1
 import (
 	v2beta2 "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
@@ -211,17 +209,4 @@ type HorizontalAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HorizontalAutoscaler `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&HorizontalAutoscaler{}, &HorizontalAutoscalerList{})
-}
-
-// log is for logging in this package.
-var horizontalautoscalerlog = logf.Log.WithName("horizontalautoscaler-resource")
-
-func (r *HorizontalAutoscaler) SetupWebhookWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewWebhookManagedBy(mgr).
-		For(r).
-		Complete()
 }
