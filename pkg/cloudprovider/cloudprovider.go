@@ -11,6 +11,6 @@ type NodeGroup interface {
 	// Name returns the name of the node group
 	Name() string
 
-	// SetReplicas sets the MachineDeployment's replica count
+	// SetReplicas sets the NodeGroups's replica count
 	SetReplicas(value int) error
 }
