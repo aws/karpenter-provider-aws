@@ -8,7 +8,7 @@ COPY go.mod  go.mod
 COPY go.sum  go.sum
 
 # Build src
-RUN go mod download
+RUN GOPROXY=direct go mod download
 RUN go build -o karpenter ./cmd
 
 # Copy to slim image
