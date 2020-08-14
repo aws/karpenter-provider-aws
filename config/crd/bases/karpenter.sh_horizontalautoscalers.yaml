@@ -36,7 +36,7 @@ spec:
           description: HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
             This enables parity of functionality between Pod and Node autoscaling,
             with a few minor differences. 1. ObjectSelector is replaced by NodeSelector.
-            2. Metrics.PodsMetricSelector is replaced by the more generic ReplicaMetricSelector.
+            2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
           properties:
             behavior:
               description: Behavior configures the scaling behavior of the target
@@ -573,7 +573,7 @@ spec:
                 type: string
               description: NodeLabelSelector identifies Nodes, which in turn identify
                 NodeGroups controlled by this scale policy. NodeGroup and Provider
-                are identified from node.providerId and node.metadata.labels["NGName"].
+                are identified from node.providerId and node.metadata.labels["k8s.amazonaws.com/node-group"]=node-group-arn.
               type: object
           required:
           - maxReplicas
