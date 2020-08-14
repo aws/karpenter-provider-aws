@@ -42,7 +42,7 @@ undeploy: manifests
 	kustomize build config/default | kubectl delete -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
+manifests:
 	controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
@@ -54,7 +54,7 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen
+generate:
 	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
