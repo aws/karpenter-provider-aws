@@ -12,4 +12,9 @@ To build Karpenter from source, please first install the following:
 3. [kubebuilder](https://book.kubebuilder.io/quick-start.html#installation)
 
 ## Install
-TODO
+
+After installing the dependencies from the previous section, build the software:
+
+```bash
+make
+```
