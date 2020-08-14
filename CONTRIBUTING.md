@@ -10,3 +10,8 @@ To build Karpenter from source, please first install the following:
         go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5
         rm -rf $CONTROLLER_GEN_TMP_DIR
 
+After installing the dependencies from the previous section, as well as those in the [README](README.md), you should be able to build the software:
+
+```bash
+make
+```

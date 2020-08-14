@@ -5,21 +5,10 @@ Karpenter is a Cluster Autoscaling solution optimized for AWS and compatible wit
 # Usage
 ## Dependencies
 
-To build Karpenter from source, please first install the following:
-
 1. [go v1.14.4+](https://golang.org/dl/)
-2. [kubebuilder dependencies](https://book.kubebuilder.io/quick-start.html#prerequisites)
-3. [kubebuilder](https://book.kubebuilder.io/quick-start.html#installation)
+2. [docker](https://docs.docker.com/install/)
 
 ## Install
-
-After installing the dependencies from the previous section, build the software:
-
-```bash
-make
-```
-
-## Build and Push Docker Image
 
 Make sure you have set `KO_DOCKER_REPO` before running the following commands:
 
