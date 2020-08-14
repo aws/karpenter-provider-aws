@@ -19,7 +19,8 @@ package main
 import (
 	"flag"
 
-	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis"
+	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,7 +37,7 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = karpenterv1alpha1.AddToScheme(scheme)
+	_ = apis.AddToScheme(scheme)
 }
 
 // Options for running this binary

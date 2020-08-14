@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/karpenter.sh_horizontalautoscalers.yaml
+- bases/karpenter.sh_scalablenodegroups.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

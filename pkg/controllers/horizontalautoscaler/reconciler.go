@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/ellistarn/karpenter/pkg/api/v1alpha1"
+	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
