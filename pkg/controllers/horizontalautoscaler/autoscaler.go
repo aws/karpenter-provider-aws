@@ -3,7 +3,7 @@ package horizontalautoscaler
 import (
 	"fmt"
 
-	"github.com/ellistarn/karpenter/pkg/api/v1alpha1"
+	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	cloudprovider "github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
 )

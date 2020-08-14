@@ -1,0 +1,28 @@
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: default-asg
+spec:
+  scaleTargetRef:
+    apiVersion: karpenter.sh/v1alpha1
+    kind: ScalableNodeGroup
+    name: default-asg
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+---
+apiVersion: karpenter.sh/v1alpha1
+kind: ScalableNodeGroup
+metadata:
+  name: default-asg
+spec:
+  type: AWSEC2AutoScalingGroup
+  minReplicas: 1
+  maxReplicas: 10

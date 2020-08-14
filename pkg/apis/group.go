@@ -14,10 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the karpenter v1alpha1 API group
-// +kubebuilder:object:generate=true
-// +groupName=karpenter.sh
-package v1alpha1
+package apis
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,7 +31,3 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
-
-func init() {
-	SchemeBuilder.Register(&HorizontalAutoscaler{}, &HorizontalAutoscalerList{})
-}

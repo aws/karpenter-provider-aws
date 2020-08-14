@@ -14,9 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package v1alpha1 holds definitions for HorizontalAutoscaler
+// +kubebuilder:object:generate=true
+// +groupName=karpenter.sh
 package v1alpha1
 
 import (
+	"github.com/ellistarn/karpenter/pkg/apis"
 	v2beta2 "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -209,4 +213,8 @@ type HorizontalAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HorizontalAutoscaler `json:"items"`
+}
+
+func init() {
+	apis.SchemeBuilder.Register(&HorizontalAutoscaler{}, &HorizontalAutoscalerList{})
 }
