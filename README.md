@@ -4,6 +4,20 @@ Karpenter is a Cluster Autoscaling solution optimized for AWS and compatible wit
 ![](./docs/logo.jpeg)
 # Usage
 ## Dependencies
-TODO
+
+1. [go v1.14.4+](https://golang.org/dl/)
+2. [docker](https://docs.docker.com/install/)
+
 ## Install
-TODO
+
+Make sure you have set `KO_DOCKER_REPO` before running the following commands:
+
+```bash
+make docker-release
+```
+
+If the above works, then you can deploy to your Kubernetes cluster:
+
+```bash
+make deploy 
+```

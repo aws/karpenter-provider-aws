@@ -59,14 +59,14 @@ type HorizontalAutoscalerSpec struct {
 // HorizontalAutoscalerBehavior configures the scaling behavior of the target
 // in both Up and Down directions (scaleUp and scaleDown fields respectively).
 type HorizontalAutoscalerBehavior struct {
-	// scaleUp is scaling policy for scaling Up.
+	// ScaleUp is scaling policy for scaling Up.
 	// If not set, the default value is the higher of:
 	//   * increase no more than 4 replicas per 60 seconds
 	//   * double the number of replicas per 60 seconds
 	// No stabilization is used.
 	// +optional
 	ScaleUp *ScalingRules `json:"scaleUp,omitempty"`
-	// scaleDown is scaling policy for scaling Down.
+	// ScaleDown is scaling policy for scaling Down.
 	// If not set, the default value is to allow to scale down to minReplicas, with a
 	// 300 second stabilization window (i.e., the highest recommendation for
 	// the last 300sec is used).

@@ -36,7 +36,7 @@ spec:
           description: HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
             This enables parity of functionality between Pod and Node autoscaling,
             with a few minor differences. 1. ObjectSelector is replaced by NodeSelector.
-            2. Metrics.PodsMetricSelector is replaced by the more generic ReplicaMetricSelector.
+            2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
           properties:
             behavior:
               description: Behavior configures the scaling behavior of the target
@@ -45,7 +45,7 @@ spec:
                 used.
               properties:
                 scaleDown:
-                  description: scaleDown is scaling policy for scaling Down. If not
+                  description: ScaleDown is scaling policy for scaling Down. If not
                     set, the default value is to allow to scale down to minReplicas,
                     with a 300 second stabilization window (i.e., the highest recommendation
                     for the last 300sec is used).
@@ -98,7 +98,7 @@ spec:
                       type: integer
                   type: object
                 scaleUp:
-                  description: 'scaleUp is scaling policy for scaling Up. If not set,
+                  description: 'ScaleUp is scaling policy for scaling Up. If not set,
                     the default value is the higher of:   * increase no more than
                     4 replicas per 60 seconds   * double the number of replicas per
                     60 seconds No stabilization is used.'
@@ -573,7 +573,7 @@ spec:
                 type: string
               description: NodeLabelSelector identifies Nodes, which in turn identify
                 NodeGroups controlled by this scale policy. NodeGroup and Provider
-                are identified from node.providerId and node.metadata.labels["NGName"].
+                are identified from node.providerId and node.metadata.labels["k8s.amazonaws.com/node-group"]=node-group-arn.
               type: object
           required:
           - maxReplicas
