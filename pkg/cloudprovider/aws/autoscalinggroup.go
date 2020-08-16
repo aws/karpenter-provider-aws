@@ -18,6 +18,7 @@ type AutoScalingGroup struct {
 
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
 	sess := session.Must(session.NewSession())
+	//svc := autoscaling.New(sess, aws.NewConfig().WithRegion("us-west-2"))
 	svc := autoscaling.New(sess)
 	return NewAutoScalingGroup(svc, name), nil
 }
@@ -37,9 +38,10 @@ func (asg *AutoScalingGroup) Name() string {
 func (asg *AutoScalingGroup) SetReplicas(value int) error {
 	newSize := aws.Int64(int64(value))
 	_, err := asg.client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		MaxSize:         newSize,
-		MinSize:         newSize,
-		DesiredCapacity: newSize,
+		AutoScalingGroupName: aws.String(asg.name),
+		MaxSize:              newSize,
+		MinSize:              newSize,
+		DesiredCapacity:      newSize,
 	})
 	return err
 }
