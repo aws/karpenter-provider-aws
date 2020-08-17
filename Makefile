@@ -55,7 +55,7 @@ vet:
 
 # Generate code
 generate:
-	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./pkg/apis/..."
 
 # Build the docker image
 docker-build:
