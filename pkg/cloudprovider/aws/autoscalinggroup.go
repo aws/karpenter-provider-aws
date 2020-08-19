@@ -4,6 +4,7 @@ import (
 	//"context"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	//	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -14,6 +15,16 @@ import (
 type AutoScalingGroup struct {
 	name   string
 	client autoscalingiface.AutoScalingAPI
+}
+
+type AutoScalingGroupIdentifier string
+
+func (a AutoScalingGroupIdentifier) GroupName() string {
+	return string(a)
+}
+
+func (a AutoScalingGroupIdentifier) ClusterName() *string {
+	return nil
 }
 
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
@@ -30,8 +41,8 @@ func NewAutoScalingGroup(svc autoscalingiface.AutoScalingAPI, name string) *Auto
 }
 
 // Name returns the name of the node group
-func (asg *AutoScalingGroup) Name() string {
-	return asg.name
+func (asg *AutoScalingGroup) Id() cloudprovider.NodeGroupIdentifier {
+	return AutoScalingGroupIdentifier(asg.name)
 }
 
 // SetReplicas sets the NodeGroups's replica count
