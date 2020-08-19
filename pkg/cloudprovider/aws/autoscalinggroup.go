@@ -14,6 +14,12 @@ type AutoScalingGroup struct {
 	client autoscalingiface.AutoScalingAPI
 }
 
+func NewAutoScalingGroup(svc autoscalingiface.AutoScalingAPI, name string) *AutoScalingGroup {
+	return &AutoScalingGroup{name: name,
+		client: svc,
+	}
+}
+
 type AutoScalingGroupIdentifier string
 
 func (a AutoScalingGroupIdentifier) GroupName() string {
@@ -28,12 +34,6 @@ func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) 
 	sess := session.Must(session.NewSession())
 	svc := autoscaling.New(sess)
 	return NewAutoScalingGroup(svc, name), nil
-}
-
-func NewAutoScalingGroup(svc autoscalingiface.AutoScalingAPI, name string) *AutoScalingGroup {
-	return &AutoScalingGroup{name: name,
-		client: svc,
-	}
 }
 
 // Name returns the name of the node group
