@@ -1,14 +1,11 @@
 package aws
 
 import (
-	//"context"
-
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	//	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
@@ -29,7 +26,6 @@ func (a AutoScalingGroupIdentifier) ClusterName() *string {
 
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
 	sess := session.Must(session.NewSession())
-	//svc := autoscaling.New(sess, aws.NewConfig().WithRegion("us-west-2"))
 	svc := autoscaling.New(sess)
 	return NewAutoScalingGroup(svc, name), nil
 }
