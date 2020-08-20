@@ -9,17 +9,17 @@ import (
 
 type mockedUpdateManagedNodeGroup struct {
 	eksiface.EKSAPI
-	Resp  eks.UpdateNodegroupConfigOutput
-	Error error
+	Output eks.UpdateNodegroupConfigOutput
+	Error  error
 }
 
 func (m mockedUpdateManagedNodeGroup) UpdateNodegroupConfig(*eks.UpdateNodegroupConfigInput) (*eks.UpdateNodegroupConfigOutput, error) {
-	return &m.Resp, m.Error
+	return &m.Output, m.Error
 }
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	client := mockedUpdateManagedNodeGroup{
-		Resp: eks.UpdateNodegroupConfigOutput{},
+		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
 		Client: client,
