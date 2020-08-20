@@ -23,8 +23,8 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 		Error: nil,
 	}
 	asg := &AutoScalingGroup{
-		Client: client,
-		Name:   "spatula",
+		Client:    client,
+		GroupName: "spatula",
 	}
 	err := asg.SetReplicas(23)
 	if err != nil {

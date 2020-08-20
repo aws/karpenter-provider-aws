@@ -11,14 +11,14 @@ import (
 type AutoScalingGroupProvider struct {
 }
 
-func (a *AutoScalingGroupProvider) NewNodeGroup(id cloudprovider.NodeGroupIdentifier) (cloudprovider.NodeGroup, error) {
-	return NewDefaultAutoScalingGroup(id.GroupName())
+func (a *AutoScalingGroupProvider) NewNodeGroup(name string) (cloudprovider.NodeGroup, error) {
+	return NewDefaultAutoScalingGroup(name)
 }
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
 type AutoScalingGroup struct {
-	Name   string
-	Client autoscalingiface.AutoScalingAPI
+	GroupName string
+	Client    autoscalingiface.AutoScalingAPI
 }
 
 type AutoScalingGroupIdentifier string
@@ -33,20 +33,20 @@ func (a AutoScalingGroupIdentifier) ClusterName() *string {
 
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
 	return &AutoScalingGroup{
-		Name:   name,
-		Client: autoscaling.New(session.Must(session.NewSession())),
+		GroupName: name,
+		Client:    autoscaling.New(session.Must(session.NewSession())),
 	}, nil
 }
 
 // Name returns the name of the node group
-func (asg *AutoScalingGroup) Id() cloudprovider.NodeGroupIdentifier {
-	return AutoScalingGroupIdentifier(asg.Name)
+func (asg *AutoScalingGroup) Name() string {
+	return asg.GroupName
 }
 
 // SetReplicas sets the NodeGroups's replica count
 func (asg *AutoScalingGroup) SetReplicas(value int) error {
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.Name),
+		AutoScalingGroupName: aws.String(asg.GroupName),
 		DesiredCapacity:      aws.Int64(int64(value)),
 	})
 	return err

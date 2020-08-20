@@ -47,7 +47,7 @@ func (a *Autoscaler) CalculateDesiredReplicas(metrics map[string]string) (int, e
 func (a *Autoscaler) SetReplicas(replicas int) error {
 	zap.S().Infof("Setting desired replicas of %s to %d.", a.HorizontalAutoscaler.ObjectMeta.SelfLink, 0)
 	if err := a.NodeGroup.SetReplicas(replicas); err != nil {
-		return fmt.Errorf("while setting replicas on node group %s, %v", a.NodeGroup.Id().GroupName(), err)
+		return fmt.Errorf("while setting replicas on node group %s, %v", a.NodeGroup.Name(), err)
 	}
 	return nil
 }

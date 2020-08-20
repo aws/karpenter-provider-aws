@@ -22,11 +22,9 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client: client,
-		Ident: ManagedNodeGroupIdentifier{
-			Name:    "spatula",
-			Cluster: "dog",
-		},
+		Client:      client,
+		ClusterName: "spatula",
+		GroupName:   "dog",
 	}
 	got := asg.SetReplicas(23)
 	if got != nil {

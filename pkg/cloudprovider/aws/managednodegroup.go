@@ -9,45 +9,32 @@ import (
 )
 
 type ManagedNodeGroupProvider struct {
+	ClusterName string
 }
 
-func (m *ManagedNodeGroupProvider) NewNodeGroup(id cloudprovider.NodeGroupIdentifier) (cloudprovider.NodeGroup, error) {
-	return NewDefaultAutoScalingGroup(id.GroupName())
+func (m *ManagedNodeGroupProvider) NewNodeGroup(name string) (cloudprovider.NodeGroup, error) {
+	return NewDefaultManagedNodeGroup(name, m.ClusterName)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	Client eksiface.EKSAPI
-	Ident  ManagedNodeGroupIdentifier
+	Client      eksiface.EKSAPI
+	GroupName   string
+	ClusterName string
 }
 
-type ManagedNodeGroupIdentifier struct {
-	Name    string
-	Cluster string
-}
-
-func (m ManagedNodeGroupIdentifier) GroupName() string {
-	return m.Name
-}
-
-func (m ManagedNodeGroupIdentifier) ClusterName() *string {
-	return &m.Cluster
-}
-
-func NewDefaultManagedNodeGroup(name string, cluster string) (mng *ManagedNodeGroup, err error) {
+func NewDefaultManagedNodeGroup(name string, clusterName string) (mng *ManagedNodeGroup, err error) {
 	return &ManagedNodeGroup{
-		Client: eks.New(session.Must(session.NewSession())),
-		Ident: ManagedNodeGroupIdentifier{
-			Name:    name,
-			Cluster: cluster,
-		},
+		Client:      eks.New(session.Must(session.NewSession())),
+		GroupName:   name,
+		ClusterName: clusterName,
 	}, nil
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
-		ClusterName:   aws.String(mng.Ident.Cluster),
-		NodegroupName: aws.String(mng.Ident.Name),
+		ClusterName:   aws.String(mng.ClusterName),
+		NodegroupName: aws.String(mng.GroupName),
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: aws.Int64(int64(value)),
 		},
@@ -55,6 +42,6 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	return err
 }
 
-func (mng *ManagedNodeGroup) Id() cloudprovider.NodeGroupIdentifier {
-	return mng.Id()
+func (mng *ManagedNodeGroup) Name() string {
+	return mng.GroupName
 }
