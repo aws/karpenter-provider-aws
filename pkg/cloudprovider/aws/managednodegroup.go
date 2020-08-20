@@ -8,6 +8,13 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
+type ManagedNodeGroupProvider struct {
+}
+
+func (m *ManagedNodeGroupProvider) NewNodeGroup(id cloudprovider.NodeGroupIdentifier) (cloudprovider.NodeGroup, error) {
+	return NewDefaultAutoScalingGroup(id.GroupName())
+}
+
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
 	Client eksiface.EKSAPI

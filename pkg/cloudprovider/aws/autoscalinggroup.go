@@ -8,6 +8,13 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
+type AutoScalingGroupProvider struct {
+}
+
+func (a *AutoScalingGroupProvider) NewNodeGroup(id cloudprovider.NodeGroupIdentifier) (cloudprovider.NodeGroup, error) {
+	return NewDefaultAutoScalingGroup(id.GroupName())
+}
+
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
 type AutoScalingGroup struct {
 	Name   string
