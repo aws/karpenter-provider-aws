@@ -11,7 +11,7 @@ import (
 type AutoScalingGroupProvider struct {
 }
 
-func (a *AutoScalingGroupProvider) NewNodeGroup(name string) (cloudprovider.NodeGroup, error) {
+func (a *AutoScalingGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
 	return NewDefaultAutoScalingGroup(name)
 }
 
@@ -27,11 +27,11 @@ func (a AutoScalingGroupIdentifier) GroupName() string {
 	return string(a)
 }
 
-func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
+func NewDefaultAutoScalingGroup(name string) *AutoScalingGroup {
 	return &AutoScalingGroup{
 		GroupName: name,
 		Client:    autoscaling.New(session.Must(session.NewSession())),
-	}, nil
+	}
 }
 
 // Name returns the name of the node group
