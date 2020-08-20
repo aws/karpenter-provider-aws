@@ -41,8 +41,6 @@ func (asg *AutoScalingGroup) SetReplicas(value int) error {
 	newSize := aws.Int64(int64(value))
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.Name),
-		MaxSize:              newSize,
-		MinSize:              newSize,
 		DesiredCapacity:      newSize,
 	})
 	return err

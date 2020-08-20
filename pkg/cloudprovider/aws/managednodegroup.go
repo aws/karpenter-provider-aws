@@ -44,8 +44,6 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 		NodegroupName: aws.String(mng.Ident.Name),
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: newSize,
-			MinSize:     newSize,
-			MaxSize:     newSize,
 		},
 	})
 	return err
