@@ -23,8 +23,7 @@ func (m mockedUpdateManagedNodeGroup) UpdateNodegroupConfig(*eks.UpdateNodegroup
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	client := mockedUpdateManagedNodeGroup{
-		Resp:  eks.UpdateNodegroupConfigOutput{},
-		Error: nil,
+		Resp: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := NewManagedNodeGroup(client, "spatula", "dog")
 	err := asg.SetReplicas(23)

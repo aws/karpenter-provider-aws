@@ -1,18 +1,11 @@
 package aws
 
 import (
-	//"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-
-	//"context"
-
-	//"github.com/aws/aws-sdk-go/aws"
-	//	"github.com/aws/aws-sdk-go/aws/awserr"
-	//	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
