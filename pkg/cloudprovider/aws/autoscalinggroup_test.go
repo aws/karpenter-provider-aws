@@ -14,11 +14,7 @@ type mockedUpdateAutoScalingGroup struct {
 }
 
 func (m mockedUpdateAutoScalingGroup) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
-	if m.Error != nil {
-		return nil, m.Error
-	} else {
-		return &m.Resp, nil
-	}
+	return &m.Resp, m.Error
 }
 
 func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
