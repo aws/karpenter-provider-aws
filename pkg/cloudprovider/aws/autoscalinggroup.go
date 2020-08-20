@@ -27,10 +27,6 @@ func (a AutoScalingGroupIdentifier) GroupName() string {
 	return string(a)
 }
 
-func (a AutoScalingGroupIdentifier) ClusterName() *string {
-	return nil
-}
-
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
 	return &AutoScalingGroup{
 		GroupName: name,
