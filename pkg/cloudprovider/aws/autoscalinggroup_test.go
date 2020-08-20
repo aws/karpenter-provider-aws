@@ -26,7 +26,10 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 		Resp:  autoscaling.UpdateAutoScalingGroupOutput{},
 		Error: nil,
 	}
-	asg := NewAutoScalingGroup(client, "spatula")
+	asg := &AutoScalingGroup{
+		Client: client,
+		Name:   "spatula",
+	}
 	err := asg.SetReplicas(23)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
