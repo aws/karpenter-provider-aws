@@ -25,7 +25,13 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	client := mockedUpdateManagedNodeGroup{
 		Resp: eks.UpdateNodegroupConfigOutput{},
 	}
-	asg := NewManagedNodeGroup(client, "spatula", "dog")
+	asg := &ManagedNodeGroup{
+		Client: client,
+		Ident: ManagedNodeGroupIdentifier{
+			Name:    "spatula",
+			Cluster: "dog",
+		},
+	}
 	err := asg.SetReplicas(23)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

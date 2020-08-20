@@ -10,44 +10,40 @@ import (
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	client eksiface.EKSAPI
-	id     ManagedNodeGroupIdentifier
+	Client eksiface.EKSAPI
+	Ident  ManagedNodeGroupIdentifier
 }
 
 type ManagedNodeGroupIdentifier struct {
-	name    string
-	cluster string
+	Name    string
+	Cluster string
 }
 
 func (m ManagedNodeGroupIdentifier) GroupName() string {
-	return m.name
+	return m.Name
 }
 
 func (m ManagedNodeGroupIdentifier) ClusterName() *string {
-	return &m.cluster
-}
-
-func NewManagedNodeGroup(svc eksiface.EKSAPI, name string, cluster string) *ManagedNodeGroup {
-	return &ManagedNodeGroup{
-		client: svc,
-		id: ManagedNodeGroupIdentifier{
-			name:    name,
-			cluster: cluster,
-		},
-	}
+	return &m.Cluster
 }
 
 func NewDefaultManagedNodeGroup(name string, cluster string) (mng *ManagedNodeGroup, err error) {
 	sess := session.Must(session.NewSession())
-	svc := eks.New(sess)
-	return &ManagedNodeGroup{client: svc, id: ManagedNodeGroupIdentifier{name: name, cluster: cluster}}, nil
+	client := eks.New(sess)
+	return &ManagedNodeGroup{
+		Client: client,
+		Ident: ManagedNodeGroupIdentifier{
+			Name:    name,
+			Cluster: cluster,
+		},
+	}, nil
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	newSize := aws.Int64(int64(value))
-	_, err := mng.client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
-		ClusterName:   aws.String(mng.id.cluster),
-		NodegroupName: aws.String(mng.id.name),
+	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+		ClusterName:   aws.String(mng.Ident.Cluster),
+		NodegroupName: aws.String(mng.Ident.Name),
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: newSize,
 			MinSize:     newSize,
