@@ -12,7 +12,7 @@ type ManagedNodeGroupProvider struct {
 	ClusterName string
 }
 
-func (m *ManagedNodeGroupProvider) NewNodeGroup(name string) (cloudprovider.NodeGroup, error) {
+func (m *ManagedNodeGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
 	return NewDefaultManagedNodeGroup(name, m.ClusterName)
 }
 
@@ -23,12 +23,12 @@ type ManagedNodeGroup struct {
 	ClusterName string
 }
 
-func NewDefaultManagedNodeGroup(name string, clusterName string) (mng *ManagedNodeGroup, err error) {
+func NewDefaultManagedNodeGroup(name string, clusterName string) *ManagedNodeGroup {
 	return &ManagedNodeGroup{
 		Client:      eks.New(session.Must(session.NewSession())),
 		GroupName:   name,
 		ClusterName: clusterName,
-	}, nil
+	}
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {

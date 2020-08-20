@@ -3,7 +3,7 @@ package cloudprovider
 // CloudProvider abstracts all instantiation logic.
 type CloudProvider interface {
 	// NewNodeGroup returns a new NodeGroup for the CloudProvider
-	NewNodeGroup(name string) (NodeGroup, error)
+	NewNodeGroup(name string) NodeGroup
 }
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
