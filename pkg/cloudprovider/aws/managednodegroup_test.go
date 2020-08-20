@@ -28,7 +28,8 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 			Cluster: "dog",
 		},
 	}
-	if err := asg.SetReplicas(23); err != nil {
-		t.Errorf("unexpected error: %v", err)
+	got := asg.SetReplicas(23)
+	if got != nil {
+		t.Errorf("SetReplicas(23) = %v; want nil", got)
 	}
 }
