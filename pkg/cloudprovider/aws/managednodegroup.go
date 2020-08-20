@@ -38,12 +38,11 @@ func NewDefaultManagedNodeGroup(name string, cluster string) (mng *ManagedNodeGr
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
-	newSize := aws.Int64(int64(value))
 	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   aws.String(mng.Ident.Cluster),
 		NodegroupName: aws.String(mng.Ident.Name),
 		ScalingConfig: &eks.NodegroupScalingConfig{
-			DesiredSize: newSize,
+			DesiredSize: aws.Int64(int64(value)),
 		},
 	})
 	return err
