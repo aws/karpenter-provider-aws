@@ -28,10 +28,8 @@ func (m ManagedNodeGroupIdentifier) ClusterName() *string {
 }
 
 func NewDefaultManagedNodeGroup(name string, cluster string) (mng *ManagedNodeGroup, err error) {
-	sess := session.Must(session.NewSession())
-	client := eks.New(sess)
 	return &ManagedNodeGroup{
-		Client: client,
+		Client: eks.New(session.Must(session.NewSession())),
 		Ident: ManagedNodeGroupIdentifier{
 			Name:    name,
 			Cluster: cluster,

@@ -25,11 +25,9 @@ func (a AutoScalingGroupIdentifier) ClusterName() *string {
 }
 
 func NewDefaultAutoScalingGroup(name string) (asg *AutoScalingGroup, err error) {
-	sess := session.Must(session.NewSession())
-	client := autoscaling.New(sess)
 	return &AutoScalingGroup{
 		Name:   name,
-		Client: client,
+		Client: autoscaling.New(session.Must(session.NewSession())),
 	}, nil
 }
 

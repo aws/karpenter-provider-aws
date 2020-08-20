@@ -14,11 +14,7 @@ type mockedUpdateManagedNodeGroup struct {
 }
 
 func (m mockedUpdateManagedNodeGroup) UpdateNodegroupConfig(*eks.UpdateNodegroupConfigInput) (*eks.UpdateNodegroupConfigOutput, error) {
-	if m.Error != nil {
-		return nil, m.Error
-	} else {
-		return &m.Resp, nil
-	}
+	return &m.Resp, m.Error
 }
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
@@ -32,8 +28,7 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 			Cluster: "dog",
 		},
 	}
-	err := asg.SetReplicas(23)
-	if err != nil {
+	if err := asg.SetReplicas(23); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
