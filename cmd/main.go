@@ -22,6 +22,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis"
 	karpenterv1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler"
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -45,18 +46,22 @@ type Options struct {
 	EnableLeaderElection bool
 	EnableWebhook        bool
 	EnableReconciler     bool
+	EnableVerboseLogging bool
 	MetricsAddr          string
 }
 
 func main() {
 	options := Options{}
-	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&options.EnableLeaderElection, "enable-leader-election", true, "Enable leader election for this controller.")
 	flag.BoolVar(&options.EnableWebhook, "enable-webhook", true, "Enable webhook for this controller.")
 	flag.BoolVar(&options.EnableReconciler, "enable-reconciler", true, "Enable reconciler for this controller.")
+	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
+	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
 
-	controllerruntime.SetLogger(controllerruntimezap.New(controllerruntimezap.UseDevMode(true)))
+	logger := controllerruntimezap.NewRaw(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
+	controllerruntime.SetLogger(zapr.NewLogger(logger))
+	zap.ReplaceGlobals(logger)
 
 	manager, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		Scheme:             scheme,
@@ -66,7 +71,7 @@ func main() {
 		LeaderElectionID:   "karpenter-leader-election",
 	})
 	if err != nil {
-		zap.S().Fatalf("Unable to start manager, %v")
+		zap.S().Fatalf("Unable to start controller manager, %v", err)
 	}
 
 	resource := &karpenterv1alpha1.HorizontalAutoscaler{}

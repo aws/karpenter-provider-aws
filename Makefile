@@ -19,7 +19,7 @@ test: generate fmt vet manifests
 
 # Build controller binary
 build: generate fmt vet
-	go build -o bin/manager cmd/main.go
+	go build -o bin/karpenter cmd/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
