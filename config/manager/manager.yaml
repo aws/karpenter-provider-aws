@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - command:
-        - /manager
+        - /karpenter
         image: controller:latest
         name: manager
         resources:
