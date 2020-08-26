@@ -12,7 +12,7 @@ RUN GOPROXY=direct go mod download
 RUN go build -o karpenter ./cmd
 
 # Copy to slim image
-FROM gcr.io/distroless/static:latest
+FROM gcr.io/distroless/base:latest
 WORKDIR /
 COPY --from=builder /go/src/github.com/ellistarn/karpenter .
 ENTRYPOINT ["/karpenter"]
