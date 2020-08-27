@@ -30,9 +30,10 @@ import (
 // 1. ObjectSelector is replaced by NodeSelector.
 // 2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
 type HorizontalAutoscalerSpec struct {
-	// NodeLabelSelector identifies Nodes, which in turn identify NodeGroups controlled by this scale policy.
-	// NodeGroup and Provider are identified from node.providerId and node.metadata.labels["k8s.amazonaws.com/node-group"]=node-group-arn.
-	NodeLabelSelector map[string]string `json:"selector"`
+	// ScaleTargetRef points to the target resource to scale and is use to identify replicas
+	// for which metrics should be collected should be collected, as well as to actually change the replica count.
+	ScaleTargetRef v2beta2.CrossVersionObjectReference `json:"scaleTargetRef"`
+
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler
 	// can scale down.  It defaults to 1.  minReplicas is allowed to be 0 if the
 	// alpha feature gate HPAScaleToZero is enabled and at least one Object or External
@@ -132,70 +133,23 @@ type Metrics struct {
 	// type is the type of metric source.  It should be one of "Object",
 	// "Replicas" or "Resource", each mapping to a matching field in the object.
 	Type MetricSourceType `json:"type"`
-
-	// replicas refers to a metric describing each replica in the current scale target
-	// (for example, transactions-processed-per-second).  The values will be
-	// averaged together before being compared to the target value.
 	// +optional
-	Replicas *ReplicaMetricSource `json:"replicas,omitempty"`
+	Prometheus *PrometheusMetricSource `json:"prometheus,omitempty"`
+}
 
-	// resource refers to a resource metric (such as those specified in
-	// requests and limits) known to Kubernetes describing each replica in the
-	// current scale target (e.g. CPU or memory). Such metrics are built in to
-	// Kubernetes, and have special scaling options on top of those available
-	// to normal per-replica metrics using the "replicas" source.
-	// +optional
-	Resource *v2beta2.ResourceMetricSource `json:"resource,omitempty"`
-
-	// object refers to a metric describing a single kubernetes object
-	// (for example, hits-per-second on an Ingress object).
-	// +optional
-	Object *v2beta2.ObjectMetricSource `json:"object,omitempty"`
-
-	// external refers to a global metric that is not associated
-	// with any Kubernetes object. It allows autoscaling based on information
-	// coming from components running outside of cluster
-	// (for example length of queue in cloud messaging service, or
-	// QPS from loadbalancer running outside of cluster).
-	// +optional
-	External *v2beta2.ExternalMetricSource `json:"external,omitempty"`
+// PrometheusMetricSource defines a metric in Prometheus
+type PrometheusMetricSource struct {
+	Query  string               `json:"query"`
+	Target v2beta2.MetricTarget `json:"target"`
 }
 
 // MetricSourceType indicates the type of metric.
 type MetricSourceType string
 
+// MetricSourceType enum definition
 const (
-	// ObjectMetricSourceType is a metric describing a kubernetes object
-	// (for example, hits-per-second on an Ingress object).
-	ObjectMetricSourceType MetricSourceType = "Object"
-	// ReplicaMetricSourceType is a metric describing each replica in the current scale
-	// target (for example, transactions-processed-per-second).  The values
-	// will be averaged together before being compared to the target value.
-	ReplicaMetricSourceType MetricSourceType = "Replicas"
-	// ResourceMetricSourceType is a resource metric known to Kubernetes, as
-	// specified in requests and limits, describing each replica in the current
-	// scale target (e.g. CPU or memory).  Such metrics are built in to
-	// Kubernetes, and have special scaling options on top of those available
-	// to normal per-replica metrics (the "replicas" source).
-	ResourceMetricSourceType MetricSourceType = "Resource"
-	// ExternalMetricSourceType is a global metric that is not associated
-	// with any Kubernetes object. It allows autoscaling based on information
-	// coming from components running outside of cluster
-	// (for example length of queue in cloud messaging service, or
-	// QPS from loadbalancer running outside of cluster).
-	ExternalMetricSourceType MetricSourceType = "External"
+	PrometheusMetricSourceType MetricSourceType = "PrometheusMetricSourceType"
 )
-
-// ReplicaMetricSource indicates how to scale on a metric describing each replica in
-// the current scale target (for example, transactions-processed-per-second).
-// The values will be averaged together before being compared to the target
-// value.
-type ReplicaMetricSource struct {
-	// Metric identifies the target metric by name and selector
-	Metric v2beta2.MetricIdentifier `json:"metric"`
-	// Target specifies the target value for the given metric
-	Target v2beta2.MetricTarget `json:"target"`
-}
 
 // HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true

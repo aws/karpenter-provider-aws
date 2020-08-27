@@ -6,14 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: scalablenodegroups.karpenter.sh
+  name: MetricsProducers.karpenter.sh
 spec:
   group: karpenter.sh
   names:
-    kind: ScalableNodeGroup
-    listKind: ScalableNodeGroupList
-    plural: scalablenodegroups
-    singular: scalablenodegroup
+    kind: MetricsProducer
+    listKind: MetricsProducerList
+    plural: MetricsProducers
+    singular: MetricsProducer
   scope: Namespaced
   subresources:
     scale:
@@ -22,7 +22,7 @@ spec:
       statusReplicasPath: .status.replicas
   validation:
     openAPIV3Schema:
-      description: ScalableNodeGroup is the Schema for the ScalableNodeGroups API
+      description: MetricsProducer is the Schema for the MetricsProducers API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -37,28 +37,12 @@ spec:
         metadata:
           type: object
         spec:
-          description: ScalableNodeGroupSpec is an abstract representation for a Cloud
+          description: MetricsProducerSpec is an abstract representation for a Cloud
             Provider's Node Group. It implements https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#scale-subresource
             which enables it to be targeted by Horizontal Pod Autoscalers.
-          properties:
-            replicas:
-              description: Replicas is the desired number of replicas for the targeted
-                Node Group
-              format: int32
-              type: integer
-            type:
-              description: Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
-              type: string
-          required:
-          - type
           type: object
         status:
-          description: ScalableNodeGroupStatus holds status information for the ScalableNodeGroup
-          properties:
-            replicas:
-              description: Replicas displays the current size of the ScalableNodeGroup
-              format: int32
-              type: integer
+          description: MetricsProducerStatus holds status information for the MetricsProducer
           type: object
       type: object
   version: v1alpha1
