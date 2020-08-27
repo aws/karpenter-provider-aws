@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eu -o pipefail
 
 for i in $(find ./pkg -name *.go)  # or whatever other pattern...
 do
