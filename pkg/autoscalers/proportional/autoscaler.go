@@ -11,12 +11,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package metric
+package proportional
 
-// Metric encapsulates
-type Metric interface {
-	// TargetValue returns a statically configured value for the metric
-	Target() float64
-	// ObservedValue returns a dynamically observed value for the metric
-	Observed() float64
+import (
+	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics"
+)
+
+// Autoscaler calculates desired replicas as a simple proportion of the observed metrics.
+type Autoscaler struct {
+	Spec v1alpha1.HorizontalAutoscalerSpec
+}
+
+// GetDesiredReplicas returns the autoscalers recommendation
+func (a *Autoscaler) GetDesiredReplicas(metrics []metrics.ObservedMetric, replicas int32) int32 {
+	return replicas
 }

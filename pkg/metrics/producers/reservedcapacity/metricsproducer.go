@@ -11,7 +11,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package aws
 
-type SQSQueue struct {
+package reservedcapacity
+
+import (
+	"github.com/ellistarn/karpenter/pkg/metrics"
+	v1 "k8s.io/client-go/listers/core/v1"
+)
+
+// var _ metricsproducers.MetricsProducer = &MetricsProducer{}
+
+// MetricsProducer implements a Reserved Capacity metric
+type MetricsProducer struct {
+	Nodes v1.NodeLister
+	Pods  v1.PodLister
+}
+
+// GetCurrentValues of the metrics
+func (m *MetricsProducer) GetCurrentValues() ([]metrics.Metric, error) {
+	m.Nodes.Get("todo")
+	m.Pods.Pods("namespace").Get("name")
+	return nil, nil
 }
