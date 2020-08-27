@@ -30,8 +30,7 @@ import (
 // 1. ObjectSelector is replaced by NodeSelector.
 // 2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
 type HorizontalAutoscalerSpec struct {
-	// ScaleTargetRef points to the target resource to scale and is use to identify replicas
-	// for which metrics should be collected should be collected, as well as to actually change the replica count.
+	// ScaleTargetRef points to the target resource to scale.
 	ScaleTargetRef v2beta2.CrossVersionObjectReference `json:"scaleTargetRef"`
 
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler
