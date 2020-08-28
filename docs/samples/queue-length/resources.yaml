@@ -1,15 +1,16 @@
 apiVersion: karpenter.sh/v1alpha1
 kind: ScalableNodeGroup
 metadata:
-  name: training-capacity
+  name: ml-training-capacity
 spec:
-  type: AWSEC2AutoScalingGroup
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:1234567890:node-group:training-capacity
 ---
 apiVersion: karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
-  name: training-queue
-  namespace: alice-ml
+  name: ml-training-queue
+  namespace: alice
 spec:
   queue:
     provider: AWSSQSQueue
@@ -18,8 +19,8 @@ spec:
 apiVersion: karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
 metadata:
-  name: training-capacity-autoscaler
-  namespace: alice-ml
+  name: ml-training-capacity-autoscaler
+  namespace: alice
 spec:
   scaleTargetRef:
     apiVersion: karpenter.sh/v1alpha1
@@ -30,7 +31,7 @@ spec:
   metrics:
   - type: Prometheus
     prometheus:
-      query: karpenter:metrics_producer:queue{name="training-queue", namespace="alice-ml"}
+      query: karpenter:metrics_producer:queue{name="ml-training-queue", namespace="alice"}
       target:
         type: AverageValue
         value: 4
