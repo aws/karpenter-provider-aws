@@ -41,14 +41,6 @@ spec:
             Provider's Node Group. It implements https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#scale-subresource
             which enables it to be targeted by Horizontal Pod Autoscalers.
           properties:
-            maxReplicas:
-              description: MaxReplicas limits the maximum size of the ScalableNodeGroup
-              format: int32
-              type: integer
-            minReplicas:
-              description: MinReplicas limits the minimum size of the ScalableNodeGroup
-              format: int32
-              type: integer
             replicas:
               description: Replicas is the desired number of replicas for the targeted
                 Node Group

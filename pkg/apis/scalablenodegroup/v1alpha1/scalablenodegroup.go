@@ -27,18 +27,8 @@ import (
 type ScalableNodeGroupSpec struct {
 	// Replicas is the desired number of replicas for the targeted Node Group
 	Replicas *int32 `json:"replicas,omitempty"`
-	// MinReplicas limits the minimum size of the ScalableNodeGroup
-	MinReplicas *int32 `json:"minReplicas,omitempty"`
-	// MaxReplicas limits the maximum size of the ScalableNodeGroup
-	MaxReplicas int32 `json:"maxReplicas,omitempty"`
 	// Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
 	Type ProviderType `json:"type"`
-}
-
-// ScalableNodeGroupStatus holds status information for the ScalableNodeGroup
-type ScalableNodeGroupStatus struct {
-	// Replicas displays the current size of the ScalableNodeGroup
-	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // ProviderType refers to the implementation of the ScalableNodeGroup
