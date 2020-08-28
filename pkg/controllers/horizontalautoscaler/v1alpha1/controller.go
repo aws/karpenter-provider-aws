@@ -86,7 +86,7 @@ func (c *Controller) Start() {
 		// TODO: Use goroutines or something smarter.
 		for _, a := range c.Autoscalers {
 			if err := a.Reconcile(); err != nil {
-				zap.S().Warnf("Continuing after failing to reconcile autoscaler, %v")
+				zap.S().Warnf("Continuing after failing to reconcile autoscaler, %v", err)
 			}
 		}
 		time.Sleep(10 * time.Second)
