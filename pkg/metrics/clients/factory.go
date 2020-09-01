@@ -12,22 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pendingcapacity
+package client
 
 import (
 	"github.com/ellistarn/karpenter/pkg/metrics"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"github.com/ellistarn/karpenter/pkg/metrics/clients/prometheus"
 )
 
-// MetricsProducer implements a Pending Capacity metric
-type MetricsProducer struct {
-	Nodes v1.NodeLister
-	Pods  v1.PodLister
+// MetricsClientFactory instantiates metrics clients
+type MetricsClientFactory struct {
 }
 
-// GetCurrentValues of the metrics
-func (m *MetricsProducer) GetCurrentValues() ([]metrics.Metric, error) {
-	m.Nodes.Get("todo")
-	m.Pods.Pods("namespace").Get("name")
-	return nil, nil
+// NewPrometheusMetricsClient instantiates a metrics producer
+func (m *MetricsClientFactory) NewPrometheusMetricsClient() metrics.Client {
+	return &prometheus.Client{}
 }

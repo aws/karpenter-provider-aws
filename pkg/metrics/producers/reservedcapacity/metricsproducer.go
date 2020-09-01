@@ -19,8 +19,6 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 )
 
-// var _ metricsproducers.MetricsProducer = &MetricsProducer{}
-
 // MetricsProducer implements a Reserved Capacity metric
 type MetricsProducer struct {
 	Nodes v1.NodeLister

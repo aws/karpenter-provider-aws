@@ -12,22 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pendingcapacity
+package prometheus
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 )
 
-// MetricsProducer implements a Pending Capacity metric
-type MetricsProducer struct {
-	Nodes v1.NodeLister
-	Pods  v1.PodLister
+// Client is a metrics client for Prometheus
+type Client struct {
 }
 
-// GetCurrentValues of the metrics
-func (m *MetricsProducer) GetCurrentValues() ([]metrics.Metric, error) {
-	m.Nodes.Get("todo")
-	m.Pods.Pods("namespace").Get("name")
-	return nil, nil
+// GetCurrentValue for the metric
+func (c *Client) GetCurrentValue(v1alpha1.Metrics) (float64, error) {
+	return 0, nil
 }

@@ -11,7 +11,8 @@ import (
 	controllershorizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	controllersmetricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	controllersscalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/factory"
+	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -51,7 +52,7 @@ type Dependencies struct {
 	Manager                manager.Manager
 	InformerFactory        informers.SharedInformerFactory
 	Controllers            map[runtime.Object]reconcile.Reconciler
-	MetricsProducerFactory factory.MetricsProducerFactory
+	MetricsProducerFactory producers.MetricsProducerFactory
 }
 
 func main() {
@@ -139,8 +140,8 @@ func controllersOrDie() map[runtime.Object]reconcile.Reconciler {
 	return controllers
 }
 
-func metricsProducerFactoryOrDie() factory.MetricsProducerFactory {
-	return factory.MetricsProducerFactory{
+func metricsProducerFactoryOrDie() producers.MetricsProducerFactory {
+	return producers.MetricsProducerFactory{
 		InformerFactory: dependencies.InformerFactory,
 	}
 }

@@ -31,9 +31,3 @@ type ObservedMetric struct {
 	Current Metric
 	Target  Metric
 }
-
-// Producer interface for all metrics implementations
-type Producer interface {
-	// GetCurrentValues returns the current values for the set of metrics provided.
-	GetCurrentValues() ([]Metric, error)
-}
