@@ -18,7 +18,7 @@ test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
 # Build controller binary
-build: generate fmt vet
+build: generate fmt vet tidy
 	go build -o bin/karpenter cmd/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
@@ -52,6 +52,10 @@ fmt:
 # Run go vet against code
 vet:
 	go vet ./...
+
+# Tidy up modules
+tidy:
+	go mod tidy
 
 # Generate code
 generate:
