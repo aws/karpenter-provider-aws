@@ -65,13 +65,13 @@ spec:
               properties:
                 id:
                   type: string
-                provider:
-                  description: QueueProvider corresponds to an implementation of a
-                    queue
+                type:
+                  description: QueueProviderType corresponds to an implementation
+                    of a queue
                   type: string
               required:
               - id
-              - provider
+              - type
               type: object
             scheduledCapacity:
               description: ScheduledCapacitySpec outputs metrics on a schedule configured

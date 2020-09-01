@@ -231,9 +231,7 @@ spec:
               format: int32
               type: integer
             scaleTargetRef:
-              description: ScaleTargetRef points to the target resource to scale and
-                is use to identify replicas for which metrics should be collected
-                should be collected, as well as to actually change the replica count.
+              description: ScaleTargetRef points to the target resource to scale.
               properties:
                 apiVersion:
                   description: API version of the referent
