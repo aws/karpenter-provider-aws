@@ -1,0 +1,33 @@
+apiVersion: karpenter.sh/v1alpha1
+kind: ScalableNodeGroup
+metadata:
+  name: bobs-microservices
+spec:
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:1234567890:node-group:bobs-microservices
+
+---
+
+apiVersion: karpenter.sh/v1alpha1
+kind: HorizontalAutoscaler
+metadata:
+  name: bobs-microservices-autoscaler
+  namespace: bob
+spec:
+  scaleTargetRef:
+    apiVersion: karpenter.sh/v1alpha1
+    kind: ScalableNodeGroup
+    name: bobs-microservices
+  metrics:
+  - type: Prometheus
+    prometheus:
+      query: karpenter:metrics_producer:reserved_capacity{node_group="bobs-microservices", type="cpu"}
+      target:
+        type: AverageUtilization
+        value: 60
+  - type: Prometheus
+    prometheus:
+      query: karpenter:metrics_producer:reserved_capacity{node_group="bobs-microservices", type="memory"}
+      target:
+        type: AverageUtilization
+        value: 60
