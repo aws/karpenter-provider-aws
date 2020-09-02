@@ -12,3 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+package metrics
+
+// Producer interface for all metrics implementations
+type Producer interface {
+	// GetCurrentValues returns the current values for the set of metrics provided.
+	GetCurrentValues() ([]Metric, error)
+}

@@ -11,23 +11,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+package utils
 
-package metrics
-
-import (
-	"k8s.io/api/autoscaling/v2beta2"
-)
-
-// Metric is exposed by the provider to the metrics server
-type Metric struct {
-	Name   string
-	Labels map[string]string
-	Value  float64
-	v2beta2.MetricTargetType
+func greaterThan(values []int32, target int32) (results []int32) {
+	return filter(values, target, func(a int32, b int32) bool {
+		return a > b
+	})
 }
 
-// ObservedMetric contains the current value of the metric and the desired target configured by the user.
-type ObservedMetric struct {
-	Current Metric
-	Target  Metric
+func lessThan(values []int32, target int32) (results []int32) {
+	return filter(values, target, func(a int32, b int32) bool {
+		return a < b
+	})
+}
+
+func filter(values []int32, target int32, predicate func(a int32, b int32) bool) (results []int32) {
+	for _, value := range values {
+		if predicate(value, target) {
+			results = append(results, value)
+		}
+	}
+	return results
 }

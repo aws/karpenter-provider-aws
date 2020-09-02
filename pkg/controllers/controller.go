@@ -11,7 +11,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package aws
 
-type SQSQueue struct {
+package controllers
+
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+)
+
+// Controller is implemented by all resource controllers
+type Controller interface {
+	Reconcile(req controllerruntime.Request) (controllerruntime.Result, error)
+	For() runtime.Object
+	Owns() []runtime.Object
 }

@@ -111,11 +111,6 @@ func (in *HorizontalAutoscalerList) DeepCopyObject() runtime.Object {
 func (in *HorizontalAutoscalerSpec) DeepCopyInto(out *HorizontalAutoscalerSpec) {
 	*out = *in
 	out.ScaleTargetRef = in.ScaleTargetRef
-	if in.MinReplicas != nil {
-		in, out := &in.MinReplicas, &out.MinReplicas
-		*out = new(int32)
-		**out = **in
-	}
 	if in.Metrics != nil {
 		in, out := &in.Metrics, &out.Metrics
 		*out = make([]Metrics, len(*in))

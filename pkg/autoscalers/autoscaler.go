@@ -11,6 +11,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package utilization
 
-//
+package autoscalers
+
+import (
+	"github.com/ellistarn/karpenter/pkg/metrics"
+)
+
+// Autoscaler defines an interface for autoscaler all implementations
+// These algorithms are black boxes and may use different strategies to compute desired replicas.
+type Autoscaler interface {
+	GetDesiredReplicas(metrics []metrics.ObservedMetric, replicas int32) int32
+}

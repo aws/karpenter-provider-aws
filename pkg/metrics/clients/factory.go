@@ -11,4 +11,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package queue
+
+package client
+
+import (
+	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/metrics/clients/prometheus"
+)
+
+// MetricsClientFactory instantiates metrics clients
+type MetricsClientFactory struct {
+}
+
+// NewPrometheusMetricsClient instantiates a metrics producer
+func (m *MetricsClientFactory) NewPrometheusMetricsClient() metrics.Client {
+	return &prometheus.Client{}
+}

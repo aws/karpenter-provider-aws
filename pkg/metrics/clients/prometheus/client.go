@@ -12,3 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+package prometheus
+
+import (
+	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+)
+
+// Client is a metrics client for Prometheus
+type Client struct {
+}
+
+// GetCurrentValue for the metric
+func (c *Client) GetCurrentValue(v1alpha1.Metrics) (float64, error) {
+	return 0, nil
+}
