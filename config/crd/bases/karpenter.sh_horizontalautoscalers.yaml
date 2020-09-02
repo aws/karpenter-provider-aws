@@ -224,8 +224,7 @@ spec:
               type: array
             minReplicas:
               description: MinReplicas is the lower limit for the number of replicas
-                to which the autoscaler can scale down. MinReplicas is allowed to
-                be 0 if the
+                to which the autoscaler can scale down. It is allowed to be 0.
               format: int32
               type: integer
             scaleTargetRef:

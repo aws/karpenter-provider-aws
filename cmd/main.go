@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
-	apishorizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
-	apismetricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/apis/metricsproducer/v1alpha1"
-	apisscalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/apis/scalablenodegroup/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/controllers"
 	controllershorizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	controllersmetricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	controllersscalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
@@ -23,7 +21,6 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,7 +48,7 @@ type Options struct {
 type Dependencies struct {
 	Manager                manager.Manager
 	InformerFactory        informers.SharedInformerFactory
-	Controllers            map[runtime.Object]reconcile.Reconciler
+	Controllers            []controllers.Controller
 	MetricsProducerFactory producers.MetricsProducerFactory
 }
 
@@ -101,9 +98,9 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 		time.Minute*30,
 	)
 
-	if err := dependencies.Manager.Add(manager.RunnableFunc(func(s <-chan struct{}) error {
-		factory.Start(s)
-		<-s
+	if err := dependencies.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
+		factory.Start(stopChannel)
+		<-stopChannel
 		return nil
 	})); err != nil {
 		zap.S().Fatalf("Unable to register informer factory, %v", err)
@@ -112,28 +109,35 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 	return factory
 }
 
-func controllersOrDie() map[runtime.Object]reconcile.Reconciler {
-	controllers := map[runtime.Object]reconcile.Reconciler{
-		&apishorizontalautoscalerv1alpha1.HorizontalAutoscaler{}: &controllershorizontalautoscalerv1alpha1.Reconciler{
+func controllersOrDie() []controllers.Controller {
+	controllers := []controllers.Controller{
+		&controllershorizontalautoscalerv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
 		},
-		&apisscalablenodegroupv1alpha1.ScalableNodeGroup{}: &controllersscalablenodegroupv1alpha1.Reconciler{
+		&controllersscalablenodegroupv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
 		},
-		&apismetricsproducerv1alpha1.MetricsProducer{}: &controllersmetricsproducerv1alpha1.Reconciler{
+		&controllersmetricsproducerv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
 		},
 	}
-	for resource, controller := range controllers {
+	for _, controller := range controllers {
 		if options.EnableController {
-			if err := controllerruntime.NewControllerManagedBy(dependencies.Manager).For(resource).Complete(controller); err != nil {
-				zap.S().Fatalf("Unable to create controller for manager, %v", err)
+			var builder = controllerruntime.NewControllerManagedBy(dependencies.Manager).For(controller.For())
+			for _, resource := range controller.Owns() {
+				builder = builder.Owns(resource)
+			}
+			if err := builder.Complete(controller); err != nil {
+				zap.S().Fatalf("Unable to create controller for resource %v, %v", controller.For(), err)
 			}
 		}
 
 		if options.EnableWebhook {
-			if err := controllerruntime.NewWebhookManagedBy(dependencies.Manager).For(resource).Complete(); err != nil {
-				zap.S().Fatalf("Unable to create webhook, %v", err)
+			if err := controllerruntime.
+				NewWebhookManagedBy(dependencies.Manager).
+				For(controller.For()).
+				Complete(); err != nil {
+				zap.S().Fatalf("Unable to create webhook for resource %v, %v", controller.For(), err)
 			}
 		}
 	}

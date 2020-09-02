@@ -12,14 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package autoscalers
+package controllers
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics"
+	"k8s.io/apimachinery/pkg/runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
-// Autoscaler defines an interface for autoscaler all implementations
-// These algorithms are black boxes and may use different strategies to compute desired replicas.
-type Autoscaler interface {
-	GetDesiredReplicas(metrics []metrics.ObservedMetric, replicas int32) int32
+// Controller is implemented by all resource controllers
+type Controller interface {
+	Reconcile(req controllerruntime.Request) (controllerruntime.Result, error)
+	For() runtime.Object
+	Owns() []runtime.Object
 }

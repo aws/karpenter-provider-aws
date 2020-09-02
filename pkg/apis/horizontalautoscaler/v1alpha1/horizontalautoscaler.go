@@ -30,8 +30,8 @@ type HorizontalAutoscalerSpec struct {
 	// ScaleTargetRef points to the target resource to scale.
 	ScaleTargetRef v2beta2.CrossVersionObjectReference `json:"scaleTargetRef"`
 
-	// MinReplicas is the lower limit for the number of replicas to which the autoscaler
-	// can scale down. MinReplicas is allowed to be 0 if the
+	// MinReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.
+	// It is allowed to be 0.
 	MinReplicas int32 `json:"minReplicas"`
 	// MaxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.
 	// It cannot be less that minReplicas.

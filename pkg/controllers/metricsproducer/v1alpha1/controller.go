@@ -16,24 +16,35 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/ellistarn/karpenter/pkg/apis/scalablenodegroup/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/metricsproducer/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Reconciler for the resource
-type Reconciler struct {
+// Controller for the resource
+type Controller struct {
 	client.Client
 }
 
+// For returns the resource this controller is for.
+func (c *Controller) For() runtime.Object {
+	return &v1alpha1.MetricsProducer{}
+}
+
+// Owns returns the resources owned by this controller's resource.
+func (c *Controller) Owns() []runtime.Object {
+	return []runtime.Object{}
+}
+
 // Reconcile executes a control loop for the resource
-// +kubebuilder:rbac:groups=karpenter.sh,resources=scalablenodegroups,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=karpenter.sh,resources=scalablenodegroups/status,verbs=get;update;patch
-func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	mp := &v1alpha1.ScalableNodeGroup{}
-	if err := r.Get(context.Background(), req.NamespacedName, mp); err != nil {
+// +kubebuilder:rbac:groups=karpenter.sh,resources=metricsproducers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=karpenter.sh,resources=metricsproducers/status,verbs=get;update;patch
+func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+	mp := &v1alpha1.MetricsProducer{}
+	if err := c.Get(context.Background(), req.NamespacedName, mp); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}

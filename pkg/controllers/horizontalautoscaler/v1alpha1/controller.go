@@ -20,14 +20,15 @@ import (
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Reconciler reconciles a HorizontalAutoscaler object
-type Reconciler struct {
+// Controller reconciles a HorizontalAutoscaler object
+type Controller struct {
 	client.Client
 	Autoscalers map[AutoscalerKey]Autoscaler
 }
@@ -38,17 +39,27 @@ type AutoscalerKey struct {
 	HorizontalPodAutoscaler types.NamespacedName
 }
 
+// For returns the resource this controller is for.
+func (c *Controller) For() runtime.Object {
+	return &v1alpha1.HorizontalAutoscaler{}
+}
+
+// Owns returns the resources owned by this controller's resource.
+func (c *Controller) Owns() []runtime.Object {
+	return []runtime.Object{}
+}
+
 // Reconcile executes a control loop for the HorizontalAutoscaler resource
 // +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
-func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
+func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	// For now, assume a singleton architecture where all definitions are handled in a single shard.
 	// In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
 	ha := &v1alpha1.HorizontalAutoscaler{}
-	if err := r.Get(context.Background(), req.NamespacedName, ha); err != nil {
+	if err := c.Get(context.Background(), req.NamespacedName, ha); err != nil {
 		if errors.IsNotFound(err) {
 			zap.S().Infof("Removing definition for %s.", req.NamespacedName)
-			delete(r.Autoscalers, AutoscalerKey{
+			delete(c.Autoscalers, AutoscalerKey{
 				// TODO: include NodeGroup
 				HorizontalPodAutoscaler: req.NamespacedName,
 			})
@@ -58,7 +69,7 @@ func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	zap.S().Infof("Updating definition for %s.", req.NamespacedName)
-	r.Autoscalers[AutoscalerKey{
+	c.Autoscalers[AutoscalerKey{
 		HorizontalPodAutoscaler: req.NamespacedName,
 	}] = Autoscaler{
 		// TODO: include NodeGroup
@@ -69,11 +80,11 @@ func (r *Reconciler) Reconcile(req controllerruntime.Request) (controllerruntime
 }
 
 // Start initializes the analysis loop for known Autoscalers
-func (r *Reconciler) Start() {
+func (c *Controller) Start() {
 	zap.S().Infof("Starting analysis loop")
 	for {
 		// TODO: Use goroutines or something smarter.
-		for _, a := range r.Autoscalers {
+		for _, a := range c.Autoscalers {
 			if err := a.Reconcile(); err != nil {
 				zap.S().Warnf("Continuing after failing to reconcile autoscaler, %v")
 			}
