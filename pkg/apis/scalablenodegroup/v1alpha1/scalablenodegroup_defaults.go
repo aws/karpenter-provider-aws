@@ -12,3 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 package v1alpha1
+
+import "sigs.k8s.io/controller-runtime/pkg/webhook"
+
+// +kubebuilder:webhook:path=/mutate-karpenter-sh-v1alpha1-scalablenodegroup,mutating=true,failurePolicy=fail,groups=karpenter.sh,resources=scalablenodegroups,verbs=create;update,versions=v1alpha1,name=mscalablenodegroup.kb.io
+var _ webhook.Defaulter = &ScalableNodeGroup{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *ScalableNodeGroup) Default() {
+	// TODO(user): fill in your defaulting logic.
+}
