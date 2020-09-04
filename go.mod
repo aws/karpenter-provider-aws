@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/zapr v0.1.0
 	github.com/onsi/ginkgo v1.14.0
 	github.com/onsi/gomega v1.10.1
+	github.com/prometheus/client_golang v1.0.0
 	go.uber.org/zap v1.10.0
 	k8s.io/api v0.18.4
 	k8s.io/apimachinery v0.18.6

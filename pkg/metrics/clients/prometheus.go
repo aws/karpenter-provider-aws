@@ -12,18 +12,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package client
+package clients
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	"github.com/ellistarn/karpenter/pkg/metrics/clients/prometheus"
+	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/prometheus/client_golang/api"
 )
 
-// MetricsClientFactory instantiates metrics clients
-type MetricsClientFactory struct {
+// PrometheusMetricsClient is a metrics client for Prometheus
+type PrometheusMetricsClient struct {
+	Client api.Client
 }
 
-// NewPrometheusMetricsClient instantiates a metrics producer
-func (m *MetricsClientFactory) NewPrometheusMetricsClient() metrics.Client {
-	return &prometheus.Client{}
+// GetCurrentValue for the metric
+func (c *PrometheusMetricsClient) GetCurrentValue(v1alpha1.Metrics) (float64, error) {
+	return 0, nil
 }
