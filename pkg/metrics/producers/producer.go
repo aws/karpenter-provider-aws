@@ -16,27 +16,31 @@ package producers
 
 import (
 	"github.com/ellistarn/karpenter/pkg/metrics"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/pendingcapacity"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
 	"k8s.io/client-go/informers"
 )
 
-// MetricsProducerFactory instantiates metrics producers
-type MetricsProducerFactory struct {
+// Producer interface for all metrics implementations
+type Producer interface {
+	// GetCurrentValues returns the current values for the set of metrics provided.
+	GetCurrentValues() ([]metrics.Metric, error)
+}
+
+// Factory instantiates metrics producers
+type Factory struct {
 	InformerFactory informers.SharedInformerFactory
 }
 
 // NewPendingCapacityMetricsProducer instantiates a metrics producer
-func (m *MetricsProducerFactory) NewPendingCapacityMetricsProducer() metrics.Producer {
-	return &pendingcapacity.MetricsProducer{
+func (m *Factory) NewPendingCapacityMetricsProducer() Producer {
+	return &PendingCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
 		Pods:  m.InformerFactory.Core().V1().Pods().Lister(),
 	}
 }
 
 // NewReservedCapacityMetricsProducer instantiates a metrics producer
-func (m *MetricsProducerFactory) NewReservedCapacityMetricsProducer() metrics.Producer {
-	return &reservedcapacity.MetricsProducer{
+func (m *Factory) NewReservedCapacityMetricsProducer() Producer {
+	return &ReservedCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
 		Pods:  m.InformerFactory.Core().V1().Pods().Lister(),
 	}

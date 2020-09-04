@@ -12,14 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package autoscalers
+package producers
 
 import (
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	v1 "k8s.io/client-go/listers/core/v1"
 )
 
-// Autoscaler defines an interface for autoscaler all implementations
-// These algorithms are black boxes and may use different strategies to compute desired replicas.
-type Autoscaler interface {
-	GetDesiredReplicas(metrics []metrics.ObservedMetric, replicas int32) int32
+// PendingCapacity implements a Pending Capacity metric
+type PendingCapacity struct {
+	Nodes v1.NodeLister
+	Pods  v1.PodLister
+}
+
+// GetCurrentValues of the metrics
+func (m *PendingCapacity) GetCurrentValues() ([]metrics.Metric, error) {
+	m.Nodes.Get("todo")
+	m.Pods.Pods("namespace").Get("name")
+	return nil, nil
 }

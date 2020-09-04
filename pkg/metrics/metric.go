@@ -14,20 +14,9 @@ limitations under the License.
 
 package metrics
 
-import (
-	"k8s.io/api/autoscaling/v2beta2"
-)
-
-// Metric is exposed by the provider to the metrics server
+// Metric contains the current value of a metric
 type Metric struct {
 	Name   string
 	Labels map[string]string
 	Value  float64
-	v2beta2.MetricTargetType
-}
-
-// ObservedMetric contains the current value of the metric and the desired target configured by the user.
-type ObservedMetric struct {
-	Current Metric
-	Target  Metric
 }

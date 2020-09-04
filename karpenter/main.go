@@ -9,17 +9,23 @@ import (
 	horizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	metricsclients "github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	metricsproducers "github.com/ellistarn/karpenter/pkg/metrics/producers"
 	"github.com/prometheus/client_golang/api"
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/scale"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -52,8 +58,9 @@ type Dependencies struct {
 	Manager                manager.Manager
 	InformerFactory        informers.SharedInformerFactory
 	Controllers            []controllers.Controller
-	MetricsProducerFactory producers.MetricsProducerFactory
-	MetricsClientFactory   clients.MetricsClientFactory
+	MetricsProducerFactory metricsproducers.Factory
+	MetricsClientFactory   metricsclients.Factory
+	AutoscalerFactory      autoscaler.Factory
 }
 
 func main() {
@@ -61,6 +68,7 @@ func main() {
 	dependencies.InformerFactory = informerFactoryOrDie()
 	dependencies.MetricsProducerFactory = metricsProducerFactoryOrDie()
 	dependencies.MetricsClientFactory = metricsClientFactoryOrDie()
+	dependencies.AutoscalerFactory = autoscalerFactoryOrDie()
 	dependencies.Controllers = controllersOrDie()
 
 	if err := dependencies.Manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
@@ -118,29 +126,51 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 	return factory
 }
 
-func metricsProducerFactoryOrDie() producers.MetricsProducerFactory {
-	return producers.MetricsProducerFactory{
+func metricsProducerFactoryOrDie() producers.Factory {
+	return producers.Factory{
 		InformerFactory: dependencies.InformerFactory,
 	}
 }
 
-func metricsClientFactoryOrDie() clients.MetricsClientFactory {
+func metricsClientFactoryOrDie() clients.Factory {
 	client, err := api.NewClient(api.Config{
 		Address: "http://prometheus.prometheus.svc.cluster.local:9090",
 	})
 	if err != nil {
 		zap.S().Fatalf("Unable to create prometheus client, %v", err)
 	}
-	return clients.MetricsClientFactory{
+	return clients.Factory{
 		PrometheusClient: client,
+	}
+}
+
+func autoscalerFactoryOrDie() autoscaler.Factory {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(controllerruntime.GetConfigOrDie())
+	if err != nil {
+		zap.S().Fatalf("Unable to create discovery client, %v", err)
+	}
+	scaleClient, err := scale.NewForConfig(
+		controllerruntime.GetConfigOrDie(),
+		dependencies.Manager.GetRESTMapper(),
+		dynamic.LegacyAPIPathResolverFunc,
+		scale.NewDiscoveryScaleKindResolver(discoveryClient),
+	)
+	if err != nil {
+		zap.S().Fatalf("Unable to create scale client, %v", err)
+	}
+	return autoscaler.Factory{
+		MetricsClientFactory: dependencies.MetricsClientFactory,
+		KubernetesClient:     dependencies.Manager.GetClient(),
+		Mapper:               dependencies.Manager.GetRESTMapper(),
+		ScaleNamespacer:      scaleClient,
 	}
 }
 
 func controllersOrDie() []controllers.Controller {
 	controllers := []controllers.Controller{
 		&horizontalautoscalerv1alpha1.Controller{
-			Client:               dependencies.Manager.GetClient(),
-			MetricsClientFactory: dependencies.MetricsClientFactory,
+			Client:            dependencies.Manager.GetClient(),
+			AutoscalerFactory: dependencies.AutoscalerFactory,
 		},
 		&scalablenodegroupv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),

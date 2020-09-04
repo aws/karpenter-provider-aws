@@ -107,7 +107,7 @@ spec:
             metrics:
               description: Metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used).  The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of replicas.  Ergo, metrics used must decrease as the replica count is increased, and vice-versa.  See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.
               items:
-                description: Metrics is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
+                description: Metric is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
                 properties:
                   prometheus:
                     description: PrometheusMetricSource defines a metric in Prometheus

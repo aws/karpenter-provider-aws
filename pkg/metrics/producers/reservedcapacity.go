@@ -12,10 +12,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metrics
+package producers
 
-// Producer interface for all metrics implementations
-type Producer interface {
-	// GetCurrentValues returns the current values for the set of metrics provided.
-	GetCurrentValues() ([]Metric, error)
+import (
+	"github.com/ellistarn/karpenter/pkg/metrics"
+	v1 "k8s.io/client-go/listers/core/v1"
+)
+
+// ReservedCapacity implements a Reserved Capacity metric
+type ReservedCapacity struct {
+	Nodes v1.NodeLister
+	Pods  v1.PodLister
+}
+
+// GetCurrentValues of the metrics
+func (m *ReservedCapacity) GetCurrentValues() ([]metrics.Metric, error) {
+	m.Nodes.Get("todo")
+	m.Pods.Pods("namespace").Get("name")
+	return nil, nil
 }

@@ -16,6 +16,7 @@ package clients
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/api"
 )
 
@@ -25,6 +26,6 @@ type PrometheusMetricsClient struct {
 }
 
 // GetCurrentValue for the metric
-func (c *PrometheusMetricsClient) GetCurrentValue(v1alpha1.Metrics) (float64, error) {
-	return 0, nil
+func (c *PrometheusMetricsClient) GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error) {
+	return metrics.Metric{}, nil
 }

@@ -12,22 +12,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pendingcapacity
+package algorithms
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 )
 
-// MetricsProducer implements a Pending Capacity metric
-type MetricsProducer struct {
-	Nodes v1.NodeLister
-	Pods  v1.PodLister
+// Proportional calculates desired replicas as a simple proportion of the observed metrics.
+type Proportional struct {
+	// Spec defines autoscaling rules for the object
+	Spec v1alpha1.HorizontalAutoscalerSpec
 }
 
-// GetCurrentValues of the metrics
-func (m *MetricsProducer) GetCurrentValues() ([]metrics.Metric, error) {
-	m.Nodes.Get("todo")
-	m.Pods.Pods("namespace").Get("name")
-	return nil, nil
+// GetDesiredReplicas returns the autoscalers recommendation
+func (a *Proportional) GetDesiredReplicas(metric Metric, replicas int32) int32 {
+	return replicas
 }

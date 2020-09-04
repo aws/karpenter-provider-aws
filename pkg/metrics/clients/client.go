@@ -16,21 +16,33 @@ package clients
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/api"
+	"go.uber.org/zap"
 )
 
 // MetricsClient interface for all metrics implementations
 type MetricsClient interface {
 	// GetCurrentValues returns the current values for the set of metrics provided.
-	GetCurrentValue(v1alpha1.Metrics) (float64, error)
+	GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error)
 }
 
-// MetricsClientFactory instantiates metrics clients
-type MetricsClientFactory struct {
+// Factory instantiates metrics clients
+type Factory struct {
 	PrometheusClient api.Client
 }
 
+// For retursn a metrics client for the given source type
+func (m *Factory) For(metricSourceType v1alpha1.MetricSourceType) MetricsClient {
+	switch metricSourceType {
+	case v1alpha1.PrometheusMetricSourceType:
+		return m.NewPrometheusMetricsClient()
+	}
+	zap.S().Fatalf("Failed to instantiate metrics client: unexpected MetricsSourceType %s", metricSourceType)
+	return nil
+}
+
 // NewPrometheusMetricsClient instantiates a metrics producer
-func (m *MetricsClientFactory) NewPrometheusMetricsClient() MetricsClient {
+func (m *Factory) NewPrometheusMetricsClient() MetricsClient {
 	return &PrometheusMetricsClient{}
 }
