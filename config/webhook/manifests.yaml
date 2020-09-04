@@ -24,3 +24,21 @@ webhooks:
     - UPDATE
     resources:
     - horizontalautoscalers
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: karpenter-webhook
+      namespace: system
+      path: /mutate-karpenter-sh-v1alpha1-scalablenodegroup
+  failurePolicy: Fail
+  name: mscalablenodegroup.kb.io
+  rules:
+  - apiGroups:
+    - karpenter.sh
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - scalablenodegroups
