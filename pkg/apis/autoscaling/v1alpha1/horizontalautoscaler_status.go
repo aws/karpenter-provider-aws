@@ -15,5 +15,6 @@ limitations under the License.
 package v1alpha1
 
 // HorizontalAutoscalerStatus defines the observed state of HorizontalAutoscaler
+// +kubebuilder:subresource:status
 type HorizontalAutoscalerStatus struct {
 }

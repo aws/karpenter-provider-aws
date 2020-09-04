@@ -1,27 +1,23 @@
-
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
-GOLINT_OPTIONS ?= "--set_exit_status=1"
-
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
 
 all: build test
 
 # Run tests
-test: fmt vet
+test: verify
 	go test ./... -v -cover
 
 # Build controller binary
-build: fmt vet tidy
+build: verify
 	go build -o bin/karpenter karpenter/main.go
 
+# Build and release a container image
+release:
+	docker build . -t ${IMG}
+	docker push ${IMG}
+
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: fmt vet
+run: verify
 	go run karpenter/main.go --enable-leader-election=false --enable-webhook=false
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
@@ -31,29 +27,14 @@ deploy:
 undeploy:
 	kustomize build config/dev | ko delete -f -
 
-# Run go fmt against code
-fmt:
-	golint $(GOLINT_OPTIONS) ./...
-	go fmt ./...
-
-# Run go vet against code
-vet:
-	go vet ./...
-
-# Tidy up modules
-tidy:
+# Verify code. Includes dependencies, linting, formatting, etc
+verify:
 	go mod tidy
+	go mod download
+	go vet ./...
+	go fmt ./...
+	golangci-lint run
 
-# Generate code. This is necessary if any API changes are made to ./pkg/apis
+# Generate code. Must be run if changes are made to ./pkg/apis/...
 generate:
 	./hack/update-codegen.sh
-
-# Build the docker image
-docker-build:
-	docker build . -t ${IMG}
-
-# Push the docker image
-docker-push:
-	docker push ${IMG}
-
-docker-release: docker-build docker-push

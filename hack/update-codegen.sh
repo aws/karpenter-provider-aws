@@ -1,29 +1,33 @@
 #!/bin/bash
 set -eu -o pipefail
 
-controllergen=$GOPATH/bin/controller-gen
-generategroups=$GOPATH/pkg/mod/k8s.io/code-generator@v0.17.2/generate-groups.sh
-chmod +x $generategroups
 
-# Generate Deepcopy
-$controllergen \
-    object:headerFile="hack/boilerplate.go.txt" \
-    paths="./pkg/apis/..."
-
+# Generate API Deep Copy
+controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./pkg/apis/..."
 # Generate CRDs
-$controllergen \
-    crd:trivialVersions=false \
-    rbac:roleName=manager-role \
-    webhook paths="./pkg/apis/..." \
-    "output:crd:artifacts:config=config/crd/bases"
+controller-gen crd:trivialVersions=false paths="./pkg/apis/..." "output:crd:artifacts:config=config/crd/bases"
 
-# Generate Clients
-$generategroups \
-    all \
-    "github.com/ellistarn/karpenter/pkg/client" \
-    "github.com/ellistarn/karpenter/pkg/apis" \
-    "autoscaling:v1alpha1" \
-    --go-header-file ./hack/boilerplate.go.txt
+# TODO Fix Me, doesn't generate anything
+controller-gen rbac:roleName=karpenter paths="./pkg/controllers/..." output:stdout
 
-# Add Boilerplate
+# TODO Fix Me, doesn't generate anything
+controller-gen webhook paths="./pkg/controllers/..."
+
+# TODO Fix Me, this is broken into above generators
+# controller-gen \
+#     object:headerFile="hack/boilerplate.go.txt" \
+#     webhook \
+#     crd:trivialVersions=false \
+#     rbac:roleName=manager-role \
+#     paths="./pkg/apis/..." \
+#     "output:crd:artifacts:config=config/crd/bases"
+
+# TODO Fix Me, creates empty clients
+# bash -e $GOPATH/pkg/mod/k8s.io/code-generator@v0.18.6/generate-groups.sh \
+#     all \
+#     "github.com/ellistarn/karpenter/pkg/client" \
+#     "github.com/ellistarn/karpenter/pkg/apis" \
+#     "autoscaling:v1alpha1" \
+#     --go-header-file ./hack/boilerplate.go.txt -v2
+
 ./hack/boilerplate.sh

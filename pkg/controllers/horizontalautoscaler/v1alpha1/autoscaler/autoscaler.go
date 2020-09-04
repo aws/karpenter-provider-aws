@@ -119,6 +119,9 @@ func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 	scaleTarget, err := a.scaleNamespacer.
 		Scales(a.ObjectMeta.Namespace).
 		Get(context.TODO(), groupResource, a.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting scale target for %v", a.Spec.ScaleTargetRef)
+	}
 	return scaleTarget, nil
 }
 

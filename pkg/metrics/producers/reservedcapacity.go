@@ -27,7 +27,5 @@ type ReservedCapacity struct {
 
 // GetCurrentValues of the metrics
 func (m *ReservedCapacity) GetCurrentValues() ([]metrics.Metric, error) {
-	m.Nodes.Get("todo")
-	m.Pods.Pods("namespace").Get("name")
 	return nil, nil
 }
