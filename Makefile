@@ -19,27 +19,18 @@ test: generate fmt vet manifests
 
 # Build controller binary
 build: generate fmt vet tidy
-	go build -o bin/karpenter cmd/main.go
+	go build -o bin/karpenter karpenter/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run cmd/main.go --enable-leader-election=false --enable-webhook=false
-
-# Install CRDs into a cluster
-install: manifests
-	kustomize build config/crd | kubectl apply -f -
-
-# Uninstall CRDs from a cluster
-uninstall: manifests
-	kustomize build config/crd | kubectl delete -f -
+	go run karpenter/main.go --enable-leader-election=false --enable-webhook=false
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/default | kubectl apply -f -
+	kustomize build config/dev | ko apply -B -f -
 
 undeploy: manifests
-	kustomize build config/default | kubectl delete -f -
+	kustomize build config/dev | ko delete -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests:
