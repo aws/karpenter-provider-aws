@@ -24,5 +24,4 @@ metadata:
   name: default-asg
 spec:
   type: AWSEC2AutoScalingGroup
-  minReplicas: 1
-  maxReplicas: 10
+  replicas: 5
