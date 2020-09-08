@@ -12,14 +12,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metrics
+package clients
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/prometheus/client_golang/api"
 )
 
-// Client interface for all metrics implementations
-type Client interface {
+// MetricsClient interface for all metrics implementations
+type MetricsClient interface {
 	// GetCurrentValues returns the current values for the set of metrics provided.
 	GetCurrentValue(v1alpha1.Metrics) (float64, error)
+}
+
+// MetricsClientFactory instantiates metrics clients
+type MetricsClientFactory struct {
+	PrometheusClient api.Client
+}
+
+// NewPrometheusMetricsClient instantiates a metrics producer
+func (m *MetricsClientFactory) NewPrometheusMetricsClient() MetricsClient {
+	return &PrometheusMetricsClient{}
 }

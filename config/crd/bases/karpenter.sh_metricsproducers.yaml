@@ -20,14 +20,10 @@ spec:
       description: MetricsProducer is the Schema for the MetricsProducers API
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -35,14 +31,10 @@ spec:
           description: MetricsProducerSpec defines an object that outputs metrics.
           properties:
             pendingPods:
-              description: PendingPodsSpec outputs a metric that identifies scheduling
-                opportunities for pending pods in specified node groups. If multiple
-                pending pods metrics producers exist, the algorithm will ensure that
-                only a single node group scales up.
+              description: PendingPodsSpec outputs a metric that identifies scheduling opportunities for pending pods in specified node groups. If multiple pending pods metrics producers exist, the algorithm will ensure that only a single node group scales up.
               properties:
                 nodeGroup:
-                  description: NodeGroup points to a resource that manages a group
-                    of nodes.
+                  description: NodeGroup points to a resource that manages a group of nodes.
                   properties:
                     apiVersion:
                       description: API version of the referent
@@ -66,23 +58,19 @@ spec:
                 id:
                   type: string
                 type:
-                  description: QueueProviderType corresponds to an implementation
-                    of a queue
+                  description: QueueProviderType corresponds to an implementation of a queue
                   type: string
               required:
               - id
               - type
               type: object
             scheduledCapacity:
-              description: ScheduledCapacitySpec outputs metrics on a schedule configured
-                by a list of crontabs
+              description: ScheduledCapacitySpec outputs metrics on a schedule configured by a list of crontabs
               properties:
                 behaviors:
-                  description: Behaviors may be layered to achieve complex scheduling
-                    autoscaling logic
+                  description: Behaviors may be layered to achieve complex scheduling autoscaling logic
                   items:
-                    description: ScheduledBehavior defines a crontab which sets the
-                      metric to a specific replica value on a schedule.
+                    description: ScheduledBehavior defines a crontab which sets the metric to a specific replica value on a schedule.
                     properties:
                       crontab:
                         type: string
@@ -95,8 +83,7 @@ spec:
                     type: object
                   type: array
                 nodeGroup:
-                  description: NodeGroup points to a resource that manages a group
-                    of nodes.
+                  description: NodeGroup points to a resource that manages a group of nodes.
                   properties:
                     apiVersion:
                       description: API version of the referent

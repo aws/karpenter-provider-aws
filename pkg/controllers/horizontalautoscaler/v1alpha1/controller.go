@@ -18,6 +18,7 @@ import (
 	"time"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +31,8 @@ import (
 // Controller reconciles a HorizontalAutoscaler object
 type Controller struct {
 	client.Client
-	Autoscalers map[AutoscalerKey]Autoscaler
+	MetricsClientFactory clients.MetricsClientFactory
+	Autoscalers          map[AutoscalerKey]Autoscaler
 }
 
 // AutoscalerKey is a unique key for an Autoscaler

@@ -6,10 +6,12 @@ import (
 
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	controllershorizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
-	controllersmetricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
-	controllersscalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
+	horizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
+	metricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
+	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	"github.com/prometheus/client_golang/api"
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
@@ -42,6 +44,7 @@ type Options struct {
 	EnableController     bool
 	EnableVerboseLogging bool
 	MetricsAddr          string
+	PrometheusURI        string
 }
 
 // Dependencies to be injected
@@ -50,13 +53,15 @@ type Dependencies struct {
 	InformerFactory        informers.SharedInformerFactory
 	Controllers            []controllers.Controller
 	MetricsProducerFactory producers.MetricsProducerFactory
+	MetricsClientFactory   clients.MetricsClientFactory
 }
 
 func main() {
 	dependencies.Manager = managerOrDie()
 	dependencies.InformerFactory = informerFactoryOrDie()
-	dependencies.Controllers = controllersOrDie()
 	dependencies.MetricsProducerFactory = metricsProducerFactoryOrDie()
+	dependencies.MetricsClientFactory = metricsClientFactoryOrDie()
+	dependencies.Controllers = controllersOrDie()
 
 	if err := dependencies.Manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Fatalf("Unable to start manager, %v", err)
@@ -64,10 +69,14 @@ func main() {
 }
 
 func setupFlags() {
+	// Controller
 	flag.BoolVar(&options.EnableLeaderElection, "enable-leader-election", true, "Enable leader election.")
 	flag.BoolVar(&options.EnableWebhook, "enable-webhook", true, "Enable webhook.")
 	flag.BoolVar(&options.EnableController, "enable-controller", true, "Enable controller.")
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
+
+	// Metrics
+	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus.prometheus.svc.cluster.local:9090", "The Prometheus Metrics Server URI")
 	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
 }
@@ -109,15 +118,34 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 	return factory
 }
 
+func metricsProducerFactoryOrDie() producers.MetricsProducerFactory {
+	return producers.MetricsProducerFactory{
+		InformerFactory: dependencies.InformerFactory,
+	}
+}
+
+func metricsClientFactoryOrDie() clients.MetricsClientFactory {
+	client, err := api.NewClient(api.Config{
+		Address: "http://prometheus.prometheus.svc.cluster.local:9090",
+	})
+	if err != nil {
+		zap.S().Fatalf("Unable to create prometheus client, %v", err)
+	}
+	return clients.MetricsClientFactory{
+		PrometheusClient: client,
+	}
+}
+
 func controllersOrDie() []controllers.Controller {
 	controllers := []controllers.Controller{
-		&controllershorizontalautoscalerv1alpha1.Controller{
+		&horizontalautoscalerv1alpha1.Controller{
+			Client:               dependencies.Manager.GetClient(),
+			MetricsClientFactory: dependencies.MetricsClientFactory,
+		},
+		&scalablenodegroupv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
 		},
-		&controllersscalablenodegroupv1alpha1.Controller{
-			Client: dependencies.Manager.GetClient(),
-		},
-		&controllersmetricsproducerv1alpha1.Controller{
+		&metricsproducerv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
 		},
 	}
@@ -142,10 +170,4 @@ func controllersOrDie() []controllers.Controller {
 		}
 	}
 	return controllers
-}
-
-func metricsProducerFactoryOrDie() producers.MetricsProducerFactory {
-	return producers.MetricsProducerFactory{
-		InformerFactory: dependencies.InformerFactory,
-	}
 }
