@@ -13,7 +13,7 @@ webhooks:
       namespace: system
       path: /mutate-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
-  name: mhorizontalautoscaler.kb.io
+  name: vhorizontalautoscaler.kb.io
   rules:
   - apiGroups:
     - karpenter.sh
@@ -31,7 +31,7 @@ webhooks:
       namespace: system
       path: /mutate-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
-  name: mscalablenodegroup.kb.io
+  name: vscalablenodegroup.kb.io
   rules:
   - apiGroups:
     - karpenter.sh
