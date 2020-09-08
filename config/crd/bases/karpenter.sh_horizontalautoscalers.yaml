@@ -118,24 +118,24 @@ spec:
                         description: MetricTarget defines the target value, average value, or average utilization of a specific metric
                         properties:
                           averageUtilization:
-                            description: averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type
+                            description: AverageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type
                             format: int32
                             type: integer
                           averageValue:
                             anyOf:
                             - type: integer
                             - type: string
-                            description: averageValue is the target value of the average of the metric across all relevant pods (as a quantity)
+                            description: AverageValue is the target value of the average of the metric across all relevant pods (as a quantity)
                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                             x-kubernetes-int-or-string: true
                           type:
-                            description: type represents whether the metric type is Utilization, Value, or AverageValue
+                            description: Type represents whether the metric type is Utilization, Value, or AverageValue
                             type: string
                           value:
                             anyOf:
                             - type: integer
                             - type: string
-                            description: value is the target value of the metric (as a quantity).
+                            description: Value is the target value of the metric (as a quantity).
                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                             x-kubernetes-int-or-string: true
                         required:
@@ -146,7 +146,7 @@ spec:
                     - target
                     type: object
                   type:
-                    description: type is the type of metric source.  It should be one of "Object", "Replicas" or "Resource", each mapping to a matching field in the object.
+                    description: Type is the type of metric source.  It should be one of "Object", "Replicas" or "Resource", each mapping to a matching field in the object.
                     type: string
                 required:
                 - type

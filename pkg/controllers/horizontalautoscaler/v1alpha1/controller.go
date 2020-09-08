@@ -16,12 +16,12 @@ package v1alpha1
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,11 +56,10 @@ func (c *Controller) Owns() []runtime.Object {
 // +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	ctx := context.Background()
-
 	// 1. Retrieve resource from API Server
 	resource := &v1alpha1.HorizontalAutoscaler{}
 	if err := c.Get(ctx, req.NamespacedName, resource); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -69,12 +68,12 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	// 2. Execute autoscaling logic
 	autoscaler := c.AutoscalerFactory.For(resource)
 	if err := autoscaler.Reconcile(); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to reconcile %s, %v", req.NamespacedName, err)
+		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to reconcile %s", req.NamespacedName))
 	}
 
 	// 3. Apply changes to API Server
 	if err := c.Update(ctx, resource); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %v", req.NamespacedName, err)
+		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
 	}
 
 	return controllerruntime.Result{

@@ -21,7 +21,8 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics"
 )
 
-func TestProportional_GetDesiredReplicas(t *testing.T) {
+// TestProportionalGetDesiredReplicas tests
+func TestProportionalGetDesiredReplicas(t *testing.T) {
 	type fields struct {
 		Spec v1alpha1.HorizontalAutoscalerSpec
 	}

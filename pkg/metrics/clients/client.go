@@ -32,7 +32,7 @@ type Factory struct {
 	PrometheusClient api.Client
 }
 
-// For retursn a metrics client for the given source type
+// For returns a metrics client for the given source type
 func (m *Factory) For(metricSourceType v1alpha1.MetricSourceType) MetricsClient {
 	switch metricSourceType {
 	case v1alpha1.PrometheusMetricSourceType:

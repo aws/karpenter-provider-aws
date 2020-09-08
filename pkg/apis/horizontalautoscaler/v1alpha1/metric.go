@@ -22,7 +22,7 @@ import (
 // Metric is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
 // +optional
 type Metric struct {
-	// type is the type of metric source.  It should be one of "Object",
+	// Type is the type of metric source.  It should be one of "Object",
 	// "Replicas" or "Resource", each mapping to a matching field in the object.
 	Type MetricSourceType `json:"type"`
 	// +optional
@@ -37,16 +37,16 @@ type PrometheusMetricSource struct {
 
 // MetricTarget defines the target value, average value, or average utilization of a specific metric
 type MetricTarget struct {
-	// type represents whether the metric type is Utilization, Value, or AverageValue
+	// Type represents whether the metric type is Utilization, Value, or AverageValue
 	Type MetricTargetType `json:"type"`
-	// value is the target value of the metric (as a quantity).
+	// Value is the target value of the metric (as a quantity).
 	// +optional
 	Value *resource.Quantity `json:"value,omitempty"`
-	// averageValue is the target value of the average of the
+	// AverageValue is the target value of the average of the
 	// metric across all relevant pods (as a quantity)
 	// +optional
 	AverageValue *resource.Quantity `json:"averageValue,omitempty"`
-	// averageUtilization is the target value of the average of the
+	// AverageUtilization is the target value of the average of the
 	// resource metric across all relevant pods, represented as a percentage of
 	// the requested value of the resource for the pods.
 	// Currently only valid for Resource metric source type
