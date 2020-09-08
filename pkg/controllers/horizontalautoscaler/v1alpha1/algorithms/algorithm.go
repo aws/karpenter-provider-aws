@@ -29,7 +29,7 @@ type Algorithm interface {
 type Metric struct {
 	metrics.Metric
 	TargetType  v1alpha1.MetricTargetType
-	TargetValue int64
+	TargetValue float64
 }
 
 // For returns the autoscaling algorithm for the given spec.

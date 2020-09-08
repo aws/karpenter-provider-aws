@@ -15,7 +15,10 @@ limitations under the License.
 package algorithms
 
 import (
+	"math"
+
 	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"go.uber.org/zap"
 )
 
 // Proportional calculates desired replicas as a simple proportion of the observed metrics.
@@ -26,5 +29,23 @@ type Proportional struct {
 
 // GetDesiredReplicas returns the autoscalers recommendation
 func (a *Proportional) GetDesiredReplicas(metric Metric, replicas int32) int32 {
-	return replicas
+	ratio := metric.Metric.Value / metric.TargetValue
+
+	switch metric.TargetType {
+	// Proportional
+	case v1alpha1.ValueMetricType:
+		return int32(math.Ceil(float64(replicas) * ratio))
+
+	// Proportional average, divided by number of replicas
+	case v1alpha1.AverageValueMetricType:
+		return int32(math.Ceil(ratio))
+
+	// Proportional percentage, multiplied by 100
+	case v1alpha1.UtilizationMetricType:
+		return int32(math.Ceil(ratio * 100))
+
+	default:
+		zap.S().Errorf("Unexpected TargetType %s for ", metric.TargetType)
+		return replicas
+	}
 }

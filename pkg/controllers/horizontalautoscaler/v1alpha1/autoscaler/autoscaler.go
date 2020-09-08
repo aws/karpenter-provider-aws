@@ -96,7 +96,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 		metrics = append(metrics, algorithms.Metric{
 			Metric:      observed,
 			TargetType:  desired.GetTarget().Type,
-			TargetValue: desired.GetTarget().Value.Value(),
+			TargetValue: float64(desired.GetTarget().Value.Value()),
 		})
 	}
 	return metrics, nil
