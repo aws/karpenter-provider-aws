@@ -1,28 +1,35 @@
 #!/bin/bash
 set -eu -o pipefail
 
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
 main() {
-  COMMAND=${1:-'--apply'}
-  if [ "$COMMAND" = "--usage" ]; then
+  local command=${1:-'--apply'}
+  if [[ "$command" = "--usage" ]]; then
     usage
-  elif [ "$COMMAND" = "--apply" ]; then
+  elif [[ "$command" = "--apply" ]]; then
     apply
-  elif [ "$COMMAND" = "--delete" ]; then
+    echo Installation Complete!
+  elif [[ "$command" = "--delete" ]]; then
     delete
+    echo Uninstallation Complete!
   else
-    echo "Error: invalid argument: $COMMAND"
+    echo "Error: invalid argument: $command"
     usage
     exit 1
   fi
 }
 
 usage() {
-  echo "######################## USAGE ########################"
-  echo "hack/quick-install.sh          # Defaults to apply"
-  echo "hack/quick-install.sh --usage  # Displays usage"
-  echo "hack/quick-install.sh --apply  # Creates all resources"
-  echo "hack/quick-install.sh --delete # Deletes all resources"
-  echo "#######################################################"
+  cat <<EOF
+######################## USAGE ########################
+hack/quick-install.sh          # Defaults to apply
+hack/quick-install.sh --usage  # Displays usage
+hack/quick-install.sh --apply  # Creates all resources
+hack/quick-install.sh --delete # Deletes all resources
+#######################################################
+EOF
 }
 
 delete() {
@@ -32,8 +39,6 @@ delete() {
 }
 
 apply() {
-  TEMP_DIR=$(mktemp -d)
-
   helm repo add jetstack https://charts.jetstack.io
   helm repo add stable https://kubernetes-charts.storage.googleapis.com
   helm repo update
@@ -41,14 +46,11 @@ apply() {
   certmanager
   prometheus
   make deploy
-
-  # Cleanup
-  rm -r $TEMP_DIR
 }
 
 certmanager() {
-  CERT_MANAGER_DIR=$TEMP_DIR/prometheus
-  mkdir -p $CERT_MANAGER_DIR
+  local cert_manager_dir=$TEMP_DIR/prometheus
+  mkdir $cert_manager_dir
   helm upgrade --install cert-manager jetstack/cert-manager \
     --atomic \
     --create-namespace \
@@ -58,14 +60,14 @@ certmanager() {
 }
 
 prometheus() {
-  PROMETHEUS_DIR=$TEMP_DIR/prometheus
-  wget https://raw.githubusercontent.com/helm/charts/master/stable/prometheus/values.yaml --directory-prefix $PROMETHEUS_DIR
+  local prometheus_dir=$TEMP_DIR/prometheus
+  wget https://raw.githubusercontent.com/helm/charts/master/stable/prometheus/values.yaml --directory-prefix $prometheus_dir
   helm upgrade --install prometheus stable/prometheus \
     --atomic \
     --create-namespace \
     --namespace prometheus \
     --version 11.4.0 \
-    --values $PROMETHEUS_DIR/values.yaml
+    --values $prometheus_dir/values.yaml
 }
 
 main "$@"

@@ -11,10 +11,12 @@ The following tools are required for development.
    1. OSX: `brew install kustomize`
 5. [controller-gen](https://book.kubebuilder.io/reference/controller-gen.html)
 
-   1. `go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5`
+   1. `GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5`
 6. [helm](https://helm.sh/docs/intro/install/)
 
    1. OSX: `brew install helm`
+7. [ko](https://github.com/google/ko)
+   1. `GO111MODULE=on go get github.com/google/ko/cmd/ko`
 
 ## Developing
 ### Setup / Teardown
@@ -37,6 +39,8 @@ Workflow:
 2. Test changes: `make test`
 3. Apply changes: `make deploy`
 
+### Testing
+TODO
 
 ## Debugging Prometheus
 Open up the UI:
