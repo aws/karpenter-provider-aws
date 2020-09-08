@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// +kubebuilder:webhook:verbs=create;update;delete,path=/validate-karpenter.sh-v1alpha1-horizontalautoscaler,mutating=false,failurePolicy=fail,groups=karpenter.sh,resources=horizontalautoscalers,versions=v1alpha1,name=vhorizontalautoscaler.kb.io
+// +kubebuilder:webhook:verbs=create;update;delete,path=/validate-karpenter.sh-v1alpha1-horizontalautoscaler,mutating=false,failurePolicy=fail,groups=karpenter.sh,resources=horizontalautoscalers,versions=v1alpha1,name=mhorizontalautoscaler.kb.io
 var _ webhook.Validator = &HorizontalAutoscaler{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
