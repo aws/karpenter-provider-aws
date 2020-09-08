@@ -11,6 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package aws
 
 import (
@@ -21,10 +22,12 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
+// ManagedNodeGroupProvider TODO(jacob@)
 type ManagedNodeGroupProvider struct {
 	ClusterName string
 }
 
+// NewNodeGroup TODO(jacob@)
 func (m *ManagedNodeGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
 	return NewDefaultManagedNodeGroup(name, m.ClusterName)
 }
@@ -36,6 +39,7 @@ type ManagedNodeGroup struct {
 	ClusterName string
 }
 
+// NewDefaultManagedNodeGroup TODO(jacob@)
 func NewDefaultManagedNodeGroup(name string, clusterName string) *ManagedNodeGroup {
 	return &ManagedNodeGroup{
 		Client:      eks.New(session.Must(session.NewSession())),
@@ -44,6 +48,7 @@ func NewDefaultManagedNodeGroup(name string, clusterName string) *ManagedNodeGro
 	}
 }
 
+// SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   aws.String(mng.ClusterName),
@@ -55,6 +60,7 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	return err
 }
 
+// Name TODO(jacbo@)
 func (mng *ManagedNodeGroup) Name() string {
 	return mng.GroupName
 }

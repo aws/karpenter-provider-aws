@@ -23,10 +23,8 @@ spec:
         control-plane: karpenter
     spec:
       containers:
-      - command:
-        - /karpenter
+      - name: manager
         image: controller:latest
-        name: manager
         resources:
           limits:
             cpu: 100m

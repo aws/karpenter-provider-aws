@@ -11,6 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package aws
 
 import (
@@ -21,9 +22,11 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
+// AutoScalingGroupProvider TODO(jacob@)
 type AutoScalingGroupProvider struct {
 }
 
+// NewNodeGroup TODO(jacob@)
 func (a *AutoScalingGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
 	return NewDefaultAutoScalingGroup(name)
 }
@@ -34,12 +37,15 @@ type AutoScalingGroup struct {
 	Client    autoscalingiface.AutoScalingAPI
 }
 
+// AutoScalingGroupIdentifier TODO(jacob@)
 type AutoScalingGroupIdentifier string
 
+// GroupName TODO(jacob@)
 func (a AutoScalingGroupIdentifier) GroupName() string {
 	return string(a)
 }
 
+// NewDefaultAutoScalingGroup TODO(jacob@)
 func NewDefaultAutoScalingGroup(name string) *AutoScalingGroup {
 	return &AutoScalingGroup{
 		GroupName: name,
