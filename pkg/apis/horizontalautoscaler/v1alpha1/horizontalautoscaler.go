@@ -11,6 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 // Package v1alpha1 holds definitions for HorizontalAutoscaler
 // +kubebuilder:object:generate=true
 // +groupName=karpenter.sh
@@ -28,7 +29,7 @@ import (
 // 2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
 type HorizontalAutoscalerSpec struct {
 	// ScaleTargetRef points to the target resource to scale.
-	ScaleTargetRef v2beta2.CrossVersionObjectReference `json:"scaleTargetRef"`
+	ScaleTargetRef CrossVersionObjectReference `json:"scaleTargetRef"`
 
 	// MinReplicas is the lower limit for the number of replicas to which the autoscaler can scale down.
 	// It is allowed to be 0.
@@ -45,17 +46,28 @@ type HorizontalAutoscalerSpec struct {
 	// more information about how each type of metric must respond.
 	// If not set, the default metric will be set to 80% average CPU utilization.
 	// +optional
-	Metrics []Metrics `json:"metrics,omitempty"`
+	Metrics []Metric `json:"metrics,omitempty"`
 	// Behavior configures the scaling behavior of the target
 	// in both Up and Down directions (scaleUp and scaleDown fields respectively).
 	// If not set, the default ScalingRules for scale up and scale down are used.
 	// +optional
-	Behavior HorizontalAutoscalerBehavior `json:"behavior,omitempty"`
+	Behavior Behavior `json:"behavior,omitempty"`
 }
 
-// HorizontalAutoscalerBehavior configures the scaling behavior of the target
+// CrossVersionObjectReference contains enough information to let you identify the referred resource.
+type CrossVersionObjectReference struct {
+	// Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+	Kind string `json:"kind" protobuf:"bytes,1,opt,name=kind"`
+	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	// API version of the referent
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,3,opt,name=apiVersion"`
+}
+
+// Behavior configures the scaling behavior of the target
 // in both Up and Down directions (scaleUp and scaleDown fields respectively).
-type HorizontalAutoscalerBehavior struct {
+type Behavior struct {
 	// ScaleUp is scaling policy for scaling Up.
 	// If not set, the default value is the higher of:
 	//   * increase no more than 4 replicas per 60 seconds
@@ -118,30 +130,6 @@ type ScalingPolicy struct {
 	// PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
 	PeriodSeconds int32 `json:"periodSeconds"`
 }
-
-// Metrics is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
-// +optional
-type Metrics struct {
-	// type is the type of metric source.  It should be one of "Object",
-	// "Replicas" or "Resource", each mapping to a matching field in the object.
-	Type MetricSourceType `json:"type"`
-	// +optional
-	Prometheus *PrometheusMetricSource `json:"prometheus,omitempty"`
-}
-
-// PrometheusMetricSource defines a metric in Prometheus
-type PrometheusMetricSource struct {
-	Query  string               `json:"query"`
-	Target v2beta2.MetricTarget `json:"target"`
-}
-
-// MetricSourceType indicates the type of metric.
-type MetricSourceType string
-
-// MetricSourceType enum definition
-const (
-	PrometheusMetricSourceType MetricSourceType = "PrometheusMetricSourceType"
-)
 
 // HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true

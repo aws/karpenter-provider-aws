@@ -3,6 +3,7 @@
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=false"
+GOLINT_OPTIONS ?= "--set_exit_status=1"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -15,7 +16,7 @@ all: build test
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+	go test ./... -cover
 
 # Build controller binary
 build: generate fmt vet tidy
@@ -38,6 +39,7 @@ manifests:
 
 # Run go fmt against code
 fmt:
+	golint $(GOLINT_OPTIONS) ./...
 	go fmt ./...
 
 # Run go vet against code
