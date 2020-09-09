@@ -27,19 +27,23 @@ type Proportional struct {
 	Spec v1alpha1.HorizontalAutoscalerSpec
 }
 
-// GetDesiredReplicas returns the autoscalers recommendation
+// GetDesiredReplicas returns the autoscaler's recommendation.
+// This function mirrors the implementation of HPA's autoscaling algorithm
+// https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details
 func (a *Proportional) GetDesiredReplicas(metric Metric, replicas int32) int32 {
-	ratio := metric.Metric.Value / metric.TargetValue
+	ratio := (metric.Metric.Value / metric.TargetValue)
+	proportional := float64(replicas) * ratio
+
 	switch metric.TargetType {
 	// Proportional
 	case v1alpha1.ValueMetricType:
-		return int32(math.Ceil(float64(replicas) * ratio))
+		return int32(math.Ceil(proportional))
 	// Proportional average, divided by number of replicas
 	case v1alpha1.AverageValueMetricType:
 		return int32(math.Ceil(ratio))
 	// Proportional percentage, multiplied by 100
 	case v1alpha1.UtilizationMetricType:
-		return int32(math.Ceil(ratio * 100))
+		return int32(math.Ceil(proportional * 100))
 	default:
 		zap.S().Errorf("Unexpected TargetType %s for ", metric.TargetType)
 		return replicas

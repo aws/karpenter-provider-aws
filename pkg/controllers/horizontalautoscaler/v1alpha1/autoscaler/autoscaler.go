@@ -50,7 +50,7 @@ func (af *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 	}
 }
 
-// Autoscaler calculates desired replicas as a simple proportion of the observed metrics.
+// Autoscaler calculates desired replicas using the provided algorithm.
 type Autoscaler struct {
 	*v1alpha1.HorizontalAutoscaler
 	metricsClientFactory clients.Factory
@@ -114,7 +114,7 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 	groupResource, err := a.parseGroupResource(a.Spec.ScaleTargetRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing group resource %v", groupResource)
+		return nil, errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
 	}
 	scaleTarget, err := a.scaleNamespacer.
 		Scales(a.ObjectMeta.Namespace).
@@ -125,7 +125,7 @@ func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 func (a *Autoscaler) updateScaleTarget(scaleTarget *v1.Scale) error {
 	groupResource, err := a.parseGroupResource(a.Spec.ScaleTargetRef)
 	if err != nil {
-		return errors.Wrapf(err, "parsing group resource %v", groupResource)
+		return errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
 	}
 	if _, err := a.scaleNamespacer.
 		Scales(a.ObjectMeta.Namespace).

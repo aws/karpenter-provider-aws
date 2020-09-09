@@ -74,6 +74,21 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 						Value: 304,
 					},
 				},
+				replicas: 1,
+			},
+			want: 7,
+		},
+		{
+			name: "AverageValueMetricType scales to zero",
+			args: args{
+				metric: Metric{
+					TargetType:  v1alpha1.AverageValueMetricType,
+					TargetValue: 50,
+					Metric: metrics.Metric{
+						Value: 304,
+					},
+				},
+				replicas: 0,
 			},
 			want: 7,
 		},
@@ -87,8 +102,23 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 						Value: .6,
 					},
 				},
+				replicas: 2,
 			},
-			want: 2,
+			want: 3,
+		},
+		{
+			name: "AverageUtilization does not scale to zero",
+			args: args{
+				metric: Metric{
+					TargetType:  v1alpha1.UtilizationMetricType,
+					TargetValue: 50,
+					Metric: metrics.Metric{
+						Value: .6,
+					},
+				},
+				replicas: 0,
+			},
+			want: 0,
 		},
 		{
 			name: "Unknown metric type returns replicas",

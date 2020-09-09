@@ -27,5 +27,6 @@ type PrometheusMetricsClient struct {
 
 // GetCurrentValue for the metric
 func (c *PrometheusMetricsClient) GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error) {
+	// TODO, implement this
 	return metrics.Metric{}, nil
 }
