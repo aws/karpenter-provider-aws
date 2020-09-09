@@ -6,12 +6,10 @@ metadata:
   name: karpenter-mutating-webhook-configuration
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
-# Leave the following commented-out, as we don't have any validating
-# webhooks right now, and you'll get an error if it's present.
-# ---
-# apiVersion: admissionregistration.k8s.io/v1beta1
-# kind: ValidatingWebhookConfiguration
-# metadata:
-#   name: karpenter-validating-webhook-configuration
-#   annotations:
-#     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: karpenter-validating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
