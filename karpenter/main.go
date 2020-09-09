@@ -64,7 +64,9 @@ type Dependencies struct {
 }
 
 func main() {
+	setupFlags()
 	setupLogger()
+
 	dependencies.Manager = managerOrDie()
 	dependencies.InformerFactory = informerFactoryOrDie()
 	dependencies.MetricsProducerFactory = metricsProducerFactoryOrDie()
