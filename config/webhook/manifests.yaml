@@ -10,7 +10,7 @@ webhooks:
     caBundle: Cg==
     service:
       name: karpenter-webhook
-      namespace: system
+      namespace: karpenter
       path: /mutate-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: mhorizontalautoscaler.kb.io
@@ -28,7 +28,7 @@ webhooks:
     caBundle: Cg==
     service:
       name: karpenter-webhook
-      namespace: system
+      namespace: karpenter
       path: /mutate-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
   name: mscalablenodegroup.kb.io
@@ -53,7 +53,7 @@ webhooks:
     caBundle: Cg==
     service:
       name: karpenter-webhook
-      namespace: system
+      namespace: karpenter
       path: /validate-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: vhorizontalautoscaler.kb.io
@@ -71,7 +71,7 @@ webhooks:
     caBundle: Cg==
     service:
       name: karpenter-webhook
-      namespace: system
+      namespace: karpenter
       path: /validate-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
   name: vscalablenodegroup.kb.io
