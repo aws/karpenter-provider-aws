@@ -1,8 +1,6 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=false"
 GOLINT_OPTIONS ?= "--set_exit_status=1"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -15,27 +13,23 @@ endif
 all: build test
 
 # Run tests
-test: generate fmt vet manifests
+test: fmt vet
 	go test ./... -v -cover
 
 # Build controller binary
-build: generate fmt vet tidy
+build: fmt vet tidy
 	go build -o bin/karpenter karpenter/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: fmt vet
 	go run karpenter/main.go --enable-leader-election=false --enable-webhook=false
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
+deploy:
 	kustomize build config/dev | ko apply -B -f -
 
-undeploy: manifests
+undeploy:
 	kustomize build config/dev | ko delete -f -
-
-# Generate manifests e.g. CRD, RBAC etc.
-manifests:
-	controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
@@ -50,10 +44,9 @@ vet:
 tidy:
 	go mod tidy
 
-# Generate code
+# Generate code. This is necessary if any API changes are made to ./pkg/apis
 generate:
-	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./pkg/apis/..."
-	./hack/boilerplate.sh
+	./hack/update-codegen.sh
 
 # Build the docker image
 docker-build:

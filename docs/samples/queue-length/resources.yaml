@@ -1,4 +1,4 @@
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: ScalableNodeGroup
 metadata:
   name: ml-training-capacity
@@ -6,7 +6,7 @@ spec:
   type: AWSEKSNodeGroup
   id: arn:aws:eks:us-west-2:1234567890:node-group:training-capacity
 ---
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
   name: ml-training-queue
@@ -16,14 +16,14 @@ spec:
     provider: AWSSQSQueue
     id: arn:aws:sqs:us-west-2:1234567890:alice-ml-training-queue
 ---
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
 metadata:
   name: ml-training-capacity-autoscaler
   namespace: alice
 spec:
   scaleTargetRef:
-    apiVersion: karpenter.sh/v1alpha1
+    apiVersion: autoscaling.karpenter.sh/v1alpha1
     kind: ScalableNodeGroup
     name: training-capacity
   minReplicas: 0

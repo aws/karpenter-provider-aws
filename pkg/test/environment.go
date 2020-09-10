@@ -40,7 +40,7 @@ func Environment(setupFn func(controllerruntime.Manager) error) (client.Client, 
 		},
 	}
 	_, err = environment.Start()
-	gomega.Expect(apis.SchemeBuilder.AddToScheme(scheme.Scheme)).To(gomega.Succeed(), "Failed to initailize scheme")
+	gomega.Expect(apis.AddToScheme(scheme.Scheme)).To(gomega.Succeed(), "Failed to initailize scheme")
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), "Failed to start Environment")
 	manager, err := controllerruntime.NewManager(environment.Config, controllerruntime.Options{
 		CertDir: environment.WebhookInstallOptions.LocalServingCertDir,

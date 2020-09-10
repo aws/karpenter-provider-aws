@@ -15,7 +15,7 @@ limitations under the License.
 package clients
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/api"
 	"go.uber.org/zap"
