@@ -12,6 +12,6 @@ spec:
       # but we're going to set it later using the cert-manager (or potentially a patch if not using cert-manager)
       caBundle: Cg==
       service:
-        namespace: system
+        namespace: karpenter
         name: webhook-service
         path: /convert
