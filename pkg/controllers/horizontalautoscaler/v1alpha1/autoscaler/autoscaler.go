@@ -138,7 +138,7 @@ func (a *Autoscaler) updateScaleTarget(scaleTarget *v1.Scale) error {
 func (a *Autoscaler) parseGroupResource(scaleTargetRef v1alpha1.CrossVersionObjectReference) (schema.GroupResource, error) {
 	groupVersion, err := schema.ParseGroupVersion(scaleTargetRef.APIVersion)
 	if err != nil {
-		return schema.GroupResource{}, errors.Wrapf(err, "parsing groupversion from APIVersion %v", scaleTargetRef.APIVersion)
+		return schema.GroupResource{}, errors.Wrapf(err, "parsing groupversion from APIVersion %s", scaleTargetRef.APIVersion)
 	}
 	groupKind := schema.GroupKind{
 		Group: groupVersion.Group,

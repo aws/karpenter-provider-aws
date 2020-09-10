@@ -15,6 +15,7 @@ limitations under the License.
 package controllers
 
 import (
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
@@ -24,4 +25,20 @@ type Controller interface {
 	Reconcile(req controllerruntime.Request) (controllerruntime.Result, error)
 	For() runtime.Object
 	Owns() []runtime.Object
+}
+
+// RegisterController registers the provided Controller as a controller in the controller Manager.
+func RegisterController(manager controllerruntime.Manager, controller Controller) error {
+	var builder = controllerruntime.NewControllerManagedBy(manager).For(controller.For())
+	for _, resource := range controller.Owns() {
+		builder = builder.Owns(resource)
+	}
+	return errors.Wrapf(builder.Complete(controller), "registering controller to manager for resource %v", controller.For())
+}
+
+// RegisterWebhook registers the provided Controller as a webhook in the controller Manager.
+func RegisterWebhook(manager controllerruntime.Manager, controller Controller) error {
+	return errors.Wrapf(
+		controllerruntime.NewWebhookManagedBy(manager).For(controller.For()).Complete(),
+		"registering webhook to manager for resource %v", controller.For())
 }

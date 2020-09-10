@@ -152,7 +152,7 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 	if err != nil {
 		zap.S().Fatalf("Unable to create discovery client, %v", err)
 	}
-	scaleClient, err := scale.NewForConfig(
+	scale, err := scale.NewForConfig(
 		controllerruntime.GetConfigOrDie(),
 		dependencies.Manager.GetRESTMapper(),
 		dynamic.LegacyAPIPathResolverFunc,
@@ -165,12 +165,12 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 		MetricsClientFactory: dependencies.MetricsClientFactory,
 		KubernetesClient:     dependencies.Manager.GetClient(),
 		Mapper:               dependencies.Manager.GetRESTMapper(),
-		ScaleNamespacer:      scaleClient,
+		ScaleNamespacer:      scale,
 	}
 }
 
 func controllersOrDie() []controllers.Controller {
-	controllers := []controllers.Controller{
+	ctrls := []controllers.Controller{
 		&horizontalautoscalerv1alpha1.Controller{
 			Client:            dependencies.Manager.GetClient(),
 			AutoscalerFactory: dependencies.AutoscalerFactory,
@@ -182,25 +182,17 @@ func controllersOrDie() []controllers.Controller {
 			Client: dependencies.Manager.GetClient(),
 		},
 	}
-	for _, controller := range controllers {
+	for _, controller := range ctrls {
 		if options.EnableController {
-			var builder = controllerruntime.NewControllerManagedBy(dependencies.Manager).For(controller.For())
-			for _, resource := range controller.Owns() {
-				builder = builder.Owns(resource)
-			}
-			if err := builder.Complete(controller); err != nil {
-				zap.S().Fatalf("Unable to create controller for resource %v, %v", controller.For(), err)
+			if err := controllers.RegisterController(dependencies.Manager, controller); err != nil {
+				zap.S().Fatalf("Failed to register controller for resource %v: %v", controller.For(), err)
 			}
 		}
-
 		if options.EnableWebhook {
-			if err := controllerruntime.
-				NewWebhookManagedBy(dependencies.Manager).
-				For(controller.For()).
-				Complete(); err != nil {
-				zap.S().Fatalf("Unable to create webhook for resource %v, %v", controller.For(), err)
+			if err := controllers.RegisterWebhook(dependencies.Manager, controller); err != nil {
+				zap.S().Fatalf("Failed to register webhook for resource %v: %v", controller.For(), err)
 			}
 		}
 	}
-	return controllers
+	return ctrls
 }
