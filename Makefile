@@ -16,7 +16,7 @@ all: build test
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -cover
+	go test ./... -v -cover
 
 # Build controller binary
 build: generate fmt vet tidy
