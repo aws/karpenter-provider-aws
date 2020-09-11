@@ -15,7 +15,7 @@ limitations under the License.
 package algorithms
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 )
 

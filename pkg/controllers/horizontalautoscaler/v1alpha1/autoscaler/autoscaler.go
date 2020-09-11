@@ -17,7 +17,7 @@ package autoscaler
 import (
 	"context"
 
-	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/pkg/errors"

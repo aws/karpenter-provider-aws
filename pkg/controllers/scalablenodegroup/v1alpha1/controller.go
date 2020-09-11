@@ -17,7 +17,7 @@ package v1alpha1
 import (
 	"context"
 
-	"github.com/ellistarn/karpenter/pkg/apis/scalablenodegroup/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"

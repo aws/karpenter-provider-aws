@@ -17,7 +17,7 @@ package algorithms
 import (
 	"math"
 
-	"github.com/ellistarn/karpenter/pkg/apis/horizontalautoscaler/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"go.uber.org/zap"
 )
 
