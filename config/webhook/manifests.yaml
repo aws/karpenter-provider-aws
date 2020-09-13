@@ -11,12 +11,12 @@ webhooks:
     service:
       name: karpenter-webhook
       namespace: karpenter
-      path: /mutate-karpenter-sh-v1alpha1-horizontalautoscaler
+      path: /mutate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: mhorizontalautoscaler.kb.io
   rules:
   - apiGroups:
-    - karpenter.sh
+    - autoscaling.karpenter.sh
     apiVersions:
     - v1alpha1
     operations:
@@ -29,12 +29,12 @@ webhooks:
     service:
       name: karpenter-webhook
       namespace: karpenter
-      path: /mutate-karpenter-sh-v1alpha1-scalablenodegroup
+      path: /mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
   name: mscalablenodegroup.kb.io
   rules:
   - apiGroups:
-    - karpenter.sh
+    - autoscaling.karpenter.sh
     apiVersions:
     - v1alpha1
     operations:
@@ -54,12 +54,12 @@ webhooks:
     service:
       name: karpenter-webhook
       namespace: karpenter
-      path: /validate-karpenter-sh-v1alpha1-horizontalautoscaler
+      path: /validate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: vhorizontalautoscaler.kb.io
   rules:
   - apiGroups:
-    - karpenter.sh
+    - autoscaling.karpenter.sh
     apiVersions:
     - v1alpha1
     operations:
@@ -72,12 +72,12 @@ webhooks:
     service:
       name: karpenter-webhook
       namespace: karpenter
-      path: /validate-karpenter-sh-v1alpha1-scalablenodegroup
+      path: /validate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
   name: vscalablenodegroup.kb.io
   rules:
   - apiGroups:
-    - karpenter.sh
+    - autoscaling.karpenter.sh
     apiVersions:
     - v1alpha1
     operations:

@@ -52,8 +52,8 @@ func (c *Controller) Owns() []runtime.Object {
 // Reconcile executes a control loop for the HorizontalAutoscaler resource
 // For now, assume a singleton architecture where all definitions are handled in a single shard.
 // In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
-// +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	ctx := context.Background()
 	// 1. Retrieve resource from API Server

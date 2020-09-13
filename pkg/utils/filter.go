@@ -14,19 +14,22 @@ limitations under the License.
 
 package utils
 
-func greaterThan(values []int32, target int32) (results []int32) {
-	return filter(values, target, func(a int32, b int32) bool {
+// GreaterThan returns values greater than the target value
+func GreaterThan(values []int32, target int32) (results []int32) {
+	return Filter(values, target, func(a int32, b int32) bool {
 		return a > b
 	})
 }
 
-func lessThan(values []int32, target int32) (results []int32) {
-	return filter(values, target, func(a int32, b int32) bool {
+// LessThan returns values less than the target value
+func LessThan(values []int32, target int32) (results []int32) {
+	return Filter(values, target, func(a int32, b int32) bool {
 		return a < b
 	})
 }
 
-func filter(values []int32, target int32, predicate func(a int32, b int32) bool) (results []int32) {
+// Filter returns values for which the predicate returns true
+func Filter(values []int32, target int32, predicate func(a int32, b int32) bool) (results []int32) {
 	for _, value := range values {
 		if predicate(value, target) {
 			results = append(results, value)

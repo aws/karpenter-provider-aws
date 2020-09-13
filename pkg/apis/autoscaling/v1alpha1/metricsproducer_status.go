@@ -15,5 +15,6 @@ limitations under the License.
 package v1alpha1
 
 // MetricsProducerStatus defines the observed state of the resource.
+// +kubebuilder:subresource:status
 type MetricsProducerStatus struct {
 }

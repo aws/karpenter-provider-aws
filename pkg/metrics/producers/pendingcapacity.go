@@ -27,7 +27,5 @@ type PendingCapacity struct {
 
 // GetCurrentValues of the metrics
 func (m *PendingCapacity) GetCurrentValues() ([]metrics.Metric, error) {
-	m.Nodes.Get("todo")
-	m.Pods.Pods("namespace").Get("name")
 	return nil, nil
 }
