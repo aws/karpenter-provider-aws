@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -42,7 +41,6 @@ func RegisterController(manager controllerruntime.Manager, controller Controller
 
 // RegisterWebhook registers the provided Controller as a webhook in the controller Manager.
 func RegisterWebhook(manager controllerruntime.Manager, controller Controller) error {
-	zap.S().Infof("oooo %s", generateMutatePath(controller.For().GetObjectKind().GroupVersionKind()))
 	return errors.Wrapf(
 		controllerruntime.NewWebhookManagedBy(manager).For(controller.For()).Complete(),
 		"registering webhook to manager for resource %v", controller.For())

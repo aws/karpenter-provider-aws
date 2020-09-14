@@ -27,7 +27,6 @@ spec:
         image: controller:latest
         args:
         - "--enable-leader-election"
-        - "--enable-controller=false"
         resources:
           limits:
             cpu: 100m
