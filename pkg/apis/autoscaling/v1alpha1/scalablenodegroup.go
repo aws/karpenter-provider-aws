@@ -12,6 +12,8 @@ type ScalableNodeGroupSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
 	Type ProviderType `json:"type"`
+	// ID to identify the underlying resource
+	ID string `json:"id"`
 }
 
 // ProviderType refers to the implementation of the ScalableNodeGroup

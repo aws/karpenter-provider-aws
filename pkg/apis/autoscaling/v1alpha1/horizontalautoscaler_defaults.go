@@ -13,6 +13,7 @@ limitations under the License.
 */
 
 // +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=horizontalautoscalers,verbs=create;update,versions=v1alpha1,name=mhorizontalautoscaler.kb.io
+
 package v1alpha1
 
 import "sigs.k8s.io/controller-runtime/pkg/webhook"

@@ -13,7 +13,7 @@ metadata:
   namespace: alice
 spec:
   queue:
-    provider: AWSSQSQueue
+    type: AWSSQSQueue
     id: arn:aws:sqs:us-west-2:1234567890:alice-ml-training-queue
 ---
 apiVersion: autoscaling.karpenter.sh/v1alpha1

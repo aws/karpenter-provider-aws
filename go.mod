@@ -17,6 +17,6 @@ require (
 	k8s.io/client-go v0.18.6
 	k8s.io/code-generator v0.18.6
 	sigs.k8s.io/controller-runtime v0.6.2
-	sigs.k8s.io/controller-tools v0.4.0
+	sigs.k8s.io/controller-tools v0.3.1-0.20200528125929-5c0c6ae3b64b
 	sigs.k8s.io/kubebuilder v1.0.9-0.20200321200244-8b53abeb4280
 )

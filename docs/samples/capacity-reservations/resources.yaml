@@ -5,9 +5,7 @@ metadata:
 spec:
   type: AWSEKSNodeGroup
   id: arn:aws:eks:us-west-2:1234567890:node-group:bobs-microservices
-
 ---
-
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
 metadata:
