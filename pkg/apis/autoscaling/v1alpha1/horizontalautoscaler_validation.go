@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:webhook:verbs=create;update;delete,path=/validate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler,mutating=false,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=horizontalautoscalers,versions=v1alpha1,name=vhorizontalautoscaler.kb.io
+
 package v1alpha1
 
 import (
@@ -19,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// +kubebuilder:webhook:verbs=create;update;delete,path=/validate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler,mutating=false,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=horizontalautoscalers,versions=v1alpha1,name=vhorizontalautoscaler.kb.io
 var _ webhook.Validator = &HorizontalAutoscaler{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type

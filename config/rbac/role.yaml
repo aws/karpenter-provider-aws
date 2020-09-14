@@ -26,3 +26,43 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - metricsproducers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - metricsproducers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - scalablenodegroups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - scalablenodegroups/status
+  verbs:
+  - get
+  - patch
+  - update

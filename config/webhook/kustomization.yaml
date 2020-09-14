@@ -4,3 +4,7 @@ resources:
 
 configurations:
 - kustomizeconfig.yaml
+
+# controller-gen doesn't allow configuration of name or namespace, so they must be substituted directly here
+namePrefix: karpenter-
+namespace: karpenter
