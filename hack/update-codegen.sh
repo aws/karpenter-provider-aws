@@ -1,26 +1,15 @@
 #!/bin/bash
 set -eu -o pipefail
 
-
-# Generate API Deep Copy
-controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./pkg/apis/..."
-# Generate CRDs
-controller-gen crd:trivialVersions=false paths=./pkg/apis/... "output:crd:artifacts:config=config/crd/bases"
-
-# TODO Fix Me, doesn't generate anything
-controller-gen rbac:roleName=karpenter paths=./pkg/controllers/... output:rbac:artifacts:config=config/rbac
-
-# TODO Fix Me, doesn't generate anything
-controller-gen webhook paths="./pkg/apis/..." output:webhook:artifacts:config=config/webhook
-
-# TODO Fix Me, this is broken into above generators
-# controller-gen \
-#     object:headerFile="hack/boilerplate.go.txt" \
-#     webhook \
-#     crd:trivialVersions=false \
-#     rbac:roleName=karpenter \
-#     paths="./pkg/..." \
-#     "output:crd:artifacts:config=config/crd/bases"
+# Controller code generation
+controller-gen \
+    object:headerFile="hack/boilerplate.go.txt" \
+    webhook \
+    crd:trivialVersions=false \
+    rbac:roleName=karpenter \
+    paths="./pkg/..." \
+    output:crd:artifacts:config=config/crd/bases \
+    output:webhook:artifacts:config=config/webhook
 
 # TODO Fix Me, creates empty clients
 # bash -e $GOPATH/pkg/mod/k8s.io/code-generator@v0.18.6/generate-groups.sh \

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup,mutating=true,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=create;update,versions=v1alpha1,name=mscalablenodegroup.kb.io
+// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=create;update,versions=v1alpha1,name=mscalablenodegroup.kb.io
 
 package v1alpha1
 
