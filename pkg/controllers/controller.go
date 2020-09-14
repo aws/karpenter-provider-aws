@@ -15,11 +15,8 @@ limitations under the License.
 package controllers
 
 import (
-	"strings"
-
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
@@ -44,9 +41,4 @@ func RegisterWebhook(manager controllerruntime.Manager, controller Controller) e
 	return errors.Wrapf(
 		controllerruntime.NewWebhookManagedBy(manager).For(controller.For()).Complete(),
 		"registering webhook to manager for resource %v", controller.For())
-}
-
-func generateMutatePath(gvk schema.GroupVersionKind) string {
-	return "/mutate-" + strings.Replace(gvk.Group, ".", "-", -1) + "-" +
-		gvk.Version + "-" + strings.ToLower(gvk.Kind)
 }
