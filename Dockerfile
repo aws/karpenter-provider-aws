@@ -8,10 +8,10 @@ COPY go.sum  go.sum
 # Build src
 RUN GOPROXY=direct go mod download
 
-COPY cmd/    cmd/
-COPY pkg/    pkg/
+COPY karpenter/ karpenter/
+COPY pkg/ pkg/
 
-RUN go build -o karpenter ./cmd
+RUN go build -o karpenter ./karpenter
 
 # Copy to slim image
 FROM gcr.io/distroless/base:latest
