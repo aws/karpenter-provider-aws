@@ -1,6 +1,8 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
+.PHONY: all verify generate build test release run deploy undeploy
+
 all: verify generate build test
 
 # Run tests
