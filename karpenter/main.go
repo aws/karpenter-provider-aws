@@ -16,7 +16,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
 	metricsproducers "github.com/ellistarn/karpenter/pkg/metrics/producers"
 	"github.com/prometheus/client_golang/api"
-	admissionv1 "k8s.io/api/admission/v1"
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
@@ -43,7 +42,6 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = apis.AddToScheme(scheme)
-	_ = admissionv1.AddToScheme(scheme)
 }
 
 // Options for running this binary
