@@ -61,6 +61,14 @@ rules:
 - apiGroups:
   - autoscaling.karpenter.sh
   resources:
+  - scalablenodegroups/scale
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
   - scalablenodegroups/status
   verbs:
   - get
