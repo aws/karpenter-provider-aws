@@ -4,16 +4,12 @@ on:
     branches: [ master ]
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
       with:
         go-version: 1.14.4
-    - run: ./hack/dev-setup.sh
-    - name: make
-      run: |
-        export GOPATH=/Users/runner/go
-        export PATH=$PATH:/Users/runner/go/bin
-        export PATH=$PATH:/usr/local/kubebuilder/bin
-        make
+    - run: make toolchain
+    - run: echo ::add-path::/usr/local/kubebuilder/bin
+    - run: make

@@ -17,7 +17,7 @@ import (
 	metricsproducers "github.com/ellistarn/karpenter/pkg/metrics/producers"
 	"github.com/prometheus/client_golang/api"
 
-	"github.com/go-logr/zapr"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
@@ -66,7 +66,7 @@ type Dependencies struct {
 
 func main() {
 	setupFlags()
-	setupLogger()
+	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
 
 	dependencies.Manager = managerOrDie()
 	dependencies.InformerFactory = informerFactoryOrDie()
@@ -91,12 +91,6 @@ func setupFlags() {
 	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus.prometheus.svc.cluster.local:9090", "The Prometheus Metrics Server URI")
 	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
-}
-
-func setupLogger() {
-	logger := controllerruntimezap.NewRaw(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
-	controllerruntime.SetLogger(zapr.NewLogger(logger))
-	zap.ReplaceGlobals(logger)
 }
 
 func managerOrDie() manager.Manager {
