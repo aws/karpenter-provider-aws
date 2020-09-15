@@ -16,6 +16,8 @@ spec:
     apiVersion: autoscaling.karpenter.sh/v1alpha1
     kind: ScalableNodeGroup
     name: bobs-microservices
+  minReplicas: 3
+  maxReplicas: 23
   metrics:
   - type: Prometheus
     prometheus:
