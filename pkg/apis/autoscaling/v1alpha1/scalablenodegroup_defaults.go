@@ -12,11 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=create;update,versions=v1alpha1,name=mscalablenodegroup.kb.io
+
 package v1alpha1
 
 import "sigs.k8s.io/controller-runtime/pkg/webhook"
 
-// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup,mutating=true,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=create;update,versions=v1alpha1,name=mscalablenodegroup.kb.io
 var _ webhook.Defaulter = &ScalableNodeGroup{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type

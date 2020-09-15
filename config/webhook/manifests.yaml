@@ -1,16 +1,19 @@
 
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   creationTimestamp: null
-  name: karpenter-mutating-webhook-configuration
+  name: mutating-webhook-configuration
 webhooks:
-- clientConfig:
+- admissionReviewVersions:
+
+  - v1beta1
+  clientConfig:
     caBundle: Cg==
     service:
-      name: karpenter-webhook
-      namespace: karpenter
+      name: webhook-service
+      namespace: system
       path: /mutate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: mhorizontalautoscaler.kb.io
@@ -24,11 +27,15 @@ webhooks:
     - UPDATE
     resources:
     - horizontalautoscalers
-- clientConfig:
+  sideEffects: None
+- admissionReviewVersions:
+
+  - v1beta1
+  clientConfig:
     caBundle: Cg==
     service:
-      name: karpenter-webhook
-      namespace: karpenter
+      name: webhook-service
+      namespace: system
       path: /mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
   failurePolicy: Fail
   name: mscalablenodegroup.kb.io
@@ -42,18 +49,23 @@ webhooks:
     - UPDATE
     resources:
     - scalablenodegroups
+  sideEffects: None
+
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   creationTimestamp: null
-  name: karpenter-validating-webhook-configuration
+  name: validating-webhook-configuration
 webhooks:
-- clientConfig:
+- admissionReviewVersions:
+
+  - v1beta1
+  clientConfig:
     caBundle: Cg==
     service:
-      name: karpenter-webhook
-      namespace: karpenter
+      name: webhook-service
+      namespace: system
       path: /validate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
   failurePolicy: Fail
   name: vhorizontalautoscaler.kb.io
@@ -65,24 +77,7 @@ webhooks:
     operations:
     - CREATE
     - UPDATE
+    - DELETE
     resources:
     - horizontalautoscalers
-- clientConfig:
-    caBundle: Cg==
-    service:
-      name: karpenter-webhook
-      namespace: karpenter
-      path: /validate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
-  failurePolicy: Fail
-  name: vscalablenodegroup.kb.io
-  rules:
-  - apiGroups:
-    - autoscaling.karpenter.sh
-    apiVersions:
-    - v1alpha1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - scalablenodegroups
----
+  sideEffects: None

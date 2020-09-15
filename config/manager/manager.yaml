@@ -25,6 +25,8 @@ spec:
       containers:
       - name: manager
         image: controller:latest
+        args:
+        - "--enable-leader-election"
         resources:
           limits:
             cpu: 100m

@@ -8,9 +8,9 @@ require (
 	github.com/golangci/golangci-lint v1.31.0
 	github.com/google/ko v0.5.2
 	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.1
+	github.com/onsi/gomega v1.10.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.0.0
+	github.com/prometheus/client_golang v1.7.1
 	go.uber.org/zap v1.11.0
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6

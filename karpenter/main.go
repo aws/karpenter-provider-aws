@@ -6,10 +6,11 @@ import (
 
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/controllers"
+
 	horizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
-	metricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
-	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler"
+	metricsproducerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/metricsproducer/v1alpha1"
+	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	metricsclients "github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
@@ -170,7 +171,7 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 }
 
 func controllersOrDie() []controllers.Controller {
-	ctrls := []controllers.Controller{
+	cs := []controllers.Controller{
 		&horizontalautoscalerv1alpha1.Controller{
 			Client:            dependencies.Manager.GetClient(),
 			AutoscalerFactory: dependencies.AutoscalerFactory,
@@ -182,17 +183,17 @@ func controllersOrDie() []controllers.Controller {
 			Client: dependencies.Manager.GetClient(),
 		},
 	}
-	for _, controller := range ctrls {
+	for _, c := range cs {
 		if options.EnableController {
-			if err := controllers.RegisterController(dependencies.Manager, controller); err != nil {
-				zap.S().Fatalf("Failed to register controller for resource %v: %v", controller.For(), err)
+			if err := controllers.RegisterController(dependencies.Manager, c); err != nil {
+				zap.S().Fatalf("Failed to register controller for resource %v: %v", c.For(), err)
 			}
 		}
 		if options.EnableWebhook {
-			if err := controllers.RegisterWebhook(dependencies.Manager, controller); err != nil {
-				zap.S().Fatalf("Failed to register webhook for resource %v: %v", controller.For(), err)
+			if err := controllers.RegisterWebhook(dependencies.Manager, c); err != nil {
+				zap.S().Fatalf("Failed to register webhook for resource %v: %v", c.For(), err)
 			}
 		}
 	}
-	return ctrls
+	return cs
 }

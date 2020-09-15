@@ -12,6 +12,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups/status,verbs=get;update;patch
+
 package v1alpha1
 
 import (
@@ -41,8 +44,6 @@ func (c *Controller) Owns() []runtime.Object {
 }
 
 // Reconcile executes a control loop for the resource
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups/status,verbs=get;update;patch
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
 	mp := &v1alpha1.ScalableNodeGroup{}
 	if err := c.Get(context.Background(), req.NamespacedName, mp); err != nil {

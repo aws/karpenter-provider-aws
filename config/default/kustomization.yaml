@@ -41,11 +41,11 @@ vars:
   objref:
     kind: Service
     version: v1
-    name: karpenter-webhook
+    name: webhook-service
   fieldref:
     fieldpath: metadata.namespace
 - name: SERVICE_NAME
   objref:
     kind: Service
     version: v1
-    name: karpenter-webhook
+    name: webhook-service
