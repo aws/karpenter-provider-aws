@@ -1,28 +1,29 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
+.PHONY: all verify generate build test release deploy undeploy
+
 all: verify generate build test
 
 # Run tests
-test:
+test: build
 	go test ./... -v -cover
 
 # Build controller binary
-build:
+build: verify
 	go build -o bin/karpenter karpenter/main.go
 
 # Build and release a container image
-release:
+release: test
 	docker build . -t ${IMG}
 	docker push ${IMG}
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: verify
+run:
 	go run karpenter/main.go --enable-leader-election=false --enable-webhook=false
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-
-deploy:
+deploy: test
 	kustomize build config/dev | ko apply -B -f -
 
 undeploy:
@@ -37,7 +38,7 @@ verify:
 	golangci-lint run
 
 # Generate code. Must be run if changes are made to ./pkg/apis/...
-generate:
+generate: verify
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
 		webhook \
@@ -46,8 +47,6 @@ generate:
 		paths="./pkg/..." \
 		output:crd:artifacts:config=config/crd/bases \
 		output:webhook:artifacts:config=config/webhook
-
 	./hack/boilerplate.sh
-
-	# Hack to remove v1.AdmissionReview until https://github.com/kubernetes-sigs/controller-runtime/issues/1161 is fixed
+        # Hack to remove v1.AdmissionReview until https://github.com/kubernetes-sigs/controller-runtime/issues/1161 is fixed
 	perl -pi -e 's/^  - v1$$//g' config/webhook/manifests.yaml
