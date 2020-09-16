@@ -69,7 +69,7 @@ type MetricSourceType string
 
 // MetricSourceType enum definition
 const (
-	PrometheusMetricSourceType MetricSourceType = "PrometheusMetricSourceType"
+	PrometheusMetricSourceType MetricSourceType = "Prometheus"
 )
 
 // GetTarget returns the target of the metric source.

@@ -14,6 +14,7 @@ limitations under the License.
 
 // +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups/scale,verbs=get;update;patch
 
 package v1alpha1
 
