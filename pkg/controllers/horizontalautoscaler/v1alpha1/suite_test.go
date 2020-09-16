@@ -17,6 +17,7 @@ package v1alpha1
 import (
 	"context"
 	"testing"
+	"time"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers"
@@ -32,14 +33,20 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
+
+const (
+	Timeout = time.Second * 5
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Horizontal Autoscaler Suite")
+	RunSpecsWithDefaultAndCustomReporters(t,
+		"Horizontal Autoscaler Suite",
+		[]Reporter{printer.NewlineReporter{}})
 }
 
 var (
@@ -49,10 +56,10 @@ var (
 
 var _ = BeforeSuite(func() {
 	kubernetesClient, stopEnvironment = test.Environment(func(manager manager.Manager) error {
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(controllerruntime.GetConfigOrDie())
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(manager.GetConfig())
 		Expect(err).ToNot(HaveOccurred(), "Failed to create discovery client")
 		scale, err := scale.NewForConfig(
-			controllerruntime.GetConfigOrDie(),
+			manager.GetConfig(),
 			manager.GetRESTMapper(),
 			dynamic.LegacyAPIPathResolverFunc,
 			scale.NewDiscoveryScaleKindResolver(discoveryClient),
@@ -81,6 +88,10 @@ var _ = Describe("Controller", func() {
 	Context("with an empty resource", func() {
 		nn := types.NamespacedName{Name: "foo", Namespace: "default"}
 		ha := &v1alpha1.HorizontalAutoscaler{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: v1alpha1.SchemeGroupVersion.Identifier(),
+				Kind:       "HorizontalAutoscaler",
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      nn.Name,
 				Namespace: nn.Namespace,
@@ -91,11 +102,11 @@ var _ = Describe("Controller", func() {
 			Expect(kubernetesClient.Create(context.Background(), ha)).To(Succeed())
 			Eventually(func() error {
 				return kubernetesClient.Get(context.Background(), nn, ha)
-			}).Should(Succeed())
+			}, Timeout).Should(Succeed())
 			Expect(kubernetesClient.Delete(context.Background(), ha)).To(Succeed())
 			Eventually(func() bool {
 				return apierrors.IsNotFound(kubernetesClient.Get(context.Background(), nn, ha))
-			}).Should(BeTrue())
+			}, Timeout).Should(BeTrue())
 		})
 	})
 })

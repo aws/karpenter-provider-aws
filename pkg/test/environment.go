@@ -19,19 +19,26 @@ import (
 	"runtime"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes/scheme"
+	pkgruntime "k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
+
+func init() {
+	log.Setup()
+}
 
 // Environment encapsulates bring up and tear down of a testing environment
 func Environment(setupFn func(controllerruntime.Manager) error) (client.Client, chan struct{}) {
 	var err error
 	stop := make(chan struct{})
+	scheme := pkgruntime.NewScheme()
+	gomega.Expect(apis.AddToScheme(scheme)).To(gomega.Succeed(), "Failed to initailize scheme")
 
 	environment := &envtest.Environment{
 		CRDDirectoryPaths: []string{manifestDirFor("crd/bases")},
@@ -39,14 +46,14 @@ func Environment(setupFn func(controllerruntime.Manager) error) (client.Client, 
 			DirectoryPaths: []string{manifestDirFor("webhook")},
 		},
 	}
+
 	_, err = environment.Start()
-	gomega.Expect(apis.AddToScheme(scheme.Scheme)).To(gomega.Succeed(), "Failed to initailize scheme")
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), "Failed to start Environment")
 	manager, err := controllerruntime.NewManager(environment.Config, controllerruntime.Options{
 		CertDir: environment.WebhookInstallOptions.LocalServingCertDir,
 		Host:    environment.WebhookInstallOptions.LocalServingHost,
 		Port:    environment.WebhookInstallOptions.LocalServingPort,
-		Scheme:  scheme.Scheme,
+		Scheme:  scheme,
 	})
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred(), "Failed to initialize Manager")
 	gomega.Expect(setupFn(manager)).To(gomega.Succeed(), "Failed to execute setupFn")

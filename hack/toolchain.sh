@@ -6,13 +6,12 @@ TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 main() {
-    golangcilint
+    tools
     kubebuilder
 }
 
-
-golangcilint() {
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.31.0
+tools() {
+    GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
 }
 
 kubebuilder() {
