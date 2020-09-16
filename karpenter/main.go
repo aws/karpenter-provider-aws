@@ -143,12 +143,12 @@ func metricsClientFactoryOrDie() clients.Factory {
 }
 
 func autoscalerFactoryOrDie() autoscaler.Factory {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(controllerruntime.GetConfigOrDie())
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(dependencies.Manager.GetConfig())
 	if err != nil {
 		zap.S().Fatalf("Unable to create discovery client, %v", err)
 	}
 	scale, err := scale.NewForConfig(
-		controllerruntime.GetConfigOrDie(),
+		dependencies.Manager.GetConfig(),
 		dependencies.Manager.GetRESTMapper(),
 		dynamic.LegacyAPIPathResolverFunc,
 		scale.NewDiscoveryScaleKindResolver(discoveryClient),

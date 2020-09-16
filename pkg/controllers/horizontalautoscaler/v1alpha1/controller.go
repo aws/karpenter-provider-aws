@@ -25,6 +25,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -57,10 +58,10 @@ func (c *Controller) Owns() []runtime.Object {
 // For now, assume a singleton architecture where all definitions are handled in a single shard.
 // In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	ctx := context.Background()
+	zap.S().Infof("Reconciling HorizontalAutoscaler %s.", req.String())
 	// 1. Retrieve resource from API Server
 	resource := &v1alpha1.HorizontalAutoscaler{}
-	if err := c.Get(ctx, req.NamespacedName, resource); err != nil {
+	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -74,7 +75,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	// 3. Apply changes to API Server
-	if err := c.Update(ctx, resource); err != nil {
+	if err := c.Update(context.Background(), resource); err != nil {
 		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
 	}
 
