@@ -21,7 +21,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,8 +61,6 @@ type Autoscaler struct {
 
 // Reconcile executes an autoscaling loop
 func (a *Autoscaler) Reconcile() error {
-	zap.S().Infof("Executing autoscaling loop for %s.", a.ObjectMeta.SelfLink)
-
 	// 1. Retrieve current metrics for the autoscaler
 	metrics, err := a.getMetrics()
 	if err != nil {
@@ -81,13 +78,13 @@ func (a *Autoscaler) Reconcile() error {
 
 	// 4. Persist updated scale to server
 	if err := a.updateScaleTarget(scaleTarget); err != nil {
-		return errors.Wrap(err, "setting replicas %v")
+		return errors.Wrap(err, "setting replicas")
 	}
 	return nil
 }
 
 func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
-	metrics := make([]algorithms.Metric, len(a.Spec.Metrics))
+	metrics := []algorithms.Metric{}
 	for _, desired := range a.Spec.Metrics {
 		observed, err := a.metricsClientFactory.For(desired.Type).GetCurrentValue(desired)
 		if err != nil {
@@ -103,7 +100,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 }
 
 func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas int32) int32 {
-	recommendations := make([]int32, len(metrics))
+	recommendations := []int32{}
 	for _, metric := range metrics {
 		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, replicas))
 	}

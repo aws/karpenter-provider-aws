@@ -96,6 +96,13 @@ var _ = Describe("Controller", func() {
 				Name:      nn.Name,
 				Namespace: nn.Namespace,
 			},
+			Spec: v1alpha1.HorizontalAutoscalerSpec{
+				ScaleTargetRef: v1alpha1.CrossVersionObjectReference{
+					APIVersion: v1alpha1.SchemeGroupVersion.Identifier(),
+					Kind:       "ScalableNodeGroup",
+					Name:       "foo",
+				},
+			},
 		}
 
 		It("should should create and delete", func() {

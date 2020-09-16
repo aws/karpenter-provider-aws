@@ -33,7 +33,6 @@ type Proportional struct {
 func (a *Proportional) GetDesiredReplicas(metric Metric, replicas int32) int32 {
 	ratio := (metric.Metric.Value / metric.TargetValue)
 	proportional := float64(replicas) * ratio
-
 	switch metric.TargetType {
 	// Proportional
 	case v1alpha1.ValueMetricType:
