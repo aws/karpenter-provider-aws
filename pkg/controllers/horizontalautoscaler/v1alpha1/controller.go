@@ -28,7 +28,6 @@ import (
 	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -57,8 +56,8 @@ func (c *Controller) Owns() []runtime.Object {
 // Reconcile executes a control loop for the HorizontalAutoscaler resource
 // For now, assume a singleton architecture where all definitions are handled in a single shard.
 // In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
-func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	zap.S().Infof("Reconciling HorizontalAutoscaler %s.", req.String())
+func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+	zap.S().Infof("Reconciling %s.", req.String())
 	// 1. Retrieve resource from API Server
 	resource := &v1alpha1.HorizontalAutoscaler{}
 	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
@@ -79,7 +78,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
 	}
 
-	return controllerruntime.Result{
+	return reconcile.Result{
 		RequeueAfter: time.Second * DefaultAutoscalingPeriodSeconds,
 	}, nil
 }

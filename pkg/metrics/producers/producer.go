@@ -15,7 +15,9 @@ limitations under the License.
 package producers
 
 import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
 )
 
@@ -30,7 +32,18 @@ type Factory struct {
 	InformerFactory informers.SharedInformerFactory
 }
 
-// NewPendingCapacityMetricsProducer instantiates a metrics producer
+func (f *Factory) For(producer v1alpha1.MetricsProducer) Producer {
+	switch producer.Spec.Type {
+	case v1alpha1.PendingCapacityMetricsProducerType:
+		return &PendingCapacity{
+			Nodes: f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:  f.InformerFactory.Core().V1().Pods().Lister(),
+		}
+	}
+	zap.S().Fatalf("Failed to instantiate metrics producer: unexpected type %s", producer.Spec.Type)
+	return nil
+}
+
 func (m *Factory) NewPendingCapacityMetricsProducer() Producer {
 	return &PendingCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
@@ -38,10 +51,13 @@ func (m *Factory) NewPendingCapacityMetricsProducer() Producer {
 	}
 }
 
-// NewReservedCapacityMetricsProducer instantiates a metrics producer
 func (m *Factory) NewReservedCapacityMetricsProducer() Producer {
 	return &ReservedCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
 		Pods:  m.InformerFactory.Core().V1().Pods().Lister(),
 	}
+}
+
+func (m *Factory) NewQueueMetricsProducer() Producer {
+	return &Queue{}
 }

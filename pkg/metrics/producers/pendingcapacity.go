@@ -15,12 +15,14 @@ limitations under the License.
 package producers
 
 import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	v1 "k8s.io/client-go/listers/core/v1"
 )
 
 // PendingCapacity implements a Pending Capacity metric
 type PendingCapacity struct {
+	v1alpha1.PendingCapacitySpec
 	Nodes v1.NodeLister
 	Pods  v1.PodLister
 }
