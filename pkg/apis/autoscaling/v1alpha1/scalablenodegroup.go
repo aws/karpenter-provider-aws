@@ -11,18 +11,18 @@ type ScalableNodeGroupSpec struct {
 	// Replicas is the desired number of replicas for the targeted Node Group
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
-	Type ProviderType `json:"type"`
+	Type NodeGroupType `json:"type"`
 	// ID to identify the underlying resource
 	ID string `json:"id"`
 }
 
-// ProviderType refers to the implementation of the ScalableNodeGroup
-type ProviderType string
+// NodeGroupType refers to the implementation of the ScalableNodeGroup
+type NodeGroupType string
 
 // Supported provider implementations
 const (
-	AWSEC2AutoScalingGroup ProviderType = "AWSEC2AutoScalingGroup"
-	AWSEKSManagedNodeGroup ProviderType = "AWSEKSManagedNodeGroup"
+	AWSEC2AutoScalingGroup NodeGroupType = "AWSEC2AutoScalingGroup"
+	AWSEKSNodeGroup        NodeGroupType = "AWSEKSNodeGroup"
 )
 
 // ScalableNodeGroup is the Schema for the ScalableNodeGroups API

@@ -16,6 +16,7 @@ package producers
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/queue"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
@@ -30,14 +31,32 @@ type Producer interface {
 // Factory instantiates metrics producers
 type Factory struct {
 	InformerFactory informers.SharedInformerFactory
+	QueueFactory    queue.Factory
 }
 
 func (f *Factory) For(producer v1alpha1.MetricsProducer) Producer {
 	switch producer.Spec.Type {
 	case v1alpha1.PendingCapacityMetricsProducerType:
 		return &PendingCapacity{
-			Nodes: f.InformerFactory.Core().V1().Nodes().Lister(),
-			Pods:  f.InformerFactory.Core().V1().Pods().Lister(),
+			PendingCapacitySpec: *producer.Spec.PendingCapacity,
+			Nodes:               f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:                f.InformerFactory.Core().V1().Pods().Lister(),
+		}
+	case v1alpha1.QueueMetricsProducerType:
+		return &Queue{
+			QueueSpec: *producer.Spec.Queue,
+			Queue:     f.QueueFactory.For(*producer.Spec.Queue),
+		}
+	case v1alpha1.ReservedCapacityMetricsProducerType:
+		return &ReservedCapacity{
+			ReservedCapacitySpec: *producer.Spec.ReservedCapacity,
+			Nodes:                f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:                 f.InformerFactory.Core().V1().Pods().Lister(),
+		}
+	case v1alpha1.ScheduledCapacityMetricsProducerType:
+		return &ScheduledCapacity{
+			ScheduledCapacitySpec: *producer.Spec.ScheduledCapacity,
+			Nodes:                 f.InformerFactory.Core().V1().Nodes().Lister(),
 		}
 	}
 	zap.S().Fatalf("Failed to instantiate metrics producer: unexpected type %s", producer.Spec.Type)

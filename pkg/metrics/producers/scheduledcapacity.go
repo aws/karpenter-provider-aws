@@ -24,7 +24,6 @@ import (
 type ScheduledCapacity struct {
 	v1alpha1.ScheduledCapacitySpec
 	Nodes v1.NodeLister
-	Pods  v1.PodLister
 }
 
 // GetCurrentValues of the metrics

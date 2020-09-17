@@ -11,20 +11,20 @@ type MetricsProducerSpec struct {
 	// If omitted, the value will default a specified implementation or be rejected if multiple are specified.
 	// +optional
 	Type MetricsProducerType `json:"type,omitempty"`
-	// ReservedCapacity produces a metric corresponding to the ratio of committed resources
-	// to availabile resources for the nodes of a specified node group.
-	// +optional
-	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
 	// PendingCapacity produces a metric that recommends increases or decreases
 	// to the sizes of a set of node groups based on pending pods.
 	// +optional
 	PendingCapacity *PendingCapacitySpec `json:"pendingCapacity,omitempty"`
-	// ScheduledCapacity produces a metric according to a specified schedule.
-	// +optional
-	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
 	// Queue produces metrics about a specified queue, such as length and age of oldest message,
 	// +optional
 	Queue *QueueSpec `json:"queue,omitempty"`
+	// ReservedCapacity produces a metric corresponding to the ratio of committed resources
+	// to availabile resources for the nodes of a specified node group.
+	// +optional
+	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
+	// ScheduledCapacity produces a metric according to a specified schedule.
+	// +optional
+	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
 }
 
 // MetricsProducerType refers to the implementation of the MetricsProducer.
@@ -32,10 +32,10 @@ type MetricsProducerType string
 
 // MetricsProducerType Enum
 const (
-	QueueMetricsProducerType             MetricsProducerType = "Queue"
 	PendingCapacityMetricsProducerType   MetricsProducerType = "PendingCapacity"
-	ScheduledCapacityMetricsProducerType MetricsProducerType = "ScheduledCapacity"
+	QueueMetricsProducerType             MetricsProducerType = "Queue"
 	ReservedCapacityMetricsProducerType  MetricsProducerType = "ReservedCapacity"
+	ScheduledCapacityMetricsProducerType MetricsProducerType = "ScheduledCapacity"
 )
 
 type ReservedCapacitySpec struct {
@@ -70,16 +70,16 @@ type PendingPodsSpec struct {
 
 // QueueSpec outputs metrics for a queue.
 type QueueSpec struct {
-	Type QueueProviderType `json:"type"`
-	ID   string            `json:"id"`
+	Type QueueType `json:"type"`
+	ID   string    `json:"id"`
 }
 
-// QueueProviderType corresponds to an implementation of a queue
-type QueueProviderType string
+// QueueType corresponds to an implementation of a queue
+type QueueType string
 
-// QueueProvider enum
+// QueueType enum
 const (
-	AWSSQSQueueProvider QueueProviderType = "AWSSQSQueueProvider"
+	AWSSQSQueueType QueueType = "AWSSQSQueue"
 )
 
 // MetricsProducer is the Schema for the MetricsProducers API

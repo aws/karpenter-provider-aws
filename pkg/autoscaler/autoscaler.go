@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler/algorithms"
+	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/autoscaling/v1"
