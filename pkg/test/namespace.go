@@ -4,12 +4,13 @@ import (
 	"context"
 	"io/ioutil"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/ellistarn/karpenter/pkg/utils"
+	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -18,6 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+)
+
+var (
+	YAMLDocumentDelimitor = regexp.MustCompile(`\n---\n`)
 )
 
 type Namespace struct {
@@ -61,10 +66,12 @@ func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 
 func parseFromYaml(data []byte, object runtime.Object) error {
 	errs := []error{}
-	for _, document := range strings.Split(string(data), "---") {
-		if err := yaml.UnmarshalStrict([]byte(document), object); err == nil {
+	for _, document := range YAMLDocumentDelimitor.Split(string(data), -1) {
+		if err := yaml.UnmarshalStrict([]byte(document), object); err != nil {
+			errs = append(errs, err)
+		} else {
 			return nil
 		}
 	}
-	return errors.Wrap(utils.FirstNonNilError(errs), "parsing YAML")
+	return errors.Wrap(f.FirstNonNilError(errs), "parsing YAML")
 }
