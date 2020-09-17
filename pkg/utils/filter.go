@@ -37,3 +37,12 @@ func Filter(values []int32, target int32, predicate func(a int32, b int32) bool)
 	}
 	return results
 }
+
+func FirstNonNilError(errors []error) error {
+	for _, err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

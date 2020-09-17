@@ -25,7 +25,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/test"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -33,7 +32,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -49,13 +47,8 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var (
-	kubernetesClient client.Client
-	stopEnvironment  chan struct{}
-)
-
-var _ = BeforeSuite(func() {
-	kubernetesClient, stopEnvironment = test.Environment(func(manager manager.Manager) error {
+var _ = Describe("Controller", func() {
+	kubernetesClient, stopEnvironment := test.Environment(func(manager manager.Manager) error {
 		discoveryClient, err := discovery.NewDiscoveryClientForConfig(manager.GetConfig())
 		Expect(err).ToNot(HaveOccurred(), "Failed to create discovery client")
 		scale, err := scale.NewForConfig(
@@ -78,34 +71,17 @@ var _ = BeforeSuite(func() {
 		Expect(controllers.RegisterWebhook(manager, controller)).To(Succeed(), "Failed to register webhook")
 		return nil
 	})
-}, 60)
+	namespace := test.NewNamespace(kubernetesClient)
 
-var _ = AfterSuite(func() {
-	close(stopEnvironment)
-})
+	var _ = AfterSuite(func() {
+		close(stopEnvironment)
+	})
 
-var _ = Describe("Controller", func() {
 	Context("with an empty resource", func() {
-		nn := types.NamespacedName{Name: "foo", Namespace: "default"}
-		ha := &v1alpha1.HorizontalAutoscaler{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: v1alpha1.SchemeGroupVersion.Identifier(),
-				Kind:       "HorizontalAutoscaler",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      nn.Name,
-				Namespace: nn.Namespace,
-			},
-			Spec: v1alpha1.HorizontalAutoscalerSpec{
-				ScaleTargetRef: v1alpha1.CrossVersionObjectReference{
-					APIVersion: v1alpha1.SchemeGroupVersion.Identifier(),
-					Kind:       "ScalableNodeGroup",
-					Name:       "foo",
-				},
-			},
-		}
-
 		It("should should create and delete", func() {
+			ha := &v1alpha1.HorizontalAutoscaler{}
+			Expect(namespace.ParseResource("docs/samples/capacity-reservations/resources.yaml", ha)).To(Succeed())
+			nn := types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}
 			Expect(kubernetesClient.Create(context.Background(), ha)).To(Succeed())
 			Eventually(func() error {
 				return kubernetesClient.Get(context.Background(), nn, ha)
