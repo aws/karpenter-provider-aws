@@ -70,12 +70,12 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// 2. Execute autoscaling logic
 	autoscaler := c.AutoscalerFactory.For(resource)
 	if err := autoscaler.Reconcile(); err != nil {
-		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to reconcile %s", req.NamespacedName))
+		return reconcile.Result{}, errors.Wrapf(err, "Failed to reconcile %s", req.NamespacedName)
 	}
 
 	// 3. Apply changes to API Server
 	if err := c.Update(context.Background(), resource); err != nil {
-		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
+		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
 	}
 
 	return reconcile.Result{

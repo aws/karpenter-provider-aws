@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	DefaultMetricAnalysisPeriodSeconds = 10
+	DefaultMetricAnalysisPeriod = 10 * time.Second
 )
 
 // Controller for the resource
@@ -65,10 +65,10 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// 3. Apply changes to API Server
 	if err := c.Update(context.Background(), resource); err != nil {
-		return reconcile.Result{}, errors.Cause(errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName))
+		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
 	}
 
 	return reconcile.Result{
-		RequeueAfter: time.Second * DefaultMetricAnalysisPeriodSeconds,
+		RequeueAfter: DefaultMetricAnalysisPeriod,
 	}, nil
 }
