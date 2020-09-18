@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	YAMLDocumentDelimitor = regexp.MustCompile(`\n---\n`)
+	YAMLDocumentDelimiter = regexp.MustCompile(`\n---\n`)
 )
 
 type Namespace struct {
@@ -66,7 +66,7 @@ func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 
 func parseFromYaml(data []byte, object runtime.Object) error {
 	errs := []error{}
-	for _, document := range YAMLDocumentDelimitor.Split(string(data), -1) {
+	for _, document := range YAMLDocumentDelimiter.Split(string(data), -1) {
 		if err := yaml.UnmarshalStrict([]byte(document), object); err != nil {
 			errs = append(errs, err)
 		} else {
