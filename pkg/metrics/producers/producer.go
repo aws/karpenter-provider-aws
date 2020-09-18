@@ -35,31 +35,33 @@ type Factory struct {
 }
 
 func (f *Factory) For(producer v1alpha1.MetricsProducer) Producer {
-	switch producer.Spec.Type {
-	case v1alpha1.PendingCapacityMetricsProducerType:
+	if producer.Spec.PendingCapacity != nil {
 		return &PendingCapacity{
 			PendingCapacitySpec: *producer.Spec.PendingCapacity,
 			Nodes:               f.InformerFactory.Core().V1().Nodes().Lister(),
 			Pods:                f.InformerFactory.Core().V1().Pods().Lister(),
 		}
-	case v1alpha1.QueueMetricsProducerType:
+	}
+	if producer.Spec.Queue != nil {
 		return &Queue{
 			QueueSpec: *producer.Spec.Queue,
 			Queue:     f.QueueFactory.For(*producer.Spec.Queue),
 		}
-	case v1alpha1.ReservedCapacityMetricsProducerType:
+	}
+	if producer.Spec.ReservedCapacity != nil {
 		return &ReservedCapacity{
 			ReservedCapacitySpec: *producer.Spec.ReservedCapacity,
 			Nodes:                f.InformerFactory.Core().V1().Nodes().Lister(),
 			Pods:                 f.InformerFactory.Core().V1().Pods().Lister(),
 		}
-	case v1alpha1.ScheduledCapacityMetricsProducerType:
+	}
+	if producer.Spec.ScheduledCapacity != nil {
 		return &ScheduledCapacity{
 			ScheduledCapacitySpec: *producer.Spec.ScheduledCapacity,
 			Nodes:                 f.InformerFactory.Core().V1().Nodes().Lister(),
 		}
 	}
-	zap.S().Fatalf("Failed to instantiate metrics producer: unexpected type %s", producer.Spec.Type)
+	zap.S().Fatal("Failed to instantiate metrics producer, no spec defined")
 	return nil
 }
 

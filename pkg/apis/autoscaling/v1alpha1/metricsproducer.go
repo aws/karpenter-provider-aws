@@ -7,10 +7,6 @@ import (
 
 // MetricsProducerSpec defines an object that outputs metrics.
 type MetricsProducerSpec struct {
-	// Type selects which metrics producer to configure. It uses a one-of semantic for the below concrete implementations.
-	// If omitted, the value will default a specified implementation or be rejected if multiple are specified.
-	// +optional
-	Type MetricsProducerType `json:"type,omitempty"`
 	// PendingCapacity produces a metric that recommends increases or decreases
 	// to the sizes of a set of node groups based on pending pods.
 	// +optional
@@ -26,17 +22,6 @@ type MetricsProducerSpec struct {
 	// +optional
 	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
 }
-
-// MetricsProducerType refers to the implementation of the MetricsProducer.
-type MetricsProducerType string
-
-// MetricsProducerType Enum
-const (
-	PendingCapacityMetricsProducerType   MetricsProducerType = "PendingCapacity"
-	QueueMetricsProducerType             MetricsProducerType = "Queue"
-	ReservedCapacityMetricsProducerType  MetricsProducerType = "ReservedCapacity"
-	ScheduledCapacityMetricsProducerType MetricsProducerType = "ScheduledCapacity"
-)
 
 type ReservedCapacitySpec struct {
 	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
