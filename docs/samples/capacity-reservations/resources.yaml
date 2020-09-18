@@ -10,7 +10,6 @@ apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
 metadata:
   name: bobs-microservices-autoscaler
-  namespace: bob
 spec:
   scaleTargetRef:
     apiVersion: autoscaling.karpenter.sh/v1alpha1

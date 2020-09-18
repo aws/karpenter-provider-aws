@@ -15,11 +15,10 @@ limitations under the License.
 package test
 
 import (
-	"path/filepath"
-	"runtime"
-
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/ellistarn/karpenter/pkg/utils/project"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/onsi/ginkgo"
@@ -38,12 +37,13 @@ func Environment(setupFn func(controllerruntime.Manager) error) (client.Client, 
 	var err error
 	stop := make(chan struct{})
 	scheme := pkgruntime.NewScheme()
-	gomega.Expect(apis.AddToScheme(scheme)).To(gomega.Succeed(), "Failed to initailize scheme")
+	gomega.Expect(apis.AddToScheme(scheme)).To(gomega.Succeed(), "Failed to initailize apis scheme")
+	gomega.Expect(clientgoscheme.AddToScheme(scheme)).To(gomega.Succeed(), "Failed to initailize clientgo scheme")
 
 	environment := &envtest.Environment{
-		CRDDirectoryPaths: []string{manifestDirFor("crd/bases")},
+		CRDDirectoryPaths: []string{project.RelativeToRoot("config/crd/bases")},
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			DirectoryPaths: []string{manifestDirFor("webhook")},
+			DirectoryPaths: []string{project.RelativeToRoot("config/webhook")},
 		},
 	}
 
@@ -65,10 +65,4 @@ func Environment(setupFn func(controllerruntime.Manager) error) (client.Client, 
 	}()
 
 	return manager.GetClient(), stop
-}
-
-func manifestDirFor(path string) string {
-	_, file, _, _ := runtime.Caller(0)
-	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "config")
-	return filepath.Join(manifestsRoot, path)
 }
