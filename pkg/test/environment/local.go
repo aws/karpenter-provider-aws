@@ -17,12 +17,22 @@ import (
 )
 
 /*
-* Local is an Environment for e2e local testing. It stands up an API Server, ETCD, and a controller-runtime manager.
-* It's possible to run multiple environments simultaneously, as the ports are randomized.
-* A common use case for this is parallel tests using ginkgo's parallelization functionality.
-* The environment is typically instantiated once in a test file and re-used between different test cases.
-* Resources for each test should be isolated into a namespace for each test.
- */
+Local is an Environment for e2e local testing. It stands up an API Server, ETCD,
+and a controller-runtime manager. It's possible to run multiple environments
+simultaneously, as the ports are randomized. A common use case for this is
+parallel tests using ginkgo's parallelization functionality. The environment is
+typically instantiated once in a test file and re-used between different test
+cases. Resources for each test should be isolated into its own namespace.
+
+env := new Local(func(local *Local) {
+	// Register test controller with manager
+	controllerruntime.NewControllerManagedBy(local.Manager).For(...)
+	return nil
+})
+BeforeSuite(func() { env.Start() })
+AfterSuite(func() { env.Stop() })
+
+*/
 type Local struct {
 	envtest.Environment
 	Manager manager.Manager
@@ -31,9 +41,9 @@ type Local struct {
 	stopch    chan struct{}
 }
 
-// LocalInjector passes the Local environment to an injector function.
-// This is useful for registering controllers with the controller-runtime manager
-// or for customizing Client, Scheme, or other variables.
+// LocalInjector passes the Local environment to an injector function. This is
+// useful for registering controllers with the controller-runtime manager or for
+// customizing Client, Scheme, or other variables.
 type LocalInjector func(env *Local) error
 
 func NewLocal(injectors ...LocalInjector) Environment {
