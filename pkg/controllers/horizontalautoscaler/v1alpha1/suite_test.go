@@ -23,7 +23,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
-	"github.com/ellistarn/karpenter/pkg/test"
+	"github.com/ellistarn/karpenter/pkg/test/environment"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -33,11 +33,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const (
-	Timeout = time.Second * 5
+	Timeout = time.Second * 30
 )
 
 func TestAPIs(t *testing.T) {
@@ -47,48 +46,79 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var _ = Describe("Controller", func() {
-	kubernetesClient, stopEnvironment := test.Environment(func(manager manager.Manager) error {
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(manager.GetConfig())
-		Expect(err).ToNot(HaveOccurred(), "Failed to create discovery client")
-		scale, err := scale.NewForConfig(
-			manager.GetConfig(),
-			manager.GetRESTMapper(),
-			dynamic.LegacyAPIPathResolverFunc,
-			scale.NewDiscoveryScaleKindResolver(discoveryClient),
-		)
-		Expect(err).ToNot(HaveOccurred(), "Failed to create scale client")
-		controller := &Controller{
-			Client: manager.GetClient(),
-			AutoscalerFactory: autoscaler.Factory{
-				MetricsClientFactory: clients.Factory{},
-				KubernetesClient:     manager.GetClient(),
-				Mapper:               manager.GetRESTMapper(),
-				ScaleNamespacer:      scale,
-			},
-		}
-		Expect(controllers.RegisterController(manager, controller)).To(Succeed(), "Failed to register controller")
-		Expect(controllers.RegisterWebhook(manager, controller)).To(Succeed(), "Failed to register webhook")
-		return nil
-	})
-	namespace := test.NewNamespace(kubernetesClient)
+var env environment.Environment = environment.NewLocal(func(environment *environment.Local) error {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(environment.Manager.GetConfig())
+	Expect(err).ToNot(HaveOccurred(), "Failed to create discovery client")
+	scale, err := scale.NewForConfig(
+		environment.Manager.GetConfig(),
+		environment.Manager.GetRESTMapper(),
+		dynamic.LegacyAPIPathResolverFunc,
+		scale.NewDiscoveryScaleKindResolver(discoveryClient),
+	)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create scale client")
 
-	var _ = AfterSuite(func() {
-		close(stopEnvironment)
+	controller := &Controller{
+		Client: environment.Manager.GetClient(),
+		AutoscalerFactory: autoscaler.Factory{
+			MetricsClientFactory: clients.Factory{},
+			KubernetesClient:     environment.Manager.GetClient(),
+			Mapper:               environment.Manager.GetRESTMapper(),
+			ScaleNamespacer:      scale,
+		},
+	}
+	Expect(controllers.RegisterController(environment.Manager, controller)).To(Succeed(), "Failed to register controller")
+	Expect(controllers.RegisterWebhook(environment.Manager, controller)).To(Succeed(), "Failed to register webhook")
+	return nil
+})
+
+var _ = BeforeSuite(func() {
+	Expect(env.Start()).To(Succeed(), "Failed to start environment")
+})
+
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = Describe("Test Samples", func() {
+	var ns *environment.Namespace
+	var ha *v1alpha1.HorizontalAutoscaler
+
+	BeforeEach(func() {
+		var err error
+		ns, err = env.NewNamespace()
+		Expect(err).NotTo(HaveOccurred())
+		ha = &v1alpha1.HorizontalAutoscaler{}
 	})
 
-	Context("with an empty resource", func() {
+	Context("Capacity Reservations", func() {
+		BeforeEach(func() {
+			Expect(ns.ParseResource("docs/samples/capacity-reservations/resources.yaml", ha)).To(Succeed())
+		})
+
 		It("should should create and delete", func() {
-			ha := &v1alpha1.HorizontalAutoscaler{}
-			Expect(namespace.ParseResource("docs/samples/capacity-reservations/resources.yaml", ha)).To(Succeed())
-			nn := types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}
-			Expect(kubernetesClient.Create(context.Background(), ha)).To(Succeed())
+			Expect(ns.Create(context.Background(), ha)).To(Succeed())
 			Eventually(func() error {
-				return kubernetesClient.Get(context.Background(), nn, ha)
+				return ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
 			}, Timeout).Should(Succeed())
-			Expect(kubernetesClient.Delete(context.Background(), ha)).To(Succeed())
+			Expect(ns.Delete(context.Background(), ha)).To(Succeed())
 			Eventually(func() bool {
-				return apierrors.IsNotFound(kubernetesClient.Get(context.Background(), nn, ha))
+				return apierrors.IsNotFound(ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
+			}, Timeout).Should(BeTrue())
+		})
+	})
+	Context("Queue Length", func() {
+		BeforeEach(func() {
+			Expect(ns.ParseResource("docs/samples/queue-length/resources.yaml", ha)).To(Succeed())
+		})
+
+		It("should should create and delete", func() {
+			Expect(ns.Create(context.Background(), ha)).To(Succeed())
+			Eventually(func() error {
+				return ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
+			}, Timeout).Should(Succeed())
+			Expect(ns.Delete(context.Background(), ha)).To(Succeed())
+			Eventually(func() bool {
+				return apierrors.IsNotFound(ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
 			}, Timeout).Should(BeTrue())
 		})
 	})
