@@ -14,6 +14,7 @@ specific language governing permissions and limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
@@ -39,21 +40,18 @@ type HorizontalAutoscalerStatus struct {
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 }
 
-// HorizontalAutoscalerConditionType
-type HorizontalAutoscalerConditionType string
-
 const (
-	// ScalingActive indicates that the HPA controller is able to scale if
+	// ScalingActive indicates that the controller is able to scale if
 	// necessary: it's correctly configured, can fetch the desired metrics, and
 	// isn't disabled.
-	ScalingActive HorizontalAutoscalerConditionType = "ScalingActive"
+	ScalingActive apis.ConditionType = "ScalingActive"
 	// AbleToScale indicates a lack of transient issues which prevent scaling
 	// from occurring, such as being in a backoff window, or being unable to
 	// access/update the target scale.
-	AbleToScale HorizontalAutoscalerConditionType = "AbleToScale"
+	AbleToScale apis.ConditionType = "AbleToScale"
 	// ScalingLimited indicates that the calculated scale based on metrics would
 	// be above or below the range for the HA, and has thus been capped.
-	ScalingLimited HorizontalAutoscalerConditionType = "ScalingLimited"
+	ScalingLimited apis.ConditionType = "ScalingLimited"
 )
 
 // MetricStatus contains status information for the configured metrics source.
@@ -83,4 +81,104 @@ type MetricValueStatus struct {
 	// the requested value of the resource for the pods.
 	// +optional
 	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
+}
+
+func (s *HorizontalAutoscalerStatus) MarkScalingActive() {
+	s.SetCondition(ScalingActive, &apis.Condition{
+		Type:     ScalingActive,
+		Status:   v1.ConditionTrue,
+		Severity: apis.ConditionSeverityInfo,
+	})
+}
+
+func (s *HorizontalAutoscalerStatus) MarkNotScalingActive(message string) {
+	s.SetCondition(ScalingActive, &apis.Condition{
+		Type:     ScalingActive,
+		Status:   v1.ConditionFalse,
+		Severity: apis.ConditionSeverityError,
+		Message:  message,
+	})
+}
+
+func (s *HorizontalAutoscalerStatus) MarkAbleToScale() {
+	s.SetCondition(ScalingActive, &apis.Condition{
+		Type:     ScalingActive,
+		Status:   v1.ConditionTrue,
+		Severity: apis.ConditionSeverityInfo,
+	})
+}
+
+func (s *HorizontalAutoscalerStatus) MarkNotAbleToScale(message string) {
+	s.SetCondition(ScalingActive, &apis.Condition{
+		Type:     ScalingActive,
+		Status:   v1.ConditionFalse,
+		Severity: apis.ConditionSeverityWarning,
+		Message:  message,
+	})
+}
+
+func (s *HorizontalAutoscalerStatus) MarkScalingLimited(message string) {
+	s.SetCondition(ScalingLimited, &apis.Condition{
+		Type:     ScalingLimited,
+		Status:   v1.ConditionTrue,
+		Severity: apis.ConditionSeverityInfo,
+		Message:  message,
+	})
+}
+
+func (s *HorizontalAutoscalerStatus) ClearScalingLimited() {
+	s.SetCondition(ScalingLimited, &apis.Condition{
+		Type:     ScalingLimited,
+		Status:   v1.ConditionFalse,
+		Severity: apis.ConditionSeverityWarning,
+	})
+}
+
+// We use knative's libraries for ConditionSets to manage status conditions
+// https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions
+// https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
+var conditionSet = apis.NewLivingConditionSet(
+	ScalingActive,
+	AbleToScale,
+	ScalingLimited,
+)
+
+func (s *HorizontalAutoscalerStatus) InitializeConditions() {
+	conditionSet.Manage(s).InitializeConditions()
+}
+
+func (s *HorizontalAutoscalerStatus) IsReady() bool {
+	return conditionSet.Manage(s).IsHappy()
+}
+
+func (*HorizontalAutoscaler) GetConditionSet() apis.ConditionSet {
+	return conditionSet
+}
+
+func (s *HorizontalAutoscalerStatus) GetConditions() apis.Conditions {
+	return s.Conditions
+}
+
+func (s *HorizontalAutoscalerStatus) SetConditions(conditions apis.Conditions) {
+	s.Conditions = conditions
+}
+
+func (s *HorizontalAutoscalerStatus) GetCondition(t apis.ConditionType) *apis.Condition {
+	return conditionSet.Manage(s).GetCondition(t)
+}
+
+func (s *HorizontalAutoscalerStatus) IsConditionReady(t apis.ConditionType) bool {
+	return conditionSet.Manage(s).GetCondition(t) != nil && conditionSet.Manage(s).GetCondition(t).Status == v1.ConditionTrue
+}
+
+func (s *HorizontalAutoscalerStatus) SetCondition(conditionType apis.ConditionType, condition *apis.Condition) {
+	switch {
+	case condition == nil:
+	case condition.Status == v1.ConditionUnknown:
+		conditionSet.Manage(s).MarkUnknown(conditionType, condition.Reason, condition.Message)
+	case condition.Status == v1.ConditionTrue:
+		conditionSet.Manage(s).MarkTrue(conditionType)
+	case condition.Status == v1.ConditionFalse:
+		conditionSet.Manage(s).MarkFalse(conditionType, condition.Reason, condition.Message)
+	}
 }

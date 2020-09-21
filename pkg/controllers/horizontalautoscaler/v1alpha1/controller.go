@@ -65,11 +65,14 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		}
 		return reconcile.Result{}, err
 	}
+	resource.RuntimeDefault()
 
-	// 2. Execute autoscaling logic
+	// 2. Execute autoscaling logic, do not exit on error
 	autoscaler := c.AutoscalerFactory.For(resource)
 	if err := autoscaler.Reconcile(); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
+		resource.Status.MarkNotAbleToScale(err.Error())
+	} else {
+		resource.Status.MarkAbleToScale()
 	}
 
 	// 3. Apply status to API Server
