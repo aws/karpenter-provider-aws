@@ -12,19 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package producers
 
-// CloudProvider abstracts all instantiation logic.
-type CloudProvider interface {
-	// NewNodeGroup returns a new NodeGroup for the CloudProvider
-	NewNodeGroup(name string) NodeGroup
+import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/metrics"
+	v1 "k8s.io/client-go/listers/core/v1"
+)
+
+// ScheduledCapacity implements the ScheduledCapacity metric
+type ScheduledCapacity struct {
+	v1alpha1.ScheduledCapacitySpec
+	Nodes v1.NodeLister
 }
 
-// NodeGroup abstracts all provider specific behavior for NodeGroups.
-type NodeGroup interface {
-	// Name returns the name of the node group
-	Name() string
-
-	// SetReplicas sets the NodeGroups's replica count
-	SetReplicas(value int) error
+// GetCurrentValues of the metrics
+func (r *ScheduledCapacity) GetCurrentValues() ([]metrics.Metric, error) {
+	return nil, nil
 }

@@ -19,17 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
-
-// AutoScalingGroupProvider TODO(jacob@)
-type AutoScalingGroupProvider struct {
-}
-
-// NewNodeGroup TODO(jacob@)
-func (a *AutoScalingGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
-	return NewDefaultAutoScalingGroup(name)
-}
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
 type AutoScalingGroup struct {

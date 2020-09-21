@@ -15,7 +15,10 @@ limitations under the License.
 package producers
 
 import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/queue"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"go.uber.org/zap"
 	"k8s.io/client-go/informers"
 )
 
@@ -28,9 +31,40 @@ type Producer interface {
 // Factory instantiates metrics producers
 type Factory struct {
 	InformerFactory informers.SharedInformerFactory
+	QueueFactory    queue.Factory
 }
 
-// NewPendingCapacityMetricsProducer instantiates a metrics producer
+func (f *Factory) For(producer v1alpha1.MetricsProducer) Producer {
+	if producer.Spec.PendingCapacity != nil {
+		return &PendingCapacity{
+			PendingCapacitySpec: *producer.Spec.PendingCapacity,
+			Nodes:               f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:                f.InformerFactory.Core().V1().Pods().Lister(),
+		}
+	}
+	if producer.Spec.Queue != nil {
+		return &Queue{
+			QueueSpec: *producer.Spec.Queue,
+			Queue:     f.QueueFactory.For(*producer.Spec.Queue),
+		}
+	}
+	if producer.Spec.ReservedCapacity != nil {
+		return &ReservedCapacity{
+			ReservedCapacitySpec: *producer.Spec.ReservedCapacity,
+			Nodes:                f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:                 f.InformerFactory.Core().V1().Pods().Lister(),
+		}
+	}
+	if producer.Spec.ScheduledCapacity != nil {
+		return &ScheduledCapacity{
+			ScheduledCapacitySpec: *producer.Spec.ScheduledCapacity,
+			Nodes:                 f.InformerFactory.Core().V1().Nodes().Lister(),
+		}
+	}
+	zap.S().Fatal("Failed to instantiate metrics producer no spec defined. Is the validation webhook installed?")
+	return nil
+}
+
 func (m *Factory) NewPendingCapacityMetricsProducer() Producer {
 	return &PendingCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
@@ -38,10 +72,13 @@ func (m *Factory) NewPendingCapacityMetricsProducer() Producer {
 	}
 }
 
-// NewReservedCapacityMetricsProducer instantiates a metrics producer
 func (m *Factory) NewReservedCapacityMetricsProducer() Producer {
 	return &ReservedCapacity{
 		Nodes: m.InformerFactory.Core().V1().Nodes().Lister(),
 		Pods:  m.InformerFactory.Core().V1().Pods().Lister(),
 	}
+}
+
+func (m *Factory) NewQueueMetricsProducer() Producer {
+	return &Queue{}
 }

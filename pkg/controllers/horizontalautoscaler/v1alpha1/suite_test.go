@@ -20,8 +20,8 @@ import (
 	"time"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/test"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

@@ -15,17 +15,19 @@ limitations under the License.
 package producers
 
 import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	v1 "k8s.io/client-go/listers/core/v1"
 )
 
 // ReservedCapacity implements a Reserved Capacity metric
 type ReservedCapacity struct {
+	v1alpha1.ReservedCapacitySpec
 	Nodes v1.NodeLister
 	Pods  v1.PodLister
 }
 
 // GetCurrentValues of the metrics
-func (m *ReservedCapacity) GetCurrentValues() ([]metrics.Metric, error) {
+func (r *ReservedCapacity) GetCurrentValues() ([]metrics.Metric, error) {
 	return nil, nil
 }

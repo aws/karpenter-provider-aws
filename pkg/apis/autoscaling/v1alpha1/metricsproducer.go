@@ -1,24 +1,41 @@
 package v1alpha1
 
 import (
-	"k8s.io/api/autoscaling/v2beta2"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // MetricsProducerSpec defines an object that outputs metrics.
 type MetricsProducerSpec struct {
+	// PendingCapacity produces a metric that recommends increases or decreases
+	// to the sizes of a set of node groups based on pending pods.
 	// +optional
-	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
-	// +optional
-	PendingPods *PendingPodsSpec `json:"pendingPods,omitempty"`
+	PendingCapacity *PendingCapacitySpec `json:"pendingCapacity,omitempty"`
+	// Queue produces metrics about a specified queue, such as length and age of oldest message,
 	// +optional
 	Queue *QueueSpec `json:"queue,omitempty"`
+	// ReservedCapacity produces a metric corresponding to the ratio of committed resources
+	// to availabile resources for the nodes of a specified node group.
+	// +optional
+	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
+	// ScheduledCapacity produces a metric according to a specified schedule.
+	// +optional
+	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
 }
 
-// ScheduledCapacitySpec outputs metrics on a schedule configured by a list of crontabs
+type ReservedCapacitySpec struct {
+	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
+	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+}
+
+type PendingCapacitySpec struct {
+	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
+	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+}
+
 type ScheduledCapacitySpec struct {
-	// NodeGroup points to a resource that manages a group of nodes.
-	NodeGroup v2beta2.CrossVersionObjectReference `json:"nodeGroup"`
+	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
+	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
 	// Behaviors may be layered to achieve complex scheduling autoscaling logic
 	Behaviors []ScheduledBehavior `json:"behaviors"`
 }
@@ -32,22 +49,22 @@ type ScheduledBehavior struct {
 // PendingPodsSpec outputs a metric that identifies scheduling opportunities for pending pods in specified node groups.
 // If multiple pending pods metrics producers exist, the algorithm will ensure that only a single node group scales up.
 type PendingPodsSpec struct {
-	// NodeGroup points to a resource that manages a group of nodes.
-	NodeGroup v2beta2.CrossVersionObjectReference `json:"nodeGroup"`
+	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
+	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
 }
 
 // QueueSpec outputs metrics for a queue.
 type QueueSpec struct {
-	Type QueueProviderType `json:"type"`
-	ID   string            `json:"id"`
+	Type QueueType `json:"type"`
+	ID   string    `json:"id"`
 }
 
-// QueueProviderType corresponds to an implementation of a queue
-type QueueProviderType string
+// QueueType corresponds to an implementation of a queue
+type QueueType string
 
-// QueueProvider enum
+// QueueType enum
 const (
-	AWSSQSQueueProvider QueueProviderType = "AWSSQSQueueProvider"
+	AWSSQSQueueType QueueType = "AWSSQSQueue"
 )
 
 // MetricsProducer is the Schema for the MetricsProducers API

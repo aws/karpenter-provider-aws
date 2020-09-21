@@ -19,13 +19,19 @@ package v1alpha1
 
 import (
 	"context"
+	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	DefaultMetricAnalysisPeriod = 10 * time.Second
 )
 
 // Controller for the resource
@@ -44,13 +50,25 @@ func (c *Controller) Owns() []runtime.Object {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	mp := &v1alpha1.MetricsProducer{}
-	if err := c.Get(context.Background(), req.NamespacedName, mp); err != nil {
-		if errors.IsNotFound(err) {
+func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+	zap.S().Infof("Reconciling %s.", req.String())
+	// 1. Retrieve resource from API Server
+	resource := &v1alpha1.MetricsProducer{}
+	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
-	return controllerruntime.Result{}, nil
+
+	// 2. Calculate metrics
+
+	// 3. Apply changes to API Server
+	if err := c.Update(context.Background(), resource); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
+	}
+
+	return reconcile.Result{
+		RequeueAfter: DefaultMetricAnalysisPeriod,
+	}, nil
 }
