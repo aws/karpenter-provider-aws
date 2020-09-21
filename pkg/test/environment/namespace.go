@@ -1,4 +1,4 @@
-package test
+package environment
 
 import (
 	"io/ioutil"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
@@ -21,13 +22,19 @@ var (
 	YAMLDocumentDelimiter = regexp.MustCompile(`\n---\n`)
 )
 
-type Namespace v1.Namespace
+type Namespace struct {
+	client.Client
+	v1.Namespace
+}
 
 // Returns a test namespace
-func NewNamespace() *Namespace {
+func NewNamespace(client client.Client) *Namespace {
 	return &Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: strings.ToLower(randomdata.SillyName()),
+		Client: client,
+		Namespace: v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: strings.ToLower(randomdata.SillyName()),
+			},
 		},
 	}
 }

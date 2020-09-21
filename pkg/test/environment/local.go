@@ -4,31 +4,37 @@ import (
 	"context"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
-	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-type LocalInjector func(env *Local) error
-
+/*
+* Local is an Environment for e2e local testing. It stands up an API Server, ETCD, and a controller-runtime manager.
+* It's possible to run multiple environments simultaneously, as the ports are randomized.
+* A common use case for this is parallel tests using ginkgo's parallelization functionality.
+* The environment is typically instantiated once in a test file and re-used between different test cases.
+* Resources for each test should be isolated into a namespace for each test.
+ */
 type Local struct {
 	envtest.Environment
 	Manager manager.Manager
-	Client  client.Client
 
 	injectors []LocalInjector
 	stopch    chan struct{}
 }
+
+// LocalInjector passes the Local environment to an injector function.
+// This is useful for registering controllers with the controller-runtime manager
+// or for customizing Client, Scheme, or other variables.
+type LocalInjector func(env *Local) error
 
 func NewLocal(injectors ...LocalInjector) Environment {
 	log.Setup(controllerruntimezap.UseDevMode(true))
@@ -44,24 +50,19 @@ func NewLocal(injectors ...LocalInjector) Environment {
 	}
 }
 
-func (e *Local) NewNamespace() (*test.Namespace, error) {
-	ns := test.NewNamespace()
-	v1ns := v1.Namespace(*ns) // Convert to v1 API object to make API requests
-	if err := e.GetClient().Create(context.Background(), &v1ns); err != nil {
+func (e *Local) NewNamespace() (*Namespace, error) {
+	ns := NewNamespace(e.Manager.GetClient())
+	if err := e.Manager.GetClient().Create(context.Background(), &ns.Namespace); err != nil {
 		return nil, err
 	}
 
 	go func() {
 		<-e.stopch
-		if err := e.GetClient().Delete(context.Background(), &v1ns); err != nil {
+		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
 			zap.S().Error(errors.Wrap(err, "Failed to tear down namespace"))
 		}
 	}()
 	return ns, nil
-}
-
-func (e *Local) GetClient() client.Client {
-	return e.Manager.GetClient()
 }
 
 func (e *Local) Start() (err error) {
@@ -90,7 +91,6 @@ func (e *Local) Start() (err error) {
 	}); err != nil {
 		return err
 	}
-	e.Client = e.Manager.GetClient()
 
 	// Injectors
 	for _, injector := range e.injectors {

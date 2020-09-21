@@ -23,7 +23,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
-	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -81,7 +80,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Test Samples", func() {
-	var ns *test.Namespace
+	var ns *environment.Namespace
 	var ha *v1alpha1.HorizontalAutoscaler
 
 	BeforeEach(func() {
@@ -97,13 +96,13 @@ var _ = Describe("Test Samples", func() {
 		})
 
 		It("should should create and delete", func() {
-			Expect(env.GetClient().Create(context.Background(), ha)).To(Succeed())
+			Expect(ns.Create(context.Background(), ha)).To(Succeed())
 			Eventually(func() error {
-				return env.GetClient().Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
+				return ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
 			}, Timeout).Should(Succeed())
-			Expect(env.GetClient().Delete(context.Background(), ha)).To(Succeed())
+			Expect(ns.Delete(context.Background(), ha)).To(Succeed())
 			Eventually(func() bool {
-				return apierrors.IsNotFound(env.GetClient().Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
+				return apierrors.IsNotFound(ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
 			}, Timeout).Should(BeTrue())
 		})
 	})
@@ -113,13 +112,13 @@ var _ = Describe("Test Samples", func() {
 		})
 
 		It("should should create and delete", func() {
-			Expect(env.GetClient().Create(context.Background(), ha)).To(Succeed())
+			Expect(ns.Create(context.Background(), ha)).To(Succeed())
 			Eventually(func() error {
-				return env.GetClient().Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
+				return ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha)
 			}, Timeout).Should(Succeed())
-			Expect(env.GetClient().Delete(context.Background(), ha)).To(Succeed())
+			Expect(ns.Delete(context.Background(), ha)).To(Succeed())
 			Eventually(func() bool {
-				return apierrors.IsNotFound(env.GetClient().Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
+				return apierrors.IsNotFound(ns.Get(context.Background(), types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace}, ha))
 			}, Timeout).Should(BeTrue())
 		})
 	})
