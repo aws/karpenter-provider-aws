@@ -8,9 +8,9 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,13 +56,14 @@ func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 }
 
 func parseFromYaml(data []byte, object runtime.Object) error {
-	errs := []error{}
+	var result error
 	for _, document := range YAMLDocumentDelimiter.Split(string(data), -1) {
 		if err := yaml.UnmarshalStrict([]byte(document), object); err != nil {
-			errs = append(errs, err)
+			result = multierr.Append(result, err)
+
 		} else {
 			return nil
 		}
 	}
-	return errors.Wrap(f.FirstNonNilError(errs), "parsing YAML")
+	return result
 }

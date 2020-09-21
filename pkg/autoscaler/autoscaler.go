@@ -72,6 +72,7 @@ func (a *Autoscaler) Reconcile() error {
 	if err != nil {
 		return errors.Wrap(err, "getting scale target")
 	}
+	a.Status.CurrentReplicas = scaleTarget.Spec.Replicas
 
 	// 3. Calculate desired replicas
 	scaleTarget.Spec.Replicas = a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
@@ -80,20 +81,22 @@ func (a *Autoscaler) Reconcile() error {
 	if err := a.updateScaleTarget(scaleTarget); err != nil {
 		return errors.Wrap(err, "setting replicas")
 	}
+
+	a.Status.DesiredReplicas = scaleTarget.Spec.Replicas
 	return nil
 }
 
 func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 	metrics := []algorithms.Metric{}
-	for _, desired := range a.Spec.Metrics {
-		observed, err := a.metricsClientFactory.For(desired.Type).GetCurrentValue(desired)
+	for _, metric := range a.Spec.Metrics {
+		observed, err := a.metricsClientFactory.For(metric).GetCurrentValue(metric)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading metric %v", desired)
+			return nil, errors.Wrapf(err, "reading metric %v", metric)
 		}
 		metrics = append(metrics, algorithms.Metric{
 			Metric:      observed,
-			TargetType:  desired.GetTarget().Type,
-			TargetValue: float64(desired.GetTarget().Value.Value()),
+			TargetType:  metric.GetTarget().Type,
+			TargetValue: float64(metric.GetTarget().Value.Value()),
 		})
 	}
 	return metrics, nil

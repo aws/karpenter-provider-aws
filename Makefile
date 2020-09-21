@@ -1,7 +1,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
-all: verify generate build test
+all: generate verify build test
 
 # Build controller binary
 build:
@@ -38,12 +38,17 @@ generate:
 
 	# Hack to remove v1.AdmissionReview until https://github.com/kubernetes-sigs/controller-runtime/issues/1161 is fixed
 	perl -pi -e 's/^  - v1$$//g' config/webhook/manifests.yaml
+	# CRDs don't currently jive with volatile time.
+	# `properties[lastTransitionTime].type: Unsupported value: "Any": supported
+	# values: "array", "boolean", "integer", "number", "object", "string"`
+	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_horizontalautoscalers.yaml
+
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy:
+apply:
 	kubectl kustomize config/dev | ko apply -B -f -
 
-undeploy:
+delete:
 	kubectl kustomize config/dev | ko delete -f -
 
 # Build and release a container image
@@ -55,4 +60,4 @@ release:
 toolchain:
 	./hack/toolchain.sh
 
-.PHONY: all test build release run deploy undeploy verify generate toolchain
+.PHONY: all test build release run apply delete verify generate toolchain

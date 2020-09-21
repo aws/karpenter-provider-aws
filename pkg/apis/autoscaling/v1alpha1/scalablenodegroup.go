@@ -27,6 +27,7 @@ const (
 
 // ScalableNodeGroup is the Schema for the ScalableNodeGroups API
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 type ScalableNodeGroup struct {
 	metav1.TypeMeta   `json:",inline"`

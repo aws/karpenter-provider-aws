@@ -1,7 +1,9 @@
 package v1alpha1
 
 import (
+	"go.uber.org/zap"
 	v2beta2 "k8s.io/api/autoscaling/v2beta2"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -113,8 +115,51 @@ type ScalingPolicy struct {
 	PeriodSeconds int32 `json:"periodSeconds"`
 }
 
+// Metric is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
+// +optional
+type Metric struct {
+	// +optional
+	Prometheus *PrometheusMetricSource `json:"prometheus,omitempty"`
+}
+
+// PrometheusMetricSource defines a metric in Prometheus
+type PrometheusMetricSource struct {
+	Query  string       `json:"query"`
+	Target MetricTarget `json:"target"`
+}
+
+// MetricTarget defines the target value, average value, or average utilization of a specific metric
+type MetricTarget struct {
+	// Type represents whether the metric type is Utilization, Value, or AverageValue
+	// Value is the target value of the metric (as a quantity).
+	Type MetricTargetType `json:"type"`
+	// +optional
+	Value *resource.Quantity `json:"value,omitempty"`
+	// AverageValue is the target value of the average of the
+	// metric across all relevant pods (as a quantity)
+	// +optional
+	AverageValue *resource.Quantity `json:"averageValue,omitempty"`
+	// AverageUtilization is the target value of the average of the
+	// resource metric across all relevant pods, represented as a percentage of
+	// the requested value of the resource for the pods.
+	// Currently only valid for Resource metric source type
+	// +optional
+	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
+}
+
+// MetricTargetType specifies the type of metric being targeted, and should be either "Value", "AverageValue", or "Utilization"
+type MetricTargetType string
+
+// Enum for MetricTargetType
+const (
+	UtilizationMetricType  MetricTargetType = "Utilization"
+	ValueMetricType        MetricTargetType = "Value"
+	AverageValueMetricType MetricTargetType = "AverageValue"
+)
+
 // HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 type HorizontalAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -129,4 +174,13 @@ type HorizontalAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HorizontalAutoscaler `json:"items"`
+}
+
+// GetTarget returns the target of the metric source.
+func (m *Metric) GetTarget() MetricTarget {
+	if m.Prometheus != nil {
+		return m.Prometheus.Target
+	}
+	zap.S().Fatalf("Unrecognized metric type while retrieving target for %v", m)
+	return MetricTarget{}
 }

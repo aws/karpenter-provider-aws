@@ -33,12 +33,11 @@ type Factory struct {
 }
 
 // For returns a metrics client for the given source type
-func (m *Factory) For(metricSourceType v1alpha1.MetricSourceType) MetricsClient {
-	switch metricSourceType {
-	case v1alpha1.PrometheusMetricSourceType:
+func (m *Factory) For(metric v1alpha1.Metric) MetricsClient {
+	if metric.Prometheus != nil {
 		return m.NewPrometheusMetricsClient()
 	}
-	zap.S().Fatalf("Failed to instantiate metrics client: unexpected MetricsSourceType %s", metricSourceType)
+	zap.S().Fatalf("Failed to instantiate metrics client, no metric type specified. Is the validating webhook installed?")
 	return nil
 }
 
