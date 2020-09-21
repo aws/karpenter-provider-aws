@@ -61,7 +61,7 @@ func (f *Factory) For(producer v1alpha1.MetricsProducer) Producer {
 			Nodes:                 f.InformerFactory.Core().V1().Nodes().Lister(),
 		}
 	}
-	zap.S().Fatal("Failed to instantiate metrics producer, no spec defined")
+	zap.S().Fatal("Failed to instantiate metrics producer no spec defined. Is the validation webhook installed?")
 	return nil
 }
 
