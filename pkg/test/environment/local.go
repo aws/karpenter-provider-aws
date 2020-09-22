@@ -37,16 +37,16 @@ type Local struct {
 	envtest.Environment
 	Manager manager.Manager
 
-	injectors []LocalInjector
-	stopch    chan struct{}
+	options []LocalOption
+	stopch  chan struct{}
 }
 
-// LocalInjector passes the Local environment to an injector function. This is
+// LocalOption passes the Local environment to an option function. This is
 // useful for registering controllers with the controller-runtime manager or for
 // customizing Client, Scheme, or other variables.
-type LocalInjector func(env *Local) error
+type LocalOption func(env *Local) error
 
-func NewLocal(injectors ...LocalInjector) Environment {
+func NewLocal(options ...LocalOption) Environment {
 	log.Setup(controllerruntimezap.UseDevMode(true))
 	return &Local{
 		Environment: envtest.Environment{
@@ -55,8 +55,8 @@ func NewLocal(injectors ...LocalInjector) Environment {
 				DirectoryPaths: []string{project.RelativeToRoot("config/webhook")},
 			},
 		},
-		stopch:    make(chan struct{}),
-		injectors: injectors,
+		stopch:  make(chan struct{}),
+		options: options,
 	}
 }
 
@@ -102,9 +102,9 @@ func (e *Local) Start() (err error) {
 		return err
 	}
 
-	// Injectors
-	for _, injector := range e.injectors {
-		if err := injector(e); err != nil {
+	// options
+	for _, option := range e.options {
+		if err := option(e); err != nil {
 			return err
 		}
 	}

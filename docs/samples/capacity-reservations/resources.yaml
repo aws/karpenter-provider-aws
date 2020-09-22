@@ -18,14 +18,12 @@ spec:
   minReplicas: 3
   maxReplicas: 23
   metrics:
-  - type: Prometheus
-    prometheus:
+  - prometheus:
       query: karpenter:metrics_producer:reserved_capacity{node_group="bobs-microservices", type="cpu"}
       target:
         type: AverageUtilization
         value: 60
-  - type: Prometheus
-    prometheus:
+  - prometheus:
       query: karpenter:metrics_producer:reserved_capacity{node_group="bobs-microservices", type="memory"}
       target:
         type: AverageUtilization
