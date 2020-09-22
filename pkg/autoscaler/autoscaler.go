@@ -125,9 +125,9 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 
 	// 3. Update ScalingLimited condition
 	if value != replicas {
-		a.Status.MarkScalingLimited(fmt.Sprintf("Limited by %s", reason))
+		a.Status.MarkScalingNotUnlimited(fmt.Sprintf("Limited by %s", reason))
 	} else {
-		a.Status.ClearScalingLimited()
+		a.Status.MarkScalingUnlimited()
 	}
 	return value
 }
