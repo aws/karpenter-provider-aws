@@ -14,5 +14,5 @@ func Setup(opts ...controllerruntimezap.Opts) {
 }
 
 func FatalInvariantViolated(reason string) {
-	zap.S().Fatalf("Invariant vioated: %s. Is the validation webhook installed?", reason)
+	zap.S().Fatalf("Invariant violated: %s. Is the validation webhook installed?", reason)
 }
