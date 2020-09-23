@@ -50,8 +50,8 @@ type clusterId struct {
 }
 
 // parseClusterId extracts the cluster and nodegroup names from an
-// ARN. This is needed because for Managed Node Group APIs that don't
-// take an ARN directly.
+// ARN. This is needed for Managed Node Group APIs that don't take an
+// ARN directly.
 func parseClusterId(fromArn string) (*clusterId, error) {
 	nodegroupArn, err := arn.Parse(fromArn)
 	if err != nil {
