@@ -16,12 +16,17 @@ package autoscaler
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	f "github.com/ellistarn/karpenter/pkg/utils/functional"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/autoscaling/v1"
+	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -71,18 +76,19 @@ func (a *Autoscaler) Reconcile() error {
 	scaleTarget, err := a.getScaleTarget()
 	if err != nil {
 		return errors.Wrap(err, "getting scale target")
+
 	}
 	a.Status.CurrentReplicas = scaleTarget.Spec.Replicas
 
 	// 3. Calculate desired replicas
-	scaleTarget.Spec.Replicas = a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
+	a.Status.DesiredReplicas = a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
 
 	// 4. Persist updated scale to server
+	scaleTarget.Spec.Replicas = a.Status.DesiredReplicas
 	if err := a.updateScaleTarget(scaleTarget); err != nil {
 		return errors.Wrap(err, "setting replicas")
 	}
 
-	a.Status.DesiredReplicas = scaleTarget.Spec.Replicas
 	return nil
 }
 
@@ -103,12 +109,55 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 }
 
 func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas int32) int32 {
+	// 1. Get recommendations
 	recommendations := []int32{}
 	for _, metric := range metrics {
 		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, replicas))
 	}
-	// TODO apply Spec.Behaviors to this policy
-	return recommendations[0]
+
+	// 2. Select value from recommendations. Favor scale up over scale down
+	var value, reason = replicas, ""
+	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
+		value, reason = a.getLimitedValue(recommendations, replicas, *a.Spec.Behavior.ScaleUp)
+	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
+		value, reason = a.getLimitedValue(recommendations, replicas, *a.Spec.Behavior.ScaleDown)
+	}
+
+	// 3. Update ScalingLimited condition
+	if value != replicas {
+		a.Status.MarkScalingNotUnlimited(fmt.Sprintf("Limited by %s", reason))
+	} else {
+		a.Status.MarkScalingUnlimited()
+	}
+	return value
+}
+
+func (a *Autoscaler) getLimitedValue(recommendations []int32, replicas int32, rules v1alpha1.ScalingRules) (int32, string) {
+	// 1. Check if limited by StabilizationWindowSeconds
+	if a.Status.LastScaleTime != nil {
+		elapsed := int32(time.Now().Second() - a.Status.LastScaleTime.Second())
+		if elapsed < *rules.StabilizationWindowSeconds {
+			return replicas, fmt.Sprintf("stabilizing for %d/%d seconds", elapsed, rules.StabilizationWindowSeconds)
+		}
+	}
+
+	// 2. TODO Check if limited by Policies
+	// for _, policy := range rules.Policies {
+	// 	...
+	// }
+
+	// 3. Check if limited by SelectPolicy
+	switch *rules.SelectPolicy {
+	case v2beta2.MaxPolicySelect:
+		return f.MaxInt32(recommendations), fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
+	case v2beta2.MinPolicySelect:
+		return f.MinInt32(recommendations), fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
+	case v2beta2.DisabledPolicySelect:
+		return replicas, fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
+	default:
+		log.FatalInvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
+		return 0, ""
+	}
 }
 
 func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {

@@ -12,3 +12,7 @@ func Setup(opts ...controllerruntimezap.Opts) {
 	controllerruntime.SetLogger(zapr.NewLogger(logger))
 	zap.ReplaceGlobals(logger)
 }
+
+func FatalInvariantViolated(reason string) {
+	zap.S().Fatalf("Invariant violated: %s. Is the validation webhook installed?", reason)
+}
