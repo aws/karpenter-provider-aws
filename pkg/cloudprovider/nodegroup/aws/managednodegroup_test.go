@@ -30,14 +30,27 @@ func (m mockedUpdateManagedNodeGroup) UpdateNodegroupConfig(*eks.UpdateNodegroup
 	return &m.Output, m.Error
 }
 
+func TestBadARN(t *testing.T) {
+	client := mockedUpdateManagedNodeGroup{
+		Output: eks.UpdateNodegroupConfigOutput{},
+	}
+	asg := &ManagedNodeGroup{
+		Client:    client,
+		GroupName: "ceci n'est pas une ARN",
+	}
+	got := asg.SetReplicas(23)
+	if got == nil {
+		t.Error("SetReplicas(23) = nil; want error", got)
+	}
+}
+
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	client := mockedUpdateManagedNodeGroup{
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client:      client,
-		ClusterName: "spatula",
-		GroupName:   "dog",
+		Client:    client,
+		GroupName: "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
 	}
 	got := asg.SetReplicas(23)
 	if got != nil {

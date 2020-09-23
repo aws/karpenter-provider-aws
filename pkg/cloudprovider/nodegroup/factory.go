@@ -16,7 +16,7 @@ func (f *Factory) For(spec v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGro
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return aws.NewDefaultAutoScalingGroup(spec.ID)
 	case v1alpha1.AWSEKSNodeGroup:
-		return aws.NewDefaultManagedNodeGroup(spec.ID, "")
+		return aws.NewDefaultManagedNodeGroup(spec.ID)
 	}
 	zap.S().Fatalf("Failed to instantiate node group: unexpected type  %s", spec.Type)
 	return nil
