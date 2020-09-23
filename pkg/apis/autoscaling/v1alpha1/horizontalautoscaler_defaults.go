@@ -18,39 +18,39 @@ package v1alpha1
 
 import (
 	v2beta2 "k8s.io/api/autoscaling/v2beta2"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var _ webhook.Defaulter = &HorizontalAutoscaler{}
-
-var (
-	DefaultScaleDownStabilizationWindowSeconds int32 = 300
-	DefaultScaleUpStabilizationWindowSeconds   int32 = 3
-	DefaultSelectPolicy                              = v2beta2.MaxPolicySelect
-)
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *HorizontalAutoscaler) Default() {
 	// TODO(user): fill in your defaulting logic.
 }
 
-// RuntimeDefault is used to set defaults for the resource in memory, but will not be persisted to the API Server.
+var (
+	DefaultSelectPolicy = v2beta2.MaxPolicySelect
+)
+
+// SetRuntimeDefaults is used to set defaults for the resource in memory, but will not be persisted to the API Server.
 // This is useful when the codebase has a default behavior that isn't surfaced to the user via the API.
-func (r *HorizontalAutoscaler) RuntimeDefault() {
+func (r *HorizontalAutoscaler) SetRuntimeDefaults() {
+	r.InitializeConditions()
 	if r.Spec.Behavior.ScaleUp == nil {
 		r.Spec.Behavior.ScaleUp = &ScalingRules{}
 	}
-	if r.Spec.Behavior.ScaleDown == nil {
-		r.Spec.Behavior.ScaleDown = &ScalingRules{}
-	}
 	if r.Spec.Behavior.ScaleUp.StabilizationWindowSeconds == nil {
-		r.Spec.Behavior.ScaleUp.StabilizationWindowSeconds = &DefaultScaleUpStabilizationWindowSeconds
+		r.Spec.Behavior.ScaleUp.StabilizationWindowSeconds = ptr.Int32(0)
 	}
 	if r.Spec.Behavior.ScaleUp.SelectPolicy == nil {
 		r.Spec.Behavior.ScaleUp.SelectPolicy = &DefaultSelectPolicy
 	}
+	if r.Spec.Behavior.ScaleDown == nil {
+		r.Spec.Behavior.ScaleDown = &ScalingRules{}
+	}
 	if r.Spec.Behavior.ScaleDown.StabilizationWindowSeconds == nil {
-		r.Spec.Behavior.ScaleUp.StabilizationWindowSeconds = &DefaultScaleDownStabilizationWindowSeconds
+		r.Spec.Behavior.ScaleDown.StabilizationWindowSeconds = ptr.Int32(300)
 	}
 	if r.Spec.Behavior.ScaleDown.SelectPolicy == nil {
 		r.Spec.Behavior.ScaleDown.SelectPolicy = &DefaultSelectPolicy

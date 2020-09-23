@@ -12,6 +12,7 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/common v0.10.0
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.11.0
 	k8s.io/api v0.18.8

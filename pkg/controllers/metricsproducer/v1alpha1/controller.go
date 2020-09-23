@@ -23,7 +23,6 @@ import (
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,7 +50,6 @@ func (c *Controller) Owns() []runtime.Object {
 
 // Reconcile executes a control loop for the resource
 func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	zap.S().Infof("Reconciling %s.", req.String())
 	// 1. Retrieve resource from API Server
 	resource := &v1alpha1.MetricsProducer{}
 	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {

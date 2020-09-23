@@ -34,7 +34,7 @@ import (
 
 // TODO, make these configmappable or wired through the API.
 const (
-	DefaultAutoscalingPeriod = 10 * time.Second
+	DefaultAutoscalingPeriod = 5 * time.Second
 )
 
 // Controller reconciles a HorizontalAutoscaler object
@@ -57,7 +57,7 @@ func (c *Controller) Owns() []runtime.Object {
 // For now, assume a singleton architecture where all definitions are handled in a single shard.
 // In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
 func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	// 1. Retrieve resource spec from API Server
+	// 1. Retrieve resource spec from API Server and initialize
 	resource := &v1alpha1.HorizontalAutoscaler{}
 	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -65,14 +65,14 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		}
 		return reconcile.Result{}, err
 	}
-	resource.RuntimeDefault()
+	resource.SetRuntimeDefaults()
 
 	// 2. Execute autoscaling logic, do not exit on error
 	autoscaler := c.AutoscalerFactory.For(resource)
 	if err := autoscaler.Reconcile(); err != nil {
-		resource.Status.MarkNotAbleToScale(err.Error())
+		resource.MarkNotScalingActive(err.Error())
 	} else {
-		resource.Status.MarkAbleToScale()
+		resource.MarkScalingActive()
 	}
 
 	// 3. Apply status to API Server

@@ -25,19 +25,19 @@ import (
 	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/scale"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"knative.dev/pkg/apis"
 )
 
 // Factory instantiates autoscalers
 type Factory struct {
 	MetricsClientFactory clients.Factory
-	KubernetesClient     client.Client
 	Mapper               meta.RESTMapper
 	ScaleNamespacer      scale.ScalesGetter
 }
@@ -48,7 +48,6 @@ func (af *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 		HorizontalAutoscaler: resource,
 		algorithm:            algorithms.For(resource.Spec),
 		metricsClientFactory: af.MetricsClientFactory,
-		kubernetesClient:     af.KubernetesClient,
 		mapper:               af.Mapper,
 		scaleNamespacer:      af.ScaleNamespacer,
 	}
@@ -58,7 +57,6 @@ func (af *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 type Autoscaler struct {
 	*v1alpha1.HorizontalAutoscaler
 	metricsClientFactory clients.Factory
-	kubernetesClient     client.Client
 	algorithm            algorithms.Algorithm
 	mapper               meta.RESTMapper
 	scaleNamespacer      scale.ScalesGetter
@@ -69,26 +67,30 @@ func (a *Autoscaler) Reconcile() error {
 	// 1. Retrieve current metrics for the autoscaler
 	metrics, err := a.getMetrics()
 	if err != nil {
-		return errors.Wrap(err, "getting metrics")
+		return err
 	}
 
 	// 2. Retrieve current number of replicas
 	scaleTarget, err := a.getScaleTarget()
 	if err != nil {
-		return errors.Wrap(err, "getting scale target")
-
+		return err
 	}
-	a.Status.CurrentReplicas = scaleTarget.Spec.Replicas
+	a.Status.CurrentReplicas = scaleTarget.Status.Replicas
 
-	// 3. Calculate desired replicas
-	a.Status.DesiredReplicas = a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
+	// 3. Calculate desired replicas using metrics and current desired replicas
+	recommended := a.getRecommendation(metrics, scaleTarget.Spec.Replicas)
+	if recommended == scaleTarget.Spec.Replicas {
+		return nil
+	}
 
 	// 4. Persist updated scale to server
-	scaleTarget.Spec.Replicas = a.Status.DesiredReplicas
+	scaleTarget.Spec.Replicas = recommended
 	if err := a.updateScaleTarget(scaleTarget); err != nil {
-		return errors.Wrap(err, "setting replicas")
+		return err
 	}
 
+	a.Status.DesiredReplicas = scaleTarget.Spec.Replicas
+	a.Status.LastScaleTime = &apis.VolatileTime{Inner: metav1.Now()}
 	return nil
 }
 
@@ -97,7 +99,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 	for _, metric := range a.Spec.Metrics {
 		observed, err := a.metricsClientFactory.For(metric).GetCurrentValue(metric)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading metric %v", metric)
+			return nil, err
 		}
 		metrics = append(metrics, algorithms.Metric{
 			Metric:      observed,
@@ -108,56 +110,99 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 	return metrics, nil
 }
 
-func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas int32) int32 {
+/* getRecommendation returns the desired scale value and sets limit conditions.
+
+Status conditions are always set, regardless of the outcome of the policy
+decisions. The conditions will only be set if the autoscaling is attempting to
+scale and prevented by the limits. e.g. if at max but not recommended to scale
+up, the ScalingUnbounded condition will continue to be true.
+
+They are also orthogonal, such that {ScalingUnbounded, AbleToScale} can be
+{true, true}: no limits, desired replicas is set directly to the recommendation,
+{true, false}: outside of stabilization window or policy but limited by min/max,
+{false, true}: limited by min/max but not stabilization window or policy,
+{false, false}: limited stabilization window or policy and also by min/max.
+*/
+func (a *Autoscaler) getRecommendation(metrics []algorithms.Metric, replicas int32) int32 {
+	var recommendations []int32
+	var reason string
+
 	// 1. Get recommendations
-	recommendations := []int32{}
 	for _, metric := range metrics {
 		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, replicas))
 	}
 
-	// 2. Select value from recommendations. Favor scale up over scale down
-	var value, reason = replicas, ""
-	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
-		value, reason = a.getLimitedValue(recommendations, replicas, *a.Spec.Behavior.ScaleUp)
-	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
-		value, reason = a.getLimitedValue(recommendations, replicas, *a.Spec.Behavior.ScaleDown)
+	// 2. Check transient limits.
+	if replicas, reason = a.getTransientlyLimitedValue(recommendations, replicas); reason == "" {
+		a.MarkAbleToScale()
+	} else {
+		a.MarkNotAbleToScale(reason)
 	}
 
-	// 3. Update ScalingLimited condition
-	if value != replicas {
-		a.Status.MarkScalingNotUnlimited(fmt.Sprintf("Limited by %s", reason))
+	// 3. Check bounded limits.
+	if replicas, reason = a.getBoundedValue(replicas); reason == "" {
+		a.MarkScalingUnbounded()
 	} else {
-		a.Status.MarkScalingUnlimited()
+		a.MarkNotScalingUnbounded(reason)
 	}
-	return value
+
+	// 4. Return recommendation
+	return replicas
+
 }
 
-func (a *Autoscaler) getLimitedValue(recommendations []int32, replicas int32, rules v1alpha1.ScalingRules) (int32, string) {
-	// 1. Check if limited by StabilizationWindowSeconds
+func (a *Autoscaler) getTransientlyLimitedValue(recommendations []int32, replicas int32) (int32, string) {
+	var rules v1alpha1.ScalingRules
+	// 1. Prioritize scale up over scale down. If no recommendations are
+	// available, return an unchanged value is without any limiting reason.
+	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
+		recommendations, rules = gt, *a.Spec.Behavior.ScaleUp
+	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
+		recommendations, rules = lt, *a.Spec.Behavior.ScaleDown
+	} else {
+		return replicas, ""
+	}
+
+	// 2. Get the recommendation scale up/down configured above
+	replicas = a.getSelectionFromRecommendations(recommendations, replicas, *rules.SelectPolicy)
+
+	// 3. Don't scale if within stabilization window
 	if a.Status.LastScaleTime != nil {
-		elapsed := int32(time.Now().Second() - a.Status.LastScaleTime.Second())
-		if elapsed < *rules.StabilizationWindowSeconds {
-			return replicas, fmt.Sprintf("stabilizing for %d/%d seconds", elapsed, rules.StabilizationWindowSeconds)
+		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
+			return replicas, fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window)
 		}
 	}
 
-	// 2. TODO Check if limited by Policies
-	// for _, policy := range rules.Policies {
-	// 	...
-	// }
-
-	// 3. Check if limited by SelectPolicy
-	switch *rules.SelectPolicy {
-	case v2beta2.MaxPolicySelect:
-		return f.MaxInt32(recommendations), fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
-	case v2beta2.MinPolicySelect:
-		return f.MinInt32(recommendations), fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
-	case v2beta2.DisabledPolicySelect:
-		return replicas, fmt.Sprintf("scale policy %s", *rules.SelectPolicy)
-	default:
-		log.FatalInvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
-		return 0, ""
+	// 4. TODO Check if limited by Policies
+	for _, policy := range rules.Policies {
+		zap.S().Info("TODO: check policy %s", policy)
 	}
+
+	return replicas, ""
+}
+
+func (a *Autoscaler) getSelectionFromRecommendations(recommendations []int32, replicas int32, policy v2beta2.ScalingPolicySelect) int32 {
+	switch policy {
+	case v2beta2.MaxPolicySelect:
+		return f.MaxInt32(recommendations)
+	case v2beta2.MinPolicySelect:
+		return f.MinInt32(recommendations)
+	case v2beta2.DisabledPolicySelect:
+		return replicas
+	default:
+		log.FatalInvariantViolated(fmt.Sprintf("unknown select policy: %s", policy))
+		return replicas
+	}
+}
+
+func (a *Autoscaler) getBoundedValue(recommendation int32) (int32, string) {
+	if recommendation > a.Spec.MaxReplicas {
+		return a.Spec.MaxReplicas, fmt.Sprintf("limited by maximum %d/%d replicas", recommendation, a.Spec.MaxReplicas)
+	}
+	if recommendation < a.Spec.MinReplicas {
+		return a.Spec.MinReplicas, fmt.Sprintf("limited by minimum %d/%d replicas", recommendation, a.Spec.MinReplicas)
+	}
+	return recommendation, ""
 }
 
 func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
