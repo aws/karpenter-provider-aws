@@ -64,7 +64,7 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 	//                                              cluster name                    nodegroup name
 	components := strings.Split(nodegroupArn.Resource, "/")
 	if len(components) < 3 {
-		return nil, errors.Errorf("ARN resource format does not contain number of components: %s", nodegroupArn.Resource)
+		return nil, errors.Errorf("ARN resource missing components: %s", nodegroupArn.Resource)
 	}
 	return &clusterId{
 		clusterName:   components[1],
