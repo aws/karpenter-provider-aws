@@ -54,7 +54,7 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
 	}
-	// Example ARN:
+	// Example node group ARN:
 	// arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9
 	//                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^
 	//                                              |                               |
