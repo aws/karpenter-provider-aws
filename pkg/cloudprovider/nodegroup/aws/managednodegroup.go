@@ -26,8 +26,8 @@ import (
 )
 
 // NewNodeGroup TODO(jacob@)
-func (m *ManagedNodeGroupProvider) NewNodeGroup(name string) cloudprovider.NodeGroup {
-	return NewDefaultManagedNodeGroup(name, m.ClusterName)
+func NewNodeGroup(name string) cloudprovider.NodeGroup {
+	return NewDefaultManagedNodeGroup(name)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
@@ -49,6 +49,9 @@ type clusterId struct {
 	nodegroupName string
 }
 
+// parseClusterId extracts the cluster and nodegroup names from an
+// ARN. This is needed because for Managed Node Group APIs that don't
+// take an ARN directly.
 func parseClusterId(fromArn string) (*clusterId, error) {
 	nodegroupArn, err := arn.Parse(fromArn)
 	if err != nil {
@@ -58,10 +61,10 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 	// arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9
 	//                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^
 	//                                              |                               |
-	//                                              cluster-name                    nodegroup-name
+	//                                              cluster name                    nodegroup name
 	components := strings.Split(nodegroupArn.Resource, "/")
-	if len(components) != 4 {
-		return nil, errors.Errorf("ARN resource format does not contain expected 4 components: %s", nodegroupArn.Resource)
+	if len(components) < 3 {
+		return nil, errors.Errorf("ARN resource format does not contain number of components: %s", nodegroupArn.Resource)
 	}
 	return &clusterId{
 		clusterName:   components[1],
@@ -72,8 +75,10 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 // SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	id, err := parseClusterId(mng.GroupName)
-
-	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+	if err != nil {
+		return errors.Wrapf(err, "unable to parse ARN %s", mng.GroupName)
+	}
+	_, err = mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &id.clusterName,
 		NodegroupName: &id.nodegroupName,
 		ScalingConfig: &eks.NodegroupScalingConfig{
