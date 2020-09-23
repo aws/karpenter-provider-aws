@@ -1,7 +1,7 @@
 # About
 Karpenter is a metrics-driven node autoscaler for Kubernetes.
 
-![](./docs/logo.jpeg)
+![](./docs/images/logo.jpeg)
 
 # Usage
 - [Architecture](./docs/ARCHITECTURE.md)
