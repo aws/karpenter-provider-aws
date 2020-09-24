@@ -18,15 +18,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TOOD(jacob) add functions to manage this?
-var ScalableNodeGroupValidators []func(*ScalableNodeGroup) error
+// +kubebuilder:object:generate=false
+type ScalableNodeGroupValidator func(*ScalableNodeGroup) error
+
+var scalableNodeGroupValidators []ScalableNodeGroupValidator
+
+func RegisterScalableNodeGroupValidator(validator ScalableNodeGroupValidator) {
+	scalableNodeGroupValidators = append(scalableNodeGroupValidators, validator)
+}
 
 func (sng *ScalableNodeGroup) Validate() error {
-	for _, validator := range ScalableNodeGroupValidators {
-		err := validator(sng)
-		if err != nil {
+	for _, validator := range scalableNodeGroupValidators {
+		if err := validator(sng); err != nil {
 			// TODO(jacob): make this error more informative
-			return errors.Wrap(err, "ScalableNodeGroup failed validation")
+			return errors.Wrap(err, "invalid ScalableNodeGroup")
 		}
 	}
 	return nil

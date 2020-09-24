@@ -36,9 +36,7 @@ func validate(sng *v1alpha1.ScalableNodeGroup) error {
 }
 
 func init() {
-	// TODO(jacob): encapsulate this better, assuming it's a good
-	// idea in the first place
-	v1alpha1.ScalableNodeGroupValidators = append(v1alpha1.ScalableNodeGroupValidators, validate)
+	v1alpha1.RegisterScalableNodeGroupValidator(validate)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
