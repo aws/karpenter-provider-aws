@@ -24,13 +24,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
-func validate(sng *v1alpha1.ScalableNodeGroup) error {
-	if sng.Spec.Type != v1alpha1.AWSEKSNodeGroup {
+func validate(sng *v1alpha1.ScalableNodeGroupSpec) error {
+	if sng.Type != v1alpha1.AWSEKSNodeGroup {
 		return nil
 	} else {
-		_, err := parseClusterId(sng.Spec.ID)
+		_, err := parseClusterId(sng.ID)
 		return err
 	}
 }
@@ -41,26 +42,33 @@ func init() {
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	ARN    string
-	Client eksiface.EKSAPI
+	v1alpha1.ScalableNodeGroupSpec
+	Client    eksiface.EKSAPI
+	Cluster   string
+	Nodegroup string
 }
 
-func NewNodeGroup(arn string) *ManagedNodeGroup {
-	return &ManagedNodeGroup{
-		Client: eks.New(session.Must(session.NewSession())),
-		ARN:    arn,
+func NewNodeGroup(spec *v1alpha1.ScalableNodeGroupSpec) *ManagedNodeGroup {
+	mng := &ManagedNodeGroup{Client: eks.New(session.Must(session.NewSession()))}
+	mng.ScalableNodeGroupSpec = *spec
+	mngId, err := parseClusterId(spec.ID)
+	if err != nil {
+		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", spec.ID)
 	}
+	mng.Cluster = mngId.cluster
+	mng.Nodegroup = mngId.nodegroup
+	return mng
 }
 
-type clusterId struct {
-	clusterName   string
-	nodegroupName string
+type managedNodeGroupId struct {
+	cluster   string
+	nodegroup string
 }
 
 // parseClusterId extracts the cluster and nodegroup names from an
 // ARN. This is needed for Managed Node Group APIs that don't take an
 // ARN directly.
-func parseClusterId(fromArn string) (*clusterId, error) {
+func parseClusterId(fromArn string) (*managedNodeGroupId, error) {
 	nodegroupArn, err := arn.Parse(fromArn)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
@@ -74,21 +82,17 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 	if len(components) < 3 {
 		return nil, errors.Errorf("ARN resource missing components: %s", nodegroupArn.Resource)
 	}
-	return &clusterId{
-		clusterName:   components[1],
-		nodegroupName: components[2],
+	return &managedNodeGroupId{
+		cluster:   components[1],
+		nodegroup: components[2],
 	}, nil
 }
 
 // SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
-	id, err := parseClusterId(mng.ARN)
-	if err != nil {
-		return errors.Wrapf(err, "unable to parse ARN %s", mng.ARN)
-	}
-	_, err = mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
-		ClusterName:   &id.clusterName,
-		NodegroupName: &id.nodegroupName,
+	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+		ClusterName:   &mng.Cluster,
+		NodegroupName: &mng.Nodegroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: aws.Int64(int64(value)),
 		},
@@ -96,7 +100,6 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	return err
 }
 
-// Name TODO(jacob@)
 func (mng *ManagedNodeGroup) Name() string {
-	return mng.ARN
+	return mng.ScalableNodeGroupSpec.ID
 }

@@ -19,7 +19,7 @@ import (
 )
 
 // +kubebuilder:object:generate=false
-type ScalableNodeGroupValidator func(*ScalableNodeGroup) error
+type ScalableNodeGroupValidator func(*ScalableNodeGroupSpec) error
 
 var scalableNodeGroupValidators []ScalableNodeGroupValidator
 
@@ -29,7 +29,7 @@ func RegisterScalableNodeGroupValidator(validator ScalableNodeGroupValidator) {
 
 func (sng *ScalableNodeGroup) Validate() error {
 	for _, validator := range scalableNodeGroupValidators {
-		if err := validator(sng); err != nil {
+		if err := validator(&sng.Spec); err != nil {
 			// TODO(jacob): make this error more informative
 			return errors.Wrap(err, "invalid ScalableNodeGroup")
 		}
