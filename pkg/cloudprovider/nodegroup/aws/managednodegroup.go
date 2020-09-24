@@ -23,13 +23,22 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	_ "github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/pkg/errors"
 )
 
-func Validate(sng v1alpha1.ScalableNodeGroup) error {
-	_, err := parseClusterId(sng.Spec.ID)
-	return err
+func validate(sng *v1alpha1.ScalableNodeGroup) error {
+	if sng.Spec.Type != v1alpha1.AWSEKSNodeGroup {
+		return nil
+	} else {
+		_, err := parseClusterId(sng.Spec.ID)
+		return err
+	}
+}
+
+func init() {
+	// TODO(jacob): encapsulate this better, assuming it's a good
+	// idea in the first place
+	v1alpha1.ScalableNodeGroupValidators = append(v1alpha1.ScalableNodeGroupValidators, validate)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
