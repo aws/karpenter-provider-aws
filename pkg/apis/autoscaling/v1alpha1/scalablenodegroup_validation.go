@@ -13,3 +13,23 @@ limitations under the License.
 */
 
 package v1alpha1
+
+import (
+	"github.com/pkg/errors"
+)
+
+// TOOD(jacob) add functions to manage this?
+var ScalableNodeGroupValidators []func(*ScalableNodeGroup) error
+
+func (sng *ScalableNodeGroup) Validate() error {
+	for _, validator := range ScalableNodeGroupValidators {
+		err := validator(sng)
+		if err != nil {
+			// TODO(jacob): make this error more informative
+			return errors.Wrap(err, "ScalableNodeGroup failed validation")
+		}
+	}
+	return nil
+}
+
+// TODO(jacob) put cloudprovider-accessible validation hook here?
