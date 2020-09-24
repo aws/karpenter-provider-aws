@@ -1,4 +1,4 @@
-package cloudprovider
+package nodegroup
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"

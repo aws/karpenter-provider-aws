@@ -15,32 +15,34 @@ limitations under the License.
 package aws
 
 import (
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	_ "github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/pkg/errors"
-	"strings"
 )
 
-// NewNodeGroup TODO(jacob@)
-func NewNodeGroup(name string) cloudprovider.NodeGroup {
-	return NewDefaultManagedNodeGroup(name)
+func Validate(sng v1alpha1.ScalableNodeGroup) error {
+	_, err := parseClusterId(sng.Spec.ID)
+	return err
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	GroupName string
-	Client    eksiface.EKSAPI
+	arn    string
+	Client eksiface.EKSAPI
 }
 
-// NewDefaultManagedNodeGroup TODO(jacob@)
-func NewDefaultManagedNodeGroup(name string) *ManagedNodeGroup {
+// NewNodeGroup TODO(jacob@)
+func NewNodeGroup(arn string) *ManagedNodeGroup {
 	return &ManagedNodeGroup{
-		Client:    eks.New(session.Must(session.NewSession())),
-		GroupName: name,
+		Client: eks.New(session.Must(session.NewSession())),
+		arn:    arn,
 	}
 }
 
@@ -74,9 +76,9 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 
 // SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
-	id, err := parseClusterId(mng.GroupName)
+	id, err := parseClusterId(mng.arn)
 	if err != nil {
-		return errors.Wrapf(err, "unable to parse ARN %s", mng.GroupName)
+		return errors.Wrapf(err, "unable to parse ARN %s", mng.arn)
 	}
 	_, err = mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &id.clusterName,
@@ -90,5 +92,5 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 
 // Name TODO(jacbo@)
 func (mng *ManagedNodeGroup) Name() string {
-	return mng.GroupName
+	return mng.arn
 }

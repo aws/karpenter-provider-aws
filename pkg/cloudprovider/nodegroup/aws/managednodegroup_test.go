@@ -35,8 +35,8 @@ func TestBadARN(t *testing.T) {
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client:    client,
-		GroupName: "ceci n'est pas une ARN",
+		Client: client,
+		arn:    "ceci n'est pas une ARN",
 	}
 	got := asg.SetReplicas(23)
 	if got == nil {
@@ -49,8 +49,8 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client:    client,
-		GroupName: "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
+		Client: client,
+		arn:    "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
 	}
 	got := asg.SetReplicas(23)
 	if got != nil {

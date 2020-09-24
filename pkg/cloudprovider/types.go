@@ -1,5 +1,7 @@
 package cloudprovider
 
+import ()
+
 // Queue abstracts all provider specific behavior for Queues
 type Queue interface {
 	// Name returns the name of the queue
