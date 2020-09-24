@@ -36,5 +36,3 @@ func (sng *ScalableNodeGroup) Validate() error {
 	}
 	return nil
 }
-
-// TODO(jacob) put cloudprovider-accessible validation hook here?

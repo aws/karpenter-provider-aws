@@ -36,7 +36,7 @@ func TestBadARN(t *testing.T) {
 	}
 	asg := &ManagedNodeGroup{
 		Client: client,
-		arn:    "ceci n'est pas une ARN",
+		ARN:    "ceci n'est pas une ARN",
 	}
 	got := asg.SetReplicas(23)
 	if got == nil {
@@ -50,7 +50,7 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	}
 	asg := &ManagedNodeGroup{
 		Client: client,
-		arn:    "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
+		ARN:    "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
 	}
 	got := asg.SetReplicas(23)
 	if got != nil {

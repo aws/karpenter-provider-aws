@@ -41,15 +41,14 @@ func init() {
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	arn    string
+	ARN    string
 	Client eksiface.EKSAPI
 }
 
-// NewNodeGroup TODO(jacob@)
 func NewNodeGroup(arn string) *ManagedNodeGroup {
 	return &ManagedNodeGroup{
 		Client: eks.New(session.Must(session.NewSession())),
-		arn:    arn,
+		ARN:    arn,
 	}
 }
 
@@ -83,9 +82,9 @@ func parseClusterId(fromArn string) (*clusterId, error) {
 
 // SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
-	id, err := parseClusterId(mng.arn)
+	id, err := parseClusterId(mng.ARN)
 	if err != nil {
-		return errors.Wrapf(err, "unable to parse ARN %s", mng.arn)
+		return errors.Wrapf(err, "unable to parse ARN %s", mng.ARN)
 	}
 	_, err = mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &id.clusterName,
@@ -97,7 +96,7 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 	return err
 }
 
-// Name TODO(jacbo@)
+// Name TODO(jacob@)
 func (mng *ManagedNodeGroup) Name() string {
-	return mng.arn
+	return mng.ARN
 }
