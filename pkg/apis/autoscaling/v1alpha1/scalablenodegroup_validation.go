@@ -21,16 +21,15 @@ import (
 // +kubebuilder:object:generate=false
 type ScalableNodeGroupValidator func(*ScalableNodeGroupSpec) error
 
-var scalableNodeGroupValidators []ScalableNodeGroupValidator
+var scalableNodeGroupValidators map[NodeGroupType]ScalableNodeGroupValidator = make(map[NodeGroupType]ScalableNodeGroupValidator)
 
-func RegisterScalableNodeGroupValidator(validator ScalableNodeGroupValidator) {
-	scalableNodeGroupValidators = append(scalableNodeGroupValidators, validator)
+func RegisterScalableNodeGroupValidator(nodeGroupType NodeGroupType, validator ScalableNodeGroupValidator) {
+	scalableNodeGroupValidators[nodeGroupType] = validator
 }
 
 func (sng *ScalableNodeGroup) Validate() error {
-	for _, validator := range scalableNodeGroupValidators {
+	if validator, ok := scalableNodeGroupValidators[sng.Spec.Type]; ok {
 		if err := validator(&sng.Spec); err != nil {
-			// TODO(jacob): make this error more informative
 			return errors.Wrap(err, "invalid ScalableNodeGroup")
 		}
 	}

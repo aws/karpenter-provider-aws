@@ -27,17 +27,13 @@ import (
 	"go.uber.org/zap"
 )
 
-func validate(sng *v1alpha1.ScalableNodeGroupSpec) error {
-	if sng.Type != v1alpha1.AWSEKSNodeGroup {
-		return nil
-	} else {
-		_, err := parseClusterId(sng.ID)
-		return err
-	}
+func validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
+	_, err = parseClusterId(sng.ID)
+	return
 }
 
 func init() {
-	v1alpha1.RegisterScalableNodeGroupValidator(validate)
+	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, validate)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
