@@ -45,15 +45,14 @@ type ManagedNodeGroup struct {
 }
 
 func NewNodeGroup(spec *v1alpha1.ScalableNodeGroupSpec) *ManagedNodeGroup {
-	mng := &ManagedNodeGroup{Client: eks.New(session.Must(session.NewSession()))}
-	mng.ScalableNodeGroupSpec = *spec
 	mngId, err := parseClusterId(spec.ID)
 	if err != nil {
 		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", spec.ID)
 	}
-	mng.Cluster = mngId.cluster
-	mng.Nodegroup = mngId.nodegroup
-	return mng
+	return &ManagedNodeGroup{ScalableNodeGroupSpec: *spec,
+		Cluster:   mngId.cluster,
+		Nodegroup: mngId.nodegroup,
+		Client:    eks.New(session.Must(session.NewSession()))}
 }
 
 type managedNodeGroupId struct {
