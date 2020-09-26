@@ -65,15 +65,15 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	// 2. Make any changes to underlying node group
-	ng := c.NodegroupFactory.For(resource.Spec)
+	ng := c.NodegroupFactory.For(resource)
 	if err := ng.SetReplicas(int(*resource.Spec.Replicas)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
 	}
 
-	// TODO(jacob): not sure this makes sense
-	//resource.Status.Replicas
-
 	// 3. Apply status to API Server
+	if err := c.Status().Update(context.Background(), resource); err != nil {
+		return reconcile.Result{}, fmt.Errorf("Failed to persist changes: %s", err.Error())
+	}
 
 	return controllerruntime.Result{RequeueAfter: DefaultNodegroupUpdatePeriod}, nil
 }

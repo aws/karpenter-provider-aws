@@ -38,18 +38,18 @@ func init() {
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	v1alpha1.ScalableNodeGroupSpec
+	*v1alpha1.ScalableNodeGroup
 	Client    eksiface.EKSAPI
 	Cluster   string
 	Nodegroup string
 }
 
-func NewNodeGroup(spec *v1alpha1.ScalableNodeGroupSpec) *ManagedNodeGroup {
-	mngId, err := parseClusterId(spec.ID)
+func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
+	mngId, err := parseClusterId(sng.Spec.ID)
 	if err != nil {
-		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", spec.ID)
+		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
 	}
-	return &ManagedNodeGroup{ScalableNodeGroupSpec: *spec,
+	return &ManagedNodeGroup{ScalableNodeGroup: sng,
 		Cluster:   mngId.cluster,
 		Nodegroup: mngId.nodegroup,
 		Client:    eks.New(session.Must(session.NewSession()))}
@@ -96,5 +96,5 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 }
 
 func (mng *ManagedNodeGroup) Name() string {
-	return mng.ScalableNodeGroupSpec.ID
+	return mng.ScalableNodeGroup.Spec.ID
 }
