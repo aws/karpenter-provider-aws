@@ -21,6 +21,8 @@ import (
 	"context"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -31,6 +33,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	client.Client
+	NodegroupFactory nodegroup.Factory
 }
 
 // For returns the resource this controller is for.
