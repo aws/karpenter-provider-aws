@@ -85,14 +85,17 @@ func parseClusterId(fromArn string) (*managedNodeGroupId, error) {
 
 // SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int) error {
-	_, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+	if _, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.Nodegroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: aws.Int64(int64(value)),
 		},
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	mng.ScalableNodeGroup.Status.Replicas = int32(value)
+	return nil
 }
 
 func (mng *ManagedNodeGroup) Name() string {
