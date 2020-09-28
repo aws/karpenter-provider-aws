@@ -16,5 +16,5 @@ type NodeGroup interface {
 	Name() string
 
 	// SetReplicas sets the NodeGroups's replica count
-	SetReplicas(value int) error
+	SetReplicas(value int32) error
 }
