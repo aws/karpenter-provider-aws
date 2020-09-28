@@ -93,9 +93,11 @@ spec:
   queue:
     provider: AWSSQSQueue
     id: arn:aws:sqs:us-west-2:1234567890:alice-ml-training-queue
+```
 
 Her “ml-training-queue” configures Karpenter to periodically monitor queue metrics, such as the length of her AWS SQS Queue. The monitoring process has a Prometheus metrics endpoint at /metrics that returns the a set of metrics about the queue, including queue length. Alice has Prometheus Server installed in her cluster, which dynamically discovers and periodically scrapes the queue length from the metrics producer and stores it in a timeseries database. Alice queries this data manually using karpenter:metrics_producer:queue-length{name="ml-training-queue", namespace="alice"} to make sure that everything is working smoothly.
 
+```
 apiVersion: karpenter.sh/v1alpha1
 kind: ScalableNodeGroup
 metadata:
@@ -364,7 +366,7 @@ prometheus:
 
 Pending pods operates across multiple node groups. When a pod becomes unschedulable, the algorithm attempts to find a node group which if scaled up, would cause the pod to be scheduled. The MetricsProducer emits a signal per node group that corresponds to whether or not a scale up should occur. The MetricsProducer doesn’t necessarily apply to all node groups in the cluster. This allows some capacity to be scaled using pending pods and others to rely on different metrics producers, which is common for large and diverse clusters.
 
-````
+```
 apiVersion: karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
