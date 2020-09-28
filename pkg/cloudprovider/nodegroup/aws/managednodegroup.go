@@ -84,7 +84,7 @@ func parseClusterId(fromArn string) (*managedNodeGroupId, error) {
 }
 
 // SetReplicas TODO(jacob@)
-func (mng *ManagedNodeGroup) SetReplicas(value int) error {
+func (mng *ManagedNodeGroup) SetReplicas(value int32) error {
 	if _, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.Nodegroup,
