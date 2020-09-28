@@ -65,8 +65,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	// 2. Make any changes to underlying node group
-	ng := c.NodegroupFactory.For(resource)
-	if err := ng.SetReplicas(int(*resource.Spec.Replicas)); err != nil {
+	if err := c.NodegroupFactory.For(resource).SetReplicas(int(*resource.Spec.Replicas)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
 	}
 
