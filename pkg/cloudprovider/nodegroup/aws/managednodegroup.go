@@ -92,7 +92,8 @@ func (mng *ManagedNodeGroup) SetReplicas(value int) error {
 			DesiredSize: aws.Int64(int64(value)),
 		},
 	}); err != nil {
-		return err
+		return errors.Wrapf(err,
+			"unable to set desired replicas on managed node group %s", mng.Spec.ID)
 	}
 	mng.ScalableNodeGroup.Status.Replicas = int32(value)
 	return nil
