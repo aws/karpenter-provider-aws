@@ -190,7 +190,7 @@ Each API must be implemented by a service in the cluster. Implementations includ
 
 For example, here’s how the Horizontal Pod Autoscaler uses [k8s-prometheus-adapter](https://github.com/DirectXMan12/k8s-prometheus-adapter) and custom.metrics.k8s.io.
 
-![](./images/hpa.jpeg)
+![](./images/hpa.png)
 Source: https://towardsdatascience.com/kubernetes-hpa-with-custom-metrics-from-prometheus-9ffc201991e
 
 The metrics API is an attractive dependency for several reasons. It uses Kubernetes API semantics, bringing popular Kubernetes features (e.g. kubectl, API standardization) to the domain of metrics. It also enables customers to control access using RBAC, though this isn’t hugely compelling as autoscalers typically operate globally on the cluster and have full permissions to the metrics API (see HPA).
