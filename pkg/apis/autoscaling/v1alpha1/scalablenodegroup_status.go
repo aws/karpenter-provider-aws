@@ -26,10 +26,14 @@ type ScalableNodeGroupStatus struct {
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 }
 
+const (
+	// Active indicates that the controller is able to scale if necessary: it's
+	// correctly configured, can make necessary API calls, and isn't disabled.
+	Active apis.ConditionType = "Active"
+)
+
 var ScalableNodeGroupConditions = apis.NewLivingConditionSet(
-	ScalingActive,
-	AbleToScale,
-	ScalingUnbounded,
+	Active,
 )
 
 func (s *ScalableNodeGroup) IsHappy() bool {

@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,18 +23,18 @@ type MetricsProducerSpec struct {
 }
 
 type ReservedCapacitySpec struct {
-	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
-	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+	// NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
+	NodeSelector map[string]string `json:"nodeSelector"`
 }
 
 type PendingCapacitySpec struct {
-	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
-	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+	// NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
+	NodeSelector map[string]string `json:"nodeSelector"`
 }
 
 type ScheduledCapacitySpec struct {
-	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
-	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+	// NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
+	NodeSelector map[string]string `json:"nodeSelector"`
 	// Behaviors may be layered to achieve complex scheduling autoscaling logic
 	Behaviors []ScheduledBehavior `json:"behaviors"`
 }
@@ -49,8 +48,8 @@ type ScheduledBehavior struct {
 // PendingPodsSpec outputs a metric that identifies scheduling opportunities for pending pods in specified node groups.
 // If multiple pending pods metrics producers exist, the algorithm will ensure that only a single node group scales up.
 type PendingPodsSpec struct {
-	// NodeSelectors specifies a list of node groups. Each selector must uniquely identify a set of nodes.
-	NodeSelectors []v1.NodeSelector `json:"nodeSelectors"`
+	// NodeSelector specifies a node group. Each selector must uniquely identify a set of nodes.
+	NodeSelector map[string]string `json:"nodeSelector"`
 }
 
 // QueueSpec outputs metrics for a queue.

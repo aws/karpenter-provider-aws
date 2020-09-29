@@ -12,21 +12,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package producers
+package metrics
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	v1 "k8s.io/client-go/listers/core/v1"
 )
 
-// ScheduledCapacity implements the ScheduledCapacity metric
-type ScheduledCapacity struct {
-	v1alpha1.ScheduledCapacitySpec
-	Nodes v1.NodeLister
+// Metric contains the current value of a metric
+type Metric struct {
+	Name   string
+	Labels map[string]string
+	Value  float64
 }
 
-// GetCurrentValues of the metrics
-func (r *ScheduledCapacity) GetCurrentValues() ([]metrics.Metric, error) {
-	return nil, nil
+// Producer interface for all metrics implementations
+type Producer interface {
+	// Reconcile returns the current values for the set of metrics provided.
+	Reconcile() error
+}
+
+// Client interface for all metrics implementations
+type Client interface {
+	// GetCurrentValues returns the current values for the specified metric.
+	GetCurrentValue(v1alpha1.Metric) (Metric, error)
 }

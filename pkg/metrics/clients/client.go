@@ -21,11 +21,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// MetricsClient interface for all metrics implementations
-type MetricsClient interface {
-	// GetCurrentValues returns the current values for the set of metrics provided.
-	GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error)
-}
+// // MetricsClient interface for all metrics implementations
+// type MetricsClient interface {
+// 	// GetCurrentValues returns the current values for the set of metrics provided.
+// 	GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error)
+// }
 
 // Factory instantiates metrics clients
 type Factory struct {
@@ -33,7 +33,7 @@ type Factory struct {
 }
 
 // For returns a metrics client for the given source type
-func (m *Factory) For(metric v1alpha1.Metric) MetricsClient {
+func (m *Factory) For(metric v1alpha1.Metric) metrics.Client {
 	if metric.Prometheus != nil {
 		return m.NewPrometheusMetricsClient()
 	}
@@ -42,7 +42,7 @@ func (m *Factory) For(metric v1alpha1.Metric) MetricsClient {
 }
 
 // NewPrometheusMetricsClient instantiates a metrics producer
-func (m *Factory) NewPrometheusMetricsClient() MetricsClient {
+func (m *Factory) NewPrometheusMetricsClient() metrics.Client {
 	return &PrometheusMetricsClient{
 		Client: m.PrometheusClient,
 	}

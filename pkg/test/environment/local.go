@@ -2,6 +2,7 @@ package environment
 
 import (
 	"context"
+	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
@@ -10,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,8 +40,9 @@ AfterSuite(func() { env.Stop() })
 */
 type Local struct {
 	envtest.Environment
-	Manager manager.Manager
-	Server  *ghttp.Server
+	Manager         manager.Manager
+	Server          *ghttp.Server
+	InformerFactory informers.SharedInformerFactory
 
 	options []LocalOption
 	stopch  chan struct{}
@@ -112,6 +116,16 @@ func (e *Local) Start() (err error) {
 		Scheme:             scheme,
 	}); err != nil {
 		return errors.Wrap(err, "creating new manager")
+	}
+
+	// Informers
+	e.InformerFactory = informers.NewSharedInformerFactory(kubernetes.NewForConfigOrDie(e.Manager.GetConfig()), time.Minute*30)
+	if err := e.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
+		e.InformerFactory.Start(stopChannel)
+		<-stopChannel
+		return nil
+	})); err != nil {
+		return errors.Wrap(err, "registering informer factory")
 	}
 
 	// options

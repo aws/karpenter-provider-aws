@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -20,13 +19,19 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-type TestableObject interface {
-	runtime.Object
-	v1.Object
-	IsHappy() bool
+func ExpectCreated(client client.Client, objects ...test.Object) {
+	for _, object := range objects {
+		Expect(client.Create(context.Background(), object)).To(Succeed())
+	}
 }
 
-func ExpectEventuallyCreated(client client.Client, object TestableObject) {
+func ExpectDeleted(client client.Client, objects ...test.Object) {
+	for _, object := range objects {
+		Expect(client.Delete(context.Background(), object)).To(Succeed())
+	}
+}
+
+func ExpectEventuallyCreated(client client.Client, object test.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Expect(client.Create(context.Background(), object)).To(Succeed())
 	Eventually(func() error {
@@ -34,7 +39,7 @@ func ExpectEventuallyCreated(client client.Client, object TestableObject) {
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 }
 
-func ExpectEventuallyHappy(client client.Client, object TestableObject) {
+func ExpectEventuallyHappy(client client.Client, object test.HappyableObject) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Eventually(func() bool {
 		Expect(client.Get(context.Background(), nn, object)).To(Succeed())
@@ -44,7 +49,7 @@ func ExpectEventuallyHappy(client client.Client, object TestableObject) {
 	})
 }
 
-func ExpectEventuallyDeleted(client client.Client, object TestableObject) {
+func ExpectEventuallyDeleted(client client.Client, object test.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Expect(client.Delete(context.Background(), object)).To(Succeed())
 	Eventually(func() bool {

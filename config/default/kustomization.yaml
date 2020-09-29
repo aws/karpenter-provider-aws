@@ -11,7 +11,7 @@ bases:
 - ../manager
 - ../webhook
 - ../certmanager
-# - ../prometheus
+- ../prometheus
 
 patchesStrategicMerge:
   # Protect the /metrics endpoint by putting it behind auth.
