@@ -110,7 +110,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 /* getDesiredReplicas returns the desired scale value and sets limit conditions.
 
 Status conditions are always set, regardless of the outcome of the policy
-decisions. The conditions will only be set if the autoscaling is attempting to
+decisions. The conditions will only be set if the autoscaler is attempting to
 scale and prevented by the limits. e.g. if at max but not recommended to scale
 up, the ScalingUnbounded condition will continue to be true.
 
