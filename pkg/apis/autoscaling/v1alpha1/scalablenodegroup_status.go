@@ -14,9 +14,32 @@ limitations under the License.
 
 package v1alpha1
 
+import "knative.dev/pkg/apis"
+
 // ScalableNodeGroupStatus holds status information for the ScalableNodeGroup
 // +kubebuilder:subresource:status
 type ScalableNodeGroupStatus struct {
 	// Replicas displays the current size of the ScalableNodeGroup
 	Replicas int32 `json:"replicas,omitempty"`
+	// Conditions is the set of conditions required for the scalable node group
+	// to successfully enforce the replica count of the underlying group
+	Conditions apis.Conditions `json:"conditions,omitempty"`
+}
+
+var ScalableNodeGroupConditions = apis.NewLivingConditionSet(
+	ScalingActive,
+	AbleToScale,
+	ScalingUnbounded,
+)
+
+func (s *ScalableNodeGroup) IsHappy() bool {
+	return ScalableNodeGroupConditions.Manage(s).IsHappy()
+}
+
+func (s *ScalableNodeGroup) GetConditions() apis.Conditions {
+	return s.Status.Conditions
+}
+
+func (s *ScalableNodeGroup) SetConditions(conditions apis.Conditions) {
+	s.Status.Conditions = conditions
 }

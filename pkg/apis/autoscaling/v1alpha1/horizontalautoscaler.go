@@ -1,10 +1,14 @@
 package v1alpha1
 
 import (
+	"fmt"
+
+	f "github.com/ellistarn/karpenter/pkg/utils/functional"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
-	v2beta2 "k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/ptr"
 )
 
 // HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec
@@ -85,12 +89,24 @@ type ScalingRules struct {
 	// selectPolicy is used to specify which policy should be used.
 	// If not set, the default value MaxPolicySelect is used.
 	// +optional
-	SelectPolicy *v2beta2.ScalingPolicySelect `json:"selectPolicy,omitempty"`
+	SelectPolicy *ScalingPolicySelect `json:"selectPolicy,omitempty"`
 	// policies is a list of potential scaling polices which can be used during scaling.
 	// At least one policy must be specified, otherwise the ScalingRules will be discarded as invalid
 	// +optional
 	Policies []ScalingPolicy `json:"policies,omitempty"`
 }
+
+// ScalingPolicySelect is used to specify which policy should be used while scaling in a certain direction
+type ScalingPolicySelect string
+
+var (
+	// MaxPolicySelect selects the policy with the highest possible change.
+	MaxPolicySelect ScalingPolicySelect = "Max"
+	// MinPolicySelect selects the policy with the lowest possible change.
+	MinPolicySelect ScalingPolicySelect = "Min"
+	// DisabledPolicySelect disables the scaling in this direction.
+	DisabledPolicySelect ScalingPolicySelect = "Disabled"
+)
 
 // ScalingPolicyType is the type of the policy which could be used while making scaling decisions.
 type ScalingPolicyType string
@@ -183,4 +199,56 @@ func (m *Metric) GetTarget() MetricTarget {
 	}
 	zap.S().Fatalf("Unrecognized metric type while retrieving target for %v", m)
 	return MetricTarget{}
+}
+
+func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) int32 {
+	var rules ScalingRules
+	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
+		rules = b.GetScalingRules(gt[0], replicas)
+	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
+		rules = b.GetScalingRules(lt[0], replicas)
+	} else {
+		return replicas
+	}
+
+	switch *rules.SelectPolicy {
+	case MaxPolicySelect:
+		return f.MaxInt32(recommendations)
+	case MinPolicySelect:
+		return f.MinInt32(recommendations)
+	case DisabledPolicySelect:
+		return replicas
+	default:
+		log.FatalInvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
+		return replicas
+	}
+}
+
+func (b *Behavior) GetScalingRules(recommendation int32, replicas int32) ScalingRules {
+	if recommendation < replicas {
+		return b.ScaleUpRules()
+	}
+	return b.ScaleDownRules()
+}
+
+func (b *Behavior) ScaleUpRules() ScalingRules {
+	rules := ScalingRules{
+		StabilizationWindowSeconds: ptr.Int32(0),
+		SelectPolicy:               &MaxPolicySelect,
+	}
+	if b.ScaleUp != nil {
+		b.ScaleUp.DeepCopyInto(&rules)
+	}
+	return rules
+}
+
+func (b *Behavior) ScaleDownRules() ScalingRules {
+	rules := ScalingRules{
+		StabilizationWindowSeconds: ptr.Int32(300),
+		SelectPolicy:               &MaxPolicySelect,
+	}
+	if b.ScaleDown != nil {
+		b.ScaleDown.DeepCopyInto(&rules)
+	}
+	return rules
 }

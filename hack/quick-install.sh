@@ -33,9 +33,9 @@ EOF
 }
 
 delete() {
+  make delete || true
   helm uninstall cert-manager --namespace cert-manager || true
   helm uninstall prometheus --namespace prometheus || true
-  make undeploy || true
 }
 
 apply() {
@@ -45,7 +45,7 @@ apply() {
 
   certmanager
   prometheus
-  make deploy
+  make apply
 }
 
 certmanager() {
@@ -65,7 +65,7 @@ prometheus() {
   helm upgrade --install prometheus stable/prometheus \
     --atomic \
     --create-namespace \
-    --namespace prometheus \
+    --namespace monitoring \
     --version 11.4.0 \
     --values $prometheus_dir/values.yaml
 }

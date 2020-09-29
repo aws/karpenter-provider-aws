@@ -39,7 +39,16 @@ func NewNamespace(client client.Client) *Namespace {
 	}
 }
 
-// Instantiates a test resource from YAML
+// Instantiates any number of test resources from a given YAML file
+func (n *Namespace) ParseResources(path string, objects ...runtime.Object) error {
+	var err error
+	for _, object := range objects {
+		err = multierr.Append(err, n.ParseResource(path, object))
+	}
+	return err
+}
+
+// Instantiates a test resources from a given YAML file
 func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 	data, err := ioutil.ReadFile(project.RelativeToRoot(path))
 	if err != nil {
@@ -55,12 +64,13 @@ func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 	return nil
 }
 
+// Attempts to parse a resource from a YAML manifest that potentially contains
+// multiple objects. Succeeds on the first successful resource.
 func parseFromYaml(data []byte, object runtime.Object) error {
 	var result error
 	for _, document := range YAMLDocumentDelimiter.Split(string(data), -1) {
 		if err := yaml.UnmarshalStrict([]byte(document), object); err != nil {
 			result = multierr.Append(result, err)
-
 		} else {
 			return nil
 		}

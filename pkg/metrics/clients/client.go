@@ -17,7 +17,7 @@ package clients
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
-	"github.com/prometheus/client_golang/api"
+	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"go.uber.org/zap"
 )
 
@@ -29,7 +29,7 @@ type MetricsClient interface {
 
 // Factory instantiates metrics clients
 type Factory struct {
-	PrometheusClient api.Client
+	PrometheusClient prometheusv1.API
 }
 
 // For returns a metrics client for the given source type
@@ -43,5 +43,7 @@ func (m *Factory) For(metric v1alpha1.Metric) MetricsClient {
 
 // NewPrometheusMetricsClient instantiates a metrics producer
 func (m *Factory) NewPrometheusMetricsClient() MetricsClient {
-	return &PrometheusMetricsClient{}
+	return &PrometheusMetricsClient{
+		Client: m.PrometheusClient,
+	}
 }

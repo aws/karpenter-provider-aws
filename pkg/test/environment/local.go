@@ -6,11 +6,13 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
+	"github.com/onsi/gomega/ghttp"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -36,6 +38,7 @@ AfterSuite(func() { env.Stop() })
 type Local struct {
 	envtest.Environment
 	Manager manager.Manager
+	Server  *ghttp.Server
 
 	options []LocalOption
 	stopch  chan struct{}
@@ -44,7 +47,7 @@ type Local struct {
 // LocalOption passes the Local environment to an option function. This is
 // useful for registering controllers with the controller-runtime manager or for
 // customizing Client, Scheme, or other variables.
-type LocalOption func(env *Local) error
+type LocalOption func(env *Local)
 
 func NewLocal(options ...LocalOption) Environment {
 	log.Setup(controllerruntimezap.UseDevMode(true))
@@ -55,13 +58,21 @@ func NewLocal(options ...LocalOption) Environment {
 				DirectoryPaths: []string{project.RelativeToRoot("config/webhook")},
 			},
 		},
+		Server:  ghttp.NewServer(),
 		stopch:  make(chan struct{}),
 		options: options,
 	}
 }
 
 func (e *Local) NewNamespace() (*Namespace, error) {
-	ns := NewNamespace(e.Manager.GetClient())
+	client, err := client.New(e.Manager.GetConfig(), client.Options{
+		Scheme: e.Manager.GetScheme(),
+		Mapper: e.Manager.GetRESTMapper(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	ns := NewNamespace(client)
 	if err := e.Manager.GetClient().Create(context.Background(), &ns.Namespace); err != nil {
 		return nil, err
 	}
@@ -78,7 +89,7 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 func (e *Local) Start() (err error) {
 	// Environment
 	if _, err := e.Environment.Start(); err != nil {
-		return err
+		return errors.Wrap(err, "starting environment")
 	}
 
 	// Scheme
@@ -88,25 +99,24 @@ func (e *Local) Start() (err error) {
 		clientgoscheme.AddToScheme,
 	} {
 		if err := AddToScheme(scheme); err != nil {
-			return err
+			return errors.Wrap(err, "setting up scheme")
 		}
 	}
 
 	// Manager
 	if e.Manager, err = controllerruntime.NewManager(e.Config, controllerruntime.Options{
-		CertDir: e.WebhookInstallOptions.LocalServingCertDir,
-		Host:    e.WebhookInstallOptions.LocalServingHost,
-		Port:    e.WebhookInstallOptions.LocalServingPort,
-		Scheme:  scheme,
+		CertDir:            e.WebhookInstallOptions.LocalServingCertDir,
+		Host:               e.WebhookInstallOptions.LocalServingHost,
+		Port:               e.WebhookInstallOptions.LocalServingPort,
+		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
+		Scheme:             scheme,
 	}); err != nil {
-		return err
+		return errors.Wrap(err, "creating new manager")
 	}
 
 	// options
 	for _, option := range e.options {
-		if err := option(e); err != nil {
-			return err
-		}
+		option(e)
 	}
 
 	// Start manager

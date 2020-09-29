@@ -9,7 +9,7 @@ build:
 
 # Run tests
 test:
-	go test ./... -v -cover
+	ginkgo -r --randomizeAllSpecs --randomizeSuites -race -nodes 2
 
 # Verify code. Includes dependencies, linting, formatting, etc
 verify:
@@ -42,6 +42,7 @@ generate:
 	# `properties[lastTransitionTime].type: Unsupported value: "Any": supported
 	# values: "array", "boolean", "integer", "number", "object", "string"`
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_horizontalautoscalers.yaml
+	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
 
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config

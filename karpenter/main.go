@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/api"
 
 	"github.com/ellistarn/karpenter/pkg/utils/log"
+	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
@@ -88,8 +89,8 @@ func setupFlags() {
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
-	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus.prometheus.svc.cluster.local:9090", "The Prometheus Metrics Server URI")
-	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-server.monitoring.svc.cluster.local", "The Prometheus Metrics Server URI for retrieving metrics")
+	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to for operating metrics about the controller itself.")
 	flag.Parse()
 }
 
@@ -131,14 +132,12 @@ func metricsProducerFactoryOrDie() producers.Factory {
 }
 
 func metricsClientFactoryOrDie() clients.Factory {
-	client, err := api.NewClient(api.Config{
-		Address: "http://prometheus.prometheus.svc.cluster.local:9090",
-	})
+	client, err := api.NewClient(api.Config{Address: options.PrometheusURI})
 	if err != nil {
 		zap.S().Fatalf("Unable to create prometheus client, %v", err)
 	}
 	return clients.Factory{
-		PrometheusClient: client,
+		PrometheusClient: prometheusv1.NewAPI(client),
 	}
 }
 
@@ -158,7 +157,6 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 	}
 	return autoscaler.Factory{
 		MetricsClientFactory: dependencies.MetricsClientFactory,
-		KubernetesClient:     dependencies.Manager.GetClient(),
 		Mapper:               dependencies.Manager.GetRESTMapper(),
 		ScaleNamespacer:      scale,
 	}
