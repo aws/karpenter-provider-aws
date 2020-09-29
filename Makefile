@@ -9,7 +9,7 @@ build:
 
 # Run tests
 test:
-	ginkgo -r -cover --randomizeAllSpecs --randomizeSuites -race -nodes 2
+	ginkgo -r --randomizeAllSpecs --randomizeSuites -race -nodes 2
 
 # Verify code. Includes dependencies, linting, formatting, etc
 verify:
