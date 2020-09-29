@@ -65,7 +65,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		}
 		return reconcile.Result{}, err
 	}
-	resource.SetRuntimeDefaults()
+	resource.InitializeConditions()
 
 	// 2. Execute autoscaling logic, do not exit on error
 	autoscaler := c.AutoscalerFactory.For(resource)

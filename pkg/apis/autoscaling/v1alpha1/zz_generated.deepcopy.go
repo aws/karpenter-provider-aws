@@ -19,7 +19,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
@@ -630,7 +629,7 @@ func (in *ScalingRules) DeepCopyInto(out *ScalingRules) {
 	}
 	if in.SelectPolicy != nil {
 		in, out := &in.SelectPolicy, &out.SelectPolicy
-		*out = new(v2beta2.ScalingPolicySelect)
+		*out = new(ScalingPolicySelect)
 		**out = **in
 	}
 	if in.Policies != nil {
