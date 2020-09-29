@@ -11,6 +11,7 @@ The following tools are required for development.
 | [controller-gen](https://book.kubebuilder.io/reference/controller-gen.html) |          | `GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen` |
 | [helm](https://helm.sh/docs/intro/install/)                                 |          | `brew install helm`                                                     |
 | [ko](https://github.com/google/ko)                                          |          | `GO111MODULE=on go get github.com/google/ko/cmd/ko`                     |
+| [gingko](https://github.com/onsi/ginkgo)                                    |          | `GO111MODULE=on go get -u github.com/onsi/ginkgo/ginkgo`                |
 
 ## Developing
 
