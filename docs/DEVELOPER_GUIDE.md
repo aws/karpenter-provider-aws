@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-The following tools are required for development.
+The following tools are required for doing development on Karpenter.
 
 | Package                                                                     | Version  | Install                                                                 |
 | --------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------- |
