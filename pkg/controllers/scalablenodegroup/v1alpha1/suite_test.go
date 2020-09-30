@@ -73,6 +73,9 @@ var _ = Describe("Test Samples", func() {
 			sng.Spec.Replicas = ptr.Int32(5)
 
 			ExpectEventuallyCreated(ns.Client, sng)
+
+			// TODO(jacob): add cloudprovider usage
+
 			ExpectEventuallyDeleted(ns.Client, sng)
 		})
 	})
