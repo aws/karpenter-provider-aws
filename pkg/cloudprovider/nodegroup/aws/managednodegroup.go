@@ -28,7 +28,7 @@ import (
 )
 
 func validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
-	_, err = parseClusterId(sng.ID)
+	_, err = parseId(sng.ID)
 	return
 }
 
@@ -45,7 +45,7 @@ type ManagedNodeGroup struct {
 }
 
 func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
-	mngId, err := parseClusterId(sng.Spec.ID)
+	mngId, err := parseId(sng.Spec.ID)
 	if err != nil {
 		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
 	}
@@ -60,10 +60,10 @@ type managedNodeGroupId struct {
 	nodegroup string
 }
 
-// parseClusterId extracts the cluster and nodegroup names from an
-// ARN. This is needed for Managed Node Group APIs that don't take an
-// ARN directly.
-func parseClusterId(fromArn string) (*managedNodeGroupId, error) {
+// parseId extracts the cluster and nodegroup names from an ARN. This
+// is needed for Managed Node Group APIs that don't take an ARN
+// directly.
+func parseId(fromArn string) (*managedNodeGroupId, error) {
 	nodegroupArn, err := arn.Parse(fromArn)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
@@ -83,7 +83,6 @@ func parseClusterId(fromArn string) (*managedNodeGroupId, error) {
 	}, nil
 }
 
-// SetReplicas TODO(jacob@)
 func (mng *ManagedNodeGroup) SetReplicas(value int32) error {
 	if _, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
