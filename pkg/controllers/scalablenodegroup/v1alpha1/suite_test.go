@@ -40,7 +40,7 @@ func TestAPIs(t *testing.T) {
 func injectScalableNodeGroupController(environment *environment.Local) {
 	controller := &Controller{
 		Client:           environment.Manager.GetClient(),
-		NodegroupFactory: nodegroup.Factory{},
+		NodeGroupFactory: nodegroup.Factory{},
 	}
 	Expect(controllers.RegisterController(environment.Manager, controller)).To(Succeed(), "Failed to register controller")
 	Expect(controllers.RegisterWebhook(environment.Manager, controller)).To(Succeed(), "Failed to register webhook")

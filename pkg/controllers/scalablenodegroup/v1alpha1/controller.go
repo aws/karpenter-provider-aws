@@ -40,7 +40,7 @@ const (
 // Controller for the resource
 type Controller struct {
 	client.Client
-	NodegroupFactory nodegroup.Factory
+	NodeGroupFactory nodegroup.Factory
 }
 
 // For returns the resource this controller is for.
@@ -65,7 +65,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	// 2. Make any changes to underlying node group
-	if err := c.NodegroupFactory.For(resource).SetReplicas(*resource.Spec.Replicas); err != nil {
+	if err := c.NodeGroupFactory.For(resource).SetReplicas(*resource.Spec.Replicas); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
 	}
 

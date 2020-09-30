@@ -64,7 +64,7 @@ type Dependencies struct {
 	MetricsProducerFactory metricsproducers.Factory
 	MetricsClientFactory   metricsclients.Factory
 	AutoscalerFactory      autoscaler.Factory
-	NodegroupFactory       nodegroup.Factory
+	NodeGroupFactory       nodegroup.Factory
 }
 
 func main() {
@@ -172,7 +172,7 @@ func controllersOrDie() []controllers.Controller {
 		},
 		&scalablenodegroupv1alpha1.Controller{
 			Client:           dependencies.Manager.GetClient(),
-			NodegroupFactory: dependencies.NodegroupFactory,
+			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),

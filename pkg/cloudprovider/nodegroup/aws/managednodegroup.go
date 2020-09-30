@@ -41,17 +41,17 @@ type ManagedNodeGroup struct {
 	*v1alpha1.ScalableNodeGroup
 	Client    eksiface.EKSAPI
 	Cluster   string
-	Nodegroup string
+	NodeGroup string
 }
 
 func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
-	cluster, nodegroup, err := parseId(sng.Spec.ID)
+	cluster, nodeGroup, err := parseId(sng.Spec.ID)
 	if err != nil {
 		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
 	}
 	return &ManagedNodeGroup{ScalableNodeGroup: sng,
 		Cluster:   cluster,
-		Nodegroup: nodegroup,
+		NodeGroup: nodeGroup,
 		Client:    eks.New(session.Must(session.NewSession()))}
 }
 
@@ -59,7 +59,7 @@ func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
 // is needed for Managed Node Group APIs that don't take an ARN
 // directly.
 func parseId(fromArn string) (cluster string, nodegroup string, err error) {
-	nodegroupArn, err := arn.Parse(fromArn)
+	nodeGroupArn, err := arn.Parse(fromArn)
 	if err != nil {
 		err = errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
 		return
@@ -69,9 +69,9 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	//                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^
 	//                                              |                               |
 	//                                              cluster name                    nodegroup name
-	components := strings.Split(nodegroupArn.Resource, "/")
+	components := strings.Split(nodeGroupArn.Resource, "/")
 	if len(components) < 3 {
-		err = errors.Errorf("ARN resource missing components: %s", nodegroupArn.Resource)
+		err = errors.Errorf("ARN resource missing components: %s", nodeGroupArn.Resource)
 	} else {
 		cluster = components[1]
 		nodegroup = components[2]
@@ -82,7 +82,7 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 func (mng *ManagedNodeGroup) SetReplicas(value int32) error {
 	if _, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
-		NodegroupName: &mng.Nodegroup,
+		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: aws.Int64(int64(value)),
 		},
