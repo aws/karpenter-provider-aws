@@ -28,10 +28,12 @@ func RegisterScalableNodeGroupValidator(nodeGroupType NodeGroupType, validator S
 }
 
 func (sng *ScalableNodeGroup) Validate() error {
-	if validator, ok := scalableNodeGroupValidators[sng.Spec.Type]; ok {
-		if err := validator(&sng.Spec); err != nil {
-			return errors.Wrap(err, "invalid ScalableNodeGroup")
-		}
+	validator, ok := scalableNodeGroupValidators[sng.Spec.Type]
+	if !ok {
+		return errors.Errorf("unexpected type %v", sng.Spec.Type)
+	}
+	if err := validator(&sng.Spec); err != nil {
+		return errors.Wrap(err, "invalid ScalableNodeGroup")
 	}
 	return nil
 }
