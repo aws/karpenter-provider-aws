@@ -34,7 +34,7 @@ import (
 
 // TODO, make these configmappable or wired through the API.
 const (
-	DefaultNodegroupUpdatePeriod = 60 * time.Second
+	NodeGroupReconciliationInterval = 60 * time.Second
 )
 
 // Controller for the resource
@@ -74,5 +74,5 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 		return reconcile.Result{}, fmt.Errorf("Failed to persist changes: %s", err.Error())
 	}
 
-	return controllerruntime.Result{RequeueAfter: DefaultNodegroupUpdatePeriod}, nil
+	return controllerruntime.Result{RequeueAfter: NodeGroupReconciliationInterval}, nil
 }
