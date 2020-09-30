@@ -55,9 +55,8 @@ func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
 		Client:    eks.New(session.Must(session.NewSession()))}
 }
 
-// parseId extracts the cluster and nodegroup names from an ARN. This
-// is needed for Managed Node Group APIs that don't take an ARN
-// directly.
+// parseId extracts the cluster and nodegroup from an ARN. This is
+// needed for Managed Node Group APIs that don't take an ARN directly.
 func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	nodeGroupArn, err := arn.Parse(fromArn)
 	if err != nil {
