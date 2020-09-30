@@ -21,7 +21,7 @@ import (
 // +kubebuilder:object:generate=false
 type ScalableNodeGroupValidator func(*ScalableNodeGroupSpec) error
 
-var scalableNodeGroupValidators map[NodeGroupType]ScalableNodeGroupValidator = make(map[NodeGroupType]ScalableNodeGroupValidator)
+var scalableNodeGroupValidators = map[NodeGroupType]ScalableNodeGroupValidator{}
 
 func RegisterScalableNodeGroupValidator(nodeGroupType NodeGroupType, validator ScalableNodeGroupValidator) {
 	scalableNodeGroupValidators[nodeGroupType] = validator
