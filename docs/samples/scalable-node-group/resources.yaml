@@ -1,7 +1,7 @@
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: ScalableNodeGroup
 metadata:
-  name: bobs-microservices
+  name: microservices
 spec:
   replicas: 6
   type: AWSEKSNodeGroup
