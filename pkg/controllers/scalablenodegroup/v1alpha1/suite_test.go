@@ -15,31 +15,19 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
 	"testing"
-	"time"
 
-	//v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	//	"github.com/ellistarn/karpenter/pkg/autoscaler"
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/controllers"
-	//"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	//"k8s.io/client-go/discovery"
-	//"k8s.io/client-go/dynamic"
-	//"k8s.io/client-go/scale"
+	. "github.com/ellistarn/karpenter/pkg/test/expectations"
+	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-)
-
-const (
-	Timeout = time.Second * 30
 )
 
 func TestAPIs(t *testing.T) {
@@ -49,15 +37,16 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var env environment.Environment = environment.NewLocal(func(environment *environment.Local) error {
+func injectScalableNodeGroupController(environment *environment.Local) {
 	controller := &Controller{
 		Client:           environment.Manager.GetClient(),
 		NodegroupFactory: nodegroup.Factory{},
 	}
 	Expect(controllers.RegisterController(environment.Manager, controller)).To(Succeed(), "Failed to register controller")
 	Expect(controllers.RegisterWebhook(environment.Manager, controller)).To(Succeed(), "Failed to register webhook")
-	return nil
-})
+}
+
+var env environment.Environment = environment.NewLocal(injectScalableNodeGroupController)
 
 var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -67,7 +56,7 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Test ScalableNodeGroup Samples", func() {
+var _ = Describe("Test Samples", func() {
 	var ns *environment.Namespace
 	var sng *v1alpha1.ScalableNodeGroup
 
@@ -78,20 +67,14 @@ var _ = Describe("Test ScalableNodeGroup Samples", func() {
 		sng = &v1alpha1.ScalableNodeGroup{}
 	})
 
-	Context("Minimal ScalableNodeGroup", func() {
-		BeforeEach(func() {
-			Expect(ns.ParseResource("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
-		})
+	Context("ScalableNodeGroup", func() {
+		It("should be created", func() {
+			Expect(ns.ParseResources("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
+			sng.Spec.Replicas = ptr.Int32(5)
 
-		It("should should create and delete", func() {
-			Expect(ns.Create(context.Background(), sng)).To(Succeed())
-			Eventually(func() error {
-				return ns.Get(context.Background(), types.NamespacedName{Name: sng.Name, Namespace: sng.Namespace}, sng)
-			}, Timeout).Should(Succeed())
-			Expect(ns.Delete(context.Background(), sng)).To(Succeed())
-			Eventually(func() bool {
-				return apierrors.IsNotFound(ns.Get(context.Background(), types.NamespacedName{Name: sng.Name, Namespace: sng.Namespace}, sng))
-			}, Timeout).Should(BeTrue())
+			ExpectEventuallyCreated(ns.Client, sng)
+			ExpectEventuallyDeleted(ns.Client, sng)
 		})
 	})
+
 })
