@@ -1,0 +1,8 @@
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: ScalableNodeGroup
+metadata:
+  name: microservices
+spec:
+  replicas: 6
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:741706701147:nodegroup/ridiculous-sculpture-1524766004/ng-0b663e8a/aeb2a7fe-62d6-71f0-cb41-fb2b03d3aaa2

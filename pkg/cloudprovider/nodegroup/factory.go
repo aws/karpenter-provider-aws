@@ -11,13 +11,13 @@ type Factory struct {
 	// TODO dependencies
 }
 
-func (f *Factory) For(spec v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	switch spec.Type {
+func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
+	switch sng.Spec.Type {
 	case v1alpha1.AWSEC2AutoScalingGroup:
-		return aws.NewDefaultAutoScalingGroup(spec.ID)
+		return aws.NewDefaultAutoScalingGroup(sng.Spec.ID)
 	case v1alpha1.AWSEKSNodeGroup:
-		return aws.NewDefaultManagedNodeGroup(spec.ID, "")
+		return aws.NewNodeGroup(sng)
 	}
-	zap.S().Fatalf("Failed to instantiate node group: unexpected type  %s", spec.Type)
+	zap.S().Fatalf("Failed to instantiate node group: unexpected type  %s", sng.Spec.Type)
 	return nil
 }

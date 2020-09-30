@@ -18,6 +18,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 )
 
 type mockedUpdateManagedNodeGroup struct {
@@ -35,10 +36,14 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client:      client,
-		ClusterName: "spatula",
-		GroupName:   "dog",
+		Client: client,
+		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
+			Spec: v1alpha1.ScalableNodeGroupSpec{
+				ID: "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
+			},
+		},
 	}
+
 	got := asg.SetReplicas(23)
 	if got != nil {
 		t.Errorf("SetReplicas(23) = %v; want nil", got)

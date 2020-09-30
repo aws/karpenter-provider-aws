@@ -49,7 +49,7 @@ func (asg *AutoScalingGroup) Name() string {
 }
 
 // SetReplicas sets the NodeGroups's replica count
-func (asg *AutoScalingGroup) SetReplicas(value int) error {
+func (asg *AutoScalingGroup) SetReplicas(value int32) error {
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.GroupName),
 		DesiredCapacity:      aws.Int64(int64(value)),

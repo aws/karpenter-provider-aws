@@ -2,15 +2,14 @@
 
 ## Dependencies
 
-The following tools are required for development.
+The following tools are required for doing development on Karpenter.
+
 | Package                                                                     | Version  | Install                                                                 |
 | --------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------- |
 | [go](https://golang.org/dl/)                                                | v1.14.4+ |                                                                         |
 | [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)          |          |                                                                         |
-| [kustomize](https://kubernetes-sigs.github.io/kustomize/installation/)      |          | `brew install kustomize`                                                |
-| [controller-gen](https://book.kubebuilder.io/reference/controller-gen.html) |          | `GO111MODULE=on go get sigs.k8s.io/controller-tools/cmd/controller-gen` |
 | [helm](https://helm.sh/docs/intro/install/)                                 |          | `brew install helm`                                                     |
-| [ko](https://github.com/google/ko)                                          |          | `GO111MODULE=on go get github.com/google/ko/cmd/ko`                     |
+| Other tools                                                                 |          | `make toolchain`                                                        |
 
 ## Developing
 

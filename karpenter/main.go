@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
@@ -63,6 +64,7 @@ type Dependencies struct {
 	MetricsProducerFactory metricsproducers.Factory
 	MetricsClientFactory   metricsclients.Factory
 	AutoscalerFactory      autoscaler.Factory
+	NodeGroupFactory       nodegroup.Factory
 }
 
 func main() {
@@ -169,7 +171,8 @@ func controllersOrDie() []controllers.Controller {
 			AutoscalerFactory: dependencies.AutoscalerFactory,
 		},
 		&scalablenodegroupv1alpha1.Controller{
-			Client: dependencies.Manager.GetClient(),
+			Client:           dependencies.Manager.GetClient(),
+			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
 			Client: dependencies.Manager.GetClient(),
