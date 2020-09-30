@@ -28,7 +28,7 @@ import (
 )
 
 func validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
-	_, err = parseId(sng.ID)
+	_, _, err = parseId(sng.ID)
 	return
 }
 
@@ -45,28 +45,24 @@ type ManagedNodeGroup struct {
 }
 
 func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
-	mngId, err := parseId(sng.Spec.ID)
+	cluster, nodegroup, err := parseId(sng.Spec.ID)
 	if err != nil {
 		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
 	}
 	return &ManagedNodeGroup{ScalableNodeGroup: sng,
-		Cluster:   mngId.cluster,
-		Nodegroup: mngId.nodegroup,
+		Cluster:   cluster,
+		Nodegroup: nodegroup,
 		Client:    eks.New(session.Must(session.NewSession()))}
-}
-
-type managedNodeGroupId struct {
-	cluster   string
-	nodegroup string
 }
 
 // parseId extracts the cluster and nodegroup names from an ARN. This
 // is needed for Managed Node Group APIs that don't take an ARN
 // directly.
-func parseId(fromArn string) (*managedNodeGroupId, error) {
+func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	nodegroupArn, err := arn.Parse(fromArn)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
+		err = errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
+		return
 	}
 	// Example node group ARN:
 	// arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9
@@ -75,12 +71,12 @@ func parseId(fromArn string) (*managedNodeGroupId, error) {
 	//                                              cluster name                    nodegroup name
 	components := strings.Split(nodegroupArn.Resource, "/")
 	if len(components) < 3 {
-		return nil, errors.Errorf("ARN resource missing components: %s", nodegroupArn.Resource)
+		err = errors.Errorf("ARN resource missing components: %s", nodegroupArn.Resource)
+	} else {
+		cluster = components[1]
+		nodegroup = components[2]
 	}
-	return &managedNodeGroupId{
-		cluster:   components[1],
-		nodegroup: components[2],
-	}, nil
+	return
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(value int32) error {
