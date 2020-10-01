@@ -8,7 +8,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/queue"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/scheduledcapacity"
-	"go.uber.org/zap"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"k8s.io/client-go/informers"
 )
 
@@ -21,15 +21,15 @@ type Factory struct {
 func (f *Factory) For(mp v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
-			PendingCapacitySpec: *mp.Spec.PendingCapacity,
-			Nodes:               f.InformerFactory.Core().V1().Nodes().Lister(),
-			Pods:                f.InformerFactory.Core().V1().Pods().Lister(),
+			MetricsProducer: mp,
+			Nodes:           f.InformerFactory.Core().V1().Nodes().Lister(),
+			Pods:            f.InformerFactory.Core().V1().Pods().Lister(),
 		}
 	}
 	if mp.Spec.Queue != nil {
 		return &queue.Producer{
-			QueueSpec: *mp.Spec.Queue,
-			Queue:     f.QueueFactory.For(*mp.Spec.Queue),
+			MetricsProducer: mp,
+			Queue:           f.QueueFactory.For(*mp.Spec.Queue),
 		}
 	}
 	if mp.Spec.ReservedCapacity != nil {
@@ -41,10 +41,10 @@ func (f *Factory) For(mp v1alpha1.MetricsProducer) metrics.Producer {
 	}
 	if mp.Spec.ScheduledCapacity != nil {
 		return &scheduledcapacity.Producer{
-			ScheduledCapacitySpec: *mp.Spec.ScheduledCapacity,
-			Nodes:                 f.InformerFactory.Core().V1().Nodes().Lister(),
+			MetricsProducer: mp,
+			Nodes:           f.InformerFactory.Core().V1().Nodes().Lister(),
 		}
 	}
-	zap.S().Fatal("Failed to instantiate metrics producer no spec defined. Is the validation webhook installed?")
+	log.FatalInvariantViolated("Failed to instantiate metrics producer, no spec defined")
 	return nil
 }

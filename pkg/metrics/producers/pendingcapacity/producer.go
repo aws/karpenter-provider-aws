@@ -21,7 +21,7 @@ import (
 
 // Producer implements a Pending Capacity metric
 type Producer struct {
-	v1alpha1.PendingCapacitySpec
+	v1alpha1.MetricsProducer
 	Nodes listersv1.NodeLister
 	Pods  listersv1.PodLister
 }

@@ -1,4 +1,3 @@
 resources:
-- prometheus.yaml
 - monitor.yaml
 - role_binding.yaml

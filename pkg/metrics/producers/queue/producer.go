@@ -7,7 +7,7 @@ import (
 
 // Producer implements a Pending Capacity metric
 type Producer struct {
-	v1alpha1.QueueSpec
+	v1alpha1.MetricsProducer
 	Queue cloudprovider.Queue
 }
 
