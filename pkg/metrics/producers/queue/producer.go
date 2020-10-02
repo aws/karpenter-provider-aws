@@ -15,7 +15,7 @@ type Producer struct {
 func (p *Producer) Reconcile() error {
 	_, err := p.Queue.Length()
 	if err != nil {
-		return nil
+		return err
 	}
 	return nil
 }
