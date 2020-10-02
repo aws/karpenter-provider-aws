@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/aws/aws-sdk-go v1.34.10
+	github.com/cloudevents/sdk-go v1.2.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/golangci/golangci-lint v1.31.0
 	github.com/google/ko v0.5.3-0.20200904175350-bec089d9c82e

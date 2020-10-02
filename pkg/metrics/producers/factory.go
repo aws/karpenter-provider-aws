@@ -9,21 +9,22 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/scheduledcapacity"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"k8s.io/client-go/informers"
+	v1 "k8s.io/client-go/listers/core/v1"
 )
 
 // Factory instantiates metrics producers
 type Factory struct {
-	InformerFactory informers.SharedInformerFactory
-	QueueFactory    cloudproviderqueue.Factory
+	NodeLister   v1.NodeLister
+	PodLister    v1.PodLister
+	QueueFactory cloudproviderqueue.Factory
 }
 
 func (f *Factory) For(mp v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.InformerFactory.Core().V1().Nodes().Lister(),
-			Pods:            f.InformerFactory.Core().V1().Pods().Lister(),
+			Nodes:           f.NodeLister,
+			Pods:            f.PodLister,
 		}
 	}
 	if mp.Spec.Queue != nil {
@@ -35,16 +36,16 @@ func (f *Factory) For(mp v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.ReservedCapacity != nil {
 		return &reservedcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.InformerFactory.Core().V1().Nodes().Lister(),
-			Pods:            f.InformerFactory.Core().V1().Pods().Lister(),
+			Nodes:           f.NodeLister,
+			Pods:            f.PodLister,
 		}
 	}
 	if mp.Spec.ScheduledCapacity != nil {
 		return &scheduledcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.InformerFactory.Core().V1().Nodes().Lister(),
+			Nodes:           f.NodeLister,
 		}
 	}
-	log.FatalInvariantViolated("Failed to instantiate metrics producer, no spec defined")
-	return nil
+	log.InvariantViolated("Failed to instantiate metrics producer, no spec defined")
+	return &metrics.NilProducer{}
 }

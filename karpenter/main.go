@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/scale"
@@ -129,7 +130,8 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 
 func metricsProducerFactoryOrDie() producers.Factory {
 	return producers.Factory{
-		InformerFactory: dependencies.InformerFactory,
+		NodeLister: dependencies.InformerFactory.Core().V1().Nodes().Lister(),
+		PodLister:  dependencies.InformerFactory.Core().V1().Pods().Lister(),
 	}
 }
 
@@ -175,7 +177,8 @@ func controllersOrDie() []controllers.Controller {
 			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
-			Client: dependencies.Manager.GetClient(),
+			Client:          dependencies.Manager.GetClient(),
+			ProducerFactory: dependencies.MetricsProducerFactory,
 		},
 	}
 	for _, c := range cs {

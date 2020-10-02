@@ -14,7 +14,6 @@ specific language governing permissions and limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
@@ -83,54 +82,27 @@ type MetricValueStatus struct {
 }
 
 func (s *HorizontalAutoscaler) MarkScalingActive() {
-	s.SetCondition(ScalingActive, &apis.Condition{
-		Type:     ScalingActive,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
+	s.ConditionManager().MarkTrue(ScalingActive)
 }
 
 func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
-	s.SetCondition(ScalingActive, &apis.Condition{
-		Type:     ScalingActive,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityError,
-		Message:  message,
-	})
+	s.ConditionManager().MarkFalse(ScalingActive, "", message)
 }
 
 func (s *HorizontalAutoscaler) MarkAbleToScale() {
-	s.SetCondition(AbleToScale, &apis.Condition{
-		Type:     AbleToScale,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
+	s.ConditionManager().MarkTrue(AbleToScale)
 }
 
 func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
-	s.SetCondition(AbleToScale, &apis.Condition{
-		Type:     AbleToScale,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityWarning,
-		Message:  message,
-	})
+	s.ConditionManager().MarkFalse(AbleToScale, "", message)
 }
 
 func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
-	s.SetCondition(ScalingUnbounded, &apis.Condition{
-		Type:     ScalingUnbounded,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
+	s.ConditionManager().MarkTrue(ScalingUnbounded)
 }
 
 func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
-	s.SetCondition(ScalingUnbounded, &apis.Condition{
-		Type:     ScalingUnbounded,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityInfo,
-		Message:  message,
-	})
+	s.ConditionManager().MarkFalse(ScalingUnbounded, "", message)
 }
 
 // We use knative's libraries for ConditionSets to manage status conditions.
@@ -143,14 +115,6 @@ var horizontalAutoscalerConditions = apis.NewLivingConditionSet(
 	ScalingUnbounded,
 )
 
-func (s *HorizontalAutoscaler) IsHappy() bool {
-	return horizontalAutoscalerConditions.Manage(s).IsHappy()
-}
-
-func (s *HorizontalAutoscaler) InitializeConditions() {
-	horizontalAutoscalerConditions.Manage(s).InitializeConditions()
-}
-
 func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
 	return s.Status.Conditions
 }
@@ -159,18 +123,6 @@ func (s *HorizontalAutoscaler) SetConditions(conditions apis.Conditions) {
 	s.Status.Conditions = conditions
 }
 
-func (s *HorizontalAutoscaler) GetCondition(conditionType apis.ConditionType) *apis.Condition {
-	return horizontalAutoscalerConditions.Manage(s).GetCondition(conditionType)
-}
-
-func (s *HorizontalAutoscaler) SetCondition(conditionType apis.ConditionType, condition *apis.Condition) {
-	switch {
-	case condition == nil:
-	case condition.Status == v1.ConditionUnknown:
-		horizontalAutoscalerConditions.Manage(s).MarkUnknown(conditionType, condition.Reason, condition.Message)
-	case condition.Status == v1.ConditionTrue:
-		horizontalAutoscalerConditions.Manage(s).MarkTrue(conditionType)
-	case condition.Status == v1.ConditionFalse:
-		horizontalAutoscalerConditions.Manage(s).MarkFalse(conditionType, condition.Reason, condition.Message)
-	}
+func (s *HorizontalAutoscaler) ConditionManager() apis.ConditionManager {
+	return horizontalAutoscalerConditions.Manage(s)
 }

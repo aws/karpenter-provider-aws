@@ -27,7 +27,7 @@ type ScalableNodeGroupStatus struct {
 }
 
 const (
-	// Active indicates that the controller is able to scale if necessary: it's
+	// Active indicates that the controller is able to take actions: it's
 	// correctly configured, can make necessary API calls, and isn't disabled.
 	Active apis.ConditionType = "Active"
 )
@@ -36,14 +36,14 @@ var ScalableNodeGroupConditions = apis.NewLivingConditionSet(
 	Active,
 )
 
-func (s *ScalableNodeGroup) IsHappy() bool {
-	return ScalableNodeGroupConditions.Manage(s).IsHappy()
-}
-
 func (s *ScalableNodeGroup) GetConditions() apis.Conditions {
 	return s.Status.Conditions
 }
 
 func (s *ScalableNodeGroup) SetConditions(conditions apis.Conditions) {
 	s.Status.Conditions = conditions
+}
+
+func (s *ScalableNodeGroup) ConditionManager() apis.ConditionManager {
+	return metricsProducerConditions.Manage(s)
 }

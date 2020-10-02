@@ -1,9 +1,12 @@
 package reservedcapacity
 
 import (
+	"fmt"
+
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/pkg/errors"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -21,41 +24,80 @@ type Producer struct {
 
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
-	// 1. List Nodes
-	nodes, err := p.Nodes.List(labelSelectorOrDie(p.Spec.ReservedCapacity.NodeSelector))
+	// 1. List Pods and Nodes
+	nodes, err := p.Nodes.List(labelSelector(p.Spec.ReservedCapacity.NodeSelector))
 	if err != nil {
 		return errors.Wrapf(err, "Listing nodes for %s", p.Spec.ReservedCapacity.NodeSelector)
 	}
-
-	// 2. List Pods
-	pods, err := p.Pods.List(labels.Everything())
+	pods, err := p.Pods.Pods(metav1.NamespaceAll).List(labels.Everything())
 	if err != nil {
 		return errors.Wrap(err, "Listing pods")
 	}
 
-	// 3. Calculate Pod Assignments,
+	// 2. Calculate Pod Assignments,
 	// TODO Make this an index for increased performance
-	assignments := map[string][]*v1.Pod{}
-	for _, pod := range pods {
-		assignments[pod.Spec.NodeName] = append(assignments[pod.Spec.NodeName], pod)
-	}
+	assignments := p.getAssignments(nodes, pods)
 
-	// 4. Sum Up Reservations
-	reservations := NewReservations(p.MetricsProducer)
-	for _, node := range nodes {
-		reservations.Add(node, assignments[node.Name])
-	}
-	reservations.Record()
+	// 3. Compute reservations
+	reservations := p.getReservations(nodes, assignments)
 
+	// 4. Record reservations and update status
+	p.record(reservations)
 	p.Status.LastUpdatedTime = &apis.VolatileTime{Inner: metav1.Now()}
 	return nil
 }
 
-func labelSelectorOrDie(selectorPairs map[string]string) labels.Selector {
+func (p *Producer) getAssignments(nodes []*v1.Node, pods []*v1.Pod) map[string][]*v1.Pod {
+	assignments := map[string][]*v1.Pod{}
+	for _, pod := range pods {
+		assignments[pod.Spec.NodeName] = append(assignments[pod.Spec.NodeName], pod)
+	}
+	return assignments
+}
+
+func (p *Producer) getReservations(nodes []*v1.Node, assignments map[string][]*v1.Pod) *Reservations {
+	reservations := NewReservations(p.MetricsProducer)
+	for _, node := range nodes {
+		reservations.Add(node, assignments[node.Name])
+	}
+	return reservations
+}
+
+func (p *Producer) record(reservations *Reservations) {
+	if p.Status.ReservedCapacity == nil {
+		p.Status.ReservedCapacity = &v1alpha1.ReservedCapacityStatus{
+			Utilization: map[v1.ResourceName]string{},
+		}
+	}
+
+	var errors error
+	for resource, reservation := range reservations.Resources {
+		utilization, err := reservation.Utilization()
+		if err != nil {
+			errors = multierr.Append(errors, err)
+		} else {
+			reservation.Gauge.Add(utilization)
+			p.Status.ReservedCapacity.Utilization[resource] = fmt.Sprintf(
+				"%d, %s/%s",
+				int32(utilization),
+				reservation.Reserved,
+				reservation.Total,
+			)
+		}
+	}
+	if errors != nil {
+		p.MarkNotActive(errors.Error())
+	} else {
+		p.MarkActive()
+	}
+}
+
+func labelSelector(selectorPairs map[string]string) labels.Selector {
 	selector := labels.NewSelector()
 	for key, value := range selectorPairs {
 		if requirement, err := labels.NewRequirement(key, selection.Equals, []string{value}); err != nil {
-			log.FatalInvariantViolated(errors.Wrapf(err, "Failed to parse requirement from %s=%s", key, value).Error())
+			// Empty selector if unable to be parsed
+			log.InvariantViolated(errors.Wrapf(err, "Failed to parse requirement from %s=%s", key, value).Error())
 		} else {
 			selector.Add(*requirement)
 		}

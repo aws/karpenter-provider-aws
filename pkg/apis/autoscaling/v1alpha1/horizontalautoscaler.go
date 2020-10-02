@@ -5,7 +5,6 @@ import (
 
 	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
@@ -197,7 +196,7 @@ func (m *Metric) GetTarget() MetricTarget {
 	if m.Prometheus != nil {
 		return m.Prometheus.Target
 	}
-	zap.S().Fatalf("Unrecognized metric type while retrieving target for %v", m)
+	log.InvariantViolated(fmt.Sprintf("Unrecognized metric type while retrieving target for %v", m))
 	return MetricTarget{}
 }
 
@@ -219,7 +218,7 @@ func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) in
 	case DisabledPolicySelect:
 		return replicas
 	default:
-		log.FatalInvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
+		log.InvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
 		return replicas
 	}
 }

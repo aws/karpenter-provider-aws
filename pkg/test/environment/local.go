@@ -119,7 +119,7 @@ func (e *Local) Start() (err error) {
 	}
 
 	// Informers
-	e.InformerFactory = informers.NewSharedInformerFactory(kubernetes.NewForConfigOrDie(e.Manager.GetConfig()), time.Minute*30)
+	e.InformerFactory = informers.NewSharedInformerFactory(kubernetes.NewForConfigOrDie(e.Config), time.Minute*30)
 	if err := e.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
 		e.InformerFactory.Start(stopChannel)
 		<-stopChannel

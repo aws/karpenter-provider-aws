@@ -25,6 +25,8 @@ import (
 	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -41,7 +43,8 @@ func TestAPIs(t *testing.T) {
 func injectHorizontalAutoscalerController(environment *environment.Local) {
 	controller := &Controller{
 		ProducerFactory: producers.Factory{
-			InformerFactory: environment.InformerFactory,
+			NodeLister: environment.InformerFactory.Core().V1().Nodes().Lister(),
+			PodLister:  environment.InformerFactory.Core().V1().Pods().Lister(),
 		},
 		Client: environment.Manager.GetClient(),
 	}
@@ -75,18 +78,25 @@ var _ = Describe("Test Samples", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", mp)).To(Succeed())
 			mp.Spec.ReservedCapacity.NodeSelector = map[string]string{"k8s.io/nodegroup": strings.ToLower(randomdata.SillyName())}
 
-			nodes := []test.Object{
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, 16, 128),
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, 16, 128),
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, 16, 128),
+			nodeResources := v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("16"),
+				v1.ResourceMemory: resource.MustParse("128Gi"),
+				v1.ResourcePods:   resource.MustParse("50"),
 			}
+
+			nodes := []test.Object{
+				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
+				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
+				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
+			}
+
 			pods := []test.Object{
 				// node[0] 6/16 cores, 76/128 gig allocated
-				test.Pod(nodes[0].GetName(), ns.Name, 1, 1),
-				test.Pod(nodes[0].GetName(), ns.Name, 2, 25),
-				test.Pod(nodes[0].GetName(), ns.Name, 3, 50),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("25Gi")}),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("3"), v1.ResourceMemory: resource.MustParse("50Gi")}),
 				// node[1] 1/16 cores, 76/128 gig allocated
-				test.Pod(nodes[1].GetName(), ns.Name, 1, 1),
+				test.Pod(nodes[1].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
 				// node[2] is unallocated,
 			}
 
@@ -94,7 +104,7 @@ var _ = Describe("Test Samples", func() {
 			ExpectCreated(ns.Client, pods...)
 
 			ExpectEventuallyCreated(ns.Client, mp)
-			// ExpectEventuallyHappy(ns.Client, mp)
+			ExpectEventuallyHappy(ns.Client, mp)
 			// TODO Verify metrics as set as expected
 			ExpectEventuallyDeleted(ns.Client, mp)
 

@@ -15,27 +15,45 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
 
 // MetricsProducerStatus defines the observed state of the resource.
 // +kubebuilder:subresource:status
 type MetricsProducerStatus struct {
+	PendingCapacity   *PendingCapacityStatus   `json:"pendingCapacity,omitempty"`
+	Queue             *QueueStatus             `json:"queue,omitempty"`
+	ReservedCapacity  *ReservedCapacityStatus  `json:"reservedCapacity,omitempty"`
+	ScheduledCapacity *ScheduledCapacityStatus `json:"scheduledCapacity,omitempty"`
 	// Conditions is the set of conditions required for the metrics producer to
-	// successfully public metrics to the metrics server
+	// successfully publish metrics to the metrics server
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 	// LastUpdateTime is the last time the resource executed a control loop.
 	LastUpdatedTime *apis.VolatileTime `json:"lastUpdatedTime,omitempty"`
 }
 
-var MetricsProducerConditions = apis.NewLivingConditionSet()
-
-func (s *MetricsProducer) IsHappy() bool {
-	return MetricsProducerConditions.Manage(s).IsHappy()
+type PendingCapacityStatus struct {
+}
+type QueueStatus struct {
+}
+type ReservedCapacityStatus struct {
+	Utilization map[v1.ResourceName]string `json:"utilization,omitempty"`
 }
 
-func (s *MetricsProducer) InitializeConditions() {
-	MetricsProducerConditions.Manage(s).InitializeConditions()
+type ScheduledCapacityStatus struct {
+}
+
+var metricsProducerConditions = apis.NewLivingConditionSet(
+	Active,
+)
+
+func (s *MetricsProducer) MarkActive() {
+	s.ConditionManager().MarkTrue(Active)
+}
+
+func (s *MetricsProducer) MarkNotActive(message string) {
+	s.ConditionManager().MarkFalse(Active, "", message)
 }
 
 func (s *MetricsProducer) GetConditions() apis.Conditions {
@@ -44,4 +62,8 @@ func (s *MetricsProducer) GetConditions() apis.Conditions {
 
 func (s *MetricsProducer) SetConditions(conditions apis.Conditions) {
 	s.Status.Conditions = conditions
+}
+
+func (s *MetricsProducer) ConditionManager() apis.ConditionManager {
+	return metricsProducerConditions.Manage(s)
 }

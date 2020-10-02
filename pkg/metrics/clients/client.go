@@ -17,8 +17,8 @@ package clients
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"go.uber.org/zap"
 )
 
 // Factory instantiates metrics clients
@@ -31,7 +31,7 @@ func (m *Factory) For(metric v1alpha1.Metric) metrics.Client {
 	if metric.Prometheus != nil {
 		return m.NewPrometheusMetricsClient()
 	}
-	zap.S().Fatalf("Failed to instantiate metrics client, no metric type specified. Is the validating webhook installed?")
+	log.InvariantViolated("Failed to instantiate metrics client, no metric type specified")
 	return nil
 }
 
