@@ -7,7 +7,7 @@ import (
 
 // Producer implements the ScheduledCapacity metric
 type Producer struct {
-	v1alpha1.MetricsProducer
+	*v1alpha1.MetricsProducer
 	Nodes v1.NodeLister
 }
 

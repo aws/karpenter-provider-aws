@@ -25,7 +25,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,7 +64,7 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	resource.ConditionManager().InitializeConditions()
 
 	// 2. Calculate and export metrics
-	if err := c.ProducerFactory.For(*resource).Reconcile(); err != nil {
+	if err := c.ProducerFactory.For(resource).Reconcile(); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -73,7 +72,6 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := c.Status().Update(context.Background(), resource); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
 	}
-	zap.S().Info("SUCCEESSFULLY UPDATED")
 
 	return reconcile.Result{
 		RequeueAfter: DefaultMetricProductionPeriod,

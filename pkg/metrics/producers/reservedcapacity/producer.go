@@ -4,20 +4,18 @@ import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	listersv1 "k8s.io/client-go/listers/core/v1"
 	"knative.dev/pkg/apis"
 )
 
 // Producer implements a Reserved Capacity metric
 type Producer struct {
-	v1alpha1.MetricsProducer
+	*v1alpha1.MetricsProducer
 	Nodes listersv1.NodeLister
 	Pods  listersv1.PodLister
 }
@@ -25,7 +23,7 @@ type Producer struct {
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
 	// 1. List Pods and Nodes
-	nodes, err := p.Nodes.List(labelSelector(p.Spec.ReservedCapacity.NodeSelector))
+	nodes, err := p.Nodes.List(labels.Set(p.Spec.ReservedCapacity.NodeSelector).AsSelector())
 	if err != nil {
 		return errors.Wrapf(err, "Listing nodes for %s", p.Spec.ReservedCapacity.NodeSelector)
 	}
@@ -70,37 +68,24 @@ func (p *Producer) record(reservations *Reservations) {
 		}
 	}
 
-	var errors error
+	var result error
 	for resource, reservation := range reservations.Resources {
 		utilization, err := reservation.Utilization()
 		if err != nil {
-			errors = multierr.Append(errors, err)
+			result = multierr.Append(result, errors.Wrapf(err, "unable to compute utilization for %s", resource))
 		} else {
 			reservation.Gauge.Add(utilization)
 			p.Status.ReservedCapacity.Utilization[resource] = fmt.Sprintf(
-				"%d, %s/%s",
-				int32(utilization),
+				"%d%%, %s/%s",
+				int32(utilization*100),
 				reservation.Reserved,
 				reservation.Total,
 			)
 		}
 	}
-	if errors != nil {
-		p.MarkNotActive(errors.Error())
+	if result != nil {
+		p.MarkNotActive(result.Error())
 	} else {
 		p.MarkActive()
 	}
-}
-
-func labelSelector(selectorPairs map[string]string) labels.Selector {
-	selector := labels.NewSelector()
-	for key, value := range selectorPairs {
-		if requirement, err := labels.NewRequirement(key, selection.Equals, []string{value}); err != nil {
-			// Empty selector if unable to be parsed
-			log.InvariantViolated(errors.Wrapf(err, "Failed to parse requirement from %s=%s", key, value).Error())
-		} else {
-			selector.Add(*requirement)
-		}
-	}
-	return selector
 }

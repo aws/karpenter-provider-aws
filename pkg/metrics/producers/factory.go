@@ -19,7 +19,7 @@ type Factory struct {
 	QueueFactory cloudproviderqueue.Factory
 }
 
-func (f *Factory) For(mp v1alpha1.MetricsProducer) metrics.Producer {
+func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,

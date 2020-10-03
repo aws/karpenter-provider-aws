@@ -1,6 +1,8 @@
 package reservedcapacity
 
 import (
+	"math/big"
+
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -12,7 +14,7 @@ type Reservations struct {
 	Resources map[v1.ResourceName]Reservation
 }
 
-func NewReservations(m v1alpha1.MetricsProducer) *Reservations {
+func NewReservations(m *v1alpha1.MetricsProducer) *Reservations {
 	return &Reservations{
 		Resources: map[v1.ResourceName]Reservation{
 			v1.ResourceCPU: {
@@ -42,9 +44,9 @@ func (r *Reservations) Add(node *v1.Node, pods []*v1.Pod) {
 			r.Resources[v1.ResourceMemory].Reserved.Add(*container.Resources.Requests.Memory())
 		}
 	}
+	r.Resources[v1.ResourcePods].Total.Add(*node.Status.Capacity.Pods())
 	r.Resources[v1.ResourceCPU].Total.Add(*node.Status.Capacity.Cpu())
 	r.Resources[v1.ResourceMemory].Total.Add(*node.Status.Capacity.Memory())
-	r.Resources[v1.ResourcePods].Total.Add(*node.Status.Capacity.Pods())
 }
 
 type Reservation struct {
@@ -54,10 +56,9 @@ type Reservation struct {
 }
 
 func (r *Reservation) Utilization() (float64, error) {
-	reserved, _ := r.Reserved.AsInt64()
-	total, _ := r.Total.AsInt64()
-	if total == 0 {
-		return 0, errors.Errorf("Unable to compute utilization of %d/%d", reserved, total)
+	if r.Total.Value() == 0 {
+		return 0, errors.Errorf("divide by zero %d/%d", r.Reserved.Value(), r.Total.Value())
 	}
-	return float64(reserved / total), nil
+	utilization, _ := big.NewRat(r.Reserved.Value(), r.Total.Value()).Float64()
+	return utilization, nil
 }
