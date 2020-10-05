@@ -108,9 +108,9 @@ var _ = Describe("Test Samples", func() {
 			ExpectEventuallyCreated(ns.Client, mp)
 
 			ExpectEventuallyHappy(ns.Client, mp)
-			Expect(mp.Status.ReservedCapacity.Utilization[v1.ResourceCPU]).To(BeEquivalentTo("14%, 7/48"))
-			Expect(mp.Status.ReservedCapacity.Utilization[v1.ResourceMemory]).To(BeEquivalentTo("20%, 77Gi/384Gi"))
-			Expect(mp.Status.ReservedCapacity.Utilization[v1.ResourcePods]).To(BeEquivalentTo("2%, 4/150"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceCPU]).To(BeEquivalentTo("14%, 7/48"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("20%, 77Gi/384Gi"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourcePods]).To(BeEquivalentTo("2%, 4/150"))
 
 			ExpectEventuallyDeleted(ns.Client, mp)
 			ExpectDeleted(ns.Client, nodes...)

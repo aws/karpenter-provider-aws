@@ -63,9 +63,7 @@ func (p *Producer) getReservations(nodes []*v1.Node, assignments map[string][]*v
 
 func (p *Producer) record(reservations *Reservations) {
 	if p.Status.ReservedCapacity == nil {
-		p.Status.ReservedCapacity = &v1alpha1.ReservedCapacityStatus{
-			Utilization: map[v1.ResourceName]string{},
-		}
+		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
 	}
 
 	var result error
@@ -75,7 +73,7 @@ func (p *Producer) record(reservations *Reservations) {
 			result = multierr.Append(result, errors.Wrapf(err, "unable to compute utilization for %s", resource))
 		} else {
 			reservation.Gauge.Add(utilization)
-			p.Status.ReservedCapacity.Utilization[resource] = fmt.Sprintf(
+			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
 				"%d%%, %s/%s",
 				int32(utilization*100),
 				reservation.Reserved,

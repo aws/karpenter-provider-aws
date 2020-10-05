@@ -22,10 +22,10 @@ import (
 // MetricsProducerStatus defines the observed state of the resource.
 // +kubebuilder:subresource:status
 type MetricsProducerStatus struct {
-	PendingCapacity   *PendingCapacityStatus   `json:"pendingCapacity,omitempty"`
-	Queue             *QueueStatus             `json:"queue,omitempty"`
-	ReservedCapacity  *ReservedCapacityStatus  `json:"reservedCapacity,omitempty"`
-	ScheduledCapacity *ScheduledCapacityStatus `json:"scheduledCapacity,omitempty"`
+	PendingCapacity   *PendingCapacityStatus     `json:"pendingCapacity,omitempty"`
+	Queue             *QueueStatus               `json:"queue,omitempty"`
+	ReservedCapacity  map[v1.ResourceName]string `json:"reservedCapacity,omitempty"`
+	ScheduledCapacity *ScheduledCapacityStatus   `json:"scheduledCapacity,omitempty"`
 	// Conditions is the set of conditions required for the metrics producer to
 	// successfully publish metrics to the metrics server
 	Conditions apis.Conditions `json:"conditions,omitempty"`
@@ -36,9 +36,6 @@ type MetricsProducerStatus struct {
 type PendingCapacityStatus struct {
 }
 type QueueStatus struct {
-}
-type ReservedCapacityStatus struct {
-	Utilization map[v1.ResourceName]string `json:"utilization,omitempty"`
 }
 
 type ScheduledCapacityStatus struct {
