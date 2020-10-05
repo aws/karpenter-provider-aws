@@ -41,26 +41,28 @@ type QueueStatus struct {
 type ScheduledCapacityStatus struct {
 }
 
-var metricsProducerConditions = apis.NewLivingConditionSet(
-	Active,
-)
-
-func (s *MetricsProducer) MarkActive() {
-	s.ConditionManager().MarkTrue(Active)
+// We use knative's libraries for ConditionSets to manage status conditions.
+// Conditions are all of "true-happy" polarity. If any condition is false, the resource's "happiness" is false.
+// https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions
+// https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
+func (m *MetricsProducer) StatusConditions() apis.ConditionManager {
+	return apis.NewLivingConditionSet(
+		Active,
+	).Manage(m)
 }
 
-func (s *MetricsProducer) MarkNotActive(message string) {
-	s.ConditionManager().MarkFalse(Active, "", message)
+func (m *MetricsProducer) MarkActive() {
+	m.StatusConditions().MarkTrue(Active)
 }
 
-func (s *MetricsProducer) GetConditions() apis.Conditions {
-	return s.Status.Conditions
+func (m *MetricsProducer) MarkNotActive(message string) {
+	m.StatusConditions().MarkFalse(Active, "", message)
 }
 
-func (s *MetricsProducer) SetConditions(conditions apis.Conditions) {
-	s.Status.Conditions = conditions
+func (m *MetricsProducer) GetConditions() apis.Conditions {
+	return m.Status.Conditions
 }
 
-func (s *MetricsProducer) ConditionManager() apis.ConditionManager {
-	return metricsProducerConditions.Manage(s)
+func (m *MetricsProducer) SetConditions(conditions apis.Conditions) {
+	m.Status.Conditions = conditions
 }

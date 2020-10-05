@@ -15,9 +15,9 @@ type Object interface {
 	metav1.Object
 }
 
-type ConditionManagingObject interface {
+type StatusConditionedObject interface {
 	Object
-	ConditionManager() apis.ConditionManager
+	StatusConditions() apis.ConditionManager
 }
 
 func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {

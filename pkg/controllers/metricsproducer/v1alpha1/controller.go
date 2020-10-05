@@ -61,7 +61,6 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 		return reconcile.Result{}, err
 	}
-	resource.ConditionManager().InitializeConditions()
 
 	// 2. Calculate and export metrics
 	if err := c.ProducerFactory.For(resource).Reconcile(); err != nil {

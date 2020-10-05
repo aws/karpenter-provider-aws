@@ -66,11 +66,11 @@ func (p *Producer) record(reservations *Reservations) {
 		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
 	}
 
-	var result error
+	var errs error
 	for resource, reservation := range reservations.Resources {
 		utilization, err := reservation.Utilization()
 		if err != nil {
-			result = multierr.Append(result, errors.Wrapf(err, "unable to compute utilization for %s", resource))
+			errs = multierr.Append(errs, errors.Wrapf(err, "unable to compute utilization for %s", resource))
 		} else {
 			reservation.Gauge.Add(utilization)
 			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
@@ -81,8 +81,8 @@ func (p *Producer) record(reservations *Reservations) {
 			)
 		}
 	}
-	if result != nil {
-		p.MarkNotActive(result.Error())
+	if errs != nil {
+		p.MarkNotActive(errs.Error())
 	} else {
 		p.MarkActive()
 	}

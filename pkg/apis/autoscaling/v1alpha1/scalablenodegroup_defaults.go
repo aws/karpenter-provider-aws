@@ -22,5 +22,4 @@ var _ webhook.Defaulter = &ScalableNodeGroup{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *ScalableNodeGroup) Default() {
-	// TODO(user): fill in your defaulting logic.
 }

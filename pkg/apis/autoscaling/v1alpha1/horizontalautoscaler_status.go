@@ -81,39 +81,41 @@ type MetricValueStatus struct {
 	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
 }
 
-func (s *HorizontalAutoscaler) MarkScalingActive() {
-	s.ConditionManager().MarkTrue(ScalingActive)
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
-	s.ConditionManager().MarkFalse(ScalingActive, "", message)
-}
-
-func (s *HorizontalAutoscaler) MarkAbleToScale() {
-	s.ConditionManager().MarkTrue(AbleToScale)
-}
-
-func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
-	s.ConditionManager().MarkFalse(AbleToScale, "", message)
-}
-
-func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
-	s.ConditionManager().MarkTrue(ScalingUnbounded)
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
-	s.ConditionManager().MarkFalse(ScalingUnbounded, "", message)
-}
-
 // We use knative's libraries for ConditionSets to manage status conditions.
 // Conditions are all of "true-happy" polarity. If any condition is false, the resource's "happiness" is false.
 // https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions
 // https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
-var horizontalAutoscalerConditions = apis.NewLivingConditionSet(
-	ScalingActive,
-	AbleToScale,
-	ScalingUnbounded,
-)
+func (s *HorizontalAutoscaler) StatusConditions() apis.ConditionManager {
+	return apis.NewLivingConditionSet(
+		ScalingActive,
+		AbleToScale,
+		ScalingUnbounded,
+	).Manage(s)
+}
+
+func (s *HorizontalAutoscaler) MarkScalingActive() {
+	s.StatusConditions().MarkTrue(ScalingActive)
+}
+
+func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
+	s.StatusConditions().MarkFalse(ScalingActive, "", message)
+}
+
+func (s *HorizontalAutoscaler) MarkAbleToScale() {
+	s.StatusConditions().MarkTrue(AbleToScale)
+}
+
+func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
+	s.StatusConditions().MarkFalse(AbleToScale, "", message)
+}
+
+func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
+	s.StatusConditions().MarkTrue(ScalingUnbounded)
+}
+
+func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
+	s.StatusConditions().MarkFalse(ScalingUnbounded, "", message)
+}
 
 func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
 	return s.Status.Conditions
@@ -121,8 +123,4 @@ func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
 
 func (s *HorizontalAutoscaler) SetConditions(conditions apis.Conditions) {
 	s.Status.Conditions = conditions
-}
-
-func (s *HorizontalAutoscaler) ConditionManager() apis.ConditionManager {
-	return horizontalAutoscalerConditions.Manage(s)
 }

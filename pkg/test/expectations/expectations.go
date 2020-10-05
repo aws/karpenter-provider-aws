@@ -39,11 +39,11 @@ func ExpectEventuallyCreated(client client.Client, object test.Object) {
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 }
 
-func ExpectEventuallyHappy(client client.Client, object test.ConditionManagingObject) {
+func ExpectEventuallyHappy(client client.Client, object test.StatusConditionedObject) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Eventually(func() bool {
 		Expect(client.Get(context.Background(), nn, object)).To(Succeed())
-		return object.ConditionManager().IsHappy()
+		return object.StatusConditions().IsHappy()
 	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 		return fmt.Sprintf("resource never became happy\n%s", log.Pretty(object))
 	})
