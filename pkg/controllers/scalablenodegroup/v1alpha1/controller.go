@@ -65,8 +65,10 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 	}
 
 	// 2. Make any changes to underlying node group
-	if err := c.NodeGroupFactory.For(resource).SetReplicas(*resource.Spec.Replicas); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
+	if resource.Spec.Replicas != nil {
+		if err := c.NodeGroupFactory.For(resource).SetReplicas(*resource.Spec.Replicas); err != nil {
+			return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
+		}
 	}
 
 	// 3. Apply status to API Server
