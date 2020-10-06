@@ -35,12 +35,13 @@ EOF
 delete() {
   make delete || true
   helm uninstall cert-manager --namespace cert-manager || true
-  helm uninstall prometheus --namespace prometheus || true
+  helm uninstall kube-prometheus-stack --namespace monitoring || true
+  kubectl delete namespace cert-manager monitoring || true
 }
 
 apply() {
   helm repo add jetstack https://charts.jetstack.io
-  helm repo add stable https://kubernetes-charts.storage.googleapis.com
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
   helm repo update
 
   certmanager
@@ -49,8 +50,6 @@ apply() {
 }
 
 certmanager() {
-  local cert_manager_dir=$TEMP_DIR/prometheus
-  mkdir $cert_manager_dir
   helm upgrade --install cert-manager jetstack/cert-manager \
     --atomic \
     --create-namespace \
@@ -60,14 +59,11 @@ certmanager() {
 }
 
 prometheus() {
-  local prometheus_dir=$TEMP_DIR/prometheus
-  wget https://raw.githubusercontent.com/helm/charts/master/stable/prometheus/values.yaml --directory-prefix $prometheus_dir
-  helm upgrade --install prometheus stable/prometheus \
+  helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
     --atomic \
     --create-namespace \
     --namespace monitoring \
-    --version 11.4.0 \
-    --values $prometheus_dir/values.yaml
+    --version 9.4.5
 }
 
 main "$@"

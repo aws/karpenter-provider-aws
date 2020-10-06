@@ -19,12 +19,21 @@ spec:
   maxReplicas: 23
   metrics:
   - prometheus:
-      query: karpenter:metrics_producer:reserved_capacity{node_group="microservices", type="cpu"}
+      query: karpenter_metrics_producer_reserved_capacity_cpu{name="microservices"}
       target:
         type: Utilization
         value: 60
   - prometheus:
-      query: karpenter:metrics_producer:reserved_capacity{node_group="microservices", type="memory"}
+      query: karpenter_metrics_producer_reserved_capacity_memory{name="microservices"}
       target:
         type: Utilization
         value: 60
+---
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: MetricsProducer
+metadata:
+  name: microservices
+spec:
+  reservedCapacity:
+    nodeSelector:
+      eks.amazonaws.com/nodegroup: default-karpenter

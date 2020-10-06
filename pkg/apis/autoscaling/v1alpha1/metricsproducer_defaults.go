@@ -12,4 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-metricsproducer,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=metricsproducers,verbs=create;update,versions=v1alpha1,name=mmetricsproducer.kb.io
+
 package v1alpha1
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *MetricsProducer) Default() {
+}

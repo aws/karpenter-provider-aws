@@ -14,9 +14,30 @@ limitations under the License.
 
 package metrics
 
+import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+)
+
 // Metric contains the current value of a metric
 type Metric struct {
 	Name   string
 	Labels map[string]string
 	Value  float64
+}
+
+// Producer interface for all metrics implementations
+type Producer interface {
+	// Reconcile returns the current values for the set of metrics provided.
+	Reconcile() error
+}
+
+// NilProducer is a noop implementation
+type NilProducer struct{}
+
+func (p *NilProducer) Reconcile() error { return nil }
+
+// Client interface for all metrics implementations
+type Client interface {
+	// GetCurrentValues returns the current values for the specified metric.
+	GetCurrentValue(v1alpha1.Metric) (Metric, error)
 }

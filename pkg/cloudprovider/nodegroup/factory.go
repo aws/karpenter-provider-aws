@@ -1,10 +1,13 @@
 package nodegroup
 
 import (
+	"fmt"
+
+	"github.com/cloudevents/sdk-go/pkg/binding/spec"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
-	"go.uber.org/zap"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 )
 
 type Factory struct {
@@ -18,6 +21,6 @@ func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	case v1alpha1.AWSEKSNodeGroup:
 		return aws.NewNodeGroup(sng)
 	}
-	zap.S().Fatalf("Failed to instantiate node group: unexpected type  %s", sng.Spec.Type)
+	log.InvariantViolated(fmt.Sprintf("Failed to instantiate node group: unexpected type  %s", spec.Type))
 	return nil
 }

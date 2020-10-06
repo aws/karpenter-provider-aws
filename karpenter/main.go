@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/scale"
@@ -91,7 +92,7 @@ func setupFlags() {
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
-	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-server.monitoring.svc.cluster.local", "The Prometheus Metrics Server URI for retrieving metrics")
+	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090", "The Prometheus Metrics Server URI for retrieving metrics")
 	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to for operating metrics about the controller itself.")
 	flag.Parse()
 }
@@ -129,7 +130,8 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 
 func metricsProducerFactoryOrDie() producers.Factory {
 	return producers.Factory{
-		InformerFactory: dependencies.InformerFactory,
+		NodeLister: dependencies.InformerFactory.Core().V1().Nodes().Lister(),
+		PodLister:  dependencies.InformerFactory.Core().V1().Pods().Lister(),
 	}
 }
 
@@ -175,7 +177,8 @@ func controllersOrDie() []controllers.Controller {
 			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
-			Client: dependencies.Manager.GetClient(),
+			Client:          dependencies.Manager.GetClient(),
+			ProducerFactory: dependencies.MetricsProducerFactory,
 		},
 	}
 	for _, c := range cs {

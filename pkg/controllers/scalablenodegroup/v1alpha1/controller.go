@@ -70,6 +70,7 @@ func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime
 			return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
 		}
 	}
+	resource.MarkActive()
 
 	// 3. Apply status to API Server
 	if err := c.Status().Update(context.Background(), resource); err != nil {

@@ -26,14 +26,28 @@ type ScalableNodeGroupStatus struct {
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 }
 
-var ScalableNodeGroupConditions = apis.NewLivingConditionSet(
-	ScalingActive,
-	AbleToScale,
-	ScalingUnbounded,
+const (
+	// Active indicates that the controller is able to take actions: it's
+	// correctly configured, can make necessary API calls, and isn't disabled.
+	Active apis.ConditionType = "Active"
 )
 
-func (s *ScalableNodeGroup) IsHappy() bool {
-	return ScalableNodeGroupConditions.Manage(s).IsHappy()
+// We use knative's libraries for ConditionSets to manage status conditions.
+// Conditions are all of "true-happy" polarity. If any condition is false, the resource's "happiness" is false.
+// https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions
+// https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
+func (s *ScalableNodeGroup) StatusConditions() apis.ConditionManager {
+	return apis.NewLivingConditionSet(
+		Active,
+	).Manage(s)
+}
+
+func (s *ScalableNodeGroup) MarkActive() {
+	s.StatusConditions().MarkTrue(Active)
+}
+
+func (s *ScalableNodeGroup) MarkNotActive(message string) {
+	s.StatusConditions().MarkFalse(Active, "", message)
 }
 
 func (s *ScalableNodeGroup) GetConditions() apis.Conditions {

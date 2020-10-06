@@ -1,10 +1,12 @@
 package queue
 
 import (
+	"fmt"
+
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/queue/aws"
-	"go.uber.org/zap"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 )
 
 type Factory struct {
@@ -18,6 +20,6 @@ func (f *Factory) For(spec v1alpha1.QueueSpec) cloudprovider.Queue {
 			ARN: spec.ID,
 		}
 	}
-	zap.S().Fatalf("Failed to instantiate queue: unexpected type  %s", spec.Type)
+	log.InvariantViolated(fmt.Sprintf("Failed to instantiate queue: unexpected type  %s", spec.Type))
 	return nil
 }

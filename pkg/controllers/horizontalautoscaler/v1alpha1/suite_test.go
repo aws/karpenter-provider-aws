@@ -108,7 +108,7 @@ var _ = Describe("Test Samples", func() {
 
 	Context("Capacity Reservations", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
-			Expect(ns.ParseResources("docs/samples/capacity-reservations/resources.yaml", ha, sng)).To(Succeed())
+			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(5)
 			MockMetricValue(fakeServer, .85)
 

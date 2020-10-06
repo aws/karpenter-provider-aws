@@ -12,21 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package producers
+package pendingcapacity
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	v1 "k8s.io/client-go/listers/core/v1"
+	listersv1 "k8s.io/client-go/listers/core/v1"
 )
 
-// ScheduledCapacity implements the ScheduledCapacity metric
-type ScheduledCapacity struct {
-	v1alpha1.ScheduledCapacitySpec
-	Nodes v1.NodeLister
+// Producer implements a Pending Capacity metric
+type Producer struct {
+	*v1alpha1.MetricsProducer
+	Nodes listersv1.NodeLister
+	Pods  listersv1.PodLister
 }
 
 // GetCurrentValues of the metrics
-func (r *ScheduledCapacity) GetCurrentValues() ([]metrics.Metric, error) {
-	return nil, nil
+func (p *Producer) Reconcile() error {
+	return nil
 }

@@ -14,7 +14,6 @@ specific language governing permissions and limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
@@ -82,73 +81,40 @@ type MetricValueStatus struct {
 	AverageUtilization *int32 `json:"averageUtilization,omitempty"`
 }
 
-func (s *HorizontalAutoscaler) MarkScalingActive() {
-	s.SetCondition(ScalingActive, &apis.Condition{
-		Type:     ScalingActive,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
-	s.SetCondition(ScalingActive, &apis.Condition{
-		Type:     ScalingActive,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityError,
-		Message:  message,
-	})
-}
-
-func (s *HorizontalAutoscaler) MarkAbleToScale() {
-	s.SetCondition(AbleToScale, &apis.Condition{
-		Type:     AbleToScale,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
-}
-
-func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
-	s.SetCondition(AbleToScale, &apis.Condition{
-		Type:     AbleToScale,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityWarning,
-		Message:  message,
-	})
-}
-
-func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
-	s.SetCondition(ScalingUnbounded, &apis.Condition{
-		Type:     ScalingUnbounded,
-		Status:   v1.ConditionTrue,
-		Severity: apis.ConditionSeverityInfo,
-	})
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
-	s.SetCondition(ScalingUnbounded, &apis.Condition{
-		Type:     ScalingUnbounded,
-		Status:   v1.ConditionFalse,
-		Severity: apis.ConditionSeverityInfo,
-		Message:  message,
-	})
-}
-
 // We use knative's libraries for ConditionSets to manage status conditions.
 // Conditions are all of "true-happy" polarity. If any condition is false, the resource's "happiness" is false.
 // https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions
 // https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
-var horizontalAutoscalerConditions = apis.NewLivingConditionSet(
-	ScalingActive,
-	AbleToScale,
-	ScalingUnbounded,
-)
-
-func (s *HorizontalAutoscaler) IsHappy() bool {
-	return horizontalAutoscalerConditions.Manage(s).IsHappy()
+func (s *HorizontalAutoscaler) StatusConditions() apis.ConditionManager {
+	return apis.NewLivingConditionSet(
+		ScalingActive,
+		AbleToScale,
+		ScalingUnbounded,
+	).Manage(s)
 }
 
-func (s *HorizontalAutoscaler) InitializeConditions() {
-	horizontalAutoscalerConditions.Manage(s).InitializeConditions()
+func (s *HorizontalAutoscaler) MarkScalingActive() {
+	s.StatusConditions().MarkTrue(ScalingActive)
+}
+
+func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
+	s.StatusConditions().MarkFalse(ScalingActive, "", message)
+}
+
+func (s *HorizontalAutoscaler) MarkAbleToScale() {
+	s.StatusConditions().MarkTrue(AbleToScale)
+}
+
+func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
+	s.StatusConditions().MarkFalse(AbleToScale, "", message)
+}
+
+func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
+	s.StatusConditions().MarkTrue(ScalingUnbounded)
+}
+
+func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
+	s.StatusConditions().MarkFalse(ScalingUnbounded, "", message)
 }
 
 func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
@@ -157,20 +123,4 @@ func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
 
 func (s *HorizontalAutoscaler) SetConditions(conditions apis.Conditions) {
 	s.Status.Conditions = conditions
-}
-
-func (s *HorizontalAutoscaler) GetCondition(conditionType apis.ConditionType) *apis.Condition {
-	return horizontalAutoscalerConditions.Manage(s).GetCondition(conditionType)
-}
-
-func (s *HorizontalAutoscaler) SetCondition(conditionType apis.ConditionType, condition *apis.Condition) {
-	switch {
-	case condition == nil:
-	case condition.Status == v1.ConditionUnknown:
-		horizontalAutoscalerConditions.Manage(s).MarkUnknown(conditionType, condition.Reason, condition.Message)
-	case condition.Status == v1.ConditionTrue:
-		horizontalAutoscalerConditions.Manage(s).MarkTrue(conditionType)
-	case condition.Status == v1.ConditionFalse:
-		horizontalAutoscalerConditions.Manage(s).MarkFalse(conditionType, condition.Reason, condition.Message)
-	}
 }

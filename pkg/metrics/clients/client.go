@@ -17,15 +17,9 @@ package clients
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"go.uber.org/zap"
 )
-
-// MetricsClient interface for all metrics implementations
-type MetricsClient interface {
-	// GetCurrentValues returns the current values for the set of metrics provided.
-	GetCurrentValue(v1alpha1.Metric) (metrics.Metric, error)
-}
 
 // Factory instantiates metrics clients
 type Factory struct {
@@ -33,16 +27,16 @@ type Factory struct {
 }
 
 // For returns a metrics client for the given source type
-func (m *Factory) For(metric v1alpha1.Metric) MetricsClient {
+func (m *Factory) For(metric v1alpha1.Metric) metrics.Client {
 	if metric.Prometheus != nil {
 		return m.NewPrometheusMetricsClient()
 	}
-	zap.S().Fatalf("Failed to instantiate metrics client, no metric type specified. Is the validating webhook installed?")
+	log.InvariantViolated("Failed to instantiate metrics client, no metric type specified")
 	return nil
 }
 
 // NewPrometheusMetricsClient instantiates a metrics producer
-func (m *Factory) NewPrometheusMetricsClient() MetricsClient {
+func (m *Factory) NewPrometheusMetricsClient() metrics.Client {
 	return &PrometheusMetricsClient{
 		Client: m.PrometheusClient,
 	}
