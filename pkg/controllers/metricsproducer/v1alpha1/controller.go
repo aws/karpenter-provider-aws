@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	DefaultMetricProductionPeriod = 10 * time.Second
+	DefaultMetricProductionPeriod = 5 * time.Second
 )
 
 // Controller for the resource
@@ -64,7 +64,9 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// 2. Calculate and export metrics
 	if err := c.ProducerFactory.For(resource).Reconcile(); err != nil {
-		return reconcile.Result{}, err
+		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
+	} else {
+		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
 
 	// 3. Apply changes to API Server

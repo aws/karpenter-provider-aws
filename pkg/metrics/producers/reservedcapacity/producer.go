@@ -82,8 +82,8 @@ func (p *Producer) record(reservations *Reservations) {
 		}
 	}
 	if errs != nil {
-		p.MarkNotActive(errs.Error())
+		p.StatusConditions().MarkFalse(v1alpha1.Calculable, "", errs.Error())
 	} else {
-		p.MarkActive()
+		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
 	}
 }

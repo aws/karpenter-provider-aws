@@ -33,6 +33,14 @@ type MetricsProducerStatus struct {
 	LastUpdatedTime *apis.VolatileTime `json:"lastUpdatedTime,omitempty"`
 }
 
+const (
+	// Calculable is a condition that refers to whether or not the Metrics
+	// Producer is able to calculate a metric given the available data. This
+	// will be false if no data is available, or if a mathmatical operation
+	// desired by the producer results in an undefined value (i.e. div by 0).
+	Calculable apis.ConditionType = "Calculable"
+)
+
 type PendingCapacityStatus struct {
 }
 type QueueStatus struct {
@@ -48,15 +56,8 @@ type ScheduledCapacityStatus struct {
 func (m *MetricsProducer) StatusConditions() apis.ConditionManager {
 	return apis.NewLivingConditionSet(
 		Active,
+		Calculable,
 	).Manage(m)
-}
-
-func (m *MetricsProducer) MarkActive() {
-	m.StatusConditions().MarkTrue(Active)
-}
-
-func (m *MetricsProducer) MarkNotActive(message string) {
-	m.StatusConditions().MarkFalse(Active, "", message)
 }
 
 func (m *MetricsProducer) GetConditions() apis.Conditions {
