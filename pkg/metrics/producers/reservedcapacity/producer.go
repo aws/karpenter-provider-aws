@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	listersv1 "k8s.io/client-go/listers/core/v1"
-	"knative.dev/pkg/apis"
 )
 
 // Producer implements a Reserved Capacity metric
@@ -41,7 +40,6 @@ func (p *Producer) Reconcile() error {
 
 	// 4. Record reservations and update status
 	p.record(reservations)
-	p.Status.LastUpdatedTime = &apis.VolatileTime{Inner: metav1.Now()}
 	return nil
 }
 

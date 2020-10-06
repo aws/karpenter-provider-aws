@@ -29,8 +29,6 @@ type MetricsProducerStatus struct {
 	// Conditions is the set of conditions required for the metrics producer to
 	// successfully publish metrics to the metrics server
 	Conditions apis.Conditions `json:"conditions,omitempty"`
-	// LastUpdateTime is the last time the resource executed a control loop.
-	LastUpdatedTime *apis.VolatileTime `json:"lastUpdatedTime,omitempty"`
 }
 
 const (
