@@ -12,8 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers/status,verbs=get;update;watch
 // +kubebuilder:rbac:groups=core,resources=nodes;pods,verbs=get;list;watch
 
 package v1alpha1
@@ -70,7 +70,7 @@ func (c *Controller) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// 3. Apply changes to API Server
-	if err := c.Status().Update(context.Background(), resource); err != nil {
+	if err := c.Update(context.Background(), resource); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
 	}
 
