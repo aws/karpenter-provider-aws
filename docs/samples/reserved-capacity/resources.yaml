@@ -36,4 +36,4 @@ metadata:
 spec:
   reservedCapacity:
     nodeSelector:
-      eks.amazonaws.com/nodegroup: default-karpenter
+      eks.amazonaws.com/nodegroup: default
