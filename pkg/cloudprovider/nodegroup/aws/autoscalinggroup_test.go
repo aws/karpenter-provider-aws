@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 )
 
 type mockedUpdateAutoScalingGroup struct {
@@ -37,8 +38,12 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 		Error: nil,
 	}
 	asg := &AutoScalingGroup{
-		Client:    client,
-		GroupName: "spatula",
+		Client: client,
+		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
+			Spec: v1alpha1.ScalableNodeGroupSpec{
+				ID: "spatula",
+			},
+		},
 	}
 	err := asg.SetReplicas(23)
 	if err != nil {

@@ -17,7 +17,7 @@ type Factory struct {
 func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	switch sng.Spec.Type {
 	case v1alpha1.AWSEC2AutoScalingGroup:
-		return aws.NewDefaultAutoScalingGroup(sng.Spec.ID)
+		return aws.NewDefaultAutoScalingGroup(sng)
 	case v1alpha1.AWSEKSNodeGroup:
 		return aws.NewNodeGroup(sng)
 	}
