@@ -6,7 +6,13 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
+
+type Object interface {
+	runtime.Object
+	metav1.Object
+}
 
 func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {
 	return &v1.Pod{

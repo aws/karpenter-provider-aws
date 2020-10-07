@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/controllers"
+	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,19 +20,19 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func ExpectCreated(client client.Client, objects ...controllers.Object) {
+func ExpectCreated(client client.Client, objects ...test.Object) {
 	for _, object := range objects {
 		Expect(client.Create(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectDeleted(client client.Client, objects ...controllers.Object) {
+func ExpectDeleted(client client.Client, objects ...test.Object) {
 	for _, object := range objects {
 		Expect(client.Delete(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectEventuallyCreated(client client.Client, object controllers.Object) {
+func ExpectEventuallyCreated(client client.Client, object test.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Expect(client.Create(context.Background(), object)).To(Succeed())
 	Eventually(func() error {
@@ -49,7 +50,7 @@ func ExpectEventuallyHappy(client client.Client, object controllers.Object) {
 	})
 }
 
-func ExpectEventuallyDeleted(client client.Client, object controllers.Object) {
+func ExpectEventuallyDeleted(client client.Client, object test.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Expect(client.Delete(context.Background(), object)).To(Succeed())
 	Eventually(func() bool {
