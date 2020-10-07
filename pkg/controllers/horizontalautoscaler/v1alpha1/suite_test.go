@@ -64,7 +64,7 @@ func injectHorizontalAutoscalerController(environment *environment.Local) {
 	Expect(err).ToNot(HaveOccurred(), "Failed to create scale client")
 	prometheusClient, err := api.NewClient(api.Config{Address: environment.Server.URL()})
 	Expect(err).ToNot(HaveOccurred(), "Unable to create prometheus client")
-	controller := &Controller{
+	Expect(controllers.Register(environment.Manager, &Controller{
 		Client: environment.Manager.GetClient(),
 		AutoscalerFactory: autoscaler.Factory{
 			MetricsClientFactory: clients.Factory{
@@ -73,10 +73,8 @@ func injectHorizontalAutoscalerController(environment *environment.Local) {
 			Mapper:          environment.Manager.GetRESTMapper(),
 			ScaleNamespacer: scale,
 		},
-	}
-	Expect(controllers.RegisterController(environment.Manager, controller)).To(Succeed(), "Failed to register controller")
-	Expect(controllers.RegisterWebhook(environment.Manager, controller)).To(Succeed(), "Failed to register webhook")
-	Expect(controllers.RegisterWebhook(environment.Manager, &scalablenodegroupv1alpha1.Controller{})).To(Succeed(), "Failed to register webhook")
+	}), "Failed to register controller")
+	Expect(controllers.Register(environment.Manager, &scalablenodegroupv1alpha1.Controller{})).To(Succeed(), "Failed to register controller")
 }
 
 var env environment.Environment = environment.NewLocal(injectFakeServer, injectHorizontalAutoscalerController)

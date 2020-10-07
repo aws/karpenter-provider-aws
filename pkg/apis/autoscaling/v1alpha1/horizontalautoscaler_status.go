@@ -39,10 +39,6 @@ type HorizontalAutoscalerStatus struct {
 }
 
 const (
-	// ScalingActive indicates that the controller is able to scale if
-	// necessary: it's correctly configured, can fetch the desired metrics, and
-	// isn't disabled.
-	ScalingActive apis.ConditionType = "ScalingActive"
 	// AbleToScale indicates a lack of transient issues which prevent scaling
 	// from occurring, such as being in a backoff window, or being unable to
 	// access/update the target scale.
@@ -87,18 +83,10 @@ type MetricValueStatus struct {
 // https://github.com/knative/serving/blob/f1582404be275d6eaaf89ccd908fb44aef9e48b5/vendor/knative.dev/pkg/apis/condition_set.go
 func (s *HorizontalAutoscaler) StatusConditions() apis.ConditionManager {
 	return apis.NewLivingConditionSet(
-		ScalingActive,
+		Active,
 		AbleToScale,
 		ScalingUnbounded,
 	).Manage(s)
-}
-
-func (s *HorizontalAutoscaler) MarkScalingActive() {
-	s.StatusConditions().MarkTrue(ScalingActive)
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingActive(message string) {
-	s.StatusConditions().MarkFalse(ScalingActive, "", message)
 }
 
 func (s *HorizontalAutoscaler) MarkAbleToScale() {

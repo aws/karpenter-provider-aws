@@ -41,15 +41,12 @@ func TestAPIs(t *testing.T) {
 }
 
 func injectHorizontalAutoscalerController(environment *environment.Local) {
-	controller := &Controller{
+	Expect(controllers.Register(environment.Manager, &Controller{
 		ProducerFactory: producers.Factory{
 			NodeLister: environment.InformerFactory.Core().V1().Nodes().Lister(),
 			PodLister:  environment.InformerFactory.Core().V1().Pods().Lister(),
 		},
-		Client: environment.Manager.GetClient(),
-	}
-	Expect(controllers.RegisterController(environment.Manager, controller)).To(Succeed(), "Failed to register controller")
-	Expect(controllers.RegisterWebhook(environment.Manager, controller)).To(Succeed(), "Failed to register webhook")
+	})).To(Succeed(), "Failed to register controller")
 }
 
 var env environment.Environment = environment.NewLocal(injectHorizontalAutoscalerController)

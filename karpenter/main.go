@@ -169,28 +169,18 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 func controllersOrDie() []controllers.Controller {
 	cs := []controllers.Controller{
 		&horizontalautoscalerv1alpha1.Controller{
-			Client:            dependencies.Manager.GetClient(),
 			AutoscalerFactory: dependencies.AutoscalerFactory,
 		},
 		&scalablenodegroupv1alpha1.Controller{
-			Client:           dependencies.Manager.GetClient(),
 			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
-			Client:          dependencies.Manager.GetClient(),
 			ProducerFactory: dependencies.MetricsProducerFactory,
 		},
 	}
 	for _, c := range cs {
-		if options.EnableController {
-			if err := controllers.RegisterController(dependencies.Manager, c); err != nil {
-				zap.S().Fatalf("Failed to register controller for resource %v: %v", c.For(), err)
-			}
-		}
-		if options.EnableWebhook {
-			if err := controllers.RegisterWebhook(dependencies.Manager, c); err != nil {
-				zap.S().Fatalf("Failed to register webhook for resource %v: %v", c.For(), err)
-			}
+		if err := controllers.Register(dependencies.Manager, c); err != nil {
+			zap.S().Fatalf("Failed to register controller for resource %v: %v", c.For(), err)
 		}
 	}
 	return cs
