@@ -50,8 +50,6 @@ func init() {
 // Options for running this binary
 type Options struct {
 	EnableLeaderElection bool
-	EnableWebhook        bool
-	EnableController     bool
 	EnableVerboseLogging bool
 	MetricsAddr          string
 	PrometheusURI        string
@@ -87,8 +85,6 @@ func main() {
 func setupFlags() {
 	// Controller
 	flag.BoolVar(&options.EnableLeaderElection, "enable-leader-election", true, "Enable leader election.")
-	flag.BoolVar(&options.EnableWebhook, "enable-webhook", true, "Enable webhook.")
-	flag.BoolVar(&options.EnableController, "enable-controller", true, "Enable controller.")
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
