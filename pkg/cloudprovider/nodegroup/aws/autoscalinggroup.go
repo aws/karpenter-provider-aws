@@ -19,39 +19,31 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
 type AutoScalingGroup struct {
-	GroupName string
-	Client    autoscalingiface.AutoScalingAPI
+	*v1alpha1.ScalableNodeGroup
+	Client autoscalingiface.AutoScalingAPI
 }
 
-// AutoScalingGroupIdentifier TODO(jacob@)
-type AutoScalingGroupIdentifier string
-
-// GroupName TODO(jacob@)
-func (a AutoScalingGroupIdentifier) GroupName() string {
-	return string(a)
-}
-
-// NewDefaultAutoScalingGroup TODO(jacob@)
-func NewDefaultAutoScalingGroup(name string) *AutoScalingGroup {
+func NewDefaultAutoScalingGroup(sng *v1alpha1.ScalableNodeGroup) *AutoScalingGroup {
 	return &AutoScalingGroup{
-		GroupName: name,
-		Client:    autoscaling.New(session.Must(session.NewSession())),
+		ScalableNodeGroup: sng,
+		Client:            autoscaling.New(session.Must(session.NewSession())),
 	}
 }
 
 // Name returns the name of the node group
 func (asg *AutoScalingGroup) Name() string {
-	return asg.GroupName
+	return asg.Spec.ID
 }
 
-// SetReplicas sets the NodeGroups's replica count
+// SetReplicas sets the NodeGroup's replica count
 func (asg *AutoScalingGroup) SetReplicas(value int32) error {
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.GroupName),
+		AutoScalingGroupName: aws.String(asg.Spec.ID),
 		DesiredCapacity:      aws.Int64(int64(value)),
 	})
 	return err
