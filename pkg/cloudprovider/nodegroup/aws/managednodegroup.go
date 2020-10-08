@@ -92,7 +92,7 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 		return errors.Wrapf(err,
 			"unable to set desired replicas on managed node group %s", mng.Spec.ID)
 	}
-	mng.ScalableNodeGroup.Status.Replicas = mng.Spec.Replicas
+	mng.ScalableNodeGroup.Status.RequestedReplicas = mng.Spec.Replicas
 	return nil
 }
 
