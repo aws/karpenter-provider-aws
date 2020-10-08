@@ -85,25 +85,7 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	return
 }
 
-func (mng *ManagedNodeGroup) updateNodegroupConfig() error {
-	if mng.Spec.Replicas == nil {
-		return nil
-	}
-	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
-		ClusterName:   &mng.Cluster,
-		NodegroupName: &mng.NodeGroup,
-		ScalingConfig: &eks.NodegroupScalingConfig{
-			DesiredSize: aws.Int64(int64(*mng.Spec.Replicas)),
-		},
-	})
-	return err
-}
-
 func (mng *ManagedNodeGroup) Reconcile() error {
-	if err := mng.updateNodegroupConfig(); err != nil {
-		return errors.Wrapf(err, "unable to update node group %s", mng.Spec.ID)
-	}
-
 	nodegroupOutput, err := mng.EKSAPI.DescribeNodegroup(&eks.DescribeNodegroupInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
@@ -129,5 +111,20 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 		return errors.Wrapf(err, "unable to describe auto scaling groups for managed node group %s", mng.Spec.ID)
 	}
 	mng.Status.Replicas = ptr.Int32(int32(replicas))
+
+	if mng.Spec.Replicas == nil || *mng.Status.Replicas == *mng.Spec.Replicas {
+		return nil
+	}
+	_, err = mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+		ClusterName:   &mng.Cluster,
+		NodegroupName: &mng.NodeGroup,
+		ScalingConfig: &eks.NodegroupScalingConfig{
+			DesiredSize: aws.Int64(int64(*mng.Spec.Replicas)),
+		},
+	})
+	if err != nil {
+		return errors.Wrapf(err, "unable to update node group %s", mng.Spec.ID)
+	}
+
 	return nil
 }

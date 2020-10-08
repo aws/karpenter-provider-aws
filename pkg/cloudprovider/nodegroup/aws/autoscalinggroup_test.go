@@ -39,6 +39,10 @@ func (m mockedUpdateAutoScalingGroup) DescribeAutoScalingGroupsPages(input *auto
 	return m.Error
 }
 
+func (m mockedUpdateAutoScalingGroup) DescribeAutoScalingGroups(*autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	return &m.DescribeResp, m.Error
+}
+
 func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 	client := mockedUpdateAutoScalingGroup{
 		UpdateResp: autoscaling.UpdateAutoScalingGroupOutput{},
