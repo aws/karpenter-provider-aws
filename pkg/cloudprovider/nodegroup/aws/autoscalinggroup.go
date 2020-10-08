@@ -37,25 +37,10 @@ func NewDefaultAutoScalingGroup(sng *v1alpha1.ScalableNodeGroup) *AutoScalingGro
 	}
 }
 
-func (asg *AutoScalingGroup) updateAutoScalingGroup() error {
-	if asg.Spec.Replicas == nil {
-		return nil
-	}
-	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.Spec.ID),
-		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
-	})
-	return err
-}
-
 // Reconcile sets the NodeGroup's replica count and updates status
 // with latest count of EC2 instances
 func (asg *AutoScalingGroup) Reconcile() (errs error) {
-	if err := asg.updateAutoScalingGroup(); err != nil {
-		return errors.Wrapf(err, "unable to set desired replicas on auto scaling group %s", asg.Spec.ID)
-	}
-
-	err := asg.Client.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+	if err := asg.Client.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{aws.String(asg.Spec.ID)},
 		MaxRecords:            aws.Int64(1),
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
@@ -63,7 +48,17 @@ func (asg *AutoScalingGroup) Reconcile() (errs error) {
 			asg.Status.Replicas = ptr.Int32(int32(len(group.Instances)))
 		}
 		return false
-	})
+	}); err != nil {
+		return errors.Wrapf(err, "unable to get instance count from auto scaling group %s", asg.Spec.ID)
+	}
 
-	return errors.Wrapf(err, "unable to set get instance count from auto scaling group %s", asg.Spec.ID)
+	if asg.Spec.Replicas == nil || asg.Status.Replicas == nil || *asg.Status.Replicas == *asg.Spec.Replicas {
+		return nil
+	}
+
+	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(asg.Spec.ID),
+		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
+	})
+	return err
 }
