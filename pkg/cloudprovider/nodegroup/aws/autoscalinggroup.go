@@ -55,8 +55,8 @@ func (asg *AutoScalingGroup) Reconcile() (errs error) {
 		AutoScalingGroupNames: []*string{aws.String(asg.Spec.ID)},
 		MaxRecords:            aws.Int64(1),
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
-		for _, asgInfo := range page.AutoScalingGroups {
-			asg.Status.Replicas = ptr.Int32(int32(len(asgInfo.Instances)))
+		for _, group := range page.AutoScalingGroups {
+			asg.Status.Replicas = ptr.Int32(int32(len(group.Instances)))
 		}
 		return false
 	})
