@@ -12,7 +12,7 @@ type Queue interface {
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
 type NodeGroup interface {
-	// Reconcile attemptes to set the NodeGroups's desired replica
+	// Reconcile attempts to set the NodeGroups's desired replica
 	// count and also tries to update current actual replica count
 	Reconcile() error
 }
