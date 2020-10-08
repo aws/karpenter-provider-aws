@@ -40,7 +40,7 @@ func (m mockedUpdateManagedNodeGroup) DescribeNodegroup(*eks.DescribeNodegroupIn
 }
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
-	asg := &ManagedNodeGroup{
+	mng := &ManagedNodeGroup{
 		EKSAPI: mockedUpdateManagedNodeGroup{
 			UpdateOutput: eks.UpdateNodegroupConfigOutput{},
 			DescribeOutput: eks.DescribeNodegroupOutput{
@@ -60,6 +60,9 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 					{
 						Instances: []*autoscaling.Instance{nil, nil, nil},
 					},
+					{
+						Instances: []*autoscaling.Instance{nil, nil, nil},
+					},
 				},
 			},
 		},
@@ -71,8 +74,12 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 		},
 	}
 
-	got := asg.Reconcile()
+	got := mng.Reconcile()
 	if got != nil {
 		t.Errorf("SetReplicas(23) = %v; want nil", got)
+	}
+
+	if *mng.Status.Replicas != 6 {
+		t.Errorf("asg.Status.Replicas = %d; want 6", *mng.Status.Replicas)
 	}
 }
