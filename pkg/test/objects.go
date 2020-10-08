@@ -7,17 +7,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"knative.dev/pkg/apis"
 )
 
 type Object interface {
 	runtime.Object
 	metav1.Object
-}
-
-type StatusConditionedObject interface {
-	Object
-	StatusConditions() apis.ConditionManager
 }
 
 func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {

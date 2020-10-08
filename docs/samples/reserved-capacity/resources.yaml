@@ -4,7 +4,7 @@ metadata:
   name: microservices
 spec:
   type: AWSEKSNodeGroup
-  id: arn:aws:eks:us-west-2:1234567890:node-group:microservices
+  id: arn:aws:eks:us-west-2:1234567890:nodegroup:test-cluster/microservices/qwertyuiop
 ---
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
@@ -36,4 +36,4 @@ metadata:
 spec:
   reservedCapacity:
     nodeSelector:
-      eks.amazonaws.com/nodegroup: default-karpenter
+      eks.amazonaws.com/nodegroup: default

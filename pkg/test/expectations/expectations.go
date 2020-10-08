@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
@@ -39,7 +40,7 @@ func ExpectEventuallyCreated(client client.Client, object test.Object) {
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 }
 
-func ExpectEventuallyHappy(client client.Client, object test.StatusConditionedObject) {
+func ExpectEventuallyHappy(client client.Client, object controllers.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Eventually(func() bool {
 		Expect(client.Get(context.Background(), nn, object)).To(Succeed())

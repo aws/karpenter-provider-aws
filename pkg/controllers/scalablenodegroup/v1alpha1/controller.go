@@ -12,29 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups;scalablenodegroups/status,verbs=get;list;watch;create;update;patch;delete
 
 package v1alpha1
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+	"github.com/ellistarn/karpenter/pkg/controllers"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-)
-
-// TODO, make these configmappable or wired through the API.
-const (
-	NodeGroupReconciliationInterval = 60 * time.Second
 )
 
 // Controller for the resource
@@ -44,38 +33,27 @@ type Controller struct {
 }
 
 // For returns the resource this controller is for.
-func (c *Controller) For() runtime.Object {
+func (c *Controller) For() controllers.Object {
 	return &v1alpha1.ScalableNodeGroup{}
 }
 
 // Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []runtime.Object {
-	return []runtime.Object{}
+func (c *Controller) Owns() []controllers.Object {
+	return []controllers.Object{}
+}
+
+func (c *Controller) Interval() time.Duration {
+	return 60 * time.Second
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(req controllerruntime.Request) (controllerruntime.Result, error) {
-	// 1. Retrieve resource spec from API Server
-	resource := &v1alpha1.ScalableNodeGroup{}
-	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
-		if errors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
-	}
-
-	// 2. Make any changes to underlying node group
+func (c *Controller) Reconcile(object controllers.Object) error {
+	resource := object.(*v1alpha1.ScalableNodeGroup)
+	nodegroup := c.NodeGroupFactory.For(resource)
 	if resource.Spec.Replicas != nil {
-		if err := c.NodeGroupFactory.For(resource).SetReplicas(*resource.Spec.Replicas); err != nil {
-			return reconcile.Result{}, fmt.Errorf("Failed to reconcile: %s", err.Error())
+		if err := nodegroup.SetReplicas(*resource.Spec.Replicas); err != nil {
+			return err
 		}
 	}
-	resource.MarkActive()
-
-	// 3. Apply status to API Server
-	if err := c.Status().Update(context.Background(), resource); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to persist changes: %s", err.Error())
-	}
-
-	return controllerruntime.Result{RequeueAfter: NodeGroupReconciliationInterval}, nil
+	return nil
 }

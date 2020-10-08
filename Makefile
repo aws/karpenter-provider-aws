@@ -19,10 +19,6 @@ verify:
 	go fmt ./...
 	golangci-lint run
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run:
-	go run karpenter/main.go --enable-leader-election=false --enable-webhook=false
-
 # Generate code. Must be run if changes are made to ./pkg/apis/...
 generate:
 	controller-gen \

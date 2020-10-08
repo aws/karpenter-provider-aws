@@ -40,13 +40,13 @@ type Factory struct {
 }
 
 // For returns an autoscaler for the resource
-func (af *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
+func (f *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 	return Autoscaler{
 		HorizontalAutoscaler: resource,
 		algorithm:            algorithms.For(resource.Spec),
-		metricsClientFactory: af.MetricsClientFactory,
-		mapper:               af.Mapper,
-		scaleNamespacer:      af.ScaleNamespacer,
+		metricsClientFactory: f.MetricsClientFactory,
+		mapper:               f.Mapper,
+		scaleNamespacer:      f.ScaleNamespacer,
 	}
 }
 

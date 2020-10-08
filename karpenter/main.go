@@ -50,8 +50,6 @@ func init() {
 // Options for running this binary
 type Options struct {
 	EnableLeaderElection bool
-	EnableWebhook        bool
-	EnableController     bool
 	EnableVerboseLogging bool
 	MetricsAddr          string
 	PrometheusURI        string
@@ -87,8 +85,6 @@ func main() {
 func setupFlags() {
 	// Controller
 	flag.BoolVar(&options.EnableLeaderElection, "enable-leader-election", true, "Enable leader election.")
-	flag.BoolVar(&options.EnableWebhook, "enable-webhook", true, "Enable webhook.")
-	flag.BoolVar(&options.EnableController, "enable-controller", true, "Enable controller.")
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
@@ -169,28 +165,18 @@ func autoscalerFactoryOrDie() autoscaler.Factory {
 func controllersOrDie() []controllers.Controller {
 	cs := []controllers.Controller{
 		&horizontalautoscalerv1alpha1.Controller{
-			Client:            dependencies.Manager.GetClient(),
 			AutoscalerFactory: dependencies.AutoscalerFactory,
 		},
 		&scalablenodegroupv1alpha1.Controller{
-			Client:           dependencies.Manager.GetClient(),
 			NodeGroupFactory: dependencies.NodeGroupFactory,
 		},
 		&metricsproducerv1alpha1.Controller{
-			Client:          dependencies.Manager.GetClient(),
 			ProducerFactory: dependencies.MetricsProducerFactory,
 		},
 	}
 	for _, c := range cs {
-		if options.EnableController {
-			if err := controllers.RegisterController(dependencies.Manager, c); err != nil {
-				zap.S().Fatalf("Failed to register controller for resource %v: %v", c.For(), err)
-			}
-		}
-		if options.EnableWebhook {
-			if err := controllers.RegisterWebhook(dependencies.Manager, c); err != nil {
-				zap.S().Fatalf("Failed to register webhook for resource %v: %v", c.For(), err)
-			}
+		if err := controllers.Register(dependencies.Manager, c); err != nil {
+			zap.S().Fatalf("Failed to register controller for resource %v: %v", c.For(), err)
 		}
 	}
 	return cs
