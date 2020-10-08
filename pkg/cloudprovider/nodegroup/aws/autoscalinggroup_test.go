@@ -25,17 +25,30 @@ import (
 
 type mockedUpdateAutoScalingGroup struct {
 	autoscalingiface.AutoScalingAPI
-	Resp  autoscaling.UpdateAutoScalingGroupOutput
-	Error error
+	UpdateResp   autoscaling.UpdateAutoScalingGroupOutput
+	DescribeResp autoscaling.DescribeAutoScalingGroupsOutput
+	Error        error
 }
 
 func (m mockedUpdateAutoScalingGroup) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
-	return &m.Resp, m.Error
+	return &m.UpdateResp, m.Error
+}
+
+func (m mockedUpdateAutoScalingGroup) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
+	fn(&m.DescribeResp, true)
+	return m.Error
 }
 
 func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 	client := mockedUpdateAutoScalingGroup{
-		Resp:  autoscaling.UpdateAutoScalingGroupOutput{},
+		UpdateResp: autoscaling.UpdateAutoScalingGroupOutput{},
+		DescribeResp: autoscaling.DescribeAutoScalingGroupsOutput{
+			AutoScalingGroups: []*autoscaling.Group{
+				{
+					Instances: []*autoscaling.Instance{nil, nil, nil},
+				},
+			},
+		},
 		Error: nil,
 	}
 	asg := &AutoScalingGroup{

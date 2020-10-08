@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"go.uber.org/multierr"
+	"knative.dev/pkg/ptr"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
@@ -41,13 +43,28 @@ func (asg *AutoScalingGroup) Name() string {
 }
 
 // Reconcile sets the NodeGroup's replica count
-func (asg *AutoScalingGroup) Reconcile() error {
-	if asg.Spec.Replicas == nil {
-		return nil
+func (asg *AutoScalingGroup) Reconcile() (errs error) {
+	requestedReplicas := asg.Spec.Replicas
+	if requestedReplicas != nil {
+		_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+			AutoScalingGroupName: aws.String(asg.Spec.ID),
+			DesiredCapacity:      aws.Int64(int64(*requestedReplicas)),
+		})
+		errs = multierr.Append(errs, err)
+		if err != nil {
+			asg.Status.RequestedReplicas = requestedReplicas
+		}
 	}
-	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.Spec.ID),
-		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
+
+	err := asg.Client.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{aws.String(asg.Spec.ID)},
+		MaxRecords:            aws.Int64(1),
+	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
+		for _, asgInfo := range page.AutoScalingGroups {
+			asg.Status.Replicas = ptr.Int32(int32(len(asgInfo.Instances)))
+		}
+		return false
 	})
-	return err
+
+	return multierr.Append(errs, err)
 }

@@ -19,8 +19,13 @@ import "knative.dev/pkg/apis"
 // ScalableNodeGroupStatus holds status information for the ScalableNodeGroup
 // +kubebuilder:subresource:status
 type ScalableNodeGroupStatus struct {
-	// Replicas displays the current size of the ScalableNodeGroup
-	Replicas int32 `json:"replicas,omitempty"`
+	// Replicas displays the current size of the ScalableNodeGroup;
+	// nil indicates the size is unknown
+	Replicas *int32 `json:"replicas,omitempty"`
+	// RequestedReplicas displays the last successfully-requested size
+	// of the ScalableNodeGroup; nil indicates there has been no
+	// successful attempt to request a specific number of replicas
+	RequestedReplicas *int32 `json:"requestedReplicas,omitempty"`
 	// Conditions is the set of conditions required for the scalable node group
 	// to successfully enforce the replica count of the underlying group
 	Conditions apis.Conditions `json:"conditions,omitempty"`
