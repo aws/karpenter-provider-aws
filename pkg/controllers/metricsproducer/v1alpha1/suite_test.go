@@ -81,14 +81,14 @@ var _ = Describe("Test Samples", func() {
 				v1.ResourcePods:   resource.MustParse("50"),
 			}
 
-			nodes := []test.Object{
+			nodes := []test.Resource{
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 				test.Node(map[string]string{"unknown": "label"}, nodeResources),
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 			}
 
-			pods := []test.Object{
+			pods := []test.Resource{
 				// node[0] 6/16 cores, 76/128 gig allocated
 				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
 				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("25Gi")}),

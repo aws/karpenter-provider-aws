@@ -31,32 +31,32 @@ import (
 
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {
-	// Reconcile hands a hydrated kubernetes object to the controller for
+	// Reconcile hands a hydrated kubernetes resource to the controller for
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
-	Reconcile(Object) error
+	Reconcile(Resource) error
 	// Interval returns an interval that the controller should wait before
 	// executing another reconciliation loop. If set to zero, will only execute
 	// on watch events or the global resync interval.
 	Interval() time.Duration
-	// For returns a default instantiation of the object and is inject by data
-	// from the API Server at the start of the reconcilation loop.
-	For() Object
-	// Owns returns a slice of objects that are watched by this resources. Watch
-	// events are triggered if owner references are set for the owned resource.
-	Owns() []Object
+	// For returns a default instantiation of the resource and is injected by
+	// data from the API Server at the start of the reconcilation loop.
+	For() Resource
+	// Owns returns a slice of resources that are watched by this resources.
+	// Watch events are triggered if owner references are set on the resource.
+	Owns() []Resource
 }
 
-// Object provides an abstraction over a kubernetes custom resource with
+// Resource provides an abstraction over a kubernetes custom resource with
 // methods necessary to standardize reconciliation behavior in Karpenter.
-type Object interface {
+type Resource interface {
 	runtime.Object
 	metav1.Object
 	StatusConditions() apis.ConditionManager
 }
 
 // GenericController implements controllerruntime.Reconciler and runs a
-// standardized reconcilation workflow against incoming object watch events.
+// standardized reconcilation workflow against incoming resource watch events.
 type GenericController struct {
 	Controller
 	client.Client
