@@ -649,11 +649,6 @@ func (in *ScalableNodeGroupStatus) DeepCopyInto(out *ScalableNodeGroupStatus) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.RequestedReplicas != nil {
-		in, out := &in.RequestedReplicas, &out.RequestedReplicas
-		*out = new(int32)
-		**out = **in
-	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make(apis.Conditions, len(*in))

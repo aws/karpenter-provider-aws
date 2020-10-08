@@ -37,7 +37,7 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 		Output: eks.UpdateNodegroupConfigOutput{},
 	}
 	asg := &ManagedNodeGroup{
-		Client: client,
+		EKSAPI: client,
 		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
 			Spec: v1alpha1.ScalableNodeGroupSpec{
 				Replicas: ptr.Int32(23),

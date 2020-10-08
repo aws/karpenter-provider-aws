@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"go.uber.org/multierr"
+	"github.com/pkg/errors"
 	"knative.dev/pkg/ptr"
 )
 
@@ -37,18 +37,22 @@ func NewDefaultAutoScalingGroup(sng *v1alpha1.ScalableNodeGroup) *AutoScalingGro
 	}
 }
 
-// Reconcile sets the NodeGroup's replica count
+func (asg *AutoScalingGroup) updateAutoScalingGroup() error {
+	if asg.Spec.Replicas == nil {
+		return nil
+	}
+	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(asg.Spec.ID),
+		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
+	})
+	return err
+}
+
+// Reconcile sets the NodeGroup's replica count and updates status
+// with latest count of EC2 instances
 func (asg *AutoScalingGroup) Reconcile() (errs error) {
-	requestedReplicas := asg.Spec.Replicas
-	if requestedReplicas != nil {
-		_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-			AutoScalingGroupName: aws.String(asg.Spec.ID),
-			DesiredCapacity:      aws.Int64(int64(*requestedReplicas)),
-		})
-		errs = multierr.Append(errs, err)
-		if err != nil {
-			asg.Status.RequestedReplicas = requestedReplicas
-		}
+	if err := asg.updateAutoScalingGroup(); err != nil {
+		return errors.Wrapf(err, "unable to set desired replicas on auto scaling group %s", asg.Spec.ID)
 	}
 
 	err := asg.Client.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
@@ -61,5 +65,5 @@ func (asg *AutoScalingGroup) Reconcile() (errs error) {
 		return false
 	})
 
-	return multierr.Append(errs, err)
+	return errors.Wrapf(err, "unable to set get instance count from auto scaling group %s", asg.Spec.ID)
 }
