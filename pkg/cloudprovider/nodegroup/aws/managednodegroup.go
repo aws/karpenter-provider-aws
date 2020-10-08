@@ -95,7 +95,3 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 	mng.ScalableNodeGroup.Status.RequestedReplicas = mng.Spec.Replicas
 	return nil
 }
-
-func (mng *ManagedNodeGroup) Name() string {
-	return mng.ScalableNodeGroup.Spec.ID
-}

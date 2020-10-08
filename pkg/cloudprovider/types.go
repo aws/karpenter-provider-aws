@@ -12,9 +12,6 @@ type Queue interface {
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
 type NodeGroup interface {
-	// Name returns the name of the node group
-	Name() string
-
 	// Reconcile sets the NodeGroups's replica count if possible, and
 	// also always tries to update status
 	Reconcile() error

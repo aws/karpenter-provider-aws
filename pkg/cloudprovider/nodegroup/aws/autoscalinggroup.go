@@ -37,11 +37,6 @@ func NewDefaultAutoScalingGroup(sng *v1alpha1.ScalableNodeGroup) *AutoScalingGro
 	}
 }
 
-// Name returns the name of the node group
-func (asg *AutoScalingGroup) Name() string {
-	return asg.Spec.ID
-}
-
 // Reconcile sets the NodeGroup's replica count
 func (asg *AutoScalingGroup) Reconcile() (errs error) {
 	requestedReplicas := asg.Spec.Replicas
