@@ -20,11 +20,14 @@ import "knative.dev/pkg/apis"
 // +kubebuilder:subresource:status
 type ScalableNodeGroupStatus struct {
 	// Replicas displays the current size of the ScalableNodeGroup;
-	// nil indicates the size is unknown
+	// nil indicates this controller has no opinion about the
+	// number of replicas and will take no action. This is useful
+	// in tandem with, for example, HorizontalAutoscaler, which
+	// can set this value once it has an opinion.
 	Replicas *int32 `json:"replicas,omitempty"`
-	// RequestedReplicas displays the last successfully-requested size
-	// of the ScalableNodeGroup; nil indicates there has been no
-	// successful attempt to request a specific number of replicas
+	// RequestedReplicas displays the last requested size of the
+	// ScalableNodeGroup; nil indicates there has been no successful
+	// attempt to request a specific number of replicas
 	RequestedReplicas *int32 `json:"requestedReplicas,omitempty"`
 	// Conditions is the set of conditions required for the scalable node group
 	// to successfully enforce the replica count of the underlying group
