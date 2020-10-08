@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type Object interface {
+type Resource interface {
 	runtime.Object
 	metav1.Object
 }

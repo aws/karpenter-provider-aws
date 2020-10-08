@@ -33,13 +33,13 @@ type Controller struct {
 }
 
 // For returns the resource this controller is for.
-func (c *Controller) For() controllers.Object {
+func (c *Controller) For() controllers.Resource {
 	return &v1alpha1.HorizontalAutoscaler{}
 }
 
 // Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []controllers.Object {
-	return []controllers.Object{}
+func (c *Controller) Owns() []controllers.Resource {
+	return []controllers.Resource{}
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -49,7 +49,7 @@ func (c *Controller) Interval() time.Duration {
 // Reconcile executes a control loop for the HorizontalAutoscaler resource
 // For now, assume a singleton architecture where all definitions are handled in a single shard.
 // In the future, we may wish to do some sort of sharded assignment to spread definitions across many controller instances.
-func (c *Controller) Reconcile(object controllers.Object) error {
+func (c *Controller) Reconcile(object controllers.Resource) error {
 	autoscaler := c.AutoscalerFactory.For(object.(*v1alpha1.HorizontalAutoscaler))
 	return autoscaler.Reconcile()
 }
