@@ -40,11 +40,14 @@ func (asg *AutoScalingGroup) Name() string {
 	return asg.Spec.ID
 }
 
-// SetReplicas sets the NodeGroup's replica count
-func (asg *AutoScalingGroup) SetReplicas(value int32) error {
+// Reconcile sets the NodeGroup's replica count
+func (asg *AutoScalingGroup) Reconcile() error {
+	if asg.Spec.Replicas == nil {
+		return nil
+	}
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.Spec.ID),
-		DesiredCapacity:      aws.Int64(int64(value)),
+		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
 	})
 	return err
 }

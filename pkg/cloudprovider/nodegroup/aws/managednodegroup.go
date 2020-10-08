@@ -78,18 +78,21 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	return
 }
 
-func (mng *ManagedNodeGroup) SetReplicas(value int32) error {
+func (mng *ManagedNodeGroup) Reconcile() error {
+	if mng.Spec.Replicas == nil {
+		return nil
+	}
 	if _, err := mng.Client.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
-			DesiredSize: aws.Int64(int64(value)),
+			DesiredSize: aws.Int64(int64(*mng.Spec.Replicas)),
 		},
 	}); err != nil {
 		return errors.Wrapf(err,
 			"unable to set desired replicas on managed node group %s", mng.Spec.ID)
 	}
-	mng.ScalableNodeGroup.Status.Replicas = int32(value)
+	mng.ScalableNodeGroup.Status.Replicas = *mng.Spec.Replicas
 	return nil
 }
 

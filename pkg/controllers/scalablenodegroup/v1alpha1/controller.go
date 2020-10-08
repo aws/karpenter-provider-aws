@@ -49,11 +49,5 @@ func (c *Controller) Interval() time.Duration {
 // Reconcile executes a control loop for the resource
 func (c *Controller) Reconcile(object controllers.Resource) error {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
-	nodegroup := c.NodeGroupFactory.For(resource)
-	if resource.Spec.Replicas != nil {
-		if err := nodegroup.SetReplicas(*resource.Spec.Replicas); err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.NodeGroupFactory.For(resource).Reconcile()
 }

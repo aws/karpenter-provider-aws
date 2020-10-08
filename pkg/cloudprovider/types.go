@@ -15,6 +15,6 @@ type NodeGroup interface {
 	// Name returns the name of the node group
 	Name() string
 
-	// SetReplicas sets the NodeGroups's replica count
-	SetReplicas(value int32) error
+	// Reconcile sets the NodeGroups's replica count
+	Reconcile() error
 }

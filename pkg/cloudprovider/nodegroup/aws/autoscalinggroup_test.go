@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"knative.dev/pkg/ptr"
 )
 
 type mockedUpdateAutoScalingGroup struct {
@@ -41,11 +42,12 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 		Client: client,
 		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
 			Spec: v1alpha1.ScalableNodeGroupSpec{
-				ID: "spatula",
+				ID:       "spatula",
+				Replicas: ptr.Int32(23),
 			},
 		},
 	}
-	err := asg.SetReplicas(23)
+	err := asg.Reconcile()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
