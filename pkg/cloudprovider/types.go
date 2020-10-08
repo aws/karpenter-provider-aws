@@ -12,9 +12,7 @@ type Queue interface {
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
 type NodeGroup interface {
-	// Name returns the name of the node group
-	Name() string
-
-	// SetReplicas sets the NodeGroups's replica count
-	SetReplicas(value int32) error
+	// Reconcile attempts to set the NodeGroups's desired replica
+	// count and also tries to update current actual replica count
+	Reconcile() error
 }

@@ -20,32 +20,51 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"knative.dev/pkg/ptr"
 )
 
 type mockedUpdateAutoScalingGroup struct {
 	autoscalingiface.AutoScalingAPI
-	Resp  autoscaling.UpdateAutoScalingGroupOutput
-	Error error
+	UpdateResp   autoscaling.UpdateAutoScalingGroupOutput
+	DescribeResp autoscaling.DescribeAutoScalingGroupsOutput
+	Error        error
 }
 
 func (m mockedUpdateAutoScalingGroup) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
-	return &m.Resp, m.Error
+	return &m.UpdateResp, m.Error
+}
+
+func (m mockedUpdateAutoScalingGroup) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, fn func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
+	fn(&m.DescribeResp, true)
+	return m.Error
+}
+
+func (m mockedUpdateAutoScalingGroup) DescribeAutoScalingGroups(*autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	return &m.DescribeResp, m.Error
 }
 
 func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 	client := mockedUpdateAutoScalingGroup{
-		Resp:  autoscaling.UpdateAutoScalingGroupOutput{},
+		UpdateResp: autoscaling.UpdateAutoScalingGroupOutput{},
+		DescribeResp: autoscaling.DescribeAutoScalingGroupsOutput{
+			AutoScalingGroups: []*autoscaling.Group{
+				{
+					Instances: []*autoscaling.Instance{nil, nil, nil},
+				},
+			},
+		},
 		Error: nil,
 	}
 	asg := &AutoScalingGroup{
 		Client: client,
 		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
 			Spec: v1alpha1.ScalableNodeGroupSpec{
-				ID: "spatula",
+				ID:       "spatula",
+				Replicas: ptr.Int32(23),
 			},
 		},
 	}
-	err := asg.SetReplicas(23)
+	err := asg.Reconcile()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

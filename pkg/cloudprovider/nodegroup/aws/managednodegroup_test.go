@@ -16,36 +16,70 @@ package aws
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"knative.dev/pkg/ptr"
 )
 
 type mockedUpdateManagedNodeGroup struct {
 	eksiface.EKSAPI
-	Output eks.UpdateNodegroupConfigOutput
-	Error  error
+	UpdateOutput   eks.UpdateNodegroupConfigOutput
+	DescribeOutput eks.DescribeNodegroupOutput
+	Error          error
 }
 
 func (m mockedUpdateManagedNodeGroup) UpdateNodegroupConfig(*eks.UpdateNodegroupConfigInput) (*eks.UpdateNodegroupConfigOutput, error) {
-	return &m.Output, m.Error
+	return &m.UpdateOutput, m.Error
+}
+
+func (m mockedUpdateManagedNodeGroup) DescribeNodegroup(*eks.DescribeNodegroupInput) (*eks.DescribeNodegroupOutput, error) {
+	return &m.DescribeOutput, m.Error
 }
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
-	client := mockedUpdateManagedNodeGroup{
-		Output: eks.UpdateNodegroupConfigOutput{},
-	}
-	asg := &ManagedNodeGroup{
-		Client: client,
+	mng := &ManagedNodeGroup{
+		EKSAPI: mockedUpdateManagedNodeGroup{
+			UpdateOutput: eks.UpdateNodegroupConfigOutput{},
+			DescribeOutput: eks.DescribeNodegroupOutput{
+				Nodegroup: &eks.Nodegroup{
+					Resources: &eks.NodegroupResources{
+						AutoScalingGroups: []*eks.AutoScalingGroup{
+							{Name: aws.String("asg1")},
+							{Name: aws.String("asg2")},
+						},
+					},
+				},
+			},
+		},
+		AutoScalingAPI: &mockedUpdateAutoScalingGroup{
+			DescribeResp: autoscaling.DescribeAutoScalingGroupsOutput{
+				AutoScalingGroups: []*autoscaling.Group{
+					{
+						Instances: []*autoscaling.Instance{nil, nil, nil},
+					},
+					{
+						Instances: []*autoscaling.Instance{nil, nil, nil},
+					},
+				},
+			},
+		},
 		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
 			Spec: v1alpha1.ScalableNodeGroupSpec{
-				ID: "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
+				Replicas: ptr.Int32(23),
+				ID:       "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
 			},
 		},
 	}
 
-	got := asg.SetReplicas(23)
+	got := mng.Reconcile()
 	if got != nil {
 		t.Errorf("SetReplicas(23) = %v; want nil", got)
+	}
+
+	if *mng.Status.Replicas != 6 {
+		t.Errorf("asg.Status.Replicas = %d; want 6", *mng.Status.Replicas)
 	}
 }
