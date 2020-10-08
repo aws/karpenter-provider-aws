@@ -118,18 +118,16 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 	}
 
 	var replicas = 0
-	err = mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+	if err := mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: autoscalingGroupNames,
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
 		for _, group := range page.AutoScalingGroups {
 			replicas += len(group.Instances)
 		}
 		return true
-	})
-	if err != nil {
+	}); err != nil {
 		return errors.Wrapf(err, "unable to describe auto scaling groups for managed node group %s", mng.Spec.ID)
-	} else {
-		mng.Status.Replicas = ptr.Int32(int32(replicas))
 	}
+	mng.Status.Replicas = ptr.Int32(int32(replicas))
 	return nil
 }
