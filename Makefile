@@ -2,6 +2,7 @@
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
 all: generate verify build test
+ci: generate verify build battletest
 
 # Build controller binary
 build:
@@ -9,7 +10,15 @@ build:
 
 # Run tests
 test:
-	ginkgo -r --randomizeAllSpecs --randomizeSuites -race -nodes 2
+	ginkgo -r
+
+# Run stronger tests
+battletest:
+	ginkgo -r \
+		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+		--randomizeAllSpecs --randomizeSuites -race
+	sed '$d' coverage.out
+	go tool cover -func coverage.out
 
 # Verify code. Includes dependencies, linting, formatting, etc
 verify:
