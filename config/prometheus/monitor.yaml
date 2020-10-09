@@ -11,6 +11,11 @@ spec:
     port: https
     interval: 5s
     scheme: https
+    #### This TEMPORARY hack is recommended by SIG Controller Runtime
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tlsConfig:
+      insecureSkipVerify: true
+    ####
   selector:
     matchLabels:
       control-plane: karpenter
