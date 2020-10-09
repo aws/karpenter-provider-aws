@@ -14,6 +14,9 @@ test:
 
 # Run stronger tests
 battletest:
+	# Identify files with cyclo-complexity > 5
+	gocyclo -over 5 ./pkg > complexity.out
+	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--randomizeAllSpecs --randomizeSuites -race
