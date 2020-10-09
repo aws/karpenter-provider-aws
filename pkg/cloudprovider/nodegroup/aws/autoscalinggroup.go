@@ -27,7 +27,7 @@ type AutoScalingGroup struct {
 	Client autoscalingiface.AutoScalingAPI
 }
 
-func NewDefaultAutoScalingGroup(id string) *AutoScalingGroup {
+func NewAutoScalingGroup(id string) *AutoScalingGroup {
 	return &AutoScalingGroup{
 		ID:     id,
 		Client: autoscaling.New(session.Must(session.NewSession())),

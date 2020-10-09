@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,16 +26,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"knative.dev/pkg/ptr"
 )
 
-func validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
+func Validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
 	_, _, err = parseId(sng.ID)
 	return
 }
 
 func init() {
-	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, validate)
+	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, Validate)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
@@ -45,9 +45,12 @@ type ManagedNodeGroup struct {
 	NodeGroup      string
 }
 
-func NewNodeGroup(id string) *ManagedNodeGroup {
+func NewManagedNodeGroup(id string) *ManagedNodeGroup {
+	cluster, nodeGroup, err := parseId(id)
+	if err != nil {
+		return nil
+	}
 	session := session.Must(session.NewSession())
-	cluster, nodeGroup := parseId(id)
 	return &ManagedNodeGroup{
 		EKSAPI:         eks.New(session),
 		AutoScalingAPI: autoscaling.New(session),
@@ -58,11 +61,10 @@ func NewNodeGroup(id string) *ManagedNodeGroup {
 
 // parseId extracts the cluster and nodegroup from an ARN. This is
 // needed for Managed Node Group APIs that don't take an ARN directly.
-func parseId(fromArn string) (cluster string, nodegroup string) {
-	nodeGroupArn, err := arn.Parse(fromArn)
-	if err != nil {
-		// This will show up in logs if/when Get/SetReplicas are
-		// called; preferable to crashing the process
+func parseId(fromArn string) (cluster string, nodegroup string, err error) {
+	err = fmt.Errorf("invalid managed node group id %s", fromArn)
+	nodeGroupArn, parseErr := arn.Parse(fromArn)
+	if parseErr != nil {
 		return
 	}
 	// Example node group ARN:
@@ -105,7 +107,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int, error) {
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(count int) error {
-	_, err := mng.EKSAPI.UpdateNodegroupConfit g(&eks.UpdateNodegroupConfigInput{
+	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
