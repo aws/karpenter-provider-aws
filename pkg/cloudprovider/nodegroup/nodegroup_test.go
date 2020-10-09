@@ -97,23 +97,6 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 
 }
 
-// func TestValidate(t *testing.T) {
-// 	emptyID =
-// 	badID = "swix"
-// 	sadID = "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004"
-// 	happyID = "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9"
-// 	f := []struct {
-// 		input string
-// 		cluster string
-// 		group string
-// 		success bool
-// 	 {
-// 		{
-// 			"", "", "", false
-// 		},
-// 	 }
-// }
-
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	mng := &aws.ManagedNodeGroup{
 		EKSAPI: mockedUpdateManagedNodeGroup{
