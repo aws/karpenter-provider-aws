@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"knative.dev/pkg/ptr"
 )
 
@@ -66,20 +67,24 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 				},
 			},
 		},
+		ID: "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
+	}
+
+	ng := &nodegroup.DefaultNodeGroup{
 		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
 			Spec: v1alpha1.ScalableNodeGroupSpec{
 				Replicas: ptr.Int32(23),
-				ID:       "arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9",
 			},
 		},
+		Provider: mng,
 	}
 
-	got := mng.Reconcile()
+	got := ng.Reconcile()
 	if got != nil {
-		t.Errorf("SetReplicas(23) = %v; want nil", got)
+		t.Errorf("Reconcile() = %v; want nil", got)
 	}
 
-	if *mng.Status.Replicas != 6 {
-		t.Errorf("asg.Status.Replicas = %d; want 6", *mng.Status.Replicas)
+	if *ng.Status.Replicas != 6 {
+		t.Errorf("Status.Replicas = %d; want 6", *ng.Status.Replicas)
 	}
 }
