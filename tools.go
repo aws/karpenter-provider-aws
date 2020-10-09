@@ -3,6 +3,7 @@
 package tools
 
 import (
+	_ "github.com/fzipp/gocyclo"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/google/ko/cmd/ko"
 	_ "github.com/onsi/ginkgo/ginkgo"

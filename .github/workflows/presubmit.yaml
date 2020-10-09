@@ -12,4 +12,4 @@ jobs:
         go-version: 1.14.4
     - run: make toolchain
     - run: echo ::add-path::/usr/local/kubebuilder/bin
-    - run: make
+    - run: make ci
