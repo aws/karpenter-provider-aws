@@ -14,13 +14,13 @@ test:
 
 # Run stronger tests
 battletest:
-	# Identify files with cyclo-complexity > 5
-	gocyclo -over 5 ./pkg > complexity.out
+	# Ensure all files have cyclo-complexity =< 10
+	gocyclo -over 10 ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--randomizeAllSpecs --randomizeSuites -race
-	sed '$d' coverage.out
+	sed '$d' coverage.out > /dev/null
 	go tool cover -func coverage.out
 
 # Verify code. Includes dependencies, linting, formatting, etc
