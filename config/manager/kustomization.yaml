@@ -2,5 +2,5 @@ resources:
 - manager.yaml
 
 patchesStrategicMerge:
-- webhook_patch.yaml
-- rbac_proxy_patch.yaml
+- patches/webhook.yaml
+- patches/rbac_proxy.yaml

@@ -48,7 +48,7 @@ func (c *PrometheusMetricsClient) validateResponseType(value model.Value) error 
 		return errors.Errorf("expected %s and got %s", model.ValVector, value.Type())
 	}
 	if vector.Len() != 1 {
-		return errors.Errorf("expected instant vector and got vector: %s", value)
+		return errors.Errorf("expected instant vector and got vector: %s", vector)
 	}
 	return nil
 }

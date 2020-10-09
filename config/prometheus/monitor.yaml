@@ -8,7 +8,9 @@ metadata:
 spec:
   endpoints:
   - path: /metrics
-    port: "8443"
+    port: https
+    interval: 5s
+    scheme: https
   selector:
     matchLabels:
       control-plane: karpenter
