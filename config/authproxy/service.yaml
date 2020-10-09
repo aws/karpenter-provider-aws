@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
   - name: https
-    port: 8443
+    port: 443
     targetPort: https
   selector:
     control-plane: karpenter

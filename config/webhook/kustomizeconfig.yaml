@@ -10,6 +10,12 @@ nameReference:
   - kind: ValidatingWebhookConfiguration
     group: admissionregistration.k8s.io
     path: webhooks/clientConfig/service/name
+- kind: Issuer
+  group: cert-manager.io
+  fieldSpecs:
+  - kind: Certificate
+    group: cert-manager.io
+    path: spec/issuerRef/name
 
 namespace:
 - kind: MutatingWebhookConfiguration
@@ -23,3 +29,9 @@ namespace:
 
 varReference:
 - path: metadata/annotations
+- kind: Certificate
+  group: cert-manager.io
+  path: spec/commonName
+- kind: Certificate
+  group: cert-manager.io
+  path: spec/dnsNames

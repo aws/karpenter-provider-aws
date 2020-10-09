@@ -7,8 +7,8 @@ metadata:
   namespace: karpenter
 spec:
   endpoints:
-    - path: /metrics
-      port: https
+  - path: /metrics
+    port: "8443"
   selector:
     matchLabels:
       control-plane: karpenter
