@@ -32,23 +32,23 @@ type PrometheusMetricsClient struct {
 
 // GetCurrentValue for the metric
 func (c *PrometheusMetricsClient) GetCurrentValue(metric v1alpha1.Metric) (metrics.Metric, error) {
-	response, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now().Round(time.Hour))
+	value, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now().Round(time.Hour))
 	if err != nil {
-		return metrics.Metric{}, errors.Wrapf(err, "Failed to query metric %s", metric.Prometheus.Query)
+		return metrics.Metric{}, errors.Wrapf(err, "request failed for query %s", metric.Prometheus.Query)
 	}
-	vector, ok := response.(model.Vector)
+	if err := c.validateResponseType(value); err != nil {
+		return metrics.Metric{}, errors.Wrapf(err, "invalid response for query %s", metric.Prometheus.Query)
+	}
+	return metrics.Metric{Value: float64(value.(model.Vector)[0].Value)}, nil
+}
+
+func (c *PrometheusMetricsClient) validateResponseType(value model.Value) error {
+	vector, ok := value.(model.Vector)
 	if !ok {
-		return metrics.Metric{}, errors.Errorf(
-			"Invalid metric type for query %s: prometheus value type, expected %s and got %s",
-			metric.Prometheus.Query,
-			model.ValVector,
-			response.Type(),
-		)
+		return errors.Errorf("expected %s and got %s", model.ValVector, value.Type())
 	}
-
 	if vector.Len() != 1 {
-		return metrics.Metric{}, errors.New("Invalid metric type for query: expected instant vector and got vector")
+		return errors.Errorf("expected instant vector and got vector: %s", value)
 	}
-
-	return metrics.Metric{Value: float64(vector[0].Value)}, nil
+	return nil
 }

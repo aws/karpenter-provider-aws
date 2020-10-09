@@ -9,6 +9,7 @@ bases:
 - ../crd
 - ../rbac
 - ../manager
+- ../authproxy
 - ../webhook
 - ../certmanager
 - ../prometheus

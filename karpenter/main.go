@@ -88,7 +88,7 @@ func setupFlags() {
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
-	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090", "The Prometheus Metrics Server URI for retrieving metrics")
+	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-operated:9090", "The Prometheus Metrics Server URI for retrieving metrics")
 	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to for operating metrics about the controller itself.")
 	flag.Parse()
 }
