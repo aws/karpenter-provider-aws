@@ -25,8 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"knative.dev/pkg/ptr"
 )
 
@@ -41,33 +39,30 @@ func init() {
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	*v1alpha1.ScalableNodeGroup
 	EKSAPI         eksiface.EKSAPI
 	AutoScalingAPI autoscalingiface.AutoScalingAPI
 	Cluster        string
 	NodeGroup      string
 }
 
-func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
-	cluster, nodeGroup, err := parseId(sng.Spec.ID)
-	if err != nil {
-		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
-	}
+func NewNodeGroup(id string) *ManagedNodeGroup {
 	session := session.Must(session.NewSession())
-	return &ManagedNodeGroup{ScalableNodeGroup: sng,
-		Cluster:        cluster,
-		NodeGroup:      nodeGroup,
+	cluster, nodeGroup := parseId(id)
+	return &ManagedNodeGroup{
 		EKSAPI:         eks.New(session),
 		AutoScalingAPI: autoscaling.New(session),
+		Cluster:        cluster,
+		NodeGroup:      nodeGroup,
 	}
 }
 
 // parseId extracts the cluster and nodegroup from an ARN. This is
 // needed for Managed Node Group APIs that don't take an ARN directly.
-func parseId(fromArn string) (cluster string, nodegroup string, err error) {
+func parseId(fromArn string) (cluster string, nodegroup string) {
 	nodeGroupArn, err := arn.Parse(fromArn)
 	if err != nil {
-		err = errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
+		// This will show up in logs if/when Get/SetReplicas are
+		// called; preferable to crashing the process
 		return
 	}
 	// Example node group ARN:
@@ -76,22 +71,20 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	//                                              |                               |
 	//                                              cluster name                    nodegroup name
 	components := strings.Split(nodeGroupArn.Resource, "/")
-	if len(components) < 3 {
-		err = errors.Errorf("ARN resource missing components: %s", nodeGroupArn.Resource)
-	} else {
+	if len(components) > 2 {
 		cluster = components[1]
 		nodegroup = components[2]
 	}
 	return
 }
 
-func (mng *ManagedNodeGroup) Reconcile() error {
+func (mng *ManagedNodeGroup) GetReplicas() (int, error) {
 	nodegroupOutput, err := mng.EKSAPI.DescribeNodegroup(&eks.DescribeNodegroupInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "unable to describe node group on managed node group %s", mng.Spec.ID)
+		return 0, err
 	}
 
 	var autoscalingGroupNames = []*string{}
@@ -100,31 +93,24 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 	}
 
 	var replicas = 0
-	if err := mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+	err = mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: autoscalingGroupNames,
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
 		for _, group := range page.AutoScalingGroups {
 			replicas += len(group.Instances)
 		}
 		return true
-	}); err != nil {
-		return errors.Wrapf(err, "unable to describe auto scaling groups for managed node group %s", mng.Spec.ID)
-	}
-	mng.Status.Replicas = ptr.Int32(int32(replicas))
+	})
+	return replicas, err
+}
 
-	if mng.Spec.Replicas == nil || *mng.Status.Replicas == *mng.Spec.Replicas {
-		return nil
-	}
-	_, err = mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+func (mng *ManagedNodeGroup) SetReplicas(count int) error {
+	_, err := mng.EKSAPI.UpdateNodegroupConfit g(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
-			DesiredSize: aws.Int64(int64(*mng.Spec.Replicas)),
+			DesiredSize: aws.Int64(int64(count)),
 		},
 	})
-	if err != nil {
-		return errors.Wrapf(err, "unable to update node group %s", mng.Spec.ID)
-	}
-
-	return nil
+	return err
 }
