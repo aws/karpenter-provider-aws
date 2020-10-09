@@ -53,10 +53,10 @@ func NewManagedNodeGroup(id string) *ManagedNodeGroup {
 	}
 	session := session.Must(session.NewSession())
 	return &ManagedNodeGroup{
-		EKSAPI:         eks.New(session),
-		AutoScalingAPI: autoscaling.New(session),
 		Cluster:        cluster,
 		NodeGroup:      nodeGroup,
+		EKSAPI:         eks.New(session),
+		AutoScalingAPI: autoscaling.New(session),
 	}
 }
 
