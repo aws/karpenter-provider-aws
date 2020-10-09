@@ -15,6 +15,8 @@ limitations under the License.
 package nodegroup
 
 import (
+	"testing"
+
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -22,7 +24,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
 	"knative.dev/pkg/ptr"
-	"testing"
 )
 
 type mockedUpdateAutoScalingGroup struct {
