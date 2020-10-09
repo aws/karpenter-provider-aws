@@ -1,4 +1,5 @@
 bin/
+cover.out
 coverage.out
 complexity.out
 
