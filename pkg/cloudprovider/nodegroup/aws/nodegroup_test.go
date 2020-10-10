@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodegroup
+package aws
 
 import (
 	"testing"
@@ -21,8 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
 	"knative.dev/pkg/ptr"
 )
 
@@ -73,33 +71,29 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 		},
 		Error: nil,
 	}
-	asg := &aws.AutoScalingGroup{
+	asg := &AutoScalingGroup{
 		Client: client,
 		ID:     "spatula",
 	}
 
-	ng := &DefaultNodeGroup{
-		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
-			Spec: v1alpha1.ScalableNodeGroupSpec{
-				Replicas: ptr.Int32(23),
-			},
-		},
-		Provider: asg,
+	replicas, err := asg.GetReplicas()
+
+	if err != nil {
+		t.Errorf("GetReplicas() returned error %s; want nil", err)
 	}
 
-	err := ng.Reconcile()
+	if replicas != 3 {
+		t.Errorf("GetReplicas() = %d; want 3", replicas)
+	}
+
+	err = asg.SetReplicas(23)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-
-	if *ng.Status.Replicas != 3 {
-		t.Errorf("Status.Replicas = %d; want 3", *ng.Status.Replicas)
-	}
-
 }
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
-	mng := &aws.ManagedNodeGroup{
+	mng := &ManagedNodeGroup{
 		EKSAPI: mockedUpdateManagedNodeGroup{
 			UpdateOutput: eks.UpdateNodegroupConfigOutput{},
 			DescribeOutput: eks.DescribeNodegroupOutput{
@@ -125,25 +119,22 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 				},
 			},
 		},
+
 		Cluster:   "ridiculous-sculpture-1594766004",
 		NodeGroup: "ng-0b663e8a",
 	}
 
-	ng := &DefaultNodeGroup{
-		ScalableNodeGroup: &v1alpha1.ScalableNodeGroup{
-			Spec: v1alpha1.ScalableNodeGroupSpec{
-				Replicas: ptr.Int32(23),
-			},
-		},
-		Provider: mng,
+	replicas, err := mng.GetReplicas()
+	if err != nil {
+		t.Errorf("GetReplicas() returned error %s; want nil", err)
+	}
+	if replicas != 6 {
+		t.Errorf("Status.Replicas = %d; want 6", replicas)
 	}
 
-	got := ng.Reconcile()
+	got := mng.SetReplicas(23)
 	if got != nil {
 		t.Errorf("Reconcile() = %v; want nil", got)
 	}
 
-	if *ng.Status.Replicas != 6 {
-		t.Errorf("Status.Replicas = %d; want 6", *ng.Status.Replicas)
-	}
 }

@@ -11,17 +11,16 @@ import (
 )
 
 type Factory struct {
-	// TODO dependencies
 }
 
-type nullProvider struct{}
+type invalidNodeGroup struct{}
 
 var (
-	nullError = fmt.Errorf("unknown nodegroup provider")
+	invalidError = fmt.Errorf("invalid nodegroup provider")
 )
 
-func (*nullProvider) SetReplicas(count int) error { return nullError }
-func (*nullProvider) GetReplicas() (int, error)   { return 0, nullError }
+func (*invalidNodeGroup) SetReplicas(count int) error { return invalidError }
+func (*invalidNodeGroup) GetReplicas() (int, error)   { return 0, invalidError }
 
 func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	var nodegroup cloudprovider.NodeGroup
@@ -32,7 +31,7 @@ func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 		nodegroup = aws.NewManagedNodeGroup(sng.Spec.ID)
 	default:
 		log.InvariantViolated(fmt.Sprintf("Failed to instantiate node group of type %s", spec.Type))
-		nodegroup = &nullProvider{}
+		nodegroup = &invalidNodeGroup{}
 	}
 	return nodegroup
 }

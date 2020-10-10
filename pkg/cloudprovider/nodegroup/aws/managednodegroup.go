@@ -47,10 +47,10 @@ type ManagedNodeGroup struct {
 }
 
 func NewManagedNodeGroup(id string) *ManagedNodeGroup {
-	cluster, nodeGroup, err := parseId(id)
-	if err != nil {
-		return nil
-	}
+	// Ignore error; it could only actually happen if webhook didn't
+	// catch invalid ARN. In that case user will see errors from
+	// reconciliation, which they can fix.
+	cluster, nodeGroup, _ := parseId(id)
 	session := session.Must(session.NewSession())
 	return &ManagedNodeGroup{
 		Cluster:        cluster,
