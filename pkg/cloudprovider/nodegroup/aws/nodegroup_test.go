@@ -77,11 +77,9 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 	}
 
 	replicas, err := asg.GetReplicas()
-
 	if err != nil {
 		t.Errorf("GetReplicas() returned error %s; want nil", err)
 	}
-
 	if replicas != 3 {
 		t.Errorf("GetReplicas() = %d; want 3", replicas)
 	}
