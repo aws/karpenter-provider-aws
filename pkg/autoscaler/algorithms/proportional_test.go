@@ -23,9 +23,7 @@ import (
 
 // TestProportionalGetDesiredReplicas tests
 func TestProportionalGetDesiredReplicas(t *testing.T) {
-	type fields struct {
-		Spec v1alpha1.HorizontalAutoscalerSpec
-	}
+	type fields struct{}
 	type args struct {
 		metric   Metric
 		replicas int32
@@ -133,9 +131,7 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &Proportional{
-				Spec: tt.fields.Spec,
-			}
+			a := &Proportional{}
 			if got := a.GetDesiredReplicas(tt.args.metric, tt.args.replicas); got != tt.want {
 				t.Errorf("Proportional.GetDesiredReplicas() = %v, want %v", got, tt.want)
 			}
