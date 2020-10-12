@@ -8,9 +8,9 @@ metadata:
 spec:
   endpoints:
   - path: /metrics
-    port: https
+    port: http
     interval: 5s
-    scheme: https
+    scheme: http
     #### This TEMPORARY hack is recommended by SIG Controller Runtime
     bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
     tlsConfig:
