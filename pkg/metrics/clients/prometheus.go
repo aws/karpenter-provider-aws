@@ -20,6 +20,7 @@ import (
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/pkg/errors"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -48,7 +49,7 @@ func (c *PrometheusMetricsClient) validateResponseType(value model.Value) error 
 		return errors.Errorf("expected %s and got %s", model.ValVector, value.Type())
 	}
 	if vector.Len() != 1 {
-		return errors.Errorf("expected instant vector and got vector: %s", value)
+		return errors.Errorf("expected instant vector and got vector: %s", log.Pretty(value))
 	}
 	return nil
 }

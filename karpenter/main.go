@@ -115,6 +115,7 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 
 	if err := dependencies.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
 		factory.Start(stopChannel)
+		factory.WaitForCacheSync(stopChannel)
 		<-stopChannel
 		return nil
 	})); err != nil {
