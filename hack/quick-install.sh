@@ -59,11 +59,25 @@ certmanager() {
 }
 
 prometheus() {
+  # Minimal install of prometheus operator.
   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
     --atomic \
     --create-namespace \
     --namespace monitoring \
-    --version 9.4.5
+    --version 9.4.5 \
+    --set alertmanager.enabled=false \
+    --set grafana.enabled=false \
+    --set kubeApiServer.enabled=false \
+    --set kubelet.enabled=false \
+    --set kubeControllerManager.enabled=false \
+    --set coreDns.enabled=false \
+    --set kubeDns.enabled=false \
+    --set kubeEtcd.enabled=false \
+    --set kubeScheduler.enabled=false \
+    --set kubeProxy.enabled=false \
+    --set kubeStateMetrics.enabled=false \
+    --set nodeExporter.enabled=false \
+    --set prometheus.enabled=false
 }
 
 main "$@"
