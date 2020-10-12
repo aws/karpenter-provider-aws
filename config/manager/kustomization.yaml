@@ -1,6 +1,2 @@
 resources:
 - manager.yaml
-
-patchesStrategicMerge:
-- patches/webhook.yaml
-- patches/rbac_proxy.yaml

@@ -6,6 +6,6 @@ metadata:
 spec:
   ports:
     - port: 443
-      targetPort: 9443
+      targetPort: webhook
   selector:
     control-plane: karpenter
