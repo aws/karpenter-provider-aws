@@ -10,9 +10,8 @@ import (
 	"github.com/onsi/gomega/ghttp"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,12 +39,11 @@ AfterSuite(func() { env.Stop() })
 */
 type Local struct {
 	envtest.Environment
-	Manager         manager.Manager
-	Server          *ghttp.Server
-	InformerFactory informers.SharedInformerFactory
+	Manager manager.Manager
+	Server  *ghttp.Server
 
 	options []LocalOption
-	stopch  chan struct{}
+	stopCh  chan struct{}
 }
 
 // LocalOption passes the Local environment to an option function. This is
@@ -63,7 +61,7 @@ func NewLocal(options ...LocalOption) Environment {
 			},
 		},
 		Server:  ghttp.NewServer(),
-		stopch:  make(chan struct{}),
+		stopCh:  make(chan struct{}),
 		options: options,
 	}
 }
@@ -82,7 +80,7 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 	}
 
 	go func() {
-		<-e.stopch
+		<-e.stopCh
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
 			zap.S().Error(errors.Wrap(err, "Failed to tear down namespace"))
 		}
@@ -118,39 +116,43 @@ func (e *Local) Start() (err error) {
 		return errors.Wrap(err, "creating new manager")
 	}
 
-	// Informers
-	e.InformerFactory = informers.NewSharedInformerFactory(kubernetes.NewForConfigOrDie(e.Config), time.Minute*30)
-	if err := e.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
-		e.InformerFactory.Start(stopChannel)
-		<-stopChannel
-		return nil
-	})); err != nil {
-		return errors.Wrap(err, "registering informer factory")
+	// Setup informers
+	if err := e.Manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", func(object runtime.Object) []string {
+		pod, ok := object.(*v1.Pod)
+		if !ok {
+			return nil
+		}
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		return errors.Wrap(err, "Failed to setup pod indexer")
 	}
 
-	// options
+	// Options
 	for _, option := range e.options {
 		option(e)
 	}
 
 	// Start manager
 	go func() {
-		if err := e.Manager.Start(e.stopch); err != nil {
-			zap.S().Fatal(errors.Wrapf(err, "Failed to start manager"))
+		if err := e.Manager.Start(e.stopCh); err != nil {
+			zap.S().Fatal(err)
 		}
 	}()
+	// The indexer will block the manager from starting webhooks, so wait a second.
+	// TODO, find a better way to wait for the manager to start
+	time.Sleep(1 * time.Second)
 
 	// Close on interrupt
 	go func() {
 		<-controllerruntime.SetupSignalHandler()
-		close(e.stopch)
+		close(e.stopCh)
 	}()
 
 	return nil
 }
 
 func (e *Local) Stop() error {
-	close(e.stopch)
+	close(e.stopCh)
 	if err := e.Environment.Stop(); err != nil {
 		return err
 	}

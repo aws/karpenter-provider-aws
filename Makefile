@@ -1,12 +1,8 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
-all: generate verify build test
-ci: generate verify build battletest
-
-# Build controller binary
-build:
-	go build -o bin/karpenter karpenter/main.go
+all: generate verify test
+ci: generate verify battletest
 
 # Run tests
 test:
@@ -69,4 +65,4 @@ release:
 toolchain:
 	./hack/toolchain.sh
 
-.PHONY: all test build release run apply delete verify generate toolchain
+.PHONY: all test release run apply delete verify generate toolchain

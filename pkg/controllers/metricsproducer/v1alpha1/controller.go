@@ -23,12 +23,12 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/pkg/errors"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
 // Controller for the resource
 type Controller struct {
-	client.Client
 	ProducerFactory producers.Factory
 }
 
@@ -49,4 +49,18 @@ func (c *Controller) Interval() time.Duration {
 // Reconcile executes a control loop for the resource
 func (c *Controller) Reconcile(object controllers.Resource) error {
 	return c.ProducerFactory.For(object.(*v1alpha1.MetricsProducer)).Reconcile()
+}
+
+func (c *Controller) Register(manager controllerruntime.Manager) error {
+	resource := &v1alpha1.MetricsProducer{}
+	if err := controllerruntime.NewControllerManagedBy(manager).For(resource).Complete(&controllers.GenericController{
+		Controller: c,
+		Client:     manager.GetClient(),
+	}); err != nil {
+		return errors.Wrapf(err, "registering controller to manager for %v", resource)
+	}
+	if err := controllerruntime.NewWebhookManagedBy(manager).For(resource).Complete(); err != nil {
+		return errors.Wrapf(err, "registering webhook to manager for %v", resource)
+	}
+	return nil
 }

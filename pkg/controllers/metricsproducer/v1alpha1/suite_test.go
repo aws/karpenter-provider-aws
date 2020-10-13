@@ -43,8 +43,7 @@ func TestAPIs(t *testing.T) {
 func injectHorizontalAutoscalerController(environment *environment.Local) {
 	Expect(controllers.Register(environment.Manager, &Controller{
 		ProducerFactory: producers.Factory{
-			NodeLister: environment.InformerFactory.Core().V1().Nodes().Lister(),
-			PodLister:  environment.InformerFactory.Core().V1().Pods().Lister(),
+			Client: environment.Manager.GetClient(),
 		},
 	})).To(Succeed(), "Failed to register controller")
 }

@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
+	"github.com/pkg/errors"
 
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
 	horizontalautoscalerv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
@@ -21,12 +22,11 @@ import (
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -72,7 +72,6 @@ func main() {
 	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
 
 	dependencies.Manager = managerOrDie()
-	dependencies.InformerFactory = informerFactoryOrDie()
 	dependencies.MetricsProducerFactory = metricsProducerFactoryOrDie()
 	dependencies.MetricsClientFactory = metricsClientFactoryOrDie()
 	dependencies.AutoscalerFactory = autoscalerFactoryOrDie()
@@ -103,38 +102,23 @@ func managerOrDie() manager.Manager {
 		LeaderElectionID:   "karpenter-leader-election",
 	})
 	if err != nil {
-		zap.S().Fatalf("Unable to start controller manager, %v", err)
+		zap.S().Fatal(errors.Wrap(err, "Unable to start controller manager"))
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", func(object runtime.Object) []string {
+		pod, ok := object.(*v1.Pod)
+		if !ok {
+			return nil
+		}
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		zap.S().Fatal(errors.Wrap(err, "Failed to setup pod indexer"))
 	}
 	return mgr
 }
 
-func informerFactoryOrDie() informers.SharedInformerFactory {
-	factory := informers.NewSharedInformerFactory(
-		kubernetes.NewForConfigOrDie(dependencies.Manager.GetConfig()),
-		time.Minute*30,
-	)
-
-	if err := dependencies.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
-		factory.Start(stopChannel)
-		if synced := cache.WaitForCacheSync(stopChannel,
-			factory.Core().V1().Pods().Informer().HasSynced,
-			factory.Core().V1().Nodes().Informer().HasSynced,
-		); !synced {
-			zap.S().Fatal("Unable to sync informer cache")
-		}
-		<-stopChannel
-		return nil
-	})); err != nil {
-		zap.S().Fatalf("Unable to register informer factory, %v", err)
-	}
-
-	return factory
-}
-
 func metricsProducerFactoryOrDie() producers.Factory {
 	return producers.Factory{
-		NodeLister: dependencies.InformerFactory.Core().V1().Nodes().Lister(),
-		PodLister:  dependencies.InformerFactory.Core().V1().Pods().Lister(),
+		Client: dependencies.Manager.GetClient(),
 	}
 }
 

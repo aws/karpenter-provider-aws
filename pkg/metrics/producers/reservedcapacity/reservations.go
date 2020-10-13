@@ -36,8 +36,8 @@ func NewReservations(m *v1alpha1.MetricsProducer) *Reservations {
 	}
 }
 
-func (r *Reservations) Add(node *v1.Node, pods []*v1.Pod) {
-	for _, pod := range pods {
+func (r *Reservations) Add(node *v1.Node, pods *v1.PodList) {
+	for _, pod := range pods.Items {
 		r.Resources[v1.ResourcePods].Reserved.Add(*resource.NewQuantity(1, resource.DecimalSI))
 		for _, container := range pod.Spec.Containers {
 			r.Resources[v1.ResourceCPU].Reserved.Add(*container.Resources.Requests.Cpu())
