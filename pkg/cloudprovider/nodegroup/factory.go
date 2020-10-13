@@ -19,8 +19,8 @@ var (
 	invalidError = fmt.Errorf("invalid nodegroup provider")
 )
 
-func (*invalidNodeGroup) SetReplicas(count int) error { return invalidError }
-func (*invalidNodeGroup) GetReplicas() (int, error)   { return 0, invalidError }
+func (*invalidNodeGroup) SetReplicas(count int32) error { return invalidError }
+func (*invalidNodeGroup) GetReplicas() (int32, error)   { return 0, invalidError }
 
 func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	var nodegroup cloudprovider.NodeGroup

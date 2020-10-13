@@ -79,7 +79,7 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	return components[1], components[2], nil
 }
 
-func (mng *ManagedNodeGroup) GetReplicas() (int, error) {
+func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 	nodegroupOutput, err := mng.EKSAPI.DescribeNodegroup(&eks.DescribeNodegroupInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
@@ -102,10 +102,10 @@ func (mng *ManagedNodeGroup) GetReplicas() (int, error) {
 		}
 		return true
 	})
-	return replicas, err
+	return int32(replicas), err
 }
 
-func (mng *ManagedNodeGroup) SetReplicas(count int) error {
+func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,

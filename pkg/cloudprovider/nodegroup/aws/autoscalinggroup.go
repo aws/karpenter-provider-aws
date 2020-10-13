@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/pkg/errors"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
@@ -35,7 +36,7 @@ func NewAutoScalingGroup(id string) *AutoScalingGroup {
 }
 
 // GetReplicas returns replica count for an EC2 auto scaling group
-func (asg *AutoScalingGroup) GetReplicas() (int, error) {
+func (asg *AutoScalingGroup) GetReplicas() (int32, error) {
 	out, err := asg.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{aws.String(asg.ID)},
 		MaxRecords:            aws.Int64(1),
@@ -43,10 +44,13 @@ func (asg *AutoScalingGroup) GetReplicas() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return len(out.AutoScalingGroups[0].Instances), nil
+	if len(out.AutoScalingGroups) != 1 {
+		return 0, errors.Errorf("autoscaling group has no instances: %s", asg.ID)
+	}
+	return int32(len(out.AutoScalingGroups[0].Instances)), nil
 }
 
-func (asg *AutoScalingGroup) SetReplicas(count int) error {
+func (asg *AutoScalingGroup) SetReplicas(count int32) error {
 	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.ID),
 		DesiredCapacity:      aws.Int64(int64(count)),
