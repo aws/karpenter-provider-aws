@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,35 +27,32 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	"knative.dev/pkg/ptr"
 )
 
-func validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
+func Validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
 	_, _, err = parseId(sng.ID)
 	return
 }
 
 func init() {
-	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, validate)
+	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, Validate)
 }
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	*v1alpha1.ScalableNodeGroup
 	EKSAPI         eksiface.EKSAPI
 	AutoScalingAPI autoscalingiface.AutoScalingAPI
 	Cluster        string
 	NodeGroup      string
 }
 
-func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
-	cluster, nodeGroup, err := parseId(sng.Spec.ID)
-	if err != nil {
-		zap.S().Fatalf("failed to instantiate ManagedNodeGroup: invalid arn %s", sng.Spec.ID)
-	}
+func NewManagedNodeGroup(id string) *ManagedNodeGroup {
+	// Ignore error; it could only actually happen if webhook didn't
+	// catch invalid ARN. In that case user will see errors from
+	// reconciliation, which they can fix.
+	cluster, nodeGroup, _ := parseId(id)
 	session := session.Must(session.NewSession())
-	return &ManagedNodeGroup{ScalableNodeGroup: sng,
+	return &ManagedNodeGroup{
 		Cluster:        cluster,
 		NodeGroup:      nodeGroup,
 		EKSAPI:         eks.New(session),
@@ -65,10 +63,9 @@ func NewNodeGroup(sng *v1alpha1.ScalableNodeGroup) *ManagedNodeGroup {
 // parseId extracts the cluster and nodegroup from an ARN. This is
 // needed for Managed Node Group APIs that don't take an ARN directly.
 func parseId(fromArn string) (cluster string, nodegroup string, err error) {
-	nodeGroupArn, err := arn.Parse(fromArn)
-	if err != nil {
-		err = errors.Wrapf(err, "unable to parse GroupName %s as ARN", fromArn)
-		return
+	nodeGroupArn, parseErr := arn.Parse(fromArn)
+	if parseErr != nil {
+		return "", "", errors.Wrapf(parseErr, "invalid managed node group id %s", fromArn)
 	}
 	// Example node group ARN:
 	// arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9
@@ -77,21 +74,18 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 	//                                              cluster name                    nodegroup name
 	components := strings.Split(nodeGroupArn.Resource, "/")
 	if len(components) < 3 {
-		err = errors.Errorf("ARN resource missing components: %s", nodeGroupArn.Resource)
-	} else {
-		cluster = components[1]
-		nodegroup = components[2]
+		return "", "", fmt.Errorf("invalid managed node group id %s", fromArn)
 	}
-	return
+	return components[1], components[2], nil
 }
 
-func (mng *ManagedNodeGroup) Reconcile() error {
+func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 	nodegroupOutput, err := mng.EKSAPI.DescribeNodegroup(&eks.DescribeNodegroupInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "unable to describe node group on managed node group %s", mng.Spec.ID)
+		return 0, err
 	}
 
 	var autoscalingGroupNames = []*string{}
@@ -100,31 +94,24 @@ func (mng *ManagedNodeGroup) Reconcile() error {
 	}
 
 	var replicas = 0
-	if err := mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+	err = mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: autoscalingGroupNames,
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
 		for _, group := range page.AutoScalingGroups {
 			replicas += len(group.Instances)
 		}
 		return true
-	}); err != nil {
-		return errors.Wrapf(err, "unable to describe auto scaling groups for managed node group %s", mng.Spec.ID)
-	}
-	mng.Status.Replicas = ptr.Int32(int32(replicas))
+	})
+	return int32(replicas), err
+}
 
-	if mng.Spec.Replicas == nil || *mng.Status.Replicas == *mng.Spec.Replicas {
-		return nil
-	}
-	_, err = mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
+	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
-			DesiredSize: aws.Int64(int64(*mng.Spec.Replicas)),
+			DesiredSize: aws.Int64(int64(count)),
 		},
 	})
-	if err != nil {
-		return errors.Wrapf(err, "unable to update node group %s", mng.Spec.ID)
-	}
-
-	return nil
+	return err
 }

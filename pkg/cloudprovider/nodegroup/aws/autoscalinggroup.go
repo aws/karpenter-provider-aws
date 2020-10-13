@@ -19,43 +19,41 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/pkg/errors"
-	"knative.dev/pkg/ptr"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
 type AutoScalingGroup struct {
-	*v1alpha1.ScalableNodeGroup
+	ID     string
 	Client autoscalingiface.AutoScalingAPI
 }
 
-func NewDefaultAutoScalingGroup(sng *v1alpha1.ScalableNodeGroup) *AutoScalingGroup {
+func NewAutoScalingGroup(id string) *AutoScalingGroup {
 	return &AutoScalingGroup{
-		ScalableNodeGroup: sng,
-		Client:            autoscaling.New(session.Must(session.NewSession())),
+		ID:     id,
+		Client: autoscaling.New(session.Must(session.NewSession())),
 	}
 }
 
-// Reconcile sets the NodeGroup's replica count and updates status
-// with latest count of EC2 instances
-func (asg *AutoScalingGroup) Reconcile() (errs error) {
-	autoscalingGroupOutput, err := asg.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{aws.String(asg.Spec.ID)},
+// GetReplicas returns replica count for an EC2 auto scaling group
+func (asg *AutoScalingGroup) GetReplicas() (int32, error) {
+	out, err := asg.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{aws.String(asg.ID)},
 		MaxRecords:            aws.Int64(1),
 	})
 	if err != nil {
-		return errors.Wrapf(err, "unable to get instance count from auto scaling group %s", asg.Spec.ID)
+		return 0, err
 	}
-	asg.Status.Replicas = ptr.Int32(int32(len(autoscalingGroupOutput.AutoScalingGroups[0].Instances)))
-
-	if asg.Spec.Replicas == nil || *asg.Status.Replicas == *asg.Spec.Replicas {
-		return nil
+	if len(out.AutoScalingGroups) != 1 {
+		return 0, errors.Errorf("autoscaling group has no instances: %s", asg.ID)
 	}
+	return int32(len(out.AutoScalingGroups[0].Instances)), nil
+}
 
-	_, err = asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.Spec.ID),
-		DesiredCapacity:      aws.Int64(int64(*asg.Spec.Replicas)),
+func (asg *AutoScalingGroup) SetReplicas(count int32) error {
+	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(asg.ID),
+		DesiredCapacity:      aws.Int64(int64(count)),
 	})
 	return err
 }

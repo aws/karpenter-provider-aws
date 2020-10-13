@@ -11,8 +11,8 @@ type Queue interface {
 }
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
+// It is meant to be used by controllers.
 type NodeGroup interface {
-	// Reconcile attempts to set the NodeGroups's desired replica
-	// count and also tries to update current actual replica count
-	Reconcile() error
+	SetReplicas(count int32) error
+	GetReplicas() (int32, error)
 }
