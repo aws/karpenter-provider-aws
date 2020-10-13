@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -115,7 +116,12 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 
 	if err := dependencies.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
 		factory.Start(stopChannel)
-		factory.WaitForCacheSync(stopChannel)
+		if synced := cache.WaitForCacheSync(stopChannel,
+			factory.Core().V1().Pods().Informer().HasSynced,
+			factory.Core().V1().Nodes().Informer().HasSynced,
+		); !synced {
+			zap.S().Fatal("Unable to sync informer cache")
+		}
 		<-stopChannel
 		return nil
 	})); err != nil {
