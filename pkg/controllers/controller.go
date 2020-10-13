@@ -72,17 +72,17 @@ func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, 
 		}
 		return reconcile.Result{}, err
 	}
+	persisted := resource.DeepCopyObject()
 	// 2. Reconcile
 	if err := c.Controller.Reconcile(resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 	} else {
 		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
-	// 3. Update Status
-	if err := c.Status().Update(context.Background(), resource); err != nil {
+	// 3. Update Status using a merge patch
+	if err := c.Status().Patch(context.Background(), resource, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
 	}
-
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }
 

@@ -22,19 +22,24 @@ import (
 type HorizontalAutoscalerStatus struct {
 	// LastScaleTime is the last time the HorizontalAutoscaler scaled the number
 	// of pods, used by the autoscaler to control how often the number of pods
-	// is changed. +optional
+	// is changed.
+	// +optional
 	LastScaleTime *apis.VolatileTime `json:"lastScaleTime,omitempty"`
 	// CurrentReplicas is current number of replicas of pods managed by this
 	// autoscaler, as last seen by the autoscaler.
+	// +optional
 	CurrentReplicas int32 `json:"currentReplicas"`
 	// DesiredReplicas is the desired number of replicas of pods managed by this
 	// autoscaler, as last calculated by the autoscaler.
+	// +optional
 	DesiredReplicas int32 `json:"desiredReplicas"`
 	// CurrentMetrics is the last read state of the metrics used by this
-	// autoscaler. +optional
+	// autoscaler.
+	// +optional
 	CurrentMetrics []MetricStatus `json:"currentMetrics,omitempty"`
 	// Conditions is the set of conditions required for this autoscaler to scale
 	// its target, and indicates whether or not those conditions are met.
+	// +optional
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 }
 
