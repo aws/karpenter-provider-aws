@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers;horizontalautoscalers/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=horizontalautoscalers;horizontalautoscalers/status,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups/scale,verbs=get;update;patch
 
 package v1alpha1
