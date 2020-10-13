@@ -7,8 +7,10 @@ metadata:
   namespace: karpenter
 spec:
   endpoints:
-    - path: /metrics
-      port: https
+  - path: /metrics
+    port: http
+    interval: 5s
+    scheme: http
   selector:
     matchLabels:
       control-plane: karpenter

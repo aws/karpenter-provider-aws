@@ -70,7 +70,7 @@ func (p *Producer) record(reservations *Reservations) {
 		if err != nil {
 			errs = multierr.Append(errs, errors.Wrapf(err, "unable to compute utilization for %s", resource))
 		} else {
-			reservation.Gauge.Add(utilization)
+			reservation.Gauge.Set(utilization)
 			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
 				"%d%%, %s/%s",
 				int32(utilization*100),

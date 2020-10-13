@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -88,7 +89,7 @@ func setupFlags() {
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
 
 	// Metrics
-	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090", "The Prometheus Metrics Server URI for retrieving metrics")
+	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-operated:9090", "The Prometheus Metrics Server URI for retrieving metrics")
 	flag.StringVar(&options.MetricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to for operating metrics about the controller itself.")
 	flag.Parse()
 }
@@ -115,6 +116,12 @@ func informerFactoryOrDie() informers.SharedInformerFactory {
 
 	if err := dependencies.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
 		factory.Start(stopChannel)
+		if synced := cache.WaitForCacheSync(stopChannel,
+			factory.Core().V1().Pods().Informer().HasSynced,
+			factory.Core().V1().Nodes().Informer().HasSynced,
+		); !synced {
+			zap.S().Fatal("Unable to sync informer cache")
+		}
 		<-stopChannel
 		return nil
 	})); err != nil {

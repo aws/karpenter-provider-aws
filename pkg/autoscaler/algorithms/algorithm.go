@@ -36,7 +36,5 @@ type Metric struct {
 func For(spec v1alpha1.HorizontalAutoscalerSpec) Algorithm {
 	// For now, our default implementation will be Proportional.
 	// TODO, investigate Spec.Behaviors.Algorithm or something similar to control this.
-	return &Proportional{
-		Spec: spec,
-	}
+	return &Proportional{}
 }

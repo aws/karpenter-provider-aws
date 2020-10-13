@@ -20,17 +20,17 @@ func NewReservations(m *v1alpha1.MetricsProducer) *Reservations {
 			v1.ResourceCPU: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
 				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    CpuGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Gauge:    CpuUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
 			},
 			v1.ResourceMemory: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
 				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    MemoryGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Gauge:    MemoryUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
 			},
 			v1.ResourcePods: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
 				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    PodsGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Gauge:    PodUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
 			},
 		},
 	}

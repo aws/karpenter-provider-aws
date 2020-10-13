@@ -1,10 +1,42 @@
 resources:
 - manifests.yaml
 - service.yaml
+- certificate.yaml
 
 configurations:
 - kustomizeconfig.yaml
 
+patchesStrategicMerge:
+- patches/webhook.yaml
+
 # `controller-gen webhook` doesn't allow configuration of name or namespace, so they must be substituted directly
 namePrefix: karpenter-
 namespace: karpenter
+
+vars:
+- name: CERTIFICATE_NAMESPACE # namespace of the certificate CR
+  objref:
+    kind: Certificate
+    group: cert-manager.io
+    version: v1alpha2
+    name: serving-cert # this name should match the one in certificate.yaml
+  fieldref:
+    fieldpath: metadata.namespace
+- name: CERTIFICATE_NAME
+  objref:
+    kind: Certificate
+    group: cert-manager.io
+    version: v1alpha2
+    name: serving-cert # this name should match the one in certificate.yaml
+- name: SERVICE_NAMESPACE # namespace of the service
+  objref:
+    kind: Service
+    version: v1
+    name: webhook-service
+  fieldref:
+    fieldpath: metadata.namespace
+- name: SERVICE_NAME
+  objref:
+    kind: Service
+    version: v1
+    name: webhook-service

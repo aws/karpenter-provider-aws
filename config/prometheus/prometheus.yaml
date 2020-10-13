@@ -1,0 +1,10 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: karpenter-monitor
+  namespace: karpenter
+spec:
+  replicas: 1
+  serviceMonitorSelector:
+    matchLabels:
+      control-plane: karpenter

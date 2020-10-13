@@ -96,7 +96,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 	for _, metric := range a.Spec.Metrics {
 		observed, err := a.metricsClientFactory.For(metric).GetCurrentValue(metric)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed retrieving metric")
 		}
 		metrics = append(metrics, algorithms.Metric{
 			Metric:      observed,

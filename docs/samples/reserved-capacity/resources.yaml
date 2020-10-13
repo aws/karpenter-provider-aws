@@ -19,12 +19,12 @@ spec:
   maxReplicas: 23
   metrics:
   - prometheus:
-      query: karpenter_metrics_producer_reserved_capacity_cpu{name="microservices"}
+      query: karpenter_metrics_producer_reserved_capacity_cpu_utilization{name="microservices"}
       target:
         type: Utilization
         value: 60
   - prometheus:
-      query: karpenter_metrics_producer_reserved_capacity_memory{name="microservices"}
+      query: karpenter_metrics_producer_reserved_capacity_memory_utilization{name="microservices"}
       target:
         type: Utilization
         value: 60

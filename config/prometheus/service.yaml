@@ -7,8 +7,8 @@ metadata:
   namespace: karpenter
 spec:
   ports:
-  - name: https
-    port: 8443
-    targetPort: https
+  - name: http
+    port: 8080
+    targetPort: metrics
   selector:
     control-plane: karpenter

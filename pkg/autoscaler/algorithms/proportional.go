@@ -22,10 +22,7 @@ import (
 )
 
 // Proportional calculates desired replicas as a simple proportion of the observed metrics.
-type Proportional struct {
-	// Spec defines autoscaling rules for the object
-	Spec v1alpha1.HorizontalAutoscalerSpec
-}
+type Proportional struct{}
 
 // GetDesiredReplicas returns the autoscaler's recommendation.
 // This function mirrors the implementation of HPA's autoscaling algorithm

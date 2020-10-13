@@ -20,7 +20,6 @@ battletest:
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--randomizeAllSpecs --randomizeSuites -race
-	sed '$d' coverage.out > /dev/null
 	go tool cover -func coverage.out
 
 # Verify code. Includes dependencies, linting, formatting, etc
