@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,7 +21,7 @@ func (p *Producer) Reconcile() error {
 	// 1. List nodes
 	nodes := &v1.NodeList{}
 	if err := p.Client.List(context.Background(), nodes, client.MatchingLabels(p.Spec.ReservedCapacity.NodeSelector)); err != nil {
-		return errors.Wrapf(err, "Listing nodes for %s", p.Spec.ReservedCapacity.NodeSelector)
+		return fmt.Errorf("Listing nodes for %s, %w", p.Spec.ReservedCapacity.NodeSelector, err)
 	}
 
 	// 2. Compute reservations
@@ -30,12 +29,12 @@ func (p *Producer) Reconcile() error {
 	for _, node := range nodes.Items {
 		pods := &v1.PodList{}
 		if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
-			return errors.Wrapf(err, "Listing pods for %s", node.Name)
+			return fmt.Errorf("Listing pods for %s, %w", node.Name, err)
 		}
 		reservations.Add(&node, pods)
 	}
 
-	// 3 Record reservations and update status
+	// 3. Record reservations and update status
 	p.record(reservations)
 	return nil
 }
@@ -48,7 +47,7 @@ func (p *Producer) record(reservations *Reservations) {
 	for resource, reservation := range reservations.Resources {
 		utilization, err := reservation.Utilization()
 		if err != nil {
-			errs = multierr.Append(errs, errors.Wrapf(err, "unable to compute utilization for %s", resource))
+			errs = multierr.Append(errs, fmt.Errorf("unable to compute utilization for %s, %w", resource, err))
 		} else {
 			reservation.Gauge.Set(utilization)
 			p.Status.ReservedCapacity[resource] = fmt.Sprintf(

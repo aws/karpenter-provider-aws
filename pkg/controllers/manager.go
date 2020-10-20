@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
-	. "github.com/onsi/gomega"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -18,8 +18,8 @@ var (
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = apis.AddToScheme(scheme)
+	log.PanicIfError(clientgoscheme.AddToScheme(scheme), "adding clientgo to scheme")
+	log.PanicIfError(apis.AddToScheme(scheme), "adding apis to scheme")
 }
 
 type Manager struct {
@@ -27,17 +27,13 @@ type Manager struct {
 }
 
 // NewManager instantiates a controller manager or panics
-func NewManager(config *rest.Config, options controllerruntime.Options) Manager {
+func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
+	options.Scheme = scheme
 	manager, err := controllerruntime.NewManager(config, options)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create controller manager")
-	Expect(
-		manager.GetFieldIndexer().IndexField(
-			context.Background(),
-			&v1.Pod{},
-			"spec.nodeName",
-			podSchedulingIndex,
-		),
-	).To(Succeed(), "Failed to setup pod indexer")
+	log.PanicIfError(err, "Failed to create controller manager")
+	log.PanicIfError(manager.GetFieldIndexer().
+		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex),
+		"Failed to setup pod indexer")
 	return Manager{Manager: manager}
 }
 
@@ -47,11 +43,10 @@ func (m *Manager) Register(controllers ...Controller) {
 		for _, resource := range controller.Owns() {
 			builder = builder.Owns(resource)
 		}
-		Expect(builder.Complete(&GenericController{Controller: controller, Client: m.GetClient()})).
-			To(Succeed(), "Failed to register controller to manager for %s", controller.For())
-
-		Expect(controllerruntime.NewWebhookManagedBy(m).For(controller.For()).Complete()).
-			To(Succeed(), "Failed to register controller to manager for %s", controller.For())
+		log.PanicIfError(builder.Complete(&GenericController{Controller: controller, Client: m.GetClient()}),
+			"Failed to register controller to manager for %s", controller.For())
+		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controller.For()).Complete(),
+			"Failed to register controller to manager for %s", controller.For())
 	}
 }
 

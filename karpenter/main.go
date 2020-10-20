@@ -59,8 +59,7 @@ func main() {
 	setupFlags()
 	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
 
-	// Manager
-	manager := controllers.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
+	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		LeaderElection:     true,
 		LeaderElectionID:   "karpenter-leader-election",
 		Scheme:             scheme,
@@ -68,23 +67,20 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	// Dependencies
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient()}
-	metricsClientFactory := metricsclients.NewFactory(options.PrometheusURI)
-	autoscalerFactory := autoscaler.NewFactory(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
+	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
+	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
-	// Controllers
 	horizontalAutoscalerController := &horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory}
 	scalableNodeGroupController := &scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}}
 	metricsProducerController := &metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory}
 
-	// Start
 	manager.Register(
 		horizontalAutoscalerController,
 		scalableNodeGroupController,
 		metricsProducerController,
 	)
 	if err := manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
-		zap.S().Fatalf("Unable to start manager, %v", err)
+		zap.S().Fatalf("Unable to start manager, %w", err)
 	}
 }

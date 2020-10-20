@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -37,7 +37,7 @@ func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 	// 4. Update Status using a merge patch
 	if err := c.Status().Patch(context.Background(), resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
+		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }

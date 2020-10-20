@@ -2,17 +2,14 @@ package environment
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/apis"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
 	"github.com/onsi/gomega/ghttp"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -81,7 +78,7 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 	go func() {
 		<-e.stopCh
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
-			zap.S().Error(errors.Wrap(err, "Failed to tear down namespace"))
+			zap.S().Errorf("Failed to tear down namespace, %w", err)
 		}
 	}()
 	return ns, nil
@@ -90,27 +87,25 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 func (e *Local) Start() (err error) {
 	// Environment
 	if _, err := e.Environment.Start(); err != nil {
-		return errors.Wrap(err, "starting environment")
+		return fmt.Errorf("starting environment, %w", err)
 	}
 
-	// Scheme
-	scheme := runtime.NewScheme()
-	for _, AddToScheme := range []func(s *runtime.Scheme) error{
-		apis.AddToScheme,
-		clientgoscheme.AddToScheme,
-	} {
-		if err := AddToScheme(scheme); err != nil {
-			return errors.Wrap(err, "setting up scheme")
-		}
-	}
+	// addrPort := wio.LocalServingHost + ":" + fmt.Sprint(wio.LocalServingPort)
+	// Eventually(func() error {
+	// 	conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	conn.Close()
+	// 	return nil
+	// }).Should(Succeed())
 
 	// Manager
-	e.Manager = controllers.NewManager(e.Config, controllerruntime.Options{
+	e.Manager = controllers.NewManagerOrDie(e.Config, controllerruntime.Options{
 		CertDir:            e.WebhookInstallOptions.LocalServingCertDir,
 		Host:               e.WebhookInstallOptions.LocalServingHost,
 		Port:               e.WebhookInstallOptions.LocalServingPort,
 		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
-		Scheme:             scheme,
 	})
 
 	// options

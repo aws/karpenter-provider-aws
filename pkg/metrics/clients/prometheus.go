@@ -16,6 +16,7 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -35,10 +36,10 @@ type PrometheusMetricsClient struct {
 func (c *PrometheusMetricsClient) GetCurrentValue(metric v1alpha1.Metric) (metrics.Metric, error) {
 	value, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now().Round(time.Hour))
 	if err != nil {
-		return metrics.Metric{}, errors.Wrapf(err, "request failed for query %s", metric.Prometheus.Query)
+		return metrics.Metric{}, fmt.Errorf("request failed for query %s, %w", metric.Prometheus.Query, err)
 	}
 	if err := c.validateResponseType(value); err != nil {
-		return metrics.Metric{}, errors.Wrapf(err, "invalid response for query %s", metric.Prometheus.Query)
+		return metrics.Metric{}, fmt.Errorf("invalid response for query %s, %w", metric.Prometheus.Query, err)
 	}
 	return metrics.Metric{Value: float64(value.(model.Vector)[0].Value)}, nil
 }

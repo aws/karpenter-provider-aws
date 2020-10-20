@@ -49,8 +49,8 @@ func injectFakeServer(environment *environment.Local) {
 }
 
 func injectHorizontalAutoscalerController(environment *environment.Local) {
-	metricsClientFactory := clients.NewFactory(environment.Server.URL())
-	autoscalerFactory := autoscaler.NewFactory(metricsClientFactory, environment.Manager.GetRESTMapper(), environment.Config)
+	metricsClientFactory := clients.NewFactoryOrDie(environment.Server.URL())
+	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, environment.Manager.GetRESTMapper(), environment.Config)
 	environment.Manager.Register(
 		&Controller{Client: environment.Manager.GetClient(), AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{},

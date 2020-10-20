@@ -26,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
 )
 
 func Validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
@@ -63,9 +62,9 @@ func NewManagedNodeGroup(id string) *ManagedNodeGroup {
 // parseId extracts the cluster and nodegroup from an ARN. This is
 // needed for Managed Node Group APIs that don't take an ARN directly.
 func parseId(fromArn string) (cluster string, nodegroup string, err error) {
-	nodeGroupArn, parseErr := arn.Parse(fromArn)
-	if parseErr != nil {
-		return "", "", errors.Wrapf(parseErr, "invalid managed node group id %s", fromArn)
+	nodeGroupArn, err := arn.Parse(fromArn)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid managed node group id %s, %w", fromArn, err)
 	}
 	// Example node group ARN:
 	// arn:aws:eks:us-west-2:741206201142:nodegroup/ridiculous-sculpture-1594766004/ng-0b663e8a/aeb9a7fe-69d6-21f0-cb41-fb9b03d3aaa9
