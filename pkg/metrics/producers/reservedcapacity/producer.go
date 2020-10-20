@@ -19,14 +19,14 @@ type Producer struct {
 
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
-	reservations := NewReservations(p.MetricsProducer)
-
+	// 1. List nodes
 	nodes := &v1.NodeList{}
 	if err := p.Client.List(context.Background(), nodes, client.MatchingLabels(p.Spec.ReservedCapacity.NodeSelector)); err != nil {
 		return errors.Wrapf(err, "Listing nodes for %s", p.Spec.ReservedCapacity.NodeSelector)
 	}
 
 	// 2. Compute reservations
+	reservations := NewReservations(p.MetricsProducer)
 	for _, node := range nodes.Items {
 		pods := &v1.PodList{}
 		if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
@@ -36,16 +36,11 @@ func (p *Producer) Reconcile() error {
 	}
 
 	// 3 Record reservations and update status
-	if err := p.record(reservations); err != nil {
-		p.StatusConditions().MarkFalse(v1alpha1.Calculable, "", err.Error())
-	} else {
-		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
-	}
-
+	p.record(reservations)
 	return nil
 }
 
-func (p *Producer) record(reservations *Reservations) error {
+func (p *Producer) record(reservations *Reservations) {
 	if p.Status.ReservedCapacity == nil {
 		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
 	}
@@ -64,5 +59,9 @@ func (p *Producer) record(reservations *Reservations) error {
 			)
 		}
 	}
-	return errs
+	if errs != nil {
+		p.StatusConditions().MarkFalse(v1alpha1.Calculable, "", errs.Error())
+	} else {
+		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
+	}
 }

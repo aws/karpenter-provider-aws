@@ -116,18 +116,19 @@ func (e *Local) Start() (err error) {
 		return errors.Wrap(err, "creating new manager")
 	}
 
-	// Setup informers
-	if err := e.Manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", func(object runtime.Object) []string {
-		pod, ok := object.(*v1.Pod)
-		if !ok {
-			return nil
-		}
-		return []string{pod.Spec.NodeName}
-	}); err != nil {
+	// Informers
+	if err := e.Manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName",
+		func(object runtime.Object) []string {
+			pod, ok := object.(*v1.Pod)
+			if !ok {
+				return nil
+			}
+			return []string{pod.Spec.NodeName}
+		}); err != nil {
 		return errors.Wrap(err, "Failed to setup pod indexer")
 	}
 
-	// Options
+	// options
 	for _, option := range e.options {
 		option(e)
 	}
