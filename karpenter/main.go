@@ -94,7 +94,7 @@ func setupFlags() {
 }
 
 func managerOrDie() manager.Manager {
-	mgr, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
+	manager, err := controllerruntime.NewManager(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: options.MetricsAddr,
 		Port:               9443,
@@ -104,7 +104,7 @@ func managerOrDie() manager.Manager {
 	if err != nil {
 		zap.S().Fatal(errors.Wrap(err, "Unable to start controller manager"))
 	}
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", func(object runtime.Object) []string {
+	if err := manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", func(object runtime.Object) []string {
 		pod, ok := object.(*v1.Pod)
 		if !ok {
 			return nil
@@ -113,7 +113,7 @@ func managerOrDie() manager.Manager {
 	}); err != nil {
 		zap.S().Fatal(errors.Wrap(err, "Failed to setup pod indexer"))
 	}
-	return mgr
+	return manager
 }
 
 func metricsProducerFactoryOrDie() producers.Factory {
