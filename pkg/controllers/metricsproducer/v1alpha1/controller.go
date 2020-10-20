@@ -27,7 +27,7 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	ProducerFactory producers.Factory
+	ProducerFactory *producers.Factory
 }
 
 // For returns the resource this controller is for.

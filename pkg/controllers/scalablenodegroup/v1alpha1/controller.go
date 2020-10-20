@@ -31,7 +31,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	client.Client
-	NodeGroupFactory nodegroup.Factory
+	NodeGroupFactory *nodegroup.Factory
 }
 
 // For returns the resource this controller is for.

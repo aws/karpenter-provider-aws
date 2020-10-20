@@ -5,19 +5,18 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
+	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 /*
@@ -39,7 +38,7 @@ AfterSuite(func() { env.Stop() })
 */
 type Local struct {
 	envtest.Environment
-	Manager manager.Manager
+	Manager controllers.Manager
 	Server  *ghttp.Server
 
 	options []LocalOption
@@ -106,27 +105,13 @@ func (e *Local) Start() (err error) {
 	}
 
 	// Manager
-	if e.Manager, err = controllerruntime.NewManager(e.Config, controllerruntime.Options{
+	e.Manager = controllers.NewManager(e.Config, controllerruntime.Options{
 		CertDir:            e.WebhookInstallOptions.LocalServingCertDir,
 		Host:               e.WebhookInstallOptions.LocalServingHost,
 		Port:               e.WebhookInstallOptions.LocalServingPort,
 		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
 		Scheme:             scheme,
-	}); err != nil {
-		return errors.Wrap(err, "creating new manager")
-	}
-
-	// Informers
-	if err := e.Manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName",
-		func(object runtime.Object) []string {
-			pod, ok := object.(*v1.Pod)
-			if !ok {
-				return nil
-			}
-			return []string{pod.Spec.NodeName}
-		}); err != nil {
-		return errors.Wrap(err, "Failed to setup pod indexer")
-	}
+	})
 
 	// options
 	for _, option := range e.options {

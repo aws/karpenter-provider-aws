@@ -15,18 +15,11 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -53,51 +46,4 @@ type Resource interface {
 	runtime.Object
 	metav1.Object
 	StatusConditions() apis.ConditionManager
-}
-
-// GenericController implements controllerruntime.Reconciler and runs a
-// standardized reconcilation workflow against incoming resource watch events.
-type GenericController struct {
-	Controller
-	client.Client
-}
-
-// Reconcile executes a control loop for the resource
-func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	// 1. Read Spec
-	resource := c.For()
-	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
-		if apierrors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
-	}
-	// 2. Copy object for merge patch base
-	persisted := resource.DeepCopyObject()
-	// 3. Reconcile
-	if err := c.Controller.Reconcile(resource); err != nil {
-		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
-	} else {
-		resource.StatusConditions().MarkTrue(v1alpha1.Active)
-	}
-	// 4. Update Status using a merge patch
-	if err := c.Status().Patch(context.Background(), resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
-	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
-}
-
-// Register registers the controller to the provided controllerruntime.Manager.
-func Register(manager controllerruntime.Manager, controller Controller) error {
-	var builder = controllerruntime.NewControllerManagedBy(manager).For(controller.For())
-	for _, resource := range controller.Owns() {
-		builder = builder.Owns(resource)
-	}
-	if err := builder.Complete(&GenericController{Controller: controller, Client: manager.GetClient()}); err != nil {
-		return errors.Wrapf(err, "registering controller to manager for resource %v", controller.For())
-	}
-	if err := controllerruntime.NewWebhookManagedBy(manager).For(controller.For()).Complete(); err != nil {
-		return errors.Wrapf(err, "registering webhook to manager for resource %v", controller.For())
-	}
-	return nil
 }

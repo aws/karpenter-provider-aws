@@ -22,17 +22,11 @@ import (
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
-	"github.com/ellistarn/karpenter/pkg/controllers"
 	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"github.com/prometheus/client_golang/api"
-	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/scale"
 	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
@@ -55,26 +49,12 @@ func injectFakeServer(environment *environment.Local) {
 }
 
 func injectHorizontalAutoscalerController(environment *environment.Local) {
-	scale, err := scale.NewForConfig(
-		environment.Manager.GetConfig(),
-		environment.Manager.GetRESTMapper(),
-		dynamic.LegacyAPIPathResolverFunc,
-		scale.NewDiscoveryScaleKindResolver(discovery.NewDiscoveryClientForConfigOrDie(environment.Manager.GetConfig())),
+	metricsClientFactory := clients.NewFactory(environment.Server.URL())
+	autoscalerFactory := autoscaler.NewFactory(metricsClientFactory, environment.Manager.GetRESTMapper(), environment.Config)
+	environment.Manager.Register(
+		&Controller{Client: environment.Manager.GetClient(), AutoscalerFactory: autoscalerFactory},
+		&scalablenodegroupv1alpha1.Controller{},
 	)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create scale client")
-	prometheusClient, err := api.NewClient(api.Config{Address: environment.Server.URL()})
-	Expect(err).ToNot(HaveOccurred(), "Unable to create prometheus client")
-	Expect(controllers.Register(environment.Manager, &Controller{
-		Client: environment.Manager.GetClient(),
-		AutoscalerFactory: autoscaler.Factory{
-			MetricsClientFactory: clients.Factory{
-				PrometheusClient: prometheusv1.NewAPI(prometheusClient),
-			},
-			Mapper:          environment.Manager.GetRESTMapper(),
-			ScaleNamespacer: scale,
-		},
-	}), "Failed to register controller")
-	Expect(controllers.Register(environment.Manager, &scalablenodegroupv1alpha1.Controller{})).To(Succeed(), "Failed to register controller")
 }
 
 var env environment.Environment = environment.NewLocal(injectFakeServer, injectHorizontalAutoscalerController)

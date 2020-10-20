@@ -22,21 +22,39 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
 	"knative.dev/pkg/apis"
 )
 
+func NewFactory(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create discovery client")
+	resolver := scale.NewDiscoveryScaleKindResolver(discoveryClient)
+	scalesgetter, err := scale.NewForConfig(config, mapper, dynamic.LegacyAPIPathResolverFunc, resolver)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create scale client")
+
+	return &Factory{
+		MetricsClientFactory: metricsclientfactory,
+		Mapper:               mapper,
+		ScalesGetter:         scalesgetter,
+	}
+}
+
 // Factory instantiates autoscalers
 type Factory struct {
-	MetricsClientFactory clients.Factory
+	MetricsClientFactory *clients.Factory
 	Mapper               meta.RESTMapper
-	ScaleNamespacer      scale.ScalesGetter
+	ScalesGetter         scale.ScalesGetter
 }
 
 // For returns an autoscaler for the resource
@@ -46,17 +64,17 @@ func (f *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 		algorithm:            algorithms.For(resource.Spec),
 		metricsClientFactory: f.MetricsClientFactory,
 		mapper:               f.Mapper,
-		scaleNamespacer:      f.ScaleNamespacer,
+		scalesGetter:         f.ScalesGetter,
 	}
 }
 
 // Autoscaler calculates desired replicas using the provided algorithm.
 type Autoscaler struct {
 	*v1alpha1.HorizontalAutoscaler
-	metricsClientFactory clients.Factory
+	metricsClientFactory *clients.Factory
 	algorithm            algorithms.Algorithm
 	mapper               meta.RESTMapper
-	scaleNamespacer      scale.ScalesGetter
+	scalesGetter         scale.ScalesGetter
 }
 
 // Reconcile executes an autoscaling loop
@@ -172,7 +190,7 @@ func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
 	}
-	scaleTarget, err := a.scaleNamespacer.
+	scaleTarget, err := a.scalesGetter.
 		Scales(a.ObjectMeta.Namespace).
 		Get(context.TODO(), groupResource, a.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 	if err != nil {
@@ -186,7 +204,7 @@ func (a *Autoscaler) updateScaleTarget(scaleTarget *v1.Scale) error {
 	if err != nil {
 		return errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
 	}
-	if _, err := a.scaleNamespacer.
+	if _, err := a.scalesGetter.
 		Scales(a.ObjectMeta.Namespace).
 		Update(context.TODO(), groupResource, scaleTarget, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrapf(err, "updating %v", scaleTarget.ObjectMeta.SelfLink)
