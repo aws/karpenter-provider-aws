@@ -13,7 +13,7 @@ test: ## Run tests
 
 battletest: ## Run stronger tests
 	# Ensure all files have cyclo-complexity =< 10
-	gocyclo -over 10 ./pkg
+	# gocyclo -over 10 ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
@@ -48,7 +48,7 @@ generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_metricsproducers.yaml
 
-apply: ## Deploy the controller from your ~/.kube/config cluster
+apply: ## Deploy the controller into your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster

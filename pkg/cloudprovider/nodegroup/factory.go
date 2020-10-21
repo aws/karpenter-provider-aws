@@ -17,7 +17,6 @@ package nodegroup
 import (
 	"fmt"
 
-	"github.com/cloudevents/sdk-go/pkg/binding/spec"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
@@ -44,7 +43,7 @@ func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	case v1alpha1.AWSEKSNodeGroup:
 		nodegroup = aws.NewManagedNodeGroup(sng.Spec.ID)
 	default:
-		log.InvariantViolated(fmt.Sprintf("Failed to instantiate node group of type %s", spec.Type))
+		log.InvariantViolated(fmt.Sprintf("Failed to instantiate node group of type %s", sng.Spec.Type))
 		nodegroup = &invalidNodeGroup{}
 	}
 	return nodegroup

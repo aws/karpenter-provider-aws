@@ -14,6 +14,7 @@ limitations under the License.
 
 // +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers;metricsproducers/status,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes;pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;watch;update;patch
 
 package v1alpha1
 
@@ -31,13 +32,13 @@ type Controller struct {
 }
 
 // For returns the resource this controller is for.
-func (c *Controller) For() controllers.Resource {
+func (c *Controller) For() controllers.Object {
 	return &v1alpha1.MetricsProducer{}
 }
 
 // Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []controllers.Resource {
-	return []controllers.Resource{}
+func (c *Controller) Owns() []controllers.Object {
+	return []controllers.Object{}
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -45,6 +46,6 @@ func (c *Controller) Interval() time.Duration {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(object controllers.Resource) error {
+func (c *Controller) Reconcile(object controllers.Object) error {
 	return c.ProducerFactory.For(object.(*v1alpha1.MetricsProducer)).Reconcile()
 }

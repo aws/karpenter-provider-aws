@@ -29,6 +29,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
@@ -73,14 +74,14 @@ var _ = Describe("Test Samples", func() {
 				v1.ResourcePods:   resource.MustParse("50"),
 			}
 
-			nodes := []test.Resource{
+			nodes := []client.Object{
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 				test.Node(map[string]string{"unknown": "label"}, nodeResources),
 				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
 			}
 
-			pods := []test.Resource{
+			pods := []client.Object{
 				// node[0] 6/16 cores, 76/128 gig allocated
 				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
 				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("25Gi")}),
