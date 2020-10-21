@@ -13,3 +13,7 @@ jobs:
     - run: make toolchain
     - run: echo ::add-path::/usr/local/kubebuilder/bin
     - run: make ci
+    - uses: actions/upload-artifact@v2
+      with:
+        name: coverage
+        path: coverage.html
