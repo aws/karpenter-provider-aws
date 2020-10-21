@@ -25,9 +25,15 @@ The following tools are required for doing development on Karpenter.
 Local development is not supported at this time.
 
 * Make sure dependencies are installed
+    * Run `make generate` to make sure yaml manifests are generated
+    * Run `make toolchain` to install cli tools for building and testing the project
 * You will need a personal development image repository (e.g. ECR)
-* $KO_DOCKER_REPO must point to your development repository
-* Your cluster must have permissions to read from the repository
+    * Make sure you have valid credentials to your development repository.
+    * `$KO_DOCKER_REPO` must point to your development repository
+    * Your cluster must have permissions to read from the repository
+* Make sure your cluster doesn't have previous installations of prometheus and cert-manager
+  * Previous installations of our dependencies can interfere with our installation scripts, so to be safe, clear those, then run `./hack/quick-install.sh` 
+* If running `./hack/quick-install.sh` fails with `Error: Accumulate Target`, run `make generate` successfully, and try again.
 
 ### Build and Deploy
 ```
