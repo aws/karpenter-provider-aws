@@ -94,22 +94,6 @@ func (s *HorizontalAutoscaler) StatusConditions() apis.ConditionManager {
 	).Manage(s)
 }
 
-func (s *HorizontalAutoscaler) MarkAbleToScale() {
-	s.StatusConditions().MarkTrue(AbleToScale)
-}
-
-func (s *HorizontalAutoscaler) MarkNotAbleToScale(message string) {
-	s.StatusConditions().MarkFalse(AbleToScale, "", message)
-}
-
-func (s *HorizontalAutoscaler) MarkScalingUnbounded() {
-	s.StatusConditions().MarkTrue(ScalingUnbounded)
-}
-
-func (s *HorizontalAutoscaler) MarkNotScalingUnbounded(message string) {
-	s.StatusConditions().MarkFalse(ScalingUnbounded, "", message)
-}
-
 func (s *HorizontalAutoscaler) GetConditions() apis.Conditions {
 	return s.Status.Conditions
 }

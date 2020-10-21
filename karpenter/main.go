@@ -45,7 +45,7 @@ type Options struct {
 }
 
 func main() {
-	flag.BoolVar(&options.EnableVerboseLogging, "verbose", true, "Enable verbose logging.")
+	flag.BoolVar(&options.EnableVerboseLogging, "verbose", false, "Enable verbose logging.")
 	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-operated:9090", "The Prometheus Metrics Server URI for retrieving metrics")
 	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources.")
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself.")
@@ -65,16 +65,11 @@ func main() {
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
-	horizontalAutoscalerController := &horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory}
-	scalableNodeGroupController := &scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}}
-	metricsProducerController := &metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory}
-
-	manager.Register(
-		horizontalAutoscalerController,
-		scalableNodeGroupController,
-		metricsProducerController,
-	)
-	if err := manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
+	if err := manager.Register(
+		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
+		&scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}},
+		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
+	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Fatalf("Unable to start manager, %w", err)
 	}
 }

@@ -33,30 +33,31 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func ExpectCreated(client client.Client, objects ...client.Object) {
+func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Expect(client.Create(context.Background(), object)).To(Succeed())
+		Expect(c.Create(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectDeleted(client client.Client, objects ...client.Object) {
+func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Expect(client.Delete(context.Background(), object)).To(Succeed())
+		Expect(c.Delete(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectEventuallyCreated(client client.Client, object client.Object) {
+func ExpectEventuallyCreated(c client.Client, object client.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
-	Expect(client.Create(context.Background(), object)).To(Succeed())
+	Expect(c.Create(context.Background(), object)).To(Succeed())
+	Expect(c.Status().Patch(context.Background(), object, client.Merge, &client.PatchOptions{})).To(Succeed())
 	Eventually(func() error {
-		return client.Get(context.Background(), nn, object)
+		return c.Get(context.Background(), nn, object)
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 }
 
-func ExpectEventuallyHappy(client client.Client, resource controllers.Object) {
+func ExpectEventuallyHappy(c client.Client, resource controllers.Object) {
 	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	Eventually(func() bool {
-		Expect(client.Get(context.Background(), nn, resource)).To(Succeed())
+		Expect(c.Get(context.Background(), nn, resource)).To(Succeed())
 		return resource.StatusConditions().IsHappy()
 	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 		return fmt.Sprintf("resource never became happy\n%s", log.Pretty(resource))

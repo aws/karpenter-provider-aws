@@ -23,7 +23,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	"knative.dev/pkg/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -56,8 +55,8 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	if err != nil {
 		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)
 	}
-	resource.Status.Replicas = ptr.Int32(int32(replicas))
-	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == int32(replicas) {
+	resource.Status.Replicas = replicas
+	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == replicas {
 		return nil
 	}
 	if err := ng.SetReplicas(replicas); err != nil {

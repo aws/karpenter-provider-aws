@@ -39,7 +39,12 @@ func init() {
 	log.PanicIfError(apis.AddToScheme(scheme), "adding apis to scheme")
 }
 
-type Manager struct {
+type Manager interface {
+	manager.Manager
+	Register(controllers ...Controller) Manager
+}
+
+type GenericControllerManager struct {
 	manager.Manager
 }
 
@@ -49,12 +54,11 @@ func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Man
 	manager, err := controllerruntime.NewManager(config, options)
 	log.PanicIfError(err, "Failed to create controller manager")
 	log.PanicIfError(manager.GetFieldIndexer().
-		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex),
-		"Failed to setup pod indexer")
-	return Manager{Manager: manager}
+		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex), "Failed to setup pod indexer")
+	return &GenericControllerManager{Manager: manager}
 }
 
-func (m *Manager) Register(controllers ...Controller) {
+func (m *GenericControllerManager) Register(controllers ...Controller) Manager {
 	for _, controller := range controllers {
 		var builder = controllerruntime.NewControllerManagedBy(m).For(controller.For())
 		for _, resource := range controller.Owns() {
@@ -65,6 +69,7 @@ func (m *Manager) Register(controllers ...Controller) {
 		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controller.For()).Complete(),
 			"Failed to register controller to manager for %s", controller.For())
 	}
+	return m
 }
 
 func podSchedulingIndex(object client.Object) []string {

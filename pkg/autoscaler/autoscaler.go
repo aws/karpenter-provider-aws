@@ -22,7 +22,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,11 +34,19 @@ import (
 	"knative.dev/pkg/apis"
 )
 
+const (
+	ScaleBoundedFormat       = "recommendation %d limited by bounds [%d, %d]"
+	ScaleStabilizationFormat = "within stabilization window %d/%d seconds"
+)
+
 func NewFactoryOrDie(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	log.PanicIfError(err, "Failed to create discovery client")
-	scalesgetter, err := scale.NewForConfig(config, mapper, dynamic.LegacyAPIPathResolverFunc, scale.NewDiscoveryScaleKindResolver(discoveryClient))
-	log.PanicIfError(err, "Failed to create scale client")
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
+	scalesgetter := scale.New(
+		discoveryClient.RESTClient(),
+		mapper,
+		dynamic.LegacyAPIPathResolverFunc,
+		scale.NewDiscoveryScaleKindResolver(discoveryClient),
+	)
 	return &Factory{
 		MetricsClientFactory: metricsclientfactory,
 		Mapper:               mapper,
@@ -89,9 +96,9 @@ func (a *Autoscaler) Reconcile() error {
 	}
 	a.Status.CurrentReplicas = scaleTarget.Status.Replicas
 
-	// 3. Calculate desired replicas using metrics and current desired replicas
-	desiredReplicas := a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
-	if desiredReplicas == scaleTarget.Spec.Replicas {
+	// 3. Calculate desired replicas using metrics and current replicas
+	desiredReplicas := a.getDesiredReplicas(metrics, scaleTarget)
+	if desiredReplicas == scaleTarget.Status.Replicas {
 		return nil
 	}
 
@@ -135,14 +142,18 @@ They are also orthogonal, such that {ScalingUnbounded, AbleToScale} can be
 {false, true}: limited by min/max but not stabilization window or policy,
 {false, false}: limited stabilization window or policy and also by min/max.
 */
-func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas int32) int32 {
+func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, scaleTarget *v1.Scale) int32 {
 	var recommendations []int32
 	for _, metric := range metrics {
-		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, replicas))
+		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, scaleTarget.Status.Replicas))
 	}
 
-	recommended := a.Spec.Behavior.ApplySelectPolicy(recommendations, replicas)
-	limited := a.applyTransientLimits(recommended, replicas)
+	recommended := a.Spec.Behavior.ApplySelectPolicy(recommendations, scaleTarget.Status.Replicas)
+	if recommended == scaleTarget.Spec.Replicas {
+		return scaleTarget.Spec.Replicas
+	}
+
+	limited := a.applyTransientLimits(recommended, scaleTarget.Status.Replicas)
 	bounded := a.applyBoundedLimits(limited)
 
 	return bounded
@@ -150,14 +161,14 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
 	if desiredReplicas > a.Spec.MaxReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by maximum %d/%d replicas", desiredReplicas, a.Spec.MaxReplicas))
+		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "", fmt.Sprintf(ScaleBoundedFormat, desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
 		return a.Spec.MaxReplicas
 	}
 	if desiredReplicas < a.Spec.MinReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by minimum %d/%d replicas", desiredReplicas, a.Spec.MinReplicas))
+		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "", fmt.Sprintf(ScaleBoundedFormat, desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
 		return a.Spec.MinReplicas
 	}
-	a.MarkScalingUnbounded()
+	a.StatusConditions().MarkTrue(v1alpha1.ScalingUnbounded)
 	return desiredReplicas
 }
 
@@ -167,7 +178,7 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	// scale up vs down, as scale up window doesn't prevent scale down.
 	if a.Status.LastScaleTime != nil {
 		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
-			a.MarkNotAbleToScale(fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
+			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", fmt.Sprintf(ScaleStabilizationFormat, elapsed, window))
 			return recommendation
 		}
 	}
@@ -178,7 +189,7 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	}
 
 	// 3. If not limited, use raw recommended value
-	a.MarkAbleToScale()
+	a.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
 	return recommendation
 }
 

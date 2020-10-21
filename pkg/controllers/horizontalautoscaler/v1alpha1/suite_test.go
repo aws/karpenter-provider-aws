@@ -87,8 +87,8 @@ var _ = Describe("Test Samples", func() {
 	Context("Capacity Reservations", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(5)
 			MockMetricValue(fakeServer, .85)
+			sng.Status.Replicas = *sng.Spec.Replicas
 
 			ExpectEventuallyCreated(ns.Client, sng)
 			ExpectEventuallyCreated(ns.Client, ha)
@@ -101,8 +101,9 @@ var _ = Describe("Test Samples", func() {
 	Context("Queue Length", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
 			Expect(ns.ParseResources("docs/samples/queue-length/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(1)
 			MockMetricValue(fakeServer, 41)
+			sng.Spec.Replicas = ptr.Int32(5)
+			sng.Status.Replicas = *sng.Spec.Replicas
 
 			ExpectEventuallyCreated(ns.Client, sng)
 			ExpectEventuallyCreated(ns.Client, ha)

@@ -3,6 +3,7 @@ kind: ScalableNodeGroup
 metadata:
   name: microservices
 spec:
+  replicas: 5
   type: AWSEKSNodeGroup
   id: arn:aws:eks:us-west-2:1234567890:nodegroup:test-cluster/microservices/qwertyuiop
 ---

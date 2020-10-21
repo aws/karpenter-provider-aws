@@ -238,7 +238,7 @@ func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) in
 }
 
 func (b *Behavior) GetScalingRules(recommendation int32, replicas int32) ScalingRules {
-	if recommendation < replicas {
+	if recommendation > replicas {
 		return b.ScaleUpRules()
 	}
 	return b.ScaleDownRules()

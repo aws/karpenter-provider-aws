@@ -18,11 +18,11 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"knative.dev/pkg/ptr"
 
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
-	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
