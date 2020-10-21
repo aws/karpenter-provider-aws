@@ -1,19 +1,15 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 
-all: generate verify build test
-ci: generate verify build battletest
+help: ## Display help
+	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-# Build controller binary
-build:
-	go build -o bin/karpenter karpenter/main.go
+ci: generate verify battletest ## Run all steps used by continuous integration
 
-# Run tests
-test:
+test: ## Run tests
 	ginkgo -r
 
-# Run stronger tests
-battletest:
+battletest: ## Run stronger tests
 	# Ensure all files have cyclo-complexity =< 10
 	gocyclo -over 10 ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
@@ -22,16 +18,14 @@ battletest:
 		--randomizeAllSpecs --randomizeSuites -race
 	go tool cover -func coverage.out
 
-# Verify code. Includes dependencies, linting, formatting, etc
-verify:
+verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
 	go vet ./...
 	go fmt ./...
 	golangci-lint run
 
-# Generate code. Must be run if changes are made to ./pkg/apis/...
-generate:
+generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
 		webhook \
@@ -52,21 +46,17 @@ generate:
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_metricsproducers.yaml
 
-
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-apply:
+apply: ## Deploy the controller from your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko apply -B -f -
 
-delete:
+delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko delete -f -
 
-# Build and release a container image
-release:
+release: ## Build and release a container image to $KO_DOCKER_REPO/karpenter
 	docker build . -t ${IMG}
 	docker push ${IMG}
 
-# Install developer toolchain
-toolchain:
+toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: all test build release run apply delete verify generate toolchain
+.PHONY: help all test release run apply delete verify generate toolchain
