@@ -18,7 +18,7 @@ battletest: ## Run stronger tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 		--randomizeAllSpecs --randomizeSuites -race
-	go tool cover -func coverage.out
+	go tool cover -html coverage.out -o coverage.html
 
 verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
