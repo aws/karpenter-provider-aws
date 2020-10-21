@@ -1,13 +1,13 @@
 package environment
 
 import (
+	"fmt"
 	"io/ioutil"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,10 +52,10 @@ func (n *Namespace) ParseResources(path string, objects ...runtime.Object) error
 func (n *Namespace) ParseResource(path string, object runtime.Object) error {
 	data, err := ioutil.ReadFile(project.RelativeToRoot(path))
 	if err != nil {
-		return errors.Wrapf(err, "reading file %s", path)
+		return fmt.Errorf("reading file %s, %w", path, err)
 	}
 	if err := parseFromYaml(data, object); err != nil {
-		return errors.Wrapf(err, "parsing yaml")
+		return fmt.Errorf("parsing yaml, %w", err)
 	}
 
 	if field := reflect.ValueOf(object).Elem().FieldByName("Namespace"); field.IsValid() {

@@ -23,13 +23,11 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Controller for the resource
 type Controller struct {
-	client.Client
-	ProducerFactory producers.Factory
+	ProducerFactory *producers.Factory
 }
 
 // For returns the resource this controller is for.

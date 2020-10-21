@@ -2,23 +2,21 @@ package environment
 
 import (
 	"context"
-	"time"
+	"crypto/tls"
+	"fmt"
+	"net"
 
-	"github.com/ellistarn/karpenter/pkg/apis"
+	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
+
+	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 /*
@@ -40,12 +38,11 @@ AfterSuite(func() { env.Stop() })
 */
 type Local struct {
 	envtest.Environment
-	Manager         manager.Manager
-	Server          *ghttp.Server
-	InformerFactory informers.SharedInformerFactory
+	Manager controllers.Manager
+	Server  *ghttp.Server
 
 	options []LocalOption
-	stopch  chan struct{}
+	stopCh  chan struct{}
 }
 
 // LocalOption passes the Local environment to an option function. This is
@@ -54,7 +51,7 @@ type Local struct {
 type LocalOption func(env *Local)
 
 func NewLocal(options ...LocalOption) Environment {
-	log.Setup(controllerruntimezap.UseDevMode(true))
+	log.Setup(controllerruntimezap.UseDevMode(false))
 	return &Local{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("config/crd/bases")},
@@ -63,7 +60,7 @@ func NewLocal(options ...LocalOption) Environment {
 			},
 		},
 		Server:  ghttp.NewServer(),
-		stopch:  make(chan struct{}),
+		stopCh:  make(chan struct{}),
 		options: options,
 	}
 }
@@ -82,9 +79,9 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 	}
 
 	go func() {
-		<-e.stopch
+		<-e.stopCh
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
-			zap.S().Error(errors.Wrap(err, "Failed to tear down namespace"))
+			zap.S().Errorf("Failed to tear down namespace, %w", err)
 		}
 	}()
 	return ns, nil
@@ -93,64 +90,50 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 func (e *Local) Start() (err error) {
 	// Environment
 	if _, err := e.Environment.Start(); err != nil {
-		return errors.Wrap(err, "starting environment")
-	}
-
-	// Scheme
-	scheme := runtime.NewScheme()
-	for _, AddToScheme := range []func(s *runtime.Scheme) error{
-		apis.AddToScheme,
-		clientgoscheme.AddToScheme,
-	} {
-		if err := AddToScheme(scheme); err != nil {
-			return errors.Wrap(err, "setting up scheme")
-		}
+		return fmt.Errorf("starting environment, %w", err)
 	}
 
 	// Manager
-	if e.Manager, err = controllerruntime.NewManager(e.Config, controllerruntime.Options{
+	e.Manager = controllers.NewManagerOrDie(e.Config, controllerruntime.Options{
 		CertDir:            e.WebhookInstallOptions.LocalServingCertDir,
 		Host:               e.WebhookInstallOptions.LocalServingHost,
 		Port:               e.WebhookInstallOptions.LocalServingPort,
 		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
-		Scheme:             scheme,
-	}); err != nil {
-		return errors.Wrap(err, "creating new manager")
-	}
-
-	// Informers
-	e.InformerFactory = informers.NewSharedInformerFactory(kubernetes.NewForConfigOrDie(e.Config), time.Minute*30)
-	if err := e.Manager.Add(manager.RunnableFunc(func(stopChannel <-chan struct{}) error {
-		e.InformerFactory.Start(stopChannel)
-		<-stopChannel
-		return nil
-	})); err != nil {
-		return errors.Wrap(err, "registering informer factory")
-	}
+	})
 
 	// options
 	for _, option := range e.options {
 		option(e)
 	}
 
-	// Start manager
-	go func() {
-		if err := e.Manager.Start(e.stopch); err != nil {
-			zap.S().Fatal(errors.Wrapf(err, "Failed to start manager"))
-		}
-	}()
-
 	// Close on interrupt
 	go func() {
 		<-controllerruntime.SetupSignalHandler()
-		close(e.stopch)
+		close(e.stopCh)
 	}()
+
+	// Start manager
+	go func() {
+		if err := e.Manager.Start(e.stopCh); err != nil {
+			zap.S().Fatal(err)
+		}
+	}()
+
+	// Wait for the manager to start
+	Eventually(func() error {
+		url := fmt.Sprintf("%s:%d", e.WebhookInstallOptions.LocalServingHost, e.WebhookInstallOptions.LocalServingPort)
+		conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", url, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			return err
+		}
+		return conn.Close()
+	}).Should(Succeed())
 
 	return nil
 }
 
 func (e *Local) Stop() error {
-	close(e.stopch)
+	close(e.stopCh)
 	if err := e.Environment.Stop(); err != nil {
 		return err
 	}

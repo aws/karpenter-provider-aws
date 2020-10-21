@@ -17,12 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/pkg/errors"
 	"knative.dev/pkg/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,7 +31,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	client.Client
-	NodeGroupFactory nodegroup.Factory
+	NodeGroupFactory *nodegroup.Factory
 }
 
 // For returns the resource this controller is for.
@@ -54,14 +54,14 @@ func (c *Controller) Reconcile(object controllers.Resource) error {
 	ng := c.NodeGroupFactory.For(resource)
 	replicas, err := ng.GetReplicas()
 	if err != nil {
-		return errors.Wrapf(err, "unable to get replica count for node group: %v", resource.Spec.ID)
+		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)
 	}
 	resource.Status.Replicas = ptr.Int32(int32(replicas))
 	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == int32(replicas) {
 		return nil
 	}
 	if err := ng.SetReplicas(replicas); err != nil {
-		return errors.Wrapf(err, "unable to set replicas for node group: %v", resource.Spec.ID)
+		return fmt.Errorf("unable to set replicas for node group %v, %w", resource.Spec.ID, err)
 	}
 	return nil
 

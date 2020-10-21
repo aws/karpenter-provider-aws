@@ -1,10 +1,10 @@
 package reservedcapacity
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -36,8 +36,8 @@ func NewReservations(m *v1alpha1.MetricsProducer) *Reservations {
 	}
 }
 
-func (r *Reservations) Add(node *v1.Node, pods []*v1.Pod) {
-	for _, pod := range pods {
+func (r *Reservations) Add(node *v1.Node, pods *v1.PodList) {
+	for _, pod := range pods.Items {
 		r.Resources[v1.ResourcePods].Reserved.Add(*resource.NewQuantity(1, resource.DecimalSI))
 		for _, container := range pod.Spec.Containers {
 			r.Resources[v1.ResourceCPU].Reserved.Add(*container.Resources.Requests.Cpu())
@@ -57,7 +57,7 @@ type Reservation struct {
 
 func (r *Reservation) Utilization() (float64, error) {
 	if r.Total.Value() == 0 {
-		return 0, errors.Errorf("divide by zero %d/%d", r.Reserved.Value(), r.Total.Value())
+		return 0, fmt.Errorf("divide by zero %d/%d", r.Reserved.Value(), r.Total.Value())
 	}
 	utilization, _ := big.NewRat(r.Reserved.Value(), r.Total.Value()).Float64()
 	return utilization, nil

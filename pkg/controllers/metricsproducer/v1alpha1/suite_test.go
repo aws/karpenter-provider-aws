@@ -20,7 +20,6 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers"
 	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
@@ -40,16 +39,9 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-func injectHorizontalAutoscalerController(environment *environment.Local) {
-	Expect(controllers.Register(environment.Manager, &Controller{
-		ProducerFactory: producers.Factory{
-			NodeLister: environment.InformerFactory.Core().V1().Nodes().Lister(),
-			PodLister:  environment.InformerFactory.Core().V1().Pods().Lister(),
-		},
-	})).To(Succeed(), "Failed to register controller")
-}
-
-var env environment.Environment = environment.NewLocal(injectHorizontalAutoscalerController)
+var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
+	e.Manager.Register(&Controller{ProducerFactory: &producers.Factory{Client: e.Manager.GetClient()}})
+})
 
 var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

@@ -16,14 +16,13 @@ package pendingcapacity
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	listersv1 "k8s.io/client-go/listers/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Producer implements a Pending Capacity metric
 type Producer struct {
 	*v1alpha1.MetricsProducer
-	Nodes listersv1.NodeLister
-	Pods  listersv1.PodLister
+	Client client.Client
 }
 
 // GetCurrentValues of the metrics
