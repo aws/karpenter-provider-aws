@@ -16,12 +16,12 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"github.com/pkg/errors"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 )
@@ -35,10 +35,10 @@ type PrometheusMetricsClient struct {
 func (c *PrometheusMetricsClient) GetCurrentValue(metric v1alpha1.Metric) (metrics.Metric, error) {
 	value, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now().Round(time.Hour))
 	if err != nil {
-		return metrics.Metric{}, errors.Wrapf(err, "request failed for query %s", metric.Prometheus.Query)
+		return metrics.Metric{}, fmt.Errorf("request failed for query %s, %w", metric.Prometheus.Query, err)
 	}
 	if err := c.validateResponseType(value); err != nil {
-		return metrics.Metric{}, errors.Wrapf(err, "invalid response for query %s", metric.Prometheus.Query)
+		return metrics.Metric{}, fmt.Errorf("invalid response for query %s, %w", metric.Prometheus.Query, err)
 	}
 	return metrics.Metric{Value: float64(value.(model.Vector)[0].Value)}, nil
 }
@@ -46,10 +46,10 @@ func (c *PrometheusMetricsClient) GetCurrentValue(metric v1alpha1.Metric) (metri
 func (c *PrometheusMetricsClient) validateResponseType(value model.Value) error {
 	vector, ok := value.(model.Vector)
 	if !ok {
-		return errors.Errorf("expected %s and got %s", model.ValVector, value.Type())
+		return fmt.Errorf("expected %s and got %s", model.ValVector, value.Type())
 	}
 	if vector.Len() != 1 {
-		return errors.Errorf("expected instant vector and got vector: %s", log.Pretty(value))
+		return fmt.Errorf("expected instant vector and got vector: %s", log.Pretty(value))
 	}
 	return nil
 }

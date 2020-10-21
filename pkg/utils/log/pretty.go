@@ -2,8 +2,8 @@ package log
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -30,7 +30,7 @@ func PrettyInfof(formatter string, args ...interface{}) {
 
 func Pretty(object interface{}) string {
 	if data, err := json.MarshalIndent(object, LinePrefix, IndentSize); err != nil {
-		return errors.Wrap(err, "failed to print pretty string for object").Error()
+		return fmt.Sprintf("failed to print pretty string for object, %v", err)
 	} else {
 		return string(data)
 	}

@@ -1,6 +1,8 @@
 package log
 
 import (
+	"fmt"
+
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -15,4 +17,10 @@ func Setup(opts ...controllerruntimezap.Opts) {
 
 func InvariantViolated(reason string) {
 	zap.S().Errorf("Invariant violated: %s. Is the validation webhook installed?", reason)
+}
+
+func PanicIfError(err error, formatter string, arguments ...interface{}) {
+	if err != nil {
+		zap.S().Panicf("%s, %w", fmt.Sprintf(formatter, arguments...), err)
+	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -54,6 +54,6 @@ func ExpectEventuallyDeleted(client client.Client, resource test.Resource) {
 	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	Expect(client.Delete(context.Background(), resource)).To(Succeed())
 	Eventually(func() bool {
-		return apierrors.IsNotFound(client.Get(context.Background(), nn, resource))
+		return errors.IsNotFound(client.Get(context.Background(), nn, resource))
 	}, APIServerPropagationTime, RequestInterval).Should(BeTrue(), "resource was never deleted %s", nn)
 }

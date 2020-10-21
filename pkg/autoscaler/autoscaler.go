@@ -22,21 +22,36 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
-	"github.com/pkg/errors"
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
 	"knative.dev/pkg/apis"
 )
 
+func NewFactoryOrDie(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	log.PanicIfError(err, "Failed to create discovery client")
+	scalesgetter, err := scale.NewForConfig(config, mapper, dynamic.LegacyAPIPathResolverFunc, scale.NewDiscoveryScaleKindResolver(discoveryClient))
+	log.PanicIfError(err, "Failed to create scale client")
+	return &Factory{
+		MetricsClientFactory: metricsclientfactory,
+		Mapper:               mapper,
+		ScalesGetter:         scalesgetter,
+	}
+}
+
 // Factory instantiates autoscalers
 type Factory struct {
-	MetricsClientFactory clients.Factory
+	MetricsClientFactory *clients.Factory
 	Mapper               meta.RESTMapper
-	ScaleNamespacer      scale.ScalesGetter
+	ScalesGetter         scale.ScalesGetter
 }
 
 // For returns an autoscaler for the resource
@@ -46,17 +61,17 @@ func (f *Factory) For(resource *v1alpha1.HorizontalAutoscaler) Autoscaler {
 		algorithm:            algorithms.For(resource.Spec),
 		metricsClientFactory: f.MetricsClientFactory,
 		mapper:               f.Mapper,
-		scaleNamespacer:      f.ScaleNamespacer,
+		scalesGetter:         f.ScalesGetter,
 	}
 }
 
 // Autoscaler calculates desired replicas using the provided algorithm.
 type Autoscaler struct {
 	*v1alpha1.HorizontalAutoscaler
-	metricsClientFactory clients.Factory
+	metricsClientFactory *clients.Factory
 	algorithm            algorithms.Algorithm
 	mapper               meta.RESTMapper
-	scaleNamespacer      scale.ScalesGetter
+	scalesGetter         scale.ScalesGetter
 }
 
 // Reconcile executes an autoscaling loop
@@ -96,7 +111,7 @@ func (a *Autoscaler) getMetrics() ([]algorithms.Metric, error) {
 	for _, metric := range a.Spec.Metrics {
 		observed, err := a.metricsClientFactory.For(metric).GetCurrentValue(metric)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed retrieving metric")
+			return nil, fmt.Errorf("failed retrieving metric, %w", err)
 		}
 		metrics = append(metrics, algorithms.Metric{
 			Metric:      observed,
@@ -170,13 +185,13 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 	groupResource, err := a.parseGroupResource(a.Spec.ScaleTargetRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
+		return nil, fmt.Errorf("parsing group resource for %v, %w", a.Spec.ScaleTargetRef, err)
 	}
-	scaleTarget, err := a.scaleNamespacer.
+	scaleTarget, err := a.scalesGetter.
 		Scales(a.ObjectMeta.Namespace).
 		Get(context.TODO(), groupResource, a.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting scale target for %v", a.Spec.ScaleTargetRef)
+		return nil, fmt.Errorf("getting scale target for %v, %w", a.Spec.ScaleTargetRef, err)
 	}
 	return scaleTarget, nil
 }
@@ -184,12 +199,12 @@ func (a *Autoscaler) getScaleTarget() (*v1.Scale, error) {
 func (a *Autoscaler) updateScaleTarget(scaleTarget *v1.Scale) error {
 	groupResource, err := a.parseGroupResource(a.Spec.ScaleTargetRef)
 	if err != nil {
-		return errors.Wrapf(err, "parsing group resource for %v", a.Spec.ScaleTargetRef)
+		return fmt.Errorf("parsing group resource for %v, %w", a.Spec.ScaleTargetRef, err)
 	}
-	if _, err := a.scaleNamespacer.
+	if _, err := a.scalesGetter.
 		Scales(a.ObjectMeta.Namespace).
 		Update(context.TODO(), groupResource, scaleTarget, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrapf(err, "updating %v", scaleTarget.ObjectMeta.SelfLink)
+		return fmt.Errorf("updating %v, %w", scaleTarget.ObjectMeta.SelfLink, err)
 	}
 	return nil
 }
@@ -197,7 +212,7 @@ func (a *Autoscaler) updateScaleTarget(scaleTarget *v1.Scale) error {
 func (a *Autoscaler) parseGroupResource(scaleTargetRef v1alpha1.CrossVersionObjectReference) (schema.GroupResource, error) {
 	groupVersion, err := schema.ParseGroupVersion(scaleTargetRef.APIVersion)
 	if err != nil {
-		return schema.GroupResource{}, errors.Wrapf(err, "parsing groupversion from APIVersion %s", scaleTargetRef.APIVersion)
+		return schema.GroupResource{}, fmt.Errorf("parsing groupversion from APIVersion %s, %w", scaleTargetRef.APIVersion, err)
 	}
 	groupKind := schema.GroupKind{
 		Group: groupVersion.Group,
@@ -205,7 +220,7 @@ func (a *Autoscaler) parseGroupResource(scaleTargetRef v1alpha1.CrossVersionObje
 	}
 	mapping, err := a.mapper.RESTMapping(groupKind, groupVersion.Version)
 	if err != nil {
-		return schema.GroupResource{}, errors.Wrapf(err, "getting RESTMapping for %v %v", groupKind, groupVersion.Version)
+		return schema.GroupResource{}, fmt.Errorf("getting RESTMapping for %v %v, %w", groupKind, groupVersion.Version, err)
 	}
 	return mapping.Resource.GroupResource(), nil
 }

@@ -9,13 +9,12 @@ import (
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/scheduledcapacity"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Factory instantiates metrics producers
 type Factory struct {
-	NodeLister   v1.NodeLister
-	PodLister    v1.PodLister
+	Client       client.Client
 	QueueFactory cloudproviderqueue.Factory
 }
 
@@ -23,8 +22,7 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.NodeLister,
-			Pods:            f.PodLister,
+			Client:          f.Client,
 		}
 	}
 	if mp.Spec.Queue != nil {
@@ -36,14 +34,12 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.ReservedCapacity != nil {
 		return &reservedcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.NodeLister,
-			Pods:            f.PodLister,
+			Client:          f.Client,
 		}
 	}
 	if mp.Spec.ScheduledCapacity != nil {
 		return &scheduledcapacity.Producer{
 			MetricsProducer: mp,
-			Nodes:           f.NodeLister,
 		}
 	}
 	log.InvariantViolated("Failed to instantiate metrics producer, no spec defined")

@@ -15,11 +15,12 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/pkg/errors"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
@@ -45,7 +46,7 @@ func (asg *AutoScalingGroup) GetReplicas() (int32, error) {
 		return 0, err
 	}
 	if len(out.AutoScalingGroups) != 1 {
-		return 0, errors.Errorf("autoscaling group has no instances: %s", asg.ID)
+		return 0, fmt.Errorf("autoscaling group has no instances: %s", asg.ID)
 	}
 	return int32(len(out.AutoScalingGroups[0].Instances)), nil
 }

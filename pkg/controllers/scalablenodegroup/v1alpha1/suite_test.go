@@ -20,7 +20,6 @@ import (
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
-	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
 	"knative.dev/pkg/ptr"
@@ -37,13 +36,9 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-func injectScalableNodeGroupController(environment *environment.Local) {
-	Expect(controllers.Register(environment.Manager, &Controller{
-		NodeGroupFactory: nodegroup.Factory{},
-	}), "Failed to register controller")
-}
-
-var env environment.Environment = environment.NewLocal(injectScalableNodeGroupController)
+var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
+	e.Manager.Register(&Controller{NodeGroupFactory: &nodegroup.Factory{}})
+})
 
 var _ = BeforeSuite(func() {
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

@@ -4,6 +4,8 @@ IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+all: generate verify test ## Run all steps in the developer loop
+
 ci: generate verify battletest ## Run all steps used by continuous integration
 
 test: ## Run tests
@@ -59,4 +61,4 @@ release: ## Build and release a container image to $KO_DOCKER_REPO/karpenter
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help all test release run apply delete verify generate toolchain
+.PHONY: help all ci test release run apply delete verify generate toolchain

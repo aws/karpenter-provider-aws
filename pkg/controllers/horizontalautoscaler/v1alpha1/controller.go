@@ -29,7 +29,7 @@ import (
 // Controller reconciles a HorizontalAutoscaler object
 type Controller struct {
 	client.Client
-	AutoscalerFactory autoscaler.Factory
+	AutoscalerFactory *autoscaler.Factory
 }
 
 // For returns the resource this controller is for.

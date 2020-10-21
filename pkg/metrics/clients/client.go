@@ -18,8 +18,18 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
+
+	"github.com/prometheus/client_golang/api"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 )
+
+func NewFactoryOrDie(prometheusURI string) *Factory {
+	client, err := api.NewClient(api.Config{Address: prometheusURI})
+	log.PanicIfError(err, "Failed to instantiate metrics client factory")
+	return &Factory{
+		PrometheusClient: prometheusv1.NewAPI(client),
+	}
+}
 
 // Factory instantiates metrics clients
 type Factory struct {

@@ -15,7 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // +kubebuilder:object:generate=false
@@ -30,10 +30,10 @@ func RegisterScalableNodeGroupValidator(nodeGroupType NodeGroupType, validator S
 func (sng *ScalableNodeGroup) Validate() error {
 	validator, ok := scalableNodeGroupValidators[sng.Spec.Type]
 	if !ok {
-		return errors.Errorf("Unexpected type %v", sng.Spec.Type)
+		return fmt.Errorf("Unexpected type %v", sng.Spec.Type)
 	}
 	if err := validator(&sng.Spec); err != nil {
-		return errors.Wrap(err, "Invalid ScalableNodeGroup")
+		return fmt.Errorf("Invalid ScalableNodeGroup, %w", err)
 	}
 	return nil
 }

@@ -16,15 +16,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -67,7 +66,7 @@ func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, 
 	// 1. Read Spec
 	resource := c.For()
 	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
-		if apierrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -82,22 +81,7 @@ func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 	// 4. Update Status using a merge patch
 	if err := c.Status().Patch(context.Background(), resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "Failed to persist changes to %s", req.NamespacedName)
+		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
-}
-
-// Register registers the controller to the provided controllerruntime.Manager.
-func Register(manager controllerruntime.Manager, controller Controller) error {
-	var builder = controllerruntime.NewControllerManagedBy(manager).For(controller.For())
-	for _, resource := range controller.Owns() {
-		builder = builder.Owns(resource)
-	}
-	if err := builder.Complete(&GenericController{Controller: controller, Client: manager.GetClient()}); err != nil {
-		return errors.Wrapf(err, "registering controller to manager for resource %v", controller.For())
-	}
-	if err := controllerruntime.NewWebhookManagedBy(manager).For(controller.For()).Complete(); err != nil {
-		return errors.Wrapf(err, "registering webhook to manager for resource %v", controller.For())
-	}
-	return nil
 }
