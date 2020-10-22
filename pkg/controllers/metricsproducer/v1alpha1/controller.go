@@ -14,7 +14,6 @@ limitations under the License.
 
 // +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=metricsproducers;metricsproducers/status,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes;pods,verbs=get;list;watch
-// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;watch;update;patch
 
 package v1alpha1
 
