@@ -5,14 +5,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"github.com/ellistarn/karpenter/pkg/utils/project"
-
-	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/util/wait"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -120,16 +120,23 @@ func (e *Local) Start() (err error) {
 	}()
 
 	// Wait for the manager to start
-	Eventually(func() error {
+	backOffOpts := wait.Backoff{
+		Duration: 10 * time.Millisecond,
+		Factor:   1.5,
+		Steps:    10,
+		Cap:      1 * time.Second,
+	}
+	return wait.ExponentialBackoff(backOffOpts, func() (bool, error) {
 		url := fmt.Sprintf("%s:%d", e.WebhookInstallOptions.LocalServingHost, e.WebhookInstallOptions.LocalServingPort)
-		conn, err := tls.DialWithDialer(&net.Dialer{}, "tcp", url, &tls.Config{InsecureSkipVerify: true})
-		if err != nil {
-			return err
+		dialer := tls.Dialer{NetDialer: &net.Dialer{}, Config: &tls.Config{InsecureSkipVerify: true}}
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(backOffOpts.Cap))
+		defer cancel()
+		conn, err := dialer.DialContext(ctx, "tcp", url)
+		if err != nil || conn.Close() != nil {
+			return false, nil // keeps trying
 		}
-		return conn.Close()
-	}).Should(Succeed())
-
-	return nil
+		return true, nil // stops trying
+	})
 }
 
 func (e *Local) Stop() error {

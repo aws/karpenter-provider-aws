@@ -1,4 +1,4 @@
-FROM golang:1.14.4 as builder
+FROM golang:1.15.3 as builder
 
 # Copy src
 WORKDIR /go/src/github.com/ellistarn/karpenter
