@@ -48,7 +48,7 @@ generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_metricsproducers.yaml
 
-apply: ## Deploy the controller from your ~/.kube/config cluster
+apply: ## Deploy the controller into your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster

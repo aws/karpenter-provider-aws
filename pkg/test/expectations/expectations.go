@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/ellistarn/karpenter/pkg/test"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,19 +33,19 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func ExpectCreated(client client.Client, objects ...test.Resource) {
+func ExpectCreated(client client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(client.Create(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectDeleted(client client.Client, objects ...test.Resource) {
+func ExpectDeleted(client client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(client.Delete(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectEventuallyCreated(client client.Client, object test.Resource) {
+func ExpectEventuallyCreated(client client.Client, object client.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 	Expect(client.Create(context.Background(), object)).To(Succeed())
 	Eventually(func() error {
@@ -54,7 +53,7 @@ func ExpectEventuallyCreated(client client.Client, object test.Resource) {
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 }
 
-func ExpectEventuallyHappy(client client.Client, resource controllers.Resource) {
+func ExpectEventuallyHappy(client client.Client, resource controllers.Object) {
 	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	Eventually(func() bool {
 		Expect(client.Get(context.Background(), nn, resource)).To(Succeed())
@@ -64,7 +63,7 @@ func ExpectEventuallyHappy(client client.Client, resource controllers.Resource) 
 	})
 }
 
-func ExpectEventuallyDeleted(client client.Client, resource test.Resource) {
+func ExpectEventuallyDeleted(client client.Client, resource client.Object) {
 	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	Expect(client.Delete(context.Background(), resource)).To(Succeed())
 	Eventually(func() bool {

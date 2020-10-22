@@ -12,6 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;watch;update;patch
+
 package controllers
 
 import (
@@ -24,6 +26,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -64,7 +67,7 @@ func (m *Manager) Register(controllers ...Controller) {
 	}
 }
 
-func podSchedulingIndex(object runtime.Object) []string {
+func podSchedulingIndex(object client.Object) []string {
 	pod, ok := object.(*v1.Pod)
 	if !ok {
 		return nil

@@ -21,8 +21,6 @@ import (
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -33,24 +31,23 @@ type Controller interface {
 	// Reconcile hands a hydrated kubernetes resource to the controller for
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
-	Reconcile(Resource) error
+	Reconcile(Object) error
 	// Interval returns an interval that the controller should wait before
 	// executing another reconciliation loop. If set to zero, will only execute
 	// on watch events or the global resync interval.
 	Interval() time.Duration
 	// For returns a default instantiation of the resource and is injected by
 	// data from the API Server at the start of the reconcilation loop.
-	For() Resource
+	For() Object
 	// Owns returns a slice of resources that are watched by this resources.
 	// Watch events are triggered if owner references are set on the resource.
-	Owns() []Resource
+	Owns() []Object
 }
 
-// Resource provides an abstraction over a kubernetes custom resource with
+// Object provides an abstraction over a kubernetes custom resource with
 // methods necessary to standardize reconciliation behavior in Karpenter.
-type Resource interface {
-	runtime.Object
-	metav1.Object
+type Object interface {
+	client.Object
 	StatusConditions() apis.ConditionManager
 }
 
@@ -62,10 +59,10 @@ type GenericController struct {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Read Spec
 	resource := c.For()
-	if err := c.Get(context.Background(), req.NamespacedName, resource); err != nil {
+	if err := c.Get(ctx, req.NamespacedName, resource); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -80,7 +77,7 @@ func (c *GenericController) Reconcile(req reconcile.Request) (reconcile.Result, 
 		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
 	// 4. Update Status using a merge patch
-	if err := c.Status().Patch(context.Background(), resource, client.MergeFrom(persisted)); err != nil {
+	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil

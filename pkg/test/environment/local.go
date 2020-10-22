@@ -56,7 +56,8 @@ type Local struct {
 	Server  *ghttp.Server
 
 	options []LocalOption
-	stopCh  chan struct{}
+	ctx     context.Context
+	stop    context.CancelFunc
 }
 
 // LocalOption passes the Local environment to an option function. This is
@@ -66,15 +67,18 @@ type LocalOption func(env *Local)
 
 func NewLocal(options ...LocalOption) Environment {
 	log.Setup(controllerruntimezap.UseDevMode(false))
+	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
+
 	return &Local{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("config/crd/bases")},
 			WebhookInstallOptions: envtest.WebhookInstallOptions{
-				DirectoryPaths: []string{project.RelativeToRoot("config/webhook")},
+				Paths: []string{project.RelativeToRoot("config/webhook")},
 			},
 		},
 		Server:  ghttp.NewServer(),
-		stopCh:  make(chan struct{}),
+		ctx:     ctx,
+		stop:    stop,
 		options: options,
 	}
 }
@@ -93,7 +97,7 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 	}
 
 	go func() {
-		<-e.stopCh
+		<-e.ctx.Done()
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
 			zap.S().Errorf("Failed to tear down namespace, %w", err)
 		}
@@ -120,15 +124,9 @@ func (e *Local) Start() (err error) {
 		option(e)
 	}
 
-	// Close on interrupt
-	go func() {
-		<-controllerruntime.SetupSignalHandler()
-		close(e.stopCh)
-	}()
-
 	// Start manager
 	go func() {
-		if err := e.Manager.Start(e.stopCh); err != nil {
+		if err := e.Manager.Start(e.ctx); err != nil {
 			zap.S().Fatal(err)
 		}
 	}()
@@ -154,9 +152,6 @@ func (e *Local) Start() (err error) {
 }
 
 func (e *Local) Stop() error {
-	close(e.stopCh)
-	if err := e.Environment.Stop(); err != nil {
-		return err
-	}
-	return nil
+	e.stop()
+	return e.Environment.Stop()
 }

@@ -35,13 +35,13 @@ type Controller struct {
 }
 
 // For returns the resource this controller is for.
-func (c *Controller) For() controllers.Resource {
+func (c *Controller) For() controllers.Object {
 	return &v1alpha1.ScalableNodeGroup{}
 }
 
 // Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []controllers.Resource {
-	return []controllers.Resource{}
+func (c *Controller) Owns() []controllers.Object {
+	return []controllers.Object{}
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -49,7 +49,7 @@ func (c *Controller) Interval() time.Duration {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(object controllers.Resource) error {
+func (c *Controller) Reconcile(object controllers.Object) error {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
 	ng := c.NodeGroupFactory.For(resource)
 	replicas, err := ng.GetReplicas()
