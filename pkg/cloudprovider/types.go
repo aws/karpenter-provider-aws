@@ -14,6 +14,8 @@ limitations under the License.
 
 package cloudprovider
 
+import "errors"
+
 // Queue abstracts all provider specific behavior for Queues
 type Queue interface {
 	// Name returns the name of the queue
@@ -29,4 +31,25 @@ type Queue interface {
 type NodeGroup interface {
 	SetReplicas(count int32) error
 	GetReplicas() (int32, error)
+}
+
+// TransientError indicates that an error can possibly be retried.
+// Cloud providers can wrap selectively wrap certain errors to
+// indicate that they might be retryable.
+type TransientError interface {
+	IsRetryable() bool
+	Error() string
+}
+
+// IsRetryable is a utility function intended to help controllers and
+// other clients determine whether a particular error indicates a
+// fundamental problem with a resource (one that cannot be resolved
+// without operator intervention) or whether it indicates a problem
+// that could simply resolve itself.
+func IsRetryable(err error) bool {
+	var transient TransientError
+	if errors.As(err, &transient) {
+		return transient.IsRetryable()
+	}
+	return false
 }
