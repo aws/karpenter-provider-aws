@@ -5,5 +5,4 @@ Karpenter is a metrics-driven autoscaler for Kubernetes.
 
 # Usage
 - [Design](./docs/DESIGN.md)
-- [Architecture](./docs/ARCHITECTURE.md)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
