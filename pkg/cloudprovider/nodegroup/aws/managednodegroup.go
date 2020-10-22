@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
+	//	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
@@ -105,6 +106,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
+	// https://docs.aws.amazon.com/eks/latest/APIReference/API_UpdateNodegroupConfig.html
 	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
@@ -112,5 +114,6 @@ func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 			DesiredSize: aws.Int64(int64(count)),
 		},
 	})
+
 	return err
 }
