@@ -6,7 +6,7 @@ The following tools are required for doing development on Karpenter.
 
 | Package                                                            | Version  | Install             |
 | ------------------------------------------------------------------ | -------- | ------------------- |
-| [go](https://golang.org/dl/)                                       | v1.14.4+ |                     |
+| [go](https://golang.org/dl/)                                       | v1.15.3+ |                     |
 | [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) |          |                     |
 | [helm](https://helm.sh/docs/intro/install/)                        |          | `brew install helm` |
 | Other tools                                                        |          | `make toolchain`    |
