@@ -32,7 +32,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
+	"k8s.io/utils/integer"
 	"knative.dev/pkg/apis"
+)
+
+const (
+	ScaleBoundedFormat       = "recommendation %d limited by bounds [%d, %d]"
+	ScaleStabilizationFormat = "within stabilization window %d/%d seconds"
 )
 
 func NewFactoryOrDie(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
@@ -149,15 +155,14 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 }
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
-	if desiredReplicas > a.Spec.MaxReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by maximum %d/%d replicas", desiredReplicas, a.Spec.MaxReplicas))
-		return a.Spec.MaxReplicas
+	boundedReplicas := desiredReplicas
+	boundedReplicas = integer.Int32Min(boundedReplicas, a.Spec.MaxReplicas)
+	boundedReplicas = integer.Int32Max(boundedReplicas, a.Spec.MinReplicas)
+	if boundedReplicas != desiredReplicas {
+		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "", fmt.Sprintf(ScaleBoundedFormat, desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
+	} else {
+		a.StatusConditions().MarkTrue(v1alpha1.ScalingUnbounded)
 	}
-	if desiredReplicas < a.Spec.MinReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by minimum %d/%d replicas", desiredReplicas, a.Spec.MinReplicas))
-		return a.Spec.MinReplicas
-	}
-	a.MarkScalingUnbounded()
 	return desiredReplicas
 }
 
@@ -167,7 +172,7 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	// scale up vs down, as scale up window doesn't prevent scale down.
 	if a.Status.LastScaleTime != nil {
 		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
-			a.MarkNotAbleToScale(fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
+			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", fmt.Sprintf(ScaleStabilizationFormat, elapsed, window))
 			return recommendation
 		}
 	}
@@ -178,7 +183,7 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	}
 
 	// 3. If not limited, use raw recommended value
-	a.MarkAbleToScale()
+	a.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
 	return recommendation
 }
 
