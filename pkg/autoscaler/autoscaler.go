@@ -163,7 +163,7 @@ func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
 	} else {
 		a.StatusConditions().MarkTrue(v1alpha1.ScalingUnbounded)
 	}
-	return desiredReplicas
+	return boundedReplicas
 }
 
 func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) int32 {
