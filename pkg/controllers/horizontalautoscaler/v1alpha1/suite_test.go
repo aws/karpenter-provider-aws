@@ -90,11 +90,11 @@ var _ = Describe("Test Samples", func() {
 			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
 
-			ExpectEventuallyCreated(ns.Client, sng)
-			ExpectEventuallyCreated(ns.Client, ha)
+			ExpectCreated(ns.Client, sng)
+			ExpectCreated(ns.Client, ha)
 			ExpectEventuallyHappy(ns.Client, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(8), log.Pretty(ha))
-			ExpectEventuallyDeleted(ns.Client, ha)
+			ExpectDeleted(ns.Client, ha)
 		})
 	})
 
@@ -105,11 +105,11 @@ var _ = Describe("Test Samples", func() {
 			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
 
-			ExpectEventuallyCreated(ns.Client, sng)
-			ExpectEventuallyCreated(ns.Client, ha)
+			ExpectCreated(ns.Client, sng)
+			ExpectCreated(ns.Client, ha)
 			ExpectEventuallyHappy(ns.Client, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))
-			ExpectEventuallyDeleted(ns.Client, ha)
+			ExpectDeleted(ns.Client, ha)
 		})
 	})
 })

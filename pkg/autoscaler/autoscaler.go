@@ -23,7 +23,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	f "github.com/ellistarn/karpenter/pkg/utils/functional"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -37,10 +36,13 @@ import (
 )
 
 func NewFactoryOrDie(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	log.PanicIfError(err, "Failed to create discovery client")
-	scalesgetter, err := scale.NewForConfig(config, mapper, dynamic.LegacyAPIPathResolverFunc, scale.NewDiscoveryScaleKindResolver(discoveryClient))
-	log.PanicIfError(err, "Failed to create scale client")
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
+	scalesgetter := scale.New(
+		discoveryClient.RESTClient(),
+		mapper,
+		dynamic.LegacyAPIPathResolverFunc,
+		scale.NewDiscoveryScaleKindResolver(discoveryClient),
+	)
 	return &Factory{
 		MetricsClientFactory: metricsclientfactory,
 		Mapper:               mapper,
@@ -91,7 +93,7 @@ func (a *Autoscaler) Reconcile() error {
 	a.Status.CurrentReplicas = scaleTarget.Status.Replicas
 
 	// 3. Calculate desired replicas using metrics and current desired replicas
-	desiredReplicas := a.getDesiredReplicas(metrics, scaleTarget.Spec.Replicas)
+	desiredReplicas := a.getDesiredReplicas(metrics, scaleTarget)
 	if desiredReplicas == scaleTarget.Spec.Replicas {
 		return nil
 	}
@@ -136,17 +138,15 @@ They are also orthogonal, such that {ScalingUnbounded, AbleToScale} can be
 {false, true}: limited by min/max but not stabilization window or policy,
 {false, false}: limited stabilization window or policy and also by min/max.
 */
-func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas int32) int32 {
+func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, scaleTarget *v1.Scale) int32 {
 	var recommendations []int32
 	for _, metric := range metrics {
-		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, replicas))
+		recommendations = append(recommendations, a.algorithm.GetDesiredReplicas(metric, scaleTarget.Status.Replicas))
 	}
 
-	recommended := a.Spec.Behavior.ApplySelectPolicy(recommendations, replicas)
-	limited := a.applyTransientLimits(recommended, replicas)
-	bounded := a.applyBoundedLimits(limited)
-
-	return bounded
+	recommendation := a.Spec.Behavior.ApplySelectPolicy(scaleTarget.Spec.Replicas, recommendations)
+	limited := a.applyTransientLimits(scaleTarget.Spec.Replicas, recommendation)
+	return a.applyBoundedLimits(limited)
 }
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
@@ -166,8 +166,8 @@ func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
 	return boundedReplicas
 }
 
-func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) int32 {
-	rules := a.Spec.Behavior.GetScalingRules([]int32{recommendation}, replicas)
+func (a *Autoscaler) applyTransientLimits(replicas int32, recommendation int32) int32 {
+	rules := a.Spec.Behavior.GetScalingRules(replicas, []int32{recommendation})
 
 	// 1. Don't scale if within stabilization window. Check after determining
 	// scale up vs down, as scale up window doesn't prevent scale down.
