@@ -72,7 +72,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	if err == nil {
 		resource.MarkAvailableToControl()
 	} else if cloudprovider.IsRetryable(err) {
-		resource.MarkNotAvailableToControl("temporarily unavailable")
+		resource.MarkNotAvailableToControl(cloudprovider.ConditionMessage(err))
 		return nil
 	}
 	return err

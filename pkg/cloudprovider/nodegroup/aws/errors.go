@@ -15,6 +15,9 @@ limitations under the License.
 package aws
 
 import (
+	"errors"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 )
 
@@ -41,4 +44,12 @@ func (e AWSTransientError) Error() string {
 
 func (e AWSTransientError) IsRetryable() bool {
 	return request.IsErrorRetryable(e.err)
+}
+
+func (e AWSTransientError) Message() string {
+	var perr awserr.Error
+	if errors.As(e.err, &perr) {
+		return perr.Code()
+	}
+	return ""
 }

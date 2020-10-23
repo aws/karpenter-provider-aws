@@ -40,6 +40,9 @@ type NodeGroup interface {
 type TransientError interface {
 	IsRetryable() bool
 	Error() string
+
+	// Very short message explaining the problem
+	ConditionMessage() string
 }
 
 // IsRetryable is a utility function intended to help controllers and
@@ -53,4 +56,12 @@ func IsRetryable(err error) bool {
 		return transient.IsRetryable()
 	}
 	return false
+}
+
+func ConditionMessage(err error) string {
+	var transient TransientError
+	if errors.As(err, &transient) {
+		return transient.ConditionMessage()
+	}
+	return ""
 }
