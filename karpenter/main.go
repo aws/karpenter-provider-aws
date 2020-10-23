@@ -65,16 +65,11 @@ func main() {
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
-	horizontalAutoscalerController := &horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory}
-	scalableNodeGroupController := &scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}}
-	metricsProducerController := &metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory}
-
-	manager.Register(
-		horizontalAutoscalerController,
-		scalableNodeGroupController,
-		metricsProducerController,
-	)
-	if err := manager.Start(controllerruntime.SetupSignalHandler()); err != nil {
+	if err := manager.Register(
+		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
+		&scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}},
+		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
+	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Fatalf("Unable to start manager, %w", err)
 	}
 }
