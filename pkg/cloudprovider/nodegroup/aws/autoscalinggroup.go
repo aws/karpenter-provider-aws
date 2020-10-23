@@ -43,7 +43,7 @@ func (asg *AutoScalingGroup) GetReplicas() (int32, error) {
 		MaxRecords:            aws.Int64(1),
 	})
 	if err != nil {
-		return 0, err
+		return 0, Transientify(err)
 	}
 	if len(out.AutoScalingGroups) != 1 {
 		return 0, fmt.Errorf("autoscaling group has no instances: %s", asg.ID)
@@ -56,5 +56,5 @@ func (asg *AutoScalingGroup) SetReplicas(count int32) error {
 		AutoScalingGroupName: aws.String(asg.ID),
 		DesiredCapacity:      aws.Int64(int64(count)),
 	})
-	return err
+	return Transientify(err)
 }
