@@ -22,7 +22,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
-	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -62,7 +61,7 @@ var _ = Describe("Test Samples", func() {
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
 			Expect(ns.ParseResources("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(5)
+			sng.Spec.Replicas = 5
 
 			ExpectEventuallyCreated(ns.Client, sng)
 

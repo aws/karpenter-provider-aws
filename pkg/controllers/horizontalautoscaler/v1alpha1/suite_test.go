@@ -27,7 +27,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -87,7 +86,8 @@ var _ = Describe("Test Samples", func() {
 	Context("Capacity Reservations", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(5)
+			sng.Spec.Replicas = 5
+			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
 
 			ExpectEventuallyCreated(ns.Client, sng)
@@ -101,7 +101,8 @@ var _ = Describe("Test Samples", func() {
 	Context("Queue Length", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
 			Expect(ns.ParseResources("docs/samples/queue-length/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(1)
+			sng.Spec.Replicas = 1
+			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
 
 			ExpectEventuallyCreated(ns.Client, sng)
