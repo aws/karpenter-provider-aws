@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
@@ -48,8 +49,7 @@ func (c *Controller) Interval() time.Duration {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(object controllers.Object) error {
-	resource := object.(*v1alpha1.ScalableNodeGroup)
+func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	ng := c.NodeGroupFactory.For(resource)
 	replicas, err := ng.GetReplicas()
 	if err != nil {
@@ -63,5 +63,17 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return fmt.Errorf("unable to set replicas for node group %v, %w", resource.Spec.ID, err)
 	}
 	return nil
+}
 
+// Reconcile executes a control loop for the resource
+func (c *Controller) Reconcile(object controllers.Object) error {
+	resource := object.(*v1alpha1.ScalableNodeGroup)
+	err := c.reconcile(resource)
+	if err == nil {
+		resource.MarkAvailableToControl()
+	} else if cloudprovider.IsRetryable(err) {
+		resource.MarkNotAvailableToControl("temporarily unavailable")
+		return nil
+	}
+	return err
 }

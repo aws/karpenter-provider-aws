@@ -36,6 +36,7 @@ type NodeGroup interface {
 // TransientError indicates that an error can possibly be retried.
 // Cloud providers can wrap selectively wrap certain errors to
 // indicate that they might be retryable.
+// TODO: TERRIBLE NAME!!!!!!!
 type TransientError interface {
 	IsRetryable() bool
 	Error() string
