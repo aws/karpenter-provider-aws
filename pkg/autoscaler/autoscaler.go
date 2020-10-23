@@ -22,6 +22,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/scale"
-	"k8s.io/utils/integer"
 	"knative.dev/pkg/apis"
 )
 
@@ -156,8 +156,8 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
 	boundedReplicas := desiredReplicas
-	boundedReplicas = integer.Int32Min(boundedReplicas, a.Spec.MaxReplicas)
-	boundedReplicas = integer.Int32Max(boundedReplicas, a.Spec.MinReplicas)
+	boundedReplicas = f.MinInt32([]int32{boundedReplicas, a.Spec.MaxReplicas})
+	boundedReplicas = f.MaxInt32([]int32{boundedReplicas, a.Spec.MinReplicas})
 	if boundedReplicas != desiredReplicas {
 		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "", fmt.Sprintf(ScaleBoundedFormat, desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
 	} else {
