@@ -23,7 +23,7 @@ import (
 // which enables it to be targeted by Horizontal Pod Autoscalers.
 type ScalableNodeGroupSpec struct {
 	// Replicas is the desired number of replicas for the targeted Node Group
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
 	Type NodeGroupType `json:"type"`
 	// ID to identify the underlying resource

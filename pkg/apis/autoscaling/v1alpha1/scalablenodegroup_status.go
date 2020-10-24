@@ -22,7 +22,7 @@ type ScalableNodeGroupStatus struct {
 	// Replicas displays the actual size of the ScalableNodeGroup
 	// at the time of the last reconciliation
 	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// Conditions is the set of conditions required for the scalable node group
 	// to successfully enforce the replica count of the underlying group
 	// +optional
