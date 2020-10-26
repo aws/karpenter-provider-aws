@@ -217,9 +217,9 @@ func (m *Metric) GetTarget() MetricTarget {
 func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) int32 {
 	var rules ScalingRules
 	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
-		rules = b.GetScalingRules(gt[0], replicas)
+		rules = b.ScaleUpRules()
 	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
-		rules = b.GetScalingRules(lt[0], replicas)
+		rules = b.ScaleDownRules()
 	} else {
 		return replicas
 	}
@@ -238,7 +238,7 @@ func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) in
 }
 
 func (b *Behavior) GetScalingRules(recommendation int32, replicas int32) ScalingRules {
-	if recommendation < replicas {
+	if recommendation > replicas {
 		return b.ScaleUpRules()
 	}
 	return b.ScaleDownRules()

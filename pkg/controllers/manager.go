@@ -54,8 +54,7 @@ func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Man
 	manager, err := controllerruntime.NewManager(config, options)
 	log.PanicIfError(err, "Failed to create controller manager")
 	log.PanicIfError(manager.GetFieldIndexer().
-		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex),
-		"Failed to setup pod indexer")
+		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex), "Failed to setup pod indexer")
 	return &GenericControllerManager{Manager: manager}
 }
 

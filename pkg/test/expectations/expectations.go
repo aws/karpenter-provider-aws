@@ -36,6 +36,7 @@ const (
 func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
+		Expect(c.Status().Patch(context.Background(), object, client.Merge, &client.PatchOptions{})).To(Succeed())
 	}
 }
 
@@ -47,7 +48,7 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 
 func ExpectEventuallyCreated(c client.Client, object client.Object) {
 	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
-	Expect(c.Create(context.Background(), object)).To(Succeed())
+	ExpectCreated(c, object)
 	Eventually(func() error {
 		return c.Get(context.Background(), nn, object)
 	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
