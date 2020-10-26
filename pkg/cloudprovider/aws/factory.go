@@ -15,30 +15,30 @@ limitations under the License.
 package aws
 
 import (
-	"io/ioutil"
-	"net/http"
-
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
 	nodegroupaws "github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
-	queueaws "github.com/ellistarn/karpenter/pkg/cloudprovider/queue/aws"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 )
 
 type Factory struct {
-	Client autoscalingiface.AutoScalingAPI
+	AutoscalingClient autoscalingiface.AutoScalingAPI
+	SQSClient         sqsiface.SQSAPI
 }
 
 func NewFactory() *Factory {
+	session := withRegion(session.Must(session.NewSession()))
 	return &Factory{
-		Client: autoscaling.New(
-			session.Must(session.NewSession(&aws.Config{Region: aws.String(regionOrDie())})),
-		),
+		AutoscalingClient: autoscaling.New(session),
+		SQSClient:         sqs.New(session),
 	}
 }
 
@@ -53,20 +53,21 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	}
 }
 
-func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
+func (f *Factory) QueueFor(spec v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return &queueaws.SQSQueue{ARN: spec.ID}
+		return NewSQS(spec.ID, NewFactory().SQSClient)
 	default:
 		return mock.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
-// TODO use aws-sdk APIs
-func regionOrDie() string {
-	response, err := http.Get("http://169.254.169.254/latest/meta-data/placement/region")
-	log.PanicIfError(err, "Failed to call the metadata server's region API")
-	region, err := ioutil.ReadAll(response.Body)
-	log.PanicIfError(err, "Failed to read response from metadata server")
-	return string(region)
+func withRegion(session *session.Session) *session.Session {
+	svc := ec2metadata.New(session, aws.NewConfig())
+	region, err := svc.Region()
+	if err != nil {
+		log.PanicIfError(err, "failed to call the metadata server's region API")
+	}
+	session.Config.Region = aws.String(region)
+	return session
 }
