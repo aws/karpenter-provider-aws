@@ -22,6 +22,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler/algorithms"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
+	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/autoscaling/v1"
@@ -149,16 +150,20 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 }
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
-	if desiredReplicas > a.Spec.MaxReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by maximum %d/%d replicas", desiredReplicas, a.Spec.MaxReplicas))
-		return a.Spec.MaxReplicas
+	boundedReplicas := f.
+		MinInt32([]int32{f.
+			MaxInt32([]int32{
+				desiredReplicas,
+				a.Spec.MinReplicas}),
+			a.Spec.MaxReplicas})
+
+	if boundedReplicas != desiredReplicas {
+		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "",
+			fmt.Sprintf("recommendation %d limited by bounds [%d, %d]", desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
+	} else {
+		a.StatusConditions().MarkTrue(v1alpha1.ScalingUnbounded)
 	}
-	if desiredReplicas < a.Spec.MinReplicas {
-		a.MarkNotScalingUnbounded(fmt.Sprintf("limited by minimum %d/%d replicas", desiredReplicas, a.Spec.MinReplicas))
-		return a.Spec.MinReplicas
-	}
-	a.MarkScalingUnbounded()
-	return desiredReplicas
+	return boundedReplicas
 }
 
 func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) int32 {
@@ -167,7 +172,8 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	// scale up vs down, as scale up window doesn't prevent scale down.
 	if a.Status.LastScaleTime != nil {
 		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
-			a.MarkNotAbleToScale(fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
+			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "",
+				fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
 			return recommendation
 		}
 	}
@@ -178,7 +184,7 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	}
 
 	// 3. If not limited, use raw recommended value
-	a.MarkAbleToScale()
+	a.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
 	return recommendation
 }
 

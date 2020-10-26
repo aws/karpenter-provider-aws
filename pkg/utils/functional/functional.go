@@ -59,7 +59,7 @@ func MinInt32(values []int32) int32 {
 // SelectInt32 returns the victor of the slice selected by the comparison function.
 func SelectInt32(values []int32, selector func(int32, int32) int32) int32 {
 	selected := values[0]
-	for value := range values {
+	for _, value := range values {
 		selected = selector(selected, int32(value))
 	}
 	return selected
