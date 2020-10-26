@@ -33,12 +33,12 @@ const (
 	// Active indicates that the controller is able to take actions: it's
 	// correctly configured, can make necessary API calls, and isn't disabled.
 	Active apis.ConditionType = "Active"
-	// AvailableToControl (TERRIBLE NAME, WILL CHANGE) indicates that
-	// the underlying cloud resource was successfully managed during
-	// the most recent reconciliation. If the most recent reconciliation
-	// encountered a transient failure such as throttling, or
-	// concurrent modification exception, then this will be false.
-	AvailableToControl apis.ConditionType = "AvailableToControl"
+	// Scalable indicates that the underlying cloud resource was
+	// successfully managed during the most recent reconciliation. If
+	// the most recent reconciliation encountered a transient failure
+	// such as throttling, or concurrent modification exception, then
+	// this will be false.
+	Scalable apis.ConditionType = "Scalable"
 )
 
 // We use knative's libraries for ConditionSets to manage status conditions.
@@ -48,7 +48,7 @@ const (
 func (s *ScalableNodeGroup) StatusConditions() apis.ConditionManager {
 	return apis.NewLivingConditionSet(
 		Active,
-		AvailableToControl,
+		Scalable,
 	).Manage(s)
 }
 
@@ -58,14 +58,6 @@ func (s *ScalableNodeGroup) MarkActive() {
 
 func (s *ScalableNodeGroup) MarkNotActive(message string) {
 	s.StatusConditions().MarkFalse(Active, "", message)
-}
-
-func (s *ScalableNodeGroup) MarkAvailableToControl() {
-	s.StatusConditions().MarkTrue(AvailableToControl)
-}
-
-func (s *ScalableNodeGroup) MarkNotAvailableToControl(message string) {
-	s.StatusConditions().MarkFalse(AvailableToControl, "", message)
 }
 
 func (s *ScalableNodeGroup) GetConditions() apis.Conditions {

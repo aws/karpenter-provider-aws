@@ -70,9 +70,9 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
 	err := c.reconcile(resource)
 	if err == nil {
-		resource.MarkAvailableToControl()
+		resource.StatusConditions().MarkTrue(v1alpha1.Scalable)
 	} else if cloudprovider.IsRetryable(err) {
-		resource.MarkNotAvailableToControl(cloudprovider.ConditionMessage(err))
+		resource.StatusConditions().MarkFalse(v1alpha1.Scalable, "", cloudprovider.ConditionMessage(err))
 		return nil
 	}
 	return err
