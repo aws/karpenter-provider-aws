@@ -16,11 +16,13 @@ package v1alpha1
 
 import (
 	"fmt"
+	"time"
 
 	f "github.com/ellistarn/karpenter/pkg/utils/functional"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
 	"knative.dev/pkg/ptr"
 )
 
@@ -215,16 +217,7 @@ func (m *Metric) GetTarget() MetricTarget {
 }
 
 func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) int32 {
-	var rules ScalingRules
-	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
-		rules = b.GetScalingRules(gt[0], replicas)
-	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
-		rules = b.GetScalingRules(lt[0], replicas)
-	} else {
-		return replicas
-	}
-
-	switch *rules.SelectPolicy {
+	switch s := *b.GetScalingRules(recommendations, replicas).SelectPolicy; s {
 	case MaxPolicySelect:
 		return f.MaxInt32(recommendations)
 	case MinPolicySelect:
@@ -232,16 +225,18 @@ func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) in
 	case DisabledPolicySelect:
 		return replicas
 	default:
-		log.InvariantViolated(fmt.Sprintf("unknown select policy: %s", *rules.SelectPolicy))
+		log.InvariantViolated(fmt.Sprintf("unknown select policy: %s", s))
 		return replicas
 	}
 }
 
-func (b *Behavior) GetScalingRules(recommendation int32, replicas int32) ScalingRules {
-	if recommendation < replicas {
+func (b *Behavior) GetScalingRules(recommendations []int32, replicas int32) ScalingRules {
+	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
 		return b.ScaleUpRules()
+	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
+		return b.ScaleDownRules()
 	}
-	return b.ScaleDownRules()
+	return ScalingRules{}
 }
 
 func (b *Behavior) ScaleUpRules() ScalingRules {
@@ -264,4 +259,14 @@ func (b *Behavior) ScaleDownRules() ScalingRules {
 		b.ScaleDown.DeepCopyInto(&rules)
 	}
 	return rules
+}
+
+func (s *ScalingRules) WithinStabilizationWindow(lastModified *apis.VolatileTime) bool {
+	if lastModified == nil {
+		return false
+	}
+	if s.StabilizationWindowSeconds == nil {
+		return false
+	}
+	return time.Since(lastModified.Inner.Time).Seconds() < float64(*s.StabilizationWindowSeconds)
 }

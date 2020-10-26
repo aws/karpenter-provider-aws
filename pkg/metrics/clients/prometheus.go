@@ -33,7 +33,7 @@ type PrometheusMetricsClient struct {
 
 // GetCurrentValue for the metric
 func (c *PrometheusMetricsClient) GetCurrentValue(metric v1alpha1.Metric) (metrics.Metric, error) {
-	value, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now().Round(time.Hour))
+	value, _, err := c.Client.Query(context.Background(), metric.Prometheus.Query, time.Now())
 	if err != nil {
 		return metrics.Metric{}, fmt.Errorf("request failed for query %s, %w", metric.Prometheus.Query, err)
 	}

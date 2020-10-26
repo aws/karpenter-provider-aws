@@ -167,15 +167,14 @@ func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
 }
 
 func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) int32 {
-	rules := a.Spec.Behavior.GetScalingRules(recommendation, replicas)
+	rules := a.Spec.Behavior.GetScalingRules([]int32{recommendation}, replicas)
+
 	// 1. Don't scale if within stabilization window. Check after determining
 	// scale up vs down, as scale up window doesn't prevent scale down.
-	if a.Status.LastScaleTime != nil {
-		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
-			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "",
-				fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
-			return recommendation
-		}
+	if rules.WithinStabilizationWindow(a.Status.LastScaleTime) {
+		a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", fmt.Sprintf("within stabilization window %d/%d seconds",
+			time.Since(a.Status.LastScaleTime.Inner.Time), rules.StabilizationWindowSeconds))
+		return recommendation
 	}
 
 	// 2. TODO Check if limited by Policies
