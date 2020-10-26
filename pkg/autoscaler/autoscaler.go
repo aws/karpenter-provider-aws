@@ -36,11 +36,6 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-const (
-	ScaleBoundedFormat       = "recommendation %d limited by bounds [%d, %d]"
-	ScaleStabilizationFormat = "within stabilization window %d/%d seconds"
-)
-
 func NewFactoryOrDie(metricsclientfactory *clients.Factory, mapper meta.RESTMapper, config *rest.Config) *Factory {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	log.PanicIfError(err, "Failed to create discovery client")
@@ -155,11 +150,16 @@ func (a *Autoscaler) getDesiredReplicas(metrics []algorithms.Metric, replicas in
 }
 
 func (a *Autoscaler) applyBoundedLimits(desiredReplicas int32) int32 {
-	boundedReplicas := desiredReplicas
-	boundedReplicas = f.MinInt32([]int32{boundedReplicas, a.Spec.MaxReplicas})
-	boundedReplicas = f.MaxInt32([]int32{boundedReplicas, a.Spec.MinReplicas})
+	boundedReplicas := f.
+		MinInt32([]int32{f.
+			MaxInt32([]int32{
+				desiredReplicas,
+				a.Spec.MinReplicas}),
+			a.Spec.MaxReplicas})
+
 	if boundedReplicas != desiredReplicas {
-		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "", fmt.Sprintf(ScaleBoundedFormat, desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
+		a.StatusConditions().MarkFalse(v1alpha1.ScalingUnbounded, "",
+			fmt.Sprintf("recommendation %d limited by bounds [%d, %d]", desiredReplicas, a.Spec.MinReplicas, a.Spec.MaxReplicas))
 	} else {
 		a.StatusConditions().MarkTrue(v1alpha1.ScalingUnbounded)
 	}
@@ -172,7 +172,8 @@ func (a *Autoscaler) applyTransientLimits(recommendation int32, replicas int32) 
 	// scale up vs down, as scale up window doesn't prevent scale down.
 	if a.Status.LastScaleTime != nil {
 		if elapsed, window := time.Now().Second()-a.Status.LastScaleTime.Inner.Second(), int(*rules.StabilizationWindowSeconds); elapsed < window {
-			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", fmt.Sprintf(ScaleStabilizationFormat, elapsed, window))
+			a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "",
+				fmt.Sprintf("within stabilization window %d/%d seconds", elapsed, window))
 			return recommendation
 		}
 	}
