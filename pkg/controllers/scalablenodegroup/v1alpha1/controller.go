@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(object controllers.Object) (err error) {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
 	if err = c.reconcile(resource); err != nil {
 		if controllers.IsRetryable(err) {
-			resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ConditionMessage(err))
+			resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ErrorCode(err))
 			return nil
 		}
 	}

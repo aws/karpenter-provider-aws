@@ -46,8 +46,10 @@ func IsRetryable(err error) bool {
 	return false
 }
 
-// ErrorCode returns a short version of the error's message, if
-// there is one, otherwise nothing.
+// ErrorCode returns a short version of the error's message, if there
+// is one, otherwise nothing. Useful in places where a long message
+// isn't acceptable, and you don't want to just randomly hack off a
+// longer error message at some fixed byte offset.
 func ErrorCode(err error) string {
 	var transient CodedError
 	if errors.As(err, &transient) {
