@@ -22,9 +22,15 @@ import "errors"
 type RetryableError interface {
 	IsRetryable() bool
 	Error() string
+}
 
+// CodedError can be implemented by error types that have a
+// short (1-3 word) summary of their error status. This can be
+// used by code in places where longer error messages won't do,
+// such as Conditions.
+type CodedError interface {
 	// Very short message explaining the problem
-	ConditionMessage() string
+	ErrorCode() string
 }
 
 // IsRetryable is a utility function intended to help controllers and
@@ -40,10 +46,12 @@ func IsRetryable(err error) bool {
 	return false
 }
 
-func ConditionMessage(err error) string {
-	var transient RetryableError
+// ErrorCode returns a short version of the error's message, if
+// there is one, otherwise nothing.
+func ErrorCode(err error) string {
+	var transient CodedError
 	if errors.As(err, &transient) {
-		return transient.ConditionMessage()
+		return transient.ErrorCode()
 	}
 	return ""
 }
