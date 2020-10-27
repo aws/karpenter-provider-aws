@@ -39,7 +39,6 @@ func ExpectCreated(c client.Client, objects ...client.Object) {
 		Eventually(func() error {
 			return c.Get(context.Background(), nn, object)
 		}, APIServerPropagationTime, RequestInterval).Should(Succeed())
-		Expect(c.Status().Patch(context.Background(), object, client.Merge)).To(Succeed())
 	}
 }
 
