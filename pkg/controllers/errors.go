@@ -16,11 +16,10 @@ package controllers
 
 import "errors"
 
-// TransientError indicates that an error can possibly be retried.
+// RetryableError indicates that an error can possibly be retried.
 // Cloud providers can wrap selectively wrap certain errors to
 // indicate that they might be retryable.
-// TODO: TERRIBLE NAME!!!!!!!
-type TransientError interface {
+type RetryableError interface {
 	IsRetryable() bool
 	Error() string
 
@@ -34,7 +33,7 @@ type TransientError interface {
 // without operator intervention) or whether it indicates a problem
 // that could simply resolve itself.
 func IsRetryable(err error) bool {
-	var transient TransientError
+	var transient RetryableError
 	if errors.As(err, &transient) {
 		return transient.IsRetryable()
 	}
@@ -42,7 +41,7 @@ func IsRetryable(err error) bool {
 }
 
 func ConditionMessage(err error) string {
-	var transient TransientError
+	var transient RetryableError
 	if errors.As(err, &transient) {
 		return transient.ConditionMessage()
 	}
