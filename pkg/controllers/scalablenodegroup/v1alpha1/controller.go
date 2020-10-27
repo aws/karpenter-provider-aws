@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
@@ -71,8 +70,8 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	err := c.reconcile(resource)
 	if err == nil {
 		resource.StatusConditions().MarkTrue(v1alpha1.Scalable)
-	} else if cloudprovider.IsRetryable(err) {
-		resource.StatusConditions().MarkFalse(v1alpha1.Scalable, "", cloudprovider.ConditionMessage(err))
+	} else if controllers.IsRetryable(err) {
+		resource.StatusConditions().MarkFalse(v1alpha1.Scalable, "", controllers.ConditionMessage(err))
 		return nil
 	}
 	return err
