@@ -63,11 +63,11 @@ var _ = Describe("Test Samples", func() {
 			Expect(ns.ParseResources("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
 			sng.Spec.Replicas = 5
 
-			ExpectEventuallyCreated(ns.Client, sng)
+			ExpectCreated(ns.Client, sng)
 
 			// TODO(jacob): add cloudprovider usage
 
-			ExpectEventuallyDeleted(ns.Client, sng)
+			ExpectDeleted(ns.Client, sng)
 		})
 	})
 

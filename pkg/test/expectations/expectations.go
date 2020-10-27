@@ -22,7 +22,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/controllers"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,8 +34,11 @@ const (
 
 func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
+		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 		Expect(c.Create(context.Background(), object)).To(Succeed())
-		Expect(c.Status().Patch(context.Background(), object, client.Merge, &client.PatchOptions{})).To(Succeed())
+		Eventually(func() error {
+			return c.Get(context.Background(), nn, object)
+		}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 	}
 }
 
@@ -46,28 +48,14 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectEventuallyCreated(c client.Client, object client.Object) {
-	nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
-	ExpectCreated(c, object)
-	Eventually(func() error {
-		return c.Get(context.Background(), nn, object)
-	}, APIServerPropagationTime, RequestInterval).Should(Succeed())
-}
-
-func ExpectEventuallyHappy(c client.Client, resource controllers.Object) {
-	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
-	Eventually(func() bool {
-		Expect(c.Get(context.Background(), nn, resource)).To(Succeed())
-		return resource.StatusConditions().IsHappy()
-	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-		return fmt.Sprintf("resource never became happy\n%s", log.Pretty(resource))
-	})
-}
-
-func ExpectEventuallyDeleted(c client.Client, resource client.Object) {
-	nn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
-	Expect(c.Delete(context.Background(), resource)).To(Succeed())
-	Eventually(func() bool {
-		return errors.IsNotFound(c.Get(context.Background(), nn, resource))
-	}, APIServerPropagationTime, RequestInterval).Should(BeTrue(), "resource was never deleted %s", nn)
+func ExpectEventuallyHappy(c client.Client, objects ...controllers.Object) {
+	for _, object := range objects {
+		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
+		Eventually(func() bool {
+			Expect(c.Get(context.Background(), nn, object)).To(Succeed())
+			return object.StatusConditions().IsHappy()
+		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+			return fmt.Sprintf("resource never became happy\n%s", log.Pretty(object))
+		})
+	}
 }

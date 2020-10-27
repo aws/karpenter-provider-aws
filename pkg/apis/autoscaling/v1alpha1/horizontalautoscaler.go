@@ -216,8 +216,8 @@ func (m *Metric) GetTarget() MetricTarget {
 	return MetricTarget{}
 }
 
-func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) int32 {
-	switch s := *b.GetScalingRules(recommendations, replicas).SelectPolicy; s {
+func (b *Behavior) ApplySelectPolicy(replicas int32, recommendations []int32) int32 {
+	switch s := *b.GetScalingRules(replicas, recommendations).SelectPolicy; s {
 	case MaxPolicySelect:
 		return f.MaxInt32(recommendations)
 	case MinPolicySelect:
@@ -230,13 +230,13 @@ func (b *Behavior) ApplySelectPolicy(recommendations []int32, replicas int32) in
 	}
 }
 
-func (b *Behavior) GetScalingRules(recommendations []int32, replicas int32) ScalingRules {
+func (b *Behavior) GetScalingRules(replicas int32, recommendations []int32) ScalingRules {
 	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
 		return b.ScaleUpRules()
 	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
 		return b.ScaleDownRules()
 	}
-	return ScalingRules{}
+	return ScalingRules{SelectPolicy: &DisabledPolicySelect}
 }
 
 func (b *Behavior) ScaleUpRules() ScalingRules {

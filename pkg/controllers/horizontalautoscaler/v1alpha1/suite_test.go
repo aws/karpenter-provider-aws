@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -31,6 +32,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
@@ -90,11 +92,14 @@ var _ = Describe("Test Samples", func() {
 			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
 
-			ExpectEventuallyCreated(ns.Client, sng)
-			ExpectEventuallyCreated(ns.Client, ha)
+			ExpectCreated(ns.Client, sng)
+			sng.Status.Replicas = sng.Spec.Replicas
+			Expect(ns.Client.Status().Patch(context.Background(), sng, client.Merge))
+
+			ExpectCreated(ns.Client, ha)
 			ExpectEventuallyHappy(ns.Client, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(8), log.Pretty(ha))
-			ExpectEventuallyDeleted(ns.Client, ha)
+			ExpectDeleted(ns.Client, ha)
 		})
 	})
 
@@ -105,11 +110,14 @@ var _ = Describe("Test Samples", func() {
 			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
 
-			ExpectEventuallyCreated(ns.Client, sng)
-			ExpectEventuallyCreated(ns.Client, ha)
+			ExpectCreated(ns.Client, sng)
+			sng.Status.Replicas = sng.Spec.Replicas
+			Expect(ns.Client.Status().Patch(context.Background(), sng, client.Merge))
+
+			ExpectCreated(ns.Client, ha)
 			ExpectEventuallyHappy(ns.Client, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))
-			ExpectEventuallyDeleted(ns.Client, ha)
+			ExpectDeleted(ns.Client, ha)
 		})
 	})
 })
