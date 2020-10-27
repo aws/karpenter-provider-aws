@@ -21,16 +21,13 @@ import (
 	"time"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Controller for the resource
 type Controller struct {
-	client.Client
-	NodeGroupFactory *nodegroup.Factory
+	CloudProvider cloudprovider.Factory
 }
 
 // For returns the resource this controller is for.
@@ -49,7 +46,7 @@ func (c *Controller) Interval() time.Duration {
 
 // Reconcile executes a control loop for the resource
 func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
-	ng := c.NodeGroupFactory.For(resource)
+	ng := c.CloudProvider.NodeGroupFor(&resource.Spec)
 	replicas, err := ng.GetReplicas()
 	if err != nil {
 		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)

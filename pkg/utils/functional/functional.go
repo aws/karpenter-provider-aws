@@ -15,6 +15,7 @@ limitations under the License.
 package f
 
 import (
+	"encoding/json"
 	"math"
 )
 
@@ -63,4 +64,13 @@ func SelectInt32(values []int32, selector func(int32, int32) int32) int32 {
 		selected = selector(selected, int32(value))
 	}
 	return selected
+}
+
+func Merge(dest interface{}, srcs ...interface{}) {
+	for _, src := range srcs {
+		if src != nil {
+			bytes, _ := json.Marshal(src)
+			_ = json.Unmarshal(bytes, dest)
+		}
+	}
 }

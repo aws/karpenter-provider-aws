@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/registry"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
@@ -67,7 +67,7 @@ func main() {
 
 	if err := manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
-		&scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}},
+		&scalablenodegroupv1alpha1.Controller{CloudProvider: registry.NewFactory()},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Fatalf("Unable to start manager, %w", err)

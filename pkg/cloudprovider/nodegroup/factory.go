@@ -17,6 +17,7 @@ package nodegroup
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
@@ -24,6 +25,7 @@ import (
 )
 
 type Factory struct {
+	Client autoscalingiface.AutoScalingAPI
 }
 
 type invalidNodeGroup struct{}
@@ -39,7 +41,7 @@ func (f *Factory) For(sng *v1alpha1.ScalableNodeGroup) cloudprovider.NodeGroup {
 	var nodegroup cloudprovider.NodeGroup
 	switch sng.Spec.Type {
 	case v1alpha1.AWSEC2AutoScalingGroup:
-		nodegroup = aws.NewAutoScalingGroup(sng.Spec.ID)
+		nodegroup = aws.NewAutoScalingGroup(sng.Spec.ID, f.Client)
 	case v1alpha1.AWSEKSNodeGroup:
 		nodegroup = aws.NewManagedNodeGroup(sng.Spec.ID)
 	default:

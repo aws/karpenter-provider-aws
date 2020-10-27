@@ -14,6 +14,18 @@ limitations under the License.
 
 package cloudprovider
 
+import (
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+)
+
+// Factory instantiates the cloud provider's resources
+type Factory interface {
+	// NodeGroupFor returns a node group for the provided spec
+	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
+	// QueueFor returns a queue for the provided spec
+	QueueFor(queue *v1alpha1.QueueSpec) Queue
+}
+
 // Queue abstracts all provider specific behavior for Queues
 type Queue interface {
 	// Name returns the name of the queue

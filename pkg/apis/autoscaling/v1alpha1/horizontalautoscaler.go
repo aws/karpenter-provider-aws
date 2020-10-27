@@ -230,34 +230,30 @@ func (b *Behavior) ApplySelectPolicy(replicas int32, recommendations []int32) in
 	}
 }
 
-func (b *Behavior) GetScalingRules(replicas int32, recommendations []int32) ScalingRules {
+func (b *Behavior) GetScalingRules(replicas int32, recommendations []int32) *ScalingRules {
 	if gt := f.GreaterThanInt32(recommendations, replicas); len(gt) > 0 {
 		return b.ScaleUpRules()
 	} else if lt := f.LessThanInt32(recommendations, replicas); len(lt) > 0 {
 		return b.ScaleDownRules()
 	}
-	return ScalingRules{SelectPolicy: &DisabledPolicySelect}
+	return &ScalingRules{SelectPolicy: &DisabledPolicySelect}
 }
 
-func (b *Behavior) ScaleUpRules() ScalingRules {
-	rules := ScalingRules{
+func (b *Behavior) ScaleUpRules() *ScalingRules {
+	rules := &ScalingRules{
 		StabilizationWindowSeconds: ptr.Int32(0),
 		SelectPolicy:               &MaxPolicySelect,
 	}
-	if b.ScaleUp != nil {
-		b.ScaleUp.DeepCopyInto(&rules)
-	}
+	f.Merge(rules, b.ScaleUp)
 	return rules
 }
 
-func (b *Behavior) ScaleDownRules() ScalingRules {
-	rules := ScalingRules{
+func (b *Behavior) ScaleDownRules() *ScalingRules {
+	rules := &ScalingRules{
 		StabilizationWindowSeconds: ptr.Int32(300),
 		SelectPolicy:               &MaxPolicySelect,
 	}
-	if b.ScaleDown != nil {
-		b.ScaleDown.DeepCopyInto(&rules)
-	}
+	f.Merge(rules, b.ScaleUp)
 	return rules
 }
 
