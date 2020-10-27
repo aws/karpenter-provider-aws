@@ -46,7 +46,7 @@ func (e AWSTransientError) IsRetryable() bool {
 	return request.IsErrorRetryable(e.err)
 }
 
-func (e AWSTransientError) Message() string {
+func (e AWSTransientError) ErrorCode() string {
 	var err awserr.Error
 	if errors.As(e.err, &err) {
 		return err.Code()
