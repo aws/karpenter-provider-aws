@@ -65,14 +65,14 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(object controllers.Object) error {
+func (c *Controller) Reconcile(object controllers.Object) (err error) {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
-	err := c.reconcile(resource)
-	if err == nil {
-		resource.StatusConditions().MarkTrue(v1alpha1.Scalable)
-	} else if controllers.IsRetryable(err) {
-		resource.StatusConditions().MarkFalse(v1alpha1.Scalable, "", controllers.ConditionMessage(err))
-		return nil
+	if err = c.reconcile(resource); err != nil {
+		if controllers.IsRetryable(err) {
+			resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ConditionMessage(err))
+			return nil
+		}
 	}
+	resource.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
 	return err
 }
