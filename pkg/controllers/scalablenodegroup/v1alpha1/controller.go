@@ -67,11 +67,13 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 // Reconcile executes a control loop for the resource
 func (c *Controller) Reconcile(object controllers.Object) (err error) {
 	resource := object.(*v1alpha1.ScalableNodeGroup)
-	if err = c.reconcile(resource); err != nil {
-		if controllers.IsRetryable(err) {
-			resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ErrorCode(err))
-			return nil
-		}
+	if err = c.reconcile(resource); controllers.IsRetryable(err) {
+		resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ErrorCode(err))
+		// We don't want to return and error here; that would cause
+		// the resource to go out of Active mode, and would take
+		// longer before the next reconciliation (which will most
+		// likely work, next time around).
+		return nil
 	}
 	resource.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
 	return err
