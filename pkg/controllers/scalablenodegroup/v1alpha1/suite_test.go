@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
 
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
 
@@ -36,7 +36,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
-	e.Manager.Register(&Controller{NodeGroupFactory: &nodegroup.Factory{}})
+	e.Manager.Register(&Controller{CloudProvider: &mock.Factory{}})
 })
 
 var _ = BeforeSuite(func() {

@@ -23,12 +23,10 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
 	"github.com/ellistarn/karpenter/pkg/controllers"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Controller reconciles a HorizontalAutoscaler object
 type Controller struct {
-	client.Client
 	AutoscalerFactory *autoscaler.Factory
 }
 

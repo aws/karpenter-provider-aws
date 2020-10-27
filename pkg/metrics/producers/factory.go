@@ -16,7 +16,7 @@ package producers
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	aws "github.com/ellistarn/karpenter/pkg/cloudprovider/aws"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/metrics"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/pendingcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/queue"
@@ -28,8 +28,8 @@ import (
 
 // Factory instantiates metrics producers
 type Factory struct {
-	Client  client.Client
-	Factory aws.Factory
+	Client               client.Client
+	CloudProviderFactory cloudprovider.Factory
 }
 
 func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
@@ -42,7 +42,7 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.Queue != nil {
 		return &queue.Producer{
 			MetricsProducer: mp,
-			Queue:           f.Factory.QueueFor(*mp.Spec.Queue),
+			Queue:           f.CloudProviderFactory.QueueFor(mp.Spec.Queue),
 		}
 	}
 	if mp.Spec.ReservedCapacity != nil {

@@ -1,5 +1,5 @@
-# Image URL to use all building/pushing image targets
-IMG ?= ${KO_DOCKER_REPO}/karpenter:latest
+GOFLAGS ?= "-tags=${CLOUD_PROVIDER}"
+WITH_GOFLAGS = GOFLAGS=${GOFLAGS}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -49,16 +49,15 @@ generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_metricsproducers.yaml
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	kubectl kustomize config/dev | ko apply -B -f -
+	kubectl kustomize config/dev | $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko delete -f -
 
-release: ## Build and release a container image to $KO_DOCKER_REPO/karpenter
-	docker build . -t ${IMG}
-	docker push ${IMG}
+publish: ## Publish a container image to $KO_DOCKER_REPO/karpenter
+	$(WITH_GOFLAGS) ko publish -B ./karpenter
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help all ci test release run apply delete verify generate toolchain
+.PHONY: help all ci test publish run apply delete verify generate toolchain

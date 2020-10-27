@@ -35,17 +35,17 @@ type Factory struct {
 }
 
 func NewFactory() *Factory {
-	session := withRegion(session.Must(session.NewSession()))
+	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
-		AutoscalingClient: autoscaling.New(session),
-		SQSClient:         sqs.New(session),
+		AutoscalingClient: autoscaling.New(sess),
+		SQSClient:         sqs.New(sess),
 	}
 }
 
 func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
 	switch spec.Type {
 	case v1alpha1.AWSEC2AutoScalingGroup:
-		return nodegroupaws.NewAutoScalingGroup(spec.ID)
+		return nodegroupaws.NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
 		return nodegroupaws.NewManagedNodeGroup(spec.ID)
 	default:
@@ -53,21 +53,20 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	}
 }
 
-func (f *Factory) QueueFor(spec v1alpha1.QueueSpec) cloudprovider.Queue {
+func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return NewSQS(spec.ID, NewFactory().SQSClient)
+		return NewSQSQueue(spec.ID, f.SQSClient)
 	default:
 		return mock.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
-func withRegion(session *session.Session) *session.Session {
-	svc := ec2metadata.New(session, aws.NewConfig())
-	region, err := svc.Region()
+func withRegion(s *session.Session) *session.Session {
+	region, err := ec2metadata.New(s).Region()
 	if err != nil {
 		log.PanicIfError(err, "failed to call the metadata server's region API")
 	}
-	session.Config.Region = aws.String(region)
-	return session
+	s.Config.Region = aws.String(region)
+	return s
 }

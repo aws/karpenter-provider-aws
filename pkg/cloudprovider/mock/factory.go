@@ -38,9 +38,9 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	return &NodeGroup{Replicas: sng.Replicas}
+	return &NodeGroup{Replicas: sng.Replicas, WantErr: f.WantErr}
 }
 
-func (f *Factory) QueueFor(spec v1alpha1.QueueSpec) cloudprovider.Queue {
-	return &Queue{Id: spec.ID}
+func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
+	return &Queue{Id: spec.ID, WantErr: f.WantErr}
 }

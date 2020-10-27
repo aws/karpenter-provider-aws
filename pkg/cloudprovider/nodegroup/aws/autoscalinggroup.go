@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 )
@@ -29,31 +28,31 @@ type AutoScalingGroup struct {
 	Client autoscalingiface.AutoScalingAPI
 }
 
-func NewAutoScalingGroup(id string) *AutoScalingGroup {
+func NewAutoScalingGroup(id string, client autoscalingiface.AutoScalingAPI) *AutoScalingGroup {
 	return &AutoScalingGroup{
 		ID:     id,
-		Client: autoscaling.New(session.Must(session.NewSession())),
+		Client: client,
 	}
 }
 
 // GetReplicas returns replica count for an EC2 auto scaling group
-func (asg *AutoScalingGroup) GetReplicas() (int32, error) {
-	out, err := asg.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{aws.String(asg.ID)},
+func (a *AutoScalingGroup) GetReplicas() (int32, error) {
+	out, err := a.Client.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{aws.String(a.ID)},
 		MaxRecords:            aws.Int64(1),
 	})
 	if err != nil {
 		return 0, TransientError(err)
 	}
 	if len(out.AutoScalingGroups) != 1 {
-		return 0, fmt.Errorf("autoscaling group has no instances: %s", asg.ID)
+		return 0, fmt.Errorf("autoscaling group has no instances: %s", a.ID)
 	}
 	return int32(len(out.AutoScalingGroups[0].Instances)), nil
 }
 
-func (asg *AutoScalingGroup) SetReplicas(count int32) error {
-	_, err := asg.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(asg.ID),
+func (a *AutoScalingGroup) SetReplicas(count int32) error {
+	_, err := a.Client.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(a.ID),
 		DesiredCapacity:      aws.Int64(int64(count)),
 	})
 	return TransientError(err)

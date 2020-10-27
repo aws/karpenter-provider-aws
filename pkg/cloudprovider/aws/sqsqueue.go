@@ -16,11 +16,12 @@ package aws
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
-	"strconv"
 )
 
 type SQSQueue struct {
@@ -32,7 +33,7 @@ func (q *SQSQueue) Name() string {
 	return q.ARN
 }
 
-func NewSQS(id string, client sqsiface.SQSAPI) *SQSQueue {
+func NewSQSQueue(id string, client sqsiface.SQSAPI) *SQSQueue {
 	return &SQSQueue{
 		ARN:    id,
 		Client: client,
