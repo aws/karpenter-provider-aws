@@ -84,7 +84,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 		NodegroupName: &mng.NodeGroup,
 	})
 	if err != nil {
-		return 0, NewAWSTransientError(err)
+		return 0, TransientError(err)
 	}
 
 	var autoscalingGroupNames = []*string{}
@@ -101,7 +101,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 		}
 		return true
 	})
-	return int32(replicas), NewAWSTransientError(err)
+	return int32(replicas), TransientError(err)
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
@@ -114,5 +114,5 @@ func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 		},
 	})
 
-	return NewAWSTransientError(err)
+	return TransientError(err)
 }

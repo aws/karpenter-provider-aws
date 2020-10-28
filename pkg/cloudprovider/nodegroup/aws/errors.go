@@ -25,7 +25,7 @@ type AWSTransientError struct {
 	err error
 }
 
-func NewAWSTransientError(err error) error {
+func TransientError(err error) error {
 	if err != nil {
 		return AWSTransientError{
 			err: err,
