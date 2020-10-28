@@ -20,8 +20,8 @@ import "errors"
 // Cloud providers can wrap selectively wrap certain errors to
 // indicate that they might be retryable.
 type RetryableError interface {
+	error
 	IsRetryable() bool
-	Error() string
 }
 
 // CodedError can be implemented by error types that have a
