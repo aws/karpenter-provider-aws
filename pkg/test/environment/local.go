@@ -66,7 +66,7 @@ type Local struct {
 type LocalOption func(env *Local)
 
 func NewLocal(options ...LocalOption) Environment {
-	log.Setup(controllerruntimezap.UseDevMode(false))
+	log.Setup(controllerruntimezap.UseDevMode(true))
 	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
 
 	return &Local{
