@@ -48,8 +48,7 @@ func (c *Controller) Interval() time.Duration {
 }
 
 // Reconcile executes a control loop for the resource
-func (c *Controller) Reconcile(object controllers.Object) error {
-	resource := object.(*v1alpha1.ScalableNodeGroup)
+func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	ng := c.NodeGroupFactory.For(resource)
 	replicas, err := ng.GetReplicas()
 	if err != nil {
@@ -63,5 +62,19 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return fmt.Errorf("unable to set replicas for node group %v, %w", resource.Spec.ID, err)
 	}
 	return nil
+}
 
+// Reconcile executes a control loop for the resource
+func (c *Controller) Reconcile(object controllers.Object) (err error) {
+	resource := object.(*v1alpha1.ScalableNodeGroup)
+	if err = c.reconcile(resource); controllers.IsRetryable(err) {
+		resource.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "", controllers.ErrorCode(err))
+		// We don't want to return an error here; that would cause the
+		// resource to go out of Active mode, and would take longer
+		// before the next reconciliation (which will most likely
+		// work, next time around).
+		return nil
+	}
+	resource.StatusConditions().MarkTrue(v1alpha1.AbleToScale)
+	return err
 }

@@ -84,7 +84,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 		NodegroupName: &mng.NodeGroup,
 	})
 	if err != nil {
-		return 0, err
+		return 0, TransientError(err)
 	}
 
 	var autoscalingGroupNames = []*string{}
@@ -101,10 +101,11 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 		}
 		return true
 	})
-	return int32(replicas), err
+	return int32(replicas), TransientError(err)
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
+	// https://docs.aws.amazon.com/eks/latest/APIReference/API_UpdateNodegroupConfig.html
 	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
@@ -112,5 +113,6 @@ func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 			DesiredSize: aws.Int64(int64(count)),
 		},
 	})
-	return err
+
+	return TransientError(err)
 }

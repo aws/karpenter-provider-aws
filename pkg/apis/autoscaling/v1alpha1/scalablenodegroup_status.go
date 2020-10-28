@@ -42,6 +42,7 @@ const (
 func (s *ScalableNodeGroup) StatusConditions() apis.ConditionManager {
 	return apis.NewLivingConditionSet(
 		Active,
+		AbleToScale,
 	).Manage(s)
 }
 
