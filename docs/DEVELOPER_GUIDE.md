@@ -37,7 +37,7 @@ Local development is not supported at this time.
 
 ### Build and Deploy
 ```
-make        # build and test code
+make all    # build and test code
 make deploy # deploy local changes to cluster
 ```
 
