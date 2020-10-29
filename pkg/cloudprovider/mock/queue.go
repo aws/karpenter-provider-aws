@@ -13,7 +13,8 @@ limitations under the License.
 package mock
 
 type Queue struct {
-	Id string
+	Id      string
+	WantErr error
 }
 
 func (q *Queue) Name() string {
@@ -21,9 +22,9 @@ func (q *Queue) Name() string {
 }
 
 func (q *Queue) Length() (int64, error) {
-	return 0, nil
+	return 0, q.WantErr
 }
 
 func (q *Queue) OldestMessageAge() (int64, error) {
-	return 0, nil
+	return 0, q.WantErr
 }

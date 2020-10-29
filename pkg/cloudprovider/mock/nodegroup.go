@@ -14,13 +14,14 @@ package mock
 
 type NodeGroup struct {
 	Replicas int32
+	WantErr  error
 }
 
 func (n *NodeGroup) GetReplicas() (int32, error) {
-	return n.Replicas, nil
+	return n.Replicas, n.WantErr
 }
 
 func (n *NodeGroup) SetReplicas(count int32) error {
 	n.Replicas = count
-	return nil
+	return n.WantErr
 }

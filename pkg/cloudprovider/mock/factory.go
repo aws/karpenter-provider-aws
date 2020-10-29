@@ -15,14 +15,26 @@ limitations under the License.
 package mock
 
 import (
+	"fmt"
+
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 )
 
-type Factory struct{}
+var (
+	NotImplementedError = fmt.Errorf("provider is not implemented")
+)
+
+type Factory struct {
+	WantErr error
+}
 
 func NewFactory() *Factory {
 	return &Factory{}
+}
+
+func NewNotImplementedFactory() *Factory {
+	return &Factory{WantErr: NotImplementedError}
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {

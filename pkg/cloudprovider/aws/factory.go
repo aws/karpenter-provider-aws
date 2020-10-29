@@ -15,7 +15,6 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
 	nodegroupaws "github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
 	queueaws "github.com/ellistarn/karpenter/pkg/cloudprovider/queue/aws"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
@@ -49,8 +49,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEKSNodeGroup:
 		return nodegroupaws.NewManagedNodeGroup(spec.ID)
 	default:
-		log.InvariantViolated(fmt.Sprintf("Failed to instantiate node group of type %s", spec.Type))
-		return &notImplementedProvider{}
+		return mock.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
 }
 
@@ -59,11 +58,11 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	case v1alpha1.AWSSQSQueueType:
 		return &queueaws.SQSQueue{ARN: spec.ID}
 	default:
-		log.InvariantViolated(fmt.Sprintf("Failed to instantiate queue: unexpected type  %s", spec.Type))
-		return &notImplementedProvider{}
+		return mock.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
+// TODO use aws-sdk APIs
 func regionOrDie() string {
 	response, err := http.Get("http://169.254.169.254/latest/meta-data/placement/region")
 	log.PanicIfError(err, "Failed to call the metadata server's region API")
@@ -71,15 +70,3 @@ func regionOrDie() string {
 	log.PanicIfError(err, "Failed to read response from metadata server")
 	return string(region)
 }
-
-type notImplementedProvider struct{}
-
-var (
-	notImplementedError = fmt.Errorf("provider is not implemented")
-)
-
-func (*notImplementedProvider) Name() string                     { return notImplementedError.Error() }
-func (*notImplementedProvider) Length() (int64, error)           { return 0, notImplementedError }
-func (*notImplementedProvider) OldestMessageAge() (int64, error) { return 0, notImplementedError }
-func (*notImplementedProvider) GetReplicas() (int32, error)      { return 0, notImplementedError }
-func (*notImplementedProvider) SetReplicas(count int32) error    { return notImplementedError }
