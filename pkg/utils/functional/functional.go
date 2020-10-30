@@ -15,7 +15,10 @@ limitations under the License.
 package f
 
 import (
+	"encoding/json"
 	"math"
+
+	"github.com/ellistarn/karpenter/pkg/utils/log"
 )
 
 // GreaterThanInt32 returns values greater than the target value
@@ -63,4 +66,26 @@ func SelectInt32(values []int32, selector func(int32, int32) int32) int32 {
 		selected = selector(selected, int32(value))
 	}
 	return selected
+}
+
+/* MergeInto overlays multiple srcs onto a dest struct. Srcs are applied in
+order, so srcs[1] will override any fields set from srcs[2]
+
+For example,
+
+dest {a: 1 b: 2}
+srcs[0] {a: 2 c: 3}
+
+result {a: 2 b: 2 c: 3}
+
+*/
+func MergeInto(dest interface{}, srcs ...interface{}) {
+	for _, src := range srcs {
+		if src != nil {
+			bytes, err := json.Marshal(src)
+			log.PanicIfError(err, "Failed to marshall json from %v", src)
+			err = json.Unmarshal(bytes, dest)
+			log.PanicIfError(err, "Failed to unmarshall json %s into %v", string(bytes), dest)
+		}
+	}
 }

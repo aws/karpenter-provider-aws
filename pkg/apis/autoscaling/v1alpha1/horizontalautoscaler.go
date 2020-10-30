@@ -244,9 +244,7 @@ func (b *Behavior) ScaleUpRules() ScalingRules {
 		StabilizationWindowSeconds: ptr.Int32(0),
 		SelectPolicy:               &MaxPolicySelect,
 	}
-	if b.ScaleUp != nil {
-		b.ScaleUp.DeepCopyInto(&rules)
-	}
+	f.MergeInto(&rules, b.ScaleUp)
 	return rules
 }
 
@@ -255,9 +253,7 @@ func (b *Behavior) ScaleDownRules() ScalingRules {
 		StabilizationWindowSeconds: ptr.Int32(300),
 		SelectPolicy:               &MaxPolicySelect,
 	}
-	if b.ScaleDown != nil {
-		b.ScaleDown.DeepCopyInto(&rules)
-	}
+	f.MergeInto(&rules, b.ScaleDown)
 	return rules
 }
 

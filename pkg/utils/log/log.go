@@ -35,6 +35,6 @@ func InvariantViolated(reason string) {
 
 func PanicIfError(err error, formatter string, arguments ...interface{}) {
 	if err != nil {
-		zap.S().Panicf("%s, %w", fmt.Sprintf(formatter, arguments...), err)
+		zap.S().Panicf("%s, %v", fmt.Sprintf(formatter, arguments...), err)
 	}
 }
