@@ -28,7 +28,7 @@ type MetricsProducerSpec struct {
 	// +optional
 	Queue *QueueSpec `json:"queue,omitempty"`
 	// ReservedCapacity produces a metric corresponding to the ratio of committed resources
-	// to availabile resources for the nodes of a specified node group.
+	// to available resources for the nodes of a specified node group.
 	// +optional
 	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
 	// ScheduledCapacity produces a metric according to a specified schedule.

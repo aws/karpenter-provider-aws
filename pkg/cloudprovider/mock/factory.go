@@ -41,6 +41,6 @@ func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovide
 	return &NodeGroup{Replicas: sng.Replicas}
 }
 
-func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
+func (f *Factory) QueueFor(spec v1alpha1.QueueSpec) cloudprovider.Queue {
 	return &Queue{Id: spec.ID}
 }
