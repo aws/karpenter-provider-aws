@@ -15,7 +15,7 @@ func NewFactory() cloudprovider.Factory {
 
 ## Build your customized binary
 ```
-go build -o karpenter -tags <YOUR_PROVIDER_NAME> ./karpenter
+CLOUD_PROVIDER=<YOUR_PROVIDER_NAME> make apply
 ```
 
 ## Add a negative flag to mock.go

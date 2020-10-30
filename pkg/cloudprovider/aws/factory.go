@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -32,12 +34,14 @@ import (
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
 	SQSClient         sqsiface.SQSAPI
+	EKSClient         eksiface.EKSAPI
 }
 
 func NewFactory() *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
+		EKSClient:         eks.New(sess),
 		SQSClient:         sqs.New(sess),
 	}
 }
@@ -47,7 +51,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return nodegroupaws.NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return nodegroupaws.NewManagedNodeGroup(spec.ID)
+		return nodegroupaws.NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient)
 	default:
 		return mock.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
