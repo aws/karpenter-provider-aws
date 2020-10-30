@@ -55,7 +55,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config/dev | ko delete -f -
 
 publish: ## Publish a container image to $KO_DOCKER_REPO/karpenter
-	$(WITH_GOFLAGS) ko publish -B ./karpenter
+	$(WITH_GOFLAGS) ko publish -B github.com/ellistarn/karpenter/karpenter
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
