@@ -66,11 +66,11 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	}
 }
 
-func withRegion(s *session.Session) *session.Session {
-	region, err := ec2metadata.New(s).Region()
+func withRegion(sess *session.Session) *session.Session {
+	region, err := ec2metadata.New(sess).Region()
 	if err != nil {
 		log.PanicIfError(err, "failed to call the metadata server's region API")
 	}
-	s.Config.Region = aws.String(region)
-	return s
+	sess.Config.Region = aws.String(region)
+	return sess
 }
