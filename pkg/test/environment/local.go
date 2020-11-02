@@ -127,7 +127,7 @@ func (e *Local) Start() (err error) {
 	// Start manager
 	go func() {
 		if err := e.Manager.Start(e.ctx); err != nil {
-			zap.S().Fatal(err)
+			zap.S().Panic(err)
 		}
 	}()
 

@@ -18,7 +18,8 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
+	"knative.dev/pkg/ptr"
 
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
@@ -35,8 +36,10 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
+var fakeCloudProvider = fake.NewFactory()
+
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
-	e.Manager.Register(&Controller{CloudProvider: &mock.Factory{}})
+	e.Manager.Register(&Controller{CloudProvider: fakeCloudProvider})
 })
 
 var _ = BeforeSuite(func() {
@@ -61,14 +64,12 @@ var _ = Describe("Test Samples", func() {
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
 			Expect(ns.ParseResources("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
-			sng.Spec.Replicas = 5
+			sng.Spec.Replicas = ptr.Int32(5)
 
 			ExpectCreated(ns.Client, sng)
-
-			// TODO(jacob): add cloudprovider usage
+			ExpectEventuallyHappy(ns.Client, sng)
 
 			ExpectDeleted(ns.Client, sng)
 		})
 	})
-
 })

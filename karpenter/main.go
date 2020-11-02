@@ -71,6 +71,6 @@ func main() {
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		zap.S().Fatalf("Unable to start manager, %w", err)
+		zap.S().Panicf("Unable to start manager, %w", err)
 	}
 }
