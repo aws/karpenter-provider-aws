@@ -1,21 +1,62 @@
 
-# Set Up Permissions for [AWS-SDK-For-Go](https://docs.aws.amazon.com/sdk-for-go/)
-Your workloads must be configured with AWS Credentials to read or modify AWS resources in your account. We recommend using IRSA (IAM Roles for Service Accounts) to manage these permissions.
+# Setup Permissions
+Karpenter's pod requires AWS Credentials to read or modify AWS resources in your account. We recommend using IRSA (IAM Roles for Service Accounts) to manage these permissions.
 
-## Add Custom Policies
 ```
-aws iam create-policy --policy-name KarpenterSQS --policy-document file://docs/aws/iam/sqs-iam-policy.json
-```
-
-## Create IRSA
-* You can apply multiple policies using `--attach-policy-arn "policyArn1,policyArn2,policyArn3"`
-```
-CLUSTER=<your_cluster>
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-eksctl create iamserviceaccount --cluster ${CLUSTER} \
+CLUSTER_NAME=<your_cluster>
+```
+
+## Create the Karpenter IAM Policy
+This command will create an IAM Policy with access to all of the resources for all of Karpenter's features. For increased security, you may wish to reduce the permissions according to your use case.
+```
+aws iam create-policy --policy-name Karpenter --policy-document "$(cat <<-EOM
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "eks:DescribeNodegroup",
+                "eks:UpdateNodegroupConfig"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:UpdateAutoScalingGroup"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+EOM
+)"
+```
+
+## Create using IAM Roles for Service Accounts (IRSA)
+This command will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
+```
+eksctl create iamserviceaccount --cluster ${CLUSTER_NAME} \
 --name default \
 --namespace karpenter \
---attach-policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterSQS" \
+--attach-policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter" \
 --override-existing-serviceaccounts \
 --approve
+```
+
+## Cleanup
+```
+eksctl delete iamserviceaccount --cluster ${CLUSTER_NAME} --name default --namespace karpenter
+aws iam delete-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter
 ```
