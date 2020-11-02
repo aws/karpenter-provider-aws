@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,6 +24,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
+
+func Validate(q *v1alpha1.QueueSpec) (err error) {
+	_, err = arn.Parse(q.ID)
+	return
+}
+
+func init() {
+	v1alpha1.RegisterQueueValidator(v1alpha1.AWSSQSQueueType, Validate)
+}
 
 type SQSQueue struct {
 	ARN    string

@@ -18,6 +18,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/metrics/producers/fake"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/pendingcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/queue"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
@@ -34,28 +35,40 @@ type Factory struct {
 
 func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 	if mp.Spec.PendingCapacity != nil {
+		if err := mp.Spec.PendingCapacity.ValidatePendingCapacity(); err != nil {
+			return &fake.FakeProducer{Error: fake.InvalidPendingCapacityError}
+		}
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
 			Client:          f.Client,
 		}
 	}
 	if mp.Spec.Queue != nil {
+		if err := mp.Spec.Queue.ValidateQueue(); err != nil {
+			return &fake.FakeProducer{Error: fake.InvalidQueueError}
+		}
 		return &queue.Producer{
 			MetricsProducer: mp,
 			Queue:           f.CloudProviderFactory.QueueFor(mp.Spec.Queue),
 		}
 	}
 	if mp.Spec.ReservedCapacity != nil {
+		if err := mp.Spec.ReservedCapacity.ValidateReservedCapacity(); err != nil {
+			return &fake.FakeProducer{Error: fake.InvalidReservedCapacityError}
+		}
 		return &reservedcapacity.Producer{
 			MetricsProducer: mp,
 			Client:          f.Client,
 		}
 	}
 	if mp.Spec.ScheduledCapacity != nil {
+		if err := mp.Spec.ScheduledCapacity.ValidateScheduledCapacity(); err != nil {
+			return &fake.FakeProducer{Error: fake.InvalidScheduledCapacityError}
+		}
 		return &scheduledcapacity.Producer{
 			MetricsProducer: mp,
 		}
 	}
 	log.InvariantViolated("Failed to instantiate metrics producer, no spec defined")
-	return &metrics.NilProducer{}
+	return &fake.FakeProducer{Error: fake.NotImplementedError}
 }
