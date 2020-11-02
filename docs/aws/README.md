@@ -55,6 +55,12 @@ eksctl create iamserviceaccount --cluster ${CLUSTER_NAME} \
 --approve
 ```
 
+## Verify the Permissions
+You should see an annotation with key eks.amazonaws.com/role-arn
+```
+kubectl get serviceaccount default -n karpenter -ojsonpath="{.metadata.annotations}"
+```
+
 ## Cleanup
 ```
 eksctl delete iamserviceaccount --cluster ${CLUSTER_NAME} --name default --namespace karpenter
