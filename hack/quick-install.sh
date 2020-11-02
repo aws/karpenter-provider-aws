@@ -6,24 +6,24 @@ trap "rm -rf $TEMP_DIR" EXIT
 
 main() {
   local command=${1:-'--apply'}
-  if [[ "$command" = "--usage" ]]; then
+  if [[ $command = "--usage" ]]; then
     usage
-  elif [[ "$command" = "--apply" ]]; then
+  elif [[ $command = "--apply" ]]; then
     apply
-    echo Installation Complete!
-  elif [[ "$command" = "--delete" ]]; then
+    echo "Installation complete!"
+  elif [[ $command = "--delete" ]]; then
     delete
-    echo Uninstallation Complete!
+    echo "Uninstallation complete!"
   else
-    echo "Error: invalid argument: $command"
+    echo "Error: invalid argument: $command" >&2
     usage
-    exit 1
+    exit 22			# EINVAL
   fi
 }
 
 usage() {
   cat <<EOF
-######################## USAGE ########################
+######################## USAGE ########################k
 hack/quick-install.sh          # Defaults to apply
 hack/quick-install.sh --usage  # Displays usage
 hack/quick-install.sh --apply  # Creates all resources
@@ -49,6 +49,11 @@ apply() {
   make apply
 }
 
+# If this fails you may have an old installation hanging around. If it's just for
+# testing, you can remove it with something like this (match the version to the version
+# you installed).
+#
+# kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v0.16.1/cert-manager.yaml
 certmanager() {
   helm upgrade --install cert-manager jetstack/cert-manager \
     --atomic \
