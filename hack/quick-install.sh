@@ -23,7 +23,7 @@ main() {
 
 usage() {
   cat <<EOF
-######################## USAGE ########################k
+######################## USAGE ########################
 hack/quick-install.sh          # Defaults to apply
 hack/quick-install.sh --usage  # Displays usage
 hack/quick-install.sh --apply  # Creates all resources
@@ -53,7 +53,8 @@ apply() {
 # testing, you can remove it with something like this (match the version to the version
 # you installed).
 #
-# kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v0.16.1/cert-manager.yaml
+# VERSION=$(kubectl get deployment cert-manager -n cert-manager -ojsonpath='{.spec.template.spec.containers[0].image}{"\n"}' | cut -f2 -d:)
+# kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/${VERSION}/cert-manager.yaml
 certmanager() {
   helm upgrade --install cert-manager jetstack/cert-manager \
     --atomic \
