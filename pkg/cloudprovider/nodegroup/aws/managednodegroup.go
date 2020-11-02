@@ -20,7 +20,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -39,23 +38,22 @@ func init() {
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	EKSAPI         eksiface.EKSAPI
-	AutoScalingAPI autoscalingiface.AutoScalingAPI
-	Cluster        string
-	NodeGroup      string
+	EKSClient         eksiface.EKSAPI
+	AutoscalingClient autoscalingiface.AutoScalingAPI
+	Cluster           string
+	NodeGroup         string
 }
 
-func NewManagedNodeGroup(id string) *ManagedNodeGroup {
+func NewManagedNodeGroup(id string, eksClient eksiface.EKSAPI, autoscalingClient autoscalingiface.AutoScalingAPI) *ManagedNodeGroup {
 	// Ignore error; it could only actually happen if webhook didn't
 	// catch invalid ARN. In that case user will see errors from
 	// reconciliation, which they can fix.
 	cluster, nodeGroup, _ := parseId(id)
-	session := session.Must(session.NewSession())
 	return &ManagedNodeGroup{
-		Cluster:        cluster,
-		NodeGroup:      nodeGroup,
-		EKSAPI:         eks.New(session),
-		AutoScalingAPI: autoscaling.New(session),
+		Cluster:           cluster,
+		NodeGroup:         nodeGroup,
+		EKSClient:         eksClient,
+		AutoscalingClient: autoscalingClient,
 	}
 }
 
@@ -79,7 +77,7 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 }
 
 func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
-	nodegroupOutput, err := mng.EKSAPI.DescribeNodegroup(&eks.DescribeNodegroupInput{
+	nodegroupOutput, err := mng.EKSClient.DescribeNodegroup(&eks.DescribeNodegroupInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 	})
@@ -93,7 +91,7 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 	}
 
 	var replicas = 0
-	err = mng.AutoScalingAPI.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
+	err = mng.AutoscalingClient.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: autoscalingGroupNames,
 	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
 		for _, group := range page.AutoScalingGroups {
@@ -106,13 +104,12 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 
 func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 	// https://docs.aws.amazon.com/eks/latest/APIReference/API_UpdateNodegroupConfig.html
-	_, err := mng.EKSAPI.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
+	_, err := mng.EKSClient.UpdateNodegroupConfig(&eks.UpdateNodegroupConfigInput{
 		ClusterName:   &mng.Cluster,
 		NodegroupName: &mng.NodeGroup,
 		ScalingConfig: &eks.NodegroupScalingConfig{
 			DesiredSize: aws.Int64(int64(count)),
 		},
 	})
-
 	return TransientError(err)
 }

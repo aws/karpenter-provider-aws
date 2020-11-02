@@ -92,7 +92,7 @@ func TestUpdateAutoScalingGroupSuccess(t *testing.T) {
 
 func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 	mng := &ManagedNodeGroup{
-		EKSAPI: mockedUpdateManagedNodeGroup{
+		EKSClient: mockedUpdateManagedNodeGroup{
 			UpdateOutput: eks.UpdateNodegroupConfigOutput{},
 			DescribeOutput: eks.DescribeNodegroupOutput{
 				Nodegroup: &eks.Nodegroup{
@@ -105,7 +105,7 @@ func TestUpdateManagedNodeGroupSuccess(t *testing.T) {
 				},
 			},
 		},
-		AutoScalingAPI: &mockedUpdateAutoScalingGroup{
+		AutoscalingClient: &mockedUpdateAutoScalingGroup{
 			DescribeResp: autoscaling.DescribeAutoScalingGroupsOutput{
 				AutoScalingGroups: []*autoscaling.Group{
 					{

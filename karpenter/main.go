@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/registry"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
@@ -61,13 +61,14 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	metricsProducerFactory := &producers.Factory{Client: manager.GetClient()}
+	cloudProviderFactory := registry.NewFactory()
+	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
 	if err := manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
-		&scalablenodegroupv1alpha1.Controller{NodeGroupFactory: &nodegroup.Factory{}},
+		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Fatalf("Unable to start manager, %w", err)

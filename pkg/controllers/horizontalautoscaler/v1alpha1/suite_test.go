@@ -23,6 +23,7 @@ import (
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
 	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
@@ -53,8 +54,8 @@ func injectHorizontalAutoscalerController(environment *environment.Local) {
 	metricsClientFactory := clients.NewFactoryOrDie(environment.Server.URL())
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, environment.Manager.GetRESTMapper(), environment.Config)
 	environment.Manager.Register(
-		&Controller{Client: environment.Manager.GetClient(), AutoscalerFactory: autoscalerFactory},
-		&scalablenodegroupv1alpha1.Controller{},
+		&Controller{AutoscalerFactory: autoscalerFactory},
+		&scalablenodegroupv1alpha1.Controller{CloudProvider: mock.NewNotImplementedFactory()},
 	)
 }
 
@@ -89,7 +90,6 @@ var _ = Describe("Test Samples", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = 5
-			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
 
 			ExpectCreated(ns.Client, sng)
@@ -107,7 +107,6 @@ var _ = Describe("Test Samples", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
 			Expect(ns.ParseResources("docs/samples/queue-length/resources.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = 1
-			sng.Status.Replicas = sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
 
 			ExpectCreated(ns.Client, sng)
