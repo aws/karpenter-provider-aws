@@ -13,9 +13,23 @@ The following tools are required for doing development on Karpenter.
 
 ## Developing
 
+### AWS
+For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
+Follow this guide to [setup an ECR repository](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html)
+
+### Setting up a development repository with ECR
+Follow the ECR getting started guide and create a development repository with [these instructions](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html). Then configure your shell to with your newly created repository
+
+```
+export DEVELOPMENT_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com"
+export KO_DOCKER_REPO=${DEVELOPMENT_REPO}
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $DEVELOPMENT_REPO
+```
+
 ### Setup / Teardown
 
 ```
+make generate                    # Create auto-generated YAML files.
 ./hack/quick-install.sh          # Install cluster dependencies and karpenter
 ./hack/quick-install.sh --delete # Clean everything up
 ```
@@ -55,14 +69,4 @@ open http://localhost:9090/graph && kubectl port-forward service/prometheus-oper
 Karpenter Metrics
 ```
 open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics-service -n karpenter 8080
-```
-
-## AWS
-
-### Setting up a development repository with ECR
-Follow the ECR getting started guide and create a development repository with [these instructions](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html). Then configure your shell to with your newly created repository
-```
-export DEVELOPMENT_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com"
-export KO_DOCKER_REPO=${DEVELOPMENT_REPO}
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $DEVELOPMENT_REPO
 ```
