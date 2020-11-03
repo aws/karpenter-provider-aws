@@ -20,9 +20,15 @@ import (
 
 // +kubebuilder:object:generate=false
 type QueueValidator func(*QueueSpec) error
-type PendingCapacityValidator func(spec *PendingCapacitySpec) error
-type ReservedCapacityValidator func(spec *ReservedCapacitySpec) error
-type ScheduledCapacityValidator func(spec *ScheduledCapacitySpec) error
+
+// +kubebuilder:object:generate=false
+type PendingCapacityValidator func(*PendingCapacitySpec) error
+
+// +kubebuilder:object:generate=false
+type ReservedCapacityValidator func(*ReservedCapacitySpec) error
+
+// +kubebuilder:object:generate=false
+type ScheduledCapacityValidator func(*ScheduledCapacitySpec) error
 
 var (
 	queueValidator = map[QueueType]QueueValidator{}
