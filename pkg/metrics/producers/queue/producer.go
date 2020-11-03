@@ -15,8 +15,11 @@ limitations under the License.
 package queue
 
 import (
+	"fmt"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"go.uber.org/multierr"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Producer implements a Pending Capacity metric
@@ -41,4 +44,31 @@ func (p *Producer) Reconcile() error {
 	}
 	return nil
 
+}
+
+func (p *Producer) record(reservations *Reservations) {
+	if p.Status.ReservedCapacity == nil {
+		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
+	}
+	var errs error
+	for resource, reservation := range reservations.Resources {
+		utilization, err := reservation.Utilization()
+		if err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("unable to compute utilization for %s, %w", resource, err))
+		} else {
+			reservation.Gauge.Set(utilization)
+			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
+				"%d%%, %s/%s",
+				int32(utilization*100),
+				reservation.Reserved,
+				reservation.Total,
+			)
+		}
+	}
+	if errs != nil {
+		p.Status.Conditions[]
+		MarkFalse(v1alpha1.Calculable, "", errs.Error())
+	} else {
+		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
+	}
 }
