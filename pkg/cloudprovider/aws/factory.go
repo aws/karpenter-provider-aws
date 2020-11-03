@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
 	nodegroupaws "github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
 )
@@ -53,7 +53,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEKSNodeGroup:
 		return nodegroupaws.NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient)
 	default:
-		return mock.NewNotImplementedFactory().NodeGroupFor(spec)
+		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
 }
 
@@ -62,7 +62,7 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	case v1alpha1.AWSSQSQueueType:
 		return NewSQSQueue(spec.ID, f.SQSClient)
 	default:
-		return mock.NewNotImplementedFactory().QueueFor(spec)
+		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 

@@ -1,5 +1,3 @@
-// +build !aws
-
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package fake
 
-import (
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
-)
+type Queue struct {
+	Id      string
+	WantErr error
+}
 
-func NewFactory() cloudprovider.Factory {
-	return mock.NewFactory()
+func (q *Queue) Name() string {
+	return q.Id
+}
+
+func (q *Queue) Length() (int64, error) {
+	return 0, q.WantErr
+}
+
+func (q *Queue) OldestMessageAge() (int64, error) {
+	return 0, q.WantErr
 }

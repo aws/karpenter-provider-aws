@@ -52,7 +52,7 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)
 	}
 	resource.Status.Replicas = replicas
-	if resource.Spec.Replicas == 0 || resource.Spec.Replicas == replicas {
+	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == replicas {
 		return nil
 	}
 	if err := ng.SetReplicas(replicas); err != nil {

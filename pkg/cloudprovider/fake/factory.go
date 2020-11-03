@@ -12,13 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mock
+package fake
 
 import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"knative.dev/pkg/ptr"
 )
 
 var (
@@ -27,10 +28,14 @@ var (
 
 type Factory struct {
 	WantErr error
+	// NodeReplicas is use by tests to control observed replicas.
+	NodeReplicas map[string]int32
 }
 
 func NewFactory() *Factory {
-	return &Factory{}
+	return &Factory{
+		NodeReplicas: make(map[string]int32),
+	}
 }
 
 func NewNotImplementedFactory() *Factory {
@@ -38,7 +43,10 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	return &NodeGroup{Replicas: sng.Replicas, WantErr: f.WantErr}
+	return &NodeGroup{
+		WantErr:  f.WantErr,
+		Replicas: ptr.Int32(f.NodeReplicas[sng.ID]),
+	}
 }
 
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {

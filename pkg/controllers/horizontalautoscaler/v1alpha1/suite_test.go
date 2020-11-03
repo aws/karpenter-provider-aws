@@ -15,7 +15,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -23,17 +22,17 @@ import (
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/mock"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
 	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
 	"github.com/ellistarn/karpenter/pkg/test/environment"
 	. "github.com/ellistarn/karpenter/pkg/test/expectations"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"knative.dev/pkg/ptr"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
@@ -45,6 +44,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var fakeServer *ghttp.Server
+var fakeCloudProvider = fake.NewFactory()
 
 func injectFakeServer(environment *environment.Local) {
 	fakeServer = environment.Server
@@ -55,7 +55,7 @@ func injectHorizontalAutoscalerController(environment *environment.Local) {
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, environment.Manager.GetRESTMapper(), environment.Config)
 	environment.Manager.Register(
 		&Controller{AutoscalerFactory: autoscalerFactory},
-		&scalablenodegroupv1alpha1.Controller{CloudProvider: mock.NewNotImplementedFactory()},
+		&scalablenodegroupv1alpha1.Controller{CloudProvider: fakeCloudProvider},
 	)
 }
 
@@ -89,15 +89,12 @@ var _ = Describe("Test Samples", func() {
 	Context("Capacity Reservations", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = 5
+			sng.Spec.Replicas = ptr.Int32(5)
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
 
-			ExpectCreated(ns.Client, sng)
-			sng.Status.Replicas = sng.Spec.Replicas
-			Expect(ns.Client.Status().Patch(context.Background(), sng, client.Merge))
-
-			ExpectCreated(ns.Client, ha)
-			ExpectEventuallyHappy(ns.Client, ha)
+			ExpectCreated(ns.Client, sng, ha)
+			ExpectEventuallyHappy(ns.Client, sng, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(8), log.Pretty(ha))
 			ExpectDeleted(ns.Client, ha)
 		})
@@ -106,15 +103,12 @@ var _ = Describe("Test Samples", func() {
 	Context("Queue Length", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
 			Expect(ns.ParseResources("docs/samples/queue-length/resources.yaml", ha, sng)).To(Succeed())
-			sng.Spec.Replicas = 1
+			sng.Spec.Replicas = ptr.Int32(1)
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
 
-			ExpectCreated(ns.Client, sng)
-			sng.Status.Replicas = sng.Spec.Replicas
-			Expect(ns.Client.Status().Patch(context.Background(), sng, client.Merge))
-
-			ExpectCreated(ns.Client, ha)
-			ExpectEventuallyHappy(ns.Client, ha)
+			ExpectCreated(ns.Client, sng, ha)
+			ExpectEventuallyHappy(ns.Client, sng, ha)
 			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))
 			ExpectDeleted(ns.Client, ha)
 		})
