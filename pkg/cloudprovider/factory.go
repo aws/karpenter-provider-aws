@@ -33,7 +33,7 @@ type Queue interface {
 	// Length returns the length of the queue
 	Length() (int64, error)
 	// OldestMessageAge returns the age of the oldest message
-	OldestMessageAge() (int64, error)
+	OldestMessageAgeSeconds() (int64, error)
 }
 
 // NodeGroup abstracts all provider specific behavior for NodeGroups.

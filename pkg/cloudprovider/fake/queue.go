@@ -27,6 +27,6 @@ func (q *Queue) Length() (int64, error) {
 	return 0, q.WantErr
 }
 
-func (q *Queue) OldestMessageAge() (int64, error) {
+func (q *Queue) OldestMessageAgeSeconds() (int64, error) {
 	return 0, q.WantErr
 }
