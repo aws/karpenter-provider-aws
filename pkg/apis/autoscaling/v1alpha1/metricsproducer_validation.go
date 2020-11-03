@@ -14,66 +14,56 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // +kubebuilder:object:generate=false
 type QueueValidator func(*QueueSpec) error
 
-// +kubebuilder:object:generate=false
-type PendingCapacityValidator func(*PendingCapacitySpec) error
-
-// +kubebuilder:object:generate=false
-type ReservedCapacityValidator func(*ReservedCapacitySpec) error
-
-// +kubebuilder:object:generate=false
-type ScheduledCapacityValidator func(*ScheduledCapacitySpec) error
-
 var (
 	queueValidator = map[QueueType]QueueValidator{}
-	// Currently keys are strings because this functionality has not been implemented yet
-	pendingCapacityValidator   = map[string]PendingCapacityValidator{}
-	reservedCapacityValidator  = map[string]ReservedCapacityValidator{}
-	scheduledCapacityValidator = map[string]ScheduledCapacityValidator{}
 )
 
 func RegisterQueueValidator(queueType QueueType, validator QueueValidator) {
 	queueValidator[queueType] = validator
 }
-func RegisterPendingCapacityValidator(pendingCapacity string, validator PendingCapacityValidator) {
-	pendingCapacityValidator[pendingCapacity] = validator
-}
-func RegisterReservedCapacityValidator(reservedCapacity string, validator ReservedCapacityValidator) {
-	reservedCapacityValidator[reservedCapacity] = validator
-}
-func RegisterScheduledCapacityValidator(scheduledCapacity string, validator ScheduledCapacityValidator) {
-	scheduledCapacityValidator[scheduledCapacity] = validator
-}
 
 // Validate Queue
-func (q *QueueSpec) ValidateQueue() error {
-	queueValidate, ok := queueValidator[q.Type]
-	if !ok {
-		return fmt.Errorf("unexpected queue type %v", q.Type)
+func (mp *MetricsProducerSpec) Validate() error {
+	if mp.Queue != nil {
+		queueValidate, ok := queueValidator[mp.Queue.Type]
+		if !ok {
+			return fmt.Errorf("unexpected queue type %v", mp.Queue.Type)
+		}
+		if err := queueValidate(mp.Queue); err != nil {
+			return fmt.Errorf("invalid Metrics Producer, %w", err)
+		}
 	}
-	if err := queueValidate(q); err != nil {
-		return fmt.Errorf("invalid Metrics Producer, %w", err)
+	if mp.PendingCapacity != nil {
+		return mp.PendingCapacity.validate()
+	}
+	if mp.ReservedCapacity != nil {
+		return mp.ReservedCapacity.validate()
+	}
+	if mp.ScheduledCapacity != nil {
+		return mp.ScheduledCapacity.validate()
 	}
 	return nil
 }
 
 // Validate PendingCapacity
-func (p *PendingCapacitySpec) ValidatePendingCapacity() error {
+func (s *PendingCapacitySpec) validate() error {
 	return nil
 }
 
 // Validate ReservedCapacity
-func (p *ReservedCapacitySpec) ValidateReservedCapacity() error {
+func (s *ReservedCapacitySpec) validate() error {
+	if len(s.NodeSelector) != 1 {
+		return fmt.Errorf("reserved capacity must refer to exactly one node selector")
+	}
 	return nil
 }
 
 // Validate ScheduledCapacity
-func (p *ScheduledCapacitySpec) ValidateScheduledCapacity() error {
+func (s *ScheduledCapacitySpec) validate() error {
 	return nil
 }

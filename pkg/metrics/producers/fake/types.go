@@ -17,16 +17,11 @@ package fake
 import "fmt"
 
 var (
-	NotImplementedError           = fmt.Errorf("provider is not implemented")
-	InvalidQueueError             = fmt.Errorf("queue inputs are invalid")
-	InvalidPendingCapacityError   = fmt.Errorf("pending capacity inputs are invalid")
-	InvalidReservedCapacityError  = fmt.Errorf("reserved capacity inputs are invalid")
-	InvalidScheduledCapacityError = fmt.Errorf("scheduled capacity inputs are invalid")
+	NotImplementedError = fmt.Errorf("provider is not implemented")
 )
 
-// FakeProducer is a noop implementation
 type FakeProducer struct {
-	Error error
+	WantErr error
 }
 
-func (p *FakeProducer) Reconcile() error { return p.Error }
+func (p *FakeProducer) Reconcile() error { return p.WantErr }

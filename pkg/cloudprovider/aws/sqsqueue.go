@@ -25,9 +25,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
-func Validate(q *v1alpha1.QueueSpec) (err error) {
-	_, err = arn.Parse(q.ID)
-	return
+func Validate(q *v1alpha1.QueueSpec) error {
+	_, err := arn.Parse(q.ID)
+	return err
 }
 
 func init() {
