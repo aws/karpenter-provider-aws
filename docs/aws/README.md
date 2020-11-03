@@ -45,7 +45,7 @@ EOM
 )"
 ```
 
-### Create using IAM Roles for Service Accounts (IRSA)
+### Associate the IAM Role with your Kubernetes Service Account
 This command will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
 ```
 eksctl create iamserviceaccount --cluster ${CLUSTER_NAME} \
