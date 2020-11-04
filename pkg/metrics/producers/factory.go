@@ -18,6 +18,7 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/ellistarn/karpenter/pkg/metrics/producers/fake"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/pendingcapacity"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/queue"
 	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
@@ -33,6 +34,9 @@ type Factory struct {
 }
 
 func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
+	if err := mp.Spec.Validate(); err != nil {
+		return &fake.FakeProducer{WantErr: err}
+	}
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
@@ -57,5 +61,5 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 		}
 	}
 	log.InvariantViolated("Failed to instantiate metrics producer, no spec defined")
-	return &metrics.NilProducer{}
+	return &fake.FakeProducer{WantErr: fake.NotImplementedError}
 }

@@ -37,7 +37,7 @@ type Controller interface {
 	// on watch events or the global resync interval.
 	Interval() time.Duration
 	// For returns a default instantiation of the resource and is injected by
-	// data from the API Server at the start of the reconcilation loop.
+	// data from the API Server at the start of the reconciliation loop.
 	For() Object
 	// Owns returns a slice of resources that are watched by this resources.
 	// Watch events are triggered if owner references are set on the resource.
@@ -52,7 +52,7 @@ type Object interface {
 }
 
 // GenericController implements controllerruntime.Reconciler and runs a
-// standardized reconcilation workflow against incoming resource watch events.
+// standardized reconciliation workflow against incoming resource watch events.
 type GenericController struct {
 	Controller
 	client.Client

@@ -31,11 +31,6 @@ type Producer interface {
 	Reconcile() error
 }
 
-// NilProducer is a noop implementation
-type NilProducer struct{}
-
-func (p *NilProducer) Reconcile() error { return nil }
-
 // Client interface for all metrics implementations
 type Client interface {
 	// GetCurrentValues returns the current values for the specified metric.
