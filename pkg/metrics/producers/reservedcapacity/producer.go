@@ -17,9 +17,9 @@ package reservedcapacity
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -39,7 +39,7 @@ func (p *Producer) Reconcile() error {
 	}
 
 	// 2. Compute reservations
-	reservations := NewReservations(p.MetricsProducer)
+	reservations := NewReservations()
 	for _, node := range nodes.Items {
 		pods := &v1.PodList{}
 		if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
@@ -57,24 +57,16 @@ func (p *Producer) record(reservations *Reservations) {
 	if p.Status.ReservedCapacity == nil {
 		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
 	}
-	var errs error
 	for resource, reservation := range reservations.Resources {
-		utilization, err := reservation.Utilization()
-		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("unable to compute utilization for %s, %w", resource, err))
-		} else {
-			reservation.Gauge.Set(utilization)
-			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
-				"%d%%, %s/%s",
-				int32(utilization*100),
-				reservation.Reserved,
-				reservation.Total,
-			)
+		computed := reservation.Compute()
+		for metricType, value := range computed {
+			Gauges[resource][metricType].WithLabelValues(p.Name, p.Namespace).Set(value)
 		}
-	}
-	if errs != nil {
-		p.StatusConditions().MarkFalse(v1alpha1.Calculable, "", errs.Error())
-	} else {
-		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
+		p.Status.ReservedCapacity[resource] = fmt.Sprintf(
+			"%v%%, %d/%d",
+			math.Floor(computed[Utilization]*100),
+			int64(computed[Reserved]),
+			int64(computed[Capacity]),
+		)
 	}
 }

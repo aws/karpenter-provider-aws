@@ -15,11 +15,9 @@ limitations under the License.
 package reservedcapacity
 
 import (
-	"fmt"
+	"math"
 	"math/big"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -28,23 +26,20 @@ type Reservations struct {
 	Resources map[v1.ResourceName]Reservation
 }
 
-func NewReservations(m *v1alpha1.MetricsProducer) *Reservations {
+func NewReservations() *Reservations {
 	return &Reservations{
 		Resources: map[v1.ResourceName]Reservation{
 			v1.ResourceCPU: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
-				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    CpuUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Capacity: resource.NewQuantity(0, resource.DecimalSI),
 			},
 			v1.ResourceMemory: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
-				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    MemoryUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Capacity: resource.NewQuantity(0, resource.DecimalSI),
 			},
 			v1.ResourcePods: {
 				Reserved: resource.NewQuantity(0, resource.DecimalSI),
-				Total:    resource.NewQuantity(0, resource.DecimalSI),
-				Gauge:    PodUtilizationGaugeVec.WithLabelValues(m.Name, m.Namespace),
+				Capacity: resource.NewQuantity(0, resource.DecimalSI),
 			},
 		},
 	}
@@ -58,21 +53,25 @@ func (r *Reservations) Add(node *v1.Node, pods *v1.PodList) {
 			r.Resources[v1.ResourceMemory].Reserved.Add(*container.Resources.Requests.Memory())
 		}
 	}
-	r.Resources[v1.ResourcePods].Total.Add(*node.Status.Capacity.Pods())
-	r.Resources[v1.ResourceCPU].Total.Add(*node.Status.Capacity.Cpu())
-	r.Resources[v1.ResourceMemory].Total.Add(*node.Status.Capacity.Memory())
+	r.Resources[v1.ResourcePods].Capacity.Add(*node.Status.Capacity.Pods())
+	r.Resources[v1.ResourceCPU].Capacity.Add(*node.Status.Capacity.Cpu())
+	r.Resources[v1.ResourceMemory].Capacity.Add(*node.Status.Capacity.Memory())
 }
 
 type Reservation struct {
 	Reserved *resource.Quantity
-	Total    *resource.Quantity
-	Gauge    prometheus.Gauge
+	Capacity *resource.Quantity
 }
 
-func (r *Reservation) Utilization() (float64, error) {
-	if r.Total.Value() == 0 {
-		return 0, fmt.Errorf("divide by zero %d/%d", r.Reserved.Value(), r.Total.Value())
+func (r *Reservation) Compute() map[MetricType]float64 {
+	var utilization = math.NaN()
+	if r.Capacity.Value() != 0 {
+		utilization, _ = big.NewRat(r.Reserved.Value(), r.Capacity.Value()).Float64()
 	}
-	utilization, _ := big.NewRat(r.Reserved.Value(), r.Total.Value()).Float64()
-	return utilization, nil
+
+	return map[MetricType]float64{
+		Reserved:    float64(r.Reserved.Value()),
+		Capacity:    float64(r.Capacity.Value()),
+		Utilization: utilization,
+	}
 }
