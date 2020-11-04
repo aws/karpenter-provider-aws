@@ -66,7 +66,7 @@ func (q *SQSQueue) Length() (int64, error) {
 }
 
 // OldestMessageAge returns the age of the oldest message
-func (q *SQSQueue) OldestMessageAge() (int64, error) {
+func (q *SQSQueue) OldestMessageAgeSeconds() (int64, error) {
 	return 0, nil
 }
 

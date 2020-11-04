@@ -39,7 +39,7 @@ type MetricsProducerStatus struct {
 const (
 	// Calculable is a condition that refers to whether or not the Metrics
 	// Producer is able to calculate a metric given the available data. This
-	// will be false if no data is available, or if a mathmatical operation
+	// will be false if no data is available, or if a mathematical operation
 	// desired by the producer results in an undefined value (i.e. div by 0).
 	Calculable apis.ConditionType = "Calculable"
 )
@@ -47,6 +47,11 @@ const (
 type PendingCapacityStatus struct {
 }
 type QueueStatus struct {
+	// Length of the Queue
+	Length int64 `json:"length"`
+
+	// The age of the oldest message in the queue in seconds
+	OldestMessageAgeSeconds int64 `json:"oldestMessageAgeSeconds,omitempty"`
 }
 
 type ScheduledCapacityStatus struct {

@@ -27,9 +27,18 @@ type Producer struct {
 
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
-	_, err := p.Queue.Length()
+	length, err := p.Queue.Length()
 	if err != nil {
 		return err
 	}
+	oldestMessageAgeSeconds, err := p.Queue.OldestMessageAgeSeconds()
+	if err != nil {
+		return err
+	}
+	p.Status.Queue = &v1alpha1.QueueStatus{
+		Length:                  length,
+		OldestMessageAgeSeconds: oldestMessageAgeSeconds,
+	}
 	return nil
+
 }
