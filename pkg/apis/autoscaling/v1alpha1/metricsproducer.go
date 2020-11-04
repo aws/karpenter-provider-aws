@@ -80,9 +80,22 @@ const (
 	AWSSQSQueueType QueueType = "AWSSQSQueue"
 )
 
+type MetricsType string
+
+const (
+	AWSSQSQueueMetricType       MetricsType = "AWSSQSQueue"
+	ReservedCapacityMetricType  MetricsType = "ReservedCapacity"
+	PendingCapacityMetricType   MetricsType = "PendingCapacity"
+	ScheduledCapacityMetricType MetricsType = "ScheduledCapacity"
+	UnknownMetricsType          MetricsType = "UnknownMetricsType"
+)
+
 // MetricsProducer is the Schema for the MetricsProducers API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName={"mp"}
+// +kubebuilder:printcolumn:name="type",type="string",JSONPath=".status.metricsType"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 type MetricsProducer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

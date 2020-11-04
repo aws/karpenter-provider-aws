@@ -30,6 +30,8 @@ type MetricsProducerStatus struct {
 	ReservedCapacity map[v1.ResourceName]string `json:"reservedCapacity,omitempty"`
 	// +optional
 	ScheduledCapacity *ScheduledCapacityStatus `json:"scheduledCapacity,omitempty"`
+	// +optional
+	MetricsType MetricsType `json:"metricsType,omitempty"`
 	// Conditions is the set of conditions required for the metrics producer to
 	// successfully publish metrics to the metrics server
 	// +optional

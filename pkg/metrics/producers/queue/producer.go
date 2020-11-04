@@ -17,6 +17,7 @@ package queue
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/aws"
 )
 
 // Producer implements a Pending Capacity metric
@@ -27,6 +28,8 @@ type Producer struct {
 
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
+
+	p.setMetricType()
 	length, err := p.Queue.Length()
 	if err != nil {
 		return err
@@ -41,4 +44,12 @@ func (p *Producer) Reconcile() error {
 	}
 	return nil
 
+}
+
+func (p *Producer) setMetricType() {
+	if _, ok := p.Queue.(*aws.SQSQueue); ok {
+		p.Status.MetricsType = v1alpha1.AWSSQSQueueMetricType
+		return
+	}
+	p.Status.MetricsType = v1alpha1.UnknownMetricsType
 }

@@ -27,5 +27,10 @@ type Producer struct {
 
 // GetCurrentValues of the metrics
 func (p *Producer) Reconcile() error {
+	p.setMetricType()
 	return nil
+}
+
+func (p *Producer) setMetricType() {
+	p.Status.MetricsType = v1alpha1.PendingCapacityMetricType
 }
