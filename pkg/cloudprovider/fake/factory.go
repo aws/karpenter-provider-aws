@@ -32,7 +32,7 @@ type Factory struct {
 	NodeReplicas map[string]int32
 }
 
-func NewFactory() *Factory {
+func NewFactory(options cloudprovider.Options) *Factory {
 	return &Factory{
 		NodeReplicas: make(map[string]int32),
 	}

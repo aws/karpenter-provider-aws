@@ -27,31 +27,33 @@ import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
-	nodegroupaws "github.com/ellistarn/karpenter/pkg/cloudprovider/nodegroup/aws"
 	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
 	SQSClient         sqsiface.SQSAPI
 	EKSClient         eksiface.EKSAPI
+	Client            client.Client
 }
 
-func NewFactory() *Factory {
+func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
 		EKSClient:         eks.New(sess),
 		SQSClient:         sqs.New(sess),
+		Client:            options.Client,
 	}
 }
 
 func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
 	switch spec.Type {
 	case v1alpha1.AWSEC2AutoScalingGroup:
-		return nodegroupaws.NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
+		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return nodegroupaws.NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient)
+		return NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient, f.Client)
 	default:
 		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
@@ -68,9 +70,7 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 
 func withRegion(sess *session.Session) *session.Session {
 	region, err := ec2metadata.New(sess).Region()
-	if err != nil {
-		log.PanicIfError(err, "failed to call the metadata server's region API")
-	}
+	log.PanicIfError(err, "failed to call the metadata server's region API")
 	sess.Config.Region = aws.String(region)
 	return sess
 }

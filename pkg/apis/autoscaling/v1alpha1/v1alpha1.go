@@ -21,6 +21,7 @@ package v1alpha1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
@@ -36,6 +37,13 @@ var (
 
 	// AddToScheme is required by pkg/client/...
 	AddToScheme = SchemeBuilder.AddToScheme
+)
+
+const (
+	// Active is a condition implemented by all resources. It indicates that the
+	// controller is able to take actions: it's correctly configured, can make
+	// necessary API calls, and isn't disabled.
+	Active apis.ConditionType = "Active"
 )
 
 // Resource is required by pkg/client/listers/...

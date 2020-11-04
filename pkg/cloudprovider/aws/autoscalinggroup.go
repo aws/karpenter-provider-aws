@@ -57,3 +57,7 @@ func (a *AutoScalingGroup) SetReplicas(count int32) error {
 	})
 	return TransientError(err)
 }
+
+func (a *AutoScalingGroup) Stabilized() (bool, string, error) {
+	return true, "", nil
+}

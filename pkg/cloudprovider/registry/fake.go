@@ -21,6 +21,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
 )
 
-func NewFactory() cloudprovider.Factory {
-	return fake.NewFactory()
+func NewFactory(options cloudprovider.Options) cloudprovider.Factory {
+	return fake.NewFactory(options)
 }

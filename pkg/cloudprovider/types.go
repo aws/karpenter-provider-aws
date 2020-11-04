@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Factory instantiates the cloud provider's resources
@@ -39,6 +40,15 @@ type Queue interface {
 // NodeGroup abstracts all provider specific behavior for NodeGroups.
 // It is meant to be used by controllers.
 type NodeGroup interface {
+	// SetReplicas sets the desired replicas for the node group
 	SetReplicas(count int32) error
+	// GetReplicas returns the number of schedulable replicas in the node group
 	GetReplicas() (int32, error)
+	// Stabilized returns false with a message if the node group has updates in progress
+	Stabilized() (bool, string, error)
+}
+
+// Options are injected into cloud providers' factories
+type Options struct {
+	Client client.Client
 }

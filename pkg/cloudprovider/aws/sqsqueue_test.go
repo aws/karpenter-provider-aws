@@ -12,45 +12,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tests
+package aws
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	awssdkgo "github.com/ellistarn/karpenter/pkg/cloudprovider/aws"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider/aws/fake"
+
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
-type mockedGetQueue struct {
-	sqsiface.SQSAPI
-	queueUrlOutput       sqs.GetQueueUrlOutput
-	queueAttributeOutput sqs.GetQueueAttributesOutput
-	error                error
-}
-
-func (m mockedGetQueue) GetQueueUrl(*sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
-	return &m.queueUrlOutput, m.error
-}
-
-func (m mockedGetQueue) GetQueueAttributes(*sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error) {
-	return &m.queueAttributeOutput, m.error
-}
-
 func TestGetQueueLength(t *testing.T) {
-	sqs := &awssdkgo.SQSQueue{
-		Client: mockedGetQueue{
-			queueUrlOutput: sqs.GetQueueUrlOutput{
+	sqs := &SQSQueue{
+		Client: fake.SQSAPI{
+			QueueUrlOutput: sqs.GetQueueUrlOutput{
 				QueueUrl: aws.String("oopsydaisy"),
 			},
-			queueAttributeOutput: sqs.GetQueueAttributesOutput{
+			QueueAttributeOutput: sqs.GetQueueAttributesOutput{
 				Attributes: map[string]*string{
 					"ApproximateNumberOfMessages": aws.String("42"),
 				},
 			},
-			error: nil,
 		},
 		ARN: "arn:aws:iam:us-west-2:112358132134:fibonacci",
 	}
@@ -65,11 +49,11 @@ func TestGetQueueLength(t *testing.T) {
 }
 
 func TestFailedGetQueueLength(t *testing.T) {
-	sqs := &awssdkgo.SQSQueue{
-		Client: mockedGetQueue{
-			queueUrlOutput:       sqs.GetQueueUrlOutput{},
-			queueAttributeOutput: sqs.GetQueueAttributesOutput{},
-			error:                fmt.Errorf("didn't work for whatever reason"),
+	sqs := &SQSQueue{
+		Client: fake.SQSAPI{
+			QueueUrlOutput:       sqs.GetQueueUrlOutput{},
+			QueueAttributeOutput: sqs.GetQueueAttributesOutput{},
+			WantErr:              fmt.Errorf("didn't work for whatever reason"),
 		},
 		ARN: "arn:aws:iam:us-west-2:112358132134:fibonacci",
 	}
