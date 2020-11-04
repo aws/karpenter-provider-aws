@@ -97,12 +97,24 @@ var _ = Describe("Test Samples", func() {
 
 			ExpectEventuallyHappy(ns.Client, mp)
 			Expect(mp.Status.ReservedCapacity[v1.ResourceCPU]).To(BeEquivalentTo("14%, 7/48"))
-			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("20%, 77Gi/384Gi"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("20%, 82678120448/412316860416"))
 			Expect(mp.Status.ReservedCapacity[v1.ResourcePods]).To(BeEquivalentTo("2%, 4/150"))
 
 			ExpectDeleted(ns.Client, mp)
 			ExpectDeleted(ns.Client, nodes...)
 			ExpectDeleted(ns.Client, pods...)
+		})
+		It("should produce reservation metrics for an empty node group", func() {
+			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", mp)).To(Succeed())
+
+			ExpectCreated(ns.Client, mp)
+
+			ExpectEventuallyHappy(ns.Client, mp)
+			Expect(mp.Status.ReservedCapacity[v1.ResourceCPU]).To(BeEquivalentTo("NaN%, 0/0"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("NaN%, 0/0"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourcePods]).To(BeEquivalentTo("NaN%, 0/0"))
+
+			ExpectDeleted(ns.Client, mp)
 		})
 	})
 })
