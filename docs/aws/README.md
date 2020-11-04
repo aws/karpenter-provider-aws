@@ -6,6 +6,7 @@ Karpenter's pod requires AWS Credentials to read or modify AWS resources in your
 ```
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=<your_cluster>
+REGION=<your_region>
 ```
 
 ### Create the Karpenter IAM Policy
@@ -46,8 +47,13 @@ EOM
 ```
 
 ### Associate the IAM Role with your Kubernetes Service Account
-This command will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
+These commands will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
 ```
+eksctl utils associate-iam-oidc-provider \
+--region ${REGION} \
+--cluster ${CLUSTER_NAME} \
+--approve
+
 eksctl create iamserviceaccount --cluster ${CLUSTER_NAME} \
 --name default \
 --namespace karpenter \
@@ -63,7 +69,7 @@ kubectl get serviceaccount default -n karpenter -ojsonpath="{.metadata.annotatio
 ```
 If you've already installed the Karpenter controller, you'll need to restart the pod to load the credentials.
 ```
-k delete pods -n karpenter -l control-plane=karpenter
+kubectl delete pods -n karpenter -l control-plane=karpenter
 ```
 
 ### Cleanup
