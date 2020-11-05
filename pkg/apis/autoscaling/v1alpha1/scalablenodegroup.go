@@ -42,7 +42,7 @@ const (
 // ScalableNodeGroup is the Schema for the ScalableNodeGroups API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName={"scalablenodegroup"}
+// +kubebuilder:resource:shortName="scalablenodegroup"
 // +kubebuilder:printcolumn:name="desired",type="string",JSONPath=".spec.replicas"
 // +kubebuilder:printcolumn:name="current",type="string",JSONPath=".status.replicas"
 // +kubebuilder:printcolumn:name="type",type="string",JSONPath=".spec.type"

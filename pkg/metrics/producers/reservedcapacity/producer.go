@@ -32,7 +32,6 @@ type Producer struct {
 
 // Reconcile of the metrics
 func (p *Producer) Reconcile() error {
-	p.setMetricType()
 	// 1. List nodes
 	nodes := &v1.NodeList{}
 	if err := p.Client.List(context.Background(), nodes, client.MatchingLabels(p.Spec.ReservedCapacity.NodeSelector)); err != nil {
@@ -78,8 +77,4 @@ func (p *Producer) record(reservations *Reservations) {
 	} else {
 		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
 	}
-}
-
-func (p *Producer) setMetricType() {
-	p.Status.MetricsType = v1alpha1.ReservedCapacityMetricType
 }

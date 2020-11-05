@@ -191,7 +191,7 @@ const (
 // HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName={"horizontalautoscaler"}
+// +kubebuilder:resource:shortName="horizontalautoscaler"
 // +kubebuilder:printcolumn:name="min",type="string",JSONPath=".spec.minReplicas"
 // +kubebuilder:printcolumn:name="desired",type="string",JSONPath=".status.desiredReplicas"
 // +kubebuilder:printcolumn:name="max",type="string",JSONPath=".spec.maxReplicas"
