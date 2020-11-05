@@ -29,13 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
-	_, _, err = parseId(sng.ID)
-	return
-}
-
 func init() {
-	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, Validate)
+	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, func(sng *v1alpha1.ScalableNodeGroupSpec) error {
+		_, _, err := parseId(sng.ID)
+		return err
+	})
 }
 
 const (
@@ -113,5 +111,5 @@ func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 }
 
 func (mng *ManagedNodeGroup) Stabilized() (bool, string, error) {
-	return true, "", nil
+	return true, "", nil // TODO
 }

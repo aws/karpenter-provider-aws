@@ -47,7 +47,16 @@ func (a *AutoScalingGroup) GetReplicas() (int32, error) {
 	if len(out.AutoScalingGroups) != 1 {
 		return 0, fmt.Errorf("autoscaling group has no instances: %s", a.ID)
 	}
-	return int32(len(out.AutoScalingGroups[0].Instances)), nil
+
+	var readyReplicas int32 = 0
+	for _, instance := range out.AutoScalingGroups[0].Instances {
+		if instance.HealthStatus != nil && *instance.HealthStatus == "Healthy" &&
+			instance.LifecycleState != nil && *instance.LifecycleState == autoscaling.LifecycleStateInService {
+			readyReplicas++
+		}
+	}
+
+	return int32(readyReplicas), nil
 }
 
 func (a *AutoScalingGroup) SetReplicas(count int32) error {
@@ -59,5 +68,5 @@ func (a *AutoScalingGroup) SetReplicas(count int32) error {
 }
 
 func (a *AutoScalingGroup) Stabilized() (bool, string, error) {
-	return true, "", nil
+	return true, "", nil // TODO
 }
