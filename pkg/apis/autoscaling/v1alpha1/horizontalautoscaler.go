@@ -191,11 +191,12 @@ const (
 // HorizontalAutoscaler is the Schema for the horizontalautoscalers API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName={"as"}
-// +kubebuilder:printcolumn:name="Min Replicas",type="string",JSONPath=".spec.minReplicas"
-// +kubebuilder:printcolumn:name="Desired Replicas",type="string",JSONPath=".status.desiredReplicas"
-// +kubebuilder:printcolumn:name="Max Replicas",type="string",JSONPath=".spec.maxReplicas"
-// +kubebuilder:printcolumn:name="Last Scale Time(UTC)",type="string",JSONPath=".status.lastScaleTime"
+// +kubebuilder:resource:shortName={"horizontalautoscaler"}
+// +kubebuilder:printcolumn:name="min",type="string",JSONPath=".spec.minReplicas"
+// +kubebuilder:printcolumn:name="desired",type="string",JSONPath=".status.desiredReplicas"
+// +kubebuilder:printcolumn:name="max",type="string",JSONPath=".spec.maxReplicas"
+// +kubebuilder:printcolumn:name="ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="last-scale-time",type="string",JSONPath=".status.lastScaleTime"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 type HorizontalAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
