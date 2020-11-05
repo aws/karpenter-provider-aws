@@ -42,6 +42,12 @@ const (
 // ScalableNodeGroup is the Schema for the ScalableNodeGroups API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName="scalablenodegroup"
+// +kubebuilder:printcolumn:name="desired",type="string",JSONPath=".spec.replicas"
+// +kubebuilder:printcolumn:name="current",type="string",JSONPath=".status.replicas"
+// +kubebuilder:printcolumn:name="type",type="string",JSONPath=".spec.type"
+// +kubebuilder:printcolumn:name="ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 type ScalableNodeGroup struct {
 	metav1.TypeMeta   `json:",inline"`
