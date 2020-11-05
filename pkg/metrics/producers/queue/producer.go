@@ -15,11 +15,9 @@ limitations under the License.
 package queue
 
 import (
-	"fmt"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"go.uber.org/multierr"
-	v1 "k8s.io/api/core/v1"
+	"github.com/ellistarn/karpenter/pkg/metrics/producers"
 )
 
 // Producer implements a Pending Capacity metric
@@ -34,41 +32,27 @@ func (p *Producer) Reconcile() error {
 	if err != nil {
 		return err
 	}
+
 	oldestMessageAgeSeconds, err := p.Queue.OldestMessageAgeSeconds()
 	if err != nil {
 		return err
 	}
+
 	p.Status.Queue = &v1alpha1.QueueStatus{
 		Length:                  length,
 		OldestMessageAgeSeconds: oldestMessageAgeSeconds,
 	}
+
+	p.record()
 	return nil
 
 }
 
-func (p *Producer) record(reservations *Reservations) {
-	if p.Status.ReservedCapacity == nil {
-		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
-	}
-	var errs error
-	for resource, reservation := range reservations.Resources {
-		utilization, err := reservation.Utilization()
-		if err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("unable to compute utilization for %s, %w", resource, err))
-		} else {
-			reservation.Gauge.Set(utilization)
-			p.Status.ReservedCapacity[resource] = fmt.Sprintf(
-				"%d%%, %s/%s",
-				int32(utilization*100),
-				reservation.Reserved,
-				reservation.Total,
-			)
-		}
-	}
-	if errs != nil {
-		p.Status.Conditions[]
-		MarkFalse(v1alpha1.Calculable, "", errs.Error())
-	} else {
-		p.StatusConditions().MarkTrue(v1alpha1.Calculable)
-	}
+func (p *Producer) record() {
+	producers.Gauges[Subsystem][Length].
+		WithLabelValues(p.Name, p.Namespace).
+		Set(float64(p.Status.Queue.Length))
+	producers.Gauges[Subsystem][OldestMessageAgeSeconds].
+		WithLabelValues(p.Name, p.Namespace).
+		Set(float64(p.Status.Queue.OldestMessageAgeSeconds))
 }
