@@ -44,7 +44,8 @@ type NodeGroup interface {
 	SetReplicas(count int32) error
 	// GetReplicas returns the number of schedulable replicas in the node group
 	GetReplicas() (int32, error)
-	// Stabilized returns false with a message if the node group has updates in progress
+	// Stabilized returns true if a node group is not currently adding or
+	// removing replicas. Otherwise, returns false with a message.
 	Stabilized() (bool, string, error)
 }
 
