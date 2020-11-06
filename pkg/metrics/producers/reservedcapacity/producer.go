@@ -41,6 +41,9 @@ func (p *Producer) Reconcile() error {
 	// 2. Compute reservations
 	reservations := NewReservations()
 	for _, node := range nodes.Items {
+		// Only count nodes that are ready and schedulable to avoid diluting the
+		// denomenator with unschedulable nodes. This can lead to premature
+		// scale down before the scheduler assigns pod to the node.
 		if includeMetricsFor(node) {
 			pods := &v1.PodList{}
 			if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
