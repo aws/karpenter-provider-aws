@@ -42,10 +42,11 @@ func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {
 }
 
 type NodeOptions struct {
-	Name        string
-	Labels      map[string]string
-	ReadyStatus v1.ConditionStatus
-	Capacity    v1.ResourceList
+	Name          string
+	Labels        map[string]string
+	ReadyStatus   v1.ConditionStatus
+	Unschedulable bool
+	Capacity      v1.ResourceList
 }
 
 func NodeWith(options NodeOptions) *v1.Node {
@@ -63,6 +64,9 @@ func NodeWith(options NodeOptions) *v1.Node {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   options.Name,
 			Labels: options.Labels,
+		},
+		Spec: v1.NodeSpec{
+			Unschedulable: options.Unschedulable,
 		},
 		Status: v1.NodeStatus{
 			Capacity:   options.Capacity,

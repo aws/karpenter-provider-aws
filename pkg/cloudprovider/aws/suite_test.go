@@ -50,6 +50,8 @@ var _ = Describe("ManagedNodeGroup", func() {
 					test.NodeWith(test.NodeOptions{Labels: map[string]string{NodeGroupLabel: "testgroup"}}),
 					// Exclude: not ready
 					test.NodeWith(test.NodeOptions{Labels: map[string]string{NodeGroupLabel: "testgroup"}, ReadyStatus: v1.ConditionFalse}),
+					// Exclude: not schedulable
+					test.NodeWith(test.NodeOptions{Labels: map[string]string{NodeGroupLabel: "testgroup"}, Unschedulable: true}),
 					// Exclude: not in node group
 					test.NodeWith(test.NodeOptions{}),
 				),

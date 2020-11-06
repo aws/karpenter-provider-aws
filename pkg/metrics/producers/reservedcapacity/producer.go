@@ -20,6 +20,7 @@ import (
 	"math"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -40,31 +41,22 @@ func (p *Producer) Reconcile() error {
 
 	// 2. Compute reservations
 	reservations := NewReservations()
-	for _, node := range nodes.Items {
+	for _, n := range nodes.Items {
 		// Only count nodes that are ready and schedulable to avoid diluting the
 		// denomenator with unschedulable nodes. This can lead to premature
 		// scale down before the scheduler assigns pod to the node.
-		if includeMetricsFor(node) {
+		if node.IsReadyAndSchedulable(n) {
 			pods := &v1.PodList{}
-			if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
-				return fmt.Errorf("Listing pods for %s, %w", node.Name, err)
+			if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": n.Name}); err != nil {
+				return fmt.Errorf("Listing pods for %s, %w", n.Name, err)
 			}
-			reservations.Add(&node, pods)
+			reservations.Add(&n, pods)
 		}
 	}
 
 	// 3. Record reservations and update status
 	p.record(reservations)
 	return nil
-}
-
-func includeMetricsFor(node v1.Node) bool {
-	for _, condition := range node.Status.Conditions {
-		if condition.Type == v1.NodeReady {
-			return condition.Status == v1.ConditionTrue && !node.Spec.Unschedulable
-		}
-	}
-	return false
 }
 
 func (p *Producer) record(reservations *Reservations) {

@@ -78,6 +78,7 @@ var _ = Describe("Test Samples", func() {
 				test.NodeWith(test.NodeOptions{Labels: map[string]string{"unknown": "label"}, Capacity: capacity}),
 				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
 				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity, ReadyStatus: v1.ConditionFalse}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity, Unschedulable: true}),
 			}
 
 			pods := []client.Object{
@@ -91,6 +92,7 @@ var _ = Describe("Test Samples", func() {
 				test.Pod(nodes[2].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("99"), v1.ResourceMemory: resource.MustParse("99Gi")}),
 				// node[3] is unallocated
 				// node[4] isn't ready
+				// node[5] isn't schedulable
 			}
 
 			ExpectCreated(ns.Client, nodes...)
