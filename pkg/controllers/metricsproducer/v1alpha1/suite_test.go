@@ -66,17 +66,17 @@ var _ = Describe("Test Samples", func() {
 			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", mp)).To(Succeed())
 			mp.Spec.ReservedCapacity.NodeSelector = map[string]string{"k8s.io/nodegroup": ns.Name}
 
-			nodeResources := v1.ResourceList{
+			capacity := v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("16"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 				v1.ResourcePods:   resource.MustParse("50"),
 			}
 
 			nodes := []client.Object{
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
-				test.Node(map[string]string{"unknown": "label"}, nodeResources),
-				test.Node(mp.Spec.ReservedCapacity.NodeSelector, nodeResources),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
+				test.NodeWith(test.NodeOptions{Labels: map[string]string{"unknown": "label"}, Capacity: capacity}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
 			}
 
 			pods := []client.Object{
