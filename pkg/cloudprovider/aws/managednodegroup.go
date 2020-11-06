@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -88,11 +89,9 @@ func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
 		return 0, fmt.Errorf("failed to list nodes for %s, %w", mng.NodeGroup, err)
 	}
 	var readyNodes int32 = 0
-	for _, node := range nodes.Items {
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == v1.NodeReady && condition.Status == v1.ConditionTrue {
-				readyNodes++
-			}
+	for _, n := range nodes.Items {
+		if node.IsReadyAndSchedulable(n) {
+			readyNodes++
 		}
 	}
 	return readyNodes, nil
