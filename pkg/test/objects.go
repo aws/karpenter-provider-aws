@@ -41,23 +41,11 @@ func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {
 	}
 }
 
-func Node(labels map[string]string, resources v1.ResourceList) *v1.Node {
-	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strings.ToLower(randomdata.SillyName()),
-			Labels: labels,
-		},
-		Spec: v1.NodeSpec{},
-		Status: v1.NodeStatus{
-			Capacity: resources,
-		},
-	}
-}
-
 type NodeOptions struct {
 	Name        string
 	Labels      map[string]string
 	ReadyStatus v1.ConditionStatus
+	Capacity    v1.ResourceList
 }
 
 func NodeWith(options NodeOptions) *v1.Node {
@@ -77,6 +65,7 @@ func NodeWith(options NodeOptions) *v1.Node {
 			Labels: options.Labels,
 		},
 		Status: v1.NodeStatus{
+			Capacity:   options.Capacity,
 			Conditions: []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus}},
 		},
 	}
