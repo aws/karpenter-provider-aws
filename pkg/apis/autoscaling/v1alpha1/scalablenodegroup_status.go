@@ -30,7 +30,7 @@ type ScalableNodeGroupStatus struct {
 }
 
 const (
-	// Stabilized indicates that the node group is currently undergoing changes.
+	// Stabilized indicates that the node group is not currently undergoing changes.
 	Stabilized apis.ConditionType = "Stabilized"
 )
 
