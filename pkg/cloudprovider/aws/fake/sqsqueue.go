@@ -1,5 +1,3 @@
-// +build !aws
-
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +12,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package fake
 
 import (
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
-func NewFactory(options cloudprovider.Options) cloudprovider.Factory {
-	return fake.NewFactory(options)
+type SQSAPI struct {
+	sqsiface.SQSAPI
+	QueueUrlOutput       sqs.GetQueueUrlOutput
+	QueueAttributeOutput sqs.GetQueueAttributesOutput
+	WantErr              error
+}
+
+func (m SQSAPI) GetQueueUrl(*sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
+	return &m.QueueUrlOutput, m.WantErr
+}
+
+func (m SQSAPI) GetQueueAttributes(*sqs.GetQueueAttributesInput) (*sqs.GetQueueAttributesOutput, error) {
+	return &m.QueueAttributeOutput, m.WantErr
 }

@@ -39,3 +39,7 @@ func (n *NodeGroup) SetReplicas(count int32) error {
 	*n.Replicas = count
 	return nil
 }
+
+func (n *NodeGroup) Stabilized() (bool, string, error) {
+	return true, "", nil
+}

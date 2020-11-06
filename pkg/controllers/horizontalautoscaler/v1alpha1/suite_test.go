@@ -22,6 +22,7 @@ import (
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/autoscaler"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
 	scalablenodegroupv1alpha1 "github.com/ellistarn/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/metrics/clients"
@@ -44,7 +45,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var fakeServer *ghttp.Server
-var fakeCloudProvider = fake.NewFactory()
+var fakeCloudProvider = fake.NewFactory(cloudprovider.Options{})
 
 func injectFakeServer(environment *environment.Local) {
 	fakeServer = environment.Server

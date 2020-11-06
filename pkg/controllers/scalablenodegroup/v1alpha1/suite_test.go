@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
 	"knative.dev/pkg/ptr"
 
@@ -36,7 +37,7 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var fakeCloudProvider = fake.NewFactory()
+var fakeCloudProvider = fake.NewFactory(cloudprovider.Options{})
 
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
 	e.Manager.Register(&Controller{CloudProvider: fakeCloudProvider})

@@ -53,3 +53,31 @@ func Node(labels map[string]string, resources v1.ResourceList) *v1.Node {
 		},
 	}
 }
+
+type NodeOptions struct {
+	Name        string
+	Labels      map[string]string
+	ReadyStatus v1.ConditionStatus
+}
+
+func NodeWith(options NodeOptions) *v1.Node {
+	if options.Name == "" {
+		options.Name = strings.ToLower(randomdata.SillyName())
+	}
+	if options.ReadyStatus == "" {
+		options.ReadyStatus = v1.ConditionTrue
+	}
+	if options.Labels == nil {
+		options.Labels = map[string]string{}
+	}
+
+	return &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   options.Name,
+			Labels: options.Labels,
+		},
+		Status: v1.NodeStatus{
+			Conditions: []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus}},
+		},
+	}
+}

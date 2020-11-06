@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ellistarn/karpenter/pkg/apis"
+	"github.com/ellistarn/karpenter/pkg/cloudprovider"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/registry"
 	"github.com/ellistarn/karpenter/pkg/controllers"
 
@@ -61,7 +62,7 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	cloudProviderFactory := registry.NewFactory()
+	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient()})
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())

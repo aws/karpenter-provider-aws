@@ -47,11 +47,26 @@ func (c *Controller) Interval() time.Duration {
 // Reconcile executes a control loop for the resource
 func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	ng := c.CloudProvider.NodeGroupFor(&resource.Spec)
+
+	// 1. Check if node group has stabilized
+	stabilized, message, err := ng.Stabilized()
+	if err != nil {
+		return err
+	}
+	if !stabilized {
+		resource.StatusConditions().MarkFalse(v1alpha1.Stabilized, "", message)
+	} else {
+		resource.StatusConditions().MarkTrue(v1alpha1.Stabilized)
+	}
+
+	// 2. Get current replicas.
 	observedReplicas, err := ng.GetReplicas()
 	if err != nil {
 		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)
 	}
 	resource.Status.Replicas = observedReplicas
+
+	// Set desired replicas if different that current.
 	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == observedReplicas {
 		return nil
 	}

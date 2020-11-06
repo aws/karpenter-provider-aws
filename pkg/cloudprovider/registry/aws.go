@@ -21,6 +21,6 @@ import (
 	"github.com/ellistarn/karpenter/pkg/cloudprovider/aws"
 )
 
-func NewFactory() cloudprovider.Factory {
-	return aws.NewFactory()
+func NewFactory(options cloudprovider.Options) cloudprovider.Factory {
+	return aws.NewFactory(options)
 }

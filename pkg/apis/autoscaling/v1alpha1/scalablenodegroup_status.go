@@ -30,9 +30,8 @@ type ScalableNodeGroupStatus struct {
 }
 
 const (
-	// Active indicates that the controller is able to take actions: it's
-	// correctly configured, can make necessary API calls, and isn't disabled.
-	Active apis.ConditionType = "Active"
+	// Stabilized indicates that the node group is not currently undergoing changes.
+	Stabilized apis.ConditionType = "Stabilized"
 )
 
 // We use knative's libraries for ConditionSets to manage status conditions.
@@ -43,6 +42,7 @@ func (s *ScalableNodeGroup) StatusConditions() apis.ConditionManager {
 	return apis.NewLivingConditionSet(
 		Active,
 		AbleToScale,
+		Stabilized,
 	).Manage(s)
 }
 

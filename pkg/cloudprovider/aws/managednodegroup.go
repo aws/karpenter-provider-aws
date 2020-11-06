@@ -15,36 +15,41 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Validate(sng *v1alpha1.ScalableNodeGroupSpec) (err error) {
-	_, _, err = parseId(sng.ID)
-	return
+func init() {
+	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, func(sng *v1alpha1.ScalableNodeGroupSpec) error {
+		_, _, err := parseId(sng.ID)
+		return err
+	})
 }
 
-func init() {
-	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, Validate)
-}
+const (
+	NodeGroupLabel = "eks.amazonaws.com/nodegroup"
+)
 
 // ManagedNodeGroup implements the NodeGroup CloudProvider for AWS EKS Managed Node Groups
 type ManagedNodeGroup struct {
-	EKSClient         eksiface.EKSAPI
-	AutoscalingClient autoscalingiface.AutoScalingAPI
 	Cluster           string
 	NodeGroup         string
+	EKSClient         eksiface.EKSAPI
+	AutoscalingClient autoscalingiface.AutoScalingAPI
+	Client            client.Client
 }
 
-func NewManagedNodeGroup(id string, eksClient eksiface.EKSAPI, autoscalingClient autoscalingiface.AutoScalingAPI) *ManagedNodeGroup {
+func NewManagedNodeGroup(id string, eksClient eksiface.EKSAPI, autoscalingClient autoscalingiface.AutoScalingAPI, client client.Client) *ManagedNodeGroup {
 	// Ignore error; it could only actually happen if webhook didn't
 	// catch invalid ARN. In that case user will see errors from
 	// reconciliation, which they can fix.
@@ -54,6 +59,7 @@ func NewManagedNodeGroup(id string, eksClient eksiface.EKSAPI, autoscalingClient
 		NodeGroup:         nodeGroup,
 		EKSClient:         eksClient,
 		AutoscalingClient: autoscalingClient,
+		Client:            client,
 	}
 }
 
@@ -77,29 +83,19 @@ func parseId(fromArn string) (cluster string, nodegroup string, err error) {
 }
 
 func (mng *ManagedNodeGroup) GetReplicas() (int32, error) {
-	nodegroupOutput, err := mng.EKSClient.DescribeNodegroup(&eks.DescribeNodegroupInput{
-		ClusterName:   &mng.Cluster,
-		NodegroupName: &mng.NodeGroup,
-	})
-	if err != nil {
-		return 0, TransientError(err)
+	nodes := &v1.NodeList{}
+	if err := mng.Client.List(context.Background(), nodes, client.MatchingLabels(map[string]string{NodeGroupLabel: mng.NodeGroup})); err != nil {
+		return 0, fmt.Errorf("failed to list nodes for %s, %w", mng.NodeGroup, err)
 	}
-
-	var autoscalingGroupNames = []*string{}
-	for _, group := range nodegroupOutput.Nodegroup.Resources.AutoScalingGroups {
-		autoscalingGroupNames = append(autoscalingGroupNames, group.Name)
-	}
-
-	var replicas = 0
-	err = mng.AutoscalingClient.DescribeAutoScalingGroupsPages(&autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: autoscalingGroupNames,
-	}, func(page *autoscaling.DescribeAutoScalingGroupsOutput, _ bool) bool {
-		for _, group := range page.AutoScalingGroups {
-			replicas += len(group.Instances)
+	var readyNodes int32 = 0
+	for _, node := range nodes.Items {
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == v1.NodeReady && condition.Status == v1.ConditionTrue {
+				readyNodes++
+			}
 		}
-		return true
-	})
-	return int32(replicas), TransientError(err)
+	}
+	return readyNodes, nil
 }
 
 func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
@@ -112,4 +108,8 @@ func (mng *ManagedNodeGroup) SetReplicas(count int32) error {
 		},
 	})
 	return TransientError(err)
+}
+
+func (mng *ManagedNodeGroup) Stabilized() (bool, string, error) {
+	return true, "", nil // TODO
 }
