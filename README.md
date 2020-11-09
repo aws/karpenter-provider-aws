@@ -1,7 +1,7 @@
-# About
-Karpenter is a metrics-driven autoscaler for Kubernetes. It focuses on providing a performant and extensible solution for node autoscaling, though it can autoscale anything that implements the Kubernetes [scale subresource](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/autoscaling/horizontal-pod-autoscaler.md#scale-subresource).
-
+# Karpenter
 ![](./docs/images/logo.jpeg)
+
+Karpenter is a metrics-driven autoscaler for Kubernetes. It's performant, extensible, and can autoscale anything that implements the Kubernetes [scale subresource](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/autoscaling/horizontal-pod-autoscaler.md#scale-subresource).
 
 ## Getting Started
 We will learn about Karpenter's APIs, look at some sample configurations, and install Karpenter's Controller.
