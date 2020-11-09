@@ -21,7 +21,9 @@ Follow the setup recommendations of your cloud provider.
 
 Then install the controller.
 ```
-kubectl apply -f ./install # TODO, wire this up
+CLOUD_PROVIDER=aws
+VERSION=v0.1.0
+kubectl apply -f ./releases/${CLOUD_PROVIDER}/${VERSION}.yaml
 ```
 
 # Docs

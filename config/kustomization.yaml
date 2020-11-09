@@ -6,8 +6,8 @@ commonLabels:
   control-plane: karpenter
 
 bases:
-- ../crd
-- ../rbac
-- ../manager
-- ../webhook
-- ../prometheus
+- ./crd
+- ./rbac
+- ./manager
+- ./webhook
+- ./prometheus
