@@ -12,15 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package node
+package queue
 
-import v1 "k8s.io/api/core/v1"
+import (
+	"github.com/ellistarn/karpenter/pkg/metrics"
+)
 
-func IsReadyAndSchedulable(node v1.Node) bool {
-	for _, condition := range node.Status.Conditions {
-		if condition.Type == v1.NodeReady {
-			return condition.Status == v1.ConditionTrue && !node.Spec.Unschedulable
-		}
+const (
+	Subsystem               = "queue"
+	Length                  = "length"
+	OldestMessageAgeSeconds = "oldest_message_age_seconds"
+)
+
+func init() {
+	for _, metric := range []string{Length, OldestMessageAgeSeconds} {
+		metrics.RegisterNewGauge(Subsystem, metric)
 	}
-	return false
 }

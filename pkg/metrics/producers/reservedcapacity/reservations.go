@@ -63,13 +63,13 @@ type Reservation struct {
 	Capacity *resource.Quantity
 }
 
-func (r *Reservation) Compute() map[MetricType]float64 {
+func (r *Reservation) Compute() map[string]float64 {
 	var utilization = math.NaN()
 	if r.Capacity.Value() != 0 {
 		utilization, _ = big.NewRat(r.Reserved.Value(), r.Capacity.Value()).Float64()
 	}
 
-	return map[MetricType]float64{
+	return map[string]float64{
 		Reserved:    float64(r.Reserved.Value()),
 		Capacity:    float64(r.Capacity.Value()),
 		Utilization: utilization,

@@ -28,7 +28,7 @@ spec:
   maxReplicas: 1000
   metrics:
   - prometheus:
-      query: karpenter:metrics_producer:queue{name="ml-training-queue"}
+      query: karpenter_queue_length{name="ml-training-queue"}
       target:
         type: AverageValue
         value: 4

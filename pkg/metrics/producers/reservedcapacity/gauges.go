@@ -16,67 +16,21 @@ package reservedcapacity
 
 import (
 	"fmt"
-
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 	v1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
-	MetricNamespace      = "karpenter"
-	MetricSubsystem      = "metrics_producer_reserved_capacity"
-	MetricLabelName      = "name"
-	MetricLabelNamespace = "namespace"
+	Subsystem   = "reserved_capacity"
+	Reserved    = "reserved"
+	Capacity    = "capacity"
+	Utilization = "utilization"
 )
-
-type MetricType string
-
-const (
-	Reserved    MetricType = "reserved"
-	Capacity    MetricType = "capacity"
-	Utilization MetricType = "utilization"
-)
-
-var (
-	Gauges = map[v1.ResourceName]map[MetricType]*prometheus.GaugeVec{
-		v1.ResourceCPU: {
-			Capacity:    GaugeVec(v1.ResourceCPU, Capacity),
-			Reserved:    GaugeVec(v1.ResourceCPU, Reserved),
-			Utilization: GaugeVec(v1.ResourceCPU, Utilization),
-		},
-		v1.ResourcePods: {
-			Capacity:    GaugeVec(v1.ResourcePods, Capacity),
-			Reserved:    GaugeVec(v1.ResourcePods, Reserved),
-			Utilization: GaugeVec(v1.ResourcePods, Utilization),
-		},
-		v1.ResourceMemory: {
-			Capacity:    GaugeVec(v1.ResourceMemory, Capacity),
-			Reserved:    GaugeVec(v1.ResourceMemory, Reserved),
-			Utilization: GaugeVec(v1.ResourceMemory, Utilization),
-		},
-	}
-)
-
-// GaugeVec instantiates a parameterizable Prometheus GaugeVec that can generate
-// gauges for the provided "subsystem". In Prometheus, each metric is modeled as
-// a gauge with a name formatted as ${NAMESPACE}_${SUBSYSTEM}_${NAME}. Each
-// gauge is parameterized by labels, which for our metrics producers, will be
-// labeled by resource name and namespace.
-func GaugeVec(resourceName v1.ResourceName, metricType MetricType) *prometheus.GaugeVec {
-	return prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: MetricNamespace,
-			Subsystem: MetricSubsystem, // refers to the suffix of the metric, or more specific descriptor of the name.
-			Name:      fmt.Sprintf("%s_%s", resourceName, metricType),
-			Help:      "Metric computed by a karpenter metrics producer corresponding to name and namespace labels",
-		}, []string{MetricLabelName, MetricLabelNamespace},
-	)
-}
 
 func init() {
-	for _, gaugeMap := range Gauges {
-		for _, gauge := range gaugeMap {
-			metrics.Registry.MustRegister(gauge)
+	for _, resource := range []v1.ResourceName{v1.ResourcePods, v1.ResourceCPU, v1.ResourceMemory} {
+		for _, name := range []string{Reserved, Capacity, Utilization} {
+			metrics.RegisterNewGauge(Subsystem, fmt.Sprintf("%s_%s", resource, name))
 		}
 	}
 }

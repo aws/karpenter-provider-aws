@@ -17,6 +17,7 @@ package queue
 import (
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 )
 
 // Producer implements a Pending Capacity metric
@@ -31,14 +32,26 @@ func (p *Producer) Reconcile() error {
 	if err != nil {
 		return err
 	}
+
 	oldestMessageAgeSeconds, err := p.Queue.OldestMessageAgeSeconds()
 	if err != nil {
 		return err
 	}
+
 	p.Status.Queue = &v1alpha1.QueueStatus{
 		Length:                  length,
 		OldestMessageAgeSeconds: oldestMessageAgeSeconds,
 	}
-	return nil
 
+	p.record()
+	return nil
+}
+
+func (p *Producer) record() {
+	metrics.Gauges[Subsystem][Length].
+		WithLabelValues(p.Name, p.Namespace).
+		Set(float64(p.Status.Queue.Length))
+	metrics.Gauges[Subsystem][OldestMessageAgeSeconds].
+		WithLabelValues(p.Name, p.Namespace).
+		Set(float64(p.Status.Queue.OldestMessageAgeSeconds))
 }
