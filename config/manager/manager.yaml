@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: manager
-        image: controller:latest
+        image: ko://github.com/ellistarn/karpenter/karpenter
         resources:
           limits:
             cpu: 100m
