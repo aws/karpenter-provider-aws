@@ -56,7 +56,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config | ko delete -f -
 
 release: ## Publish a versioned container image to $KO_DOCKER_REPO/karpenter and generate release manifests.
-	kubectl kustomize config | ko resolve -B -t $(RELEASE_VERSION) -f - > releases/${CLOUD_PROVIDER}/$(RELEASE_VERSION).yaml
+	kubectl kustomize config | $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > releases/${CLOUD_PROVIDER}/$(RELEASE_VERSION).yaml
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

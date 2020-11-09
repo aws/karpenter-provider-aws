@@ -913,7 +913,7 @@ spec:
         control-plane: karpenter
     spec:
       containers:
-        - image: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter:v0.1.0@sha256:cf93a7223e307068433b64e24fea3da8145b6abc9aa9a85aa914bb41eb796d0b
+        - image: 767520670908.dkr.ecr.us-west-2.amazonaws.com/karpenter:v0.1.0@sha256:6aa81eef2858459a094ff289a45a497b3154287c2840288c01977a1b18d8eb95
           name: manager
           ports:
             - containerPort: 9443
