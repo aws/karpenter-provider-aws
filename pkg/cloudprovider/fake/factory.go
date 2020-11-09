@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	NotImplementedError = fmt.Errorf("provider is not implemented")
+	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
 )
 
 type Factory struct {
