@@ -15,17 +15,17 @@ limitations under the License.
 package queue
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 )
 
 const (
-	Subsystem               string               = "queue"
-	Length                  producers.MetricType = "length"
-	OldestMessageAgeSeconds producers.MetricType = "oldest_messsage_age_seconds"
+	Subsystem               = "queue"
+	Length                  = "length"
+	OldestMessageAgeSeconds = "oldest_message_age_seconds"
 )
 
 func init() {
-	for _, metric := range []producers.MetricType{Length, OldestMessageAgeSeconds} {
-		producers.RegisterNewGauge(Subsystem, metric)
+	for _, metric := range []string{Length, OldestMessageAgeSeconds} {
+		metrics.RegisterNewGauge(Subsystem, metric)
 	}
 }

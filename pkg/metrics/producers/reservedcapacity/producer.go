@@ -17,7 +17,7 @@ package reservedcapacity
 import (
 	"context"
 	"fmt"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 	"math"
 
 	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -67,7 +67,8 @@ func (p *Producer) record(reservations *Reservations) {
 	for resource, reservation := range reservations.Resources {
 		computed := reservation.Compute()
 		for metricType, value := range computed {
-			producers.Gauges[Subsystem][FormatMetricString(resource, metricType)].WithLabelValues(p.Name, p.Namespace).Set(value)
+			metrics.Gauges[Subsystem][fmt.Sprintf("%s_%s", resource, metricType)].
+				WithLabelValues(p.Name, p.Namespace).Set(value)
 		}
 		p.Status.ReservedCapacity[resource] = fmt.Sprintf(
 			"%v%%, %d/%d",

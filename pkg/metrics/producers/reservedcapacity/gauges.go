@@ -16,25 +16,21 @@ package reservedcapacity
 
 import (
 	"fmt"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	"github.com/ellistarn/karpenter/pkg/metrics"
 	v1 "k8s.io/api/core/v1"
 )
 
 const (
-	Subsystem   string               = "reserved_capacity"
-	Reserved    producers.MetricType = "reserved"
-	Capacity    producers.MetricType = "capacity"
-	Utilization producers.MetricType = "utilization"
+	Subsystem   = "reserved_capacity"
+	Reserved    = "reserved"
+	Capacity    = "capacity"
+	Utilization = "utilization"
 )
 
 func init() {
 	for _, resource := range []v1.ResourceName{v1.ResourcePods, v1.ResourceCPU, v1.ResourceMemory} {
-		for _, name := range []producers.MetricType{Reserved, Capacity, Utilization} {
-			producers.RegisterNewGauge(Subsystem, FormatMetricString(resource, name))
+		for _, name := range []string{Reserved, Capacity, Utilization} {
+			metrics.RegisterNewGauge(Subsystem, fmt.Sprintf("%s_%s", resource, name))
 		}
 	}
-}
-
-func FormatMetricString(resource v1.ResourceName, metricType producers.MetricType) producers.MetricType {
-	return producers.MetricType(fmt.Sprintf("%s_%s", string(resource), string(metricType)))
 }
