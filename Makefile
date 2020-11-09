@@ -1,6 +1,6 @@
 GOFLAGS ?= "-tags=${CLOUD_PROVIDER}"
 WITH_GOFLAGS = GOFLAGS=${GOFLAGS}
-RELEASE ?= "v0.1.0"
+RELEASE_VERSION ?= v0.1.0
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -56,7 +56,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config | ko delete -f -
 
 release: ## Publish a versioned container image to $KO_DOCKER_REPO/karpenter and generate release manifests.
-	kubectl kustomize config | $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE) -f - > releases/$(RELEASE).yaml
+	kubectl kustomize config | ko resolve -B -t $(RELEASE_VERSION) -f - > releases/${CLOUD_PROVIDER}/$(RELEASE_VERSION).yaml
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
