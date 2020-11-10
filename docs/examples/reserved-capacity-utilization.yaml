@@ -1,11 +1,20 @@
+###
+# Compute resource request utilization of pods scheduled to nodes matching the node selector
+###
 apiVersion: autoscaling.karpenter.sh/v1alpha1
-kind: ScalableNodeGroup
+kind: MetricsProducer
 metadata:
   name: microservices
 spec:
-  type: AWSEKSNodeGroup
-  id: arn:aws:eks:us-west-2:1234567890:nodegroup:test-cluster/microservices/qwertyuiop
+  reservedCapacity:
+    nodeSelector:
+      eks.amazonaws.com/nodegroup: default
 ---
+###
+# Track the queue_length metric.
+# Maintain 60% utilization of CPU or Memory (whichever is greater)
+# Set the desired replicas on scaleTargetRef of the Node Group below
+###
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: HorizontalAutoscaler
 metadata:
@@ -30,10 +39,9 @@ spec:
         value: 60
 ---
 apiVersion: autoscaling.karpenter.sh/v1alpha1
-kind: MetricsProducer
+kind: ScalableNodeGroup
 metadata:
   name: microservices
 spec:
-  reservedCapacity:
-    nodeSelector:
-      eks.amazonaws.com/nodegroup: default
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:1234567890:nodegroup:test-cluster/microservices/qwertyuiop

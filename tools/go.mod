@@ -3,6 +3,7 @@ module github.com/ellistarn/karpenter/tools
 go 1.14
 
 require (
+	github.com/ahmetb/gen-crd-api-reference-docs v0.2.0 // indirect
 	github.com/fzipp/gocyclo v0.0.0-20150627053110-6acd4345c835
 	github.com/golangci/golangci-lint v1.31.0
 	github.com/google/ko v0.6.0

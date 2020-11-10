@@ -58,7 +58,14 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 release: ## Publish a versioned container image to $KO_DOCKER_REPO/karpenter and generate release manifests.
 	kubectl kustomize config | $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > releases/${CLOUD_PROVIDER}/$(RELEASE_VERSION).yaml
 
+docs: ## Generate Docs
+	gen-crd-api-reference-docs \
+		-api-dir ./pkg/apis/autoscaling/v1alpha1 \
+		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
+		-out-file docs/README.md \
+		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/template
+
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help all ci test release run apply delete verify generate toolchain
+.PHONY: help all ci test release run apply delete verify generate docs toolchain
