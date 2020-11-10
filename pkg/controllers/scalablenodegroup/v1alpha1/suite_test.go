@@ -64,7 +64,7 @@ var _ = Describe("Examples", func() {
 
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
-			Expect(ns.ParseResources("docs/examples/scalable-node-group/resources.yaml", sng)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/reserved-capacity-utilization.yaml", sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(5)
 
 			ExpectCreated(ns.Client, sng)
