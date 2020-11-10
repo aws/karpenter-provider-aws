@@ -34,7 +34,7 @@ import (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Metrics Producer Suite",
+		"Metrics Producer",
 		[]Reporter{printer.NewlineReporter{}})
 }
 
@@ -50,7 +50,7 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Test Samples", func() {
+var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
 	var mp *v1alpha1.MetricsProducer
 
@@ -63,7 +63,7 @@ var _ = Describe("Test Samples", func() {
 
 	Context("Capacity Reservations", func() {
 		It("should produce reservation metrics for 7/48 cores, 77/384 memory, 4/150 pods", func() {
-			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", mp)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/reserved-capacity/resources.yaml", mp)).To(Succeed())
 			mp.Spec.ReservedCapacity.NodeSelector = map[string]string{"k8s.io/nodegroup": ns.Name}
 
 			capacity := v1.ResourceList{
@@ -109,7 +109,7 @@ var _ = Describe("Test Samples", func() {
 			ExpectDeleted(ns.Client, pods...)
 		})
 		It("should produce reservation metrics for an empty node group", func() {
-			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", mp)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/reserved-capacity/resources.yaml", mp)).To(Succeed())
 
 			ExpectCreated(ns.Client, mp)
 

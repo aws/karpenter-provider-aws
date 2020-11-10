@@ -40,7 +40,7 @@ import (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Horizontal Autoscaler Suite",
+		"Horizontal Autoscaler",
 		[]Reporter{printer.NewlineReporter{}})
 }
 
@@ -70,7 +70,7 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Test Samples", func() {
+var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
 	var ha *v1alpha1.HorizontalAutoscaler
 	var sng *v1alpha1.ScalableNodeGroup
@@ -89,7 +89,7 @@ var _ = Describe("Test Samples", func() {
 
 	Context("Capacity Reservations", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
-			Expect(ns.ParseResources("docs/samples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/reserved-capacity/resources.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(5)
 			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
 			MockMetricValue(fakeServer, .85)
@@ -103,7 +103,7 @@ var _ = Describe("Test Samples", func() {
 
 	Context("Queue Length", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
-			Expect(ns.ParseResources("docs/samples/queue-length/resources.yaml", ha, sng)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/queue-length/resources.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(1)
 			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
 			MockMetricValue(fakeServer, 41)
