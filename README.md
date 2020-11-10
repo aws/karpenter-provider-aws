@@ -23,9 +23,10 @@ Then install the controller.
 ```
 CLOUD_PROVIDER=aws
 VERSION=v0.1.0
-kubectl apply -f ./releases/${CLOUD_PROVIDER}/${VERSION}.yaml
+kubectl apply -f https://raw.githubusercontent.com/ellistarn/karpenter/master/releases/${CLOUD_PROVIDER}/${VERSION}.yaml
 ```
 
 # Docs
+- [Examples](./docs/examples)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Design](./docs/DESIGN.md)

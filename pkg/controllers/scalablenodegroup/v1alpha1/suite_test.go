@@ -33,7 +33,7 @@ import (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"ScalableNodeGroup Suite",
+		"ScalableNodeGroup",
 		[]Reporter{printer.NewlineReporter{}})
 }
 
@@ -51,7 +51,7 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Test Samples", func() {
+var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
 	var sng *v1alpha1.ScalableNodeGroup
 
@@ -64,7 +64,7 @@ var _ = Describe("Test Samples", func() {
 
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
-			Expect(ns.ParseResources("docs/samples/scalable-node-group/resources.yaml", sng)).To(Succeed())
+			Expect(ns.ParseResources("docs/examples/scalable-node-group/resources.yaml", sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(5)
 
 			ExpectCreated(ns.Client, sng)
