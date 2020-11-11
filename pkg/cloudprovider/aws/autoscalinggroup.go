@@ -16,8 +16,10 @@ package aws
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 )
@@ -33,6 +35,30 @@ func NewAutoScalingGroup(id string, client autoscalingiface.AutoScalingAPI) *Aut
 		ID:     id,
 		Client: client,
 	}
+}
+
+// transformArn extracts the name of the ASG from an ARN; most API
+// calls need the name and do not work on an ARN. Returns fromArn
+// unchanged if it does not appear to be a valid ASG ARN.
+func transformArn(fromArn string) string {
+	asgArn, err := arn.Parse(fromArn)
+	if err != nil {
+		return fromArn
+	}
+
+	// ARN: arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/asg-name
+	// Resource: autoScalingGroup:uuid:autoScalingGroupName/asg-name
+	resource := strings.Split(asgArn.Resource, ":")
+	if len(resource) < 3 || resource[0] != "autoScalingGroup" {
+		return fromArn
+	}
+
+	nameSpecifier := strings.Split(resource[2], "/")
+	if len(nameSpecifier) != 2 || nameSpecifier[0] != "autoScalingGroupName" {
+		return fromArn
+	}
+
+	return nameSpecifier[1]
 }
 
 // GetReplicas returns replica count for an EC2 auto scaling group
