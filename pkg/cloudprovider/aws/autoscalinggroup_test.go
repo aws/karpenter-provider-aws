@@ -26,7 +26,10 @@ func TestNormalizeID(t *testing.T) {
 		{"", ""},
 		{"foo", "foo"},
 		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/asg-name", "asg-name"},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/", ""},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName"},
 		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name"},
+		{"arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name"},
 	}
 	for _, idTest := range idTests {
 		normalized := normalizeID(idTest.input)
