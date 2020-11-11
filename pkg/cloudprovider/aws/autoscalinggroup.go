@@ -37,11 +37,12 @@ func NewAutoScalingGroup(id string, client autoscalingiface.AutoScalingAPI) *Aut
 	}
 }
 
-// normalizeID extracts the name of the ASG from an ARN; most API
-// calls need the name and do not work on an ARN. Returns fromArn
-// unchanged if it does not appear to be a valid ASG ARN, in which
-// case, it is either just an flat out invalid ARN that won't work
-// anyway, or else (more likely) already a valid name.
+// normalizeID extracts the name of the ASG from an ARN; ASG API calls
+// need the name and do not work on an ARN, but users will often want
+// to specify an ARN in their YAML. Returns fromArn unchanged if it
+// does not appear to be a valid ASG ARN, in which case, it is either
+// just a flat-out invalid ARN that won't work anyway, or else (more
+// likely) already a valid name.
 func normalizeID(fromArn string) string {
 	asgArn, err := arn.Parse(fromArn)
 	if err != nil {
