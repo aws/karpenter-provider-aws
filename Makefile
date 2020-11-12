@@ -33,7 +33,6 @@ generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		object:headerFile="hack/boilerplate.go.txt" \
 		webhook \
 		crd:trivialVersions=false \
-		rbac:roleName=karpenter \
 		paths="./pkg/..." \
 		output:crd:artifacts:config=config/crd/bases \
 		output:webhook:artifacts:config=config/webhook

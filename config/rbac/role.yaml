@@ -1,0 +1,80 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: karpenter
+rules:
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - horizontalautoscalers
+  - horizontalautoscalers/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - metricsproducers
+  - metricsproducers/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments/scale
+  verbs:
+  - update
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - scalablenodegroups
+  - scalablenodegroups/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - autoscaling.karpenter.sh
+  resources:
+  - scalablenodegroups/scale
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
