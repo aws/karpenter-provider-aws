@@ -12,8 +12,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;watch;update;patch
-
 package controllers
 
 import (

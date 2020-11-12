@@ -12,8 +12,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:rbac:groups=autoscaling.karpenter.sh,resources=scalablenodegroups;scalablenodegroups/status,verbs=get;list;watch;create;patch;delete
-
 package v1alpha1
 
 import (
