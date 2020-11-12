@@ -173,10 +173,9 @@ func (a *Autoscaler) applyTransientLimits(replicas int32, recommendation int32) 
 	// scale up vs down, as scale up window doesn't prevent scale down.
 	if rules.WithinStabilizationWindow(a.Status.LastScaleTime) {
 		a.StatusConditions().MarkFalse(v1alpha1.AbleToScale, "",
-			fmt.Sprintf("within stabilization window %f/%d seconds",
-				time.Since(a.Status.LastScaleTime.Inner.Time).Seconds(),
-				*rules.StabilizationWindowSeconds,
-			),
+			fmt.Sprintf("within stabilization window, able to scale at %s",
+				a.Status.LastScaleTime.Inner.Time.Add(
+					time.Duration(*rules.StabilizationWindowSeconds)*time.Second).Format("2006-01-02T15:04:05Z")),
 		)
 		return replicas
 	}
