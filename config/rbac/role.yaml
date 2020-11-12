@@ -31,6 +31,15 @@ rules:
   - patch
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - deployments/scale
+  verbs:
+  - update
+  - get
+  - list
+  - watch
+- apiGroups:
   - autoscaling.karpenter.sh
   resources:
   - scalablenodegroups
