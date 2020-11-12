@@ -178,7 +178,7 @@ func (a *Autoscaler) applyTransientLimits(replicas int32, recommendation int32) 
 				*rules.StabilizationWindowSeconds,
 			),
 		)
-		return recommendation
+		return replicas
 	}
 
 	// 2. TODO Check if limited by Policies
