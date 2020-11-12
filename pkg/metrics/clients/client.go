@@ -15,9 +15,9 @@ limitations under the License.
 package clients
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 
 	"github.com/prometheus/client_golang/api"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"

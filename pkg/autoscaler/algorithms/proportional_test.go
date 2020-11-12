@@ -17,8 +17,8 @@ package algorithms
 import (
 	"testing"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/metrics"
 )
 
 // TestProportionalGetDesiredReplicas tests

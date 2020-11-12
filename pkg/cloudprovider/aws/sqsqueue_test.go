@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
 )

@@ -15,15 +15,15 @@ limitations under the License.
 package producers
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/metrics"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/fake"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/pendingcapacity"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/queue"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/reservedcapacity"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers/scheduledcapacity"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/metrics/producers/fake"
+	"github.com/awslabs/karpenter/pkg/metrics/producers/pendingcapacity"
+	"github.com/awslabs/karpenter/pkg/metrics/producers/queue"
+	"github.com/awslabs/karpenter/pkg/metrics/producers/reservedcapacity"
+	"github.com/awslabs/karpenter/pkg/metrics/producers/scheduledcapacity"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -15,7 +15,7 @@ limitations under the License.
 package scheduledcapacity
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 )
 
 // Producer implements the ScheduledCapacity metric

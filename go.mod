@@ -1,4 +1,4 @@
-module github.com/ellistarn/karpenter
+module github.com/awslabs/karpenter
 
 go 1.15
 

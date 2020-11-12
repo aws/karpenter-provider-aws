@@ -16,7 +16,7 @@ package reservedcapacity
 
 import (
 	"fmt"
-	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/metrics"
 	v1 "k8s.io/api/core/v1"
 )
 

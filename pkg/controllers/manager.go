@@ -19,8 +19,8 @@ package controllers
 import (
 	"context"
 
-	"github.com/ellistarn/karpenter/pkg/apis"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/apis"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

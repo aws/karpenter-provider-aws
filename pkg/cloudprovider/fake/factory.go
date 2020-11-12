@@ -17,8 +17,8 @@ package fake
 import (
 	"fmt"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"knative.dev/pkg/ptr"
 )
 
