@@ -64,6 +64,10 @@ func (n *Namespace) ParseResources(path string, objects ...runtime.Object) error
 
 // Instantiates a test resources from a given YAML file
 func (n *Namespace) ParseResource(path string, object runtime.Object) error {
+	if reflect.ValueOf(object).IsNil() {
+		// Prevents a very confusing backtrace
+		return fmt.Errorf("you forgot to initialize a struct passed to ParseResource")
+	}
 	data, err := ioutil.ReadFile(project.RelativeToRoot(path))
 	if err != nil {
 		return fmt.Errorf("reading file %s, %w", path, err)
