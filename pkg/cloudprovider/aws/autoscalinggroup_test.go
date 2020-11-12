@@ -18,23 +18,30 @@ import (
 	"testing"
 )
 
-func TestNormalizeID(t *testing.T) {
+func TestValidateID(t *testing.T) {
+	const noErr = false
+	const shouldError = true
 	var idTests = []struct {
 		input    string
 		expected string
+		wantErr  bool
 	}{
-		{"", ""},
-		{"foo", "foo"},
-		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/asg-name", "asg-name"},
-		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/", ""},
-		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName"},
-		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name"},
-		{"arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name"},
+		{"", "", false},
+		{"foo", "foo", false},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/asg-name", "asg-name", noErr},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName/", "", noErr},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:autoScalingGroupName", shouldError},
+		{"arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscaling:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", shouldError},
+		{"arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", shouldError},
 	}
 	for _, idTest := range idTests {
 		normalized := normalizeID(idTest.input)
 		if normalized != idTest.expected {
 			t.Errorf("expected: %s, got: %s", idTest.expected, normalized)
+		}
+		_, err := validateID(idTest.input)
+		if (err != nil) == idTest.wantErr {
+			t.Errorf("expected error: %t, got: %v", idTest.wantErr, err)
 		}
 	}
 }
