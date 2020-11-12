@@ -98,12 +98,15 @@ func (a *Autoscaler) Reconcile() error {
 		return nil
 	}
 
+	existingReplicas := scaleTarget.Spec.Replicas
 	// 4. Persist updated scale to server
 	scaleTarget.Spec.Replicas = desiredReplicas
 	if err := a.updateScaleTarget(scaleTarget); err != nil {
 		return err
 	}
-
+	zap.S().With(zap.String("existing", fmt.Sprintf("%d", existingReplicas))).
+		With(zap.String("desired", fmt.Sprintf("%d", desiredReplicas))).
+		Info("Autoscaler scaled replicas count")
 	a.Status.DesiredReplicas = scaleTarget.Spec.Replicas
 	a.Status.LastScaleTime = &apis.VolatileTime{Inner: metav1.Now()}
 	return nil

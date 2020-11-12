@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,6 +75,8 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 3. Reconcile
 	if err := c.Controller.Reconcile(resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
+		zap.S().Errorf("Controller failed to reconcile kind: %v err: %v",
+			resource.GetObjectKind().GroupVersionKind().Kind, err)
 	} else {
 		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
