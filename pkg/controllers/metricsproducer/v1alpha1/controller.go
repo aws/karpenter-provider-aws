@@ -17,9 +17,9 @@ package v1alpha1
 import (
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/ellistarn/karpenter/pkg/metrics/producers"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/metrics/producers"
 )
 
 // Controller for the resource

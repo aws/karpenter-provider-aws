@@ -16,7 +16,7 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

@@ -17,9 +17,9 @@ package v1alpha1
 import (
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/autoscaler"
-	"github.com/ellistarn/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/autoscaler"
+	"github.com/awslabs/karpenter/pkg/controllers"
 )
 
 // Controller reconciles a HorizontalAutoscaler object

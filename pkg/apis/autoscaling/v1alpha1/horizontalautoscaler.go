@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	f "github.com/ellistarn/karpenter/pkg/utils/functional"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	f "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"

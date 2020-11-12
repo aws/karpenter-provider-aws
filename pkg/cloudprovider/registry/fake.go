@@ -17,8 +17,8 @@ limitations under the License.
 package registry
 
 import (
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 )
 
 func NewFactory(cloudprovider.Options) cloudprovider.Factory {

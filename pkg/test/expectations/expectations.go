@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"

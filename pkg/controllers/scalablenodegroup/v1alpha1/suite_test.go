@@ -17,13 +17,13 @@ package v1alpha1
 import (
 	"testing"
 
-	v1alpha1 "github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider"
-	"github.com/ellistarn/karpenter/pkg/cloudprovider/fake"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"knative.dev/pkg/ptr"
 
-	"github.com/ellistarn/karpenter/pkg/test/environment"
-	. "github.com/ellistarn/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/test/environment"
+	. "github.com/awslabs/karpenter/pkg/test/expectations"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

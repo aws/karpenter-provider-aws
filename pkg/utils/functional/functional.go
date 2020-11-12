@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"math"
 
-	"github.com/ellistarn/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/utils/log"
 )
 
 // GreaterThanInt32 returns values greater than the target value

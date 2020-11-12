@@ -15,7 +15,7 @@ limitations under the License.
 package queue
 
 import (
-	"github.com/ellistarn/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/metrics"
 )
 
 const (

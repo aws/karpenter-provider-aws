@@ -17,11 +17,12 @@ package reservedcapacity
 import (
 	"context"
 	"fmt"
-	"github.com/ellistarn/karpenter/pkg/metrics"
 	"math"
 
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/ellistarn/karpenter/pkg/utils/node"
+	"github.com/awslabs/karpenter/pkg/metrics"
+
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

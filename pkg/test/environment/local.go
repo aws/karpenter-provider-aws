@@ -21,9 +21,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/ellistarn/karpenter/pkg/controllers"
-	"github.com/ellistarn/karpenter/pkg/utils/log"
-	"github.com/ellistarn/karpenter/pkg/utils/project"
+	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/onsi/gomega/ghttp"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/wait"
