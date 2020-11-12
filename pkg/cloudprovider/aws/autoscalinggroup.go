@@ -32,20 +32,27 @@ type AutoScalingGroup struct {
 }
 
 func NewAutoScalingGroup(id string, client autoscalingiface.AutoScalingAPI) *AutoScalingGroup {
+	normalized, _ := normalizeID(id)
 	return &AutoScalingGroup{
-		ID:     normalizeID(id),
+		ID:     normalized,
 		Client: client,
 	}
 }
 
 func init() {
 	v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, func(sng *v1alpha1.ScalableNodeGroupSpec) error {
-		_, err := validateID(sng.ID)
+		_, err := normalizeID(sng.ID)
 		return err
 	})
 }
 
-func validateID(id string) (string, error) {
+// normalizeID extracts the name of the ASG from an ARN; ASG API calls
+// need the name and do not work on an ARN, but users will often want
+// to specify an ARN in their YAML. Returns fromArn unchanged if it
+// does not appear to be a valid ASG ARN, in which case, it is either
+// just a flat-out invalid ARN that won't work anyway, or else (more
+// likely) already a valid name.
+func normalizeID(id string) (string, error) {
 	asgArn, err := arn.Parse(id)
 	if err != nil {
 		return id, nil
@@ -65,17 +72,6 @@ func validateID(id string) (string, error) {
 
 	return nameSpecifier[1], nil
 
-}
-
-// normalizeID extracts the name of the ASG from an ARN; ASG API calls
-// need the name and do not work on an ARN, but users will often want
-// to specify an ARN in their YAML. Returns fromArn unchanged if it
-// does not appear to be a valid ASG ARN, in which case, it is either
-// just a flat-out invalid ARN that won't work anyway, or else (more
-// likely) already a valid name.
-func normalizeID(fromArn string) string {
-	asgName, _ := validateID(fromArn)
-	return asgName
 }
 
 // GetReplicas returns replica count for an EC2 auto scaling group

@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestValidateID(t *testing.T) {
+func TestNormalizeID(t *testing.T) {
 	const noErr = false
 	const shouldError = true
 	var idTests = []struct {
@@ -35,13 +35,12 @@ func TestValidateID(t *testing.T) {
 		{"arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", "arn:aws:autoscalin:region:123456789012:autoScalingGroup:uuid:utoScalingGroupName/asg-name", shouldError},
 	}
 	for _, idTest := range idTests {
-		normalized := normalizeID(idTest.input)
+		normalized, err := normalizeID(idTest.input)
 		if normalized != idTest.expected {
 			t.Errorf("expected: %s, got: %s", idTest.expected, normalized)
 		}
-		_, err := validateID(idTest.input)
-		if (err != nil) == idTest.wantErr {
-			t.Errorf("expected error: %t, got: %v", idTest.wantErr, err)
+		if (err != nil) != idTest.wantErr {
+			t.Errorf("expected error: %t, got: %v (input: %s)", idTest.wantErr, err, idTest.input)
 		}
 	}
 }
