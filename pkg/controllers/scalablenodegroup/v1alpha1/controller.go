@@ -21,6 +21,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
+
+	"go.uber.org/zap"
 )
 
 // Controller for the resource
@@ -71,6 +73,9 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	if err := ng.SetReplicas(*resource.Spec.Replicas); err != nil {
 		return fmt.Errorf("unable to set replicas for node group %v, %w", resource.Spec.ID, err)
 	}
+	zap.S().With(zap.String("observed", fmt.Sprintf("%d", observedReplicas))).
+		With(zap.String("desired", fmt.Sprintf("%d", *resource.Spec.Replicas))).
+		Debug("ScalableNodeGroup updated nodes count")
 	return nil
 }
 

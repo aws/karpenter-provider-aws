@@ -18,11 +18,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/ellistarn/karpenter/pkg/apis/autoscaling/v1alpha1"
 )
 
 // AutoScalingGroup implements the NodeGroup CloudProvider for AWS EC2 AutoScalingGroups
