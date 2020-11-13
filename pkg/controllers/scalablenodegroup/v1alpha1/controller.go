@@ -75,7 +75,7 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	}
 	zap.S().With(zap.String("observed", fmt.Sprintf("%d", observedReplicas))).
 		With(zap.String("desired", fmt.Sprintf("%d", *resource.Spec.Replicas))).
-		Info("ScalableNodeGroup updated nodes count")
+		Debug("ScalableNodeGroup updated nodes count")
 	return nil
 }
 
