@@ -48,7 +48,7 @@ Once generated, metrics must be stored somewhere. Some metrics server implementa
 
 Metrics values are periodically polled and used to calculate desiredReplicas for the autoscaled resource. The autoscaler contains a generic, black-box autoscaling function that can be parameterized by customers.
 
-replicas = f(currentReplicas, currentMetricValue, desiredMetricValue, params...)
+`replicas = f(currentReplicas, currentMetricValue, desiredMetricValue, params...)`
 
 This implementation of the function can be a proportional controller ([see HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details)), a [PID controller](https://en.wikipedia.org/wiki/PID_controller), a [predictive controller](https://netflixtechblog.com/scryer-netflixs-predictive-auto-scaling-engine-part-2-bb9c4f9b9385), or something else entirely. These functions are generic such that customers should be able experiment with different autoscaling functions using the same underlying metrics. Input metrics can be any signal. For example, customers could use a raw signal or transform their metric with some (e.g. step) function before it is input into the autoscaler.
 
