@@ -436,7 +436,7 @@ ScalableNodeGroup’s controller leverages the Kubernetes watch API to ensure th
 
 HorizontalAutoscaler logic varies with the underlying algorithm. Proportional autoscaling decisions are calculated in constant time, while PID autoscaling decisions are polynomial with respect to its time window. Predictive autoscalers can be arbitrarily complex. Across a cluster, the autoscaler scales linearly with the number of node groups that have an autoscaler. If scalability becomes a concern for this component, this can be solved using sharding, as decisions for each node group’s autoscaler is independent.
 
-Prometheus’s scalability is a [large topic](https://improbable.io/blog/thanos-prometheus-at-scale)beyond the scope of Karpenter. We don’t anticipate challenges here, as autoscaling decisions require less history than Prometheus’ other use cases. We will treat Prometheus’ scalability as out of scope.
+Prometheus’s scalability is a [large topic](https://improbable.io/blog/thanos-prometheus-at-scale) beyond the scope of Karpenter. We don’t anticipate challenges here, as autoscaling decisions require less history than Prometheus’ other use cases. We will treat Prometheus’ scalability as out of scope.
 
 MetricsProducer logic varies with the underlying algorithm, similar to the HorizontalAutoscaler’s scalability characteristics. Similarly, these processes can be sharded per producer if scalability challenges arise. Some MetricsProducers will break down as the cluster scales, such as PendingCapacity, which requires global analysis of the cluster’s node groups and pending pods. We consider the scalability concerns of any given MetricsProducer out of scope of the metrics driven autoscaling architecture.
 
