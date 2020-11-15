@@ -31,9 +31,9 @@ rules:
   - patch
   - watch
 - apiGroups:
-  - apps
+  - '*'
   resources:
-  - deployments/scale
+  - '*/scale'
   verbs:
   - update
   - get
