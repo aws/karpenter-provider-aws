@@ -11,7 +11,7 @@ jobs:
       with:
         go-version: 1.15.3
     - run: make toolchain
-    - run: echo ::add-path::/usr/local/kubebuilder/bin
+    - run: echo "/usr/local/kubebuilder/bin" >> $GITHUB_PATH
     - run: make ci
     - uses: actions/upload-artifact@v2
       with:
