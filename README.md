@@ -28,7 +28,8 @@ VERSION=v0.1.0
 kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/master/releases/${CLOUD_PROVIDER}/${VERSION}.yaml
 ```
 
-# Docs
+# More
 - [Examples](./docs/examples)
+- [Working Group](./docs/working-group)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Design](./docs/DESIGN.md)
