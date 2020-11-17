@@ -5,7 +5,7 @@ Karpenter is a metrics-driven autoscaler for Kubernetes. It's performant, extens
 
 Karpenter is built for Kubernetes and can run in any Kubernetes cluster anywhere.
 
-This is an early stage, experimental project built by ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
+This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 
 ## Getting Started
 We will learn about Karpenter's APIs, look at some sample configurations, and install Karpenter's Controller.

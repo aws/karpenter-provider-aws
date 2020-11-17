@@ -4,8 +4,6 @@ Thank you for your interest in contributing to our project. Whether it's a bug r
 
 Please read through this document before submitting any issues or pull requests to ensure we have all the necessary information to effectively respond to your bug report or contribution.
 
-Karpenter is licensed under [Apache 2.0](./LICENSE.md) and accepts contributions via GitHub pull requests.
-
 We follow the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Reporting Bugs/Feature Requests
@@ -37,14 +35,8 @@ To send us a pull request, please:
 
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
-## Finding contributions to work on
-Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.
-
-## Developer documentation
-[See the documentation](./docs/DEVELOPER_GUIDE.md) for detailed development information. You can learn more about how Karpenter works in our [design](./docs/DESIGN.md) and [examples](./docs/examples).
-
 ## Code of Conduct
 Karpenter has adopted the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Licensing
-See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+Karpenter is licensed under [Apache 2.0](./LICENSE.md).
