@@ -6,7 +6,7 @@ Please read through this document before submitting any issues or pull requests 
 
 Karpenter is licensed under [Apache 2.0](./LICENSE.md) and accepts contributions via GitHub pull requests.
 
-We follow the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)
+We follow the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Reporting Bugs/Feature Requests
 
