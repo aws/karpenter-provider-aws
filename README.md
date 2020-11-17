@@ -8,7 +8,7 @@ Karpenter is built for Kubernetes and can run in any Kubernetes cluster anywhere
 This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 
 ## Getting Started
-We will learn about Karpenter's APIs, look at some sample configurations, and install Karpenter's Controller.
+We will learn about Karpenter's APIs, look at some sample configurations, and install Karpenter's Controller. Alternatively, you can dive right into the [demo](https://github.com/ellistarn/karpenter-aws-demo).
 
 ### APIs
 Karpenter defines three custom resources to configure autoscaling behavior.
