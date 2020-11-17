@@ -1,5 +1,5 @@
 # Working Group
-Karpenter's community is open to everyone. Join us [every Monday @ 10am PST](https://calendar.google.com/event?action=TEMPLATE&tmeid=MXA3ZWg0Ym9mbHN2Z2FvM2FhbDJ2NjlsNmNfMjAyMDExMjBUMTgwMDAwWiBlbGxpc3Rhcm5AbQ&tmsrc=ellistarn%40gmail.com&scp=ALL).
+Karpenter's community is open to everyone. Join us [every Monday @ 10am PST](https://karpenter.s3-us-west-2.amazonaws.com/karpenter.ics).
 
 # Notes
 Please contribute to our meeting notes by opening a PR.
