@@ -1,7 +1,4 @@
-# AWS Announces the Karpenter Autoscaling Project
-Karpenter helps ensure high efficiency and availability for Kubernetes applications.
-
-Karpenter is a new open source Kubernetes autoscaling project that provides a flexible, and extensible way for customers to maximize the resource utilization for their Kubernetes clusters. Karpenter helps customers increase availability and save money with their Kubernetes applications running in any Kubernetes cluster, including on the AWS cloud. Karpenter is available today as a developer preview.
+# Frequently Asked Questions
 
 1.	**What are you launching today?**
 Today we are launching a developer preview of Karpenter, a new open source autoscaling system for Kubernetes that helps maximize application availability for Kubernetes clusters without requiring you to manually allocate or over-provision compute resources. Karpenter allows you to use the metrics of your choice to drive the amount of compute resources allocated for a cluster, letting you scale the compute for the cluster independently, ahead-of, or in-concert with the scale of your Kubernetes applications. Karpenter works with any Kubernetes cluster running in any environment including cloud and on-premises environments.
@@ -10,7 +7,7 @@ Today we are launching a developer preview of Karpenter, a new open source autos
 Karpenter enables Kubernetes users to maximize resource utilization and improve availability for their clusters without requiring them to manually allocate or over-provision resources. Users can choose the metrics they want to drive the amount of compute resources allocated for their cluster, letting them scale their clusters independently, ahead-of, or in-concert with the scale of their applications. Customers can configure scaling across multiple compute options and Karpenter offers straightforward and highly customizable options for scaling that are defined with configuration files, so they can be easily shared and implemented across multiple clusters. Karpenter runs as a set of linked components within a Kubernetes cluster, which allows the system to make fast, linear time scaling decisions for any size of cluster.
 
 3.	**How do I start using Karpenter?**
-To use Karpenter, first download and run the Karpenter service on your Kubernetes cluster. Next, apply a configuration file that includes the required Karpenter resources. The Karpenter project offers several example files that you can use as-is, or modify. For example, the queue-scaling configuration will monitor the length of an AWS SQS queue and proactively scale the compute provisioned for the cluster based on the number of jobs waiting to be processed or you can use custom Prometheus metrics that you define like customer sign-ups to scale ahead of an event. You can even define your own Karpenter metrics sources and autoscaling logic to customize when, why, and how to scale compute resources for your cluster. See our [Getting Started documentation](./docs/aws/README.md)
+To use Karpenter, first download and run the Karpenter service on your Kubernetes cluster. Next, apply a configuration file that includes the required Karpenter resources. The Karpenter project offers several example files that you can use as-is, or modify. For example, the queue-scaling configuration will monitor the length of an AWS SQS queue and proactively scale the compute provisioned for the cluster based on the number of jobs waiting to be processed or you can use custom Prometheus metrics that you define like customer sign-ups to scale ahead of an event. You can even define your own Karpenter metrics sources and autoscaling logic to customize when, why, and how to scale compute resources for your cluster. See our [Getting Started documentation](./docs/aws/README.md).
 
 4.	**Where can I use Karpenter?**
 Karpenter works with any Kubernetes cluster running in any environment. You can use Karpenter with Kubernetes clusters in the cloud and on premises, including with EKS Paris and ModelRocket clusters.
@@ -19,7 +16,7 @@ Karpenter works with any Kubernetes cluster running in any environment. You can 
 Karpenter is an open, metrics-driven autoscaling system. There are four logical components: 1/ metrics producer which outputs metrics that can be used to drive scaling, 2/ metrics server which aggregates and stores scaling metric data from each producer, 3/ autoscaler which contains the logic for scaling including metric tracking strategies and scaling policies, and 4/ replica controller which changes the number of desired replicas for a unit of compute. These components are able to be implemented together or flexibly in combination with other systems such as KEDA. See appendix for more information about the Karpenter system architecture.
 
 6.	**Is Karpenter a node autoscaler only? Are there plans to make it extensible for workloads as well?**
-At launch, we plan to build replica controllers to drive node scaling for Kubernetes clusters. That said, Karpenter has an open design can be used to scale anything that implements the scale sub-resource. This includes multiple Kubernetes resource controllers and even cloud provider resources that are controlled from the Kuberentes API (such as with ACK).
+At launch, we plan to build replica controllers to drive node scaling for Kubernetes clusters. That said, Karpenter has an open design can be used to scale anything that implements the scale sub-resource. This includes multiple Kubernetes resource controllers and even cloud provider resources that are controlled from the Kuberentes API (such as with [ACK](https://github.com/aws/aws-controllers-k8s)).
 
 7.	**What signals can I use to scale my cluster?**
 At launch, Karpenter includes the ability to use Prometheus and Amazon SQS metrics sources for scaling. In the future, we plan to add support for other metrics sources. Because Karpenter is open source and extensible, you can write your own metrics source to use any signal that your applications need to scale.
@@ -48,10 +45,10 @@ Karpenter allows you to target multiple node groups as part of a single instance
 15.	**Does Karpenter work with EC2 Spot?**
 Yes. In Karpenter you target different node groups/types with separate replica controllers. Each replica controller can have a separate proportional scaling policy that drives off of a common metric. This makes it possible for Karpenter to proportionally and accurately scale spot nodes based on the desired capacity for the cluster, even when those spot nodes are of different sizes or availabilities.
 
-16.	**Does Karpenter respect pod disruption budgets? **
+16.	**Does Karpenter respect pod disruption budgets?**
 Karpenter does not include an integration to Kubernetes lifecycle hooks in order to drain nodes during scaling. However, Karpenter does allow you to connect resources like an EKS managed node group (MNG) to the replica controller. Resources such as MNG have existing integrations to Kubernetes lifecycle events to ensure graceful scale down events.
 
-17.	How does Karpenter work with Prometheus?
+17.	**How does Karpenter work with Prometheus?**
 Karpenter works with Prometheus in two ways. First, you can optionally connect Karpenter to Prometheus as a metrics source. This lets you configure scaling based on any standard or custom metrics you are already collecting for your cluster. Second, Karpenter uses Prometheus as a metrics store to make scaling decisions.
 
 18. **How does Karpenter compare to the Kubernetes cluster autoscaler?**
@@ -66,7 +63,7 @@ Cluster autoscaler works well for a number of common use cases. However, some us
 21.	**Will the interaction between the autoscaler, metrics server and metrics producer components be always pull based or there are plans to support push architecture, for example, using alert manager alarms from Prometheus?**
 The Karpenter architecture will use pulls.
 
-22. **Metrics will be polled periodically to calculate the desired replicas. Is it possible to configure the polling period? **
+22. **Metrics will be polled periodically to calculate the desired replicas. Is it possible to configure the polling period?**
 The default polling period is 10 seconds, though the user can configure this when they setup Karpenter.
 
 23.	**How does Karpenter work for event-driven scaling?**
@@ -76,4 +73,4 @@ Karpenter supports event-driven scaling by consuming the events as a metric usin
 Karpenter is an open source project and available on the GitHub. We encourage contributions through GitHub, especially the contribution of new metrics producers for your use case. If you found a bug, have a suggestion, or have something to contribute, please engage with us on GitHub. All engagements must follow our code of conduct.
 
 25.	**Is this just an AWS project?**
-This is an AWS initiated project, but we intend it to be used by the entire Kubernetes community. We welcome and encourage anyone to join us!
+This is an AWS initiated project, but we intend it to be used by the entire Kubernetes community. We welcome and encourage anyone to join us! See [contributing](./CONTRIBUTING.md).
