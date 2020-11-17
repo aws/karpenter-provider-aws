@@ -34,6 +34,7 @@ kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/master/rele
 
 ## Docs
 - [Examples](./docs/examples)
+- [Working Group](./docs/working-group)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Design](./docs/DESIGN.md)
 - [FAQs](./docs/FAQs.md)
