@@ -6,6 +6,9 @@ Please read through this document before submitting any issues or pull requests 
 
 We follow the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
+## Working Group
+Connect with us at our [working group](./working-group).
+
 ## Reporting Bugs/Feature Requests
 
 We welcome you to use the GitHub issue tracker to report bugs or suggest features.

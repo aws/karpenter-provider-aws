@@ -4,12 +4,12 @@
 
 The following tools are required for doing development on Karpenter.
 
-| Package                                                            | Version  | Install             |
-| ------------------------------------------------------------------ | -------- | ------------------- |
-| [go](https://golang.org/dl/)                                       | v1.15.3+ |                     |
-| [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) |          |                     |
-| [helm](https://helm.sh/docs/intro/install/)                        |          | `brew install helm` |
-| Other tools                                                        |          | `make toolchain`    |
+| Package                                                            | Version  | Install                |
+| ------------------------------------------------------------------ | -------- | ---------------------- |
+| [go](https://golang.org/dl/)                                       | v1.15.3+ | `brew install go`      |
+| [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) |          | `brew install kubectl` |
+| [helm](https://helm.sh/docs/intro/install/)                        |          | `brew install helm`    |
+| Other tools                                                        |          | `make toolchain`       |
 
 ## Developing
 
@@ -62,7 +62,7 @@ open http://localhost:8080/metrics && kubectl port-forward service/karpenter-met
 ## Environment specific setup
 
 ### AWS
-Set the CLOUD_PROVIDER environment variable to build cloud provider specific packages of Karpenter. 
+Set the CLOUD_PROVIDER environment variable to build cloud provider specific packages of Karpenter.
 
 ```
 export CLOUD_PROVIDER=aws
