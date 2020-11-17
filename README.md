@@ -21,7 +21,7 @@ Karpenter defines three custom resources to configure autoscaling behavior.
 
 [Learn more](./docs) about the different ways to configure Karpenter's resources.
 
-## Installation
+### Installation
 Follow the setup recommendations of your cloud provider.
 - [AWS](./docs/aws/README.md#installation)
 
@@ -34,6 +34,7 @@ kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/master/rele
 
 ## Docs
 - [Examples](./docs/examples)
+- [Working Group](./docs/working-group)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Design](./docs/DESIGN.md)
 - [FAQs](./docs/FAQs.md)
