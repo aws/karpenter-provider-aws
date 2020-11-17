@@ -66,28 +66,28 @@ var _ = Describe("Examples", func() {
 			Expect(ns.ParseResources("docs/examples/reserved-capacity-utilization.yaml", mp)).To(Succeed())
 			mp.Spec.ReservedCapacity.NodeSelector = map[string]string{"k8s.io/nodegroup": ns.Name}
 
-			capacity := v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("16"),
-				v1.ResourceMemory: resource.MustParse("128Gi"),
+			allocatable := v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("16300m"),
+				v1.ResourceMemory: resource.MustParse("128500Mi"),
 				v1.ResourcePods:   resource.MustParse("50"),
 			}
 
 			nodes := []client.Object{
-				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
-				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
-				test.NodeWith(test.NodeOptions{Labels: map[string]string{"unknown": "label"}, Capacity: capacity}),
-				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity}),
-				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity, ReadyStatus: v1.ConditionFalse}),
-				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Capacity: capacity, Unschedulable: true}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Allocatable: allocatable}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Allocatable: allocatable}),
+				test.NodeWith(test.NodeOptions{Labels: map[string]string{"unknown": "label"}, Allocatable: allocatable}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Allocatable: allocatable}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Allocatable: allocatable, ReadyStatus: v1.ConditionFalse}),
+				test.NodeWith(test.NodeOptions{Labels: mp.Spec.ReservedCapacity.NodeSelector, Allocatable: allocatable, Unschedulable: true}),
 			}
 
 			pods := []client.Object{
 				// node[0] 6/16 cores, 76/128 gig allocated
-				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
-				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("25Gi")}),
-				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("3"), v1.ResourceMemory: resource.MustParse("50Gi")}),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1100m"), v1.ResourceMemory: resource.MustParse("1Gi")}),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("2100m"), v1.ResourceMemory: resource.MustParse("25Gi")}),
+				test.Pod(nodes[0].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("3300m"), v1.ResourceMemory: resource.MustParse("50Gi")}),
 				// node[1] 1/16 cores, 76/128 gig allocated
-				test.Pod(nodes[1].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}),
+				test.Pod(nodes[1].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("1100m"), v1.ResourceMemory: resource.MustParse("1Gi")}),
 				// node[2] is ignored
 				test.Pod(nodes[2].GetName(), ns.Name, v1.ResourceList{v1.ResourceCPU: resource.MustParse("99"), v1.ResourceMemory: resource.MustParse("99Gi")}),
 				// node[3] is unallocated
@@ -100,9 +100,9 @@ var _ = Describe("Examples", func() {
 			ExpectCreated(ns.Client, mp)
 
 			ExpectEventuallyHappy(ns.Client, mp)
-			Expect(mp.Status.ReservedCapacity[v1.ResourceCPU]).To(BeEquivalentTo("14%, 7/48"))
-			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("20%, 82678120448/412316860416"))
-			Expect(mp.Status.ReservedCapacity[v1.ResourcePods]).To(BeEquivalentTo("2%, 4/150"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceCPU]).To(BeEquivalentTo("15.54%, 7600m/48900m"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourceMemory]).To(BeEquivalentTo("20.45%, 77Gi/385500Mi"))
+			Expect(mp.Status.ReservedCapacity[v1.ResourcePods]).To(BeEquivalentTo("2.67%, 4/150"))
 
 			ExpectDeleted(ns.Client, mp)
 			ExpectDeleted(ns.Client, nodes...)

@@ -46,7 +46,7 @@ type NodeOptions struct {
 	Labels        map[string]string
 	ReadyStatus   v1.ConditionStatus
 	Unschedulable bool
-	Capacity      v1.ResourceList
+	Allocatable   v1.ResourceList
 }
 
 func NodeWith(options NodeOptions) *v1.Node {
@@ -69,8 +69,8 @@ func NodeWith(options NodeOptions) *v1.Node {
 			Unschedulable: options.Unschedulable,
 		},
 		Status: v1.NodeStatus{
-			Capacity:   options.Capacity,
-			Conditions: []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus}},
+			Allocatable: options.Allocatable,
+			Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus}},
 		},
 	}
 }

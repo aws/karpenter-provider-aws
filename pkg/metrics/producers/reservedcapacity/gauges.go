@@ -16,21 +16,29 @@ package reservedcapacity
 
 import (
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 )
 
+type MetricType string
+
 const (
 	Subsystem   = "reserved_capacity"
-	Reserved    = "reserved"
-	Capacity    = "capacity"
-	Utilization = "utilization"
+	Reserved    = MetricType("reserved")
+	Capacity    = MetricType("capacity")
+	Utilization = MetricType("utilization")
 )
 
 func init() {
-	for _, resource := range []v1.ResourceName{v1.ResourcePods, v1.ResourceCPU, v1.ResourceMemory} {
-		for _, name := range []string{Reserved, Capacity, Utilization} {
-			metrics.RegisterNewGauge(Subsystem, fmt.Sprintf("%s_%s", resource, name))
+	for _, resourceName := range []v1.ResourceName{v1.ResourcePods, v1.ResourceCPU, v1.ResourceMemory} {
+		for _, metricType := range []MetricType{Reserved, Capacity, Utilization} {
+			metrics.RegisterNewGauge(Subsystem, fmt.Sprintf("%s_%s", resourceName, metricType))
 		}
 	}
+}
+
+func GaugeFor(resourceName v1.ResourceName, metricType MetricType) *prometheus.GaugeVec {
+	return metrics.Gauges[Subsystem][fmt.Sprintf("%s_%s", resourceName, metricType)]
 }
