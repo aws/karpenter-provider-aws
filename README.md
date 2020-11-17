@@ -41,7 +41,7 @@ kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/master/rele
 - [Contributing](./docs/CONTRIBUTING.md)
 
 ## Terms
-Karpenter is an early stage, experimental project that is currently maintained by AWS and available as a preview. We request that you do not use Karpenter for production workloads at this time. See details in our [terms](./terms.md).
+Karpenter is an early stage, experimental project that is currently maintained by AWS and available as a preview. We request that you do not use Karpenter for production workloads at this time. See details in our [terms](./docs/terms.md).
 
 ## License
 This project is licensed under the Apache-2.0 License.
