@@ -18,8 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
-
-	"github.com/awslabs/karpenter/pkg/metrics"
+	"strconv"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/node"
@@ -66,16 +65,22 @@ func (p *Producer) record(reservations *Reservations) {
 		p.Status.ReservedCapacity = map[v1.ResourceName]string{}
 	}
 	for resource, reservation := range reservations.Resources {
-		computed := reservation.Compute()
-		for metricType, value := range computed {
-			metrics.Gauges[Subsystem][fmt.Sprintf("%s_%s", resource, metricType)].
-				WithLabelValues(p.Name, p.Namespace).Set(value)
+		reserved, _ := strconv.ParseFloat(reservation.Reserved.AsDec().String(), 64)
+		capacity, _ := strconv.ParseFloat(reservation.Capacity.AsDec().String(), 64)
+		utilization := math.NaN()
+		if capacity != 0 {
+			utilization = reserved / capacity
 		}
+
+		GaugeFor(resource, Utilization).WithLabelValues(p.Name, p.Namespace).Set(utilization)
+		GaugeFor(resource, Reserved).WithLabelValues(p.Name, p.Namespace).Set(reserved)
+		GaugeFor(resource, Capacity).WithLabelValues(p.Name, p.Namespace).Set(capacity)
+
 		p.Status.ReservedCapacity[resource] = fmt.Sprintf(
-			"%v%%, %d/%d",
-			math.Floor(computed[Utilization]*100),
-			int64(computed[Reserved]),
-			int64(computed[Capacity]),
+			"%.2f%%, %v/%v",
+			reserved/capacity*100,
+			reservation.Reserved,
+			reservation.Capacity,
 		)
 	}
 }
