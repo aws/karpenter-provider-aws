@@ -85,13 +85,13 @@ var _ = Describe("Examples", func() {
 		})
 
 		It("Test reconciler to scale down nodes", func() {
-			ng.SetReplicas(10) // set existing replicas higher than desired
+			Expect(ng.SetReplicas(10)).To(Succeed()) // set existing replicas higher than desired
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
 		})
 
 		It("Test reconciler to make no change to node count", func() {
-			ng.SetReplicas(*desiredReplicas) // set existing replicas equal to desired
+			Expect(ng.SetReplicas(*desiredReplicas)).To(Succeed()) // set existing replicas equal to desired
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
 		})

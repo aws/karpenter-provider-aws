@@ -14,8 +14,6 @@ limitations under the License.
 
 package fake
 
-import "fmt"
-
 // fakeError implements controllers.RetryableError & controllers.CodedError
 type fakeError struct {
 	error
@@ -26,7 +24,6 @@ func (e *fakeError) IsRetryable() bool {
 	return e.retryAble
 }
 func (e *fakeError) ErrorCode() string {
-	fmt.Println("Returning error code ", e.Error())
 	return e.Error()
 }
 
