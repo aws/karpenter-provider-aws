@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"testing"
 
 	v1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -96,4 +97,35 @@ var _ = Describe("Examples", func() {
 		})
 	})
 
+	Context("Advanced ScalableNodeGroup Reconcile tests", func() {
+		It("Scale up nodes when not node group is stabilized and check status condition", func() {
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsTrue()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(""))
+		})
+
+		It("Scale up nodes when not node group is NOT stabilized and check status condition", func() {
+			ngObject := ng.(*fake.NodeGroup)
+			ngObject.Stable = false
+			ngObject.Message = dummyMessage
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsFalse()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(dummyMessage))
+		})
+
+		It("Retryable error while reconciling", func() {
+			ngObject := ng.(*fake.NodeGroup)
+			ngObject.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
+			existingReplicas, _ := ng.GetReplicas()
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			replicas, err := ng.GetReplicas()
+			Expect(replicas).To(Equal(existingReplicas))
+			Expect(err).To(Equal(fake.RetryableError(fmt.Errorf(dummyMessage))))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).IsFalse()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).Message).To(Equal(dummyMessage))
+		})
+
+	})
 })
