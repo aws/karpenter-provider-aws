@@ -15,18 +15,18 @@ limitations under the License.
 package fake
 
 // fakeError implements controllers.RetryableError & controllers.CodedError
-type fakeError struct {
+type fakeRetryableError struct {
 	error
-	retryAble bool
+	retryable bool
 }
 
-func (e *fakeError) IsRetryable() bool {
-	return e.retryAble
+func (e *fakeRetryableError) IsRetryable() bool {
+	return e.retryable
 }
-func (e *fakeError) ErrorCode() string {
+func (e *fakeRetryableError) ErrorCode() string {
 	return e.Error()
 }
 
-func RetryableError(err error) *fakeError {
-	return &fakeError{error: err, retryAble: true}
+func RetryableError(err error) *fakeRetryableError {
+	return &fakeRetryableError{error: err, retryable: true}
 }
