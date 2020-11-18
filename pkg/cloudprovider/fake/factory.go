@@ -30,6 +30,8 @@ type Factory struct {
 	WantErr error
 	// NodeReplicas is use by tests to control observed replicas.
 	NodeReplicas map[string]int32
+
+	nodegroup *NodeGroup
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
@@ -43,10 +45,14 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	return &NodeGroup{
-		WantErr:  f.WantErr,
-		Replicas: ptr.Int32(f.NodeReplicas[sng.ID]),
+	if f.nodegroup == nil {
+		f.nodegroup = &NodeGroup{
+			WantErr:  f.WantErr,
+			Stable:   true,
+			Replicas: ptr.Int32(f.NodeReplicas[sng.ID]),
+		}
 	}
+	return f.nodegroup
 }
 
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {

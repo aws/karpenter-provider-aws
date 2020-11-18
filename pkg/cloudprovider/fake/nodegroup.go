@@ -19,6 +19,8 @@ import (
 
 type NodeGroup struct {
 	WantErr  error
+	Stable   bool
+	Message  string
 	Replicas *int32
 }
 
@@ -41,5 +43,5 @@ func (n *NodeGroup) SetReplicas(count int32) error {
 }
 
 func (n *NodeGroup) Stabilized() (bool, string, error) {
-	return true, "", nil
+	return n.Stable, n.Message, nil
 }
