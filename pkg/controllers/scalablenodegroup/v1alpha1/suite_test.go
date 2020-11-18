@@ -54,19 +54,30 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
-	var sng *v1alpha1.ScalableNodeGroup
-	var ng cloudprovider.NodeGroup
 	var desiredReplicas = ptr.Int32(5)
 	var dummyMessage = "test message"
+	var nodeGroupObject *fake.NodeGroup
+	var sng *v1alpha1.ScalableNodeGroup
+	var ng cloudprovider.NodeGroup
+	var defaultNodeGroupObject fake.NodeGroup
 
 	BeforeEach(func() {
 		var err error
+		sng = &v1alpha1.ScalableNodeGroup{}
+		ng = fakeController.CloudProvider.NodeGroupFor(&sng.Spec)
+		defaultNodeGroupObject = *ng.(*fake.NodeGroup)
 		ns, err = env.NewNamespace()
 		Expect(err).NotTo(HaveOccurred())
-		sng = &v1alpha1.ScalableNodeGroup{}
+		sng.Spec.Replicas = desiredReplicas
+		nodeGroupObject = ng.(*fake.NodeGroup)
+	})
+
+	AfterEach(func() {
+		nodeGroupObject.Stable = defaultNodeGroupObject.Stable
+		nodeGroupObject.Message = defaultNodeGroupObject.Message
+		nodeGroupObject.WantErr = defaultNodeGroupObject.WantErr
 		sng.Spec.Replicas = desiredReplicas
 		ng = fakeController.CloudProvider.NodeGroupFor(&sng.Spec)
-
 	})
 
 	Context("ScalableNodeGroup", func() {
@@ -106,9 +117,8 @@ var _ = Describe("Examples", func() {
 		})
 
 		It("Scale up nodes when not node group is NOT stabilized and check status condition", func() {
-			ngObject := ng.(*fake.NodeGroup)
-			ngObject.Stable = false
-			ngObject.Message = dummyMessage
+			nodeGroupObject.Stable = false
+			nodeGroupObject.Message = dummyMessage
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsFalse()).To(Equal(true))
@@ -116,8 +126,7 @@ var _ = Describe("Examples", func() {
 		})
 
 		It("Retryable error while reconciling", func() {
-			ngObject := ng.(*fake.NodeGroup)
-			ngObject.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
+			nodeGroupObject.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
 			existingReplicas, _ := ng.GetReplicas()
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			replicas, err := ng.GetReplicas()
