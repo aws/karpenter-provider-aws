@@ -1,8 +1,6 @@
 ![](./docs/images/karpenter-banner.png)
 
-Karpenter is a metrics-driven autoscaler for Kubernetes. It's performant, extensible, and can autoscale anything that implements the Kubernetes [scale subresource](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/autoscaling/horizontal-pod-autoscaler.md#scale-subresource).
-
-Karpenter is built for Kubernetes and can run in any Kubernetes cluster anywhere.
+Karpenter is a metrics-driven autoscaler built for Kubernetes and can run in any Kubernetes cluster anywhere. It's performant, extensible, and can autoscale anything that implements the Kubernetes [scale subresource](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/autoscaling/horizontal-pod-autoscaler.md#scale-subresource).
 
 This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 
