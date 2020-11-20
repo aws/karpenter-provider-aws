@@ -1,5 +1,5 @@
 # Working Group
-Karpenter's community is open to everyone. Join us [every Friday @ 10am PST](https://karpenter.s3-us-west-2.amazonaws.com/karpenter.ics).
+Karpenter's community is open to everyone. Join us every [Friday @ 10am PST](https://chime.aws/4563870068).
 
 # Notes
 Please contribute to our meeting notes by opening a PR.
