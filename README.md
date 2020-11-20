@@ -1,4 +1,3 @@
-# Karpenter
 ![](./docs/images/karpenter-banner.png)
 
 Karpenter is a metrics-driven autoscaler for Kubernetes. It's performant, extensible, and can autoscale anything that implements the Kubernetes [scale subresource](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/autoscaling/horizontal-pod-autoscaler.md#scale-subresource).
