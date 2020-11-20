@@ -60,7 +60,7 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 				},
 				replicas: 0,
 			},
-			want: 0,
+			want: 1,
 		},
 		{
 			name: "AverageValueMetricType normal case",
@@ -91,7 +91,7 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 			want: 7,
 		},
 		{
-			name: "AverageUtilization normal case",
+			name: "Utilization normal case",
 			args: args{
 				metric: Metric{
 					TargetType:  v1alpha1.UtilizationMetricType,
@@ -105,7 +105,7 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 			want: 3,
 		},
 		{
-			name: "AverageUtilization does not scale to zero",
+			name: "Utilization does not scale to zero",
 			args: args{
 				metric: Metric{
 					TargetType:  v1alpha1.UtilizationMetricType,
@@ -116,7 +116,7 @@ func TestProportionalGetDesiredReplicas(t *testing.T) {
 				},
 				replicas: 0,
 			},
-			want: 0,
+			want: 1,
 		},
 		{
 			name: "Unknown metric type returns replicas",
