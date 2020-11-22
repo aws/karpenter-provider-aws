@@ -1,6 +1,6 @@
 # Metrics Driven Autoscaling
 
-Node Autoscaling (a.k.a. Cluster Autoscaling) is the process of continually adding and removing a cluster’s nodes to meet the resource demands of its pods. As customers scale to increasingly large clusters, autoscaling becomes necessary for both practicality and cost reasons. While overprovisioning is a viable approach at smaller scales, it becomes prohibitively expensive as organizations grow. In response to increasing infrastructure costs, some customers create manual processes to scale node groups, but this approach yields inefficient resource utilization and is error prone. Node autoscaling replaces these manual processes with automation.
+Node Autoscaling (a.k.a. Cluster Autoscaling) is the process of continually adding and removing a cluster’s nodes to meet the resource demands of its pods. As users scale to increasingly large clusters, autoscaling becomes necessary for both practicality and cost reasons. While overprovisioning is a viable approach at smaller scales, it becomes prohibitively expensive as organizations grow. In response to increasing infrastructure costs, some users create manual processes to scale node groups, but this approach yields inefficient resource utilization and is error prone. Node autoscaling replaces these manual processes with automation.
 
 ## Overview
 
@@ -18,14 +18,14 @@ Many aspects of this design contain large subproblems that are beyond the scope 
 * Provide straightforward tradeoffs for Scalability, Performance, Availability, and Cost.
 * Maximize the compatibility with existing solutions within the Kubernetes ecosystem.
 
-## Critical Customer Journeys
+## Critical User Journeys
 
-* As a customer, I am able to scale up or down on a single or combination of multiple signals.
+* As a user, I am able to scale up or down on a single or combination of multiple signals.
     * e.g. Capacity Reservations, Scheduled Capacity, Pending Pods, Queue Length
-* As a customer, I am able to author my own custom metrics to plug into the autoscaling architecture.
-* As a customer, I am able to autoscale multiple node group implementations from different providers.
+* As a user, I am able to author my own custom metrics to plug into the autoscaling architecture.
+* As a user, I am able to autoscale multiple node group implementations from different providers.
     * e.g. EC2 Autoscaling Groups, EKS Managed Node Groups, Kops Instance Groups, etc.
-* As a customer, I am able to provision and autoscale capacity in the same cluster with disjoint scheduling properties.
+* As a user, I am able to provision and autoscale capacity in the same cluster with disjoint scheduling properties.
     * e.g. GPUs, HPC, Spot Instances, node labels and taints.
 
 ## Metrics Driven Autoscaling Architecture
@@ -46,11 +46,11 @@ Once generated, metrics must be stored somewhere. Some metrics server implementa
 
 ### 3. Autoscaler
 
-Metrics values are periodically polled and used to calculate desiredReplicas for the autoscaled resource. The autoscaler contains a generic, black-box autoscaling function that can be parameterized by customers.
+Metrics values are periodically polled and used to calculate desiredReplicas for the autoscaled resource. The autoscaler contains a generic, black-box autoscaling function that can be parameterized by users.
 
 `replicas = f(currentReplicas, currentMetricValue, desiredMetricValue, params...)`
 
-This implementation of the function can be a proportional controller ([see HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details)), a [PID controller](https://en.wikipedia.org/wiki/PID_controller), a [predictive controller](https://netflixtechblog.com/scryer-netflixs-predictive-auto-scaling-engine-part-2-bb9c4f9b9385), or something else entirely. These functions are generic such that customers should be able experiment with different autoscaling functions using the same underlying metrics. Input metrics can be any signal. For example, customers could use a raw signal or transform their metric with some (e.g. step) function before it is input into the autoscaler.
+This implementation of the function can be a proportional controller ([see HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details)), a [PID controller](https://en.wikipedia.org/wiki/PID_controller), a [predictive controller](https://netflixtechblog.com/scryer-netflixs-predictive-auto-scaling-engine-part-2-bb9c4f9b9385), or something else entirely. These functions are generic such that users should be able experiment with different autoscaling functions using the same underlying metrics. Input metrics can be any signal. For example, users could use a raw signal or transform their metric with some (e.g. step) function before it is input into the autoscaler.
 
 ### 4. Replica Controller
 
@@ -58,7 +58,7 @@ The replica controller is responsible for the actual actuation of desiredReplica
 
 ## Node Autoscaling
 
-For node autoscaling, configurations are applied to node groups, drawing parallels to how pod autoscaling applies to deployments. This deviates from existing solutions like the Kubernetes Cluster Autoscaler or Escalator, which globally consider all node groups in their scaling decisions. It gives customers the flexibility to configure policies on different capacity types, but does not limit customers from applying globally computed metrics to a set of node groups.
+For node autoscaling, configurations are applied to node groups, drawing parallels to how pod autoscaling applies to deployments. This deviates from existing solutions like the Kubernetes Cluster Autoscaler or Escalator, which globally consider all node groups in their scaling decisions. It gives users the flexibility to configure policies on different capacity types, but does not limit users from applying globally computed metrics to a set of node groups.
 
 Assuming that a metrics driven approach results in significantly improved performance, flexibility, and functionality, the following questions emerge.
 
@@ -133,7 +133,7 @@ Alice enqueues 2400 tasks into her queue, Karpenter’s PID algorithm quickly co
 
 ### Example: Reserving Capacity
 
-Bob is a coworker of Alice and their teams share the same cluster. His team hosts a set of microservices for a product that is gaining new customers every day. Customers choose Bob’s product since it has much lower latency than alternatives. Bob is working with a limited infrastructure budget and needs to minimize costs while making sure his applications are scaling with customer demands. He configures a pod autoscaler for each microservice, which will scale up to maintain low latency as long as capacity is available. Bob’s nodes have 16 cores and 20gb of memory each, and each microservice pod has a resource request of 1 core and 1 gb memory. He is willing to pay for 40% capacity overhead to minimize the chance that a pod will be unschedulable due to unavailable capacity.
+Bob is a coworker of Alice and their teams share the same cluster. His team hosts a set of microservices for a product that is gaining new customers every day. Users choose Bob’s product since it has much lower latency than alternatives. Bob is working with a limited infrastructure budget and needs to minimize costs while making sure his applications are scaling with user demands. He configures a pod autoscaler for each microservice, which will scale up to maintain low latency as long as capacity is available. Bob’s nodes have 16 cores and 20gb of memory each, and each microservice pod has a resource request of 1 core and 1 gb memory. He is willing to pay for 40% capacity overhead to minimize the chance that a pod will be unschedulable due to unavailable capacity.
 
 He creates two Karpenter resources and applies them with kubectl apply:
 ```
@@ -193,11 +193,11 @@ For example, here’s how the Horizontal Pod Autoscaler uses [k8s-prometheus-ada
 ![](./images/hpa.png)
 Source: https://towardsdatascience.com/kubernetes-hpa-with-custom-metrics-from-prometheus-9ffc201991e
 
-The metrics API is an attractive dependency for several reasons. It uses Kubernetes API semantics, bringing popular Kubernetes features (e.g. kubectl, API standardization) to the domain of metrics. It also enables customers to control access using RBAC, though this isn’t hugely compelling as autoscalers typically operate globally on the cluster and have full permissions to the metrics API (see HPA).
+The metrics API is an attractive dependency for several reasons. It uses Kubernetes API semantics, bringing popular Kubernetes features (e.g. kubectl, API standardization) to the domain of metrics. It also enables users to control access using RBAC, though this isn’t hugely compelling as autoscalers typically operate globally on the cluster and have full permissions to the metrics API (see HPA).
 
 The metrics API has drawbacks. Each API can only have [one implementation](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/instrumentation/monitoring_architecture.md), which creates compatibility challenges when trying to deploy multiple applications that attempt to implement the same metrics API. It’s tempting to make Karpenter an external metrics API implementation by leveraging [existing open source libraries](https://github.com/kubernetes-sigs/custom-metrics-apiserver). In fact, this is exactly how KEDA (a popular metrics driven pod autoscaler) implements its metrics stack. However, this approach would mean that Karpenter could not be deployed to any cluster that uses KEDA or any other external metrics API implementation. This “single-implementation“ design decision has led other autoscaling solutions like [Knative Serving](https://github.com/knative/serving) to avoid dependency on these [metrics APIs](https://github.com/knative/serving/issues/9087#issuecomment-675138178).
 
-Given this constraint, something generic and universal could implement the metrics APIs and then allow systems like Karpenter to feed metrics into it. The [k8s-prometheus-adapter](https://github.com/DirectXMan12/k8s-prometheus-adapter) is a community solution which attempts to be this solution and uses Prometheus as an intermediary, but the adapter must be [manually configured for each metric it exposes](https://github.com/DirectXMan12/k8s-prometheus-adapter/blob/master/docs/config.md). This is a nontrivial customer burden that requires deep knowledge of Prometheus, the k8s-prometheus-adapter, the metrics producer, and Kubernetes metrics APIs. We could explore building a convention for naming external metrics such that the adapter can automatically translate metrics API resources into their external counterparts, removing the need for additional configuration. This [used to be supported](https://github.com/DirectXMan12/k8s-prometheus-adapter#presentation) by k8s-prometheus adapter, but was deprecated in favor of explicit configuration and a configuration generator.
+Given this constraint, something generic and universal could implement the metrics APIs and then allow systems like Karpenter to feed metrics into it. The [k8s-prometheus-adapter](https://github.com/DirectXMan12/k8s-prometheus-adapter) is a community solution which attempts to be this solution and uses Prometheus as an intermediary, but the adapter must be [manually configured for each metric it exposes](https://github.com/DirectXMan12/k8s-prometheus-adapter/blob/master/docs/config.md). This is a nontrivial user burden that requires deep knowledge of Prometheus, the k8s-prometheus-adapter, the metrics producer, and Kubernetes metrics APIs. We could explore building a convention for naming external metrics such that the adapter can automatically translate metrics API resources into their external counterparts, removing the need for additional configuration. This [used to be supported](https://github.com/DirectXMan12/k8s-prometheus-adapter#presentation) by k8s-prometheus adapter, but was deprecated in favor of explicit configuration and a configuration generator.
 
 It’s also possible to closely align with KEDA and share an external metrics API server for both pod and node autoscaling. This introduces a project alignment challenge, but it is not insurmountable. Even if this could work, it’s not a perfect solution, as there will continue to be compatibility issues with other Kubernetes metrics API implementations.
 
@@ -207,7 +207,7 @@ Prometheus is ubiquitous throughout the Kubernetes ecosystem. It was the second 
 
 There are a few drawbacks to diverging from the existing Kubernetes Metrics APIs. It forces divergence from the Horizontal Pod Autoscaler’s architecture (see next section), which may cause alignment challenges in the future. Kubernetes metrics APIs also come with RBAC support, but Prometheus does not have per-metric authorization. There are also tools like kubectl top which rely on the metrics API, but this command is specific to pod metrics and not useful for metrics used by node autoscaling.
 
-Direct Prometheus integration appears to be the best option. It avoids compatibility issues with other metrics providers. Generic metrics API adapters like k8s-prometheus-adapter create a domain knowledge and configuration burden for customers. This decision has cascading effects to the rest of the design and should be considered very carefully. However, it is a two way door. The API can be flexible to arbitrary metrics stacks, including non-Prometheus alternatives. Prometheus will be considered a soft dependency; it will serve as our reference metrics implementation for Karpenter’s MVP.
+Direct Prometheus integration appears to be the best option. It avoids compatibility issues with other metrics providers. Generic metrics API adapters like k8s-prometheus-adapter create a domain knowledge and configuration burden for users. This decision has cascading effects to the rest of the design and should be considered very carefully. However, it is a two way door. The API can be flexible to arbitrary metrics stacks, including non-Prometheus alternatives. Prometheus will be considered a soft dependency; it will serve as our reference metrics implementation for Karpenter’s MVP.
 
 ### Alignment with the Horizontal Pod Autoscaler API
 
@@ -215,7 +215,7 @@ Is it possible or worthwhile to align with the Horizontal Pod Autoscaler?
 
 The Horizontal Pod Autoscaler (HPA) is a metrics driven pod autoscaling solution in upstream Kubernetes. It’s maintained by SIG Autoscaling and is the canonical solution for the Kubernetes community. Its API has undergone significant changes as Kubernetes has evolved. It initially provided support for scaling a deployment against the average CPU of its Pods, but has since expanded its flexibility in the [v2beta2 API](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec) to support arbitrary resource targets and custom metrics. It can target any Kubernetes resource that implements the [scale subresource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#subresources). Today, the existing HPA API is even able to target a Kubernetes resource representing a node group; the only gap is to implement metrics for the domain of node autoscaling.
 
-Unified autoscaling is a powerful concept, as it means that the same implementation can be shared for all autoscaled resources within a cluster. We want to avoid forcing premature alignment, but as long as it doesn’t compromise the design, there is value in keeping these interfaces as similar as possible. Customers need only learn a single architecture for autoscaling, reducing complexity and cognitive load.
+Unified autoscaling is a powerful concept, as it means that the same implementation can be shared for all autoscaled resources within a cluster. We want to avoid forcing premature alignment, but as long as it doesn’t compromise the design, there is value in keeping these interfaces as similar as possible. Users need only learn a single architecture for autoscaling, reducing complexity and cognitive load.
 
 There are a couple drawbacks to using the HPA’s API directly. The most obvious is the name, which would be more aptly called HorizontalAutoscaler. Most of its abstractions extend cleanly to Node Groups (e.g. [ScaleTargetRef](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec), [MetricTarget](https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricTarget), [ScalingPolicy](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HPAScalingPolicy), [MinReplicas](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec), [MaxReplicas](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec), [Behavior](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerBehavior), [StabilizationWindowSeconds](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HPAScalingRules)). Others require slight adjustments (e.g. [ScalingPolicyType](https://godoc.org/k8s.io/api/autoscaling/v2beta2#HPAScalingPolicyType) needs to be tweaked to refer to “replicas” instead of “pods”). However, [MetricSpec](https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec) is specific to pods and requires changes if relied upon. MetricsSpec has four subfields corresponding to different metrics sources. [ResourceMetricSource](https://godoc.org/k8s.io/api/autoscaling/v2beta2#ResourceMetricSource), which uses the [Resource Metrics API](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/instrumentation/resource-metrics-api.md) and provides CPU and memory for pods and nodes. [PodsMetricSource](https://godoc.org/k8s.io/api/autoscaling/v2beta2#PodsMetricSource), which is syntactic sugar for [ObjectMetricSource](https://godoc.org/k8s.io/api/autoscaling/v2beta2#ObjectMetricSource), each of which each retrieve metrics from the [Custom Metrics API](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/instrumentation/custom-metrics-api.md). [ExternalMetricSource](https://godoc.org/k8s.io/api/autoscaling/v2beta2#ExternalMetricSource), which uses the [External Metrics API](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/instrumentation/external-metrics-api.md) to map metric name and namespace to an external object like an AWS SQS Queue.
 
@@ -223,7 +223,7 @@ One approach would be to use the MetricsSpec and its four sources as-is. This re
 
 Another option would be use ObjectMetricsSpec and ExternalMetricsSpec and omit pod-specific metrics APIs. This generically covers metrics for both in-cluster and external objects (i.e.  custom.metrics.k8s.io and external.metrics.k8s.io). This approach is cleaner from the perspective of a node autoscaler, but makes future alignment with the HPA more challenging. Pod metrics could still specified, but this removes the syntactic sugar that simplifies the most common use cases for pod autoscaling.
 
-If we choose to integrate directly with Prometheus metrics (discussed above), there will need to be a new option in the MetricsSpec to specify it as a metrics source (e.g PrometheusMetricSource). Customers would specify a [promql query](https://prometheus.io/docs/prometheus/latest/querying/basics/) to retrieve the metric. The decision to create a PrometheusMetricSource is orthogonal from whether or not we keep existing HPA metrics sources. Either way requires changes to the MetricsSpec; Prometheus support can be built alongside or replace existing metrics sources.
+If we choose to integrate directly with Prometheus metrics (discussed above), there will need to be a new option in the MetricsSpec to specify it as a metrics source (e.g PrometheusMetricSource). Users would specify a [promql query](https://prometheus.io/docs/prometheus/latest/querying/basics/) to retrieve the metric. The decision to create a PrometheusMetricSource is orthogonal from whether or not we keep existing HPA metrics sources. Either way requires changes to the MetricsSpec; Prometheus support can be built alongside or replace existing metrics sources.
 
 We could also completely diverge from the HPA and start with a minimal autoscaler definition that covers initial node autoscaling use cases. This avoids premature abstraction of a generic autoscaling definition. However, we’re cautious to start from scratch, as it presumes we can design autoscaling APIs better than the HPA. It also makes alignment more challenging in the future.
 
@@ -239,7 +239,7 @@ A more advanced algorithm called [Proportional Integral Derivative](https://en.w
 
 Predictive autoscaling is an experimental field that leverages machine learning to make scale decisions. This approach is used at [Netflix](https://netflixtechblog.com/scryer-netflixs-predictive-auto-scaling-engine-part-2-bb9c4f9b9385) to learn periodic traffic patterns by analyzing metrics like request per second. Theoretically, deep learning could be used in combination with a rich cluster metrics dataset (e.g. Prometheus) to produce high accuracy black box scale decisions.
 
-The question of which algorithm to use is difficult to answer without deep research and experimentation with real customer workloads. Rather than staking a claim on any particular algorithm, we will leave the door open to iterate and improve options and the default for Karpenter’s autoscaling algorithm. We will initially implement a proportional algorithm.
+The question of which algorithm to use is difficult to answer without deep research and experimentation with real user workloads. Rather than staking a claim on any particular algorithm, we will leave the door open to iterate and improve options and the default for Karpenter’s autoscaling algorithm. We will initially implement a proportional algorithm.
 
 ## APIs
 
@@ -299,7 +299,7 @@ spec:
 
 The decision to use the HPA’s scaleTargetRef concept creates two requirements for this resource. The API must represent a node group and must implement the [scale subresource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#subresources). The only responsibility of this resource is to control the replicas field, but this doesn’t preclude targeting a resource that is a full representation of the node group. There currently isn’t a Kubernetes native resource for node group, but there are a number of kubernetes ecosystem projects that model that node groups including [Kops Instance Groups](https://kops.sigs.k8s.io/tutorial/working-with-instancegroups/), [Cluster API Machine Pool](https://github.com/kubernetes-sigs/cluster-api/blob/master/docs/proposals/20190919-machinepool-api.md), [Amazon Controllers for Kubernetes (asg implementation tbd)](https://aws.amazon.com/blogs/containers/aws-controllers-for-kubernetes-ack/), [Anthos Config Management (node pool implementation tbd)](https://cloud.google.com/anthos-config-management/docs/overview), and others.
 
-The Horizontal Autoscaler API is flexible to any and all of these options. However, many Kubernetes customers don’t rely on one of these mechanisms for node group management, instead relying on cloud provider specific abstractions (e.g. ASG). Therefore, we will introduce a resource that can be optionally targeted by HorizontalAutoscaler’s scaleTargetRef for users who don’t have a KRM node group concept. This is a stop gap until other node group representations become more widespread. This object will follow a cloud provider model to provide implementations for different cloud provider solutions such as EKS Managed Node Groups, EC2 Auto Scaling Groups, and others. The only field supported by this resource is replicas, leaving management responsibilities like upgrade up to some other controller.
+The Horizontal Autoscaler API is flexible to any and all of these options. However, many Kubernetes users don’t rely on one of these mechanisms for node group management, instead relying on cloud provider specific abstractions (e.g. ASG). Therefore, we will introduce a resource that can be optionally targeted by HorizontalAutoscaler’s scaleTargetRef for users who don’t have a KRM node group concept. This is a stop gap until other node group representations become more widespread. This object will follow a cloud provider model to provide implementations for different cloud provider solutions such as EKS Managed Node Groups, EC2 Auto Scaling Groups, and others. The only field supported by this resource is replicas, leaving management responsibilities like upgrade up to some other controller.
 
 ```
 apiVersion: karpenter.sh/v1alpha1
@@ -321,7 +321,7 @@ Capacity reservation is perhaps the most straightforward approach to node autosc
 
 Karpenter can automatically output capacity reservation metrics as they’re cheap to compute. This creates a zero-config starting point for users. As user requirements become more complex, capacity reservations can be used in conjunction with other signals. For example, capacity reservations can be used to drive scale down, while scale up is driven by pending pods. This mimics the Kubernetes Cluster Autoscaler’s algorithm.
 
-Customers will be able to configure this as follows:
+Users will be able to configure this as follows:
 
 ### Percentage overprovisioning
 
@@ -414,9 +414,9 @@ prometheus:
 
 ### Preemptable Nodes
 
-Metrics driven autoscaling supports preemptable node architectures like AWS Spot. It’s incorrect to state that all metrics producers work flawlessly with preemptable nodes, but Karpenter’s flexibility gives customers the ability to apply preemption optimized metrics to preemptable node groups.
+Metrics driven autoscaling supports preemptable node architectures like AWS Spot. It’s incorrect to state that all metrics producers work flawlessly with preemptable nodes, but Karpenter’s flexibility gives users the ability to apply preemption optimized metrics to preemptable node groups.
 
-Preemptable nodes introduce new requirements; capacity is unavailable more frequently, and it can be be reclaimed by the cloud provider at any time. In autoscaling terms, this results in two cases: failure to scale up and forced scale down. A common solution to mitigate these problems is to rely on multiple preemptable instance types; if one becomes unavailable or removed, the autoscaler can scale up a new instance type that is available. Autoscaling algorithms require that instance types in the same node group are of the same shape (https://aws.github.io/aws-eks-best-practices/cluster-autoscaling/#configuring-your-node-groups) (CPU, memory, etc). This limits the number of instance types that can be used in any given group, increasing the likelihood of insufficient capacity errors. Customers combat this by creating multiple preemptable node groups, each of a different shape.
+Preemptable nodes introduce new requirements; capacity is unavailable more frequently, and it can be be reclaimed by the cloud provider at any time. In autoscaling terms, this results in two cases: failure to scale up and forced scale down. A common solution to mitigate these problems is to rely on multiple preemptable instance types; if one becomes unavailable or removed, the autoscaler can scale up a new instance type that is available. Autoscaling algorithms require that instance types in the same node group are of the same shape (https://aws.github.io/aws-eks-best-practices/cluster-autoscaling/#configuring-your-node-groups) (CPU, memory, etc). This limits the number of instance types that can be used in any given group, increasing the likelihood of insufficient capacity errors. Users combat this by creating multiple preemptable node groups, each of a different shape.
 
 One way to coordinate scaling across multiple node groups is to let the scheduler drive pod placement and use a capacity reservation metric for each node group. The horizontal autoscalers for each node group are not aware of each other, but they are aware of the pods that the scheduler has assigned to their nodes. As the scheduler adds pods to nodes, the corresponding node group will expand to maintain its reservation. If capacity for any node group becomes unavailable, the node group will fill up until the scheduler is forced to schedule elsewhere. This will gracefully fall back to node groups that have capacity and will continue to scale based off of their reservation metrics.
 
@@ -470,11 +470,11 @@ Namespacing the HorizontalAutoscaler is nuanced. If we aspire to a global autosc
 
 The Node resource is not namespaced, so it might make sense to do the same for ScalableNodeGroup. Multiple ScalableNodeGroups pointing to the same cloud provider node group will result in undesired behavior. This could still happen if multiple conflicting resources were applied to the same namespace, but this scenario is much less likely. Given that MetricsProducer and HorizontalAutoscaler are both namespaced, it will provide a more intuitive user experience to namespace all three resources.
 
-### Q: Should customers be able to apply multiple HorizontalAutoscaler configurations to the same scaleTargetRef?
+### Q: Should users be able to apply multiple HorizontalAutoscaler configurations to the same scaleTargetRef?
 
 The Horizontal Autoscaler API has a []metrics field that lets users pass in multiple metrics. This allows users to specify an OR semantic to scale off of multiple signals. What about multiple Horizontal Autoscaler resources pointing to the same scaleTargetRef? For the HorizontalPodAutoscaler, this results in undesired behavior. For HorizontalAutoscaler, it’s possible to extend the OR semantic across multiple resources. The benefit would be that multiple application developers sharing a node group could scale the node group off of separate policies without being aware of each other.
 
-It’s not clear whether or not this is an intuitive user experience. It’s arguable that this will lead to more confusion and questions of “why did my node group scale unexpectedly?”. We will await customer requests for this feature before considering it further.
+It’s not clear whether or not this is an intuitive user experience. It’s arguable that this will lead to more confusion and questions of “why did my node group scale unexpectedly?”. We will await user requests for this feature before considering it further.
 
 ### Q: How can we make sure that Karpenter is horizontally scalable?
 
