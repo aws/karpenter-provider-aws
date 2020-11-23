@@ -1,5 +1,7 @@
 approvers:
   - ellistarn
   - JacobGabrielson
-  - prateekgogia
   - tabern
+reviewers:
+  - prateekgogia
+  - njtran
