@@ -56,82 +56,70 @@ var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
 	var desiredReplicas = ptr.Int32(5)
 	var dummyMessage = "test message"
-	var nodeGroupObject *fake.NodeGroup
 	var sng *v1alpha1.ScalableNodeGroup
-	var ng cloudprovider.NodeGroup
-	var defaultNodeGroupObject fake.NodeGroup
 
 	BeforeEach(func() {
 		var err error
-		sng = &v1alpha1.ScalableNodeGroup{}
-		ng = fakeController.CloudProvider.NodeGroupFor(&sng.Spec)
-		defaultNodeGroupObject = *ng.(*fake.NodeGroup)
 		ns, err = env.NewNamespace()
 		Expect(err).NotTo(HaveOccurred())
+		sng = &v1alpha1.ScalableNodeGroup{}
+		fakeCloudProvider.NodeGroupStable = true
+		fakeCloudProvider.NodeGroupMessage = ""
+		fakeCloudProvider.WantErr = nil
 		sng.Spec.Replicas = desiredReplicas
-		nodeGroupObject = ng.(*fake.NodeGroup)
-	})
-
-	AfterEach(func() {
-		nodeGroupObject.Stable = defaultNodeGroupObject.Stable
-		nodeGroupObject.Message = defaultNodeGroupObject.Message
-		nodeGroupObject.WantErr = defaultNodeGroupObject.WantErr
-		sng.Spec.Replicas = desiredReplicas
-		ng = fakeController.CloudProvider.NodeGroupFor(&sng.Spec)
+		sng.Spec.ID = "dummyID"
+		fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(0)
 	})
 
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
 			Expect(ns.ParseResources("docs/examples/reserved-capacity-utilization.yaml", sng)).To(Succeed())
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(*sng.Spec.Replicas)
 			ExpectCreated(ns.Client, sng)
 			ExpectEventuallyHappy(ns.Client, sng)
 			ExpectDeleted(ns.Client, sng)
 		})
 	})
 
-	Context("Basic ScalableNodeGroup Reconcile tests", func() {
+	Context("ScalableNodeGroup Reconcile tests", func() {
 		It("Test reconciler to scale up nodes", func() {
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(desiredReplicas))
 		})
 
 		It("Test reconciler to scale down nodes", func() {
-			Expect(ng.SetReplicas(10)).To(Succeed()) // set existing replicas higher than desired
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(10) // set existing replicas higher than desired
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(desiredReplicas))
 		})
 
 		It("Test reconciler to make no change to node count", func() {
-			Expect(ng.SetReplicas(*desiredReplicas)).To(Succeed()) // set existing replicas equal to desired
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = desiredReplicas // set existing replicas equal to desired
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(desiredReplicas))
 		})
-	})
 
-	Context("Advanced ScalableNodeGroup Reconcile tests", func() {
 		It("Scale up nodes when not node group is stabilized and check status condition", func() {
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(desiredReplicas))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsTrue()).To(Equal(true))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(""))
 		})
 
 		It("Scale up nodes when not node group is NOT stabilized and check status condition", func() {
-			nodeGroupObject.Stable = false
-			nodeGroupObject.Message = dummyMessage
+			fakeCloudProvider.NodeGroupStable = false
+			fakeCloudProvider.NodeGroupMessage = dummyMessage
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			Expect(ng.GetReplicas()).To(Equal(*desiredReplicas))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(desiredReplicas))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsFalse()).To(Equal(true))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(dummyMessage))
 		})
 
 		It("Retryable error while reconciling", func() {
-			nodeGroupObject.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
-			existingReplicas, _ := ng.GetReplicas()
+			fakeCloudProvider.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
+			existingReplicas := fakeCloudProvider.NodeReplicas[sng.Spec.ID]
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
-			replicas, err := ng.GetReplicas()
-			Expect(replicas).To(Equal(existingReplicas))
-			Expect(err).To(Equal(fake.RetryableError(fmt.Errorf(dummyMessage))))
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(existingReplicas))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).IsFalse()).To(Equal(true))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).Message).To(Equal(dummyMessage))
 		})

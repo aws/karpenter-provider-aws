@@ -19,7 +19,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"knative.dev/pkg/ptr"
 )
 
 var (
@@ -29,14 +28,15 @@ var (
 type Factory struct {
 	WantErr error
 	// NodeReplicas is use by tests to control observed replicas.
-	NodeReplicas map[string]int32
-
-	nodegroup *NodeGroup
+	NodeReplicas     map[string]*int32
+	NodeGroupStable  bool
+	NodeGroupMessage string
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	return &Factory{
-		NodeReplicas: make(map[string]int32),
+		NodeReplicas:    make(map[string]*int32),
+		NodeGroupStable: true,
 	}
 }
 
@@ -45,14 +45,12 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	if f.nodegroup == nil {
-		f.nodegroup = &NodeGroup{
-			WantErr:  f.WantErr,
-			Stable:   true,
-			Replicas: ptr.Int32(f.NodeReplicas[sng.ID]),
-		}
+	return &NodeGroup{
+		WantErr:  f.WantErr,
+		Stable:   f.NodeGroupStable,
+		Message:  f.NodeGroupMessage,
+		Replicas: f.NodeReplicas[sng.ID],
 	}
-	return f.nodegroup
 }
 
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
