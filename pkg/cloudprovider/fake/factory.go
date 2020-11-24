@@ -27,7 +27,7 @@ var (
 
 type Factory struct {
 	WantErr error
-	// NodeReplicas is use by tests to control observed replicas.
+	// NodeReplicas is used by tests to control observed replicas.
 	NodeReplicas     map[string]*int32
 	NodeGroupStable  bool
 	NodeGroupMessage string
