@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"testing"
 
 	v1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -38,9 +39,9 @@ func TestAPIs(t *testing.T) {
 }
 
 var fakeCloudProvider = fake.NewFactory(cloudprovider.Options{})
-
+var fakeController = &Controller{CloudProvider: fakeCloudProvider}
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
-	e.Manager.Register(&Controller{CloudProvider: fakeCloudProvider})
+	e.Manager.Register(fakeController)
 })
 
 var _ = BeforeSuite(func() {
@@ -53,6 +54,8 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Examples", func() {
 	var ns *environment.Namespace
+	var defaultReplicaCount = int32(3)
+
 	var sng *v1alpha1.ScalableNodeGroup
 
 	BeforeEach(func() {
@@ -60,17 +63,63 @@ var _ = Describe("Examples", func() {
 		ns, err = env.NewNamespace()
 		Expect(err).NotTo(HaveOccurred())
 		sng = &v1alpha1.ScalableNodeGroup{}
+		fakeCloudProvider.NodeGroupStable = true
+		fakeCloudProvider.WantErr = nil
+		sng.Spec.Replicas = &defaultReplicaCount
+		fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(0)
 	})
 
 	Context("ScalableNodeGroup", func() {
 		It("should be created", func() {
 			Expect(ns.ParseResources("docs/examples/reserved-capacity-utilization.yaml", sng)).To(Succeed())
-			sng.Spec.Replicas = ptr.Int32(5)
-
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(*sng.Spec.Replicas)
 			ExpectCreated(ns.Client, sng)
 			ExpectEventuallyHappy(ns.Client, sng)
-
 			ExpectDeleted(ns.Client, sng)
 		})
+	})
+
+	Context("ScalableNodeGroup Reconcile tests", func() {
+		It("Test reconciler to scale up nodes", func() {
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
+		})
+
+		It("Test reconciler to scale down nodes", func() {
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(10) // set existing replicas higher than desired
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
+		})
+
+		It("Test reconciler to make no change to node count", func() {
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = &defaultReplicaCount // set existing replicas equal to desired
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
+		})
+
+		It("Scale up nodes when not node group is stabilized and check status condition", func() {
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsTrue()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(""))
+		})
+
+		It("Scale up nodes when not node group is NOT stabilized and check status condition", func() {
+			fakeCloudProvider.NodeGroupStable = false
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsFalse()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(fake.NodeGroupMessage))
+		})
+
+		It("Retryable error while reconciling", func() {
+			fakeCloudProvider.WantErr = fake.RetryableError(fmt.Errorf(fake.NodeGroupMessage)) // retryable error
+			existingReplicas := fakeCloudProvider.NodeReplicas[sng.Spec.ID]
+			Expect(fakeController.Reconcile(sng)).To(Succeed())
+			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(existingReplicas))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).IsFalse()).To(Equal(true))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).Message).To(Equal(fake.NodeGroupMessage))
+		})
+
 	})
 })

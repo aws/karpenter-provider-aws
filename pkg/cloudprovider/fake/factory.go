@@ -19,22 +19,27 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"knative.dev/pkg/ptr"
 )
 
 var (
 	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
 )
 
+const (
+	NodeGroupMessage = "fake factory message"
+)
+
 type Factory struct {
 	WantErr error
-	// NodeReplicas is use by tests to control observed replicas.
-	NodeReplicas map[string]int32
+	// NodeReplicas is used by tests to control observed replicas.
+	NodeReplicas    map[string]*int32
+	NodeGroupStable bool
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	return &Factory{
-		NodeReplicas: make(map[string]int32),
+		NodeReplicas:    make(map[string]*int32),
+		NodeGroupStable: true,
 	}
 }
 
@@ -43,9 +48,15 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
+	msg := ""
+	if !f.NodeGroupStable {
+		msg = NodeGroupMessage
+	}
 	return &NodeGroup{
 		WantErr:  f.WantErr,
-		Replicas: ptr.Int32(f.NodeReplicas[sng.ID]),
+		Stable:   f.NodeGroupStable,
+		Message:  msg,
+		Replicas: f.NodeReplicas[sng.ID],
 	}
 }
 

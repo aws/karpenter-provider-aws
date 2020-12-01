@@ -91,7 +91,7 @@ var _ = Describe("Examples", func() {
 		It("should scale to average utilization target, metric=85, target=60, replicas=5, want=8", func() {
 			Expect(ns.ParseResources("docs/examples/reserved-capacity-utilization.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(5)
-			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(*sng.Spec.Replicas) // create a new pointer to avoid races with the controller
 			MockMetricValue(fakeServer, .85)
 
 			ExpectCreated(ns.Client, sng, ha)
@@ -105,7 +105,7 @@ var _ = Describe("Examples", func() {
 		It("should scale to average value target, metric=41, target=4, want=11", func() {
 			Expect(ns.ParseResources("docs/examples/queue-length-average-value.yaml", ha, sng)).To(Succeed())
 			sng.Spec.Replicas = ptr.Int32(1)
-			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = *sng.Spec.Replicas
+			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(*sng.Spec.Replicas) // create a new pointer to avoid races with the controller
 			MockMetricValue(fakeServer, 41)
 
 			ExpectCreated(ns.Client, sng, ha)
