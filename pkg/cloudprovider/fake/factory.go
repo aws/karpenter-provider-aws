@@ -25,12 +25,15 @@ var (
 	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
 )
 
+const (
+	NodeGroupMessage = "fake factory message"
+)
+
 type Factory struct {
 	WantErr error
 	// NodeReplicas is used by tests to control observed replicas.
-	NodeReplicas     map[string]*int32
-	NodeGroupStable  bool
-	NodeGroupMessage string
+	NodeReplicas    map[string]*int32
+	NodeGroupStable bool
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
@@ -45,10 +48,14 @@ func NewNotImplementedFactory() *Factory {
 }
 
 func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
+	msg := ""
+	if !f.NodeGroupStable {
+		msg = NodeGroupMessage
+	}
 	return &NodeGroup{
 		WantErr:  f.WantErr,
 		Stable:   f.NodeGroupStable,
-		Message:  f.NodeGroupMessage,
+		Message:  msg,
 		Replicas: f.NodeReplicas[sng.ID],
 	}
 }

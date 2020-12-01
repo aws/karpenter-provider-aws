@@ -64,7 +64,6 @@ var _ = Describe("Examples", func() {
 		Expect(err).NotTo(HaveOccurred())
 		sng = &v1alpha1.ScalableNodeGroup{}
 		fakeCloudProvider.NodeGroupStable = true
-		fakeCloudProvider.NodeGroupMessage = ""
 		fakeCloudProvider.WantErr = nil
 		sng.Spec.Replicas = &defaultReplicaCount
 		fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(0)
@@ -106,23 +105,20 @@ var _ = Describe("Examples", func() {
 		})
 
 		It("Scale up nodes when not node group is NOT stabilized and check status condition", func() {
-			var dummyMessage = "test message"
 			fakeCloudProvider.NodeGroupStable = false
-			fakeCloudProvider.NodeGroupMessage = dummyMessage
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			Expect(*fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(defaultReplicaCount))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).IsFalse()).To(Equal(true))
-			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(dummyMessage))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.Stabilized).Message).To(Equal(fake.NodeGroupMessage))
 		})
 
 		It("Retryable error while reconciling", func() {
-			var dummyMessage = "test message"
-			fakeCloudProvider.WantErr = fake.RetryableError(fmt.Errorf(dummyMessage)) // retryable error
+			fakeCloudProvider.WantErr = fake.RetryableError(fmt.Errorf(fake.NodeGroupMessage)) // retryable error
 			existingReplicas := fakeCloudProvider.NodeReplicas[sng.Spec.ID]
 			Expect(fakeController.Reconcile(sng)).To(Succeed())
 			Expect(fakeCloudProvider.NodeReplicas[sng.Spec.ID]).To(Equal(existingReplicas))
 			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).IsFalse()).To(Equal(true))
-			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).Message).To(Equal(dummyMessage))
+			Expect(sng.StatusConditions().GetCondition(v1alpha1.AbleToScale).Message).To(Equal(fake.NodeGroupMessage))
 		})
 
 	})
