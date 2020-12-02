@@ -72,14 +72,14 @@ For local development on Karpenter you will need a Docker repo which can manage 
 You can use the following command to provision an ECR repository.
 ```
 aws ecr create-repository \
-    --repository-name karpenter \
+    --repository-name karpenter/controller \
     --image-scanning-configuration scanOnPush=true \
-    --region ${REGION}
+    --region ${AWS_DEFAULT_REGION}
 ```
 
 Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.
 
 ```
-export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
 ```
