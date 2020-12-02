@@ -25,7 +25,7 @@ Follow the setup recommendations of your cloud provider.
 Then install the controller.
 ```
 CLOUD_PROVIDER=aws
-VERSION=v0.1.0
+VERSION=v0.1.1
 kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/main/releases/${CLOUD_PROVIDER}/${VERSION}.yaml
 ```
 
