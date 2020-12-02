@@ -64,7 +64,7 @@ func (c *Controller) reconcile(resource *v1alpha1.ScalableNodeGroup) error {
 	if err != nil {
 		return fmt.Errorf("unable to get replica count for node group %v, %w", resource.Spec.ID, err)
 	}
-	resource.Status.Replicas = observedReplicas
+	resource.Status.Replicas = &observedReplicas
 
 	// Set desired replicas if different that current.
 	if resource.Spec.Replicas == nil || *resource.Spec.Replicas == observedReplicas {

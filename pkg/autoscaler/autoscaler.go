@@ -90,7 +90,7 @@ func (a *Autoscaler) Reconcile() error {
 	if err != nil {
 		return err
 	}
-	a.Status.CurrentReplicas = scaleTarget.Status.Replicas
+	a.Status.CurrentReplicas = &scaleTarget.Status.Replicas
 
 	// 3. Calculate desired replicas using metrics and current desired replicas
 	desiredReplicas := a.getDesiredReplicas(metrics, scaleTarget)
@@ -107,7 +107,7 @@ func (a *Autoscaler) Reconcile() error {
 	zap.S().With(zap.String("existing", fmt.Sprintf("%d", existingReplicas))).
 		With(zap.String("desired", fmt.Sprintf("%d", desiredReplicas))).
 		Info("Autoscaler scaled replicas count")
-	a.Status.DesiredReplicas = scaleTarget.Spec.Replicas
+	a.Status.DesiredReplicas = &scaleTarget.Spec.Replicas
 	a.Status.LastScaleTime = &apis.VolatileTime{Inner: metav1.Now()}
 	return nil
 }
