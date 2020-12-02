@@ -1,0 +1,13 @@
+apiVersion: v1
+entries:
+  karpenter:
+  - apiVersion: v2
+    created: "2020-12-02T13:35:39.25587-08:00"
+    description: A Helm chart for https://github.com/awslabs/karpenter/.
+    digest: 29b1d19fb62cde718e4e23ec09c50b7920d994aaad5effe1993af0cb812ffcce
+    name: karpenter
+    type: application
+    urls:
+    - karpenter-v0.1.1.tgz
+    version: v0.1.1
+generated: "2020-12-02T13:35:39.254608-08:00"

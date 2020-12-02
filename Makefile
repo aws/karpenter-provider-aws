@@ -1,6 +1,8 @@
 GOFLAGS ?= "-tags=${CLOUD_PROVIDER}"
+
 RELEASE_REPO ?= public.ecr.aws/b6u6q9h4
 RELEASE_VERSION ?= v0.1.1
+RELEASE_MANIFEST = releases/${CLOUD_PROVIDER}/manifest.yaml
 
 WITH_GOFLAGS = GOFLAGS=${GOFLAGS}
 WITH_RELEASE_REPO = KO_DOCKER_REPO=${RELEASE_REPO}
@@ -8,9 +10,11 @@ WITH_RELEASE_REPO = KO_DOCKER_REPO=${RELEASE_REPO}
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-all: generate verify test ## Run all steps in the developer loop
+dev: codegen verify test ## Run all steps in the developer loop
 
-ci: generate verify battletest ## Run all steps used by continuous integration
+ci: codegen verify battletest ## Run all steps used by continuous integration
+
+release: publish helm docs ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -31,7 +35,7 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go fmt ./...
 	golangci-lint run
 
-generate: ## Generate code. Must be run if changes are made to ./pkg/apis/...
+codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
 		webhook \
@@ -57,10 +61,13 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 delete: ## Delete the controller from your ~/.kube/config cluster
 	kubectl kustomize config | ko delete -f -
 
-release: ## Publish a versioned container image to $KO_DOCKER_REPO/karpenter and generate release manifests.
-	kubectl kustomize config \
-		| $(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - \
-		> releases/${CLOUD_PROVIDER}/$(RELEASE_VERSION).yaml
+publish: ## Generate release manifests and publish a versioned container image.
+	kubectl kustomize config | $(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > $(RELEASE_MANIFEST)
+
+helm: ## Generate Helm Chart
+	cp $(RELEASE_MANIFEST) charts/karpenter/templates
+	yq w -i charts/karpenter/Chart.yaml version $(RELEASE_VERSION)
+	cd charts; helm package karpenter; helm repo index .
 
 docs: ## Generate Docs
 	gen-crd-api-reference-docs \
@@ -72,4 +79,4 @@ docs: ## Generate Docs
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help all ci test release run apply delete verify generate docs toolchain
+.PHONY: help dev ci release test battletest verify codegen apply delete publish helm docs toolchain

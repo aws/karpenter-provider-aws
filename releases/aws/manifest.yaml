@@ -922,7 +922,7 @@ spec:
         control-plane: karpenter
     spec:
       containers:
-        - image: public.ecr.aws/b6u6q9h4/karpenter:v0.1.0@sha256:3382343767e6f98bf6cfc2ba45b361597ec58f27169959d35cb36016e43e9c2e
+        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.1@sha256:6a5c82cb34bbd6f714145cdfe7c14ac28404a00b56eec9b746ac61eeb3a6d6a8
           name: manager
           ports:
             - containerPort: 9443
@@ -949,7 +949,7 @@ spec:
             defaultMode: 420
             secretName: webhook-server-cert
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   labels:
@@ -965,7 +965,7 @@ spec:
     name: karpenter-selfsigned-issuer
   secretName: webhook-server-cert
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   labels:
