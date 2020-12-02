@@ -96,7 +96,7 @@ var _ = Describe("Examples", func() {
 
 			ExpectCreated(ns.Client, sng, ha)
 			ExpectEventuallyHappy(ns.Client, sng, ha)
-			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(8), log.Pretty(ha))
+			Expect(*ha.Status.DesiredReplicas).To(BeEquivalentTo(8), log.Pretty(ha))
 			ExpectDeleted(ns.Client, ha)
 		})
 	})
@@ -110,7 +110,7 @@ var _ = Describe("Examples", func() {
 
 			ExpectCreated(ns.Client, sng, ha)
 			ExpectEventuallyHappy(ns.Client, sng, ha)
-			Expect(ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))
+			Expect(*ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))
 			ExpectDeleted(ns.Client, ha)
 		})
 	})

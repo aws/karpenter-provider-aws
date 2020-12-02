@@ -28,11 +28,11 @@ type HorizontalAutoscalerStatus struct {
 	// CurrentReplicas is current number of replicas of pods managed by this
 	// autoscaler, as last seen by the autoscaler.
 	// +optional
-	CurrentReplicas int32 `json:"currentReplicas"`
+	CurrentReplicas *int32 `json:"currentReplicas"`
 	// DesiredReplicas is the desired number of replicas of pods managed by this
 	// autoscaler, as last calculated by the autoscaler.
 	// +optional
-	DesiredReplicas int32 `json:"desiredReplicas"`
+	DesiredReplicas *int32 `json:"desiredReplicas"`
 	// CurrentMetrics is the last read state of the metrics used by this
 	// autoscaler.
 	// +optional
