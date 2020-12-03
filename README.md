@@ -22,11 +22,20 @@ Karpenter defines three custom resources to configure autoscaling behavior.
 Follow the setup recommendations of your cloud provider.
 - [AWS](./docs/aws/README.md#installation)
 
-Then install the controller.
+### Quick Install - Controller + Dependencies
 ```
-CLOUD_PROVIDER=aws
-VERSION=v0.1.1
-kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/main/releases/${CLOUD_PROVIDER}/${VERSION}.yaml
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.1.1/hack/quick-install.sh)"
+```
+
+### Kubectl - Standalone
+```
+kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/v0.1.1/releases/aws/manifest.yaml
+```
+
+### Helm - Standalone
+```
+helm repo add karpenter https://awslabs.github.io/karpenter/charts
+helm install karpenter karpenter/karpenter
 ```
 
 ## Docs
