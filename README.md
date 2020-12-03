@@ -35,6 +35,7 @@ kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/v0.1.1/rele
 ### Helm - Standalone
 ```
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
+helm install karpenter karpenter/karpenter
 ```
 
 ## Docs
