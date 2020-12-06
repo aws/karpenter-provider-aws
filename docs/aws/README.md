@@ -48,7 +48,12 @@ EOM
 
 ### Associate the IAM Role with your Kubernetes Service Account
 These commands will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
+The operation depends on the karpenter namespace, which will be created if missing.
 ```
+if ! kubectl get namespaces -o json | jq -r ".items[].metadata.name" | grep karpenter; then
+  kubectl create namespace karpenter
+fi
+
 eksctl utils associate-iam-oidc-provider \
 --region ${REGION} \
 --cluster ${CLUSTER_NAME} \
