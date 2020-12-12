@@ -33,7 +33,7 @@ delete() {
   helm delete cert-manager --namespace cert-manager || true
   helm delete kube-prometheus-stack --namespace monitoring || true
 
-  kubectl delete namespace cert-manager monitoring || true #here
+  kubectl delete namespace cert-manager monitoring || true
 }
 
 # If this fails you may have an old installation hanging around.
