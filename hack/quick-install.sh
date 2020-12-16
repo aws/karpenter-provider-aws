@@ -4,15 +4,17 @@ set -eu -o pipefail
 main() {
   local command=${1:-'--apply'}
   if [[ $command = "--apply" ]]; then
+    echo "Installing Karpenter & dependencies.."
     apply
     echo "Installation complete!"
   elif [[ $command = "--delete" ]]; then
+    echo "Uninstalling Karpenter & dependencies.."
     delete
     echo "Uninstallation complete!"
   else
     echo "Error: invalid argument: $command" >&2
     usage
-    exit 22			# EINVAL
+    exit 22                     # EINVAL
   fi
 }
 
@@ -27,9 +29,9 @@ EOF
 }
 
 delete() {
+  helm delete karpenter || true
   helm delete cert-manager --namespace cert-manager || true
   helm delete kube-prometheus-stack --namespace monitoring || true
-  helm delete karpenter || true
 
   kubectl delete namespace cert-manager monitoring || true
 }
@@ -67,7 +69,7 @@ apply() {
     --set nodeExporter.enabled=false \
     --set prometheus.enabled=false
 
-  helm upgrade --install karpenter charts/karpenter
+  helm upgrade --install karpenter karpenter/karpenter
 }
 
 usage
