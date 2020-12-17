@@ -81,5 +81,5 @@ Once you have your ECR repository provisioned, configure your Docker daemon to a
 
 ```
 export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
+aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
 ```
