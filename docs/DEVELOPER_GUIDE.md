@@ -18,7 +18,7 @@ The following tools are required for doing development on Karpenter.
 Based on which environment you are running a Kubernetes cluster, follow the [Environment specific setup](##Environment-specific-setup) for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.
 
 ```
-make generate                    # Create auto-generated YAML files.
+make codegen                     # Create auto-generated YAML files.
 ./hack/quick-install.sh          # Install cluster dependencies and karpenter
 ./hack/quick-install.sh --delete # Clean everything up
 ```
@@ -26,7 +26,7 @@ make generate                    # Create auto-generated YAML files.
 ### Developer Loop
 
 * Make sure dependencies are installed
-    * Run `make generate` to make sure yaml manifests are generated
+    * Run `make codegen` to make sure yaml manifests are generated
     * Run `make toolchain` to install cli tools for building and testing the project
 * You will need a personal development image repository (e.g. ECR)
     * Make sure you have valid credentials to your development repository.
@@ -34,7 +34,7 @@ make generate                    # Create auto-generated YAML files.
     * Your cluster must have permissions to read from the repository
 * Make sure your cluster doesn't have previous installations of prometheus and cert-manager
   * Previous installations of our dependencies can interfere with our installation scripts, so to be safe, clear those, then run `./hack/quick-install.sh`
-* If running `./hack/quick-install.sh` fails with `Error: Accumulate Target`, run `make generate` successfully, and try again.
+* If running `./hack/quick-install.sh` fails with `Error: Accumulate Target`, run `make codegen` successfully, and try again.
 
 ### Build and Deploy
 ```
@@ -81,5 +81,5 @@ Once you have your ECR repository provisioned, configure your Docker daemon to a
 
 ```
 export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
+aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
 ```
