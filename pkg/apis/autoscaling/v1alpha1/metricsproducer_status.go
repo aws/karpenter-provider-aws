@@ -48,6 +48,17 @@ type QueueStatus struct {
 }
 
 type ScheduledCapacityStatus struct {
+	// The time the CurrentRecommendation's schedule matched
+	LastChangeTime *apis.VolatileTime `json:"lastChangeTime,omitempty"`
+
+	// The current recommendation - the metric the MP is emitting
+	CurrentRecommendation *int32 `json:"currentRecommendation,omitempty"`
+
+	// The time the NextRecommendation's schedule will match
+	NextChangeTime *apis.VolatileTime `json:"nextChangeTime,omitempty"`
+
+	// The replicas that the next scale time will change to
+	NextRecommendation *int32 `json:"nextRecommendation,omitempty"`
 }
 
 // We use knative's libraries for ConditionSets to manage status conditions.

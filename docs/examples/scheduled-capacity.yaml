@@ -1,0 +1,43 @@
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: MetricsProducer
+metadata:
+  name: scheduling
+spec:
+  scheduledCapacity:
+    schedules:
+      - startTime: "2020-01-01T13:00:00-08:00" # January 1st 2020 1:00 PM PST
+        endTime: "2020-01-30T02:25:00-08:00" # January 30th 2020 2:25 AM PST
+        states:
+          - crontab: "0 9 * * *" # Every day of the month 9 AM
+            replicas: 10
+          - crontab: "0 17 * * *" # Every day of the month at 5 PM
+            replicas: 5
+          - crontab: "0 12 * * 1-5" # Every weekday of the month at 12 PM (Noon)
+            replicas: 15
+---
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: HorizontalAutoscaler
+metadata:
+  name: microservices
+spec:
+  scaleTargetRef:
+    apiVersion: autoscaling.karpenter.sh/v1alpha1
+    kind: ScalableNodeGroup
+    name: microservices
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - prometheus:
+        query: karpenter_scheduled_capacity_test{name="microservices"}
+        target:
+          type: AverageValue
+          value: 1
+---
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: ScalableNodeGroup
+metadata:
+  name: microservices
+spec:
+  replicas: 1
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:177544064073:nodegroup/nichotr-dev/default/14bafe3a-970a-5616-d882-8d9da33aab9f

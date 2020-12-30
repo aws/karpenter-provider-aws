@@ -47,14 +47,21 @@ type PendingCapacitySpec struct {
 }
 
 type ScheduledCapacitySpec struct {
-	// NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
-	NodeSelector map[string]string `json:"nodeSelector"`
-	// Behaviors may be layered to achieve complex scheduling autoscaling logic
-	Behaviors []ScheduledBehavior `json:"behaviors"`
+	Schedules []Schedule `json:"schedules"`
 }
 
-// ScheduledBehavior defines a crontab which sets the metric to a specific replica value on a schedule.
-type ScheduledBehavior struct {
+// Schedule defines a range of valid time for a list of states.
+type Schedule struct {
+	States    []State `json:"states"`
+	StartTime string  `json:"startTime,omitempty"`
+	EndTime   string  `json:"endTime,omitempty"`
+	// TODO add in time zone functionality
+	//TimeZone  string  `json:"timeZone,omitempty"`
+}
+
+// State defines a crontab which specifies when to set
+// the metric to a specific replica value.
+type State struct {
 	Crontab  string `json:"crontab"`
 	Replicas int32  `json:"replicas"`
 }
