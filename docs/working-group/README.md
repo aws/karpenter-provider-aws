@@ -10,6 +10,46 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting Notes (01/12/2021)
+
+## Attendees:
+- Ellis Tarn
+- Jacob Gabrielson
+- Subhrangshu Kumar Sarkar
+- Prateek Gogia
+- Micah Hausler
+- Viji Sarathy
+- Shreyas Srinivasan
+- Jeremy Cowan
+- Guy Templeton
+
+## Discussions
+- [Ellis] What are some common use cases for horizontal autoscaling like node auto-scaling?
+    - We have 2 metrics producer so far, SQS queue and utilization.
+    - Two are in pipeline, cron scheduling and pending pod metrics producers.
+- [Jeremy] Have we looked at predictive scaling, analysing metrics overtime and scaling based on history?
+    - [Ellis] We are a little far from that, no work started on that yet
+- [Viji] How can we pull cloudwatch metrics to Karpenter?
+    - [Ellis] We could have a cloud provider model to start with, to add cloudwatch support in horizontal autoscaler
+    - Other way would be external metrics API, you get one per cluster, creates problems within the ecosystem.
+    - [Viji] CP model pulls the metrics from the cloudwatch APIs and puts in the autoscaler?
+        - [Ellis] User would add info in the karpenter spec and an AWS client will try to load the metrics.
+        - External metrics API is easy, user has to figure how to configure with cloudwatch API.
+        - Universal metrics adapter supporting all the providers and prometheus.
+- [Guy] Reg. external metrics API, there is a [proposal](https://github.com/kubernetes-sigs/custom-metrics-apiserver/issues/70) open in the community
+    - Custom cloud provider over gRPC [proposal](https://github.com/kubernetes/autoscaler/pull/3140)
+- [Guy] Kops did something similar to what Ellis proposed.
+- [Subhu] Are we going to support Pod Disruption Budget(PDB) or managed node groups (MNG) equivalent with other providers?
+    - [Ellis] karpenter will increase/decrease the number of nodes, someone needs to know which nodes to remove respecting the PDB.
+    - CA knows which nodes to scaled down it uses PDB.
+    - Node group is the right component deciding which node will not be violating PDB.
+- [Guy] Other providers are rellying on PDB in CA for this support. It will be to good discuss with cluster API.
+- [Ellis] We might have to support PDB if other providers don't support PDB in node group controllers to maintain neutrality.
+- [Viji] Will try to get Karpenter installed and will look into cloudwatch integration.
+- [Ellis] Looking to get feedback for installing Karpenter [demo](https://github.com/ellistarn/karpenter-aws-demo)
+- [Ellis] Separate sync to discuss pending pods approach in Karpenter
+    - [Guy] Space for something less complex as compared to CA, there has been an explosion of flags in CA.
+
 # Meeting Notes (12/4/2020)
 
 ## Attendees
