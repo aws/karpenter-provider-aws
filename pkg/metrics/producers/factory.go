@@ -55,7 +55,7 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 			Client:          f.Client,
 		}
 	}
-	if mp.Spec.ScheduledCapacity != nil {
+	if mp.Spec.Schedule != nil {
 		return &scheduledcapacity.Producer{
 			MetricsProducer: mp,
 		}

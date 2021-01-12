@@ -33,7 +33,7 @@ type MetricsProducerSpec struct {
 	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
 	// ScheduledCapacity produces a metric according to a specified schedule.
 	// +optional
-	ScheduledCapacity *ScheduledCapacitySpec `json:"scheduledCapacity,omitempty"`
+	Schedule *ScheduleSpec `json:"scheduleSpec,omitempty"`
 }
 
 type ReservedCapacitySpec struct {
@@ -46,17 +46,38 @@ type PendingCapacitySpec struct {
 	NodeSelector map[string]string `json:"nodeSelector"`
 }
 
-type ScheduledCapacitySpec struct {
-	// NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
-	NodeSelector map[string]string `json:"nodeSelector"`
+type Timezone string
+
+type ScheduleSpec struct {
 	// Behaviors may be layered to achieve complex scheduling autoscaling logic
 	Behaviors []ScheduledBehavior `json:"behaviors"`
+	// Defaults to UTC. Users will specify their schedules assuming this is their timezone
+	// ref: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+	// +optional
+	Timezone *Timezone `json:"timezone,omitempty"`
+	// A schedule defaults to this value when no behaviors are active
+	DefaultReplicas int32 `json:"defaultReplicas"`
 }
 
-// ScheduledBehavior defines a crontab which sets the metric to a specific replica value on a schedule.
+// ScheduledBehavior sets the metric to a replica value based on a start and end pattern.
 type ScheduledBehavior struct {
-	Crontab  string `json:"crontab"`
-	Replicas int32  `json:"replicas"`
+	// The value the MetricsProducer will emit when the current time is within start and end
+	Replicas int32    `json:"replicas"`
+	Start    *Pattern `json:"start"`
+	End      *Pattern `json:"end"`
+}
+
+// Pattern is a strongly-typed version of crontabs
+type Pattern struct {
+	// When minutes or hours are left out, they are assumed to match to 0
+	Minutes *string `json:"minutes,omitempty"`
+	Hours   *string `json:"hours,omitempty"`
+	// When Days, Months, or Weekdays are left out, they are represented by wildcards, meaning any time matches
+	Days *string `json:"days,omitempty"`
+	// List of 3-letter abbreviations i.e. Jan, Feb, Mar
+	Months *string `json:"months,omitempty"`
+	// List of 3-letter abbreviations i.e. "Mon, Tue, Wed"
+	Weekdays *string `json:"weekdays,omitempty"`
 }
 
 // PendingPodsSpec outputs a metric that identifies scheduling opportunities for pending pods in specified node groups.
