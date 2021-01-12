@@ -40,11 +40,12 @@ helm install karpenter karpenter/karpenter
 
 ## Docs
 - [Examples](./docs/examples)
-- [Working Group](./docs/working-group)
-- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Design](./docs/DESIGN.md)
 - [FAQs](./docs/FAQs.md)
+- [Working Group](./docs/working-group)
+- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Contributing](./docs/CONTRIBUTING.md)
+- [Roadmap](./docs/ROADMAP.md)
 
 ## Terms
 Karpenter is an early stage, experimental project that is currently maintained by AWS and available as a preview. We request that you do not use Karpenter for production workloads at this time. See details in our [terms](./docs/TERMS.md).
