@@ -48,6 +48,14 @@ type QueueStatus struct {
 }
 
 type ScheduledCapacityStatus struct {
+	// The current recommendation - the metric the MetricsProducer is emitting
+	CurrentValue *int32 `json:"currentValue,omitempty"`
+
+	// The time in the future where CurrentValue will switch to NextValue
+	NextValueTime *apis.VolatileTime `json:"nextValueTime,omitempty"`
+
+	// The next recommendation for the metric
+	NextValue *int32 `json:"nextValue,omitempty"`
 }
 
 // We use knative's libraries for ConditionSets to manage status conditions.

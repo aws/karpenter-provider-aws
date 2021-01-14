@@ -44,8 +44,8 @@ func (mp *MetricsProducerSpec) Validate() error {
 	if mp.ReservedCapacity != nil {
 		return mp.ReservedCapacity.validate()
 	}
-	if mp.ScheduledCapacity != nil {
-		return mp.ScheduledCapacity.validate()
+	if mp.Schedule != nil {
+		return mp.Schedule.validate()
 	}
 	return nil
 }
@@ -64,6 +64,6 @@ func (s *ReservedCapacitySpec) validate() error {
 }
 
 // Validate ScheduledCapacity
-func (s *ScheduledCapacitySpec) validate() error {
+func (s *ScheduleSpec) validate() error {
 	return nil
 }
