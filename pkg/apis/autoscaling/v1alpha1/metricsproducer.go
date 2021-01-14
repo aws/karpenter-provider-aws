@@ -31,7 +31,7 @@ type MetricsProducerSpec struct {
 	// to available resources for the nodes of a specified node group.
 	// +optional
 	ReservedCapacity *ReservedCapacitySpec `json:"reservedCapacity,omitempty"`
-	// ScheduledCapacity produces a metric according to a specified schedule.
+	// Schedule produces a metric according to a specified schedule.
 	// +optional
 	Schedule *ScheduleSpec `json:"scheduleSpec,omitempty"`
 }
