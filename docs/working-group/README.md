@@ -10,6 +10,25 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (01/19/21)
+
+## Attendees:
+- Ellis Tarn
+- Jacob Gabrielson
+- Subhrangshu Kumar Sarkar
+- Prateek Gogia
+- Nick Tran
+- Brandon Wagner 
+- Guy Templeton
+
+## Notes:
+- [Ellis] Conversation with Joe Burnett from sig-autoscaling 
+    - HPA should work with scalable node group, as long you use an external metrics.
+    - POC is possible working with HPA
+- [Ellis] Nick has made good progress in terms of API for scheduled scaling.
+    - Design review in upcoming weeks with the community.
+- Change the meeting time to Thursday @9AM PT biweekly.
+
 # Meeting Notes (01/12/2021)
 
 ## Attendees:
