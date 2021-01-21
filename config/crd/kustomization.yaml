@@ -5,6 +5,7 @@ resources:
 - bases/autoscaling.karpenter.sh_horizontalautoscalers.yaml
 - bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
 - bases/autoscaling.karpenter.sh_metricsproducers.yaml
+- bases/provisioning.karpenter.sh_provisioners.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
