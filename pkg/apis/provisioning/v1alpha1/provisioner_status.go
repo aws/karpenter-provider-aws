@@ -29,3 +29,17 @@ type ProvisionerStatus struct {
 	// +optional
 	Conditions apis.Conditions `json:"conditions,omitempty"`
 }
+
+func (p *Provisioner) StatusConditions() apis.ConditionManager {
+	return apis.NewLivingConditionSet(
+		Active,
+	).Manage(p)
+}
+
+func (s *Provisioner) GetConditions() apis.Conditions {
+	return s.Status.Conditions
+}
+
+func (s *Provisioner) SetConditions(conditions apis.Conditions) {
+	s.Status.Conditions = conditions
+}
