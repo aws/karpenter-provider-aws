@@ -17,6 +17,7 @@ package apis
 
 import (
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	provisioningV1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -30,4 +31,5 @@ func AddToScheme(s *runtime.Scheme) error {
 
 func init() {
 	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, provisioningV1alpha1.SchemeBuilder.AddToScheme)
 }
