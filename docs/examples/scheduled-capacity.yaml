@@ -1,0 +1,65 @@
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: MetricsProducer
+metadata:
+  name: scheduling-example
+spec:
+  scheduleSpec:
+    # default timezone is UTC
+    timezone: America/Los_Angeles
+    defaultReplicas: 1
+    behaviors:
+    # leaving hours/minutes empty == specifying 0
+    # leaving every other field empty == *
+    # single value (non-replicas) int fields need quotations
+      # Scale way down for the weekend
+      - replicas: 2
+        start:
+          weekdays: fri
+          hours: "17"
+        end:
+          weekdays: mon
+          hours: "9"
+      # Scale way up for higher traffic for weekdays during work hours
+      - replicas: 6
+        start:
+          weekdays: mon,tue,wed,thu,fri
+          hours: "9"
+        end:
+          weekdays: Mon,Tue,Wed,Thu,Fri
+          hours: "17"
+      # Scale a little down for lower traffic for weekday evenings, but not as much as on the weekends
+      - replicas: 4
+        start:
+          weekdays: Mon,Tue,Wed,Thu,Fri
+          hours: "17"
+        end:
+          weekdays: Mon,Tue,Wed,Thu,Fri
+          hours: "9"
+---
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: HorizontalAutoscaler
+metadata:
+  name: scheduled-autoscaler-example
+spec:
+  scaleTargetRef:
+    apiVersion: autoscaling.karpenter.sh/v1alpha1
+    kind: ScalableNodeGroup
+    name: scheduled-nodegroup-example
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - prometheus:
+        # Make sure name is equal to the name of your metricsproducer
+        query: karpenter_scheduled_replicas_value{name="scheduling-example"}
+        target:
+          type: AverageValue
+          value: 1
+---
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: ScalableNodeGroup
+metadata:
+  name: scheduled-nodegroup-example
+spec:
+  replicas: 1
+  type: AWSEKSNodeGroup
+  id: arn:aws:eks:us-west-2:112358132134:nodegroup/fibonacci/demo/qwertyuiop
