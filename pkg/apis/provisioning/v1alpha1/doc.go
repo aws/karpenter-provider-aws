@@ -52,5 +52,5 @@ func Resource(resource string) schema.GroupResource {
 }
 
 func init() {
-	SchemeBuilder.Register(&NodeProvisioner{}, &NodeProvisionerList{})
+	SchemeBuilder.Register(&Provisioner{}, &ProvisionerList{})
 }
