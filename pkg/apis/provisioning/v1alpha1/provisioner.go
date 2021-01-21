@@ -22,8 +22,6 @@ type ProvisionerSpec struct {
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
 }
 
-// type NodeGroupsSelector []string
-
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
