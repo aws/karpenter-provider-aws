@@ -15,6 +15,8 @@ limitations under the License.
 package cloudprovider
 
 import (
+	"context"
+
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -25,6 +27,8 @@ type Factory interface {
 	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
 	// QueueFor returns a queue for the provided spec
 	QueueFor(queue *v1alpha1.QueueSpec) Queue
+	// FleetClient returns a client for the provider to create VM instances
+	FleetClient() Fleet
 }
 
 // Queue abstracts all provider specific behavior for Queues
@@ -47,6 +51,27 @@ type NodeGroup interface {
 	// Stabilized returns true if a node group is not currently adding or
 	// removing replicas. Otherwise, returns false with a message.
 	Stabilized() (bool, string, error)
+}
+
+// Fleet represents a fleet request in the cloud provider,
+// all the instances in the fleet will have the same properties
+// number of instances can be controlled by setting the capacity
+type Fleet interface {
+	// SetAvailabilityZone is the zone the instances will run in this fleet
+	SetAvailabilityZone(zone string)
+
+	// SetSubnet is the subnet for the instances
+	SetSubnet(subnetID string)
+
+	// SetOnDemandCapacity is the desired capacity for this fleet
+	SetOnDemandCapacity(targetCap, totalCap int64)
+
+	// SetInstanceType configures the instanceType,
+	// it can be on-demand or spot
+	SetInstanceType(instanceType string)
+
+	// Create will send the request to cloud provider to create the instant fleet request.
+	Create(context.Context) error
 }
 
 // Options are injected into cloud providers' factories
