@@ -23,17 +23,17 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
-type CapacityProvisioner struct {
+type Capacity struct {
 	ec2Iface ec2iface.EC2API
 }
 
-// NewCapacityProvisioner lets user provision nodes in AWS
-func NewCapacityProvisioner(client ec2iface.EC2API) *CapacityProvisioner {
-	return &CapacityProvisioner{ec2Iface: client}
+// NewCapacity constructs a Capacity client for AWS
+func NewCapacity(client ec2iface.EC2API) *Capacity {
+	return &Capacity{ec2Iface: client}
 }
 
-// Provision accepts desired capacity and contraints for provisioning
-func (cp *CapacityProvisioner) Provision(context.Context, *cloudprovider.CapacityConstraints) error {
+// Create a set of nodes given the constraints
+func (cp *Capacity) Create(context.Context, cloudprovider.CapacityConstraints) error {
 	// Convert contraints to the Node types and select the launch template
 	// TODO
 
