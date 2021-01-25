@@ -63,3 +63,6 @@ func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovide
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	return &Queue{Id: spec.ID, WantErr: f.WantErr}
 }
+func (f *Factory) CapacityClient() cloudprovider.CapacityProvisioner {
+	return &Provisioner{}
+}
