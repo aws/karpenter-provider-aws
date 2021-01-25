@@ -20,7 +20,31 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
+
+type CapacityProvisioner struct {
+	ec2Iface ec2iface.EC2API
+}
+
+// NewCapacityProvisioner lets user provision nodes in AWS
+func NewCapacityProvisioner(client ec2iface.EC2API) *CapacityProvisioner {
+	return &CapacityProvisioner{ec2Iface: client}
+}
+
+// Provision accepts desired capacity and contraints for provisioning
+func (cp *CapacityProvisioner) Provision(context.Context, *cloudprovider.CapacityConstraints) error {
+	// Convert contraints to the Node types and select the launch template
+	// TODO
+
+	// Create the desired number of instances based on desired capacity
+	config := defaultInstanceConfig("", "", cp.ec2Iface)
+	_ = config
+
+	// Set AvailabilityZone, subnet, capacity, on-demand or spot
+	// and validateAndCreate instances
+	return nil
+}
 
 type instanceConfig struct {
 	ec2Iface       ec2iface.EC2API
@@ -29,8 +53,7 @@ type instanceConfig struct {
 	instanceID     string
 }
 
-func NewFleetRequest(templateID, templateVersion string, client ec2iface.EC2API) *instanceConfig {
-
+func defaultInstanceConfig(templateID, templateVersion string, client ec2iface.EC2API) *instanceConfig {
 	return &instanceConfig{
 		ec2Iface: client,
 		templateConfig: &ec2.FleetLaunchTemplateConfigRequest{
@@ -46,27 +69,6 @@ func NewFleetRequest(templateID, templateVersion string, client ec2iface.EC2API)
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
 		},
 	}
-}
-
-func (cfg *instanceConfig) SetAvailabilityZone(zone string) {
-	cfg.templateConfig.Overrides[0].AvailabilityZone = aws.String(zone)
-}
-
-func (cfg *instanceConfig) SetSubnet(subnetID string) {
-	cfg.templateConfig.Overrides[0].SubnetId = aws.String(subnetID)
-}
-
-func (cfg *instanceConfig) SetOnDemandCapacity(targetCap, totalCap int64) {
-	cfg.capacitySpec.OnDemandTargetCapacity = aws.Int64(targetCap)
-	cfg.capacitySpec.TotalTargetCapacity = aws.Int64(totalCap)
-}
-
-func (cfg *instanceConfig) SetInstanceType(instanceType string) {
-	cfg.capacitySpec.DefaultTargetCapacityType = aws.String(instanceType)
-}
-
-func (cfg *instanceConfig) Create(ctx context.Context) error {
-	return cfg.validateAndCreate(ctx)
 }
 
 func (cfg *instanceConfig) validateAndCreate(ctx context.Context) error {

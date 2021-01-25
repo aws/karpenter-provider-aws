@@ -72,9 +72,8 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	}
 }
 
-func (f *Factory) FleetClient() cloudprovider.Fleet {
-	// TODO add templateID, version
-	return NewFleetRequest("", "", f.EC2Client)
+func (f *Factory) CapacityClient() cloudprovider.CapacityProvisioner {
+	return NewCapacityProvisioner(f.EC2Client)
 }
 
 func withRegion(sess *session.Session) *session.Session {

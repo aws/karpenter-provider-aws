@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,8 +28,8 @@ type Factory interface {
 	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
 	// QueueFor returns a queue for the provided spec
 	QueueFor(queue *v1alpha1.QueueSpec) Queue
-	// FleetClient returns a client for the provider to create VM instances
-	FleetClient() Fleet
+	// CapacityClient returns a provisioner for the provider to create instances
+	CapacityClient() CapacityProvisioner
 }
 
 // Queue abstracts all provider specific behavior for Queues
@@ -53,28 +54,37 @@ type NodeGroup interface {
 	Stabilized() (bool, string, error)
 }
 
-// Fleet represents a fleet request in the cloud provider,
-// all the instances in the fleet will have the same properties
-// number of instances can be controlled by setting the capacity
-type Fleet interface {
-	// SetAvailabilityZone is the zone the instances will run in this fleet
-	SetAvailabilityZone(zone string)
-
-	// SetSubnet is the subnet for the instances
-	SetSubnet(subnetID string)
-
-	// SetOnDemandCapacity is the desired capacity for this fleet
-	SetOnDemandCapacity(targetCap, totalCap int64)
-
-	// SetInstanceType configures the instanceType,
-	// it can be on-demand or spot
-	SetInstanceType(instanceType string)
-
-	// Create will send the request to cloud provider to create the instant fleet request.
-	Create(context.Context) error
+// CapacityProvisioner helps provision a desired capacity
+// with a set of constraints in the cloud provider,
+// number of instances and resource capacity can be controlled by
+// setting the capacityConstraints
+type CapacityProvisioner interface {
+	// Provision will send the request to cloud provider to provision the desired capacity.
+	Provision(context.Context, *CapacityConstraints) error
 }
 
 // Options are injected into cloud providers' factories
 type Options struct {
 	Client client.Client
+}
+
+// Architecture for the provisioned capacity
+type Architecture string
+
+const (
+	Linux386   Architecture = "linux/386"
+	LinuxAMD64 Architecture = "linux/amd64"
+)
+
+// CapacityConstraints lets the controller define the desired capacity,
+// avalability zone, architecture for the desired nodes.
+type CapacityConstraints struct {
+	// Zone constrains where a node can be created within a region
+	Zone *string
+	// Resources constrains the minimum capacity to provision (e.g. CPU, Memory)
+	Resources v1.ResourceList
+	// NodeOverhead constrains the per node overhead of system resources
+	NodeOverhead v1.ResourceList
+	// Architecture constrains the underlying hardware architecture.
+	Architecture *Architecture
 }
