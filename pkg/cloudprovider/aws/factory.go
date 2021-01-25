@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -35,6 +37,7 @@ type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
 	SQSClient         sqsiface.SQSAPI
 	EKSClient         eksiface.EKSAPI
+	EC2Client         ec2iface.EC2API
 	Client            client.Client
 }
 
@@ -44,6 +47,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		AutoscalingClient: autoscaling.New(sess),
 		EKSClient:         eks.New(sess),
 		SQSClient:         sqs.New(sess),
+		EC2Client:         ec2.New(sess),
 		Client:            options.Client,
 	}
 }
@@ -66,6 +70,10 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	default:
 		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
+}
+
+func (f *Factory) CapacityClient() cloudprovider.CapacityProvisioner {
+	return NewCapacityProvisioner(f.EC2Client)
 }
 
 func withRegion(sess *session.Session) *session.Session {
