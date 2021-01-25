@@ -46,15 +46,13 @@ type PendingCapacitySpec struct {
 	NodeSelector map[string]string `json:"nodeSelector"`
 }
 
-type Timezone string
-
 type ScheduleSpec struct {
 	// Behaviors may be layered to achieve complex scheduling autoscaling logic
 	Behaviors []ScheduledBehavior `json:"behaviors"`
 	// Defaults to UTC. Users will specify their schedules assuming this is their timezone
 	// ref: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 	// +optional
-	Timezone *Timezone `json:"timezone,omitempty"`
+	Timezone *string `json:"timezone,omitempty"`
 	// A schedule defaults to this value when no behaviors are active
 	DefaultReplicas int32 `json:"defaultReplicas"`
 }

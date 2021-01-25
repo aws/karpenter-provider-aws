@@ -51,9 +51,11 @@ type ScheduledCapacityStatus struct {
 	// The current recommendation - the metric the MetricsProducer is emitting
 	CurrentValue *int32 `json:"currentValue,omitempty"`
 
+	// Not Currently Implemented
 	// The time in the future where CurrentValue will switch to NextValue
 	NextValueTime *apis.VolatileTime `json:"nextValueTime,omitempty"`
 
+	// Not Currently Implemented
 	// The next recommendation for the metric
 	NextValue *int32 `json:"nextValue,omitempty"`
 }
