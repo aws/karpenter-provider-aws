@@ -1,0 +1,5 @@
+apiVersion: autoscaling.karpenter.sh/v1alpha1
+kind: Provisioner
+metadata:
+  name: example
+spec: {}

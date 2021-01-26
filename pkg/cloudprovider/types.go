@@ -28,7 +28,6 @@ type Factory interface {
 	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
 	// QueueFor returns a queue for the provided spec
 	QueueFor(queue *v1alpha1.QueueSpec) Queue
-
 	// Capacity returns a provisioner for the provider to create instances
 	Capacity() Capacity
 }
