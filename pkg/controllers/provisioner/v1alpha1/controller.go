@@ -21,13 +21,15 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1/allocation"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Controller for the resource
 type Controller struct {
-	Client client.Client
+	Client    client.Client
+	Allocator allocation.Allocator
 }
 
 // For returns the resource this controller is for.
@@ -45,6 +47,9 @@ func (c *Controller) Interval() time.Duration {
 }
 
 // Reconcile executes a control loop for the resource
+//
+// SKIP FOR NOW, Attempt to schedule pods on existing capacity
+// SKIP FOR NOW, Attempt to schedule remaining pods by preempting existing pods
 func (c *Controller) Reconcile(object controllers.Object) error {
 	_ = object.(*v1alpha1.Provisioner)
 
@@ -54,8 +59,19 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return fmt.Errorf("Listing unscheduled pods, %w", err)
 	}
 
-	// 2. SKIP FOR NOW, Attempt to schedule pods on existing capacity
-	// 3. SKIP FOR NOW, Attempt to schedule remaining pods by preempting existing pods
+	unschedulable := []*v1.Pod{}
+	for _, pod := range pods.Items {
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
+				unschedulable = append(unschedulable, &pod)
+			}
+		}
+	}
+
 	// 4. Attempt to schedule remaining pods by creating a set of nodes
+	if err := c.Allocator.Allocate(unschedulable); err != nil {
+		return fmt.Errorf("failed to allocate %d pods, %w", len(unschedulable), err)
+	}
+
 	return nil
 }
