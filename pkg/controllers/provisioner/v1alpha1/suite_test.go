@@ -58,6 +58,7 @@ var _ = Describe("Provisioner", func() {
 
 	Context("Provisioner", func() {
 		It("should do something", func() {
+			Expect(ns.ParseResources("docs/examples/provisioner/provisioner.yaml", p)).To(Succeed())
 			Expect(ns.Create(context.TODO(), p)).To(Succeed())
 		})
 	})
