@@ -33,7 +33,7 @@ func NewCapacity(client ec2iface.EC2API) *Capacity {
 }
 
 // Create a set of nodes given the constraints
-func (cp *Capacity) Create(context.Context, cloudprovider.CapacityConstraints) error {
+func (cp *Capacity) Create(ctx context.Context, constraints cloudprovider.CapacityConstraints) error {
 	// Convert contraints to the Node types and select the launch template
 	// TODO
 
@@ -43,6 +43,9 @@ func (cp *Capacity) Create(context.Context, cloudprovider.CapacityConstraints) e
 
 	// Set AvailabilityZone, subnet, capacity, on-demand or spot
 	// and validateAndCreate instances
+	if err := config.validateAndCreate(ctx); err != nil  {
+		return err
+	}
 	return nil
 }
 
@@ -86,5 +89,6 @@ func (cfg *instanceConfig) validateAndCreate(ctx context.Context) error {
 	}
 	// TODO Get instanceID from the output
 	_ = output
+	_ = cfg.instanceID
 	return nil
 }
