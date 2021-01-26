@@ -12,6 +12,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/autoscaler"
 	horizontalautoscalerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/metricsproducer/v1alpha1"
+	provisionerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1/allocation"
 	scalablenodegroupv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	metricsclients "github.com/awslabs/karpenter/pkg/metrics/clients"
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
@@ -71,6 +73,12 @@ func main() {
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
+		&provisionerv1alpha1.Controller{
+			Client: manager.GetClient(),
+			Allocator: &allocation.GreedyAllocator{
+				Capacity: cloudProviderFactory.Capacity(),
+			},
+		},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Panicf("Unable to start manager, %w", err)
 	}
