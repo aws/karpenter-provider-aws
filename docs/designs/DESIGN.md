@@ -32,7 +32,7 @@ Many aspects of this design contain large subproblems that are beyond the scope 
 
 Metrics Driven Autoscaling is broken down into four logical components.
 
-![](./images/overview.jpeg)
+![](../images/overview.jpeg)
 
 These components are able to be implemented flexibly, either combined into a single system (e.g. Kubernetes Cluster Autoscaler), using one system per component (e.g. Horizontal Pod Autoscaler), or some combination (e.g. KEDA, which implements a Metrics Producer/Metrics Server; Knative, which implements a Metrics Producer/Metrics Server/Autoscaler)
 
@@ -74,7 +74,7 @@ While we will strive to leverage existing systems where it makes sense, there wi
 
 Karpenter is a metrics driven node autoscaler. It’s implemented as a Kubernetes controller and defines three custom resources: MetricsProducer, HorizontalAutoscaler, and ScalableNodeGroup. It aligns its interfaces as closely as possible to the Horizontal Pod Autoscaler’s interface, with a long term goal of providing a universal HorizontalAutoscaler definition in upstream Kubernetes. It takes a dependency on [Prometheus](https://prometheus.io/) and provides out-of-the-box support for commonly used metrics producers for Capacity Reservations, Scheduled Capacity, Pending Pods, and Queue Length.
 
-![](./images/design.jpeg)
+![](../images/design.jpeg)
 
 Before deep diving the design questions, we’ll cover some examples to see how Karpenter works for some common cases.
 
@@ -190,7 +190,7 @@ Each API must be implemented by a service in the cluster. Implementations includ
 
 For example, here’s how the Horizontal Pod Autoscaler uses [k8s-prometheus-adapter](https://github.com/DirectXMan12/k8s-prometheus-adapter) and custom.metrics.k8s.io.
 
-![](./images/hpa.png)
+![](../images/hpa.png)
 Source: https://towardsdatascience.com/kubernetes-hpa-with-custom-metrics-from-prometheus-9ffc201991e
 
 The metrics API is an attractive dependency for several reasons. It uses Kubernetes API semantics, bringing popular Kubernetes features (e.g. kubectl, API standardization) to the domain of metrics. It also enables users to control access using RBAC, though this isn’t hugely compelling as autoscalers typically operate globally on the cluster and have full permissions to the metrics API (see HPA).

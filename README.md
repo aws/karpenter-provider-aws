@@ -42,7 +42,7 @@ helm install karpenter karpenter/karpenter
 - [Examples](./docs/examples)
 - [Working Group](./docs/working-group)
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
-- [Design](./docs/DESIGN.md)
+- [Design](./docs/designs/DESIGN.md)
 - [FAQs](./docs/FAQs.md)
 - [Contributing](./docs/CONTRIBUTING.md)
 
