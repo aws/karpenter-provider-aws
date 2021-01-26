@@ -12,17 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fake
+package allocation
 
-import (
-	"context"
+import v1 "k8s.io/api/core/v1"
 
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-)
-
-type Provisioner struct {
-}
-
-func (p *Provisioner) Provision(context.Context, *cloudprovider.CapacityConstraints) error {
-	return nil
+// Allocator allocates new capacity for a set of pods
+type Allocator interface {
+	Allocate([]*v1.Pod) error
 }
