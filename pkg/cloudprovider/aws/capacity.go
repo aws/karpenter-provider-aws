@@ -16,11 +16,16 @@ package aws
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/log"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Capacity struct {
@@ -33,20 +38,47 @@ func NewCapacity(client ec2iface.EC2API) *Capacity {
 }
 
 // Create a set of nodes given the constraints
-func (cp *Capacity) Create(ctx context.Context, constraints cloudprovider.CapacityConstraints) error {
+func (cp *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
 	// Convert contraints to the Node types and select the launch template
 	// TODO
 
 	// Create the desired number of instances based on desired capacity
-	config := defaultInstanceConfig("", "", cp.ec2Iface)
-	_ = config
+	// TODO remove hard coded template ID
+	config := defaultInstanceConfig("lt-02f427483e1be00f5", "$Latest", cp.ec2Iface)
 
-	// Set AvailabilityZone, subnet, capacity, on-demand or spot
-	// and validateAndCreate instances
-	if err := config.validateAndCreate(ctx); err != nil  {
+	if err := cp.updateConfigWithConstraints(config, constraints); err != nil {
+		return fmt.Errorf("config failed to update %w", err)
+	}
+	// create instances using EC2 fleet API
+	if err := config.validateAndCreate(ctx); err != nil {
 		return err
 	}
 	return nil
+}
+
+// Set AvailabilityZone, subnet, capacity, on-demand or spot
+func (cp *Capacity) updateConfigWithConstraints(config *instanceConfig, constraints *cloudprovider.CapacityConstraints) error {
+
+	instanceType, count := cp.calculateInstanceTypeAndCount(constraints)
+	subnetID := cp.selectSubnetID(constraints)
+
+	config.templateConfig.Overrides[0].InstanceType = aws.String(instanceType)
+	config.capacitySpec.OnDemandTargetCapacity = aws.Int64(count)
+	config.capacitySpec.TotalTargetCapacity = aws.Int64(count)
+	config.templateConfig.Overrides[0].SubnetId = aws.String(subnetID)
+	config.templateConfig.Overrides[0].AvailabilityZone = aws.String("us-east-2a")
+
+	return nil
+}
+
+// TODO
+func (cp *Capacity) calculateInstanceTypeAndCount(constraints *cloudprovider.CapacityConstraints) (string, int64) {
+	return "m5.large", 1
+}
+
+// TODO
+func (cp *Capacity) selectSubnetID(constraints *cloudprovider.CapacityConstraints) string {
+	return "subnet-03216d5a693377033"
 }
 
 type instanceConfig struct {
@@ -85,10 +117,31 @@ func (cfg *instanceConfig) validateAndCreate(ctx context.Context) error {
 	}
 	output, err := cfg.ec2Iface.CreateFleetWithContext(ctx, input)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create fleet %w", err)
 	}
 	// TODO Get instanceID from the output
 	_ = output
 	_ = cfg.instanceID
 	return nil
+}
+
+// calculateResourceListOrDie queries EC2 API and gets the CPU & Mem for a list of instance types
+func calculateResourceListOrDie(client ec2iface.EC2API, instanceType []*string) map[string]v1.ResourceList {
+	output, err := client.DescribeInstanceTypes(
+		&ec2.DescribeInstanceTypesInput{
+			InstanceTypes: instanceType,
+		},
+	)
+	if err != nil {
+		log.PanicIfError(err, "Describe instance type request failed")
+	}
+	var instanceTypes = map[string]v1.ResourceList{}
+	for _, instance := range output.InstanceTypes {
+		resourceList := v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse(strconv.FormatInt(*instance.VCpuInfo.DefaultVCpus, 10)),
+			v1.ResourceMemory: resource.MustParse(strconv.FormatInt(*instance.MemoryInfo.SizeInMiB, 10)),
+		}
+		instanceTypes[*instance.InstanceType] = resourceList
+	}
+	return instanceTypes
 }
