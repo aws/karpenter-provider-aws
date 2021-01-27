@@ -17,84 +17,58 @@ package aws
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/log"
-	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/rest"
 )
 
 type Capacity struct {
-	ec2Iface ec2iface.EC2API
+	EC2API         ec2iface.EC2API
+	LaunchTemplate *ec2.LaunchTemplate
+	ZonalSubnets   map[string]*ec2.Subnet
 }
 
 // NewCapacity constructs a Capacity client for AWS
-func NewCapacity(client ec2iface.EC2API) *Capacity {
-	return &Capacity{ec2Iface: client}
+func NewCapacity(EC2API ec2iface.EC2API, EKSAPI eksiface.EKSAPI, IAMAPI iamiface.IAMAPI, config *rest.Config) *Capacity {
+	initialization := NewInitialization(EC2API, EKSAPI, IAMAPI, config)
+	return &Capacity{
+		EC2API:         EC2API,
+		LaunchTemplate: initialization.LaunchTemplate,
+		ZonalSubnets:   initialization.ZonalSubnets,
+	}
 }
 
 // Create a set of nodes given the constraints
-func (cp *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
-	// TODO Convert contraints to the Node types and select the launch template
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
+	// TODO, select a zone more intelligently
+	var zone string
+	for zone = range c.ZonalSubnets {
+	}
 
-	// Create the desired number of instances based on constraints
-	// create instances using EC2 fleet API
-	// TODO remove hard coded values
-	output, err := cp.ec2Iface.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
-		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
-			{
-				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-					LaunchTemplateId: aws.String("lt-02f427483e1be00f5"),
-					Version:          aws.String("$Latest"),
-				},
-				Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
-					{
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("subnet-03216d5a693377033"),
-						AvailabilityZone: aws.String("us-east-2a"),
-					},
-				},
-			},
-		},
+	if _, err := c.EC2API.CreateFleetWithContext(context.TODO(), &ec2.CreateFleetInput{
+		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
-			OnDemandTargetCapacity:    aws.Int64(1),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
-		Type: aws.String(ec2.FleetTypeInstant),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create fleet %w", err)
+		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
+			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+				LaunchTemplateName: c.LaunchTemplate.LaunchTemplateName,
+				Version:            aws.String("$Default"),
+			},
+			Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{{
+				AvailabilityZone: aws.String(zone),
+				InstanceType:     aws.String("m5.large"),
+				SubnetId:         c.ZonalSubnets[zone].SubnetId,
+			}},
+		}},
+	}); err != nil {
+		return fmt.Errorf("creating fleet, %w", err)
 	}
-	// TODO Get instanceID from the output
-	_ = output
-	// _ = cfg.instanceID
-	zap.S().Infof("Successfully created a node in zone %v", constraints.Zone)
 	return nil
-}
-
-// calculateResourceListOrDie queries EC2 API and gets the CPU & Mem for a list of instance types
-func calculateResourceListOrDie(client ec2iface.EC2API, instanceType []*string) map[string]v1.ResourceList {
-	output, err := client.DescribeInstanceTypes(
-		&ec2.DescribeInstanceTypesInput{
-			InstanceTypes: instanceType,
-		},
-	)
-	if err != nil {
-		log.PanicIfError(err, "Describe instance type request failed")
-	}
-	var instanceTypes = map[string]v1.ResourceList{}
-	for _, instance := range output.InstanceTypes {
-		resourceList := v1.ResourceList{
-			v1.ResourceCPU:    resource.MustParse(strconv.FormatInt(*instance.VCpuInfo.DefaultVCpus, 10)),
-			v1.ResourceMemory: resource.MustParse(strconv.FormatInt(*instance.MemoryInfo.SizeInMiB, 10)),
-		}
-		instanceTypes[*instance.InstanceType] = resourceList
-	}
-	return instanceTypes
 }

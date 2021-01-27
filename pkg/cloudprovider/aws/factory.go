@@ -24,31 +24,38 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
-	SQSClient         sqsiface.SQSAPI
-	EKSClient         eksiface.EKSAPI
-	EC2Client         ec2iface.EC2API
+	SQSAPI            sqsiface.SQSAPI
+	EKSAPI            eksiface.EKSAPI
+	EC2API            ec2iface.EC2API
+	IAMAPI            iamiface.IAMAPI
 	Client            client.Client
+	Config            *rest.Config
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
-		EKSClient:         eks.New(sess),
-		SQSClient:         sqs.New(sess),
-		EC2Client:         ec2.New(sess),
+		EKSAPI:            eks.New(sess),
+		SQSAPI:            sqs.New(sess),
+		EC2API:            ec2.New(sess),
+		IAMAPI:            iam.New(sess),
 		Client:            options.Client,
+		Config:            options.Config,
 	}
 }
 
@@ -57,7 +64,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient, f.Client)
+		return NewManagedNodeGroup(spec.ID, f.EKSAPI, f.AutoscalingClient, f.Client)
 	default:
 		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
@@ -66,14 +73,14 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return NewSQSQueue(spec.ID, f.SQSClient)
+		return NewSQSQueue(spec.ID, f.SQSAPI)
 	default:
 		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
 func (f *Factory) Capacity() cloudprovider.Capacity {
-	return NewCapacity(f.EC2Client)
+	return NewCapacity(f.EC2API, f.EKSAPI, f.IAMAPI, f.Config)
 }
 
 func withRegion(sess *session.Session) *session.Session {

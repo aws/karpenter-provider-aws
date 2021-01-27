@@ -19,6 +19,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -84,4 +85,5 @@ const (
 // Options are injected into cloud providers' factories
 type Options struct {
 	Client client.Client
+	Config *rest.Config
 }
