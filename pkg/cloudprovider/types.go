@@ -57,7 +57,7 @@ type NodeGroup interface {
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, CapacityConstraints) error
+	Create(context.Context, *CapacityConstraints) error
 }
 
 // CapacityConstraints lets the controller define the desired capacity,
@@ -70,7 +70,7 @@ type CapacityConstraints struct {
 	// Overhead resources per node from system resources such a kubelet and daemonsets.
 	Overhead v1.ResourceList
 	// Architecture constrains the underlying hardware architecture.
-	Architecture *Architecture
+	Architecture Architecture
 }
 
 // Architecture constrains the underlying node's compilation architecture.

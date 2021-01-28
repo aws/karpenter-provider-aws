@@ -19,7 +19,9 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var _ Allocator = &GreedyAllocator{}
@@ -29,11 +31,13 @@ type GreedyAllocator struct {
 	Capacity cloudprovider.Capacity
 }
 
-//
+// Allocate takes a list of unschedulable pods and creates nodes based on
+// resources required, node selectors and zone balancing.
 func (a *GreedyAllocator) Allocate(pods []*v1.Pod) error {
 	// 1. Separate pods into scheduling groups
 	groups := a.getSchedulingGroups(pods)
 
+	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
 	for _, group := range groups {
 		if err := a.Capacity.Create(context.TODO(), group.Constraints); err != nil {
@@ -45,25 +49,72 @@ func (a *GreedyAllocator) Allocate(pods []*v1.Pod) error {
 
 type SchedulingGroup struct {
 	Pods        []*v1.Pod
-	Constraints cloudprovider.CapacityConstraints
+	Constraints *cloudprovider.CapacityConstraints
 }
 
-func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []SchedulingGroup {
-	groups := []SchedulingGroup{}
-
+func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*SchedulingGroup {
+	groups := []*SchedulingGroup{}
 	for _, pod := range pods {
+		added := false
 		for _, group := range groups {
-			if a.matchesGroup(pod, group) {
+			if a.matchesGroup(group, pod) {
+				addPodResourcesToList(group.Constraints.Resources, pod)
 				group.Pods = append(group.Pods, pod)
+				added = true
 				break
 			}
 		}
+		if added {
+			continue
+		}
+		groups = append(groups, schedulingGroupForPod(pod))
 	}
-
 	return groups
 }
 
 // TODO
-func (a *GreedyAllocator) matchesGroup(pod *v1.Pod, group SchedulingGroup) bool {
-	return true
+func (a *GreedyAllocator) matchesGroup(group *SchedulingGroup, pod *v1.Pod) bool {
+	return false
+}
+
+func schedulingGroupForPod(pod *v1.Pod) *SchedulingGroup {
+	group := &SchedulingGroup{
+		Constraints: &cloudprovider.CapacityConstraints{
+			Resources:    calculateResourcesForPod(pod),
+			Overhead:     calculateOverheadResources(),
+			Architecture: getSystemArchitecture(pod),
+			Zone:         getAvalabiltyZoneForPod(pod),
+		},
+	}
+	return group
+}
+
+func calculateResourcesForPod(pod *v1.Pod) v1.ResourceList {
+	resourceList := v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse("0"),
+		v1.ResourceMemory: resource.MustParse("0"),
+	}
+	addPodResourcesToList(resourceList, pod)
+	return resourceList
+}
+
+func addPodResourcesToList(resources v1.ResourceList, pod *v1.Pod) {
+	for _, container := range pod.Spec.Containers {
+		resources.Cpu().Add(*container.Resources.Limits.Cpu())
+		resources.Memory().Add(*container.Resources.Limits.Memory())
+	}
+}
+
+func calculateOverheadResources() v1.ResourceList {
+	//TODO
+	return v1.ResourceList{}
+}
+
+func getSystemArchitecture(pod *v1.Pod) cloudprovider.Architecture {
+	return cloudprovider.Linux386
+}
+
+func getAvalabiltyZoneForPod(pod *v1.Pod) string {
+	// TODO parse annotation/label from pod
+	return "us-east-2b"
 }
