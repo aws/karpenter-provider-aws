@@ -16,10 +16,6 @@ limitations under the License.
 
 package v1alpha1
 
-import "sigs.k8s.io/controller-runtime/pkg/webhook"
-
-var _ webhook.Defaulter = &MetricsProducer{}
-
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (m *MetricsProducer) Default() {
+func (r *MetricsProducer) Default() {
 }

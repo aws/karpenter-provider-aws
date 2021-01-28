@@ -41,5 +41,8 @@ kind: ScalableNodeGroup
 metadata:
   name: ml-training-capacity
 spec:
+  # replicas is needed here
+  # +ref https://github.com/awslabs/karpenter/issues/64
+  replicas: 1
   type: AWSEKSNodeGroup
   id: arn:aws:eks:us-west-2:1234567890:nodegroup/test-cluster/training-capacity/qwertyuiop

@@ -34,9 +34,6 @@ type Factory struct {
 }
 
 func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
-	if err := mp.Spec.Validate(); err != nil {
-		return &fake.FakeProducer{WantErr: err}
-	}
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
@@ -44,6 +41,9 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 		}
 	}
 	if mp.Spec.Queue != nil {
+		if err := mp.Spec.ValidateQueue(); err != nil {
+			return &fake.FakeProducer{WantErr: err}
+		}
 		return &queue.Producer{
 			MetricsProducer: mp,
 			Queue:           f.CloudProviderFactory.QueueFor(mp.Spec.Queue),
