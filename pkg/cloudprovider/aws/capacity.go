@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -43,85 +44,46 @@ func (cp *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capac
 	// TODO
 
 	// Create the desired number of instances based on desired capacity
-	// TODO remove hard coded template ID
-	config := defaultInstanceConfig("lt-02f427483e1be00f5", "$Latest", cp.ec2Iface)
-
-	if err := cp.updateConfigWithConstraints(config, constraints); err != nil {
-		return fmt.Errorf("config failed to update %w", err)
-	}
 	// create instances using EC2 fleet API
-	if err := config.validateAndCreate(ctx); err != nil {
+	if err := cp.create(ctx, constraints); err != nil {
 		return err
 	}
+	zap.S().Infof("Successfully created a node in zone %v\n", constraints.Zone)
 	return nil
 }
 
-// Set AvailabilityZone, subnet, capacity, on-demand or spot
-func (cp *Capacity) updateConfigWithConstraints(config *instanceConfig, constraints *cloudprovider.CapacityConstraints) error {
+func (cp *Capacity) create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
 
-	instanceType, count := cp.calculateInstanceTypeAndCount(constraints)
-	subnetID := cp.selectSubnetID(constraints)
-
-	config.templateConfig.Overrides[0].InstanceType = aws.String(instanceType)
-	config.capacitySpec.OnDemandTargetCapacity = aws.Int64(count)
-	config.capacitySpec.TotalTargetCapacity = aws.Int64(count)
-	config.templateConfig.Overrides[0].SubnetId = aws.String(subnetID)
-	config.templateConfig.Overrides[0].AvailabilityZone = aws.String("us-east-2a")
-
-	return nil
-}
-
-// TODO
-func (cp *Capacity) calculateInstanceTypeAndCount(constraints *cloudprovider.CapacityConstraints) (string, int64) {
-	return "m5.large", 1
-}
-
-// TODO
-func (cp *Capacity) selectSubnetID(constraints *cloudprovider.CapacityConstraints) string {
-	return "subnet-03216d5a693377033"
-}
-
-type instanceConfig struct {
-	ec2Iface       ec2iface.EC2API
-	templateConfig *ec2.FleetLaunchTemplateConfigRequest
-	capacitySpec   *ec2.TargetCapacitySpecificationRequest
-	instanceID     string
-}
-
-func defaultInstanceConfig(templateID, templateVersion string, client ec2iface.EC2API) *instanceConfig {
-	return &instanceConfig{
-		ec2Iface: client,
-		templateConfig: &ec2.FleetLaunchTemplateConfigRequest{
-			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateId: aws.String(templateID),
-				Version:          aws.String(templateVersion),
-			},
-			Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
-				&ec2.FleetLaunchTemplateOverridesRequest{},
+	// TODO remove hard coded values
+	output, err := cp.ec2Iface.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
+		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+			{
+				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+					LaunchTemplateId: aws.String("lt-02f427483e1be00f5"),
+					Version:          aws.String("$Latest"),
+				},
+				Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+					{
+						InstanceType:     aws.String("m5.large"),
+						SubnetId:         aws.String("subnet-03216d5a693377033"),
+						AvailabilityZone: aws.String("us-east-2a"),
+					},
+				},
 			},
 		},
-		capacitySpec: &ec2.TargetCapacitySpecificationRequest{
+		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
+			OnDemandTargetCapacity:    aws.Int64(1),
+			TotalTargetCapacity:       aws.Int64(1),
 		},
-	}
-}
-
-func (cfg *instanceConfig) validateAndCreate(ctx context.Context) error {
-	input := &ec2.CreateFleetInput{
-		LaunchTemplateConfigs:       []*ec2.FleetLaunchTemplateConfigRequest{cfg.templateConfig},
-		TargetCapacitySpecification: cfg.capacitySpec,
-		Type:                        aws.String(ec2.FleetTypeInstant),
-	}
-	if err := input.Validate(); err != nil {
-		return err
-	}
-	output, err := cfg.ec2Iface.CreateFleetWithContext(ctx, input)
+		Type: aws.String(ec2.FleetTypeInstant),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create fleet %w", err)
 	}
 	// TODO Get instanceID from the output
 	_ = output
-	_ = cfg.instanceID
+	// _ = cfg.instanceID
 	return nil
 }
 
