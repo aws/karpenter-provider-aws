@@ -31,12 +31,13 @@ type GreedyAllocator struct {
 	Capacity cloudprovider.Capacity
 }
 
-// Allocate takes a list of unschedulable pods and creates nodes based on resources required.
+// Allocate takes a list of unschedulable pods and creates nodes based on
+// resources required, node selectors and zone balancing.
 func (a *GreedyAllocator) Allocate(pods []*v1.Pod) error {
 	// 1. Separate pods into scheduling groups
 	groups := a.getSchedulingGroups(pods)
 
-	zap.S().Infof("Allocating pending pods count %d grouped into count %d \n", len(pods), len(groups))
+	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
 	for _, group := range groups {
 		if err := a.Capacity.Create(context.TODO(), group.Constraints); err != nil {

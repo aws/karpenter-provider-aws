@@ -40,20 +40,10 @@ func NewCapacity(client ec2iface.EC2API) *Capacity {
 
 // Create a set of nodes given the constraints
 func (cp *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
-	// Convert contraints to the Node types and select the launch template
-	// TODO
+	// TODO Convert contraints to the Node types and select the launch template
 
-	// Create the desired number of instances based on desired capacity
+	// Create the desired number of instances based on constraints
 	// create instances using EC2 fleet API
-	if err := cp.create(ctx, constraints); err != nil {
-		return err
-	}
-	zap.S().Infof("Successfully created a node in zone %v\n", constraints.Zone)
-	return nil
-}
-
-func (cp *Capacity) create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
-
 	// TODO remove hard coded values
 	output, err := cp.ec2Iface.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
@@ -84,6 +74,7 @@ func (cp *Capacity) create(ctx context.Context, constraints *cloudprovider.Capac
 	// TODO Get instanceID from the output
 	_ = output
 	// _ = cfg.instanceID
+	zap.S().Infof("Successfully created a node in zone %v", constraints.Zone)
 	return nil
 }
 
