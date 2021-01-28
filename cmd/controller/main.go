@@ -74,8 +74,11 @@ func main() {
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 		&provisionerv1alpha1.Controller{
-			Client:    manager.GetClient(),
-			Allocator: &allocation.GreedyAllocator{Capacity: cloudProviderFactory.Capacity()},
+			Client: manager.GetClient(),
+			Allocator: &allocation.GreedyAllocator{
+				Capacity: cloudProviderFactory.Capacity(),
+			},
+			ProcessedPods: make(map[string]bool),
 		},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Panicf("Unable to start manager, %w", err)

@@ -17,6 +17,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
@@ -30,6 +31,8 @@ import (
 type Controller struct {
 	Client    client.Client
 	Allocator allocation.Allocator
+	sync.RWMutex
+	ProcessedPods map[string]bool
 }
 
 // For returns the resource this controller is for.
@@ -61,17 +64,48 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 
 	unschedulable := []*v1.Pod{}
 	for _, pod := range pods.Items {
+		tempPod := pod
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
-				unschedulable = append(unschedulable, &pod)
+				unschedulable = append(unschedulable, &tempPod)
 			}
 		}
 	}
-
-	// 4. Attempt to schedule remaining pods by creating a set of nodes
-	if err := c.Allocator.Allocate(unschedulable); err != nil {
+	pendingPods := c.removeProcessedPods(unschedulable)
+	if len(pendingPods) == 0 {
+		return nil
+	}
+	// Attempt to schedule remaining pods by creating a set of nodes
+	if err := c.Allocator.Allocate(pendingPods); err != nil {
 		return fmt.Errorf("failed to allocate %d pods, %w", len(unschedulable), err)
 	}
-
 	return nil
+}
+
+func (c *Controller) removeProcessedPods(unschedulable []*v1.Pod) []*v1.Pod {
+	needsProcessing := make([]*v1.Pod, 0)
+	c.Lock()
+	defer c.Unlock()
+	for _, pod := range unschedulable {
+		key := podKeyCreate(pod)
+		// if a pod is never seen before, add to the list needsProcessing
+		if _, ok := c.ProcessedPods[key]; !ok {
+			needsProcessing = append(needsProcessing, pod)
+		}
+		// unschedulable pods are set as false
+		c.ProcessedPods[key] = false
+	}
+	// remove the pods which are not pending anymore.
+	for podKey, done := range c.ProcessedPods {
+		if done {
+			delete(c.ProcessedPods, podKey)
+			continue
+		}
+		c.ProcessedPods[podKey] = true
+	}
+	return needsProcessing
+}
+
+func podKeyCreate(pod *v1.Pod) string {
+	return pod.Namespace + "/" + pod.Name
 }
