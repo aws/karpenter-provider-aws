@@ -58,7 +58,7 @@ type NodeGroup interface {
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, *CapacityConstraints) error
+	Create(context.Context, *CapacityConstraints) ([]*v1.Node, error)
 }
 
 // CapacityConstraints lets the controller define the desired capacity,

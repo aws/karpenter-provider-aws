@@ -46,6 +46,7 @@ aws iam create-policy --policy-name Karpenter --policy-document "$(cat <<-EOM
         "ec2:CreateLaunchTemplate",
         "ec2:CreateFleet",
         "ec2:RunInstances",
+        "ec2:DescribeInstances",
         "ec2:CreateTags",
         "ec2:DescribeSubnets",
         "eks:DescribeCluster",
@@ -105,5 +106,5 @@ aws iam detach-role-policy --role-name KarpenterNodeRole --policy-arn arn:aws:ia
 aws iam detach-role-policy --role-name KarpenterNodeRole --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
 aws iam detach-role-policy --role-name KarpenterNodeRole --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 aws iam delete-role --role-name KarpenterNodeRole
-aws ec2 delete-launch-template --launch-template-name KarpenterLaunchTemplate
+aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep KarpenterLaunchTemplate | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```

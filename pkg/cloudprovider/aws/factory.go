@@ -38,22 +38,24 @@ import (
 
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
-	SQSAPI            sqsiface.SQSAPI
-	EKSAPI            eksiface.EKSAPI
-	EC2API            ec2iface.EC2API
-	IAMAPI            iamiface.IAMAPI
+	SQS               sqsiface.SQSAPI
+	EKS               eksiface.EKSAPI
+	EC2               ec2iface.EC2API
+	IAM               iamiface.IAMAPI
 	Client            client.Client
-	Config            *rest.Config
+	// TODO, dedup this with client. Currently necessary due to the client not
+	// working until mgr.Start() is called, which breaks initialization logic.
+	Config *rest.Config
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
-		EKSAPI:            eks.New(sess),
-		SQSAPI:            sqs.New(sess),
-		EC2API:            ec2.New(sess),
-		IAMAPI:            iam.New(sess),
+		EKS:               eks.New(sess),
+		SQS:               sqs.New(sess),
+		EC2:               ec2.New(sess),
+		IAM:               iam.New(sess),
 		Client:            options.Client,
 		Config:            options.Config,
 	}
@@ -64,7 +66,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return NewManagedNodeGroup(spec.ID, f.EKSAPI, f.AutoscalingClient, f.Client)
+		return NewManagedNodeGroup(spec.ID, f.EKS, f.AutoscalingClient, f.Client)
 	default:
 		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
@@ -73,14 +75,16 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return NewSQSQueue(spec.ID, f.SQSAPI)
+		return NewSQSQueue(spec.ID, f.SQS)
 	default:
 		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
 func (f *Factory) Capacity() cloudprovider.Capacity {
-	return NewCapacity(f.EC2API, f.EKSAPI, f.IAMAPI, f.Config)
+	kubeClient, err := client.New(f.Config, client.Options{})
+	log.PanicIfError(err, "Failed to instantiate kubeClient")
+	return NewCapacity(f.EC2, f.EKS, f.IAM, kubeClient)
 }
 
 func withRegion(sess *session.Session) *session.Session {

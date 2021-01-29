@@ -32,13 +32,12 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	DefaultNodeRoleName       = "KarpenterNodeRole"
-	DefaultLaunchTemplateName = "KarpenterLaunchTemplate"
+	DefaultNodeRoleName             = "KarpenterNodeRole"
+	DefaultLaunchTemplateNameFormat = "KarpenterLaunchTemplate-%s"
 )
 
 type Initialization struct {
@@ -49,24 +48,25 @@ type Initialization struct {
 	ZonalSubnets    map[string]*ec2.Subnet
 }
 
-func NewInitialization(EC2API ec2iface.EC2API, EKSAPI eksiface.EKSAPI, IAMAPI iamiface.IAMAPI, config *rest.Config) *Initialization {
+func NewInitialization(EC2 ec2iface.EC2API, EKS eksiface.EKSAPI, IAM iamiface.IAMAPI, kubeClient client.Client) *Initialization {
+	// TODO, factor initialization logic per cluster or per provisioner resource
 	zap.S().Infof("Initializing AWS Cloud Provider")
-	cluster := clusterOrDie(EKSAPI, "etarn-dev")
-	instanceRole := instanceRoleOrDie(IAMAPI, DefaultNodeRoleName)
-	ensureAWSAuthOrDie(config, instanceRole)
+	cluster := clusterOrDie(EKS, "etarn-dev")
+	instanceRole := instanceRoleOrDie(IAM, DefaultNodeRoleName)
+	ensureAWSAuthOrDie(kubeClient, instanceRole)
 	initialization := &Initialization{
 		Cluster:         cluster,
 		InstanceRole:    instanceRole,
-		InstanceProfile: nodeInstanceProfileOrDie(IAMAPI, *instanceRole.RoleName),
-		LaunchTemplate:  launchTemplateOrDie(EC2API, cluster, DefaultLaunchTemplateName, *instanceRole.RoleName),
-		ZonalSubnets:    zonalSubnetsOrDie(EC2API, cluster),
+		InstanceProfile: nodeInstanceProfileOrDie(IAM, *instanceRole.RoleName),
+		LaunchTemplate:  launchTemplateOrDie(EC2, cluster, fmt.Sprintf(DefaultLaunchTemplateNameFormat, *cluster.Name), *instanceRole.RoleName),
+		ZonalSubnets:    zonalSubnetsOrDie(EC2, cluster),
 	}
 	zap.S().Infof("Successfully initialized AWS Cloud Provider")
 	return initialization
 }
 
-func clusterOrDie(eksAPI eksiface.EKSAPI, name string) *eks.Cluster {
-	describeClusterOutput, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+func clusterOrDie(EKS eksiface.EKSAPI, name string) *eks.Cluster {
+	describeClusterOutput, err := EKS.DescribeCluster(&eks.DescribeClusterInput{
 		Name: aws.String(name),
 	})
 	log.PanicIfError(err, "Failed to discover EKS Cluster %s", name)
@@ -74,9 +74,9 @@ func clusterOrDie(eksAPI eksiface.EKSAPI, name string) *eks.Cluster {
 	return describeClusterOutput.Cluster
 }
 
-func nodeInstanceProfileOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.InstanceProfile {
+func nodeInstanceProfileOrDie(IAM iamiface.IAMAPI, name string) *iam.InstanceProfile {
 	// 1. Detect existing InstanceProfile
-	getInstanceProfileOutput, err := IAMAPI.GetInstanceProfile(&iam.GetInstanceProfileInput{
+	getInstanceProfileOutput, err := IAM.GetInstanceProfile(&iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(name),
 	})
 	if err == nil {
@@ -87,14 +87,14 @@ func nodeInstanceProfileOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Instance
 	}
 
 	// 2. Create InstanceProfile
-	createInstanceRoleOutput, err := IAMAPI.CreateInstanceProfile(&iam.CreateInstanceProfileInput{
+	createInstanceRoleOutput, err := IAM.CreateInstanceProfile(&iam.CreateInstanceProfileInput{
 		InstanceProfileName: aws.String(name),
 	})
 	log.PanicIfError(err, "Failed to create instance profile %s", name)
 	zap.S().Infof("Successfully created instance profile %s", name)
 
 	// 3. Attach Role to Instance Profile
-	_, err = IAMAPI.AddRoleToInstanceProfile(&iam.AddRoleToInstanceProfileInput{
+	_, err = IAM.AddRoleToInstanceProfile(&iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(name),
 		RoleName:            aws.String(name),
 	})
@@ -103,9 +103,9 @@ func nodeInstanceProfileOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Instance
 	return createInstanceRoleOutput.InstanceProfile
 }
 
-func instanceRoleOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Role {
+func instanceRoleOrDie(IAM iamiface.IAMAPI, name string) *iam.Role {
 	// 1. Detect existing Role
-	getRoleOutput, err := IAMAPI.GetRole(&iam.GetRoleInput{RoleName: aws.String(name)})
+	getRoleOutput, err := IAM.GetRole(&iam.GetRoleInput{RoleName: aws.String(name)})
 	if err == nil {
 		zap.S().Infof("Successfully detected role %s", name)
 		return getRoleOutput.Role
@@ -114,23 +114,15 @@ func instanceRoleOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Role {
 	}
 
 	// 2. Create Role
-	createRoleOutput, err := IAMAPI.CreateRole(&iam.CreateRoleInput{
+	createRoleOutput, err := IAM.CreateRole(&iam.CreateRoleInput{
 		RoleName: aws.String(name),
 		AssumeRolePolicyDocument: aws.String(`{
 			"Version": "2012-10-17",
-			"Statement": [
-			  {
+			"Statement": [{
 				"Effect": "Allow",
-				"Action": [
-				  "sts:AssumeRole"
-				],
-				"Principal": {
-				  "Service": [
-					"ec2.amazonaws.com"
-				  ]
-				}
-			  }
-			]
+				"Action": [ "sts:AssumeRole" ],
+				"Principal": { "Service": ["ec2.amazonaws.com"] }
+			}]
 		  }`),
 	})
 	log.PanicIfError(err, "Failed to create role %s", name)
@@ -143,7 +135,7 @@ func instanceRoleOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Role {
 		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
 		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
 	} {
-		_, err := IAMAPI.AttachRolePolicy(&iam.AttachRolePolicyInput{
+		_, err := IAM.AttachRolePolicy(&iam.AttachRolePolicyInput{
 			PolicyArn: aws.String(policyArn),
 			RoleName:  aws.String(name),
 		})
@@ -153,9 +145,9 @@ func instanceRoleOrDie(IAMAPI iamiface.IAMAPI, name string) *iam.Role {
 	return createRoleOutput.Role
 }
 
-func launchTemplateOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster, name string, instanceProfileName string) *ec2.LaunchTemplate {
+func launchTemplateOrDie(EC2 ec2iface.EC2API, cluster *eks.Cluster, name string, instanceProfileName string) *ec2.LaunchTemplate {
 	// 1. Detect existing launch template
-	describeLaunchTemplateOutput, err := ec2API.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
+	describeLaunchTemplateOutput, err := EC2.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() != "InvalidLaunchTemplateName.NotFoundException" {
@@ -169,7 +161,7 @@ func launchTemplateOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster, name stri
 	}
 
 	// 2. Create Launch Template
-	createLaunchTemplateOutput, err := ec2API.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
+	createLaunchTemplateOutput, err := EC2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(name),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
@@ -194,6 +186,7 @@ func launchTemplateOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster, name stri
 				*cluster.CertificateAuthority.Data,
 				*cluster.Endpoint,
 			)))),
+			// TODO discover this with SSM
 			ImageId: aws.String("ami-0532808ed453f9ca3"),
 		},
 	})
@@ -204,13 +197,13 @@ func launchTemplateOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster, name stri
 	return createLaunchTemplateOutput.LaunchTemplate
 }
 
-func zonalSubnetsOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster) map[string]*ec2.Subnet {
-	describeSubnetOutput, err := ec2API.DescribeSubnets(&ec2.DescribeSubnetsInput{
+func zonalSubnetsOrDie(EC2 ec2iface.EC2API, cluster *eks.Cluster) map[string]*ec2.Subnet {
+	describeSubnetOutput, err := EC2.DescribeSubnets(&ec2.DescribeSubnetsInput{
 		SubnetIds: cluster.ResourcesVpcConfig.SubnetIds,
 	})
 	log.PanicIfError(err, "Failed to describe subnets %v", cluster.ResourcesVpcConfig.SubnetIds)
 	zonalSubnetMap := map[string]*ec2.Subnet{}
-	// TODO Filter public subnets
+	// TODO Filter public subnets and ensure only one subnet per zone
 	for _, subnet := range describeSubnetOutput.Subnets {
 		zonalSubnetMap[*subnet.AvailabilityZone] = subnet
 	}
@@ -218,13 +211,11 @@ func zonalSubnetsOrDie(ec2API ec2iface.EC2API, cluster *eks.Cluster) map[string]
 	return zonalSubnetMap
 }
 
-func ensureAWSAuthOrDie(config *rest.Config, role *iam.Role) {
-	kubeClient, err := client.New(config, client.Options{})
-	log.PanicIfError(err, "Failed to instantiate ephemeral kubeClient")
-
+func ensureAWSAuthOrDie(kubeClient client.Client, role *iam.Role) {
 	awsAuth := &v1.ConfigMap{}
 	nn := types.NamespacedName{Name: "aws-auth", Namespace: "kube-system"}
-	log.PanicIfError(kubeClient.Get(context.TODO(), nn, awsAuth), "Failed to retrieve configmap aws-auth")
+	err := kubeClient.Get(context.TODO(), nn, awsAuth)
+	log.PanicIfError(err, "Failed to retrieve configmap aws-auth")
 
 	if strings.Contains(awsAuth.Data["mapRoles"], *role.Arn) {
 		zap.S().Infof("Successfully detected aws-auth configmap contains roleArn %s", *role.Arn)
@@ -237,6 +228,7 @@ func ensureAWSAuthOrDie(config *rest.Config, role *iam.Role) {
   - system:nodes
   rolearn: %s
   username: system:node:{{EC2PrivateDNSName}}`, *role.Arn)
-	log.PanicIfError(kubeClient.Update(context.TODO(), awsAuth), "Failed to update configmap aws-auth")
+	err = kubeClient.Update(context.TODO(), awsAuth)
+	log.PanicIfError(err, "Failed to update configmap aws-auth")
 	zap.S().Infof("Successfully patched configmap aws-auth with roleArn %s", *role.Arn)
 }
