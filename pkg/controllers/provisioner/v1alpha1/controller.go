@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1/allocation"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -107,5 +108,9 @@ func (c *Controller) removeProcessedPods(unschedulable []*v1.Pod) []*v1.Pod {
 }
 
 func podKeyCreate(pod *v1.Pod) string {
-	return pod.Namespace + "/" + pod.Name
+	nn := types.NamespacedName{
+		Name:      pod.GetName(),
+		Namespace: pod.GetNamespace(),
+	}
+	return nn.String()
 }
