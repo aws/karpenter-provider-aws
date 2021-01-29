@@ -20,32 +20,40 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"strings"
 	"time"
 )
+
+var _ webhook.Validator = &MetricsProducer{}
+
 type specValidator interface {
 	validate() error
 }
 
 // Only Validates ScheduledCapacity MetricsProducer right now
 func (m *MetricsProducer) ValidateCreate() error {
+	return m.validate()
+}
+
+func (m *MetricsProducer) ValidateUpdate(old runtime.Object) error {
+	return m.validate()
+}
+
+func (m *MetricsProducer) ValidateDelete() error {
+	return nil
+}
+
+func (m *MetricsProducer) validate() error {
 	for _, validator := range []specValidator{
 		m.Spec.PendingCapacity,
 		m.Spec.ReservedCapacity,
 		m.Spec.Schedule,
 	} {
-		if validator != nil {
+		if !reflect.ValueOf(validator).IsNil() {
 			return validator.validate()
 		}
 	}
-	return nil
-}
-
-func (m *MetricsProducer) ValidateUpdate(old runtime.Object) error {
-	return m.ValidateCreate()
-}
-
-func (m *MetricsProducer) ValidateDelete() error {
 	return nil
 }
 
@@ -93,24 +101,24 @@ const (
 	onlyNumbersPattern  = `^\d+$`
 )
 
+var regexMap = map[string]string{
+	"Weekdays": weekdayRegexPattern,
+	"Months":   monthRegexPattern,
+	"Days":     onlyNumbersPattern,
+	"Hours":    onlyNumbersPattern,
+	"Minutes":  onlyNumbersPattern,
+}
+
 func (p *Pattern) validate() error {
 	val := reflect.ValueOf(p)
-	errorMessage := "%s field could not be parsed"
-	for i, name := range []string{"Minutes","Hours","Days","Months","Weekdays"} {
-		field := val.FieldByName(name).String()
-		switch i {
-		case 3:
-			if !isValidField(&field, monthRegexPattern) {
-				return fmt.Errorf(errorMessage, name)
-			}
-		case 4:
-			if !isValidField(&field, weekdayRegexPattern) {
-				return fmt.Errorf(errorMessage, name)
-			}
-		default:
-			if !isValidField(&field, onlyNumbersPattern) {
-				return fmt.Errorf(errorMessage, name)
-			}
+	for _, name := range []string{"Weekdays", "Months", "Days", "Hours", "Minutes"} {
+		ptr := reflect.Indirect(val).FieldByName(name)
+		if ptr.IsNil() {
+			continue
+		}
+		field := ptr.Elem().String()
+		if !isValidField(&field, regexMap[name]) {
+			return fmt.Errorf("unable to parse: %s", field)
 		}
 	}
 	return nil

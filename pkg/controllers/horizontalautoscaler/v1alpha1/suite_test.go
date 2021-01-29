@@ -81,6 +81,9 @@ var _ = Describe("Examples", func() {
 		Expect(err).NotTo(HaveOccurred())
 		ha = &v1alpha1.HorizontalAutoscaler{}
 		sng = &v1alpha1.ScalableNodeGroup{}
+		v1alpha1.RegisterScalableNodeGroupValidator(v1alpha1.AWSEKSNodeGroup, func(sng *v1alpha1.ScalableNodeGroupSpec) error {
+			return nil
+		})
 	})
 
 	AfterEach(func() {

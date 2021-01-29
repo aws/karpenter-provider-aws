@@ -41,9 +41,6 @@ func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
 		}
 	}
 	if mp.Spec.Queue != nil {
-		if err := mp.Spec.ValidateQueue(); err != nil {
-			return &fake.FakeProducer{WantErr: err}
-		}
 		return &queue.Producer{
 			MetricsProducer: mp,
 			Queue:           f.CloudProviderFactory.QueueFor(mp.Spec.Queue),
