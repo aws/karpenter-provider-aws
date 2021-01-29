@@ -19,6 +19,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -57,7 +58,7 @@ type NodeGroup interface {
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, *CapacityConstraints) error
+	Create(context.Context, *CapacityConstraints) ([]*v1.Node, error)
 }
 
 // CapacityConstraints lets the controller define the desired capacity,
@@ -84,4 +85,5 @@ const (
 // Options are injected into cloud providers' factories
 type Options struct {
 	Client client.Client
+	Config *rest.Config
 }

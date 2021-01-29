@@ -43,7 +43,7 @@ func (c *Controller) Owns() []controllers.Object {
 }
 
 func (c *Controller) Interval() time.Duration {
-	return 10 * time.Second
+	return 60 * time.Second
 }
 
 // Reconcile executes a control loop for the resource

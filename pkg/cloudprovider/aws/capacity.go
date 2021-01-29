@@ -17,84 +17,100 @@ package aws
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/log"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Capacity struct {
-	ec2Iface ec2iface.EC2API
+	Client         client.Client
+	EC2API         ec2iface.EC2API
+	LaunchTemplate *ec2.LaunchTemplate
+	ZonalSubnets   map[string]*ec2.Subnet
 }
 
 // NewCapacity constructs a Capacity client for AWS
-func NewCapacity(client ec2iface.EC2API) *Capacity {
-	return &Capacity{ec2Iface: client}
+func NewCapacity(EC2API ec2iface.EC2API, EKSAPI eksiface.EKSAPI, IAMAPI iamiface.IAMAPI, client client.Client) *Capacity {
+	initialization := NewInitialization(EC2API, EKSAPI, IAMAPI, client)
+	return &Capacity{
+		EC2API:         EC2API,
+		LaunchTemplate: initialization.LaunchTemplate,
+		ZonalSubnets:   initialization.ZonalSubnets,
+		Client:         client,
+	}
 }
 
 // Create a set of nodes given the constraints
-func (cp *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) error {
-	// TODO Convert contraints to the Node types and select the launch template
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]*v1.Node, error) {
+	// TODO, select a zone more intelligently
+	var zone string
+	for zone = range c.ZonalSubnets {
+	}
 
-	// Create the desired number of instances based on constraints
-	// create instances using EC2 fleet API
-	// TODO remove hard coded values
-	output, err := cp.ec2Iface.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
-		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
-			{
-				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-					LaunchTemplateId: aws.String("lt-02f427483e1be00f5"),
-					Version:          aws.String("$Latest"),
-				},
-				Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
-					{
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("subnet-03216d5a693377033"),
-						AvailabilityZone: aws.String("us-east-2a"),
-					},
-				},
-			},
-		},
+	createFleetOutput, err := c.EC2API.CreateFleetWithContext(context.TODO(), &ec2.CreateFleetInput{
+		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
-			OnDemandTargetCapacity:    aws.Int64(1),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
-		Type: aws.String(ec2.FleetTypeInstant),
+		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
+			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+				LaunchTemplateName: c.LaunchTemplate.LaunchTemplateName,
+				Version:            aws.String("$Default"),
+			},
+			Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{{
+				AvailabilityZone: aws.String(zone),
+				InstanceType:     aws.String("m5.large"),
+				SubnetId:         c.ZonalSubnets[zone].SubnetId,
+			}},
+		}},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create fleet %w", err)
+		return nil, fmt.Errorf("creating fleet, %w", err)
 	}
-	// TODO Get instanceID from the output
-	_ = output
-	// _ = cfg.instanceID
-	zap.S().Infof("Successfully created a node in zone %v", constraints.Zone)
-	return nil
+
+	var nodes []*v1.Node
+	var instanceIds []*string
+	for _, instance := range createFleetOutput.Instances {
+		instanceIds = append(instanceIds, instance.InstanceIds...)
+	}
+
+	// TODO, add retries to describe instances, since create fleet is eventually consistent.
+	describeInstancesOutput, err := c.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{InstanceIds: instanceIds})
+	if err != nil {
+		return nil, fmt.Errorf("describing instances %v, %w", instanceIds, err)
+	}
+
+	for _, reservation := range describeInstancesOutput.Reservations {
+		for _, instance := range reservation.Instances {
+			nodes = append(nodes, nodeFrom(instance))
+		}
+	}
+
+	return nodes, nil
 }
 
-// calculateResourceListOrDie queries EC2 API and gets the CPU & Mem for a list of instance types
-func calculateResourceListOrDie(client ec2iface.EC2API, instanceType []*string) map[string]v1.ResourceList {
-	output, err := client.DescribeInstanceTypes(
-		&ec2.DescribeInstanceTypesInput{
-			InstanceTypes: instanceType,
+func nodeFrom(instance *ec2.Instance) *v1.Node {
+	return &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: *instance.PrivateDnsName,
 		},
-	)
-	if err != nil {
-		log.PanicIfError(err, "Describe instance type request failed")
+		Spec: v1.NodeSpec{
+			ProviderID: fmt.Sprintf("aws:///%s/%s", *instance.Placement.AvailabilityZone, *instance.InstanceId),
+		},
+		Status: v1.NodeStatus{
+			Allocatable: v1.ResourceList{
+				// TODO, This value is necessary to avoid OutOfPods failure state. Find a way to set this (and cpu/mem) correctly
+				v1.ResourcePods: resource.MustParse("100"),
+			},
+		},
 	}
-	var instanceTypes = map[string]v1.ResourceList{}
-	for _, instance := range output.InstanceTypes {
-		resourceList := v1.ResourceList{
-			v1.ResourceCPU:    resource.MustParse(strconv.FormatInt(*instance.VCpuInfo.DefaultVCpus, 10)),
-			v1.ResourceMemory: resource.MustParse(strconv.FormatInt(*instance.MemoryInfo.SizeInMiB, 10)),
-		}
-		instanceTypes[*instance.InstanceType] = resourceList
-	}
-	return instanceTypes
 }

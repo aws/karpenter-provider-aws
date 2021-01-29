@@ -64,7 +64,7 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient()})
+	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), Config: manager.GetConfig()})
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
@@ -74,10 +74,8 @@ func main() {
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 		&provisionerv1alpha1.Controller{
-			Client: manager.GetClient(),
-			Allocator: &allocation.GreedyAllocator{
-				Capacity: cloudProviderFactory.Capacity(),
-			},
+			Client:    manager.GetClient(),
+			Allocator: &allocation.GreedyAllocator{Capacity: cloudProviderFactory.Capacity()},
 		},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
 		zap.S().Panicf("Unable to start manager, %w", err)
