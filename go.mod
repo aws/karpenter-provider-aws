@@ -8,6 +8,7 @@ require (
 	github.com/go-logr/zapr v0.2.0
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.14.0
 	go.uber.org/multierr v1.6.0

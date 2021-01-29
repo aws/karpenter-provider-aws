@@ -40,7 +40,7 @@ func (a *GreedyAllocator) Allocate(pods []*v1.Pod) error {
 	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
 	for _, group := range groups {
-		if err := a.Capacity.Create(context.TODO(), group.Constraints); err != nil {
+		if _, err := a.Capacity.Create(context.TODO(), group.Constraints); err != nil {
 			return fmt.Errorf("while creating capacity with constraints %v, %w", group.Constraints, err)
 		}
 	}

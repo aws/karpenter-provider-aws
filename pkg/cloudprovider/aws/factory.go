@@ -24,31 +24,40 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
-	SQSClient         sqsiface.SQSAPI
-	EKSClient         eksiface.EKSAPI
-	EC2Client         ec2iface.EC2API
+	SQS               sqsiface.SQSAPI
+	EKS               eksiface.EKSAPI
+	EC2               ec2iface.EC2API
+	IAM               iamiface.IAMAPI
 	Client            client.Client
+	// TODO, dedup this with client. Currently necessary due to the client not
+	// working until mgr.Start() is called, which breaks initialization logic.
+	Config *rest.Config
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
-		EKSClient:         eks.New(sess),
-		SQSClient:         sqs.New(sess),
-		EC2Client:         ec2.New(sess),
+		EKS:               eks.New(sess),
+		SQS:               sqs.New(sess),
+		EC2:               ec2.New(sess),
+		IAM:               iam.New(sess),
 		Client:            options.Client,
+		Config:            options.Config,
 	}
 }
 
@@ -57,7 +66,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return NewManagedNodeGroup(spec.ID, f.EKSClient, f.AutoscalingClient, f.Client)
+		return NewManagedNodeGroup(spec.ID, f.EKS, f.AutoscalingClient, f.Client)
 	default:
 		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
@@ -66,14 +75,16 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return NewSQSQueue(spec.ID, f.SQSClient)
+		return NewSQSQueue(spec.ID, f.SQS)
 	default:
 		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
 func (f *Factory) Capacity() cloudprovider.Capacity {
-	return NewCapacity(f.EC2Client)
+	kubeClient, err := client.New(f.Config, client.Options{})
+	log.PanicIfError(err, "Failed to instantiate kubeClient")
+	return NewCapacity(f.EC2, f.EKS, f.IAM, kubeClient)
 }
 
 func withRegion(sess *session.Session) *session.Session {
