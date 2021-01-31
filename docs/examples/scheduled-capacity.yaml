@@ -22,7 +22,7 @@ spec:
       # Scale way up for higher traffic for weekdays during work hours
       - replicas: 6
         start:
-          weekdays: mon,tue,wed,thu,fri
+          weekdays: Mon,Tue,Wed,Thu,Fri
           hours: "9"
         end:
           weekdays: Mon,Tue,Wed,Thu,Fri
@@ -60,6 +60,8 @@ kind: ScalableNodeGroup
 metadata:
   name: scheduled-nodegroup-example
 spec:
+  # replicas is needed here
+  # +ref https://github.com/awslabs/karpenter/issues/64
   replicas: 1
   type: AWSEKSNodeGroup
   id: arn:aws:eks:us-west-2:112358132134:nodegroup/fibonacci/demo/qwertyuiop

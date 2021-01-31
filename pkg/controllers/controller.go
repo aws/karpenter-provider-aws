@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
@@ -50,6 +51,8 @@ type Controller interface {
 // methods necessary to standardize reconciliation behavior in Karpenter.
 type Object interface {
 	client.Object
+	webhook.Validator
+	webhook.Defaulter
 	StatusConditions() apis.ConditionManager
 }
 
@@ -72,15 +75,21 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
-	// 3. Reconcile
-	if err := c.Controller.Reconcile(resource); err != nil {
+	// 3. Validate
+	if err := c.For().ValidateCreate(); err != nil {
+		resource.StatusConditions().MarkFalse(v1alpha1.Active, "could not validate kind: %v err: %v",
+			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
+		zap.S().Errorf("Controller failed to validate kind: %v err: %v",
+			resource.GetObjectKind().GroupVersionKind().Kind, err)
+		// 4. Reconcile
+	} else if err := c.Controller.Reconcile(resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 		zap.S().Errorf("Controller failed to reconcile kind: %v err: %v",
 			resource.GetObjectKind().GroupVersionKind().Kind, err)
 	} else {
 		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
-	// 4. Update Status using a merge patch
+	// 5. Update Status using a merge patch
 	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}

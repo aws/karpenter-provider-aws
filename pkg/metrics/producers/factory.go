@@ -34,9 +34,6 @@ type Factory struct {
 }
 
 func (f *Factory) For(mp *v1alpha1.MetricsProducer) metrics.Producer {
-	if err := mp.Spec.Validate(); err != nil {
-		return &fake.FakeProducer{WantErr: err}
-	}
 	if mp.Spec.PendingCapacity != nil {
 		return &pendingcapacity.Producer{
 			MetricsProducer: mp,
