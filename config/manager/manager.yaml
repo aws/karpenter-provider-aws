@@ -22,6 +22,7 @@ spec:
       labels:
         control-plane: karpenter
     spec:
+      serviceAccountName: karpenter
       containers:
       - name: manager
         image: ko://github.com/awslabs/karpenter/cmd/controller

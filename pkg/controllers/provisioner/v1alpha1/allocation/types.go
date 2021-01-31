@@ -14,9 +14,12 @@ limitations under the License.
 
 package allocation
 
-import v1 "k8s.io/api/core/v1"
+import (
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	v1 "k8s.io/api/core/v1"
+)
 
 // Allocator allocates new capacity for a set of pods
 type Allocator interface {
-	Allocate([]*v1.Pod) error
+	Allocate(*v1alpha1.Provisioner, []*v1.Pod) error
 }
