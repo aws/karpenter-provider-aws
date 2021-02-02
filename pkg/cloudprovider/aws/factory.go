@@ -25,39 +25,36 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/utils/log"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Factory struct {
 	AutoscalingClient autoscalingiface.AutoScalingAPI
-	SQS               sqsiface.SQSAPI
-	EKS               eksiface.EKSAPI
-	EC2               ec2iface.EC2API
-	IAM               iamiface.IAMAPI
-	Client            client.Client
-	// TODO, dedup this with client. Currently necessary due to the client not
-	// working until mgr.Start() is called, which breaks initialization logic.
-	Config *rest.Config
+	sqs               sqsiface.SQSAPI
+	eks               eksiface.EKSAPI
+	ec2               ec2iface.EC2API
+	fleetFactory      *fleet.Factory
+	kubeClient        client.Client
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession()))
+	EC2 := ec2.New(sess)
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
-		EKS:               eks.New(sess),
-		SQS:               sqs.New(sess),
-		EC2:               ec2.New(sess),
-		IAM:               iam.New(sess),
-		Client:            options.Client,
-		Config:            options.Config,
+		eks:               eks.New(sess),
+		sqs:               sqs.New(sess),
+		ec2:               EC2,
+		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), options.Client),
+		kubeClient:        options.Client,
 	}
 }
 
@@ -66,7 +63,7 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 	case v1alpha1.AWSEC2AutoScalingGroup:
 		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
 	case v1alpha1.AWSEKSNodeGroup:
-		return NewManagedNodeGroup(spec.ID, f.EKS, f.AutoscalingClient, f.Client)
+		return NewManagedNodeGroup(spec.ID, f.eks, f.AutoscalingClient, f.kubeClient)
 	default:
 		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
 	}
@@ -75,16 +72,14 @@ func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovid
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	switch spec.Type {
 	case v1alpha1.AWSSQSQueueType:
-		return NewSQSQueue(spec.ID, f.SQS)
+		return NewSQSQueue(spec.ID, f.sqs)
 	default:
 		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
-func (f *Factory) Capacity() cloudprovider.Capacity {
-	kubeClient, err := client.New(f.Config, client.Options{})
-	log.PanicIfError(err, "Failed to instantiate kubeClient")
-	return NewCapacity(f.EC2, f.EKS, f.IAM, kubeClient)
+func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
+	return f.fleetFactory.For(spec)
 }
 
 func withRegion(sess *session.Session) *session.Session {

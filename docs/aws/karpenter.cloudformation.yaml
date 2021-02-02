@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used by https://github.com/awslabs/karpenter
+Parameters:
+  OpenIDConnectIdentityProvider:
+    Type: String
+    Description: "Example oidc.eks.us-west-2.amazonaws.com/id/1234567890"
+Resources:
+  KarpenterControllerRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: KarpenterControllerRole
+      Path: /
+      AssumeRolePolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${OpenIDConnectIdentityProvider}"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "${OpenIDConnectIdentityProvider}:aud": "sts.${AWS::URLSuffix}",
+                "${OpenIDConnectIdentityProvider}:sub": "system:serviceaccount:karpenter:karpenter"
+              }
+            }
+          }]
+        }
+  KarpenterControllerPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: Karpenter
+      Roles:
+        -
+          Ref: "KarpenterControllerRole"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              # Write Operations
+              - "ec2:CreateLaunchTemplate"
+              - "ec2:CreateFleet"
+              - "ec2:RunInstances"
+              - "ec2:CreateTags"
+              - "iam:PassRole"
+              # Read Operations
+              - "ec2:DescribeLaunchTemplates"
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeSecurityGroups"
+              - "ec2:DescribeSubnets"
+              - "iam:GetInstanceProfile"
+  KarpenterNodeInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName: "KarpenterNodeInstanceProfile"
+      Path: "/"
+      Roles:
+        - Ref: "KarpenterNodeInstanceRole"
+  KarpenterNodeInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "KarpenterNodeRole"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                !Sub "ec2.${AWS::URLSuffix}"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"

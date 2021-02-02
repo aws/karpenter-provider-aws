@@ -24,6 +24,10 @@ import (
 type Capacity struct {
 }
 
-func (c *Capacity) Create(context.Context, *cloudprovider.CapacityConstraints) ([]*v1.Node, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]*v1.Node, error) {
+	return nil, nil
+}
+
+func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
 	return nil, nil
 }
