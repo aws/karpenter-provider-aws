@@ -19,10 +19,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
 
 	"github.com/awslabs/karpenter/pkg/utils/log"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -55,7 +55,6 @@ func main() {
 	flag.Parse()
 
 	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
-
 	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		LeaderElection:     true,
 		LeaderElectionID:   "karpenter-leader-election",
@@ -69,15 +68,23 @@ func main() {
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
+	client, err := corev1.NewForConfig(manager.GetConfig())
+	if err != nil {
+		log.PanicIfError(err, "creating client err")
+	}
+
 	if err := manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 		&provisionerv1alpha1.Controller{
-			Client:    manager.GetClient(),
-			Allocator: &allocation.GreedyAllocator{CloudProvider: cloudProviderFactory},
+			Client: manager.GetClient(),
+			Allocator: &allocation.GreedyAllocator{
+				CloudProvider: cloudProviderFactory,
+				CoreV1Client:  client,
+			},
 		},
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		zap.S().Panicf("Unable to start manager, %w", err)
+		log.PanicIfError(err, "Unable to start manager")
 	}
 }

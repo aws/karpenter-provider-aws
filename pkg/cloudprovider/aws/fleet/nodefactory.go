@@ -36,6 +36,9 @@ type NodeFactory struct {
 func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) ([]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
+	if len(instanceIds) == 0 {
+		return nil, fmt.Errorf("instance ids not provided")
+	}
 	for attempt := retry.Start(retry.Exponential{
 		Initial:  1 * time.Second,
 		MaxDelay: 10 * time.Second,
@@ -74,7 +77,9 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 		Status: v1.NodeStatus{
 			Allocatable: v1.ResourceList{
 				// TODO, This value is necessary to avoid OutOfPods failure state. Find a way to set this (and cpu/mem) correctly
-				v1.ResourcePods: resource.MustParse("100"),
+				v1.ResourcePods:   resource.MustParse("100"),
+				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 	}
