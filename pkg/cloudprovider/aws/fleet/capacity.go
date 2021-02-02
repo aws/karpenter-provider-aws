@@ -25,7 +25,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
@@ -38,7 +37,7 @@ type Capacity struct {
 }
 
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]*v1.Node, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.CapacityPacking, error) {
 	// 1. Select a zone
 	zone, err := c.selectZone(ctx, constraints)
 	if err != nil {
@@ -96,7 +95,13 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
 	zap.S().Infof("Successfully requested %d nodes", len(nodes))
-	return nodes, nil
+
+	// TODO Implement more sophisticated binpacking.
+	packing := cloudprovider.CapacityPacking{}
+	for _, node := range nodes {
+		packing[node] = constraints.Pods
+	}
+	return packing, nil
 }
 
 // GetTopologyDomains returns a set of supported domains.
