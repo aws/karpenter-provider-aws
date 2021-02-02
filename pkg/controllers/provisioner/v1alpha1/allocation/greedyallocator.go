@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -28,20 +29,20 @@ var _ Allocator = &GreedyAllocator{}
 
 // GreedyAllocator iteratively assigns pods to scheduling groups and then creates capacity for each group.
 type GreedyAllocator struct {
-	Capacity cloudprovider.Capacity
+	CloudProvider cloudprovider.Factory
 }
 
 // Allocate takes a list of unschedulable pods and creates nodes based on
 // resources required, node selectors and zone balancing.
-func (a *GreedyAllocator) Allocate(pods []*v1.Pod) error {
+func (a *GreedyAllocator) Allocate(provisioner *v1alpha1.Provisioner, pods []*v1.Pod) error {
 	// 1. Separate pods into scheduling groups
 	groups := a.getSchedulingGroups(pods)
 
 	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
 	for _, group := range groups {
-		if _, err := a.Capacity.Create(context.TODO(), group.Constraints); err != nil {
-			return fmt.Errorf("while creating capacity with constraints %v, %w", group.Constraints, err)
+		if _, err := a.CloudProvider.CapacityFor(&provisioner.Spec).Create(context.TODO(), group.Constraints); err != nil {
+			return fmt.Errorf("while creating capacity, %w", err)
 		}
 	}
 	return nil
@@ -83,7 +84,9 @@ func schedulingGroupForPod(pod *v1.Pod) *SchedulingGroup {
 			Resources:    calculateResourcesForPod(pod),
 			Overhead:     calculateOverheadResources(),
 			Architecture: getSystemArchitecture(pod),
-			Zone:         getAvalabiltyZoneForPod(pod),
+			Topology: map[cloudprovider.TopologyKey]string{
+				cloudprovider.TopologyKeyZone: getAvalabiltyZoneForPod(pod),
+			},
 		},
 	}
 	return group
@@ -116,5 +119,5 @@ func getSystemArchitecture(pod *v1.Pod) cloudprovider.Architecture {
 
 func getAvalabiltyZoneForPod(pod *v1.Pod) string {
 	// TODO parse annotation/label from pod
-	return "us-east-2b"
+	return "us-west-2b"
 }

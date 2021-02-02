@@ -17,20 +17,20 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Factory instantiates the cloud provider's resources
 type Factory interface {
 	// NodeGroupFor returns a node group for the provided spec
-	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
+	NodeGroupFor(sng *autoscalingv1alpha1.ScalableNodeGroupSpec) NodeGroup
 	// QueueFor returns a queue for the provided spec
-	QueueFor(queue *v1alpha1.QueueSpec) Queue
+	QueueFor(queue *autoscalingv1alpha1.QueueSpec) Queue
 	// Capacity returns a provisioner for the provider to create instances
-	Capacity() Capacity
+	CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) Capacity
 }
 
 // Queue abstracts all provider specific behavior for Queues
@@ -59,13 +59,27 @@ type NodeGroup interface {
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
 	Create(context.Context, *CapacityConstraints) ([]*v1.Node, error)
+
+	// GetTopologyDomains returns a list of topology domains supported by the
+	// cloud provider for the given key.
+	// For example, GetTopologyDomains("zone") -> [ "us-west-2a", "us-west-2b" ]
+	// This enables the caller to to build CapacityConstraints for a known set of
+	GetTopologyDomains(context.Context, TopologyKey) ([]string, error)
 }
+
+// TopologyKey: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+type TopologyKey string
+
+const (
+	TopologyKeyZone   TopologyKey = "zone"
+	TopologyKeySubnet TopologyKey = "subnet"
+)
 
 // CapacityConstraints lets the controller define the desired capacity,
 // avalability zone, architecture for the desired nodes.
 type CapacityConstraints struct {
-	// Zone constrains where a node can be created within a region.
-	Zone string
+	// Topology constrains the topology of the node, e.g. "zone".
+	Topology map[TopologyKey]string
 	// Resources constrains the minimum capacity to provision (e.g. CPU, Memory).
 	Resources v1.ResourceList
 	// Overhead resources per node from system resources such a kubelet and daemonsets.
@@ -85,5 +99,4 @@ const (
 // Options are injected into cloud providers' factories
 type Options struct {
 	Client client.Client
-	Config *rest.Config
 }

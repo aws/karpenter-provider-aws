@@ -69,6 +69,8 @@ rules:
   - configmaps
   verbs:
   - get
+  - list
+  - watch
   - update
 - apiGroups:
   - ""

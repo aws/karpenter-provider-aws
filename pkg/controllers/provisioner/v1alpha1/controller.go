@@ -51,7 +51,7 @@ func (c *Controller) Interval() time.Duration {
 // SKIP FOR NOW, Attempt to schedule pods on existing capacity
 // SKIP FOR NOW, Attempt to schedule remaining pods by preempting existing pods
 func (c *Controller) Reconcile(object controllers.Object) error {
-	_ = object.(*v1alpha1.Provisioner)
+	provisioner := object.(*v1alpha1.Provisioner)
 
 	// 1. List Pods where pod.spec.nodeName = ''
 	pods := &v1.PodList{}
@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	}
 
 	// 4. Attempt to schedule remaining pods by creating a set of nodes
-	if err := c.Allocator.Allocate(unschedulable); err != nil {
+	if err := c.Allocator.Allocate(provisioner, unschedulable); err != nil {
 		return fmt.Errorf("failed to allocate %d pods, %w", len(unschedulable), err)
 	}
 

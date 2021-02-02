@@ -19,7 +19,33 @@ import (
 )
 
 type ProvisionerSpec struct {
+	// +optional
+	Cluster     *ClusterSpec    `json:"cluster,omitempty"`
+	Allocator   AllocatorSpec   `json:"allocator,omitempty"`
+	Deallocator DeallocatorSpec `json:"deallocator,omitempty"`
+}
+
+// ClusterSpec configures the cluster that the provisioner operates against. If
+// not specified, it will default to using the controller's kube-config.
+type ClusterSpec struct {
+	// Name is required to detect implementing cloud provider resources.
+	// +required
+	Name string `json:"name"`
+	// CABundle is required for nodes to verify API Server certificates.
+	// +required
+	CABundle string `json:"caBundle"`
+	// Endpoint is required for nodes to connect to the API Server.
+	// +required
+	Endpoint string `json:"endpoint"`
+}
+
+// AllocatorSpec configures node allocation policy
+type AllocatorSpec struct {
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
+}
+
+// DeallocatorSpec configures
+type DeallocatorSpec struct {
 }
 
 // Provisioner is the Schema for the Provisioners API
