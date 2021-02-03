@@ -69,11 +69,9 @@ func main() {
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
 	client, err := corev1.NewForConfig(manager.GetConfig())
-	if err != nil {
-		log.PanicIfError(err, "creating client err")
-	}
+	log.PanicIfError(err, "creating client err")
 
-	if err := manager.Register(
+	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
@@ -84,7 +82,6 @@ func main() {
 				CoreV1Client:  client,
 			},
 		},
-	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		log.PanicIfError(err, "Unable to start manager")
-	}
+	).Start(controllerruntime.SetupSignalHandler())
+	log.PanicIfError(err, "Unable to start manager")
 }

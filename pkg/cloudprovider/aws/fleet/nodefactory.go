@@ -36,9 +36,6 @@ type NodeFactory struct {
 func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) ([]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
-	if len(instanceIds) == 0 {
-		return nil, fmt.Errorf("instance ids not provided")
-	}
 	for attempt := retry.Start(retry.Exponential{
 		Initial:  1 * time.Second,
 		MaxDelay: 10 * time.Second,
