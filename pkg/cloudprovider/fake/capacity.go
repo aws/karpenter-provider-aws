@@ -18,13 +18,12 @@ import (
 	"context"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	v1 "k8s.io/api/core/v1"
 )
 
 type Capacity struct {
 }
 
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]*v1.Node, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.CapacityPacking, error) {
 	return nil, nil
 }
 

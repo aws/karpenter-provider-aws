@@ -22,7 +22,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -40,82 +39,43 @@ type GreedyAllocator struct {
 func (a *GreedyAllocator) Allocate(provisioner *v1alpha1.Provisioner, pods []*v1.Pod) error {
 	// 1. Separate pods into scheduling groups
 	groups := a.getSchedulingGroups(pods)
+	ctx := context.TODO() // TODO wire this in from reconcile loop
 
 	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
-	for _, group := range groups {
-		nodes, err := a.CloudProvider.CapacityFor(&provisioner.Spec).Create(context.TODO(), group.Constraints)
+	for _, constraints := range groups {
+		packing, err := a.CloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
 		// TODO accumulate errors if one request fails.
 		if err != nil {
 			return fmt.Errorf("while creating capacity, %w", err)
 		}
-		if err := a.createNodesAndAssignPods(nodes, group.Pods); err != nil {
-			return fmt.Errorf("assigning pods to nodes err: %w", err)
+		for node, pods := range packing {
+			if err := a.bind(ctx, node, pods); err != nil {
+				// TODO accumulate errors if one request fails.
+				return fmt.Errorf("binding pods to node, %w", err)
+			}
 		}
 	}
 	return nil
 }
 
-func (a *GreedyAllocator) createNodesAndAssignPods(nodes []*v1.Node, pods []*v1.Pod) error {
-
-	// Currently we are assigning each pod per node.
-	// Create node object in the cluster
-	// score nodes and pods from bigger to lower in the list
-	remainingPods := make([]*v1.Pod, len(pods))
-	copy(remainingPods, pods)
-	for _, node := range nodes {
-		err := a.createNodeObject(node)
-		if err != nil {
-			return fmt.Errorf("creating node object %w", err)
-		}
-		remainingPods, err = a.assignPodsToNodes(node, remainingPods)
-		if err != nil {
-			return fmt.Errorf("update pod spec err: %w", err)
-		}
+func (a *GreedyAllocator) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+	// 1. Create node object
+	if _, err := a.CoreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+		return fmt.Errorf("creating node %s, %w", node.Name, err)
 	}
-	if len(remainingPods) > 0 {
-		// this should not happen
-		return fmt.Errorf("unable to assign %d pods to %d nodes", len(remainingPods), len(nodes))
-	}
-	zap.S().Infof("Successfully assigned %d pods to %d node ", len(pods), len(nodes))
-	return nil
-}
-
-func (a *GreedyAllocator) assignPodsToNodes(node *v1.Node, pods []*v1.Pod) ([]*v1.Pod, error) {
-
-	remainingPods := make([]*v1.Pod, 0)
+	// 2. Bind all pods to node
 	for _, pod := range pods {
-		if !canFitPodOnNode(node, pod) {
-			remainingPods = append(remainingPods, pod)
-			continue
+		if err := a.CoreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
+			TypeMeta:   pod.TypeMeta,
+			ObjectMeta: pod.ObjectMeta,
+			Target:     v1.ObjectReference{Name: node.Name},
+		}, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("binding pod, %w", err)
 		}
-		if err := a.bindPodToNode(node, pod); err != nil {
-			return nil, fmt.Errorf("binding pod to node failed err %w", err)
-		}
-		zap.S().Infof("Pod %s in bind to node %s", pod.Namespace+"/"+pod.Name, node.Name)
+		zap.S().Infof("Successfully bound pod %s/%s to node %s", pod.Namespace, pod.Name, node.Name)
 	}
-	return remainingPods, nil
-}
-
-func (a *GreedyAllocator) bindPodToNode(node *v1.Node, pod *v1.Pod) error {
-	return a.CoreV1Client.Pods(pod.Namespace).Bind(context.TODO(), &v1.Binding{
-		TypeMeta:   pod.TypeMeta,
-		ObjectMeta: pod.ObjectMeta,
-		Target: v1.ObjectReference{
-			Name: node.Name,
-		},
-	}, metav1.CreateOptions{})
-}
-
-func canFitPodOnNode(node *v1.Node, pod *v1.Pod) bool {
-	// TODO  podResources := calculateResourcesForPod(pod)
-	return true
-}
-
-func (a *GreedyAllocator) createNodeObject(node *v1.Node) error {
-	_, err := a.CoreV1Client.
-		Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
-	return err
+	return nil
 }
 
 type SchedulingGroup struct {
@@ -123,14 +83,13 @@ type SchedulingGroup struct {
 	Constraints *cloudprovider.CapacityConstraints
 }
 
-func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*SchedulingGroup {
-	groups := []*SchedulingGroup{}
+func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*cloudprovider.CapacityConstraints {
+	schedulingGroups := []*cloudprovider.CapacityConstraints{}
 	for _, pod := range pods {
 		added := false
-		for _, group := range groups {
-			if a.matchesGroup(group, pod) {
-				addPodResourcesToList(group.Constraints.Resources, pod)
-				group.Pods = append(group.Pods, pod)
+		for _, constraints := range schedulingGroups {
+			if a.matchesConstraints(constraints, pod) {
+				constraints.Pods = append(constraints.Pods, pod)
 				added = true
 				break
 			}
@@ -138,44 +97,24 @@ func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*SchedulingGroup
 		if added {
 			continue
 		}
-		groups = append(groups, schedulingGroupForPod(pod))
+		schedulingGroups = append(schedulingGroups, constraintsForPod(pod))
 	}
-	return groups
+	return schedulingGroups
 }
 
 // TODO
-func (a *GreedyAllocator) matchesGroup(group *SchedulingGroup, pod *v1.Pod) bool {
+func (a *GreedyAllocator) matchesConstraints(constraints *cloudprovider.CapacityConstraints, pod *v1.Pod) bool {
 	return false
 }
 
-func schedulingGroupForPod(pod *v1.Pod) *SchedulingGroup {
-	group := &SchedulingGroup{
-		Constraints: &cloudprovider.CapacityConstraints{
-			Resources:    calculateResourcesForPod(pod),
-			Overhead:     calculateOverheadResources(),
-			Architecture: getSystemArchitecture(pod),
-			Topology: map[cloudprovider.TopologyKey]string{
-				cloudprovider.TopologyKeyZone: getAvalabiltyZoneForPod(pod),
-			},
+func constraintsForPod(pod *v1.Pod) *cloudprovider.CapacityConstraints {
+	return &cloudprovider.CapacityConstraints{
+		Overhead:     calculateOverheadResources(),
+		Architecture: getSystemArchitecture(pod),
+		Topology: map[cloudprovider.TopologyKey]string{
+			cloudprovider.TopologyKeyZone: getAvalabiltyZoneForPod(pod),
 		},
 		Pods: []*v1.Pod{pod},
-	}
-	return group
-}
-
-func calculateResourcesForPod(pod *v1.Pod) v1.ResourceList {
-	resourceList := v1.ResourceList{
-		v1.ResourceCPU:    resource.MustParse("0"),
-		v1.ResourceMemory: resource.MustParse("0"),
-	}
-	addPodResourcesToList(resourceList, pod)
-	return resourceList
-}
-
-func addPodResourcesToList(resources v1.ResourceList, pod *v1.Pod) {
-	for _, container := range pod.Spec.Containers {
-		resources.Cpu().Add(*container.Resources.Limits.Cpu())
-		resources.Memory().Add(*container.Resources.Limits.Memory())
 	}
 }
 

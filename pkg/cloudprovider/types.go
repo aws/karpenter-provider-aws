@@ -58,7 +58,7 @@ type NodeGroup interface {
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, *CapacityConstraints) ([]*v1.Node, error)
+	Create(context.Context, *CapacityConstraints) (CapacityPacking, error)
 
 	// GetTopologyDomains returns a list of topology domains supported by the
 	// cloud provider for the given key.
@@ -78,15 +78,18 @@ const (
 // CapacityConstraints lets the controller define the desired capacity,
 // avalability zone, architecture for the desired nodes.
 type CapacityConstraints struct {
-	// Topology constrains the topology of the node, e.g. "zone".
-	Topology map[TopologyKey]string
-	// Resources constrains the minimum capacity to provision (e.g. CPU, Memory).
-	Resources v1.ResourceList
+	// Pods is a list of equivalently schedulable pods to be efficiently binpacked.
+	Pods []*v1.Pod
 	// Overhead resources per node from system resources such a kubelet and daemonsets.
 	Overhead v1.ResourceList
+	// Topology constrains the topology of the node, e.g. "zone".
+	Topology map[TopologyKey]string
 	// Architecture constrains the underlying hardware architecture.
 	Architecture Architecture
 }
+
+// CapacityPacking is a solution to packing pods onto nodes given constraints.
+type CapacityPacking map[*v1.Node][]*v1.Pod
 
 // Architecture constrains the underlying node's compilation architecture.
 type Architecture string
