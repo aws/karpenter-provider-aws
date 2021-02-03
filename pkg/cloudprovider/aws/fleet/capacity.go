@@ -80,10 +80,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
 	if len(createFleetOutput.Errors) > 0 {
-		return nil, fmt.Errorf("createFleetErrors %v", createFleetOutput.Errors)
+		// TODO hande case if createFleetOutput.Instances > 0
+		return nil, fmt.Errorf("errors while creating fleet, %v", createFleetOutput.Errors)
 	}
 	if len(createFleetOutput.Instances) == 0 {
-		return nil, fmt.Errorf("no instance info in the createFleetOutput")
+		return nil, fmt.Errorf("create fleet returned 0 instances")
 	}
 	// 4. Transform to Nodes.
 	var instanceIds []*string

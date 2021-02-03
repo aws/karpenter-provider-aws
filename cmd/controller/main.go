@@ -69,7 +69,7 @@ func main() {
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
 	client, err := corev1.NewForConfig(manager.GetConfig())
-	log.PanicIfError(err, "creating client err")
+	log.PanicIfError(err, "Failed creating kube client")
 
 	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
