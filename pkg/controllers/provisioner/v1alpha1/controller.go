@@ -61,9 +61,10 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 
 	unschedulable := []*v1.Pod{}
 	for _, pod := range pods.Items {
+		tempPod := pod
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
-				unschedulable = append(unschedulable, &pod)
+				unschedulable = append(unschedulable, &tempPod)
 			}
 		}
 	}

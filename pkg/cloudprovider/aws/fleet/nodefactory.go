@@ -74,7 +74,9 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 		Status: v1.NodeStatus{
 			Allocatable: v1.ResourceList{
 				// TODO, This value is necessary to avoid OutOfPods failure state. Find a way to set this (and cpu/mem) correctly
-				v1.ResourcePods: resource.MustParse("100"),
+				v1.ResourcePods:   resource.MustParse("100"),
+				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 	}
