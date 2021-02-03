@@ -78,3 +78,9 @@ rules:
   - nodes
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/binding
+  verbs:
+  - create

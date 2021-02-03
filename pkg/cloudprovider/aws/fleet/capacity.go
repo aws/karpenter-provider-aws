@@ -62,7 +62,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand), // TODO support SPOT
-			TotalTargetCapacity:       aws.Int64(1), // TODO construct this more intelligently
+			TotalTargetCapacity:       aws.Int64(1),                                      // TODO construct this more intelligently
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
@@ -77,9 +77,15 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 		}},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("creating fleet, %w", err)
+		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-
+	if len(createFleetOutput.Errors) > 0 {
+		// TODO hande case if createFleetOutput.Instances > 0
+		return nil, fmt.Errorf("errors while creating fleet, %v", createFleetOutput.Errors)
+	}
+	if len(createFleetOutput.Instances) == 0 {
+		return nil, fmt.Errorf("create fleet returned 0 instances")
+	}
 	// 4. Transform to Nodes.
 	var instanceIds []*string
 	for _, fleetInstance := range createFleetOutput.Instances {
