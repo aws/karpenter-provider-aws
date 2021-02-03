@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/instance"
 	"go.uber.org/zap"
 )
 
@@ -34,6 +35,7 @@ type Capacity struct {
 	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
 	nodeFactory            *NodeFactory
+	instancePacker         *instance.Packer
 }
 
 // Create a set of nodes given the constraints.
@@ -56,12 +58,24 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
 
+	input := &ec.CreateFleetInput{}
+
+	packings := c.instancePacker.Pack(constraints.Pods)
+	for _, packing := range packings {
+
+	}
+
 	// 3. Create Fleet.
 	createFleetOutput, err := c.ec2.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
+<<<<<<< HEAD
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand), // TODO support SPOT
 			TotalTargetCapacity:       aws.Int64(1),                                      // TODO construct this more intelligently
+=======
+			DefaultTargetCapacityType: aws.String(c.getCapacityType(constraints)),
+			TotalTargetCapacity:       aws.Int64(1),
+>>>>>>> Pausing on packing
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
@@ -165,6 +179,17 @@ func (c *Capacity) selectSubnet(ctx context.Context, zone string, constraints *c
 		return nil, fmt.Errorf("no subnets exists for zone %s", zone)
 	}
 	return subnets[rand.Intn(len(subnets))], nil
+}
+
+func (c *Capacity) getCapacityType(constraints *cloudprovider.CapacityConstraints) string {
+	switch constraints.PriorityClass {
+	case: cloudprovider.PreemptablePriorityClass:
+		return ec2.DefaultTargetCapacityTypeSpot
+	case: cloudprovider.GuaranteedPriorityClass:
+		return ec2.DefaultTargetCapacityTypeOnDemand
+	default:
+		return ec2.DefaultTargetCapacityTypeOnDemand
+	}
 }
 
 func (c *Capacity) getZones(ctx context.Context) ([]string, error) {
