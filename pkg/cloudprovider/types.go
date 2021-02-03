@@ -75,13 +75,11 @@ type CapacityConstraints struct {
 	Pods []*v1.Pod
 	// Overhead resources per node from system resources such a kubelet and
 	// daemonsets.
-	Overhead *v1.ResourceList
+	Overhead v1.ResourceList
 	// Topology constrains the topology of the node, e.g. "zone".
 	Topology map[TopologyKey]string
-	// Architecture constrains the underlying architecture. Default: linux/386
-	Architecture *Architecture
-	// PriorityClass constrains node preemption behavior. Default: Preempable
-	PriorityClass *PriorityClass
+	// Architecture constrains the underlying architecture.
+	Architecture Architecture
 }
 
 // CapacityPacking is a solution to packing pods onto nodes given constraints.
@@ -102,14 +100,6 @@ type Architecture string
 const (
 	ArchitectureLinux386 Architecture = "linux/386"
 	// LinuxAMD64 Architecture = "linux/amd64" TODO
-)
-
-// PriorityClass constrains the nodes preemption behavior.
-type PriorityClass string
-
-const (
-	GuaranteedPriorityClass  PriorityClass = "Guaranteed"
-	PreemptablePriorityClass PriorityClass = "Preemptable"
 )
 
 // Options are injected into cloud providers' factories
