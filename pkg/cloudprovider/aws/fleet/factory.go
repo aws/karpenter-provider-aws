@@ -26,11 +26,11 @@ import (
 
 const (
 	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup resources.
-	CacheTTL              = 5 * time.Minute
+	CacheTTL = 5 * time.Minute
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
-	CacheCleanupInterval  = 10 * time.Minute
+	CacheCleanupInterval = 10 * time.Minute
 	// ClusterTagKeyFormat is set on all Kubernetes owned resources.
-	ClusterTagKeyFormat   = "kubernetes.io/cluster/%s"
+	ClusterTagKeyFormat = "kubernetes.io/cluster/%s"
 	// KarpenterTagKeyFormat is set on all Karpenter owned resources.
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
@@ -39,8 +39,8 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 	return &Factory{
 		ec2: ec2,
 		launchTemplateProvider: &LaunchTemplateProvider{
-			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
 			ec2:                 ec2,
+			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
 			instanceProfileProvider: &InstanceProfileProvider{
 				iam:                  iam,
 				kubeClient:           kubeClient,
@@ -55,9 +55,8 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 			ec2:         ec2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
 		},
-		nodeFactory: &NodeFactory{
-			ec2: ec2,
-		},
+		nodeFactory:      &NodeFactory{ec2: ec2},
+		instanceProvider: &InstanceProvider{ec2: ec2},
 	}
 }
 
@@ -66,14 +65,15 @@ type Factory struct {
 	launchTemplateProvider *LaunchTemplateProvider
 	nodeFactory            *NodeFactory
 	subnetProvider         *SubnetProvider
+	instanceProvider       *InstanceProvider
 }
 
 func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
 	return &Capacity{
 		spec:                   spec,
-		ec2:                    f.ec2,
 		launchTemplateProvider: f.launchTemplateProvider,
 		nodeFactory:            f.nodeFactory,
 		subnetProvider:         f.subnetProvider,
+		instanceProvider:       f.instanceProvider,
 	}
 }

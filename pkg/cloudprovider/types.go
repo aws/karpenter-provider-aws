@@ -67,7 +67,26 @@ type Capacity interface {
 	GetTopologyDomains(context.Context, TopologyKey) ([]string, error)
 }
 
-// TopologyKey: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+// CapacityConstraints lets the controller define the desired capacity,
+// avalability zone, architecture for the desired nodes.
+type CapacityConstraints struct {
+	// Pods is a list of equivalently schedulable pods to be efficiently
+	// binpacked.
+	Pods []*v1.Pod
+	// Overhead resources per node from system resources such a kubelet and
+	// daemonsets.
+	Overhead v1.ResourceList
+	// Topology constrains the topology of the node, e.g. "zone".
+	Topology map[TopologyKey]string
+	// Architecture constrains the underlying architecture.
+	Architecture Architecture
+}
+
+// CapacityPacking is a solution to packing pods onto nodes given constraints.
+type CapacityPacking map[*v1.Node][]*v1.Pod
+
+// TopologyKey:
+// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
 type TopologyKey string
 
 const (
@@ -75,27 +94,11 @@ const (
 	TopologyKeySubnet TopologyKey = "subnet"
 )
 
-// CapacityConstraints lets the controller define the desired capacity,
-// avalability zone, architecture for the desired nodes.
-type CapacityConstraints struct {
-	// Pods is a list of equivalently schedulable pods to be efficiently binpacked.
-	Pods []*v1.Pod
-	// Overhead resources per node from system resources such a kubelet and daemonsets.
-	Overhead v1.ResourceList
-	// Topology constrains the topology of the node, e.g. "zone".
-	Topology map[TopologyKey]string
-	// Architecture constrains the underlying hardware architecture.
-	Architecture Architecture
-}
-
-// CapacityPacking is a solution to packing pods onto nodes given constraints.
-type CapacityPacking map[*v1.Node][]*v1.Pod
-
 // Architecture constrains the underlying node's compilation architecture.
 type Architecture string
 
 const (
-	Linux386 Architecture = "linux/386"
+	ArchitectureLinux386 Architecture = "linux/386"
 	// LinuxAMD64 Architecture = "linux/amd64" TODO
 )
 

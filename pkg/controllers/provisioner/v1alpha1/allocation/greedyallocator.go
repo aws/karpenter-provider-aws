@@ -78,11 +78,6 @@ func (a *GreedyAllocator) bind(ctx context.Context, node *v1.Node, pods []*v1.Po
 	return nil
 }
 
-type SchedulingGroup struct {
-	Pods        []*v1.Pod
-	Constraints *cloudprovider.CapacityConstraints
-}
-
 func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*cloudprovider.CapacityConstraints {
 	schedulingGroups := []*cloudprovider.CapacityConstraints{}
 	for _, pod := range pods {
@@ -111,10 +106,8 @@ func constraintsForPod(pod *v1.Pod) *cloudprovider.CapacityConstraints {
 	return &cloudprovider.CapacityConstraints{
 		Overhead:     calculateOverheadResources(),
 		Architecture: getSystemArchitecture(pod),
-		Topology: map[cloudprovider.TopologyKey]string{
-			cloudprovider.TopologyKeyZone: getAvalabiltyZoneForPod(pod),
-		},
-		Pods: []*v1.Pod{pod},
+		Topology:     map[cloudprovider.TopologyKey]string{},
+		Pods:         []*v1.Pod{pod},
 	}
 }
 
@@ -124,10 +117,5 @@ func calculateOverheadResources() v1.ResourceList {
 }
 
 func getSystemArchitecture(pod *v1.Pod) cloudprovider.Architecture {
-	return cloudprovider.Linux386
-}
-
-func getAvalabiltyZoneForPod(pod *v1.Pod) string {
-	// TODO parse annotation/label from pod
-	return "us-west-2b"
+	return cloudprovider.ArchitectureLinux386
 }
