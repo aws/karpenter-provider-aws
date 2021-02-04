@@ -12,8 +12,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/autoscaler"
 	horizontalautoscalerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/metricsproducer/v1alpha1"
-	provisionerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocator"
 	scalablenodegroupv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	metricsclients "github.com/awslabs/karpenter/pkg/metrics/clients"
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
@@ -54,7 +53,7 @@ func main() {
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself.")
 	flag.Parse()
 
-	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
+	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging), controllerruntimezap.ConsoleEncoder())
 	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		LeaderElection:     true,
 		LeaderElectionID:   "karpenter-leader-election",
@@ -68,20 +67,14 @@ func main() {
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
-	client, err := corev1.NewForConfig(manager.GetConfig())
+	corev1Client, err := corev1.NewForConfig(manager.GetConfig())
 	log.PanicIfError(err, "Failed creating kube client")
 
 	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
-		&provisionerv1alpha1.Controller{
-			Client: manager.GetClient(),
-			Allocator: &allocation.GreedyAllocator{
-				CloudProvider: cloudProviderFactory,
-				CoreV1Client:  client,
-			},
-		},
+		allocator.NewController(manager.GetClient(), corev1Client, cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")
 }

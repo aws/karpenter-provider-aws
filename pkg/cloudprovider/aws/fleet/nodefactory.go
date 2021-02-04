@@ -37,6 +37,7 @@ type NodeFactory struct {
 func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[string]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
+	// TODO Use https://docs.aws.amazon.com/sdk-for-go/api/aws/request/#WithRetryer
 	for attempt := retry.Start(retry.Exponential{
 		Initial:  1 * time.Second,
 		MaxDelay: 10 * time.Second,
@@ -49,13 +50,13 @@ func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[strin
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() != "InvalidInstanceID.NotFound" {
 			return nil, aerr
 		}
-		zap.S().Infof("Retrying DescribeInstances due to eventual consistency: fleet created, but instances not yet found.")
+		zap.S().Debugf("Retrying DescribeInstances due to eventual consistency: fleet created, but instances not yet found.")
 	}
 	return nil, fmt.Errorf("failed to describe ec2 instances")
 }
 
 func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {
-	var nodes map[string]*v1.Node
+	nodes := map[string]*v1.Node{}
 	for _, reservation := range reservations {
 		for _, instance := range reservation.Instances {
 			nodes[*instance.InstanceId] = n.nodeFrom(instance)

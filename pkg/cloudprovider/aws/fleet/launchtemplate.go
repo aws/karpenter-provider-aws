@@ -67,7 +67,7 @@ func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster 
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", length)
 	}
 	launchTemplate := describelaunchTemplateOutput.LaunchTemplates[0]
-	zap.S().Infof("Successfully discovered launch template %s for cluster %s", *launchTemplate.LaunchTemplateName, cluster.Name)
+	zap.S().Debugf("Successfully discovered launch template %s for cluster %s", *launchTemplate.LaunchTemplateName, cluster.Name)
 	return launchTemplate, nil
 }
 
@@ -114,7 +114,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("creating launch template, %w", err)
 	}
-	zap.S().Infof("Successfully created default launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
+	zap.S().Debugf("Successfully created default launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
 }
 

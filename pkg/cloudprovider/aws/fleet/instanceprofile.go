@@ -67,7 +67,7 @@ func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluste
 			return nil, fmt.Errorf("adding role %s, %w", *role.RoleName, err)
 		}
 	}
-	zap.S().Infof("Successfully discovered instance profile %s for cluster %s", *output.InstanceProfile.InstanceProfileName, cluster.Name)
+	zap.S().Debugf("Successfully discovered instance profile %s for cluster %s", *output.InstanceProfile.InstanceProfileName, cluster.Name)
 	p.instanceProfileCache.Set(cluster.Name, output.InstanceProfile, CacheTTL)
 	return output.InstanceProfile, nil
 }
@@ -78,7 +78,7 @@ func (p *InstanceProfileProvider) addToAWSAuthConfigmap(role *iam.Role) error {
 		return fmt.Errorf("retrieving configmap aws-auth, %w", err)
 	}
 	if strings.Contains(awsAuth.Data["mapRoles"], *role.Arn) {
-		zap.S().Infof("Successfully detected aws-auth configmap contains roleArn %s", *role.Arn)
+		zap.S().Debugf("Successfully detected aws-auth configmap contains roleArn %s", *role.Arn)
 		return nil
 	}
 	// Since the aws-auth configmap is stringly typed, this specific indentation is critical
@@ -91,6 +91,6 @@ func (p *InstanceProfileProvider) addToAWSAuthConfigmap(role *iam.Role) error {
 	if err := p.kubeClient.Update(context.TODO(), awsAuth); err != nil {
 		return fmt.Errorf("updating configmap aws-auth, %w", err)
 	}
-	zap.S().Infof("Successfully patched configmap aws-auth with roleArn %s", *role.Arn)
+	zap.S().Debugf("Successfully patched configmap aws-auth with roleArn %s", *role.Arn)
 	return nil
 }

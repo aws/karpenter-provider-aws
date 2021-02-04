@@ -57,6 +57,6 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterNa
 
 	securityGroups := describeSecurityGroupOutput.SecurityGroups
 	s.securityGroupCache.Set(clusterName, securityGroups, CacheTTL)
-	zap.S().Infof("Successfully discovered %d security groups for cluster %s", len(securityGroups), clusterName)
+	zap.S().Debugf("Successfully discovered %d security groups for cluster %s", len(securityGroups), clusterName)
 	return securityGroups, nil
 }
