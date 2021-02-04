@@ -34,8 +34,9 @@ Please contribute to our meeting notes by opening a PR.
     - If we can have ASG and create fleet implementation for comparison
 - [Ellis] SNG, HA, MP in karpenter are not compatible with this approach
 - [Ellis] Focus on reducing pending pods latency to start
-- [Guy] Opportunity for this approach, removes guess work
-- [Viji] How Karpenter and CA differs with pending pods approach
+- [Guy] Opportunity for this approach, this removes all the guesswork and inaccuracy of CAS, which is quite honestly a pain in the ass.
+- [Viji] More basic question, Autoscaling both nodes and pods. Scaling based on a single metric isn't enough. Using a pending pods
+    - How Karpenter and CA differs with pending pods approach
     - [Viji] 2-3 minutes to start a new node with CA
     - [Guy] 3 minutes for the nodes to schedulable
     - [Ellis] m5.large took about 63 seconds with ready pods
@@ -68,7 +69,12 @@ Please contribute to our meeting notes by opening a PR.
         - Controller has node IDs and constantly compares with cloud provider nodes
     - [Ellis] Bin packing is very cloud provider specific
 - [Ellis] Spot termination happens when you get an event, de-allocator can be checking for pricing and improve costs with Spot.
-- [Guy] Kops based instances are checking for health and draining nodes.
+- [Guy] Kops based instances are checking for health and draining nodes. Rebalance Recommendations are already handled by an internal KOPS at Skyscanner
+
+### In scope for Karpenter
+- Pid Controller
+- Upgrades
+- Handle EC2 Instance Failures
 
 # Meeting notes (01/19/21)
 
