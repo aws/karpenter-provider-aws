@@ -14,6 +14,16 @@ limitations under the License.
 
 package v1alpha1
 
-func (r *Provisioner) Validate() error {
+import runtime "k8s.io/apimachinery/pkg/runtime"
+
+func (r *Provisioner) ValidateCreate() error {
+	return nil
+}
+
+func (r *Provisioner) ValidateUpdate(old runtime.Object) error {
+	return nil
+}
+
+func (r *Provisioner) ValidateDelete() error {
 	return nil
 }

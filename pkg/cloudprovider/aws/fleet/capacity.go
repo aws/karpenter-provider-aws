@@ -17,91 +17,60 @@ package fleet
 import (
 	"context"
 	"fmt"
-	"math/rand"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"go.uber.org/zap"
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
 type Capacity struct {
 	spec                   *v1alpha1.ProvisionerSpec
-	ec2                    ec2iface.EC2API
 	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
 	nodeFactory            *NodeFactory
+	instanceProvider       *InstanceProvider
 }
 
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.CapacityPacking, error) {
-	// 1. Select a zone
-	zone, err := c.selectZone(ctx, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting zone, %w", err)
-	}
-
-	// 2. Select a subnet, limited to selected zone.
-	subnet, err := c.selectSubnet(ctx, zone, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting subnet, %w", err)
-	}
-
-	// 3. Detect launch template.
+	// 1. Compute Constraints
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
-
-	// 3. Create Fleet.
-	createFleetOutput, err := c.ec2.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
-		Type: aws.String(ec2.FleetTypeInstant),
-		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand), // TODO support SPOT
-			TotalTargetCapacity:       aws.Int64(1),                                      // TODO construct this more intelligently
-		},
-		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
-			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: launchTemplate.LaunchTemplateName,
-				Version:            aws.String("$Default"),
-			},
-			Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{{
-				AvailabilityZone: aws.String(zone),
-				InstanceType:     aws.String("m5.large"), // TODO construct this more intelligently
-				SubnetId:         subnet.SubnetId,
-			}},
-		}},
-	})
+	instancePackings, err := c.instanceProvider.GetPackings(ctx, constraints.Pods, constraints.Overhead)
 	if err != nil {
-		return nil, fmt.Errorf("creating fleet %w", err)
+		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
-	if len(createFleetOutput.Errors) > 0 {
-		// TODO hande case if createFleetOutput.Instances > 0
-		return nil, fmt.Errorf("errors while creating fleet, %v", createFleetOutput.Errors)
+	zonalSubnets, err := c.getConstrainedZonalSubnets(ctx, constraints)
+	if err != nil {
+		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
-	if len(createFleetOutput.Instances) == 0 {
-		return nil, fmt.Errorf("create fleet returned 0 instances")
-	}
-	// 4. Transform to Nodes.
+
+	// 2. Create Instances
 	var instanceIds []*string
-	for _, fleetInstance := range createFleetOutput.Instances {
-		instanceIds = append(instanceIds, fleetInstance.InstanceIds...)
+	for _, instancePacking := range instancePackings {
+		instanceId, err := c.instanceProvider.Create(ctx, launchTemplate, instancePacking.InstanceTypeOptions, zonalSubnets)
+		if err != nil {
+			// TODO Aggregate errors and continue
+			return nil, fmt.Errorf("creating capacity %w", err)
+		}
+		instanceIds = append(instanceIds, instanceId)
 	}
+
+	// 3. Convert to Nodes
 	nodes, err := c.nodeFactory.For(ctx, instanceIds)
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
-	zap.S().Infof("Successfully requested %d nodes", len(nodes))
 
-	// TODO Implement more sophisticated binpacking.
-	packing := cloudprovider.CapacityPacking{}
-	for _, node := range nodes {
-		packing[node] = constraints.Pods
+	// 4. Construct capacity packing
+	capacityPacking := cloudprovider.CapacityPacking{}
+	for i, node := range nodes {
+		capacityPacking[node] = instancePackings[i].Pods
 	}
-	return packing, nil
+	return capacityPacking, nil
 }
 
 // GetTopologyDomains returns a set of supported domains.
@@ -125,46 +94,53 @@ func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.Top
 	}
 }
 
-// seletZone chooses a zone for the given constraints.
-func (c *Capacity) selectZone(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (string, error) {
-	// 1. Return zone if specified.
-	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
-		return zone, nil
-	}
-	// 2. Randomly choose from available zones.
-	zones, err := c.getZones(ctx)
-	if err != nil {
-		return "", err
-	}
-	return zones[rand.Intn(len(zones))], nil
-}
-
-// selectSubnet chooses a subnet for the given constraints.
-func (c *Capacity) selectSubnet(ctx context.Context, zone string, constraints *cloudprovider.CapacityConstraints) (*ec2.Subnet, error) {
+func (c *Capacity) getConstrainedZonalSubnets(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (map[string][]*ec2.Subnet, error) {
 	// 1. Get all subnets
 	zonalSubnets, err := c.subnetProvider.Get(ctx, c.spec.Cluster.Name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
-
 	// 2. Return specific subnet if specified.
 	if subnetId, ok := constraints.Topology[cloudprovider.TopologyKeySubnet]; ok {
-		for _, subnets := range zonalSubnets {
+		for zone, subnets := range zonalSubnets {
 			for _, subnet := range subnets {
 				if subnetId == *subnet.SubnetId {
-					return subnet, nil
+					return map[string][]*ec2.Subnet{zone: {subnet}}, nil
 				}
 			}
 		}
 		return nil, fmt.Errorf("no subnet exists named %s", subnetId)
 	}
-
-	// 3. Return random subnet in the zone.
-	subnets, ok := zonalSubnets[zone]
-	if !ok || len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets exists for zone %s", zone)
+	// 3. Constrain by zones
+	constrainedZones, err := c.getConstrainedZones(ctx, constraints)
+	if err != nil {
+		return nil, fmt.Errorf("getting zones, %w", err)
 	}
-	return subnets[rand.Intn(len(subnets))], nil
+	constrainedZonalSubnets := map[string][]*ec2.Subnet{}
+	for zone, subnets := range zonalSubnets {
+		for _, constrainedZone := range constrainedZones {
+			if zone == constrainedZone {
+				constrainedZonalSubnets[constrainedZone] = subnets
+			}
+		}
+	}
+	if len(constrainedZonalSubnets) == 0 {
+		return nil, fmt.Errorf("failed to find viable zonal subnet pairing")
+	}
+	return constrainedZonalSubnets, nil
+}
+
+func (c *Capacity) getConstrainedZones(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]string, error) {
+	// 1. Return zone if specified.
+	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
+		return []string{zone}, nil
+	}
+	// 2. Return all zone options
+	zones, err := c.getZones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return zones, nil
 }
 
 func (c *Capacity) getZones(ctx context.Context) ([]string, error) {
