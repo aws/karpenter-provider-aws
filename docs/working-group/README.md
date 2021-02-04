@@ -10,6 +10,72 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (02/04/21)
+
+## Attendees:
+- Prateek Gogia
+- Viji Sarathy
+- Subhrangshu Kumar Sarkar
+- Shreyas Srinivasan
+- Nathan Taber
+- Ellis Tarn
+- Nick Tran
+- Brandon Wagner 
+- Guy Templeton
+
+## Notes
+
+- [Ellis] Karpenter received a bunch of customer feedback around pending pods problems
+    - Identified CA challenges
+        - Zones, mixed instance policies, nodes in node groups are assumed identical
+        - Limitations with ASGs with lots of groups
+    - New approach, replace ASG with direct create node API
+- [Brandon] Supportive of the idea
+    - If we can have ASG and create fleet implementation for comparison
+- [Ellis] SNG, HA, MP in karpenter are not compatible with this approach
+- [Ellis] Focus on reducing pending pods latency to start
+- [Guy] Opportunity for this approach, this removes all the guesswork and inaccuracy of CAS, which is quite honestly a pain in the ass.
+- [Viji] More basic question, Autoscaling both nodes and pods. Scaling based on a single metric isn't enough. Using a pending pods
+    - How Karpenter and CA differs with pending pods approach
+    - [Viji] 2-3 minutes to start a new node with CA
+    - [Guy] 3 minutes for the nodes to schedulable
+    - [Ellis] m5.large took about 63 seconds with ready pods
+        - Create fleet is more modern API call with some parameters
+    - [Nathan] 
+        - CA is slow in case of large clusters
+        - We have a requirement for compute resources and need that to be fullfiled by a service.
+        - Pre-selected ASG and shape sizes to create the nodes
+        - Strip the middle layers that translate the requirements and just ask for what we need.
+        - In cases when ASGs are not well pre thought out, CA is limited with the options available, whereas, Karpenter can make these decisions about the shape to select
+- [Nathan] ASG wasn't built with the Kubernetes use case and sometimes works well and sometimes doesn't
+- [Ellis] Allocator/ De-allocator model, dual controllers constantly provisioning new nodes for more capacity and removing under utilized nodes.
+- [Guy] Dedicated node groups, taint ASGs, CA scales those up ASGs, can karpenter do it?
+    - [Ellis] When a pod has label and tolerations, we can create specific nodes with those labels and taints
+- [Guy] Spot instances - how will that work with this model?
+    - We have dedicated node groups for istio gateways, rest is all spot.
+- [Guy] CA and de-scheduler don't work nice with each other
+- [Ellis] CA has 2 steps of configurations- ASGs and pods
+- [Guy] Nicer approach, worry is how flexible that approach is? Seems like a very Google like approach of doing things with auto-provisioner.
+    - [Ellis] - Configuring every single pod with a label is a lot of work, compared to having taints at capacity.
+- [Ellis] Provisioning and scheduling decisions- 
+    - CA emulates scheduling and now karpenter knows instanceID
+    - We create a node object in Kubernetes and immediately bind the pod to the node and when the node becomes ready, pod image gets pulled and runs.
+    - Kube-scheduler is bypassed in this approach
+    - Simulations effort is not used when actual bin-packing is done by Kube-scheduler
+    - [Guy] Interesting approach, definetly sold on pod topology routing, can see benefits with bin-packing compared to guessing.
+        - You might end up more closely packed compared to the scheduler
+    - [Ellis] Scoring doesn't matter anymore because we don't have a set of nodes to select from    
+    - [Subhu] How does node ready failure will be handled?
+        - Controller has node IDs and constantly compares with cloud provider nodes
+    - [Ellis] Bin packing is very cloud provider specific
+- [Ellis] Spot termination happens when you get an event, de-allocator can be checking for pricing and improve costs with Spot.
+- [Guy] Kops based instances are checking for health and draining nodes. Rebalance Recommendations are already handled by an internal KOPS at Skyscanner
+
+### In scope for Karpenter
+- Pid Controller
+- Upgrades
+- Handle EC2 Instance Failures
+
 # Meeting notes (01/19/21)
 
 ## Attendees:
