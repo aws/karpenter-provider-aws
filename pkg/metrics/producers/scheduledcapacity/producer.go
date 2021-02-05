@@ -32,14 +32,10 @@ func (p *Producer) Reconcile() error {
 		loc *time.Location
 		err error
 	)
-	if p.Spec.Schedule.Timezone != nil {
-		loc, err = time.LoadLocation(*p.Spec.Schedule.Timezone)
-		if err != nil {
-			return fmt.Errorf("timezone was not a valid input")
-		}
-	} else {
-		// Set Default location to UTC if not specified
-		loc = time.UTC
+	// defaulting webhook ensures this is always defined
+	loc, err = time.LoadLocation(*p.Spec.Schedule.Timezone)
+	if err != nil {
+		return fmt.Errorf("timezone was not a valid input")
 	}
 	now := time.Now().In(loc)
 
