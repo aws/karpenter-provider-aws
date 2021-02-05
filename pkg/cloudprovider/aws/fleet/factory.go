@@ -20,6 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packings"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,44 +38,47 @@ const (
 )
 
 func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Client) *Factory {
-	return &Factory{
-		ec2: ec2,
-		launchTemplateProvider: &LaunchTemplateProvider{
-			ec2:                 ec2,
-			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
-			instanceProfileProvider: &InstanceProfileProvider{
-				iam:                  iam,
-				kubeClient:           kubeClient,
-				instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
-			},
-			securityGroupProvider: &SecurityGroupProvider{
-				ec2:                ec2,
-				securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
-			},
+	vpcProvider := &VPCProvider{launchTemplateProvider: &LaunchTemplateProvider{
+		ec2:                 ec2,
+		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		instanceProfileProvider: &InstanceProfileProvider{
+			iam:                  iam,
+			kubeClient:           kubeClient,
+			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
 		},
+		securityGroupProvider: &SecurityGroupProvider{
+			ec2:                ec2,
+			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+	},
 		subnetProvider: &SubnetProvider{
 			ec2:         ec2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
 		},
+	}
+	return &Factory{
+		ec2:              ec2,
+		vpc:              vpcProvider,
 		nodeFactory:      &NodeFactory{ec2: ec2},
-		instanceProvider: &InstanceProvider{ec2: ec2},
+		instanceProvider: &InstanceProvider{ec2: ec2, vpc: vpcProvider},
+		packing:          packings.Factory(ec2, packings.BinPacking),
 	}
 }
 
 type Factory struct {
-	ec2                    ec2iface.EC2API
-	launchTemplateProvider *LaunchTemplateProvider
-	nodeFactory            *NodeFactory
-	subnetProvider         *SubnetProvider
-	instanceProvider       *InstanceProvider
+	ec2              ec2iface.EC2API
+	vpc              *VPCProvider
+	nodeFactory      *NodeFactory
+	instanceProvider *InstanceProvider
+	packing          cloudprovider.Packer
 }
 
 func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
 	return &Capacity{
-		spec:                   spec,
-		launchTemplateProvider: f.launchTemplateProvider,
-		nodeFactory:            f.nodeFactory,
-		subnetProvider:         f.subnetProvider,
-		instanceProvider:       f.instanceProvider,
+		spec:             spec,
+		nodeFactory:      f.nodeFactory,
+		instanceProvider: f.instanceProvider,
+		vpc:              f.vpc,
+		packing:          f.packing,
 	}
 }

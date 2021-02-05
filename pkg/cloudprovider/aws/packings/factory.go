@@ -12,21 +12,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fake
+package packings
 
 import (
-	"context"
-
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
-type Capacity struct {
-}
+type PackingMethod string
 
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.Packings, error) {
-	return nil, nil
-}
+const (
+	BinPacking PackingMethod = "binPacking"
+)
 
-func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
-	return nil, nil
+// Factory returns a Packer to calculate the pod packing based of PackingMethod passed.
+func Factory(ec2 ec2iface.EC2API, method PackingMethod) cloudprovider.Packer {
+	switch method {
+	case BinPacking:
+		return &binPacker{ec2: ec2}
+	}
+	//TODO add more methods
+	return &binPacker{ec2: ec2}
 }

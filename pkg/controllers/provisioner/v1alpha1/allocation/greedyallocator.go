@@ -49,8 +49,8 @@ func (a *GreedyAllocator) Allocate(provisioner *v1alpha1.Provisioner, pods []*v1
 		if err != nil {
 			return fmt.Errorf("while creating capacity, %w", err)
 		}
-		for node, pods := range packing {
-			if err := a.bind(ctx, node, pods); err != nil {
+		for _, pack := range packing {
+			if err := a.bind(ctx, pack.Node, pack.Pods); err != nil {
 				// TODO accumulate errors if one request fails.
 				return fmt.Errorf("binding pods to node, %w", err)
 			}
