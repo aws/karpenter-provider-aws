@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
@@ -62,4 +63,7 @@ func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovide
 
 func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 	return &Queue{Id: spec.ID, WantErr: f.WantErr}
+}
+func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
+	return &Capacity{}
 }

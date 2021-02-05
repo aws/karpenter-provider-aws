@@ -8,5 +8,5 @@ roleRef:
   name: karpenter-leader-election
 subjects:
 - kind: ServiceAccount
-  name: default
+  name: karpenter
   namespace: karpenter

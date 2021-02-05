@@ -15,16 +15,22 @@ limitations under the License.
 package cloudprovider
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	"context"
+
+	autoscalingv1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
+	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Factory instantiates the cloud provider's resources
 type Factory interface {
 	// NodeGroupFor returns a node group for the provided spec
-	NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) NodeGroup
+	NodeGroupFor(sng *autoscalingv1alpha1.ScalableNodeGroupSpec) NodeGroup
 	// QueueFor returns a queue for the provided spec
-	QueueFor(queue *v1alpha1.QueueSpec) Queue
+	QueueFor(queue *autoscalingv1alpha1.QueueSpec) Queue
+	// Capacity returns a provisioner for the provider to create instances
+	CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) Capacity
 }
 
 // Queue abstracts all provider specific behavior for Queues
@@ -48,6 +54,53 @@ type NodeGroup interface {
 	// removing replicas. Otherwise, returns false with a message.
 	Stabilized() (bool, string, error)
 }
+
+// Capacity provisions a set of nodes that fulfill a set of constraints.
+type Capacity interface {
+	// Create a set of nodes to fulfill the desired capacity given constraints.
+	Create(context.Context, *CapacityConstraints) (CapacityPacking, error)
+
+	// GetTopologyDomains returns a list of topology domains supported by the
+	// cloud provider for the given key.
+	// For example, GetTopologyDomains("zone") -> [ "us-west-2a", "us-west-2b" ]
+	// This enables the caller to to build CapacityConstraints for a known set of
+	GetTopologyDomains(context.Context, TopologyKey) ([]string, error)
+}
+
+// CapacityConstraints lets the controller define the desired capacity,
+// avalability zone, architecture for the desired nodes.
+type CapacityConstraints struct {
+	// Pods is a list of equivalently schedulable pods to be efficiently
+	// binpacked.
+	Pods []*v1.Pod
+	// Overhead resources per node from system resources such a kubelet and
+	// daemonsets.
+	Overhead v1.ResourceList
+	// Topology constrains the topology of the node, e.g. "zone".
+	Topology map[TopologyKey]string
+	// Architecture constrains the underlying architecture.
+	Architecture Architecture
+}
+
+// CapacityPacking is a solution to packing pods onto nodes given constraints.
+type CapacityPacking map[*v1.Node][]*v1.Pod
+
+// TopologyKey:
+// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+type TopologyKey string
+
+const (
+	TopologyKeyZone   TopologyKey = "zone"
+	TopologyKeySubnet TopologyKey = "subnet"
+)
+
+// Architecture constrains the underlying node's compilation architecture.
+type Architecture string
+
+const (
+	ArchitectureLinux386 Architecture = "linux/386"
+	// LinuxAMD64 Architecture = "linux/amd64" TODO
+)
 
 // Options are injected into cloud providers' factories
 type Options struct {

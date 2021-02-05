@@ -12,15 +12,17 @@ import (
 	"github.com/awslabs/karpenter/pkg/autoscaler"
 	horizontalautoscalerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/metricsproducer/v1alpha1"
+	provisionerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioner/v1alpha1/allocation"
 	scalablenodegroupv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	metricsclients "github.com/awslabs/karpenter/pkg/metrics/clients"
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
 
 	"github.com/awslabs/karpenter/pkg/utils/log"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -53,7 +55,6 @@ func main() {
 	flag.Parse()
 
 	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging))
-
 	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		LeaderElection:     true,
 		LeaderElectionID:   "karpenter-leader-election",
@@ -67,11 +68,20 @@ func main() {
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
 
-	if err := manager.Register(
+	client, err := corev1.NewForConfig(manager.GetConfig())
+	log.PanicIfError(err, "Failed creating kube client")
+
+	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
-	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		zap.S().Panicf("Unable to start manager, %w", err)
-	}
+		&provisionerv1alpha1.Controller{
+			Client: manager.GetClient(),
+			Allocator: &allocation.GreedyAllocator{
+				CloudProvider: cloudProviderFactory,
+				CoreV1Client:  client,
+			},
+		},
+	).Start(controllerruntime.SetupSignalHandler())
+	log.PanicIfError(err, "Unable to start manager")
 }

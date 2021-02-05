@@ -3,77 +3,48 @@
 ## Installation
 Karpenter's pod requires AWS Credentials to read or modify AWS resources in your account. We recommend using IRSA (IAM Roles for Service Accounts) to manage these permissions.
 
-```
+```bash
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=<your_cluster>
 REGION=<your_region>
 ```
 
-### Create the Karpenter IAM Policy
-This command will create an IAM Policy with access to all of the resources for all of Karpenter's features. For increased security, you may wish to reduce the permissions according to your use case.
-```
-aws iam create-policy --policy-name Karpenter --policy-document "$(cat <<-EOM
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": [
-                "eks:DescribeNodegroup",
-                "eks:UpdateNodegroupConfig"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "autoscaling:DescribeAutoScalingGroups",
-                "autoscaling:UpdateAutoScalingGroup"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "sqs:GetQueueAttributes",
-                "sqs:GetQueueUrl"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        }
-    ]
-}
-EOM
-)"
+### Create Karpenter IAM Resources
+This command will create IAM resources used by Karpenter. For production use, please review and restrict these permissions as necessary.
+```bash
+// TODO, point to github raw uri
+aws cloudformation deploy \
+  --stack-name Karpenter \
+  --template-file ./docs/aws/karpenter.cloudformation.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
-### Associate the IAM Role with your Kubernetes Service Account
-These commands will associate the AWS IAM Policy you created above with the Kubernetes Service Account used by Karpenter.
-```
+### Enable IRSA
+Enables IRSA for your cluster. This command is idempotent, but only needs to be executed once per cluster.
+```bash
 eksctl utils associate-iam-oidc-provider \
 --region ${REGION} \
 --cluster ${CLUSTER_NAME} \
 --approve
-
-eksctl create iamserviceaccount --cluster ${CLUSTER_NAME} \
---name default \
---namespace karpenter \
---attach-policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter" \
---override-existing-serviceaccounts \
---approve
 ```
 
-### Verify the Permissions
-You should see an annotation with key eks.amazonaws.com/role-arn
-```
-kubectl get serviceaccount default -n karpenter -ojsonpath="{.metadata.annotations}"
+### Attach the Permissions
+```bash
+kubectl patch serviceaccount karpenter -n karpenter --patch "$(cat <<-EOM
+metadata:
+  annotations:
+     eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole
+EOM
+)"
 ```
 If you've already installed the Karpenter controller, you'll need to restart the pod to load the credentials.
-```
+```bash
 kubectl delete pods -n karpenter -l control-plane=karpenter
 ```
 
 ### Cleanup
-```
-eksctl delete iamserviceaccount --cluster ${CLUSTER_NAME} --name default --namespace karpenter
-aws iam delete-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter
+```bash
+aws cloudformation delete-stack --stack-name Karpenter
+aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```
