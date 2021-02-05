@@ -12,10 +12,54 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:webhook:path=/mutate-autoscaling-karpenter-sh-v1alpha1-metricsproducer,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=metricsproducers,verbs=create;update,versions=v1alpha1,name=mmetricsproducer.kb.io
+// +kubebuilder:webhook:verbs=create;update,path=/mutate-autoscaling-karpenter-sh-v1alpha1-metricsproducer,mutating=true,sideEffects=None,failurePolicy=fail,groups=autoscaling.karpenter.sh,resources=metricsproducers,versions=v1alpha1,name=mmetricsproducer.kb.io
 
 package v1alpha1
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *MetricsProducer) Default() {
+import (
+	"knative.dev/pkg/ptr"
+	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+var _ webhook.Defaulter = &MetricsProducer{}
+
+type specDefaulter interface {
+	defaultValues()
+}
+
+// Default implements webhook.Defaulter so a webhook will be registered
+func (m *MetricsProducer) Default() {
+	m.defaultValues()
+}
+
+// Default PendingCapacity
+func (s *PendingCapacitySpec) defaultValues() {
+}
+
+// Default ReservedCapacity
+func (s *ReservedCapacitySpec) defaultValues() {
+}
+
+// Default ScheduleSpec
+func (s *ScheduleSpec) defaultValues() {
+	if s.Timezone == nil {
+		s.Timezone = ptr.String("UTC")
+	}
+}
+
+func (s *QueueSpec) defaultValues() {
+}
+
+func (m *MetricsProducer) defaultValues() {
+	for _, defaulter := range []specDefaulter{
+		m.Spec.PendingCapacity,
+		m.Spec.ReservedCapacity,
+		m.Spec.Schedule,
+		m.Spec.Queue,
+	} {
+		if !reflect.ValueOf(defaulter).IsNil() {
+			defaulter.defaultValues()
+		}
+	}
 }
