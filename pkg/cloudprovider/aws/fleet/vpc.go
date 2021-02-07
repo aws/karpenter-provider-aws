@@ -32,27 +32,6 @@ type VPCProvider struct {
 	subnetProvider         *SubnetProvider
 }
 
-// GetTopologyDomains returns a set of supported domains.
-// e.g. us-west-2 -> [ us-west-2a, us-west-2b ]
-func (p *VPCProvider) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey, clusterName string) ([]string, error) {
-	switch key {
-	case cloudprovider.TopologyKeyZone:
-		zones, err := p.GetZones(ctx, clusterName)
-		if err != nil {
-			return nil, err
-		}
-		return zones, nil
-	case cloudprovider.TopologyKeySubnet:
-		subnets, err := p.getSubnetIds(ctx, clusterName)
-		if err != nil {
-			return nil, err
-		}
-		return subnets, nil
-	default:
-		return nil, fmt.Errorf("unrecognized topology key %s", key)
-	}
-}
-
 func (p *VPCProvider) GetLaunchTemplate(ctx context.Context, clusterSpec *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
 	return p.launchTemplateProvider.Get(ctx, clusterSpec)
 }
@@ -105,20 +84,7 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 	return constrainedZonalSubnets, nil
 }
 
-func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
-	// 1. Return zone if specified.
-	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
-		return []string{zone}, nil
-	}
-	// 2. Return all zone options
-	zones, err := p.GetZones(ctx, clusterName)
-	if err != nil {
-		return nil, err
-	}
-	return zones, nil
-}
-
-func (p *VPCProvider) getSubnetIds(ctx context.Context, clusterName string) ([]string, error) {
+func (p *VPCProvider) GetSubnetIds(ctx context.Context, clusterName string) ([]string, error) {
 	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
 	if err != nil {
 		return nil, err
@@ -130,6 +96,19 @@ func (p *VPCProvider) getSubnetIds(ctx context.Context, clusterName string) ([]s
 		}
 	}
 	return subnetIds, nil
+}
+
+func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
+	// 1. Return zone if specified.
+	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
+		return []string{zone}, nil
+	}
+	// 2. Return all zone options
+	zones, err := p.GetZones(ctx, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	return zones, nil
 }
 
 type ZonalSubnets map[string][]*ec2.Subnet

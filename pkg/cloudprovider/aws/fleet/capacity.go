@@ -78,5 +78,20 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 // GetTopologyDomains returns a set of supported domains.
 // e.g. us-west-2 -> [ us-west-2a, us-west-2b ]
 func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
-	return c.vpc.GetTopologyDomains(ctx, key, c.spec.Cluster.Name)
+	switch key {
+	case cloudprovider.TopologyKeyZone:
+		zones, err := c.vpc.GetZones(ctx, c.spec.Cluster.Name)
+		if err != nil {
+			return nil, err
+		}
+		return zones, nil
+	case cloudprovider.TopologyKeySubnet:
+		subnets, err := c.vpc.GetSubnetIds(ctx, c.spec.Cluster.Name)
+		if err != nil {
+			return nil, err
+		}
+		return subnets, nil
+	default:
+		return nil, fmt.Errorf("unrecognized topology key %s", key)
+	}
 }
