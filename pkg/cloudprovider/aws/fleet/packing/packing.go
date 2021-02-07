@@ -18,24 +18,36 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
 
-type Packer struct {
+type PodPacker struct {
 	ec2 ec2iface.EC2API
 }
 
-func NewPacker(ec2 ec2iface.EC2API) *Packer {
-	return &Packer{ec2: ec2}
+// PodPacker helps pack the pods and calculates efficient placement on the instances.
+type Packer interface {
+	Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error)
 }
 
-// Get returns the packings for the provided pods. Computes an ordered set of viable instance
-// types for each packing of pods. Instance variety enables EC2 to make better cost and availability decisions.
-func (p *Packer) Pack(ctx context.Context, pods []*v1.Pod) ([]*cloudprovider.Packings, error) {
-	zap.S().Infof("Successfully packed %d pods onto %d nodes", len(pods), 1)
-	return []*cloudprovider.Packings{
+// Packings contains a list of pods that can be placed on any of Instance type
+// in the InstanceTypeOptions
+type Packings struct {
+	Pods                []*v1.Pod
+	InstanceTypeOptions []string
+}
+
+func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
+	return &PodPacker{ec2: ec2}
+}
+
+// Pack returns the packings for the provided pods. Computes a set of viable
+// instance types for each packing of pods. Instance variety enables EC2 to make
+// better cost and availability decisions.
+func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
+	zap.S().Debugf("Successfully packed %d pods onto %d nodes", len(pods), 1)
+	return []*Packings{
 		{
 			InstanceTypeOptions: []string{"m5.large"}, // TODO, prioritize possible instance types
 			Pods:                pods,

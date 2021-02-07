@@ -20,6 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -27,25 +28,25 @@ import (
 type Capacity struct {
 	spec             *v1alpha1.ProvisionerSpec
 	nodeFactory      *NodeFactory
-	packing          cloudprovider.Packer
+	packer           packing.Packer
 	instanceProvider *InstanceProvider
-	vpc              *VPCProvider
+	vpcProvider      *VPCProvider
 }
 
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.PodPackings, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.NodePackings, error) {
 	// 1. Compute Packing given the constraints
-	packings, err := c.packing.Pack(ctx, constraints.Pods)
+	instancePackings, err := c.packer.Pack(ctx, constraints.Pods)
 	if err != nil {
 		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
 
-	launchTemplate, err := c.vpc.GetLaunchTemplate(ctx, c.spec.Cluster)
+	launchTemplate, err := c.vpcProvider.GetLaunchTemplate(ctx, c.spec.Cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
 
-	zonalSubnetOptions, err := c.vpc.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
+	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
 	if err != nil {
 		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
@@ -53,14 +54,14 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	// 2. Create Instances
 	var instanceIds []*string
 	podsMapped := make(map[string][]*v1.Pod)
-	for _, packing := range packings {
-		ec2InstanceID, err := c.instanceProvider.Create(ctx, packing.InstanceTypeOptions, launchTemplate, zonalSubnetOptions)
+	for _, packing := range instancePackings {
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
-		podsMapped[*ec2InstanceID] = packing.Pods
-		instanceIds = append(instanceIds, ec2InstanceID)
+		podsMapped[*instanceID] = packing.Pods
+		instanceIds = append(instanceIds, instanceID)
 	}
 
 	// 3. Convert to Nodes
@@ -68,7 +69,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
-	nodePackings := make(cloudprovider.PodPackings)
+	nodePackings := make(cloudprovider.NodePackings)
 	for instanceID, node := range nodes {
 		nodePackings[node] = podsMapped[instanceID]
 	}
@@ -80,13 +81,13 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
 	switch key {
 	case cloudprovider.TopologyKeyZone:
-		zones, err := c.vpc.GetZones(ctx, c.spec.Cluster.Name)
+		zones, err := c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
 		if err != nil {
 			return nil, err
 		}
 		return zones, nil
 	case cloudprovider.TopologyKeySubnet:
-		subnets, err := c.vpc.GetSubnetIds(ctx, c.spec.Cluster.Name)
+		subnets, err := c.vpcProvider.GetSubnetIds(ctx, c.spec.Cluster.Name)
 		if err != nil {
 			return nil, err
 		}

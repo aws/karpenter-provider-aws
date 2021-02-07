@@ -23,7 +23,7 @@ import (
 type Capacity struct {
 }
 
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.PodPackings, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.NodePackings, error) {
 	return nil, nil
 }
 

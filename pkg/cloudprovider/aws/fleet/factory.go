@@ -20,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,19 +58,19 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 	}
 	return &Factory{
 		ec2:              ec2,
-		vpc:              vpcProvider,
+		vpcProvider:      vpcProvider,
 		nodeFactory:      &NodeFactory{ec2: ec2},
 		instanceProvider: &InstanceProvider{ec2: ec2, vpc: vpcProvider},
-		packing:          packing.NewPacker(ec2),
+		packer:           packing.NewPacker(ec2),
 	}
 }
 
 type Factory struct {
 	ec2              ec2iface.EC2API
-	vpc              *VPCProvider
+	vpcProvider      *VPCProvider
 	nodeFactory      *NodeFactory
 	instanceProvider *InstanceProvider
-	packing          cloudprovider.Packer
+	packer           packing.Packer
 }
 
 func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
@@ -79,7 +78,7 @@ func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
 		spec:             spec,
 		nodeFactory:      f.nodeFactory,
 		instanceProvider: f.instanceProvider,
-		vpc:              f.vpc,
-		packing:          f.packing,
+		vpcProvider:      f.vpcProvider,
+		packer:           f.packer,
 	}
 }

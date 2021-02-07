@@ -31,11 +31,10 @@ type InstanceProvider struct {
 
 // Create an instance given the constraints.
 func (p *InstanceProvider) Create(ctx context.Context,
-	instanceTypeOptions []string,
 	launchTemplate *ec2.LaunchTemplate,
+	instanceTypeOptions []string,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 ) (*string, error) {
-
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, instanceType := range instanceTypeOptions {

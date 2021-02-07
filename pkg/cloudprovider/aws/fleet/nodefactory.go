@@ -33,6 +33,7 @@ type NodeFactory struct {
 	ec2 ec2iface.EC2API
 }
 
+// For a given set of instanceIds return a map of instanceID to Kubernetes node object.
 func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[string]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
