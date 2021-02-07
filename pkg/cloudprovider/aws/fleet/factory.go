@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packings"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -38,19 +38,20 @@ const (
 )
 
 func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Client) *Factory {
-	vpcProvider := &VPCProvider{launchTemplateProvider: &LaunchTemplateProvider{
-		ec2:                 ec2,
-		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
-		instanceProfileProvider: &InstanceProfileProvider{
-			iam:                  iam,
-			kubeClient:           kubeClient,
-			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+	vpcProvider := &VPCProvider{
+		launchTemplateProvider: &LaunchTemplateProvider{
+			ec2:                 ec2,
+			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+			instanceProfileProvider: &InstanceProfileProvider{
+				iam:                  iam,
+				kubeClient:           kubeClient,
+				instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+			},
+			securityGroupProvider: &SecurityGroupProvider{
+				ec2:                ec2,
+				securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+			},
 		},
-		securityGroupProvider: &SecurityGroupProvider{
-			ec2:                ec2,
-			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
-		},
-	},
 		subnetProvider: &SubnetProvider{
 			ec2:         ec2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
@@ -61,7 +62,7 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 		vpc:              vpcProvider,
 		nodeFactory:      &NodeFactory{ec2: ec2},
 		instanceProvider: &InstanceProvider{ec2: ec2, vpc: vpcProvider},
-		packing:          packings.Factory(ec2, packings.BinPacking),
+		packing:          packing.NewPacker(ec2),
 	}
 }
 

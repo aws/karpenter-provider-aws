@@ -22,8 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
 type InstanceProvider struct {
@@ -34,17 +32,9 @@ type InstanceProvider struct {
 // Create an instance given the constraints.
 func (p *InstanceProvider) Create(ctx context.Context,
 	instanceTypeOptions []string,
-	constraints *cloudprovider.CapacityConstraints,
-	spec *v1alpha1.ProvisionerSpec) (*string, error) {
-
-	launchTemplate, err := p.vpc.getLaunchTemplate(ctx, spec.Cluster)
-	if err != nil {
-		return nil, fmt.Errorf("getting launch template, %w", err)
-	}
-	zonalSubnetOptions, err := p.vpc.getConstrainedZonalSubnets(ctx, constraints, spec.Cluster.Name)
-	if err != nil {
-		return nil, fmt.Errorf("getting zonal subnets, %w", err)
-	}
+	launchTemplate *ec2.LaunchTemplate,
+	zonalSubnetOptions map[string][]*ec2.Subnet,
+) (*string, error) {
 
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest

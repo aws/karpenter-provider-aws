@@ -20,6 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
@@ -32,23 +33,33 @@ type Capacity struct {
 }
 
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.Packings, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.PodPackings, error) {
 	// 1. Compute Packing given the constraints
-	instancePackings, err := c.packing.Get(ctx, constraints)
+	packings, err := c.packing.Pack(ctx, constraints.Pods)
 	if err != nil {
 		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
 
+	launchTemplate, err := c.vpc.GetLaunchTemplate(ctx, c.spec.Cluster)
+	if err != nil {
+		return nil, fmt.Errorf("getting launch template, %w", err)
+	}
+
+	zonalSubnetOptions, err := c.vpc.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
+	if err != nil {
+		return nil, fmt.Errorf("getting zonal subnets, %w", err)
+	}
+
 	// 2. Create Instances
 	var instanceIds []*string
-	for tempID, instancePacking := range instancePackings {
-		ec2InstanceID, err := c.instanceProvider.Create(ctx, instancePacking.InstanceTypeOptions, constraints, c.spec)
+	podsMapped := make(map[string][]*v1.Pod)
+	for _, packing := range packings {
+		ec2InstanceID, err := c.instanceProvider.Create(ctx, packing.InstanceTypeOptions, launchTemplate, zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
-		instancePackings[*ec2InstanceID] = instancePacking
-		delete(instancePackings, tempID)
+		podsMapped[*ec2InstanceID] = packing.Pods
 		instanceIds = append(instanceIds, ec2InstanceID)
 	}
 
@@ -57,10 +68,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
+	nodePackings := make(cloudprovider.PodPackings)
 	for instanceID, node := range nodes {
-		instancePackings[instanceID].Node = node
+		nodePackings[node] = podsMapped[instanceID]
 	}
-	return instancePackings, nil
+	return nodePackings, nil
 }
 
 // GetTopologyDomains returns a set of supported domains.

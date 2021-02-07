@@ -18,9 +18,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/patrickmn/go-cache"
+	"go.uber.org/zap"
 )
 
 type VPCProvider struct {
@@ -33,7 +37,7 @@ type VPCProvider struct {
 func (p *VPCProvider) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey, clusterName string) ([]string, error) {
 	switch key {
 	case cloudprovider.TopologyKeyZone:
-		zones, err := p.getZones(ctx, clusterName)
+		zones, err := p.GetZones(ctx, clusterName)
 		if err != nil {
 			return nil, err
 		}
@@ -49,11 +53,23 @@ func (p *VPCProvider) GetTopologyDomains(ctx context.Context, key cloudprovider.
 	}
 }
 
-func (p *VPCProvider) getLaunchTemplate(ctx context.Context, clusterSpec *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
+func (p *VPCProvider) GetLaunchTemplate(ctx context.Context, clusterSpec *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
 	return p.launchTemplateProvider.Get(ctx, clusterSpec)
 }
 
-func (p *VPCProvider) getConstrainedZonalSubnets(ctx context.Context, constraints *cloudprovider.CapacityConstraints, clusterName string) (map[string][]*ec2.Subnet, error) {
+func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]string, error) {
+	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	zones := []string{}
+	for zone := range zonalSubnets {
+		zones = append(zones, zone)
+	}
+	return zones, nil
+}
+
+func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) (map[string][]*ec2.Subnet, error) {
 	// 1. Get all subnets
 	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
 	if err != nil {
@@ -89,27 +105,15 @@ func (p *VPCProvider) getConstrainedZonalSubnets(ctx context.Context, constraint
 	return constrainedZonalSubnets, nil
 }
 
-func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.CapacityConstraints, clusterName string) ([]string, error) {
+func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
 	// 1. Return zone if specified.
 	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
 		return []string{zone}, nil
 	}
 	// 2. Return all zone options
-	zones, err := p.getZones(ctx, clusterName)
+	zones, err := p.GetZones(ctx, clusterName)
 	if err != nil {
 		return nil, err
-	}
-	return zones, nil
-}
-
-func (p *VPCProvider) getZones(ctx context.Context, clusterName string) ([]string, error) {
-	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
-	if err != nil {
-		return nil, err
-	}
-	zones := []string{}
-	for zone := range zonalSubnets {
-		zones = append(zones, zone)
 	}
 	return zones, nil
 }
@@ -126,4 +130,50 @@ func (p *VPCProvider) getSubnetIds(ctx context.Context, clusterName string) ([]s
 		}
 	}
 	return subnetIds, nil
+}
+
+type ZonalSubnets map[string][]*ec2.Subnet
+
+type SubnetProvider struct {
+	ec2         ec2iface.EC2API
+	subnetCache *cache.Cache
+}
+
+func NewSubnetProvider(ec2 ec2iface.EC2API) *SubnetProvider {
+	return &SubnetProvider{
+		ec2:         ec2,
+		subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
+	}
+}
+
+func (s *SubnetProvider) Get(ctx context.Context, clusterName string) (ZonalSubnets, error) {
+	if zonalSubnets, ok := s.subnetCache.Get(clusterName); ok {
+		return zonalSubnets.(ZonalSubnets), nil
+	}
+	return s.getZonalSubnets(ctx, clusterName)
+}
+
+func (s *SubnetProvider) getZonalSubnets(ctx context.Context, clusterName string) (ZonalSubnets, error) {
+	describeSubnetOutput, err := s.ec2.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{{
+			Name:   aws.String("tag-key"),
+			Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
+		}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("describing subnets, %w", err)
+	}
+
+	zonalSubnetMap := ZonalSubnets{}
+	for _, subnet := range describeSubnetOutput.Subnets {
+		if subnets, ok := zonalSubnetMap[*subnet.AvailabilityZone]; ok {
+			zonalSubnetMap[*subnet.AvailabilityZone] = append(subnets, subnet)
+		} else {
+			zonalSubnetMap[*subnet.AvailabilityZone] = []*ec2.Subnet{subnet}
+		}
+	}
+
+	s.subnetCache.Set(clusterName, zonalSubnetMap, CacheTTL)
+	zap.S().Infof("Successfully discovered subnets in %d zones for cluster %s", len(zonalSubnetMap), clusterName)
+	return zonalSubnetMap, nil
 }

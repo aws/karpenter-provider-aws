@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package packings
+package packing
 
 import (
 	"context"
@@ -20,21 +20,25 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 )
 
-type binPacker struct {
+type Packer struct {
 	ec2 ec2iface.EC2API
+}
+
+func NewPacker(ec2 ec2iface.EC2API) *Packer {
+	return &Packer{ec2: ec2}
 }
 
 // Get returns the packings for the provided pods. Computes an ordered set of viable instance
 // types for each packing of pods. Instance variety enables EC2 to make better cost and availability decisions.
-func (p *binPacker) Get(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.Packings, error) {
-	zap.S().Infof("Successfully packed %d pods onto %d nodes", len(constraints.Pods), 1)
-	nodeID := "1"
-	return cloudprovider.Packings{
-		nodeID: &cloudprovider.NodePacking{
+func (p *Packer) Pack(ctx context.Context, pods []*v1.Pod) ([]*cloudprovider.Packings, error) {
+	zap.S().Infof("Successfully packed %d pods onto %d nodes", len(pods), 1)
+	return []*cloudprovider.Packings{
+		{
 			InstanceTypeOptions: []string{"m5.large"}, // TODO, prioritize possible instance types
-			Pods:                constraints.Pods,
+			Pods:                pods,
 		},
 	}, nil
 }

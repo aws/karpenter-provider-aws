@@ -44,13 +44,13 @@ func (a *GreedyAllocator) Allocate(provisioner *v1alpha1.Provisioner, pods []*v1
 	zap.S().Infof("Allocating %d pending pods from %d constraint groups", len(pods), len(groups))
 	// 2. Group pods into equally schedulable constraint group
 	for _, constraints := range groups {
-		packing, err := a.CloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
+		packings, err := a.CloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
 		// TODO accumulate errors if one request fails.
 		if err != nil {
 			return fmt.Errorf("while creating capacity, %w", err)
 		}
-		for _, pack := range packing {
-			if err := a.bind(ctx, pack.Node, pack.Pods); err != nil {
+		for node, pods := range packings {
+			if err := a.bind(ctx, node, pods); err != nil {
 				// TODO accumulate errors if one request fails.
 				return fmt.Errorf("binding pods to node, %w", err)
 			}
@@ -78,8 +78,8 @@ func (a *GreedyAllocator) bind(ctx context.Context, node *v1.Node, pods []*v1.Po
 	return nil
 }
 
-func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*cloudprovider.CapacityConstraints {
-	schedulingGroups := []*cloudprovider.CapacityConstraints{}
+func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*cloudprovider.Constraints {
+	schedulingGroups := []*cloudprovider.Constraints{}
 	for _, pod := range pods {
 		added := false
 		for _, constraints := range schedulingGroups {
@@ -98,12 +98,12 @@ func (a *GreedyAllocator) getSchedulingGroups(pods []*v1.Pod) []*cloudprovider.C
 }
 
 // TODO
-func (a *GreedyAllocator) matchesConstraints(constraints *cloudprovider.CapacityConstraints, pod *v1.Pod) bool {
+func (a *GreedyAllocator) matchesConstraints(constraints *cloudprovider.Constraints, pod *v1.Pod) bool {
 	return false
 }
 
-func constraintsForPod(pod *v1.Pod) *cloudprovider.CapacityConstraints {
-	return &cloudprovider.CapacityConstraints{
+func constraintsForPod(pod *v1.Pod) *cloudprovider.Constraints {
+	return &cloudprovider.Constraints{
 		Overhead:     calculateOverheadResources(),
 		Architecture: getSystemArchitecture(pod),
 		Topology:     map[cloudprovider.TopologyKey]string{},
