@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,8 +37,7 @@ const (
 )
 
 func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Client) *Factory {
-	return &Factory{
-		ec2: ec2,
+	vpcProvider := &VPCProvider{
 		launchTemplateProvider: &LaunchTemplateProvider{
 			ec2:                 ec2,
 			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
@@ -55,25 +55,30 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 			ec2:         ec2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
 		},
+	}
+	return &Factory{
+		ec2:              ec2,
+		vpcProvider:      vpcProvider,
 		nodeFactory:      &NodeFactory{ec2: ec2},
-		instanceProvider: &InstanceProvider{ec2: ec2},
+		instanceProvider: &InstanceProvider{ec2: ec2, vpc: vpcProvider},
+		packer:           packing.NewPacker(ec2),
 	}
 }
 
 type Factory struct {
-	ec2                    ec2iface.EC2API
-	launchTemplateProvider *LaunchTemplateProvider
-	nodeFactory            *NodeFactory
-	subnetProvider         *SubnetProvider
-	instanceProvider       *InstanceProvider
+	ec2              ec2iface.EC2API
+	vpcProvider      *VPCProvider
+	nodeFactory      *NodeFactory
+	instanceProvider *InstanceProvider
+	packer           packing.Packer
 }
 
 func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
 	return &Capacity{
-		spec:                   spec,
-		launchTemplateProvider: f.launchTemplateProvider,
-		nodeFactory:            f.nodeFactory,
-		subnetProvider:         f.subnetProvider,
-		instanceProvider:       f.instanceProvider,
+		spec:             spec,
+		nodeFactory:      f.nodeFactory,
+		instanceProvider: f.instanceProvider,
+		vpcProvider:      f.vpcProvider,
+		packer:           f.packer,
 	}
 }

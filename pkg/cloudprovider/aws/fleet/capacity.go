@@ -18,45 +18,50 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
 type Capacity struct {
-	spec                   *v1alpha1.ProvisionerSpec
-	launchTemplateProvider *LaunchTemplateProvider
-	subnetProvider         *SubnetProvider
-	nodeFactory            *NodeFactory
-	instanceProvider       *InstanceProvider
+	spec             *v1alpha1.ProvisionerSpec
+	nodeFactory      *NodeFactory
+	packer           packing.Packer
+	instanceProvider *InstanceProvider
+	vpcProvider      *VPCProvider
 }
 
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (cloudprovider.CapacityPacking, error) {
-	// 1. Compute Constraints
-	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster)
-	if err != nil {
-		return nil, fmt.Errorf("getting launch template, %w", err)
-	}
-	instancePackings, err := c.instanceProvider.GetPackings(ctx, constraints.Pods, constraints.Overhead)
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.NodePackings, error) {
+	// 1. Compute Packing given the constraints
+	instancePackings, err := c.packer.Pack(ctx, constraints.Pods)
 	if err != nil {
 		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
-	zonalSubnets, err := c.getConstrainedZonalSubnets(ctx, constraints)
+
+	launchTemplate, err := c.vpcProvider.GetLaunchTemplate(ctx, c.spec.Cluster)
+	if err != nil {
+		return nil, fmt.Errorf("getting launch template, %w", err)
+	}
+
+	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
 	if err != nil {
 		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
 
 	// 2. Create Instances
 	var instanceIds []*string
-	for _, instancePacking := range instancePackings {
-		instanceId, err := c.instanceProvider.Create(ctx, launchTemplate, instancePacking.InstanceTypeOptions, zonalSubnets)
+	podsMapped := make(map[string][]*v1.Pod)
+	for _, packing := range instancePackings {
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
-		instanceIds = append(instanceIds, instanceId)
+		podsMapped[*instanceID] = packing.Pods
+		instanceIds = append(instanceIds, instanceID)
 	}
 
 	// 3. Convert to Nodes
@@ -64,13 +69,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
-
-	// 4. Construct capacity packing
-	capacityPacking := cloudprovider.CapacityPacking{}
-	for i, node := range nodes {
-		capacityPacking[node] = instancePackings[i].Pods
+	nodePackings := make(cloudprovider.NodePackings)
+	for instanceID, node := range nodes {
+		nodePackings[node] = podsMapped[instanceID]
 	}
-	return capacityPacking, nil
+	return nodePackings, nil
 }
 
 // GetTopologyDomains returns a set of supported domains.
@@ -78,13 +81,13 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Capaci
 func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
 	switch key {
 	case cloudprovider.TopologyKeyZone:
-		zones, err := c.getZones(ctx)
+		zones, err := c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
 		if err != nil {
 			return nil, err
 		}
 		return zones, nil
 	case cloudprovider.TopologyKeySubnet:
-		subnets, err := c.getSubnetIds(ctx)
+		subnets, err := c.vpcProvider.GetSubnetIds(ctx, c.spec.Cluster.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -92,79 +95,4 @@ func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.Top
 	default:
 		return nil, fmt.Errorf("unrecognized topology key %s", key)
 	}
-}
-
-func (c *Capacity) getConstrainedZonalSubnets(ctx context.Context, constraints *cloudprovider.CapacityConstraints) (map[string][]*ec2.Subnet, error) {
-	// 1. Get all subnets
-	zonalSubnets, err := c.subnetProvider.Get(ctx, c.spec.Cluster.Name)
-	if err != nil {
-		return nil, fmt.Errorf("getting zonal subnets, %w", err)
-	}
-	// 2. Return specific subnet if specified.
-	if subnetId, ok := constraints.Topology[cloudprovider.TopologyKeySubnet]; ok {
-		for zone, subnets := range zonalSubnets {
-			for _, subnet := range subnets {
-				if subnetId == *subnet.SubnetId {
-					return map[string][]*ec2.Subnet{zone: {subnet}}, nil
-				}
-			}
-		}
-		return nil, fmt.Errorf("no subnet exists named %s", subnetId)
-	}
-	// 3. Constrain by zones
-	constrainedZones, err := c.getConstrainedZones(ctx, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting zones, %w", err)
-	}
-	constrainedZonalSubnets := map[string][]*ec2.Subnet{}
-	for zone, subnets := range zonalSubnets {
-		for _, constrainedZone := range constrainedZones {
-			if zone == constrainedZone {
-				constrainedZonalSubnets[constrainedZone] = subnets
-			}
-		}
-	}
-	if len(constrainedZonalSubnets) == 0 {
-		return nil, fmt.Errorf("failed to find viable zonal subnet pairing")
-	}
-	return constrainedZonalSubnets, nil
-}
-
-func (c *Capacity) getConstrainedZones(ctx context.Context, constraints *cloudprovider.CapacityConstraints) ([]string, error) {
-	// 1. Return zone if specified.
-	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
-		return []string{zone}, nil
-	}
-	// 2. Return all zone options
-	zones, err := c.getZones(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return zones, nil
-}
-
-func (c *Capacity) getZones(ctx context.Context) ([]string, error) {
-	zonalSubnets, err := c.subnetProvider.Get(ctx, c.spec.Cluster.Name)
-	if err != nil {
-		return nil, err
-	}
-	zones := []string{}
-	for zone := range zonalSubnets {
-		zones = append(zones, zone)
-	}
-	return zones, nil
-}
-
-func (c *Capacity) getSubnetIds(ctx context.Context) ([]string, error) {
-	zonalSubnets, err := c.subnetProvider.Get(ctx, c.spec.Cluster.Name)
-	if err != nil {
-		return nil, err
-	}
-	subnetIds := []string{}
-	for _, subnets := range zonalSubnets {
-		for _, subnet := range subnets {
-			subnetIds = append(subnetIds, *subnet.SubnetId)
-		}
-	}
-	return subnetIds, nil
 }

@@ -33,7 +33,8 @@ type NodeFactory struct {
 	ec2 ec2iface.EC2API
 }
 
-func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) ([]*v1.Node, error) {
+// For a given set of instanceIds return a map of instanceID to Kubernetes node object.
+func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[string]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
 	for attempt := retry.Start(retry.Exponential{
@@ -53,11 +54,11 @@ func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) ([]*v1.Nod
 	return nil, fmt.Errorf("failed to describe ec2 instances")
 }
 
-func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) []*v1.Node {
-	var nodes []*v1.Node
+func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {
+	var nodes map[string]*v1.Node
 	for _, reservation := range reservations {
 		for _, instance := range reservation.Instances {
-			nodes = append(nodes, n.nodeFrom(instance))
+			nodes[*instance.InstanceId] = n.nodeFrom(instance)
 		}
 	}
 	return nodes

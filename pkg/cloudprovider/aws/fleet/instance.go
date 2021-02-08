@@ -22,30 +22,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 )
 
 type InstanceProvider struct {
 	ec2 ec2iface.EC2API
-}
-
-// Packing is a binpacking solution of pods and their viable instances types.
-type Packing struct {
-	// Pods is a set of pods that is assigned to this packing.
-	Pods []*v1.Pod
-	// InstanceTypes is a set of instance types that is able to fit the pods.
-	InstanceTypeOptions []string
-}
-
-// GetPackings for the provided pods. Computes an ordered set of viable instance
-// types for each packing of pods. Instance variety enables EC2 to make better cost and availability decisions.
-func (p *InstanceProvider) GetPackings(ctx context.Context, pods []*v1.Pod, overhead v1.ResourceList) ([]*Packing, error) {
-	zap.S().Infof("Successfully packed %d pods onto %d nodes", len(pods), 1)
-	return []*Packing{{
-		InstanceTypeOptions: []string{"m5.large"}, // TODO, prioritize possible instance types
-		Pods:                pods,
-	}}, nil
+	vpc *VPCProvider
 }
 
 // Create an instance given the constraints.
