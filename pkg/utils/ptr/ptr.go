@@ -12,14 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allocation
+package ptr
 
-import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-)
+import v1 "k8s.io/api/core/v1"
 
-// Allocator allocates new capacity for a set of pods
-type Allocator interface {
-	Allocate(*v1alpha1.Provisioner, []*v1.Pod) error
+func Pod(pod v1.Pod) *v1.Pod {
+	return &pod
 }

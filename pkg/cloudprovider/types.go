@@ -58,7 +58,7 @@ type NodeGroup interface {
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, *Constraints) (NodePackings, error)
+	Create(context.Context, *Constraints) ([]Packing, error)
 
 	// GetTopologyDomains returns a list of topology domains supported by the
 	// cloud provider for the given key.
@@ -82,8 +82,12 @@ type Constraints struct {
 	Architecture Architecture
 }
 
-// NodePackings is a solution to packing pods onto nodes given constraints.
-type NodePackings map[*v1.Node][]*v1.Pod
+// Packing is a solution to packing pods onto nodes given constraints.
+type Packing struct {
+	Node *v1.Node
+	Pods []*v1.Pod
+}
+
 
 // TopologyKey:
 // https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/

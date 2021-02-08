@@ -12,14 +12,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocation
-
-import v1 "k8s.io/api/core/v1"
-
-// Reallocator evicts scheduled pods in favor of incoming pods.
-type Reallocator interface {
-	// Reallocate takes a set of incoming pods and identifies existing pods that
-	// could be replaced by incoming pods. Returns incoming pods that did not
-	// result in a better fit.
-	Reallocate([]*v1.Pod) ([]*v1.Pod, error)
-}
+package reallocator

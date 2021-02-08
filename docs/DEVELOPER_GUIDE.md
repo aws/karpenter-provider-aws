@@ -49,13 +49,18 @@ make test       # E2e correctness tests
 make battletest # More rigorous tests run in CI environment
 ```
 
+### Verbose Logging
+```bash
+kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
+```
+
 ### Debugging Metrics
 Prometheus
-```
+```bash
 open http://localhost:9090/graph && kubectl port-forward service/prometheus-operated -n karpenter 9090
 ```
 Karpenter Metrics
-```
+```bash
 open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics-service -n karpenter 8080
 ```
 

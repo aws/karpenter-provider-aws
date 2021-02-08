@@ -34,7 +34,7 @@ type Capacity struct {
 }
 
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) (cloudprovider.NodePackings, error) {
+func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	// 1. Compute Packing given the constraints
 	instancePackings, err := c.packer.Pack(ctx, constraints.Pods)
 	if err != nil {
@@ -53,14 +53,14 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 
 	// 2. Create Instances
 	var instanceIds []*string
-	podsMapped := make(map[string][]*v1.Pod)
+	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
 		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
-		podsMapped[*instanceID] = packing.Pods
+		podsForInstance[*instanceID] = packing.Pods
 		instanceIds = append(instanceIds, instanceID)
 	}
 
@@ -69,9 +69,12 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
-	nodePackings := make(cloudprovider.NodePackings)
+	nodePackings := []cloudprovider.Packing{}
 	for instanceID, node := range nodes {
-		nodePackings[node] = podsMapped[instanceID]
+		nodePackings = append(nodePackings, cloudprovider.Packing{
+			Node: node,
+			Pods: podsForInstance[instanceID],
+		})
 	}
 	return nodePackings, nil
 }
