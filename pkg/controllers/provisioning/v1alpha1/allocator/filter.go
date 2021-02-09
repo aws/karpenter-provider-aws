@@ -17,18 +17,11 @@ package allocator
 import (
 	"context"
 	"fmt"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/util/scheduling"
 
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-var (
-	IgnoredOwners []schema.GroupVersionKind = []schema.GroupVersionKind{
-		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
-	}
 )
 
 type Filter struct {
@@ -45,30 +38,9 @@ func (f *Filter) GetProvisionablePods(ctx context.Context) ([]*v1.Pod, error) {
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, pod := range pods.Items {
-		if isUnschedulable(&pod) && isNotIgnored(&pod) {
+		if scheduling.IsUnschedulable(&pod) && scheduling.IsNotIgnored(&pod) {
 			provisionable = append(provisionable, ptr.Pod(pod))
 		}
 	}
 	return provisionable, nil
-}
-
-func isNotIgnored(pod *v1.Pod) bool {
-	for _, ignoredOwner := range IgnoredOwners {
-		for _, owner := range pod.ObjectMeta.OwnerReferences {
-			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
-				zap.S().Debugf("Ignoring %s %s %s/%s", owner.APIVersion, owner.Kind, pod.Namespace, owner.Name)
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func isUnschedulable(pod *v1.Pod) bool {
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
-			return true
-		}
-	}
-	return false
 }

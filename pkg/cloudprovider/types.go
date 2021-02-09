@@ -88,7 +88,6 @@ type Packing struct {
 	Pods []*v1.Pod
 }
 
-
 // TopologyKey:
 // https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
 type TopologyKey string

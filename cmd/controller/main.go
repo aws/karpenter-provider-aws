@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocator"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -75,6 +76,7 @@ func main() {
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 		allocator.NewController(manager.GetClient(), corev1Client, cloudProviderFactory),
+		reallocator.NewController(manager.GetClient(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")
 }

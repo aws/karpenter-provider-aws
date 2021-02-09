@@ -22,7 +22,7 @@ type ProvisionerSpec struct {
 	// +optional
 	Cluster     *ClusterSpec    `json:"cluster,omitempty"`
 	Allocator   AllocatorSpec   `json:"allocator,omitempty"`
-	Deallocator DeallocatorSpec `json:"deallocator,omitempty"`
+	Reallocator ReallocatorSpec `json:"reallocator,omitempty"`
 }
 
 // ClusterSpec configures the cluster that the provisioner operates against. If
@@ -44,8 +44,8 @@ type AllocatorSpec struct {
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
 }
 
-// DeallocatorSpec configures
-type DeallocatorSpec struct {
+// ReallocatorSpec configures node reallocation policy
+type ReallocatorSpec struct {
 }
 
 // Provisioner is the Schema for the Provisioners API

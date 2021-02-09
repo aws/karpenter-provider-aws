@@ -47,6 +47,14 @@ type Controller interface {
 	Owns() []Object
 }
 
+// NamedController allows controllers to optionally implement a Name() function which will be used instead of the
+// reconciled resource's name. This is useful when writing multiple controllers for a single resource type.
+type NamedController interface {
+	Controller
+	// Name returns the name of the controller
+	Name() string
+}
+
 // Object provides an abstraction over a kubernetes custom resource with
 // methods necessary to standardize reconciliation behavior in Karpenter.
 type Object interface {
