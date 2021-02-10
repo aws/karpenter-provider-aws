@@ -49,6 +49,10 @@ func (c *Controller) Interval() time.Duration {
 	return 5 * time.Second
 }
 
+func (c *Controller) Name() string {
+	return "provisioner/allocator"
+}
+
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client *corev1.CoreV1Client, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{

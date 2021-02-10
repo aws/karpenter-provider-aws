@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	v1 "k8s.io/api/core/v1"
@@ -58,14 +57,18 @@ func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Man
 
 func (m *GenericControllerManager) Register(controllers ...Controller) Manager {
 	for _, controller := range controllers {
-		var builder = controllerruntime.NewControllerManagedBy(m).For(controller.For())
+		controlledObject := controller.For()
+		var builder = controllerruntime.NewControllerManagedBy(m).For(controlledObject)
+		if namedController, ok := controller.(NamedController); ok {
+			builder.Named(namedController.Name())
+		}
 		for _, resource := range controller.Owns() {
 			builder = builder.Owns(resource)
 		}
 		log.PanicIfError(builder.Complete(&GenericController{Controller: controller, Client: m.GetClient()}),
-			"Failed to register controller to manager for %s", controller.For())
-		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controller.For()).Complete(),
-			"Failed to register controller to manager for %s", controller.For())
+			"Failed to register controller to manager for %s", controlledObject)
+		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controlledObject).Complete(),
+			"Failed to register controller to manager for %s", controlledObject)
 	}
 	return m
 }
