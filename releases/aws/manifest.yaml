@@ -372,32 +372,70 @@ spec:
                   required:
                     - nodeSelector
                   type: object
-                scheduledCapacity:
-                  description: ScheduledCapacity produces a metric according to a specified schedule.
+                scheduleSpec:
+                  description: Schedule produces a metric according to a specified schedule.
                   properties:
                     behaviors:
                       description: Behaviors may be layered to achieve complex scheduling autoscaling logic
                       items:
-                        description: ScheduledBehavior defines a crontab which sets the metric to a specific replica value on a schedule.
+                        description: ScheduledBehavior sets the metric to a replica value based on a start and end pattern.
                         properties:
-                          crontab:
-                            type: string
+                          end:
+                            description: Pattern is a strongly-typed version of crontabs
+                            properties:
+                              days:
+                                description: When Days, Months, or Weekdays are left out, they are represented by wildcards, meaning any time matches
+                                type: string
+                              hours:
+                                type: string
+                              minutes:
+                                description: When minutes or hours are left out, they are assumed to match to 0
+                                type: string
+                              months:
+                                description: List of 3-letter abbreviations i.e. Jan, Feb, Mar
+                                type: string
+                              weekdays:
+                                description: List of 3-letter abbreviations i.e. "Mon, Tue, Wed"
+                                type: string
+                            type: object
                           replicas:
+                            description: The value the MetricsProducer will emit when the current time is within start and end
                             format: int32
                             type: integer
+                          start:
+                            description: Pattern is a strongly-typed version of crontabs
+                            properties:
+                              days:
+                                description: When Days, Months, or Weekdays are left out, they are represented by wildcards, meaning any time matches
+                                type: string
+                              hours:
+                                type: string
+                              minutes:
+                                description: When minutes or hours are left out, they are assumed to match to 0
+                                type: string
+                              months:
+                                description: List of 3-letter abbreviations i.e. Jan, Feb, Mar
+                                type: string
+                              weekdays:
+                                description: List of 3-letter abbreviations i.e. "Mon, Tue, Wed"
+                                type: string
+                            type: object
                         required:
-                          - crontab
+                          - end
                           - replicas
+                          - start
                         type: object
                       type: array
-                    nodeSelector:
-                      additionalProperties:
-                        type: string
-                      description: NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
-                      type: object
+                    defaultReplicas:
+                      description: A schedule defaults to this value when no behaviors are active
+                      format: int32
+                      type: integer
+                    timezone:
+                      description: 'Defaults to UTC. Users will specify their schedules assuming this is their timezone ref: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones'
+                      type: string
                   required:
                     - behaviors
-                    - nodeSelector
+                    - defaultReplicas
                   type: object
               type: object
             status:
@@ -451,7 +489,128 @@ spec:
                     type: string
                   type: object
                 scheduledCapacity:
+                  properties:
+                    currentValue:
+                      description: The current recommendation - the metric the MetricsProducer is emitting
+                      format: int32
+                      type: integer
+                    nextValue:
+                      description: Not Currently Implemented The next recommendation for the metric
+                      format: int32
+                      type: integer
+                    nextValueTime:
+                      description: Not Currently Implemented The time in the future where CurrentValue will switch to NextValue
+                      type: string
                   type: object
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.0
+  creationTimestamp: null
+  labels:
+    control-plane: karpenter
+  name: provisioners.provisioning.karpenter.sh
+spec:
+  group: provisioning.karpenter.sh
+  names:
+    kind: Provisioner
+    listKind: ProvisionerList
+    plural: provisioners
+    singular: provisioner
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: Provisioner is the Schema for the Provisioners API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                allocator:
+                  description: AllocatorSpec configures node allocation policy
+                  properties:
+                    instanceTypes:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                cluster:
+                  description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
+                  properties:
+                    caBundle:
+                      description: CABundle is required for nodes to verify API Server certificates.
+                      type: string
+                    endpoint:
+                      description: Endpoint is required for nodes to connect to the API Server.
+                      type: string
+                    name:
+                      description: Name is required to detect implementing cloud provider resources.
+                      type: string
+                  required:
+                    - caBundle
+                    - endpoint
+                    - name
+                  type: object
+                deallocator:
+                  description: DeallocatorSpec configures
+                  type: object
+              type: object
+            status:
+              description: ProvisionerStatus defines the observed state of Provisioner
+              properties:
+                conditions:
+                  description: Conditions is the set of conditions required for this provisioner to scale its target, and indicates whether or not those conditions are met.
+                  items:
+                    description: 'Conditions defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
+                        type: string
+                      message:
+                        description: A human readable message indicating details about the transition.
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      severity:
+                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of condition.
+                        type: string
+                    required:
+                      - status
+                      - type
+                    type: object
+                  type: array
+                lastScaleTime:
+                  description: LastScaleTime is the last time the Provisioner scaled the number of nodes
+                  type: string
               type: object
           type: object
       served: true
@@ -691,6 +850,56 @@ webhooks:
         resources:
           - horizontalautoscalers
     sideEffects: None
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /validate-autoscaling-karpenter-sh-v1alpha1-metricsproducer
+    failurePolicy: Fail
+    name: vmetricsproducer.kb.io
+    rules:
+      - apiGroups:
+          - autoscaling.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - metricsproducers
+    sideEffects: None
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /validate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
+    failurePolicy: Fail
+    name: scalablenodegroup.kb.io
+    rules:
+      - apiGroups:
+          - autoscaling.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - scalablenodegroups
+    sideEffects: None
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    control-plane: karpenter
+  name: karpenter
+  namespace: karpenter
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -730,7 +939,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   labels:
     control-plane: karpenter
   name: karpenter
@@ -740,54 +948,33 @@ rules:
     resources:
       - horizontalautoscalers
       - horizontalautoscalers/status
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - watch
-  - apiGroups:
-      - autoscaling.karpenter.sh
-    resources:
       - metricsproducers
       - metricsproducers/status
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - watch
-  - apiGroups:
-      - '*'
-    resources:
-      - '*/scale'
-    verbs:
-      - update
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - autoscaling.karpenter.sh
-    resources:
       - scalablenodegroups
       - scalablenodegroups/status
+      - provisioners
+      - provisioners/status
     verbs:
       - create
       - delete
+      - patch
       - get
       - list
       - patch
       - watch
   - apiGroups:
-      - autoscaling.karpenter.sh
+      - provisioning.karpenter.sh
     resources:
-      - scalablenodegroups/scale
+      - provisioners
+      - provisioners/status
     verbs:
-      - get
+      - create
+      - delete
       - patch
-      - update
+      - get
+      - list
+      - patch
+      - watch
   - apiGroups:
       - coordination.k8s.io
     resources:
@@ -799,6 +986,15 @@ rules:
       - update
       - watch
   - apiGroups:
+      - '*'
+    resources:
+      - '*/scale'
+    verbs:
+      - update
+      - get
+      - list
+      - watch
+  - apiGroups:
       - ""
     resources:
       - nodes
@@ -807,6 +1003,27 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - pods/binding
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -842,7 +1059,7 @@ roleRef:
   name: karpenter-leader-election
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: karpenter
     namespace: karpenter
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -872,7 +1089,7 @@ roleRef:
   name: karpenter
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: karpenter
     namespace: karpenter
 ---
 apiVersion: v1
@@ -922,7 +1139,7 @@ spec:
         control-plane: karpenter
     spec:
       containers:
-        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.1@sha256:6a5c82cb34bbd6f714145cdfe7c14ac28404a00b56eec9b746ac61eeb3a6d6a8
+        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.2@sha256:42a628bfce91efb82007ade793a8ea6a5f69f345057e5c233eee8a05576930e1
           name: manager
           ports:
             - containerPort: 9443
@@ -943,6 +1160,7 @@ spec:
               readOnly: true
       securityContext:
         fsGroup: 1000
+      serviceAccountName: karpenter
       volumes:
         - name: cert
           secret:

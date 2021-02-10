@@ -14,4 +14,3 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
-          body_path: releases/${{ github.ref }}.md
