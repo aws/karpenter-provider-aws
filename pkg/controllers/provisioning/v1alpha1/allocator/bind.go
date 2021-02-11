@@ -26,8 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const KarpenterNodeLabelKey = "karpenter.sh/provisioner"
-
 type Binder struct {
 	kubeClient   client.Client
 	coreV1Client *corev1.CoreV1Client
@@ -54,8 +52,12 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 }
 
 func (b *Binder) decorate(provisioner *v1alpha1.Provisioner, node *v1.Node) {
-	node.ObjectMeta.Labels = map[string]string{
-		KarpenterNodeLabelKey: fmt.Sprintf("%s-%s", provisioner.Name, provisioner.Namespace),
+	node.Labels = map[string]string{
+		v1alpha1.SchemeGroupVersion.Group + "/name":      provisioner.Name,
+		v1alpha1.SchemeGroupVersion.Group + "/namespace": provisioner.Namespace,
+	}
+	for key, value := range provisioner.Spec.Allocator.Labels {
+		node.Labels[key] = value
 	}
 	// Unfortunately, this detail is necessary to prevent kube-scheduler from
 	// scheduling pods to nodes before they're created. Node Lifecycle

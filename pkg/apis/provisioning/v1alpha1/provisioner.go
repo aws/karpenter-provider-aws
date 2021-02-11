@@ -41,7 +41,8 @@ type ClusterSpec struct {
 
 // AllocatorSpec configures node allocation policy
 type AllocatorSpec struct {
-	InstanceTypes []string `json:"instanceTypes,omitempty"`
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // ReallocatorSpec configures node reallocation policy
