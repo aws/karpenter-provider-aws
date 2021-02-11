@@ -573,8 +573,8 @@ spec:
                     - endpoint
                     - name
                   type: object
-                deallocator:
-                  description: DeallocatorSpec configures
+                reallocator:
+                  description: ReallocatorSpec configures node reallocation policy
                   type: object
               type: object
             status:
@@ -1139,7 +1139,7 @@ spec:
         control-plane: karpenter
     spec:
       containers:
-        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.2@sha256:42a628bfce91efb82007ade793a8ea6a5f69f345057e5c233eee8a05576930e1
+        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.2@sha256:253a3685cebb3c547d410a1848bd00a44bb8a8220e7e003282ba53d1d66abf97
           name: manager
           ports:
             - containerPort: 9443

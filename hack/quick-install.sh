@@ -14,7 +14,7 @@ main() {
   else
     echo "Error: invalid argument: $command" >&2
     usage
-    exit 22                     # EINVAL
+    exit 22 # EINVAL
   fi
 }
 
@@ -32,8 +32,7 @@ delete() {
   helm delete karpenter || true
   helm delete cert-manager --namespace cert-manager || true
   helm delete kube-prometheus-stack --namespace monitoring || true
-
-  kubectl delete namespace cert-manager monitoring || true
+  kubectl delete namespace karpenter cert-manager monitoring || true
 }
 
 # If this fails you may have an old installation hanging around.
@@ -46,30 +45,17 @@ apply() {
   helm repo update
 
   helm upgrade --install cert-manager jetstack/cert-manager \
-    --create-namespace \
-    --namespace cert-manager \
-    --version v1.1.0 \
-    --set installCRDs=true
-
+    --version v1.2.0 \
+    --create-namespace --namespace cert-manager \
+    --set installCRDs=true \
+    --atomic
   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-    --create-namespace \
-    --namespace monitoring \
-    --version 9.4.5 \
-    --set alertmanager.enabled=false \
-    --set grafana.enabled=false \
-    --set kubeApiServer.enabled=false \
-    --set kubelet.enabled=false \
-    --set kubeControllerManager.enabled=false \
-    --set coreDns.enabled=false \
-    --set kubeDns.enabled=false \
-    --set kubeEtcd.enabled=false \
-    --set kubeScheduler.enabled=false \
-    --set kubeProxy.enabled=false \
-    --set kubeStateMetrics.enabled=false \
-    --set nodeExporter.enabled=false \
-    --set prometheus.enabled=false
-
-  helm upgrade --install karpenter karpenter/karpenter
+    --version 13.7.1 \
+    --create-namespace --namespace monitoring \
+    --atomic
+  helm upgrade --install karpenter karpenter/karpenter \
+    --version 0.1.2 \
+    --atomic
 }
 
 usage
