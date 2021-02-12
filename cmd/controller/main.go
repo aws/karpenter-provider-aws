@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocator"
 
 	"github.com/awslabs/karpenter/pkg/apis"
@@ -63,13 +64,13 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient()})
+	corev1Client, err := corev1.NewForConfig(manager.GetConfig())
+	log.PanicIfError(err, "Failed creating kube client")
+
+	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), CoreV1Client: corev1Client})
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
-
-	corev1Client, err := corev1.NewForConfig(manager.GetConfig())
-	log.PanicIfError(err, "Failed creating kube client")
 
 	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},

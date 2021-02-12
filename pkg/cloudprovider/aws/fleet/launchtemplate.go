@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -38,6 +39,8 @@ type LaunchTemplateProvider struct {
 	launchTemplateCache     *cache.Cache
 	instanceProfileProvider *InstanceProfileProvider
 	securityGroupProvider   *SecurityGroupProvider
+	ssm                     ssmiface.SSMAPI
+	eksProvider             *EKSProvider
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
@@ -81,6 +84,10 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting instance profile, %w", err)
 	}
+	amiID, err := p.getAMIID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting AMI ID %w", err)
+	}
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
@@ -108,7 +115,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 				cluster.Endpoint,
 			)))),
 			// TODO discover this with SSM
-			ImageId: aws.String("ami-0532808ed453f9ca3"),
+			ImageId: amiID,
 		},
 	})
 	if err != nil {
@@ -128,4 +135,13 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 		securityGroupIds = append(securityGroupIds, securityGroup.GroupId)
 	}
 	return securityGroupIds, nil
+}
+
+func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
+	version, err := p.eksProvider.Version()
+	if err != nil {
+		return nil, err
+	}
+	_ = version
+	return aws.String("ami-0a03956628dc3ddaf"), nil
 }

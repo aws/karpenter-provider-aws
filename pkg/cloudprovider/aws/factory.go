@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -53,7 +54,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		eks:               eks.New(sess),
 		sqs:               sqs.New(sess),
 		ec2:               EC2,
-		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), options.Client),
+		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.CoreV1Client),
 		kubeClient:        options.Client,
 	}
 }
