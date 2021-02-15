@@ -52,13 +52,21 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 }
 
 func (b *Binder) decorate(provisioner *v1alpha1.Provisioner, node *v1.Node) {
+	// 1. Set Labels
 	node.Labels = map[string]string{
 		v1alpha1.SchemeGroupVersion.Group + "/name":      provisioner.Name,
 		v1alpha1.SchemeGroupVersion.Group + "/namespace": provisioner.Namespace,
 	}
-	for key, value := range provisioner.Spec.Allocator.Labels {
+	for key, value := range provisioner.Spec.Allocation.Labels {
 		node.Labels[key] = value
 	}
+
+	// 2. Set Taints
+	node.Spec.Taints = []v1.Taint{}
+	node.Spec.Taints = append(node.Spec.Taints, provisioner.Spec.Allocation.Taints...)
+
+	// 3. Set Conditions
+
 	// Unfortunately, this detail is necessary to prevent kube-scheduler from
 	// scheduling pods to nodes before they're created. Node Lifecycle
 	// Controller will attach a Effect=NoSchedule taint in response to this

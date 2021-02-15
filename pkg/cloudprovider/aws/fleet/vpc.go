@@ -153,6 +153,6 @@ func (s *SubnetProvider) getZonalSubnets(ctx context.Context, clusterName string
 	}
 
 	s.subnetCache.Set(clusterName, zonalSubnetMap, CacheTTL)
-	zap.S().Infof("Successfully discovered subnets in %d zones for cluster %s", len(zonalSubnetMap), clusterName)
+	zap.S().Debugf("Successfully discovered subnets in %d zones for cluster %s", len(zonalSubnetMap), clusterName)
 	return zonalSubnetMap, nil
 }

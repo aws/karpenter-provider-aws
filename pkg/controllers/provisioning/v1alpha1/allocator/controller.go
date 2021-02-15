@@ -86,7 +86,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	for _, constraints := range constraintGroups {
 		packing, err := c.cloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
 		if err != nil {
-			zap.S().Errorf("Continuing after failing to create capacity, %w", err)
+			zap.S().Errorf("Continuing after failing to create capacity, %s", err.Error())
 		} else {
 			packings = append(packings, packing...)
 		}
@@ -96,7 +96,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	for _, packing := range packings {
 		zap.S().Infof("Binding %d pods to node %s", len(packing.Pods), packing.Node.Name)
 		if err := c.binder.Bind(ctx, provisioner, packing.Node, packing.Pods); err != nil {
-			zap.S().Errorf("Continuing after failing to bind, %w", err)
+			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}
 	return nil
