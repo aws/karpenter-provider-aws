@@ -17,11 +17,12 @@ package reallocation
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 // Controller for the resource
@@ -58,7 +59,7 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory
 	}
 }
 
-// Reconcile executes an allocation control loop for the resource
+// Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
 	ctx := context.TODO()

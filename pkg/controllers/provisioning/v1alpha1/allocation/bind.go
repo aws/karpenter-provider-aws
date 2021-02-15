@@ -17,6 +17,7 @@ package allocation
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -31,8 +32,18 @@ type Binder struct {
 }
 
 func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, node *v1.Node, pods []*v1.Pod) error {
-	// 1. Decorate node
-	b.decorate(provisioner, node)
+	// 1. Mark NodeReady=Unknown
+	// Unfortunately, this detail is necessary to prevent kube-scheduler from
+	// scheduling pods to nodes before they're created. Node Lifecycle
+	// Controller will attach a Effect=NoSchedule taint in response to this
+	// condition and remove the taint when NodeReady=True. This behavior is
+	// stable, but may not be guaranteed to be true in the indefinite future.
+	// The failure mode in this case will unnecessarily create additional nodes.
+	// https://github.com/kubernetes/kubernetes/blob/f5fb1c93dbaa512eb66090c5027435d3dee95ac7/pkg/controller/nodelifecycle/node_lifecycle_controller.go#L86
+	node.Status.Conditions = []v1.NodeCondition{{
+		Type:   v1.NodeReady,
+		Status: v1.ConditionUnknown,
+	}}
 
 	// 2. Create node
 	if err := b.create(ctx, node); err != nil {
@@ -48,35 +59,6 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 		}
 	}
 	return nil
-}
-
-func (b *Binder) decorate(provisioner *v1alpha1.Provisioner, node *v1.Node) {
-	// 1. Set Labels
-	node.Labels = map[string]string{
-		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-	}
-	for key, value := range provisioner.Spec.Allocation.Labels {
-		node.Labels[key] = value
-	}
-
-	// 2. Set Taints
-	node.Spec.Taints = []v1.Taint{}
-	node.Spec.Taints = append(node.Spec.Taints, provisioner.Spec.Allocation.Taints...)
-
-	// 3. Set Conditions
-
-	// Unfortunately, this detail is necessary to prevent kube-scheduler from
-	// scheduling pods to nodes before they're created. Node Lifecycle
-	// Controller will attach a Effect=NoSchedule taint in response to this
-	// condition and remove the taint when NodeReady=True. This behavior is
-	// stable, but may not be guaranteed to be true in the indefinite future.
-	// The failure mode in this case will unnecessarily create additional nodes.
-	// https://github.com/kubernetes/kubernetes/blob/f5fb1c93dbaa512eb66090c5027435d3dee95ac7/pkg/controller/nodelifecycle/node_lifecycle_controller.go#L86
-	node.Status.Conditions = []v1.NodeCondition{{
-		Type:   v1.NodeReady,
-		Status: v1.ConditionUnknown,
-	}}
 }
 
 func (a *Binder) create(ctx context.Context, node *v1.Node) error {

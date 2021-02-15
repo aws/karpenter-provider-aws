@@ -89,3 +89,28 @@ func MergeInto(dest interface{}, srcs ...interface{}) {
 		}
 	}
 }
+
+// MergeStringMaps merges all key value pairs into a single map, last write wins.
+func MergeStringMaps(maps ...map[string]string) map[string]string {
+	result := map[string]string{}
+	for _, m := range maps {
+		for k, v := range m {
+			result[k] = v
+		}
+	}
+	return result
+
+}
+
+// Errorable is a function that returns an error
+type Errorable func() error
+
+// AllSucceed returns nil if all errorables return nil, otherwise returns the first error.
+func AllSucceed(errorables ...func() error) error {
+	for _, errorable := range errorables {
+		if err := errorable(); err != nil {
+			return err
+		}
+	}
+	return nil
+}

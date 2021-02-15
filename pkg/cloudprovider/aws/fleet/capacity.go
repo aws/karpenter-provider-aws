@@ -17,6 +17,7 @@ package fleet
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
@@ -70,6 +71,8 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}
 	nodePackings := []cloudprovider.Packing{}
 	for instanceID, node := range nodes {
+		node.Labels = constraints.Labels
+		node.Spec.Taints = constraints.Taints
 		nodePackings = append(nodePackings, cloudprovider.Packing{
 			Node: node,
 			Pods: podsForInstance[instanceID],
@@ -78,25 +81,12 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	return nodePackings, nil
 }
 
-// GetTopologyDomains returns a set of supported domains.
-// e.g. us-west-2 -> [ us-west-2a, us-west-2b ]
-func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
-	switch key {
-	case cloudprovider.TopologyKeyZone:
-		zones, err := c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
-		if err != nil {
-			return nil, err
-		}
-		return zones, nil
-	case cloudprovider.TopologyKeySubnet:
-		subnets, err := c.vpcProvider.GetSubnetIds(ctx, c.spec.Cluster.Name)
-		if err != nil {
-			return nil, err
-		}
-		return subnets, nil
-	default:
-		return nil, fmt.Errorf("unrecognized topology key %s", key)
+func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
+	zones, err := c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
+	if err != nil {
+		return nil, err
 	}
+	return zones, nil
 }
 
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {

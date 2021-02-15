@@ -16,19 +16,45 @@ package fake
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
+	"fmt"
+	"strings"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Capacity struct {
 }
 
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
-	return nil, nil
+	name := strings.ToLower(randomdata.SillyName())
+	return []cloudprovider.Packing{{
+		Node: &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: constraints.Labels,
+			},
+			Spec: v1.NodeSpec{
+				ProviderID: fmt.Sprintf("fake:///%s", name),
+				Taints:     constraints.Taints,
+			},
+			Status: v1.NodeStatus{
+				Allocatable: v1.ResourceList{
+					// The (fake) mythical mega-machine
+					v1.ResourcePods:   resource.MustParse("1000000"),
+					v1.ResourceCPU:    resource.MustParse("1000000"),
+					v1.ResourceMemory: resource.MustParse("1000000Gi"),
+				},
+			},
+		},
+		Pods: constraints.Pods,
+	}}, nil
 }
 
-func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
+func (c *Capacity) GetZones(context.Context) ([]string, error) {
 	return nil, nil
 }
 

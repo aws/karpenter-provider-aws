@@ -103,7 +103,7 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 	go func() {
 		<-e.ctx.Done()
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
-			zap.S().Errorf("Failed to tear down namespace, %w", err)
+			zap.S().Errorf("Failed to tear down namespace, %s", err.Error())
 		}
 		e.cleanup.Done()
 	}()

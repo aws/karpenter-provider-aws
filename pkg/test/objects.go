@@ -41,6 +41,44 @@ func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {
 	}
 }
 
+type PodOptions struct {
+	Name             string
+	Namespace        string
+	Image            string
+	NodeSelector     map[string]string
+	ResourceRequests v1.ResourceList
+	Conditions       []v1.PodCondition
+}
+
+func PodWith(options PodOptions) *v1.Pod {
+	if options.Name == "" {
+		options.Name = strings.ToLower(randomdata.SillyName())
+	}
+	if options.Namespace == "" {
+		options.Namespace = strings.ToLower(randomdata.SillyName())
+	}
+	if options.Image == "" {
+		options.Image = "k8s.gcr.io/pause"
+	}
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      options.Name,
+			Namespace: options.Namespace,
+		},
+		Spec: v1.PodSpec{
+			NodeSelector: options.NodeSelector,
+			Containers: []v1.Container{{
+				Name:  options.Name,
+				Image: options.Image,
+				Resources: v1.ResourceRequirements{
+					Requests: options.ResourceRequests,
+				},
+			}},
+		},
+		Status: v1.PodStatus{Conditions: options.Conditions},
+	}
+}
+
 type NodeOptions struct {
 	Name          string
 	Labels        map[string]string

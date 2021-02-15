@@ -60,28 +60,32 @@ type NodeGroup interface {
 type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
 	Create(context.Context, *Constraints) ([]Packing, error)
-
-	// GetTopologyDomains returns a list of topology domains supported by the
-	// cloud provider for the given key.
-	// For example, GetTopologyDomains("zone") -> [ "us-west-2a", "us-west-2b" ]
-	// This enables the caller to to build Constraints for a known set of
-	GetTopologyDomains(context.Context, TopologyKey) ([]string, error)
-
 	// Delete nodes in cloudprovider
 	Delete(context.Context, []*v1.Node) error
+	// GetZones returns a list of zones supported by the cloud provider.
+	GetZones(context.Context) ([]string, error)
 }
 
-// Constraints lets the controller define the desired capacity,
-// avalability zone, architecture for the desired nodes.
+// Constraints for an efficient binpacking solution of pods onto nodes, given
+// overhead and node constraints.
 type Constraints struct {
-	// Pods is a list of equivalently schedulable pods to be efficiently
-	// binpacked.
+	NodeConstraints
+	// Pods is a list of equivalently schedulable pods to be binpacked.
 	Pods []*v1.Pod
-	// Overhead resources per node from system resources such a kubelet and
-	// daemonsets.
+	// Overhead resources per node from daemonsets.
 	Overhead v1.ResourceList
-	// Topology constrains the topology of the node, e.g. "zone".
-	Topology map[TopologyKey]string
+}
+
+// NodeConstraints constrain each node within the binpacking solution.
+type NodeConstraints struct {
+	// Labels applied to nodes, may cause cloudprovider specific behavior.
+	Labels map[string]string
+	// Taints applied to nodes, may cause cloudprovider specific behavior.
+	Taints []v1.Taint
+	// Zone optionally constrains the zone where the node is launched.
+	Zone *string
+	// OperatingSystem constrains the underlying operating system.
+	OperatingSystem OperatingSystem
 	// Architecture constrains the underlying architecture.
 	Architecture Architecture
 }
@@ -92,21 +96,16 @@ type Packing struct {
 	Pods []*v1.Pod
 }
 
-// TopologyKey:
-// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
-type TopologyKey string
-
-const (
-	TopologyKeyZone   TopologyKey = "zone"
-	TopologyKeySubnet TopologyKey = "subnet"
-)
-
-// Architecture constrains the underlying node's compilation architecture.
 type Architecture string
 
 const (
-	ArchitectureLinux386 Architecture = "linux/386"
-	// LinuxAMD64 Architecture = "linux/amd64" TODO
+	ArchitectureAmd64 Architecture = "amd64"
+)
+
+type OperatingSystem string
+
+const (
+	OperatingSystemLinux OperatingSystem = "linux"
 )
 
 // Options are injected into cloud providers' factories

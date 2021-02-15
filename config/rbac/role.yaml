@@ -86,3 +86,10 @@ rules:
   - pods/binding
   verbs:
   - create
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - list
+  - watch

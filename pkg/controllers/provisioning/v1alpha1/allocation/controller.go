@@ -59,7 +59,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		cloudProvider: cloudProvider,
 		filter:        &Filter{kubeClient: kubeClient},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
-		constraints:   &Constraints{},
+		constraints:   &Constraints{kubeClient: kubeClient},
 	}
 }
 
@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	ctx := context.TODO()
 
 	// 1. Filter pods
-	pods, err := c.filter.GetProvisionablePods(ctx)
+	pods, err := c.filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
 		return fmt.Errorf("filtering pods, %w", err)
 	}
@@ -79,11 +79,14 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
 	// 2. Group by constraints
-	constraintGroups := c.constraints.Group(pods)
+	groups, err := c.constraints.Group(ctx, provisioner, pods)
+	if err != nil {
+		return fmt.Errorf("building constraint groups, %w", err)
+	}
 
 	// 3. Create capacity and packings
 	var packings []cloudprovider.Packing
-	for _, constraints := range constraintGroups {
+	for _, constraints := range groups {
 		packing, err := c.cloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
 		if err != nil {
 			zap.S().Errorf("Continuing after failing to create capacity, %s", err.Error())

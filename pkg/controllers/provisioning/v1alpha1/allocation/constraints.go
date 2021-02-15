@@ -15,50 +15,127 @@ limitations under the License.
 package allocation
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	f "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	"github.com/mitchellh/hashstructure/v2"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Constraints struct{}
+// Constraints support a known set of labels
+const (
+	ArchitectureLabel       = "kubernetes.io/arch"
+	OperatingSystemLabelKey = "kubernetes.io/os"
+	ZoneLabel               = "topology.kubernetes.io/zone"
+)
 
-func (c *Constraints) Group(pods []*v1.Pod) []*cloudprovider.Constraints {
-	groups := []*cloudprovider.Constraints{}
+type Constraints struct {
+	kubeClient client.Client
+}
+
+// Group separates pods into a set of equivalent scheduling groups. All pods in
+// each group can be deployed together on the same node, or separately on
+// multiple nodes. These groups map to scheduling properties like taints/labels.
+func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provisioner, pods []*v1.Pod) ([]*cloudprovider.Constraints, error) {
+	// Groups uniqueness is tracked by hash(NodeConstraints)
+	groups := map[uint64]*cloudprovider.Constraints{}
 	for _, pod := range pods {
-		added := false
-		for _, constraints := range groups {
-			if matchesConstraints(constraints, pod) {
-				constraints.Pods = append(constraints.Pods, pod)
-				added = true
-				break
+		constraints := c.getConstraints(provisioner, pod)
+		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
+		if err != nil {
+			return nil, fmt.Errorf("hashing constraints, %w", err)
+		}
+
+		// Create new group if one doesn't exist
+		if _, ok := groups[key]; !ok {
+			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
+			overhead, err := c.getNodeOverhead(ctx, pod, &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{Labels: constraints.Labels},
+				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Allocation.Taints},
+			})
+			if err != nil {
+				return nil, fmt.Errorf("computing node overhead, %w", err)
+			}
+			groups[key] = &cloudprovider.Constraints{
+				NodeConstraints: constraints,
+				Pods:            []*v1.Pod{},
+				Overhead:        overhead,
 			}
 		}
-		if added {
-			continue
+		// Append pod to group, guaranteed to exist
+		groups[key].Pods = append(groups[key].Pods, pod)
+	}
+
+	result := []*cloudprovider.Constraints{}
+	for _, group := range groups {
+		result = append(result, group)
+	}
+	return result, nil
+}
+
+func (c *Constraints) getConstraints(provisioner *v1alpha1.Provisioner, pod *v1.Pod) cloudprovider.NodeConstraints {
+	return cloudprovider.NodeConstraints{
+		Labels:          c.getLabels(provisioner, pod),
+		Architecture:    c.getArchitecture(pod),
+		OperatingSystem: c.getOperatingSystem(pod),
+	}
+}
+
+func (c *Constraints) getLabels(provisioner *v1alpha1.Provisioner, pod *v1.Pod) map[string]string {
+	// These keys are guaranteed to not collide due to validation logic
+	return f.MergeStringMaps(
+		provisioner.Spec.Allocation.Labels,
+		pod.Spec.NodeSelector,
+		map[string]string{
+			v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
+			v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+		},
+	)
+}
+
+func (c *Constraints) getArchitecture(pod *v1.Pod) cloudprovider.Architecture {
+	if architecture, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+		return cloudprovider.Architecture(architecture)
+	}
+	return cloudprovider.ArchitectureAmd64
+}
+
+func (c *Constraints) getOperatingSystem(pod *v1.Pod) cloudprovider.OperatingSystem {
+	if operatingSystem, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+		return cloudprovider.OperatingSystem(operatingSystem)
+	}
+	return cloudprovider.OperatingSystemLinux
+}
+
+func (c *Constraints) getNodeOverhead(ctx context.Context, pod *v1.Pod, node *v1.Node) (v1.ResourceList, error) {
+	// 1. Get DaemonSets
+	daemonSetList := &appsv1.DaemonSetList{}
+	if err := c.kubeClient.List(ctx, daemonSetList); err != nil {
+		return nil, fmt.Errorf("listing daemonsets, %w", err)
+	}
+
+	// 2. filter DaemonSets to include those that will schedule on this node
+	daemonSets := []appsv1.DaemonSet{}
+	for _, daemonSet := range daemonSetList.Items {
+		if scheduling.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
+			daemonSets = append(daemonSets, daemonSet)
 		}
-		groups = append(groups, constraintsForPod(pod))
 	}
-	return groups
-}
 
-// TODO
-func matchesConstraints(constraints *cloudprovider.Constraints, pod *v1.Pod) bool {
-	return false
-}
-
-func constraintsForPod(pod *v1.Pod) *cloudprovider.Constraints {
-	return &cloudprovider.Constraints{
-		Overhead:     calculateOverheadResources(),
-		Architecture: getSystemArchitecture(pod),
-		Topology:     map[cloudprovider.TopologyKey]string{},
-		Pods:         []*v1.Pod{pod},
+	// 3. Compute overhead
+	overhead := v1.ResourceList{v1.ResourceCPU: resource.Quantity{}, v1.ResourceMemory: resource.Quantity{}}
+	for _, daemonSet := range daemonSets {
+		resources := scheduling.GetResources(&daemonSet.Spec.Template.Spec)
+		overhead.Cpu().Add(*resources.Cpu())
+		overhead.Memory().Add(*resources.Memory())
 	}
-}
-
-func calculateOverheadResources() v1.ResourceList {
-	//TODO
-	return v1.ResourceList{}
-}
-
-func getSystemArchitecture(pod *v1.Pod) cloudprovider.Architecture {
-	return cloudprovider.ArchitectureLinux386
+	return overhead, nil
 }
