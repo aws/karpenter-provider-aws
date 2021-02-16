@@ -54,7 +54,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		eks:               eks.New(sess),
 		sqs:               sqs.New(sess),
 		ec2:               EC2,
-		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.CoreV1Client),
+		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.ClientSet),
 		kubeClient:        options.Client,
 	}
 }

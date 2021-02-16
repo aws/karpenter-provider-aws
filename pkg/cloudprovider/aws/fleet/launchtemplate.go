@@ -17,12 +17,14 @@ package fleet
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/patrickmn/go-cache"
@@ -40,7 +42,7 @@ type LaunchTemplateProvider struct {
 	instanceProfileProvider *InstanceProfileProvider
 	securityGroupProvider   *SecurityGroupProvider
 	ssm                     ssmiface.SSMAPI
-	eksProvider             *EKSProvider
+	kubeProvider            *KubeProvider
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
@@ -138,10 +140,21 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 }
 
 func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
-	version, err := p.eksProvider.Version()
+	version, err := p.kubeProvider.Version()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("kube version %w", err)
 	}
-	_ = version
-	return aws.String("ami-0a03956628dc3ddaf"), nil
+	paramOutput, err := p.ssm.GetParameter(&ssm.GetParameterInput{
+		Name: aws.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended", version)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ssm get parameter %w", err)
+	}
+	output := struct {
+		ImageID string `json:"image_id"`
+	}{}
+	if err := json.Unmarshal([]byte(*paramOutput.Parameter.Value), &output); err != nil {
+		panic(err)
+	}
+	return &output.ImageID, nil
 }

@@ -15,14 +15,17 @@ limitations under the License.
 package fleet
 
 import (
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"fmt"
+	"strings"
+
+	"k8s.io/client-go/kubernetes"
 )
 
-type EKSProvider struct {
-	coreV1Client *corev1.CoreV1Client
+type KubeProvider struct {
+	clientSet *kubernetes.Clientset
 }
 
-func (p *EKSProvider) Version() (string, error) {
-
-	return "1.18", nil
+func (k *KubeProvider) Version() (string, error) {
+	version, err := k.clientSet.Discovery().ServerVersion()
+	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), err
 }

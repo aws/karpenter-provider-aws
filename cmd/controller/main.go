@@ -22,8 +22,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -64,19 +64,18 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	corev1Client, err := corev1.NewForConfig(manager.GetConfig())
+	clientSet, err := kubernetes.NewForConfig(manager.GetConfig())
 	log.PanicIfError(err, "Failed creating kube client")
 
-	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), CoreV1Client: corev1Client})
+	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), ClientSet: clientSet})
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
-
 	err = manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
-		allocator.NewController(manager.GetClient(), corev1Client, cloudProviderFactory),
+		allocator.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 		reallocator.NewController(manager.GetClient(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")

@@ -54,7 +54,7 @@ func (c *Controller) Name() string {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client *corev1.CoreV1Client, cloudProvider cloudprovider.Factory) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
 		cloudProvider: cloudProvider,
 		filter:        &Filter{kubeClient: kubeClient},
