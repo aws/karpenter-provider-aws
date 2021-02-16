@@ -52,8 +52,8 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, ssm ssmiface.SSMAPI, k
 				ec2:                ec2,
 				securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
 			},
-			ssm:          ssm,
-			kubeProvider: &KubeProvider{clientSet: clientSet},
+			ssm:       ssm,
+			clientSet: clientSet,
 		},
 		subnetProvider: &SubnetProvider{
 			ec2:         ec2,

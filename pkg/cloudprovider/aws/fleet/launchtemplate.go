@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -29,6 +30,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -42,7 +44,7 @@ type LaunchTemplateProvider struct {
 	instanceProfileProvider *InstanceProfileProvider
 	securityGroupProvider   *SecurityGroupProvider
 	ssm                     ssmiface.SSMAPI
-	kubeProvider            *KubeProvider
+	clientSet               *kubernetes.Clientset
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
@@ -140,7 +142,7 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 }
 
 func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
-	version, err := p.kubeProvider.Version()
+	version, err := p.kubeServerVersion()
 	if err != nil {
 		return nil, fmt.Errorf("kube version %w", err)
 	}
@@ -157,4 +159,9 @@ func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, err
 		panic(err)
 	}
 	return &output.ImageID, nil
+}
+
+func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
+	version, err := p.clientSet.Discovery().ServerVersion()
+	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), err
 }
