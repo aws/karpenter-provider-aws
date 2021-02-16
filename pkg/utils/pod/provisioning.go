@@ -12,22 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling
+package pod
 
 import (
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-)
-
-var (
-	IgnoredOwners []schema.GroupVersionKind = []schema.GroupVersionKind{
-		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
-	}
 )
 
 func IsNotIgnored(pod *v1.Pod) bool {
-	for _, ignoredOwner := range IgnoredOwners {
+	for _, ignoredOwner := range v1alpha1.IgnoredOwners {
 		for _, owner := range pod.ObjectMeta.OwnerReferences {
 			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
 				zap.S().Debugf("Ignoring %s %s %s/%s", owner.APIVersion, owner.Kind, pod.Namespace, owner.Name)
