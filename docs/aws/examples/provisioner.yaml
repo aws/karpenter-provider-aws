@@ -1,0 +1,35 @@
+apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  # Provisioned nodes will be configured to connect to this cluster
+  cluster:
+    name: etarn
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeE1ESXhNVEl3TURVeE0xb1hEVE14TURJd09USXdNRFV4TTFvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTEUxCjVlN0hoZXgvMHRZNlRmME1kam9HZ1lpRDFQb1pxUHphMUdkTDk0aVpmdm9xMC95d0QzeVhSeCtNbXY3aUJnRGwKQWw2cmRzNENJSXRKeFZ2eXZyQmFFWXZSZkZzZTBSeGJOR2JseDN2ZWdDeWdKci85bFJoMUVub0dKeWUwcHlrcAppQW5tSWltb0ZtNUxIa2xjSHFSbkJIZDFvZHZEUDJvTHJzdXg1ZHRjc2piYzFtK3F4QTRENm1DbzFKdldMelQvCjRzMHpuYlR4TDV5QWFYdFB1bk40S0ZJdU03ZFNjTXJ5SW9NTFhIK2NjUnpTdHRHYVJhWDlUVVZaWHBZam05RzQKcnExcGpSUDQ3NlU0dWxsZzNvMkFVMC9ia3N4R0tRclJRZ210dEczcVNuM0VNZjJPeXo4eUNOamFYQ2taV0ltbApDaUhoT2hycXRoaUs3SFJZWXVNQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFBRnMvQzF0ckp0VzNEamRJdzQvRkhmZ0Y3VW0KSEJlRmpiUmlGdjc5cFAvRFZhZUtiakdLQzR0U2hSUVhuTFp4N3ZyOE0xSXFrUUJGek1qRVlDLy9FbWtLSlYxagpuZDFuKy9WR0cwU2pNRnUvWGNBN2ZrL2llNVBlby9yaDBJOFZsckRxUklRTmZpelk5T3pJcFdDYS9sdGxwSnVlClB4UTNoWTVmbityUXlnTFZ5STNicWtqc2tZYzlyTmpuU1B4ZGdITVI4eUJESW1sb1RDYVYwUHVrWk0xV0pqMlAKN2lFZWU1cS9yeVp2V0s0OHJmMS95VG5NNDhaN1IwNy9PM3l0V00rU1VVQkFQNk1EdW5jNzlNajVuOUs0bExROApLeEIvdGZJS2FNbnFJRUxRYWUxekNEOWNIVXdWeDY2RmpldGtvZzlMVVp6MC9iYjYyYmhpY0xHQ09Iaz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    endpoint: https://BE5C79AC824BB1EF67DB8CC14D6A263F.gr7.us-west-2.eks.amazonaws.com
+  allocation:
+    taints:
+      - key: example.com/special-taint
+        effect: NoSchedule
+    labels:
+      ##### Vendor Neutral #####
+      # Constrain node availability zone, default=""
+      topology.kubernetes.io/zone: us-west-2b
+      # Constrain node operating system, default="linux"
+      kubernetes.io/os: linux
+      # Constrain node architecture, default="amd64"
+      kubernetes.io/arch: amd64
+
+      ##### AWS Specific #####
+      # Constrain node launch template, default="bottlerocket"
+      kubernetes.amazonaws.com/launchTemplateId: "bottlerocket-qwertyuiop"
+      # Constrain node launch template, default="$LATEST"
+      kubernetes.amazonaws.com/launchTemplateVersion: "my-special-version"
+      # Constrain node capacity type, default="on-demand"
+      kubernetes.amazonaws.com/capacityType: "spot"
+  reallocation:
+    # Machine TTL if underutilized, default=300
+    underutilizedTTLSeconds: 60
+    # Will not attempt to reallocate pods that exceed the threshhold, default=1000000
+    preemptionThreshold: 0

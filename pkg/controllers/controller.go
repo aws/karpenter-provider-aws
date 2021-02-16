@@ -17,8 +17,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 
@@ -85,15 +86,15 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	persisted := resource.DeepCopyObject()
 	// 3. Validate
 	if err := c.For().ValidateCreate(); err != nil {
-		resource.StatusConditions().MarkFalse(v1alpha1.Active, "could not validate kind: %v err: %v",
+		resource.StatusConditions().MarkFalse(v1alpha1.Active, "could not validate kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		zap.S().Errorf("Controller failed to validate kind: %v err: %v",
-			resource.GetObjectKind().GroupVersionKind().Kind, err)
+		zap.S().Errorf("Controller failed to validate kind %s, %s",
+			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		// 4. Reconcile
 	} else if err := c.Controller.Reconcile(resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
-		zap.S().Errorf("Controller failed to reconcile kind: %v err: %v",
-			resource.GetObjectKind().GroupVersionKind().Kind, err)
+		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
+			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 	} else {
 		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}

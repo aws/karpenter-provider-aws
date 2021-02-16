@@ -15,14 +15,15 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ProvisionerSpec struct {
 	// +optional
-	Cluster     *ClusterSpec    `json:"cluster,omitempty"`
-	Allocator   AllocatorSpec   `json:"allocator,omitempty"`
-	Reallocator ReallocatorSpec `json:"reallocator,omitempty"`
+	Cluster      *ClusterSpec     `json:"cluster,omitempty"`
+	Allocation   AllocationSpec   `json:"allocation,omitempty"`
+	Reallocation ReallocationSpec `json:"reallocation,omitempty"`
 }
 
 // ClusterSpec configures the cluster that the provisioner operates against. If
@@ -39,14 +40,18 @@ type ClusterSpec struct {
 	Endpoint string `json:"endpoint"`
 }
 
-// AllocatorSpec configures node allocation policy
-type AllocatorSpec struct {
+// AllocationSpec configures node allocation policy
+type AllocationSpec struct {
+	// Labels will be applied to every node launched by the Provisioner
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+	// Taints will be applied to every node launched by the Provisioner
+	// +optional
+	Taints []v1.Taint `json:"taints,omitempty"`
 }
 
-// ReallocatorSpec configures node reallocation policy
-type ReallocatorSpec struct {
+// ReallocationSpec configures node reallocation policy
+type ReallocationSpec struct {
 }
 
 // Provisioner is the Schema for the Provisioners API
