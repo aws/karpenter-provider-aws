@@ -20,7 +20,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
-	provisioning "github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -29,7 +28,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	filter        *Filter
-	collector     *Collector
+	terminator    *Terminator
 	cloudProvider cloudprovider.Factory
 }
 
@@ -55,7 +54,7 @@ func (c *Controller) Name() string {
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
 		filter:        &Filter{kubeClient: kubeClient},
-		collector:     &Collector{kubeClient: kubeClient},
+		terminator:    &Terminator{kubeClient: kubeClient},
 		cloudProvider: cloudProvider,
 	}
 }
@@ -65,50 +64,50 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
 	ctx := context.TODO()
 
-	// 1. Filter all nodes with Karpenter labels
-	ttlNodes, err := c.filter.getNodesWithLabels(ctx, []string{
-		provisioning.ProvisionerNamespaceLabelKey,
-		provisioning.ProvisionerNameLabelKey,
-	})
+	// 1. Get underutilized nodes
+	underutilized, err := c.filter.GetUnderutilizedNodes(ctx, provisioner)
 	if err != nil {
-		return fmt.Errorf("listing ttl provisioner nodes, %w", err)
+		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// 2. If node has TTL annotation, and time is after TTL, delete node
-	// TODO: instead of delete - drain then delete
-	for _, node := range ttlNodes.Items {
-		if err := c.collector.ParseTTL(ctx, &node); err != nil {
-			return fmt.Errorf("handling ttl for node, %w", err)
+	// TODO: Further filter underutilized nodes that haven't been cordoned/TTLed to not spam logs
+	if len(underutilized) != 0 {
+		zap.S().Infof("Found %d underutilized nodes", len(underutilized))
+	}
+
+	// 2. Set TTL on underutilized nodes
+	// TODO: Go routines to parllelize AddTTL
+	for _, node := range underutilized {
+		if err := c.terminator.AddTTL(ctx, node); err != nil {
+			return fmt.Errorf("adding ttl on underutilized node, %w", err)
 		}
 	}
 
-	// 3. Filter under-utilized nodes
-	underutilized, err := c.filter.GetUnderutilizedNodes(ctx, provisioner.Name, provisioner.Namespace)
-	if err != nil {
-		return fmt.Errorf("filtering nodes, %w", err)
-	}
-	if len(underutilized) == 0 {
-		return nil
-	}
-
-	// TODO: 3.5. Filter underutilized nodes that haven't been cordoned/ttl'd to not spam logs
-	zap.S().Infof("Found %d underutilized nodes", len(underutilized))
-
-	// 4. Cordon each node
-	// TODO: Go routines to CordonNode quicker
+	// 3. Cordon each node
+	// TODO: Go routines to parallelize CordonNode
 	for _, node := range underutilized {
 		// 4. Cordon each node
-		if err := c.collector.CordonNode(ctx, node); err != nil {
-			return fmt.Errorf("cordoning nodes with merge patch, %w", err)
+		if err := c.terminator.CordonNode(ctx, node); err != nil {
+			return fmt.Errorf("cordoning nodes, %w", err)
 		}
 	}
 
-	// 5. Set TTL of 300s from now in annotations if not set
-	// TODO: Go routines to AddTTL quicker
-	for _, node := range underutilized {
-		if err := c.collector.AddTTL(ctx, node); err != nil {
-			return fmt.Errorf("managing ttl on underutilized node, %w", err)
-		}
+	// 4. Find Nodes Past TTL with Karpenter Labels
+	expiredTTLedNodes, err := c.filter.GetExpiredNodes(ctx, provisioner)
+	if err != nil {
+		return fmt.Errorf("getting TTLed nodes, %w", err)
 	}
+
+	// TODO
+	// 5. Drain Nodes past TTL
+
+	// 6. Delete Nodes past TTL
+	for _, node := range expiredTTLedNodes {
+		if err := c.terminator.DeleteNode(ctx, node); err != nil {
+			return fmt.Errorf("deleting node, %w", err)
+		}
+		zap.S().Infof("Succesfully deleted node %s", node.Name)
+	}
+
 	return nil
 }

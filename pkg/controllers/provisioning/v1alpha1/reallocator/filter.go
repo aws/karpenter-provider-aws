@@ -17,8 +17,9 @@ package reallocator
 import (
 	"context"
 	"fmt"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1"
-	podUtil "github.com/awslabs/karpenter/pkg/utils/pod"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	nodeUtil "github.com/awslabs/karpenter/pkg/utils/node"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,23 +29,20 @@ type Filter struct {
 }
 
 // Gets Nodes fitting some underutilization predicate
-func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisionerName string, provisionerNamespace string) ([]*v1.Node, error) {
+func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
 	underutilized := []*v1.Node{}
-	nodeList := &v1.NodeList{}
 
 	// 1. Get all provisioner labeled nodes
-	if err := f.kubeClient.List(ctx, nodeList, client.MatchingLabels(map[string]string{
-		v1alpha1.ProvisionerNameLabelKey:      provisionerName,
-		v1alpha1.ProvisionerNamespaceLabelKey: provisionerNamespace,
-	})); err != nil {
-		return nil, fmt.Errorf("filtering nodes on provisioner labels, %w", err)
+	nodeList, err := f.getProvisionerNodes(ctx, provisioner)
+	if err != nil {
+		return nil, fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
 	// 2. Get nodes and the pods on each node
 	for _, node := range nodeList.Items {
 		pods, err := f.getPodsOnNode(ctx, node.Name)
 		if err != nil {
-			return []*v1.Node{}, fmt.Errorf("filtering pods on nodes, %w", err)
+			return []*v1.Node{}, fmt.Errorf("listing pods on underutlized provisioner nodes, %w", err)
 		}
 		// Only checks if it has 0 non-daemon pods right now
 		if f.isUnderutilized(pods) {
@@ -54,11 +52,40 @@ func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisionerName stri
 	return underutilized, nil
 }
 
+func (f *Filter) GetExpiredNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
+	nodeList, err := f.getProvisionerNodes(ctx, provisioner)
+	if err != nil {
+		return nil, fmt.Errorf("listing expired TTLed nodes, %w", err)
+	}
+	nodes := []*v1.Node{}
+	for _, node := range nodeList.Items {
+		ok, err := nodeUtil.IsPastTTL(&node)
+		if err != nil {
+			return nodes, fmt.Errorf("filtering expired TTLed nodes, %w", err)
+		}
+		if ok {
+			nodes = append(nodes, &node)
+		}
+	}
+	return nodes, nil
+}
+
+func (f *Filter) getProvisionerNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) (*v1.NodeList, error) {
+	nodeList := &v1.NodeList{}
+	if err := f.kubeClient.List(ctx, nodeList, client.MatchingLabels(map[string]string{
+		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
+		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+	})); err != nil {
+		return nil, fmt.Errorf("filtering nodes on provisioner labels, %w", err)
+	}
+	return nodeList, nil
+}
+
 // Get Pods scheduled to a node
 func (f *Filter) getPodsOnNode(ctx context.Context, nodeName string) (*v1.PodList, error) {
 	pods := &v1.PodList{}
 	if err := f.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": nodeName}); err != nil {
-		return nil, fmt.Errorf("listing pods on nodes, %w", err)
+		return nil, fmt.Errorf("listing pods on provisioner nodes, %w", err)
 	}
 	return pods, nil
 }
@@ -67,17 +94,9 @@ func (f *Filter) getPodsOnNode(ctx context.Context, nodeName string) (*v1.PodLis
 func (f *Filter) isUnderutilized(pods *v1.PodList) bool {
 	counter := 0
 	for _, pod := range pods.Items {
-		if podUtil.IsNotIgnored(&pod) {
+		if scheduling.IsNotIgnored(&pod) {
 			counter += 1
 		}
 	}
 	return counter == 0
-}
-
-func (f *Filter) getNodesWithLabels(ctx context.Context, labelKeys []string) (*v1.NodeList, error) {
-	nodeList := &v1.NodeList{}
-	if err := f.kubeClient.List(ctx, nodeList, client.HasLabels(labelKeys)); err != nil {
-		return nil, fmt.Errorf("listing provisioner labeled nodes, %w", err)
-	}
-	return nodeList, nil
 }

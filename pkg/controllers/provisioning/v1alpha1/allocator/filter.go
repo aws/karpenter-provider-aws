@@ -17,8 +17,8 @@ package allocator
 import (
 	"context"
 	"fmt"
-	podUtil "github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,7 +37,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context) ([]*v1.Pod, error) {
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, pod := range pods.Items {
-		if podUtil.IsUnschedulable(&pod) && podUtil.IsNotIgnored(&pod) {
+		if scheduling.IsUnschedulable(&pod) && scheduling.IsNotIgnored(&pod) {
 			provisionable = append(provisionable, ptr.Pod(pod))
 		}
 	}

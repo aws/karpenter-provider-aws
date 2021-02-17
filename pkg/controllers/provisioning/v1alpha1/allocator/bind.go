@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	provisioning "github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,8 +53,8 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 func (b *Binder) decorate(provisioner *v1alpha1.Provisioner, node *v1.Node) {
 	// 1. Set Labels
 	node.Labels = map[string]string{
-		provisioning.ProvisionerNameLabelKey:      provisioner.Name,
-		provisioning.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
+		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 	}
 	for key, value := range provisioner.Spec.Allocation.Labels {
 		node.Labels[key] = value
