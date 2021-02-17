@@ -92,7 +92,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI ID, %w", err)
 	}
-	zap.S().Debugf("AMI ID from SSM %s", amiID)
+	zap.S().Debugf("Successfully discovered AMI ID %s for architecture x86_64", *amiID)
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
