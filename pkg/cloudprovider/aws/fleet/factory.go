@@ -19,9 +19,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
 	"github.com/patrickmn/go-cache"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -36,7 +38,7 @@ const (
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
-func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Client) *Factory {
+func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, ssm ssmiface.SSMAPI, kubeClient client.Client, clientSet *kubernetes.Clientset) *Factory {
 	vpcProvider := &VPCProvider{
 		launchTemplateProvider: &LaunchTemplateProvider{
 			ec2:                 ec2,
@@ -50,6 +52,8 @@ func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, kubeClient client.Clie
 				ec2:                ec2,
 				securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
 			},
+			ssm:       ssm,
+			clientSet: clientSet,
 		},
 		subnetProvider: &SubnetProvider{
 			ec2:         ec2,

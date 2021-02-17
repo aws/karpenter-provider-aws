@@ -20,6 +20,7 @@ import (
 	autoscalingv1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -107,5 +108,6 @@ const (
 
 // Options are injected into cloud providers' factories
 type Options struct {
-	Client client.Client
+	Client    client.Client
+	ClientSet *kubernetes.Clientset
 }

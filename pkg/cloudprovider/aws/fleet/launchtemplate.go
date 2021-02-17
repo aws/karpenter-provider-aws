@@ -17,15 +17,20 @@ package fleet
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -38,6 +43,8 @@ type LaunchTemplateProvider struct {
 	launchTemplateCache     *cache.Cache
 	instanceProfileProvider *InstanceProfileProvider
 	securityGroupProvider   *SecurityGroupProvider
+	ssm                     ssmiface.SSMAPI
+	clientSet               *kubernetes.Clientset
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
@@ -81,6 +88,11 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting instance profile, %w", err)
 	}
+	amiID, err := p.getAMIID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting AMI ID, %w", err)
+	}
+	zap.S().Debugf("Successfully discovered AMI ID %s for architecture x86_64", *amiID)
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
@@ -108,7 +120,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 				cluster.Endpoint,
 			)))),
 			// TODO discover this with SSM
-			ImageId: aws.String("ami-0532808ed453f9ca3"),
+			ImageId: amiID,
 		},
 	})
 	if err != nil {
@@ -128,4 +140,29 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 		securityGroupIds = append(securityGroupIds, securityGroup.GroupId)
 	}
 	return securityGroupIds, nil
+}
+
+func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
+	version, err := p.kubeServerVersion()
+	if err != nil {
+		return nil, fmt.Errorf("kube server version, %w", err)
+	}
+	paramOutput, err := p.ssm.GetParameter(&ssm.GetParameterInput{
+		Name: aws.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended", version)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ssm get parameter, %w", err)
+	}
+	output := struct {
+		ImageID string `json:"image_id"`
+	}{}
+	if err := json.Unmarshal([]byte(*paramOutput.Parameter.Value), &output); err != nil {
+		return nil, fmt.Errorf("unmarshal parameter output, %w", err)
+	}
+	return &output.ImageID, nil
+}
+
+func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
+	version, err := p.clientSet.Discovery().ServerVersion()
+	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), err
 }

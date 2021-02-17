@@ -28,7 +28,7 @@ import (
 
 type Binder struct {
 	kubeClient   client.Client
-	coreV1Client *corev1.CoreV1Client
+	coreV1Client corev1.CoreV1Interface
 }
 
 func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, node *v1.Node, pods []*v1.Pod) error {
