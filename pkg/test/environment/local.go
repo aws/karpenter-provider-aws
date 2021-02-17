@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/controllers"
@@ -58,6 +59,7 @@ type Local struct {
 	options []LocalOption
 	ctx     context.Context
 	stop    context.CancelFunc
+	cleanup *sync.WaitGroup
 }
 
 // LocalOption passes the Local environment to an option function. This is
@@ -80,6 +82,7 @@ func NewLocal(options ...LocalOption) Environment {
 		ctx:     ctx,
 		stop:    stop,
 		options: options,
+		cleanup: &sync.WaitGroup{},
 	}
 }
 
@@ -96,11 +99,13 @@ func (e *Local) NewNamespace() (*Namespace, error) {
 		return nil, err
 	}
 
+	e.cleanup.Add(1)
 	go func() {
 		<-e.ctx.Done()
 		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
 			zap.S().Errorf("Failed to tear down namespace, %w", err)
 		}
+		e.cleanup.Done()
 	}()
 	return ns, nil
 }
@@ -153,5 +158,6 @@ func (e *Local) Start() (err error) {
 
 func (e *Local) Stop() error {
 	e.stop()
+	e.cleanup.Wait()
 	return e.Environment.Stop()
 }
