@@ -64,14 +64,12 @@ func main() {
 		Port:               options.WebhookPort,
 	})
 
-	clientSet, err := kubernetes.NewForConfig(manager.GetConfig())
-	log.PanicIfError(err, "Failed creating kube client")
-
+	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
 	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), ClientSet: clientSet})
 	metricsProducerFactory := &producers.Factory{Client: manager.GetClient(), CloudProviderFactory: cloudProviderFactory}
 	metricsClientFactory := metricsclients.NewFactoryOrDie(options.PrometheusURI)
 	autoscalerFactory := autoscaler.NewFactoryOrDie(metricsClientFactory, manager.GetRESTMapper(), manager.GetConfig())
-	err = manager.Register(
+	err := manager.Register(
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},

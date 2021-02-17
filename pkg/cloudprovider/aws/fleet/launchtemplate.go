@@ -90,8 +90,9 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	}
 	amiID, err := p.getAMIID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting AMI ID %w", err)
+		return nil, fmt.Errorf("getting AMI ID, %w", err)
 	}
+	zap.S().Debugf("AMI ID from SSM %s", amiID)
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
@@ -144,19 +145,19 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
 	version, err := p.kubeServerVersion()
 	if err != nil {
-		return nil, fmt.Errorf("kube version %w", err)
+		return nil, fmt.Errorf("kube server version, %w", err)
 	}
 	paramOutput, err := p.ssm.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended", version)),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ssm get parameter %w", err)
+		return nil, fmt.Errorf("ssm get parameter, %w", err)
 	}
 	output := struct {
 		ImageID string `json:"image_id"`
 	}{}
 	if err := json.Unmarshal([]byte(*paramOutput.Parameter.Value), &output); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("unmarshal parameter output, %w", err)
 	}
 	return &output.ImageID, nil
 }
