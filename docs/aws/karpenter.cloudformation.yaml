@@ -52,6 +52,7 @@ Resources:
               - "ec2:DescribeSecurityGroups"
               - "ec2:DescribeSubnets"
               - "iam:GetInstanceProfile"
+              - "ssm:GetParameter"
   KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
