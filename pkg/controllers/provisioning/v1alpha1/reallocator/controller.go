@@ -72,39 +72,39 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 
 	// TODO: Further filter underutilized nodes that haven't been cordoned/TTLed to not spam logs
 	if len(underutilized) != 0 {
-		zap.S().Infof("Found %d underutilized nodes", len(underutilized))
+		zap.S().Debugf("Found %d underutilized nodes", len(underutilized))
 	}
 
 	// 2. Set TTL on underutilized nodes
 	// TODO: Go routines to parllelize AddTTL
 	for _, node := range underutilized {
 		if err := c.terminator.AddTTL(ctx, node); err != nil {
-			return fmt.Errorf("adding ttl on underutilized node, %w", err)
+			return fmt.Errorf("adding ttl, %w", err)
 		}
 	}
 
-	// 3. Cordon each node
-	// TODO: Go routines to parallelize CordonNode
-	for _, node := range underutilized {
-		// 4. Cordon each node
-		if err := c.terminator.CordonNode(ctx, node); err != nil {
-			return fmt.Errorf("cordoning nodes, %w", err)
-		}
-	}
-
-	// 4. Find Nodes Past TTL with Karpenter Labels
-	expiredTTLedNodes, err := c.filter.GetExpiredNodes(ctx, provisioner)
+	// 3. Find Nodes Past TTL with Karpenter Labels
+	expiredNodes, err := c.filter.GetExpiredNodes(ctx, provisioner)
 	if err != nil {
 		return fmt.Errorf("getting TTLed nodes, %w", err)
+	}
+
+	// 4. Cordon each node
+	// TODO: Go routines to parallelize CordonNode
+	for _, node := range expiredNodes {
+		// 4. Cordon each node
+		if err := c.terminator.CordonNode(ctx, node); err != nil {
+			return fmt.Errorf("cordoning node, %w", err)
+		}
 	}
 
 	// TODO
 	// 5. Drain Nodes past TTL
 
 	// 6. Delete Nodes past TTL
-	for _, node := range expiredTTLedNodes {
+	for _, node := range expiredNodes {
 		if err := c.terminator.DeleteNode(ctx, node); err != nil {
-			return fmt.Errorf("deleting node, %w", err)
+			return err
 		}
 		zap.S().Infof("Succesfully deleted node %s", node.Name)
 	}

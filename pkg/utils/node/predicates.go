@@ -37,7 +37,7 @@ func IsPastTTL(node *v1.Node) (bool, error) {
 	}
 	ttlTime, err := time.Parse(time.RFC3339, ttl)
 	if err != nil {
-		return false, fmt.Errorf("warning: node %s did not have valid ttl", node.Name)
+		return false, fmt.Errorf("node %s did not have valid ttl", node.Name)
 	}
 	return time.Now().After(ttlTime), nil
 }
