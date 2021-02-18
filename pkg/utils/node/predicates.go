@@ -15,7 +15,6 @@ limitations under the License.
 package node
 
 import (
-	"fmt"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"time"
@@ -30,14 +29,14 @@ func IsReadyAndSchedulable(node v1.Node) bool {
 	return false
 }
 
-func IsPastTTL(node *v1.Node) (bool, error) {
+func IsPastTTL(node *v1.Node) bool {
 	ttl, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]
 	if !ok {
-		return false, nil
+		return false
 	}
 	ttlTime, err := time.Parse(time.RFC3339, ttl)
 	if err != nil {
-		return false, fmt.Errorf("node %s did not have valid ttl", node.Name)
+		return false
 	}
-	return time.Now().After(ttlTime), nil
+	return time.Now().After(ttlTime)
 }

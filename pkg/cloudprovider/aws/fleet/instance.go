@@ -17,7 +17,10 @@ package fleet
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"math/rand"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -77,4 +80,31 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		return nil, fmt.Errorf("expected 1 instance ids, but got %d", count)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
+}
+
+func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
+	ids := p.getInstanceIDs(nodes)
+
+	output, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+		DryRun:      aws.Bool(false),
+		InstanceIds: ids,
+	})
+	if err != nil {
+		return fmt.Errorf("terminating %d instances, %w", len(output.TerminatingInstances), err)
+	}
+
+	return nil
+}
+
+func (p *InstanceProvider) getInstanceIDs(nodes []*v1.Node) []*string {
+	ids := []*string{}
+	for _, node := range nodes {
+		id := strings.Split(node.Spec.ProviderID, "/")
+		if len(id) < 5 {
+			zap.S().Debugf("Continuing after failure to parse instance id, %s has invalid format", node.Name)
+			continue
+		}
+		ids = append(ids, aws.String(id[4]))
+	}
+	return ids
 }

@@ -18,8 +18,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	nodeUtil "github.com/awslabs/karpenter/pkg/utils/node"
+	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
+	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,20 +35,22 @@ func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisioner *v1alpha
 	underutilized := []*v1.Node{}
 
 	// 1. Get all provisioner labeled nodes
-	nodeList, err := f.getNodes(ctx, provisioner)
+	nodes, err := f.getNodes(ctx, provisioner)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. Get nodes and the pods on each node
-	for _, node := range nodeList.Items {
+	for _, node := range nodes {
 		pods, err := f.getPodsOnNode(ctx, node.Name)
 		if err != nil {
-			return []*v1.Node{}, err
+			zap.S().Debugf("Unable to get pods for node %s, %s", node.Name, err.Error())
+			continue
 		}
+
 		// Only checks if it has 0 non-daemon pods right now
 		if f.isUnderutilized(pods) {
-			underutilized = append(underutilized, &node)
+			underutilized = append(underutilized, node)
 		}
 	}
 	return underutilized, nil
@@ -57,28 +61,31 @@ func (f *Filter) GetExpiredNodes(ctx context.Context, provisioner *v1alpha1.Prov
 	if err != nil {
 		return nil, err
 	}
+
 	nodes := []*v1.Node{}
-	for _, node := range nodeList.Items {
-		ok, err := nodeUtil.IsPastTTL(&node)
-		if err != nil {
-			return nodes, fmt.Errorf("checking TTL, %w", err)
-		}
-		if ok {
-			nodes = append(nodes, &node)
+	for _, node := range nodeList {
+		if utilsnode.IsPastTTL(node) {
+			nodes = append(nodes, node)
 		}
 	}
 	return nodes, nil
 }
 
-func (f *Filter) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) (*v1.NodeList, error) {
-	nodeList := &v1.NodeList{}
-	if err := f.kubeClient.List(ctx, nodeList, client.MatchingLabels(map[string]string{
+func (f *Filter) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
+	nodes := &v1.NodeList{}
+	if err := f.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{
 		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 	})); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
-	return nodeList, nil
+
+	// Convert each node to a pointer
+	nodePointers := []*v1.Node{}
+	for _, node := range nodes.Items {
+		nodePointers = append(nodePointers, ptr.Node(node))
+	}
+	return nodePointers, nil
 }
 
 // Get Pods scheduled to a node

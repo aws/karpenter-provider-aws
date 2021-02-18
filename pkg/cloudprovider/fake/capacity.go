@@ -16,6 +16,7 @@ package fake
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
@@ -29,4 +30,8 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 
 func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.TopologyKey) ([]string, error) {
 	return nil, nil
+}
+
+func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
+	return nil
 }

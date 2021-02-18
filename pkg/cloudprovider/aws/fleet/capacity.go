@@ -17,7 +17,6 @@ package fleet
 import (
 	"context"
 	"fmt"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
@@ -98,4 +97,8 @@ func (c *Capacity) GetTopologyDomains(ctx context.Context, key cloudprovider.Top
 	default:
 		return nil, fmt.Errorf("unrecognized topology key %s", key)
 	}
+}
+
+func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
+	return c.instanceProvider.Terminate(ctx, nodes)
 }

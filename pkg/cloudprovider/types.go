@@ -66,6 +66,9 @@ type Capacity interface {
 	// For example, GetTopologyDomains("zone") -> [ "us-west-2a", "us-west-2b" ]
 	// This enables the caller to to build Constraints for a known set of
 	GetTopologyDomains(context.Context, TopologyKey) ([]string, error)
+
+	// Delete nodes in cloudprovider
+	Delete(context.Context, []*v1.Node) error
 }
 
 // Constraints lets the controller define the desired capacity,

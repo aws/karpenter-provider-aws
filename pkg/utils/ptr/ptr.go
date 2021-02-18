@@ -19,3 +19,7 @@ import v1 "k8s.io/api/core/v1"
 func Pod(pod v1.Pod) *v1.Pod {
 	return &pod
 }
+
+func Node(node v1.Node) *v1.Node {
+	return &node
+}
