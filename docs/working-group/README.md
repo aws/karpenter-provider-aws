@@ -10,6 +10,57 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (02/18/21)
+
+## Attendees
+- Prateek Gogia
+- Elton Pinto
+- Viji Sarathy
+- Shreyas Srinivasan
+- Ellis Tarn
+- Nick Tran
+- Guy Templeton
+- Joseph Burnett
+- Elmiko
+
+## Notes
+- [ET] Pending pods might not be the only signal for scaling, its reactive and adds latency
+    - HPA like metrics scaling with metrics based approach
+    - High number of configurations
+    - Groupless provisioning for the nodes in the cloud
+- [JB] Interesting idea, have you thought about ASG per deployment model, provisioner will create an ASG and focus on deployment and bind a deployment to an ASG
+- [Elmiko] Any developer can write a metric producer to feed into Karpenter?
+- [ET] Provisioner stuff is still in the design face, and doesn't use Horizontal autoscaler, there is so much configuration and complexity.
+- [Elmiko] Are you taking the Karpenter in this new direction with pending pods?
+- [ET] We are still talking to customers and figuring out how to approach this.
+- [Elmiko] Metrics based approach is more popular with machine learning folks (Data scientists)
+- [JB] We could end up in a heterogenous and random collection of nodes, and we lose the groups benefits. Having extra capacity ahead of time.
+- [JB] It would be nice to have a way to use the groups.
+- [ET] Provisioning group compared to a single provisioner in a cluster
+- [JB] Rollout changes can be done incrementally, new pods go to new node, you have enough capacity to rollout but not double the capacity. How do you update a large deployment in flight? Only reason to split things up is if you have some sort of accounting or security use case
+- [ET] Responssible for GC, PDB and have some sane policy
+- [ET] Provisioning Group has large number of heterogenous nodes.
+- [JB] NG to force capacity to a single failure domain.
+- [ET] Boils down to online/offline bin packing, check the constraints and group a set of pods that can be run together. Each group is equally deployable. 
+- [JB] Defrag the pods comparing the pods on node and calculating the delta within the pods.
+- [Elmiko] Sounds interesting, from the prespective of openshift it will com  down to - what resources are customers paying for, debugging(why autoscaler did what it did)? Why did the autoscaler create FOO? How do we avoid cost overrun scenarios.
+- [JB] Provisioner is very functional and observabilty can be common
+- [ET] Create an audit trail for a bin packing solution and customer can verify why this decision was being and adding observability.
+- [JB] Treating it like a blackbox and check what its doing?
+- [Elmiko] Openshift prespective, limit to what the provisioner can create, provisioner is not backed by the instances but by the mem/CPU capacity
+- [Elmiko] Even if making this shift in direction, it would be nice to still have some metric or signal plugged into the algorithm 
+- [JB] Over provisioning knob is going to be important. If you see 10 pods create an extra node for the next pod.
+- [ET] Minimize the scheduling latency, to create a right size of synthetic pods 
+- [ET] CA add 0-30 seconds, ASG 0-30 seconds and MNG 0-30 seconds based on cluster load size, we removed this machinery and without any optimization saw ~55 seconds for the node to be ready.
+- [JB] Having signals is really powerfull, if the provisioner has a over-provision signal. Metrics part is really important for some of the use case.
+- [JB] If the metrics are not in your scheduler, you can be a little slow.
+- [Elmiko] Using metrics is gateway to be using models later
+- [JB] With the provisioner model how will you even add the metrics
+- [ET] How does a customer wire a more intelligent metrics
+- [JB] Important signal are going to be workload based
+- [Elmiko] An API you expose for annotations on the pod/deployment to instruct the provisioner
+...
+
 # Meeting notes (02/04/21)
 
 ## Attendees:
