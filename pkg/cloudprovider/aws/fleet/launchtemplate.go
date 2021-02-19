@@ -15,11 +15,12 @@ limitations under the License.
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -36,6 +37,14 @@ import (
 const (
 	LaunchTemplateNameFormat = "Karpenter-%s"
 	IAMInstanceProfileName   = "KarpenterNodeRole"
+	bottleRocketUserData     = `
+[settings.kubernetes]
+api-server = "${.Endpoint}"
+cluster-certificate = "${.CABundle}"
+cluster-name = "${.Name}"
+[settings.kubernetes.node-labels]
+"karpenter.sh/provisioned" = "true"
+`
 )
 
 type LaunchTemplateProvider struct {
@@ -83,7 +92,6 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting security groups, %w", err)
 	}
-
 	instanceProfile, err := p.instanceProfileProvider.Get(ctx, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance profile, %w", err)
@@ -93,6 +101,10 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 		return nil, fmt.Errorf("getting AMI ID, %w", err)
 	}
 	zap.S().Debugf("Successfully discovered AMI ID %s for architecture x86_64", *amiID)
+	userData, err := p.getUserData(cluster)
+	if err != nil {
+		return nil, fmt.Errorf("getting user data, %w", err)
+	}
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
@@ -108,19 +120,8 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 				}},
 			}},
 			SecurityGroupIds: securityGroupIds,
-			UserData: aws.String(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`
-				#!/bin/bash
-				yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-				/etc/eks/bootstrap.sh %s \
-					--kubelet-extra-args '--node-labels=karpenter.sh/provisioned=true' \
-					--b64-cluster-ca %s \
-					--apiserver-endpoint %s`,
-				cluster.Name,
-				cluster.CABundle,
-				cluster.Endpoint,
-			)))),
-			// TODO discover this with SSM
-			ImageId: amiID,
+			UserData:         userData,
+			ImageId:          amiID,
 		},
 	})
 	if err != nil {
@@ -148,18 +149,21 @@ func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, err
 		return nil, fmt.Errorf("kube server version, %w", err)
 	}
 	paramOutput, err := p.ssm.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended", version)),
+		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ssm get parameter, %w", err)
 	}
-	output := struct {
-		ImageID string `json:"image_id"`
-	}{}
-	if err := json.Unmarshal([]byte(*paramOutput.Parameter.Value), &output); err != nil {
-		return nil, fmt.Errorf("unmarshal parameter output, %w", err)
+	return paramOutput.Parameter.Value, nil
+}
+
+func (p *LaunchTemplateProvider) getUserData(cluster *v1alpha1.ClusterSpec) (*string, error) {
+	t := template.Must(template.New("bottlerocketUserData").Parse(bottleRocketUserData))
+	var userData bytes.Buffer
+	if err := t.Execute(&userData, cluster); err != nil {
+		return nil, err
 	}
-	return &output.ImageID, nil
+	return aws.String(base64.StdEncoding.EncodeToString(userData.Bytes())), nil
 }
 
 func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
