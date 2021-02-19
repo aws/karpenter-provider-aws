@@ -143,12 +143,12 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 	return securityGroupIds, nil
 }
 
-func (p *LaunchTemplateProvider) getAMIID(context context.Context) (*string, error) {
+func (p *LaunchTemplateProvider) getAMIID(ctx context.Context) (*string, error) {
 	version, err := p.kubeServerVersion()
 	if err != nil {
 		return nil, fmt.Errorf("kube server version, %w", err)
 	}
-	paramOutput, err := p.ssm.GetParameter(&ssm.GetParameterInput{
+	paramOutput, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version)),
 	})
 	if err != nil {
@@ -168,5 +168,8 @@ func (p *LaunchTemplateProvider) getUserData(cluster *v1alpha1.ClusterSpec) (*st
 
 func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
 	version, err := p.clientSet.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
 	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), err
 }
