@@ -152,7 +152,7 @@ func (p *LaunchTemplateProvider) getAMIID(ctx context.Context) (*string, error) 
 		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version)),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ssm get parameter, %w", err)
+		return nil, fmt.Errorf("getting ssm parameter, %w", err)
 	}
 	return paramOutput.Parameter.Value, nil
 }
