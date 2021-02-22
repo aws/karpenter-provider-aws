@@ -39,9 +39,9 @@ const (
 	IAMInstanceProfileName   = "KarpenterNodeRole"
 	bottleRocketUserData     = `
 [settings.kubernetes]
-api-server = "${.Endpoint}"
-cluster-certificate = "${.CABundle}"
-cluster-name = "${.Name}"
+api-server = "{{Endpoint}}"
+cluster-certificate = "{{.CABundle}}"
+cluster-name = "{{.Name}}"
 [settings.kubernetes.node-labels]
 "karpenter.sh/provisioned" = "true"
 `
