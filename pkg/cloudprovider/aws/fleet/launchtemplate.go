@@ -43,7 +43,7 @@ api-server = "{{.Endpoint}}"
 cluster-certificate = "{{.CABundle}}"
 cluster-name = "{{.Name}}"
 [settings.kubernetes.node-labels]
-"karpenter.sh/provisioned" = "true"
+karpenter.sh/provisioned = true
 `
 )
 
