@@ -35,15 +35,14 @@ import (
 )
 
 const (
-	LaunchTemplateNameFormat = "Karpenter-%s"
-	IAMInstanceProfileName   = "KarpenterNodeRole"
-	bottleRocketUserData     = `
+	launchTemplateNameFormat = "Karpenter-%s"
+	bottlerocketUserdata     = `
 [settings.kubernetes]
 api-server = "{{.Endpoint}}"
 cluster-certificate = "{{.CABundle}}"
 cluster-name = "{{.Name}}"
 [settings.kubernetes.node-labels]
-karpenter.sh/provisioned = true
+karpenter-sh-provisioned = true
 `
 )
 
@@ -71,7 +70,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 // TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
 func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
 	describelaunchTemplateOutput, err := p.ec2.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name))},
+		LaunchTemplateNames: []*string{aws.String(fmt.Sprintf(launchTemplateNameFormat, cluster.Name))},
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
 		return p.createLaunchTemplate(ctx, cluster)
@@ -107,7 +106,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	}
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(fmt.Sprintf(LaunchTemplateNameFormat, cluster.Name)),
+		LaunchTemplateName: aws.String(fmt.Sprintf(launchTemplateNameFormat, cluster.Name)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: instanceProfile.InstanceProfileName,
@@ -158,7 +157,7 @@ func (p *LaunchTemplateProvider) getAMIID(ctx context.Context) (*string, error) 
 }
 
 func (p *LaunchTemplateProvider) getUserData(cluster *v1alpha1.ClusterSpec) (*string, error) {
-	t := template.Must(template.New("bottlerocketUserData").Parse(bottleRocketUserData))
+	t := template.Must(template.New("userdata").Parse(bottlerocketUserdata))
 	var userData bytes.Buffer
 	if err := t.Execute(&userData, cluster); err != nil {
 		return nil, err
