@@ -60,7 +60,7 @@ func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluste
 		InstanceProfileName: aws.String(KarpenterNodeInstanceProfileName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("retriving instance profile %s, %w", IAMInstanceProfileName, err)
+		return nil, fmt.Errorf("retriving instance profile %s, %w", KarpenterNodeInstanceProfileName, err)
 	}
 	for _, role := range output.InstanceProfile.Roles {
 		if err := p.addToAWSAuthConfigmap(role); err != nil {
