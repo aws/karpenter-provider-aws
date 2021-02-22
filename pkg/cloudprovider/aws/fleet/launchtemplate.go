@@ -36,13 +36,13 @@ import (
 
 const (
 	launchTemplateNameFormat = "Karpenter-%s"
-	bottlerocketUserdata     = `
+	bottlerocketUserData     = `
 [settings.kubernetes]
 api-server = "{{.Endpoint}}"
 cluster-certificate = "{{.CABundle}}"
 cluster-name = "{{.Name}}"
 [settings.kubernetes.node-labels]
-karpenter-sh-provisioned = true
+karpenter-sh-provisioned = "true"
 `
 )
 
@@ -157,7 +157,7 @@ func (p *LaunchTemplateProvider) getAMIID(ctx context.Context) (*string, error) 
 }
 
 func (p *LaunchTemplateProvider) getUserData(cluster *v1alpha1.ClusterSpec) (*string, error) {
-	t := template.Must(template.New("userdata").Parse(bottlerocketUserdata))
+	t := template.Must(template.New("userData").Parse(bottlerocketUserData))
 	var userData bytes.Buffer
 	if err := t.Execute(&userData, cluster); err != nil {
 		return nil, err
