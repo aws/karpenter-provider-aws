@@ -170,5 +170,5 @@ func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), err
+	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), nil
 }
