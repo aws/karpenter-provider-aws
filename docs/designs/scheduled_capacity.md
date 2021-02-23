@@ -27,7 +27,7 @@ by any amount of HorizontalAutoscalers. In addition, with a more complex `promql
 [query](https://prometheus.io/docs/prometheus/latest/querying/basics/), a user can also use a HorizontalAutoscaler to 
 scale based off multiple MetricsProducers. 
 
-For more details, refer to [Karpenter’s design doc](./DESIGN.md).
+For more details, refer to [Karpenter’s design doc](DESIGN.md).
 
 ## Design
 This design encompasses the `ScheduleSpec` and `ScheduledCapacityStatus` structs. The spec corresponds to the user 
@@ -161,7 +161,7 @@ how the two choices are similar.
     * While our implementation will use the Cron library, picking a strongly-typed API will allows us to decide which 
     portions of the library we want to allow the users to configure.
 * The wide range of functionality Cron provides is sometimes misunderstood 
-(e.g. [Crontab Pitfalls](##Crontab Pitfalls)).
+(e.g. [Crontab Pitfalls](#crontab-pitfalls)).
     * Adopting Crontab syntax adopts its pitfalls, which can be hard to fix in the future. 
     * If users have common problems involving Cron, it is more difficult to fix than if they were problems specific to 
     Karpenter.
@@ -182,7 +182,7 @@ are easier to understand, adding more Crontab aspects like skip values and range
 at more complex levels of planning. We want to keep the tool intuitive, precise, and understandable, so that users who 
 understand their workloads can easily schedule them.
 
-```{go}
+```yaml
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
