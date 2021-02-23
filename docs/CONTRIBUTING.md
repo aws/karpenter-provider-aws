@@ -7,7 +7,7 @@ Please read through this document before submitting any issues or pull requests 
 We follow the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Working Group
-Connect with us at our [working group](./working-group).
+Connect with us at our [working group](working-group).
 
 ## Reporting Bugs/Feature Requests
 
@@ -42,4 +42,4 @@ GitHub provides additional document on [forking a repository](https://help.githu
 Karpenter has adopted the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Licensing
-Karpenter is licensed under [Apache 2.0](./LICENSE.md).
+Karpenter is licensed under [Apache 2.0](../LICENSE).
