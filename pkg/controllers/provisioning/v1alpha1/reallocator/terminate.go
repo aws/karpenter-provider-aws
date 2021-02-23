@@ -62,7 +62,7 @@ func (t *Terminator) DeleteNodes(ctx context.Context, nodes []*v1.Node, spec *v1
 	if err != nil {
 		return fmt.Errorf("terminating %d cloudprovider instances, %w", len(nodes), err)
 	}
-	zap.S().Infof("Succesfully terminated %d instances", len(nodes))
+	zap.S().Infof("Terminating %d instances", len(nodes))
 
 	return nil
 }

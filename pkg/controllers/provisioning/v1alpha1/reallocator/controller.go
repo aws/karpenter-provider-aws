@@ -54,7 +54,7 @@ func (c *Controller) Name() string {
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
 		filter:        &Filter{kubeClient: kubeClient},
-		terminator:    &Terminator{kubeClient: kubeClient},
+		terminator:    &Terminator{kubeClient: kubeClient, cloudprovider: cloudProvider},
 		cloudProvider: cloudProvider,
 	}
 }
