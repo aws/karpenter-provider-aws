@@ -38,7 +38,7 @@ metric through `kubectl` commands.
 The `ScheduleSpec` is where the user will specify the times in which a schedule will activate and recommend what the 
 value of the metric should be.
 
-```{go}
+```go
 type Timezone string
 
 type ScheduleSpec struct {
@@ -81,7 +81,7 @@ the configuration.
 This configuration is scaling up for 9-5 on weekdays (red), scaling down a little at night (green), and then scaling 
 down almost fully for the weekends (blue).
 ![](../images/scheduled-capacity-example-schedule-graphic.png)
-```{go}
+```yaml
 apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
@@ -121,7 +121,7 @@ spec:
 The `ScheduledCapacityStatus` can be used to monitor the MetricsProducer. The results of the algorithm will populate 
 this struct at every iteration of the reconcile loop. A user can see the values of this struct with 
 `kubectl get metricsproducers -oyaml`.
-```{go}
+```go
 type ScheduledCapacityStatus struct {
    // The current recommendation - the metric the MetricsProducer is emitting
    CurrentValue   *int32             `json:"currentValue,omitempty"` 
@@ -276,7 +276,7 @@ emit more than one value at a time, so it must choose one value.
 
 The only change to the structs from the initial design would be to add a Priority field in the ScheduledBehavior struct 
 as below.
-```{go}
+```go
 type ScheduledBehavior struct {
    Replicas  int32     `json:"replicas"`
    Start     *Pattern  `json:"start"`
