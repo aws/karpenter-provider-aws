@@ -5,7 +5,7 @@ Karpenter is a node autoscaler built for Kubernetes and can run in any Kubernete
 This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 ## Installation
 Follow the setup recommendations of your cloud provider.
-- [AWS](docs/aws/README.md)
+- [AWS](docs/aws)
 
 ### Quick Install - Controller + Dependencies
 ```
