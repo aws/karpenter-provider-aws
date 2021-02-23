@@ -21,7 +21,7 @@ import (
 	"strconv"
 
 	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/node"
+	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,16 +42,16 @@ func (p *Producer) Reconcile() error {
 
 	// 2. Compute reservations
 	reservations := NewReservations()
-	for _, n := range nodes.Items {
+	for _, node := range nodes.Items {
 		// Only count nodes that are ready and schedulable to avoid diluting the
 		// denomenator with unschedulable nodes. This can lead to premature
 		// scale down before the scheduler assigns pod to the node.
-		if node.IsReadyAndSchedulable(n) {
+		if utilsnode.IsReadyAndSchedulable(node) {
 			pods := &v1.PodList{}
-			if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": n.Name}); err != nil {
-				return fmt.Errorf("Listing pods for %s, %w", n.Name, err)
+			if err := p.Client.List(context.Background(), pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+				return fmt.Errorf("Listing pods for %s, %w", node.Name, err)
 			}
-			reservations.Add(&n, pods)
+			reservations.Add(&node, pods)
 		}
 	}
 

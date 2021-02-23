@@ -17,9 +17,8 @@ package allocator
 import (
 	"context"
 	"fmt"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/util/scheduling"
-
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

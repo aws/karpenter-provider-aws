@@ -28,6 +28,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	filter        *Filter
+	terminator    *Terminator
 	cloudProvider cloudprovider.Factory
 }
 
@@ -53,31 +54,56 @@ func (c *Controller) Name() string {
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
 		filter:        &Filter{kubeClient: kubeClient},
+		terminator:    &Terminator{kubeClient: kubeClient},
 		cloudProvider: cloudProvider,
 	}
 }
 
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(object controllers.Object) error {
+	provisioner := object.(*v1alpha1.Provisioner)
 	ctx := context.TODO()
-	// 1. Filter all nodes with Karpenter TTL label
-	// TODO: Filter only nodes with the Provisioner label
 
-	// 2. Remove TTL from nodes with TTL label that have pods and if past TTL, cordon/drain node
-
-	// 3. Filter under-utilized nodes
-	nodes, err := c.filter.GetUnderutilizedNodes(ctx)
+	// 1. Get underutilized nodes
+	underutilized, err := c.filter.GetUnderutilizedNodes(ctx, provisioner)
 	if err != nil {
-		return fmt.Errorf("filtering nodes, %w", err)
+		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
-	if len(nodes) == 0 {
+
+	// TODO: Further filter underutilized nodes that haven't been cordoned/TTLed to not spam logs
+	if len(underutilized) != 0 {
+		zap.S().Debugf("Found %d underutilized nodes", len(underutilized))
+	}
+
+	// 2. Set TTL on underutilized nodes
+	// TODO: Go routines to parllelize AddTTL
+	if err := c.terminator.AddTTLs(ctx, underutilized); err != nil {
+		return fmt.Errorf("adding ttl, %w", err)
+	}
+
+	// 3. Find Nodes Past TTL with Karpenter Labels
+	expired, err := c.filter.GetExpiredNodes(ctx, provisioner)
+	if err != nil {
+		return fmt.Errorf("getting expired nodes, %w", err)
+	}
+
+	if len(expired) == 0 {
 		return nil
 	}
-	zap.S().Infof("Found %d underutilized nodes", len(nodes))
 
 	// 4. Cordon each node
+	// TODO: Go routines to parallelize CordonNode
+	if err := c.terminator.CordonNodes(ctx, expired); err != nil {
+		return fmt.Errorf("cordoning node, %w", err)
+	}
 
-	// 5. Put TTL of 300s on each node
+	// TODO
+	// 5. Drain Nodes past TTL
+
+	// 6. Delete Nodes past TTL
+	if err := c.terminator.DeleteNodes(ctx, expired, &provisioner.Spec); err != nil {
+		return err
+	}
 
 	return nil
 }

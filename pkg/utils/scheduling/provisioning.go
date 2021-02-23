@@ -20,11 +20,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var (
-	IgnoredOwners []schema.GroupVersionKind = []schema.GroupVersionKind{
-		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
-	}
-)
+var IgnoredOwners []schema.GroupVersionKind = []schema.GroupVersionKind{
+	{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+}
 
 func IsNotIgnored(pod *v1.Pod) bool {
 	for _, ignoredOwner := range IgnoredOwners {

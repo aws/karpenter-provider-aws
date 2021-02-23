@@ -3,22 +3,19 @@ package main
 import (
 	"flag"
 	"fmt"
-
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocator"
-
 	"github.com/awslabs/karpenter/pkg/apis"
+	"github.com/awslabs/karpenter/pkg/autoscaler"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
-
-	"github.com/awslabs/karpenter/pkg/autoscaler"
 	horizontalautoscalerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/metricsproducer/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocator"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocator"
 	scalablenodegroupv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	metricsclients "github.com/awslabs/karpenter/pkg/metrics/clients"
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
 
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocator"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"k8s.io/apimachinery/pkg/runtime"
 
