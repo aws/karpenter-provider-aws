@@ -38,7 +38,7 @@ make codegen                     # Create auto-generated YAML files.
 
 ### Build and Deploy
 ```
-make all                                  # build and test code
+make dev                                  # build and test code
 make apply                                # deploy local changes to cluster
 CLOUD_PROVIDER=<YOUR_PROVIDER> make apply # deploy for your cloud provider
 ```
