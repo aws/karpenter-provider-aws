@@ -15,7 +15,7 @@ The following tools are required for doing development on Karpenter.
 
 ### Setup / Teardown
 
-Based on which environment you are running a Kubernetes cluster, follow the [Environment specific setup](##Environment-specific-setup) for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.
+Based on which environment you are running a Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.
 
 ```
 make codegen                     # Create auto-generated YAML files.
