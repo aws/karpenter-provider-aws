@@ -71,6 +71,26 @@ func (f *Filter) GetExpiredNodes(ctx context.Context, provisioner *v1alpha1.Prov
 	return nodes, nil
 }
 
+func (f *Filter) GetNonTTLedNodes(nodes []*v1.Node) []*v1.Node {
+	nonTTLedNodes := []*v1.Node{}
+	for _, node := range nodes {
+		if _, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]; ok {
+			nonTTLedNodes = append(nonTTLedNodes, node)
+		}
+	}
+	return nonTTLedNodes
+}
+
+func (f *Filter) GetNonCordonedNodes(nodes []*v1.Node) []*v1.Node {
+	nonCordonedNodes := []*v1.Node{}
+	for _, node := range nodes {
+		if !node.Spec.Unschedulable {
+			nonCordonedNodes = append(nonCordonedNodes, node)
+		}
+	}
+	return nonCordonedNodes
+}
+
 func (f *Filter) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
 	nodes := &v1.NodeList{}
 	if err := f.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{

@@ -30,39 +30,38 @@ type Terminator struct {
 	cloudprovider cloudprovider.Factory
 }
 
+// AddTTLs takes in a list of underutilized nodes and adds TTL to them
+func (t *Terminator) AddTTLs(ctx context.Context, nodes []*v1.Node) error {
+	for _, node := range nodes {
+		persisted := node.DeepCopy()
+		node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(300 * time.Second).Format(time.RFC3339)
+		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+			return fmt.Errorf("patching node, %w", err)
+		}
+	}
+	zap.S().Debugf("Added TTL to %d nodes", len(nodes))
+	return nil
+}
+
+// CordonNodes takes in a list of expired nodes as input and cordons them
 func (t *Terminator) CordonNodes(ctx context.Context, nodes []*v1.Node) error {
 	for _, node := range nodes {
-		if node.Spec.Unschedulable {
-			continue
-		}
-		persisted := node.DeepCopyObject()
+		persisted := node.DeepCopy()
 		node.Spec.Unschedulable = true
 		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
 	}
+	zap.S().Debugf("Cordoned %d nodes", len(nodes))
 	return nil
 }
 
-func (t *Terminator) AddTTLs(ctx context.Context, nodes []*v1.Node) error {
-	for _, node := range nodes {
-		if _, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]; !ok {
-			persisted := node.DeepCopy()
-			node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(300 * time.Second).Format(time.RFC3339)
-			if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-				return fmt.Errorf("patching node, %w", err)
-			}
-		}
-	}
-	return nil
-}
-
+// DeleteNodes will use a cloudprovider implementation to delete a set of nodes
 func (t *Terminator) DeleteNodes(ctx context.Context, nodes []*v1.Node, spec *v1alpha1.ProvisionerSpec) error {
 	err := t.cloudprovider.CapacityFor(spec).Delete(ctx, nodes)
 	if err != nil {
 		return fmt.Errorf("terminating %d cloudprovider instances, %w", len(nodes), err)
 	}
 	zap.S().Infof("Terminating %d instances", len(nodes))
-
 	return nil
 }

@@ -70,14 +70,14 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// TODO: Further filter underutilized nodes that haven't been cordoned/TTLed to not spam logs
-	if len(underutilized) != 0 {
-		zap.S().Debugf("Found %d underutilized nodes", len(underutilized))
+	// Filter underutilized nodes to those that haven't had TTL set
+	nonTTLed := c.filter.GetNonTTLedNodes(underutilized)
+	if len(nonTTLed) != 0 {
+		zap.S().Debugf("Found %d underutilized unhandled nodes", len(nonTTLed))
 	}
 
 	// 2. Set TTL on underutilized nodes
-	// TODO: Go routines to parllelize AddTTL
-	if err := c.terminator.AddTTLs(ctx, underutilized); err != nil {
+	if err := c.terminator.AddTTLs(ctx, nonTTLed); err != nil {
 		return fmt.Errorf("adding ttl, %w", err)
 	}
 
@@ -86,14 +86,12 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	if err != nil {
 		return fmt.Errorf("getting expired nodes, %w", err)
 	}
-
 	if len(expired) == 0 {
 		return nil
 	}
 
 	// 4. Cordon each node
-	// TODO: Go routines to parallelize CordonNode
-	if err := c.terminator.CordonNodes(ctx, expired); err != nil {
+	if err := c.terminator.CordonNodes(ctx, c.filter.GetNonCordonedNodes(expired)); err != nil {
 		return fmt.Errorf("cordoning node, %w", err)
 	}
 
