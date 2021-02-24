@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocator
+package reallocation
 
 import (
 	"context"
@@ -38,8 +38,8 @@ func (t *Terminator) AddTTLs(ctx context.Context, nodes []*v1.Node) error {
 		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node, %w", err)
 		}
+		zap.S().Debugf("Added TTL to nodes %s", node.Name)
 	}
-	zap.S().Debugf("Added TTL to %d nodes", len(nodes))
 	return nil
 }
 
@@ -51,17 +51,26 @@ func (t *Terminator) CordonNodes(ctx context.Context, nodes []*v1.Node) error {
 		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
+		zap.S().Debugf("Cordoned node %s", node.Name)
 	}
-	zap.S().Debugf("Cordoned %d nodes", len(nodes))
 	return nil
 }
 
 // DeleteNodes will use a cloudprovider implementation to delete a set of nodes
 func (t *Terminator) DeleteNodes(ctx context.Context, nodes []*v1.Node, spec *v1alpha1.ProvisionerSpec) error {
-	err := t.cloudprovider.CapacityFor(spec).Delete(ctx, nodes)
-	if err != nil {
+	// 1. Delete node in cloudprovider's instanceprovider
+	if err := t.cloudprovider.CapacityFor(spec).Delete(ctx, nodes); err != nil {
 		return fmt.Errorf("terminating %d cloudprovider instances, %w", len(nodes), err)
 	}
-	zap.S().Infof("Terminating %d instances", len(nodes))
+
+	// 2. Delete node in APIServer to ensure
+	// TODO: Prevent leaked nodes: ensure a node is not deleted in apiserver if not deleted in cloudprovider
+	// Use the returned ids from the cloudprovider's Delete() function, and then only delete those ids in the apiserver
+	for _, node := range nodes {
+		if err := t.kubeClient.Delete(ctx, node); err != nil {
+			zap.S().Debugf("Continuing after failing to delete node %s, %s", node.Name, err.Error())
+		}
+		zap.S().Infof("Terminated node %s", node.Name)
+	}
 	return nil
 }

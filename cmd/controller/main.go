@@ -10,12 +10,12 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers"
 	horizontalautoscalerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/horizontalautoscaler/v1alpha1"
 	metricsproducerv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/metricsproducer/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocator"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
 	scalablenodegroupv1alpha1 "github.com/awslabs/karpenter/pkg/controllers/scalablenodegroup/v1alpha1"
 	metricsclients "github.com/awslabs/karpenter/pkg/metrics/clients"
 	"github.com/awslabs/karpenter/pkg/metrics/producers"
 
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocator"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -70,8 +70,8 @@ func main() {
 		&horizontalautoscalerv1alpha1.Controller{AutoscalerFactory: autoscalerFactory},
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
-		allocator.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
-		reallocator.NewController(manager.GetClient(), cloudProviderFactory),
+		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
+		reallocation.NewController(manager.GetClient(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")
 }

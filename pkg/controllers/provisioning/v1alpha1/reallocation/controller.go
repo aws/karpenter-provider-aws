@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocator
+package reallocation
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
-	"go.uber.org/zap"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -70,14 +69,8 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// Filter underutilized nodes to those that haven't had TTL set
-	nonTTLed := c.filter.GetNonTTLedNodes(underutilized)
-	if len(nonTTLed) != 0 {
-		zap.S().Debugf("Found %d underutilized unhandled nodes", len(nonTTLed))
-	}
-
 	// 2. Set TTL on underutilized nodes
-	if err := c.terminator.AddTTLs(ctx, nonTTLed); err != nil {
+	if err := c.terminator.AddTTLs(ctx, c.filter.GetTTLableNodes(underutilized)); err != nil {
 		return fmt.Errorf("adding ttl, %w", err)
 	}
 
@@ -91,7 +84,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	}
 
 	// 4. Cordon each node
-	if err := c.terminator.CordonNodes(ctx, c.filter.GetNonCordonedNodes(expired)); err != nil {
+	if err := c.terminator.CordonNodes(ctx, c.filter.GetCordonableNodes(expired)); err != nil {
 		return fmt.Errorf("cordoning node, %w", err)
 	}
 

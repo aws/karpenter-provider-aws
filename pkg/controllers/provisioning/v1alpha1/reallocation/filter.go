@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocator
+package reallocation
 
 import (
 	"context"
@@ -71,17 +71,17 @@ func (f *Filter) GetExpiredNodes(ctx context.Context, provisioner *v1alpha1.Prov
 	return nodes, nil
 }
 
-func (f *Filter) GetNonTTLedNodes(nodes []*v1.Node) []*v1.Node {
+func (f *Filter) GetTTLableNodes(nodes []*v1.Node) []*v1.Node {
 	nonTTLedNodes := []*v1.Node{}
 	for _, node := range nodes {
-		if _, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]; ok {
+		if _, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]; !ok {
 			nonTTLedNodes = append(nonTTLedNodes, node)
 		}
 	}
 	return nonTTLedNodes
 }
 
-func (f *Filter) GetNonCordonedNodes(nodes []*v1.Node) []*v1.Node {
+func (f *Filter) GetCordonableNodes(nodes []*v1.Node) []*v1.Node {
 	nonCordonedNodes := []*v1.Node{}
 	for _, node := range nodes {
 		if !node.Spec.Unschedulable {
