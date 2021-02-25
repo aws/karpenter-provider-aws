@@ -12,23 +12,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocator
+package allocation
 
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"go.uber.org/zap"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 // Controller for the resource
 type Controller struct {
 	filter        *Filter
-	terminator    *Terminator
+	binder        *Binder
+	constraints   *Constraints
 	cloudProvider cloudprovider.Factory
 }
 
@@ -47,15 +50,16 @@ func (c *Controller) Interval() time.Duration {
 }
 
 func (c *Controller) Name() string {
-	return "provisioner/reallocator"
+	return "provisioner/allocator"
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
-		filter:        &Filter{kubeClient: kubeClient},
-		terminator:    &Terminator{kubeClient: kubeClient, cloudprovider: cloudProvider},
 		cloudProvider: cloudProvider,
+		filter:        &Filter{kubeClient: kubeClient},
+		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
+		constraints:   &Constraints{},
 	}
 }
 
@@ -64,46 +68,36 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
 	ctx := context.TODO()
 
-	// 1. Get underutilized nodes
-	underutilized, err := c.filter.GetUnderutilizedNodes(ctx, provisioner)
+	// 1. Filter pods
+	pods, err := c.filter.GetProvisionablePods(ctx)
 	if err != nil {
-		return fmt.Errorf("listing underutilized nodes, %w", err)
+		return fmt.Errorf("filtering pods, %w", err)
 	}
-
-	// TODO: Further filter underutilized nodes that haven't been cordoned/TTLed to not spam logs
-	if len(underutilized) != 0 {
-		zap.S().Debugf("Found %d underutilized nodes", len(underutilized))
-	}
-
-	// 2. Set TTL on underutilized nodes
-	// TODO: Go routines to parllelize AddTTL
-	if err := c.terminator.AddTTLs(ctx, underutilized); err != nil {
-		return fmt.Errorf("adding ttl, %w", err)
-	}
-
-	// 3. Find Nodes Past TTL with Karpenter Labels
-	expired, err := c.filter.GetExpiredNodes(ctx, provisioner)
-	if err != nil {
-		return fmt.Errorf("getting expired nodes, %w", err)
-	}
-
-	if len(expired) == 0 {
+	if len(pods) == 0 {
 		return nil
 	}
+	zap.S().Infof("Found %d provisionable pods", len(pods))
 
-	// 4. Cordon each node
-	// TODO: Go routines to parallelize CordonNode
-	if err := c.terminator.CordonNodes(ctx, expired); err != nil {
-		return fmt.Errorf("cordoning node, %w", err)
+	// 2. Group by constraints
+	constraintGroups := c.constraints.Group(pods)
+
+	// 3. Create capacity and packings
+	var packings []cloudprovider.Packing
+	for _, constraints := range constraintGroups {
+		packing, err := c.cloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
+		if err != nil {
+			zap.S().Errorf("Continuing after failing to create capacity, %s", err.Error())
+		} else {
+			packings = append(packings, packing...)
+		}
 	}
 
-	// TODO
-	// 5. Drain Nodes past TTL
-
-	// 6. Delete Nodes past TTL
-	if err := c.terminator.DeleteNodes(ctx, expired, &provisioner.Spec); err != nil {
-		return err
+	// 4. Bind pods to nodes
+	for _, packing := range packings {
+		zap.S().Infof("Binding %d pods to node %s", len(packing.Pods), packing.Node.Name)
+		if err := c.binder.Bind(ctx, provisioner, packing.Node, packing.Pods); err != nil {
+			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
+		}
 	}
-
 	return nil
 }

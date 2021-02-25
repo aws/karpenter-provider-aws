@@ -15,7 +15,6 @@ limitations under the License.
 package scheduling
 
 import (
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -28,7 +27,6 @@ func IsNotIgnored(pod *v1.Pod) bool {
 	for _, ignoredOwner := range IgnoredOwners {
 		for _, owner := range pod.ObjectMeta.OwnerReferences {
 			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
-				zap.S().Debugf("Ignoring %s %s %s/%s", owner.APIVersion, owner.Kind, pod.Namespace, owner.Name)
 				return false
 			}
 		}
