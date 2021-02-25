@@ -85,12 +85,12 @@ func (p *InstanceProvider) Create(ctx context.Context,
 func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
 	ids := p.getInstanceIDs(nodes)
 
-	output, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	_, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		DryRun:      aws.Bool(false),
 		InstanceIds: ids,
 	})
 	if err != nil {
-		return fmt.Errorf("terminating %d instances, %w", len(output.TerminatingInstances), err)
+		return fmt.Errorf("terminating %d instances, %w", len(ids), err)
 	}
 
 	return nil
