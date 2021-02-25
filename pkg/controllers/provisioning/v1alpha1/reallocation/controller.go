@@ -27,6 +27,7 @@ import (
 
 // Controller for the resource
 type Controller struct {
+	annotator     *Annotator
 	filter        *Filter
 	terminator    *Terminator
 	cloudProvider cloudprovider.Factory
@@ -53,6 +54,7 @@ func (c *Controller) Name() string {
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
+		annotator:     &Annotator{kubeClient: kubeClient},
 		filter:        &Filter{kubeClient: kubeClient},
 		terminator:    &Terminator{kubeClient: kubeClient, cloudprovider: cloudProvider},
 		cloudProvider: cloudProvider,
@@ -64,18 +66,27 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
 	ctx := context.TODO()
 
-	// 1. Get underutilized nodes
+	// 1. Get underutilized nodes and label them underutilized
 	underutilized, err := c.filter.GetUnderutilizedNodes(ctx, provisioner)
 	if err != nil {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// 2. Set TTL on underutilized nodes
-	if err := c.terminator.AddTTLs(ctx, c.filter.GetTTLableNodes(underutilized)); err != nil {
-		return fmt.Errorf("adding ttl, %w", err)
+	// 2. Set TTL and label underutilized nodes
+	if err := c.annotator.MarkUnderutilized(ctx, c.filter.GetTTLableNodes(underutilized)); err != nil {
+		return fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
 
-	// 3. Find Nodes Past TTL with Karpenter Labels
+	// 3. Get Nodes with Underutilized Label for resource usage reevaluation and Remove TTL if necessary
+	labeledUnderutilized, err := c.filter.GetLabeledUnderutilizedNodes(ctx, provisioner)
+	if err != nil {
+		return fmt.Errorf("listing labeled underutilized nodes, %w", err)
+	}
+	if err := c.annotator.ClearUnderutilized(ctx, labeledUnderutilized); err != nil {
+		return fmt.Errorf("removing ttl from node, %w", err)
+	}
+
+	// 4. Find Nodes Past TTL with Karpenter Labels
 	expired, err := c.filter.GetExpiredNodes(ctx, provisioner)
 	if err != nil {
 		return fmt.Errorf("getting expired nodes, %w", err)
@@ -84,15 +95,15 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 		return nil
 	}
 
-	// 4. Cordon each node
-	if err := c.terminator.CordonNodes(ctx, c.filter.GetCordonableNodes(expired)); err != nil {
+	// 5. Cordon each node
+	if err := c.annotator.CordonNodes(ctx, c.filter.GetCordonableNodes(expired)); err != nil {
 		return fmt.Errorf("cordoning node, %w", err)
 	}
 
 	// TODO
-	// 5. Drain Nodes past TTL
+	// 6. Drain Nodes past TTL
 
-	// 6. Delete Nodes past TTL
+	// 7. Delete Nodes past TTL
 	if err := c.terminator.DeleteNodes(ctx, expired, &provisioner.Spec); err != nil {
 		return err
 	}
