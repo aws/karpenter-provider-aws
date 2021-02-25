@@ -46,7 +46,7 @@ func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
 // instance types for each packing of pods. Instance variety enables EC2 to make
 // better cost and availability decisions.
 func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
-	zap.S().Debugf("Successfully packed %d pods onto %d nodes", len(pods), 1)
+	zap.S().Debugf("Successfully packed %d pod(s) onto %d node(s)", len(pods), 1)
 	return []*Packings{
 		{
 			InstanceTypeOptions: []string{"m5.large"}, // TODO, prioritize possible instance types

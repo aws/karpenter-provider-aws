@@ -21,10 +21,43 @@ import (
 
 type ProvisionerSpec struct {
 	// +optional
-	Cluster      *ClusterSpec     `json:"cluster,omitempty"`
-	Allocation   AllocationSpec   `json:"allocation,omitempty"`
-	Reallocation ReallocationSpec `json:"reallocation,omitempty"`
+	Cluster *ClusterSpec `json:"cluster,omitempty"`
+	// Taints will be applied to every node launched by the Provisioner. If
+	// specified, the provisioner will not provision nodes for pods that do not
+	// have matching tolerations.
+	// +optional
+	Taints []v1.Taint `json:"taints,omitempty"`
+	// Labels will be applied to every node launched by the Provisioner unless
+	// overriden by pod node selectors. Well known labels control provisioning
+	// behavior. Additional labels may be supported by your cloudprovider.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// Zones constrains where nodes will be launched by the Provisioner. If
+	// unspecified, defaults to all zones in the region. Cannot be specified if
+	// label "topology.kubernetes.io/zone" is specified.
+	// +optional
+	Zones []string `json:"zones,omitempty"`
+	// InstanceTypes constraints which instances types will be used for nodes
+	// launched by the Provisioner. If unspecified, supports all types. Cannot
+	// be specified if label "node.kubernetes.io/instance-type" is specified.
+	InstanceTypes []string `json:"instanceTypes,omitempty"`
 }
+
+var (
+	// Well known, supported labels
+	ArchitectureLabelKey    = "kubernetes.io/arch"
+	OperatingSystemLabelKey = "kubernetes.io/os"
+
+	// Reserved labels
+	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
+	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
+	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
+	ProvisionerTTLKey            = SchemeGroupVersion.Group + "/ttl"
+
+	// Use ProvisionerSpec instead
+	ZoneLabelKey                 = "topology.kubernetes.io/zone"
+	InstanceTypeLabelKey         = "node.kubernetes.io/instance-type"
+)
 
 // ClusterSpec configures the cluster that the provisioner operates against. If
 // not specified, it will default to using the controller's kube-config.
@@ -38,20 +71,6 @@ type ClusterSpec struct {
 	// Endpoint is required for nodes to connect to the API Server.
 	// +required
 	Endpoint string `json:"endpoint"`
-}
-
-// AllocationSpec configures node allocation policy
-type AllocationSpec struct {
-	// Labels will be applied to every node launched by the Provisioner
-	// +optional
-	Labels map[string]string `json:"labels,omitempty"`
-	// Taints will be applied to every node launched by the Provisioner
-	// +optional
-	Taints []v1.Taint `json:"taints,omitempty"`
-}
-
-// ReallocationSpec configures node reallocation policy
-type ReallocationSpec struct {
 }
 
 // Provisioner is the Schema for the Provisioners API

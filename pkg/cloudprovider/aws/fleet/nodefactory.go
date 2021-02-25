@@ -43,7 +43,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[strin
 		MaxDelay: 10 * time.Second,
 		Factor:   2, Jitter: true,
 	}, nil); attempt.Next(); {
-		describeInstancesOutput, err := n.ec2.DescribeInstances(&ec2.DescribeInstancesInput{InstanceIds: instanceIds})
+		describeInstancesOutput, err := n.ec2.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIds})
 		if err == nil {
 			return n.nodesFrom(describeInstancesOutput.Reservations), nil
 		}

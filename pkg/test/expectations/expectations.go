@@ -69,6 +69,18 @@ func ExpectEventuallyHappy(c client.Client, objects ...controllers.Object) {
 	}
 }
 
+func ExpectEventuallyReconciled(c client.Client, objects ...controllers.Object) {
+	for _, object := range objects {
+		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
+		Eventually(func() bool {
+			Expect(c.Get(context.Background(), nn, object)).To(Succeed())
+			return !object.StatusConditions().GetCondition(v1alpha1.Active).IsUnknown()
+		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+			return fmt.Sprintf("resources active condition was never updated\n%s", log.Pretty(object))
+		})
+	}
+}
+
 func ExpectCleanedUp(c client.Client) {
 	ctx := context.Background()
 	pods := v1.PodList{}

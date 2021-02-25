@@ -17,10 +17,11 @@ package fleet
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	"math/rand"
 	"strings"
+
+	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -86,7 +87,6 @@ func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) erro
 	ids := p.getInstanceIDs(nodes)
 
 	_, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
-		DryRun:      aws.Bool(false),
 		InstanceIds: ids,
 	})
 	if err != nil {

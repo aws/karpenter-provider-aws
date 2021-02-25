@@ -91,7 +91,7 @@ var _ = Describe("Allocation", func() {
 				ExpectCreatedWithStatus(ns.Client, pod)
 			}
 			ExpectCreated(ns.Client, p)
-			ExpectEventuallyHappy(ns.Client, p)
+			ExpectEventuallyReconciled(ns.Client, p)
 
 			nodes := &v1.NodeList{}
 			Expect(ns.Client.List(context.Background(), nodes)).To(Succeed())
@@ -123,19 +123,25 @@ var _ = Describe("Allocation", func() {
 				// Constrained by zone
 				test.PodWith(test.PodOptions{
 					Namespace:    ns.Name,
-					NodeSelector: map[string]string{ZoneLabel: "test-zone"},
+					NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone"},
+					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+				}),
+				// Constrained by instanceType
+				test.PodWith(test.PodOptions{
+					Namespace:    ns.Name,
+					NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "test-instance-type"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by architecture
 				test.PodWith(test.PodOptions{
 					Namespace:    ns.Name,
-					NodeSelector: map[string]string{ArchitectureLabel: "test-architecture"},
+					NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "test-architecture"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by operating system
 				test.PodWith(test.PodOptions{
 					Namespace:    ns.Name,
-					NodeSelector: map[string]string{OperatingSystemLabelKey: "test-os"},
+					NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "test-os"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by arbitrary label
@@ -157,12 +163,12 @@ var _ = Describe("Allocation", func() {
 			ExpectCreatedWithStatus(ns.Client, coschedulable...)
 			ExpectCreatedWithStatus(ns.Client, unschedulable...)
 			ExpectCreated(ns.Client, p)
-			ExpectEventuallyHappy(ns.Client, p)
+			ExpectEventuallyReconciled(ns.Client, p)
 
 			// Assertions
 			nodes := &v1.NodeList{}
 			Expect(ns.Client.List(context.Background(), nodes)).To(Succeed())
-			Expect(len(nodes.Items)).To(Equal(5)) // 4 schedulable -> 4 node, 2 coschedulable -> 1 node
+			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range append(schedulable, coschedulable...) {
 				scheduled := &v1.Pod{}
 				Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())

@@ -90,8 +90,8 @@ func MergeInto(dest interface{}, srcs ...interface{}) {
 	}
 }
 
-// MergeStringMaps merges all key value pairs into a single map, last write wins.
-func MergeStringMaps(maps ...map[string]string) map[string]string {
+// UnionStringMaps merges all key value pairs into a single map, last write wins.
+func UnionStringMaps(maps ...map[string]string) map[string]string {
 	result := map[string]string{}
 	for _, m := range maps {
 		for k, v := range m {
@@ -99,7 +99,37 @@ func MergeStringMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return result
+}
 
+// IntersectStringSlice takes the intersection of all string slices
+func IntersectStringSlice(slices ...[]string) []string {
+	// count occurrences
+	counts := map[string]int{}
+	for _, strings := range slices {
+		for _, s := range UniqueStrings(strings) {
+			counts[s] = counts[s] + 1
+		}
+	}
+	// select if occured in all
+	var intersection []string
+	for key, count := range counts {
+		if count == len(slices) {
+			intersection = append(intersection, key)
+		}
+	}
+	return intersection
+}
+
+func UniqueStrings(strings []string) []string {
+	exists := map[string]bool{}
+	for _, s := range strings {
+		exists[s] = true
+	}
+	var unique []string
+	for s := range exists {
+		unique = append(unique, s)
+	}
+	return unique
 }
 
 // Errorable is a function that returns an error
