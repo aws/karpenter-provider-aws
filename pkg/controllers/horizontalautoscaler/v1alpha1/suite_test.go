@@ -110,7 +110,6 @@ var _ = Describe("Examples", func() {
 			sng.Spec.Replicas = ptr.Int32(1)
 			fakeCloudProvider.NodeReplicas[sng.Spec.ID] = ptr.Int32(*sng.Spec.Replicas) // create a new pointer to avoid races with the controller
 			MockMetricValue(fakeServer, 41)
-
 			ExpectCreated(ns.Client, sng, ha)
 			ExpectEventuallyHappy(ns.Client, sng, ha)
 			Expect(*ha.Status.DesiredReplicas).To(BeEquivalentTo(11), log.Pretty(ha))

@@ -54,18 +54,8 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 	if err != nil {
 		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
-	// 2. Return specific subnet if specified.
-	if subnetID, ok := constraints.Topology[cloudprovider.TopologyKeySubnet]; ok {
-		for zone, subnets := range zonalSubnets {
-			for _, subnet := range subnets {
-				if subnetID == *subnet.SubnetId {
-					return map[string][]*ec2.Subnet{zone: {subnet}}, nil
-				}
-			}
-		}
-		return nil, fmt.Errorf("no subnet exists named %s", subnetID)
-	}
-	// 3. Constrain by zones
+
+	// 2. Constrain by zones
 	constrainedZones, err := p.getConstrainedZones(ctx, constraints, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("getting zones, %w", err)
@@ -100,8 +90,8 @@ func (p *VPCProvider) GetSubnetIds(ctx context.Context, clusterName string) ([]s
 
 func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
 	// 1. Return zone if specified.
-	if zone, ok := constraints.Topology[cloudprovider.TopologyKeyZone]; ok {
-		return []string{zone}, nil
+	if constraints.Zone != nil {
+		return []string{*constraints.Zone}, nil
 	}
 	// 2. Return all zone options
 	zones, err := p.GetZones(ctx, clusterName)

@@ -17,6 +17,7 @@ package reallocation
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -121,7 +122,7 @@ func (f *Filter) getPodsOnNode(ctx context.Context, nodeName string) (*v1.PodLis
 func (f *Filter) isUnderutilized(pods *v1.PodList) bool {
 	counter := 0
 	for _, pod := range pods.Items {
-		if scheduling.IsNotIgnored(&pod) {
+		if !scheduling.IsOwnedByDaemonSet(&pod) {
 			counter += 1
 		}
 	}

@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,6 +44,13 @@ func ExpectCreated(c client.Client, objects ...client.Object) {
 	}
 }
 
+func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		ExpectCreated(c, object)
+		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
+	}
+}
+
 func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Delete(context.Background(), object)).To(Succeed())
@@ -57,5 +66,24 @@ func ExpectEventuallyHappy(c client.Client, objects ...controllers.Object) {
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 			return fmt.Sprintf("resource never became happy\n%s", log.Pretty(object))
 		})
+	}
+}
+
+func ExpectCleanedUp(c client.Client) {
+	ctx := context.Background()
+	pods := v1.PodList{}
+	Expect(c.List(ctx, &pods)).To(Succeed())
+	for _, pod := range pods.Items {
+		ExpectDeleted(c, &pod)
+	}
+	nodes := v1.NodeList{}
+	Expect(c.List(ctx, &nodes)).To(Succeed())
+	for _, node := range nodes.Items {
+		ExpectDeleted(c, &node)
+	}
+	provisioners := v1alpha1.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	for _, provisioner := range provisioners.Items {
+		ExpectDeleted(c, &provisioner)
 	}
 }

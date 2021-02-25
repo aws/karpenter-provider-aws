@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/autoscaler"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"

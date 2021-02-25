@@ -6,6 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/aws/aws-sdk-go v1.35.12
 	github.com/go-logr/zapr v0.2.0
+	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
