@@ -41,7 +41,10 @@ var (
 	// These Keys are used for label matching
 	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
 	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
-	ProvisionerTTLKey            = SchemeGroupVersion.Group + "/ttl"
+	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
+
+	// ProvisionerTTLKey is used for annotation matching
+	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"
 )
 
 const (

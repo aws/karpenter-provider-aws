@@ -16,6 +16,7 @@ package node
 
 import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"time"
 )
@@ -39,4 +40,15 @@ func IsPastTTL(node *v1.Node) bool {
 		return false
 	}
 	return time.Now().After(ttlTime)
+}
+
+// TODO: implement underutilized function (some generalized predicate)
+func IsUnderutilized(pods []*v1.Pod) bool {
+	counter := 0
+	for _, pod := range pods {
+		if !scheduling.IsOwnedByDaemonSet(pod) {
+			counter += 1
+		}
+	}
+	return counter == 0
 }

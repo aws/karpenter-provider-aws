@@ -22,38 +22,11 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type Terminator struct {
 	kubeClient    client.Client
 	cloudprovider cloudprovider.Factory
-}
-
-// AddTTLs takes in a list of underutilized nodes and adds TTL to them
-func (t *Terminator) AddTTLs(ctx context.Context, nodes []*v1.Node) error {
-	for _, node := range nodes {
-		persisted := node.DeepCopy()
-		node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(300 * time.Second).Format(time.RFC3339)
-		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-			return fmt.Errorf("patching node, %w", err)
-		}
-		zap.S().Debugf("Added TTL to nodes %s", node.Name)
-	}
-	return nil
-}
-
-// CordonNodes takes in a list of expired nodes as input and cordons them
-func (t *Terminator) CordonNodes(ctx context.Context, nodes []*v1.Node) error {
-	for _, node := range nodes {
-		persisted := node.DeepCopy()
-		node.Spec.Unschedulable = true
-		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-			return fmt.Errorf("patching node %s, %w", node.Name, err)
-		}
-		zap.S().Debugf("Cordoned node %s", node.Name)
-	}
-	return nil
 }
 
 // DeleteNodes will use a cloudprovider implementation to delete a set of nodes
