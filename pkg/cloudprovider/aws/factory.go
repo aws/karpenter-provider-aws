@@ -42,7 +42,7 @@ type Factory struct {
 	sqs               sqsiface.SQSAPI
 	eks               eksiface.EKSAPI
 	ec2               ec2iface.EC2API
-	fleetFactory      *fleet.Factory
+	FleetFactory      *fleet.Factory
 	kubeClient        client.Client
 }
 
@@ -54,7 +54,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		eks:               eks.New(sess),
 		sqs:               sqs.New(sess),
 		ec2:               EC2,
-		fleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.ClientSet),
+		FleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.ClientSet),
 		kubeClient:        options.Client,
 	}
 }
@@ -80,7 +80,7 @@ func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
 }
 
 func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
-	return f.fleetFactory.For(spec)
+	return f.FleetFactory.For(spec)
 }
 
 func withRegion(sess *session.Session) *session.Session {

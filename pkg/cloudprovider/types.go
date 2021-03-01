@@ -62,8 +62,6 @@ type Capacity interface {
 	Create(context.Context, *Constraints) ([]Packing, error)
 	// Delete nodes in cloudprovider
 	Delete(context.Context, []*v1.Node) error
-	// GetZones returns a list of zones supported by the cloud provider.
-	GetZones(context.Context) ([]string, error)
 }
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given
@@ -82,8 +80,10 @@ type NodeConstraints struct {
 	Labels map[string]string
 	// Taints applied to nodes, may cause cloudprovider specific behavior.
 	Taints []v1.Taint
-	// Zone optionally constrains the zone where the node is launched.
-	Zone *string
+	// Zones optionally constrains the zone where the node is launched.
+	Zones []string
+	// InstanceTypes optionally constraints the instance type for the node.
+	InstanceTypes []string
 	// OperatingSystem constrains the underlying operating system.
 	OperatingSystem OperatingSystem
 	// Architecture constrains the underlying architecture.

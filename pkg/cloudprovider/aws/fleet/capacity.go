@@ -81,14 +81,6 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	return nodePackings, nil
 }
 
-func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
-	zones, err := c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
-	if err != nil {
-		return nil, err
-	}
-	return zones, nil
-}
-
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, nodes)
 }

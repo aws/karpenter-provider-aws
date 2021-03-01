@@ -99,7 +99,7 @@ func (f *Filter) GetLabeledUnderutilizedNodes(ctx context.Context, provisioner *
 		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 	}
-	for k, v := range provisioner.Spec.Allocation.Labels {
+	for k, v := range provisioner.Spec.Labels {
 		labelMap[k] = v
 	}
 	if err := f.kubeClient.List(ctx, nodes, client.MatchingLabels(labelMap)); err != nil {
@@ -114,7 +114,7 @@ func (f *Filter) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner
 		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 	}
-	for k, v := range provisioner.Spec.Allocation.Labels {
+	for k, v := range provisioner.Spec.Labels {
 		labelMap[k] = v
 	}
 	if err := f.kubeClient.List(ctx, nodes, client.MatchingLabels(labelMap)); err != nil {

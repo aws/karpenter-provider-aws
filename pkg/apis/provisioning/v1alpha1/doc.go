@@ -37,14 +37,6 @@ var (
 
 	// AddToScheme is required by pkg/client/...
 	AddToScheme = SchemeBuilder.AddToScheme
-
-	// These Keys are used for label matching
-	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
-	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
-	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
-
-	// ProvisionerTTLKey is used for annotation matching
-	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"
 )
 
 const (

@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	f "github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
@@ -74,31 +75,17 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 	return constrainedZonalSubnets, nil
 }
 
-func (p *VPCProvider) GetSubnetIds(ctx context.Context, clusterName string) ([]string, error) {
-	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
-	if err != nil {
-		return nil, err
-	}
-	subnetIds := []string{}
-	for _, subnets := range zonalSubnets {
-		for _, subnet := range subnets {
-			subnetIds = append(subnetIds, *subnet.SubnetId)
-		}
-	}
-	return subnetIds, nil
-}
-
 func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
-	// 1. Return zone if specified.
-	if constraints.Zone != nil {
-		return []string{*constraints.Zone}, nil
-	}
-	// 2. Return all zone options
 	zones, err := p.GetZones(ctx, clusterName)
 	if err != nil {
 		return nil, err
 	}
-	return zones, nil
+	// Unconstrained
+	if constraints.Zones == nil {
+		return zones, nil
+	}
+	// Supported by provider and by constraints
+	return f.IntersectStringSlice(zones, constraints.Zones), nil
 }
 
 type ZonalSubnets map[string][]*ec2.Subnet

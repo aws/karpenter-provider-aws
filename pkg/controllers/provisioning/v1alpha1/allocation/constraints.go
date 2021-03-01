@@ -30,13 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Constraints support a known set of labels
-const (
-	ArchitectureLabel       = "kubernetes.io/arch"
-	OperatingSystemLabelKey = "kubernetes.io/os"
-	ZoneLabel               = "topology.kubernetes.io/zone"
-)
-
 type Constraints struct {
 	kubeClient client.Client
 }
@@ -59,7 +52,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
 			overhead, err := c.getNodeOverhead(ctx, pod, &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{Labels: constraints.Labels},
-				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Allocation.Taints},
+				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Taints},
 			})
 			if err != nil {
 				return nil, fmt.Errorf("computing node overhead, %w", err)
@@ -83,6 +76,9 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 
 func (c *Constraints) getConstraints(provisioner *v1alpha1.Provisioner, pod *v1.Pod) cloudprovider.NodeConstraints {
 	return cloudprovider.NodeConstraints{
+		Taints:          provisioner.Spec.Taints,
+		Zones:           c.getZones(provisioner, pod),
+		InstanceTypes:   c.getInstanceTypes(provisioner, pod),
 		Labels:          c.getLabels(provisioner, pod),
 		Architecture:    c.getArchitecture(pod),
 		OperatingSystem: c.getOperatingSystem(pod),
@@ -91,8 +87,8 @@ func (c *Constraints) getConstraints(provisioner *v1alpha1.Provisioner, pod *v1.
 
 func (c *Constraints) getLabels(provisioner *v1alpha1.Provisioner, pod *v1.Pod) map[string]string {
 	// These keys are guaranteed to not collide due to validation logic
-	return f.MergeStringMaps(
-		provisioner.Spec.Allocation.Labels,
+	return f.UnionStringMaps(
+		provisioner.Spec.Labels,
 		pod.Spec.NodeSelector,
 		map[string]string{
 			v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
@@ -101,15 +97,41 @@ func (c *Constraints) getLabels(provisioner *v1alpha1.Provisioner, pod *v1.Pod) 
 	)
 }
 
+func (c *Constraints) getZones(provisioner *v1alpha1.Provisioner, pod *v1.Pod) []string {
+	// Pod may override zone
+	if zone, ok := pod.Spec.NodeSelector[v1alpha1.ZoneLabelKey]; ok {
+		return []string{zone}
+	}
+	// Default to provisioner constraints
+	if len(provisioner.Spec.Zones) != 0 {
+		return provisioner.Spec.Zones
+	}
+	// Otherwise unconstrained
+	return nil
+}
+
+func (c *Constraints) getInstanceTypes(provisioner *v1alpha1.Provisioner, pod *v1.Pod) []string {
+	// pod may override instance type
+	if instanceType, ok := pod.Spec.NodeSelector[v1alpha1.InstanceTypeLabelKey]; ok {
+		return []string{instanceType}
+	}
+	// Default to provisioner constraints
+	if len(provisioner.Spec.InstanceTypes) != 0 {
+		return provisioner.Spec.InstanceTypes
+	}
+	// Otherwise unconstrained
+	return nil
+}
+
 func (c *Constraints) getArchitecture(pod *v1.Pod) cloudprovider.Architecture {
-	if architecture, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+	if architecture, ok := pod.Spec.NodeSelector[v1alpha1.ArchitectureLabelKey]; ok {
 		return cloudprovider.Architecture(architecture)
 	}
 	return cloudprovider.ArchitectureAmd64
 }
 
 func (c *Constraints) getOperatingSystem(pod *v1.Pod) cloudprovider.OperatingSystem {
-	if operatingSystem, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+	if operatingSystem, ok := pod.Spec.NodeSelector[v1alpha1.OperatingSystemLabelKey]; ok {
 		return cloudprovider.OperatingSystem(operatingSystem)
 	}
 	return cloudprovider.OperatingSystemLinux

@@ -46,8 +46,8 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 	}}
 
 	// 2. Create node
-	if err := b.create(ctx, node); err != nil {
-		return err
+	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+		return fmt.Errorf("creating node %s, %w", node.Name, err)
 	}
 
 	// 3. Bind pods
@@ -57,13 +57,6 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 		} else {
 			zap.S().Debugf("Successfully bound pod %s/%s to node %s", pod.Namespace, pod.Name, node.Name)
 		}
-	}
-	return nil
-}
-
-func (a *Binder) create(ctx context.Context, node *v1.Node) error {
-	if _, err := a.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
-		return fmt.Errorf("creating node %s, %w", node.Name, err)
 	}
 	return nil
 }

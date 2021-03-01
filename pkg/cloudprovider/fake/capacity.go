@@ -21,7 +21,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -52,10 +52,6 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 		},
 		Pods: constraints.Pods,
 	}}, nil
-}
-
-func (c *Capacity) GetZones(context.Context) ([]string, error) {
-	return nil, nil
 }
 
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
