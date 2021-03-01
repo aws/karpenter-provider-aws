@@ -40,49 +40,53 @@ const (
 
 func NewFactory(ec2 ec2iface.EC2API, iam iamiface.IAMAPI, ssm ssmiface.SSMAPI, kubeClient client.Client, clientSet *kubernetes.Clientset) *Factory {
 	vpcProvider := &VPCProvider{
-		launchTemplateProvider: &LaunchTemplateProvider{
-			ec2:                 ec2,
-			launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
-			instanceProfileProvider: &InstanceProfileProvider{
-				iam:                  iam,
-				kubeClient:           kubeClient,
-				instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
-			},
-			securityGroupProvider: &SecurityGroupProvider{
-				ec2:                ec2,
-				securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
-			},
-			ssm:       ssm,
-			clientSet: clientSet,
-		},
 		subnetProvider: &SubnetProvider{
 			ec2:         ec2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
 		},
 	}
+	launchTemplateProvider := &LaunchTemplateProvider{
+		ec2:                 ec2,
+		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		instanceProfileProvider: &InstanceProfileProvider{
+			iam:                  iam,
+			kubeClient:           kubeClient,
+			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		securityGroupProvider: &SecurityGroupProvider{
+			ec2:                ec2,
+			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		ssm:       ssm,
+		clientSet: clientSet,
+	}
+
 	return &Factory{
-		ec2:              ec2,
-		vpcProvider:      vpcProvider,
-		nodeFactory:      &NodeFactory{ec2: ec2},
-		instanceProvider: &InstanceProvider{ec2: ec2, vpc: vpcProvider},
-		packer:           packing.NewPacker(ec2),
+		ec2:                    ec2,
+		vpcProvider:            vpcProvider,
+		nodeFactory:            &NodeFactory{ec2: ec2},
+		instanceProvider:       &InstanceProvider{ec2: ec2, vpc: vpcProvider},
+		packer:                 packing.NewPacker(ec2),
+		launchTemplateProvider: launchTemplateProvider,
 	}
 }
 
 type Factory struct {
-	ec2              ec2iface.EC2API
-	vpcProvider      *VPCProvider
-	nodeFactory      *NodeFactory
-	instanceProvider *InstanceProvider
-	packer           packing.Packer
+	ec2                    ec2iface.EC2API
+	vpcProvider            *VPCProvider
+	nodeFactory            *NodeFactory
+	instanceProvider       *InstanceProvider
+	packer                 packing.Packer
+	launchTemplateProvider *LaunchTemplateProvider
 }
 
 func (f *Factory) For(spec *v1alpha1.ProvisionerSpec) *Capacity {
 	return &Capacity{
-		spec:             spec,
-		nodeFactory:      f.nodeFactory,
-		instanceProvider: f.instanceProvider,
-		vpcProvider:      f.vpcProvider,
-		packer:           f.packer,
+		spec:                   spec,
+		nodeFactory:            f.nodeFactory,
+		instanceProvider:       f.instanceProvider,
+		vpcProvider:            f.vpcProvider,
+		packer:                 f.packer,
+		launchTemplateProvider: f.launchTemplateProvider,
 	}
 }

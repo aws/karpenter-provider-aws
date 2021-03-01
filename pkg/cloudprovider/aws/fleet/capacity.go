@@ -27,11 +27,12 @@ import (
 
 // Capacity cloud provider implementation using AWS Fleet.
 type Capacity struct {
-	spec             *v1alpha1.ProvisionerSpec
-	nodeFactory      *NodeFactory
-	packer           packing.Packer
-	instanceProvider *InstanceProvider
-	vpcProvider      *VPCProvider
+	spec                   *v1alpha1.ProvisionerSpec
+	nodeFactory            *NodeFactory
+	packer                 packing.Packer
+	instanceProvider       *InstanceProvider
+	vpcProvider            *VPCProvider
+	launchTemplateProvider *LaunchTemplateProvider
 }
 
 // Create a set of nodes given the constraints.
@@ -43,7 +44,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}
 
 	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
-	launchTemplate, err := c.vpcProvider.GetLaunchTemplate(ctx, c.spec.Cluster)
+	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}

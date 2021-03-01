@@ -89,6 +89,7 @@ type Architecture string
 
 var (
 	ArchitectureAmd64 Architecture = "amd64"
+	ArchitectureArm64 Architecture = "arm64"
 )
 
 type OperatingSystem string

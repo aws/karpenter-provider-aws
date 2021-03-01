@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	f "github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
@@ -29,12 +28,7 @@ import (
 )
 
 type VPCProvider struct {
-	launchTemplateProvider *LaunchTemplateProvider
-	subnetProvider         *SubnetProvider
-}
-
-func (p *VPCProvider) GetLaunchTemplate(ctx context.Context, clusterSpec *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
-	return p.launchTemplateProvider.Get(ctx, clusterSpec)
+	subnetProvider *SubnetProvider
 }
 
 func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]string, error) {

@@ -29,13 +29,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s"
+	launchTemplateNameFormat = "Karpenter-%s-%s"
 	bottlerocketUserData     = `
 [settings.kubernetes]
 api-server = "{{.Endpoint}}"
@@ -55,25 +57,42 @@ type LaunchTemplateProvider struct {
 	clientSet               *kubernetes.Clientset
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
-	if launchTemplate, ok := p.launchTemplateCache.Get(cluster.Name); ok {
+// Translate architecture into AWS-recognized name for Bottlerocket
+// AMI.
+func normalizeArchitecture(architecture v1alpha1.Architecture) string {
+	switch architecture {
+	case v1alpha1.ArchitectureAmd64:
+		return "x86_64"
+	default:
+		return string(architecture)
+	}
+}
+
+func launchTemplateName(clusterName string, arch string) string {
+	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
+}
+
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *cloudprovider.Constraints) (*ec2.LaunchTemplate, error) {
+	arch := normalizeArchitecture(*constraints.Architecture)
+	name := launchTemplateName(cluster.Name, arch)
+	if launchTemplate, ok := p.launchTemplateCache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
-	launchTemplate, err := p.getLaunchTemplate(ctx, cluster)
+	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, arch)
 	if err != nil {
 		return nil, err
 	}
-	p.launchTemplateCache.Set(cluster.Name, launchTemplate, CacheTTL)
+	p.launchTemplateCache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }
 
 // TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
-func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec, arch string) (*ec2.LaunchTemplate, error) {
 	describelaunchTemplateOutput, err := p.ec2.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{aws.String(fmt.Sprintf(launchTemplateNameFormat, cluster.Name))},
+		LaunchTemplateNames: []*string{aws.String(launchTemplateName(cluster.Name, arch))},
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-		return p.createLaunchTemplate(ctx, cluster)
+		return p.createLaunchTemplate(ctx, cluster, arch)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("describing launch templates, %w", err)
@@ -86,7 +105,7 @@ func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster 
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec, arch string) (*ec2.LaunchTemplate, error) {
 	securityGroupIds, err := p.getSecurityGroupIds(ctx, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting security groups, %w", err)
@@ -95,18 +114,18 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting instance profile, %w", err)
 	}
-	amiID, err := p.getAMIID(ctx)
+	amiID, err := p.getAMIID(ctx, arch)
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI ID, %w", err)
 	}
-	zap.S().Debugf("Successfully discovered AMI ID %s for architecture x86_64", *amiID)
+	zap.S().Debugf("Successfully discovered AMI ID %s for architecture %s", *amiID, arch)
 	userData, err := p.getUserData(cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting user data, %w", err)
 	}
 
 	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(fmt.Sprintf(launchTemplateNameFormat, cluster.Name)),
+		LaunchTemplateName: aws.String(launchTemplateName(cluster.Name, arch)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: instanceProfile.InstanceProfileName,
@@ -142,13 +161,13 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, cluste
 	return securityGroupIds, nil
 }
 
-func (p *LaunchTemplateProvider) getAMIID(ctx context.Context) (*string, error) {
+func (p *LaunchTemplateProvider) getAMIID(ctx context.Context, arch string) (*string, error) {
 	version, err := p.kubeServerVersion()
 	if err != nil {
 		return nil, fmt.Errorf("kube server version, %w", err)
 	}
 	paramOutput, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version)),
+		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("getting ssm parameter, %w", err)

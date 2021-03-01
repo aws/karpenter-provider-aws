@@ -47,10 +47,10 @@ type Options struct {
 }
 
 func main() {
-	flag.BoolVar(&options.EnableVerboseLogging, "verbose", false, "Enable verbose logging.")
+	flag.BoolVar(&options.EnableVerboseLogging, "verbose", false, "Enable verbose logging")
 	flag.StringVar(&options.PrometheusURI, "prometheus-uri", "http://prometheus-operated:9090", "The Prometheus Metrics Server URI for retrieving metrics")
-	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources.")
-	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself.")
+	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources")
+	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
 	flag.Parse()
 
 	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging), controllerruntimezap.ConsoleEncoder())
