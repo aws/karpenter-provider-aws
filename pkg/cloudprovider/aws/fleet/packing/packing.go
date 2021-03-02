@@ -30,7 +30,7 @@ type PodPacker struct {
 	ec2 ec2iface.EC2API
 }
 
-// PodPacker helps pack the pods and calculates efficient placement on the instances.
+// Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
 	Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error)
 }
