@@ -87,24 +87,26 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	}
 
 	// 4. Find Nodes Past TTL with Karpenter Labels
-	expired, err := c.filter.GetExpiredNodes(ctx, provisioner)
+	terminable, err := c.filter.GetTerminableNodes(ctx, provisioner)
 	if err != nil {
-		return fmt.Errorf("getting expired nodes, %w", err)
+		return fmt.Errorf("getting terminable nodes, %w", err)
 	}
-	if len(expired) == 0 {
+	if len(terminable) == 0 {
 		return nil
 	}
 
 	// 5. Cordon each node
-	if err := c.annotator.CordonNodes(ctx, c.filter.GetCordonableNodes(expired)); err != nil {
+	if err := c.annotator.CordonNodes(ctx, c.filter.GetCordonableNodes(terminable)); err != nil {
 		return fmt.Errorf("cordoning node, %w", err)
 	}
 
-	// TODO
 	// 6. Drain Nodes past TTL
+	if err := c.terminator.DrainNodes(ctx, terminable, &provisioner.Spec); err != nil {
+		return fmt.Errorf("draining nodes, %w", err)
+	}
 
 	// 7. Delete Nodes past TTL
-	if err := c.terminator.DeleteNodes(ctx, expired, &provisioner.Spec); err != nil {
+	if err := c.terminator.DeleteNodes(ctx, terminable, &provisioner.Spec); err != nil {
 		return err
 	}
 

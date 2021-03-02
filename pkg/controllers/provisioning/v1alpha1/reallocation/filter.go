@@ -54,7 +54,7 @@ func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisioner *v1alpha
 	return underutilized, nil
 }
 
-func (f *Filter) GetExpiredNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
+func (f *Filter) GetTerminableNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Node, error) {
 	nodeList, err := f.getNodes(ctx, provisioner)
 	if err != nil {
 		return nil, err

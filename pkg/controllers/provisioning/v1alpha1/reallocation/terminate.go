@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,6 +29,37 @@ import (
 type Terminator struct {
 	kubeClient    client.Client
 	cloudprovider cloudprovider.Factory
+}
+
+func (t *Terminator) DrainNodes(ctx context.Context, nodes []*v1.Node, spec *v1alpha1.ProvisionerSpec) error {
+	podList := &v1.PodList{}
+
+	for _, node := range nodes {
+		// (1.) TODO: Check if Node should be drained
+		// - Disrupts PDB
+		// - Pods owned by controller object
+		// - Pod on Node can't be rescheduled elsewhere
+
+		// 1. Get Pods on Node
+		if err := t.kubeClient.List(ctx, podList, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+
+		}
+		pods := ptr.PodListToSlice(podList)
+		// 1a. If no pods on node, label as drained
+		numPods := 0
+		for _, pod := range pods {
+			if !scheduling.IsOwnedByControllerObject(pod) {
+
+			}
+		}
+
+		for _, pod := range pods
+	}
+
+	// 2. Label Node As Draining
+
+	// 3. Delete pods on node
+
 }
 
 // DeleteNodes will use a cloudprovider implementation to delete a set of nodes
