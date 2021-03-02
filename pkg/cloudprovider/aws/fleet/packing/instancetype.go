@@ -31,12 +31,20 @@ var (
 				v1.ResourceCPU:    resource.MustParse("32000m"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
+			utilizedCapacity: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("0"),
+				v1.ResourceMemory: resource.MustParse("0"),
+			},
 		},
 		{
 			name: "m5.2xlarge",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("8000m"),
 				v1.ResourceMemory: resource.MustParse("32Gi"),
+			},
+			utilizedCapacity: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("0"),
+				v1.ResourceMemory: resource.MustParse("0"),
 			},
 		},
 		{
@@ -45,12 +53,20 @@ var (
 				v1.ResourceCPU:    resource.MustParse("4000m"),
 				v1.ResourceMemory: resource.MustParse("16Gi"),
 			},
+			utilizedCapacity: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("0"),
+				v1.ResourceMemory: resource.MustParse("0"),
+			},
 		},
 		{
 			name: "m5.large",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("2"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+			utilizedCapacity: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("0"),
+				v1.ResourceMemory: resource.MustParse("0"),
 			},
 		},
 	}
@@ -73,21 +89,22 @@ func (p *PodPacker) getInstanceTypes(filter string) []*instanceType {
 
 func (it *instanceType) isAllocatable(cpu, memory resource.Quantity) bool {
 	// TODO check pods count
-	it.utilizedCapacity.Cpu().Add(cpu)
-	it.utilizedCapacity.Memory().Add(memory)
-	return it.totalCapacity.Cpu().Cmp(*it.utilizedCapacity.Cpu()) >= 0 &&
-		it.totalCapacity.Memory().Cmp(*it.utilizedCapacity.Memory()) >= 0
+	return it.totalCapacity.Cpu().Cmp(cpu) >= 0 &&
+		it.totalCapacity.Memory().Cmp(memory) >= 0
 }
 
 func (it *instanceType) reserveCapacity(cpu, memory resource.Quantity) error {
-	if it.isAllocatable(cpu, memory) {
+
+	// TODO reserve pods count
+	targetCPU := it.utilizedCapacity.Cpu()
+	targetCPU.Add(cpu)
+	targetMemory := it.utilizedCapacity.Memory()
+	targetMemory.Add(memory)
+	if !it.isAllocatable(*targetCPU, *targetMemory) {
 		return InsufficentCapacityErr
 	}
-	// TODO reserve pods count
-	it.utilizedCapacity.Cpu().Add(cpu)
-	it.utilizedCapacity[v1.ResourceCPU] = *it.utilizedCapacity.Cpu()
-	it.utilizedCapacity.Memory().Add(memory)
-	it.utilizedCapacity[v1.ResourceMemory] = *it.utilizedCapacity.Memory()
+	it.utilizedCapacity[v1.ResourceCPU] = *targetCPU
+	it.utilizedCapacity[v1.ResourceMemory] = *targetMemory
 	return nil
 }
 
