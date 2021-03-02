@@ -16,12 +16,14 @@ package packing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type PodPacker struct {
@@ -49,8 +51,6 @@ func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
 // better cost and availability decisions.
 // Pods provided are all schedulable in the same zone as tightly as possible.
 func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
-	zap.S().Debugf("Successfully packed %d pods onto %d nodes", len(pods), 1)
-
 	// 1. Arrange pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(byResourceRequested{pods}))
@@ -59,61 +59,62 @@ func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, erro
 	// TODO add filters
 	instanceTypes := p.getInstanceTypes("")
 	// TODO reserve (Kubelet + daemon sets) overhead for instance types
+	// TODO count number of pods created on an instance type
 	return p.packSortedPods(pods, instanceTypes)
 }
 
 // takes a list of pods sorted based on their resource requirements compared by CPU and memory.
-
 func (p *PodPacker) packSortedPods(pods []*v1.Pod, instanceTypes []*instanceType) ([]*Packings, error) {
 	// Start with the smallest instance type and the biggest pod check how
 	// many pods can we fit, go to the next bigger type and check if we can fit
 	// more pods. Compare pods packed on all and select the instance type with
 	// highest pod count.
-	podsPacked := map[*v1.Pod]bool{}
-	packings := make([]*Packings, 0)
+	isPacked := map[*v1.Pod]bool{}
+	packings := []*Packings{}
 	for start, pod := range pods {
-		if podsPacked[pod] {
+		if isPacked[pod] {
 			continue
 		}
-
-		prevPacking := make([]*v1.Pod, 0)
-		instanceTypesSelected := make([]*instanceType, 0)
+		previousPacking := []*v1.Pod{}
+		instanceTypesSelected := []*instanceType{}
 		// Go to the next instance type see how many more pods can we fit?
 		for _, instance := range instanceTypes {
 			// from start index loop through all the pods and check how many
 			// pods we can fit on each instance type
-			packings, err := calculateBestPackingOption(instance, start, pods, podsPacked)
+			packings, err := calculateBestPackingOption(instance, start, pods, isPacked)
 			if err != nil {
 				zap.S().Errorf("Failed to calculate packing for instance type %s, err, %w", instance.name, err)
 				continue
 			}
-			zap.S().Info("packings are ", len(packings))
+			if len(packings) == 0 {
+				continue
+			}
 			// If the pods packed are the same as before, this instance type can be
 			// considered a backup option in case we get ICE
-			if len(packings) == len(prevPacking) &&
-				podsMatch(prevPacking, packings) {
+			if len(packings) == len(previousPacking) &&
+				podsMatch(previousPacking, packings) {
 				instanceTypesSelected = append(instanceTypesSelected, instance)
-			} else if len(packings) > len(prevPacking) {
+			} else if len(packings) > len(previousPacking) {
 				// If pods packed are more than compared to what we did last time,
 				// consider using this instance type
-				prevPacking = packings
+				previousPacking = packings
 				instanceTypesSelected = []*instanceType{instance}
 			}
 		}
 		// checked all instance type and found no packing option
-		if len(prevPacking) == 0 {
+		if len(previousPacking) == 0 {
 			return nil, fmt.Errorf("no instance type found for packing %d pods", len(pods))
 		}
 		// keep a track of pods we have packed
-		for _, pod := range prevPacking {
-			podsPacked[pod] = true
+		for _, pod := range previousPacking {
+			isPacked[pod] = true
 		}
 		instanceOptions := []string{}
-		for _, instanceType := range filterInstancesBasedOnCost(instanceTypesSelected) {
+		for _, instanceType := range instanceTypesSelected {
 			instanceOptions = append(instanceOptions, instanceType.name)
 		}
-		zap.S().Info("Instance Options are %v", instanceOptions)
-		packings = append(packings, &Packings{prevPacking, instanceOptions})
+		zap.S().Debugf("For %d pod(s) instance types selected are %v", len(previousPacking), instanceOptions)
+		packings = append(packings, &Packings{previousPacking, instanceOptions})
 	}
 	return packings, nil
 }
@@ -134,8 +135,8 @@ func podsMatch(first, second []*v1.Pod) bool {
 	return true
 }
 
-func calculateBestPackingOption(instanceType *instanceType, start int, podList []*v1.Pod, packed map[*v1.Pod]bool) ([]*v1.Pod, error) {
-	packing := make([]*v1.Pod, 0)
+func calculateBestPackingOption(instance *instanceType, start int, podList []*v1.Pod, packed map[*v1.Pod]bool) ([]*v1.Pod, error) {
+	packing := []*v1.Pod{}
 	for i := start; i < len(podList); i++ {
 		pod := podList[i]
 		if packed[pod] {
@@ -143,12 +144,17 @@ func calculateBestPackingOption(instanceType *instanceType, start int, podList [
 		}
 		cpu := calculateCPURequested(pod)
 		memory := calculateMemoryRequested(pod)
-		if instanceType.isAllocatable(cpu, memory) {
-			if err := instanceType.reserveCapacity(cpu, memory); err != nil {
-				return nil, fmt.Errorf("reserve capacity failed %w", err)
+		if err := instance.reserveCapacity(cpu, memory); err != nil {
+			if errors.Is(err, InsufficentCapacityErr) {
+				break
 			}
-			packing = append(packing, pod)
+			return nil, fmt.Errorf("reserve capacity failed %w", err)
 		}
+		packing = append(packing, pod)
+	}
+	instance.utilizedCapacity = v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse("0"),
+		v1.ResourceMemory: resource.MustParse("0"),
 	}
 	return packing, nil
 }
