@@ -72,6 +72,7 @@ func (p *PodPacker) getInstanceTypes(filter string) []*instanceType {
 }
 
 func (it *instanceType) isAllocatable(cpu, memory resource.Quantity) bool {
+	// TODO check pods count
 	it.utilizedCapacity.Cpu().Add(cpu)
 	it.utilizedCapacity.Memory().Add(memory)
 	return it.totalCapacity.Cpu().Cmp(*it.utilizedCapacity.Cpu()) >= 0 &&
@@ -82,6 +83,7 @@ func (it *instanceType) reserveCapacity(cpu, memory resource.Quantity) error {
 	if it.isAllocatable(cpu, memory) {
 		return InsufficentCapacityErr
 	}
+	// TODO reserve pods count
 	it.utilizedCapacity.Cpu().Add(cpu)
 	it.utilizedCapacity[v1.ResourceCPU] = *it.utilizedCapacity.Cpu()
 	it.utilizedCapacity.Memory().Add(memory)

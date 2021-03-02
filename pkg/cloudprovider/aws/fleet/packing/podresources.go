@@ -19,25 +19,25 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type pods []*v1.Pod
+type sortablePods []*v1.Pod
 
-func (pods pods) Len() int {
+func (pods sortablePods) Len() int {
 	return len(pods)
 }
 
-func (pods pods) Swap(i, j int) {
+func (pods sortablePods) Swap(i, j int) {
 	pods[i], pods[j] = pods[j], pods[i]
 }
 
-type byResourceRequested struct{ pods }
+type byResourceRequested struct{ sortablePods }
 
 func (r byResourceRequested) Less(a, b int) bool {
-	cpuPodA := calculateCPURequested(r.pods[a])
-	cpuPodB := calculateCPURequested(r.pods[b])
+	cpuPodA := calculateCPURequested(r.sortablePods[a])
+	cpuPodB := calculateCPURequested(r.sortablePods[b])
 	if cpuPodA.Equal(cpuPodB) {
 		// check for memory
-		memPodA := calculateMemoryRequested(r.pods[a])
-		memPodB := calculateMemoryRequested(r.pods[b])
+		memPodA := calculateMemoryRequested(r.sortablePods[a])
+		memPodB := calculateMemoryRequested(r.sortablePods[b])
 		return memPodA.MilliValue() < memPodB.MilliValue()
 	}
 	return cpuPodA.MilliValue() < cpuPodB.MilliValue()

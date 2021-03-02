@@ -48,14 +48,16 @@ func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
 
 // Pack returns the packings for the provided pods. Computes a set of viable
 // instance types for each packing of pods. Instance variety enables EC2 to make
-// better cost and availability decisions.
-// Pods provided are all schedulable in the same zone as tightly as possible.
+// better cost and availability decisions. Pods provided are all schedulable in
+// the same zone as tightly as possible. It follows the First Fit Decreasing bin
+// packing technique, reference-
+// https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
 	// 1. Arrange pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(byResourceRequested{pods}))
 
-	// 2. Get all available instance types with there capacity and cost
+	// 2. Get all available instance types with their capacity and cost
 	// TODO add filters
 	instanceTypes := p.getInstanceTypes("")
 	// TODO reserve (Kubelet + daemon sets) overhead for instance types
@@ -65,9 +67,9 @@ func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, erro
 
 // takes a list of pods sorted based on their resource requirements compared by CPU and memory.
 func (p *PodPacker) packSortedPods(pods []*v1.Pod, instanceTypes []*instanceType) ([]*Packings, error) {
-	// Start with the smallest instance type and the biggest pod check how
-	// many pods can we fit, go to the next bigger type and check if we can fit
-	// more pods. Compare pods packed on all and select the instance type with
+	// Start with the smallest instance type and the biggest pod check how many
+	// pods can we fit, go to the next bigger type and check if we can fit more
+	// pods. Compare pods packed on all types and select the instance type with
 	// highest pod count.
 	isPacked := map[*v1.Pod]bool{}
 	packings := []*Packings{}
@@ -128,7 +130,7 @@ func podsMatch(first, second []*v1.Pod) bool {
 		podSeen[pod] = struct{}{}
 	}
 	for _, pod := range second {
-		if _, exist := podSeen[pod]; !exist {
+		if _, ok := podSeen[pod]; !ok {
 			return false
 		}
 	}
