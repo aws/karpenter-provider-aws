@@ -61,7 +61,7 @@ var (
 		{
 			instanceType: "m5.large",
 			totalCapacity: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceCPU:    resource.MustParse("2000m"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			utilizedCapacity: v1.ResourceList{
