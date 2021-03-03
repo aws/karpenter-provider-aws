@@ -73,7 +73,7 @@ func (c *Controller) Reconcile(object controllers.Object) error {
 	}
 
 	// 2. Set TTL and label underutilized nodes
-	if err := c.annotator.MarkUnderutilized(ctx, c.filter.GetTTLableNodes(underutilized)); err != nil {
+	if err := c.annotator.MarkUnderutilized(ctx, c.filter.GetTTLableNodes(underutilized), *provisioner.Spec.TTLSeconds); err != nil {
 		return fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
 

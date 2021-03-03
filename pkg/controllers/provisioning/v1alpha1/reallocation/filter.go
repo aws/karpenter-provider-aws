@@ -47,9 +47,7 @@ func (f *Filter) GetUnderutilizedNodes(ctx context.Context, provisioner *v1alpha
 			zap.S().Debugf("Unable to get pods for node %s, %s", node.Name, err.Error())
 			continue
 		}
-
-		// Only checks if it has 0 non-daemon pods right now
-		if utilsnode.IsUnderutilized(pods) {
+		if utilsnode.IsUnderutilized(node, pods) {
 			underutilized = append(underutilized, node)
 		}
 	}

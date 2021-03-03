@@ -31,11 +31,11 @@ type Annotator struct {
 }
 
 // MarkUnderutilized takes in a list of underutilized nodes and adds TTL to them
-func (a *Annotator) MarkUnderutilized(ctx context.Context, nodes []*v1.Node) error {
+func (a *Annotator) MarkUnderutilized(ctx context.Context, nodes []*v1.Node, ttlSeconds int32) error {
 	for _, node := range nodes {
 		persisted := node.DeepCopy()
 		node.Labels[v1alpha1.ProvisionerUnderutilizedKey] = "true"
-		node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(300 * time.Second).Format(time.RFC3339)
+		node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(time.Duration(ttlSeconds) * time.Second).Format(time.RFC3339)
 		if err := a.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
@@ -52,7 +52,7 @@ func (a *Annotator) ClearUnderutilized(ctx context.Context, nodes []*v1.Node) er
 			return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 		}
 
-		if !utilsnode.IsUnderutilized(ptr.PodListToSlice(pods)) {
+		if !utilsnode.IsUnderutilized(node, ptr.PodListToSlice(pods)) {
 			persisted := node.DeepCopy()
 			delete(node.Labels, v1alpha1.ProvisionerUnderutilizedKey)
 			delete(node.Annotations, v1alpha1.ProvisionerTTLKey)

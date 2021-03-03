@@ -14,7 +14,14 @@ limitations under the License.
 
 package v1alpha1
 
-import runtime "k8s.io/apimachinery/pkg/runtime"
+import (
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+// +kubebuilder:webhook:path=/validate-provisioning-karpenter-sh-v1alpha1-provisioner,mutating=false,sideEffects=None,failurePolicy=fail,groups=provisioning.karpenter.sh,resources=provisioners,verbs=create;update,versions=v1alpha1,name=vprovisioner.kb.io
+
+var _ webhook.Validator = &Provisioner{}
 
 func (r *Provisioner) ValidateCreate() error {
 	return nil
