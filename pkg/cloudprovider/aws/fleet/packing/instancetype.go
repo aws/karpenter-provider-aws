@@ -24,9 +24,9 @@ import (
 
 // TODO get this information from node-selector
 var (
-	instanceTypesAvailable = []*instanceType{
+	instanceTypesAvailable = []*nodeCapacity{
 		{
-			name: "m5.8xlarge",
+			instanceType: "m5.8xlarge",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("32000m"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
@@ -37,7 +37,7 @@ var (
 			},
 		},
 		{
-			name: "m5.2xlarge",
+			instanceType: "m5.2xlarge",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("8000m"),
 				v1.ResourceMemory: resource.MustParse("32Gi"),
@@ -48,7 +48,7 @@ var (
 			},
 		},
 		{
-			name: "m5.xlarge",
+			instanceType: "m5.xlarge",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("4000m"),
 				v1.ResourceMemory: resource.MustParse("16Gi"),
@@ -59,7 +59,7 @@ var (
 			},
 		},
 		{
-			name: "m5.large",
+			instanceType: "m5.large",
 			totalCapacity: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("2"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
@@ -72,60 +72,60 @@ var (
 	}
 )
 
-var InsufficentCapacityErr = errors.New("insufficient capacity")
+var ErrInsufficientCapacity = errors.New("insufficient capacity")
 
-type instanceType struct {
-	name             string
-	utilizedCapacity v1.ResourceList
-	totalCapacity    v1.ResourceList
-}
-
-func (p *PodPacker) getInstanceTypes(filter string) []*instanceType {
+func (p *packingEstimator) getInstanceTypes(filter string) []*nodeCapacity {
 	instanceTypeOptions := instanceTypesAvailable
 	// sort by increasing capacity of the instance
 	sort.Sort(byCapacity{instanceTypeOptions})
 	return instanceTypeOptions
 }
 
-func (it *instanceType) isAllocatable(cpu, memory resource.Quantity) bool {
-	// TODO check pods count
-	return it.totalCapacity.Cpu().Cmp(cpu) >= 0 &&
-		it.totalCapacity.Memory().Cmp(memory) >= 0
+type nodeCapacity struct {
+	instanceType     string
+	utilizedCapacity v1.ResourceList
+	totalCapacity    v1.ResourceList
 }
 
-func (it *instanceType) reserveCapacity(cpu, memory resource.Quantity) error {
+func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
+	// TODO check pods count
+	return nc.totalCapacity.Cpu().Cmp(cpu) >= 0 &&
+		nc.totalCapacity.Memory().Cmp(memory) >= 0
+}
+
+func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) error {
 
 	// TODO reserve pods count
-	targetCPU := it.utilizedCapacity.Cpu()
+	targetCPU := nc.utilizedCapacity.Cpu()
 	targetCPU.Add(cpu)
-	targetMemory := it.utilizedCapacity.Memory()
+	targetMemory := nc.utilizedCapacity.Memory()
 	targetMemory.Add(memory)
-	if !it.isAllocatable(*targetCPU, *targetMemory) {
-		return InsufficentCapacityErr
+	if !nc.isAllocatable(*targetCPU, *targetMemory) {
+		return ErrInsufficientCapacity
 	}
-	it.utilizedCapacity[v1.ResourceCPU] = *targetCPU
-	it.utilizedCapacity[v1.ResourceMemory] = *targetMemory
+	nc.utilizedCapacity[v1.ResourceCPU] = *targetCPU
+	nc.utilizedCapacity[v1.ResourceMemory] = *targetMemory
 	return nil
 }
 
-type instanceTypes []*instanceType
+type nodeCapacities []*nodeCapacity
 
-func (t instanceTypes) Len() int {
+func (t nodeCapacities) Len() int {
 	return len(t)
 }
 
-func (t instanceTypes) Swap(i, j int) {
+func (t nodeCapacities) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
-type byCapacity struct{ instanceTypes }
+type byCapacity struct{ nodeCapacities }
 
 func (c byCapacity) Less(i, j int) bool {
-	if c.instanceTypes[i].totalCapacity.Cpu().MilliValue() ==
-		c.instanceTypes[j].totalCapacity.Cpu().MilliValue() {
-		return c.instanceTypes[i].totalCapacity.Memory().MilliValue() <
-			c.instanceTypes[j].totalCapacity.Memory().MilliValue()
+	if c.nodeCapacities[i].totalCapacity.Cpu().MilliValue() ==
+		c.nodeCapacities[j].totalCapacity.Cpu().MilliValue() {
+		return c.nodeCapacities[i].totalCapacity.Memory().MilliValue() <
+			c.nodeCapacities[j].totalCapacity.Memory().MilliValue()
 	}
-	return c.instanceTypes[i].totalCapacity.Cpu().MilliValue() <
-		c.instanceTypes[j].totalCapacity.Cpu().MilliValue()
+	return c.nodeCapacities[i].totalCapacity.Cpu().MilliValue() <
+		c.nodeCapacities[j].totalCapacity.Cpu().MilliValue()
 }
