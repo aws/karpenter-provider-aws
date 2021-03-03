@@ -24,7 +24,7 @@ import (
 
 // TODO get this information from node-selector
 var (
-	instanceTypesAvailable = []*nodeCapacity{
+	nodePools = []*nodeCapacity{
 		{
 			instanceType: "m5.8xlarge",
 			totalCapacity: v1.ResourceList{
@@ -75,10 +75,9 @@ var (
 var ErrInsufficientCapacity = errors.New("insufficient capacity")
 
 func (p *packingEstimator) getInstanceTypes(filter string) []*nodeCapacity {
-	instanceTypeOptions := instanceTypesAvailable
 	// sort by increasing capacity of the instance
-	sort.Sort(byCapacity{instanceTypeOptions})
-	return instanceTypeOptions
+	sort.Sort(byCapacity{nodePools})
+	return nodePools
 }
 
 type nodeCapacity struct {

@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type PodPacker struct {
+type podPacker struct {
 	ec2 ec2iface.EC2API
 }
 
@@ -43,8 +43,8 @@ type Packings struct {
 }
 
 // NewPacker returns a Packer implementation
-func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
-	return &PodPacker{ec2: ec2}
+func NewPacker(ec2 ec2iface.EC2API) Packer {
+	return &podPacker{ec2: ec2}
 }
 
 // Pack returns the packings for the provided pods. Computes a set of viable
@@ -53,7 +53,7 @@ func NewPacker(ec2 ec2iface.EC2API) *PodPacker {
 // the same zone as tightly as possible. It follows the First Fit Decreasing bin
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
+func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, error) {
 	// 1. Arrange pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(byResourceRequested{pods}))
@@ -61,7 +61,7 @@ func (p *PodPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packings, erro
 }
 
 // takes a list of pods sorted based on their resource requirements compared by CPU and memory.
-func (p *PodPacker) packSortedPods(pods []*v1.Pod) ([]*Packings, error) {
+func (p *podPacker) packSortedPods(pods []*v1.Pod) ([]*Packings, error) {
 	// start with the smallest instance type and the biggest pod check how many
 	// pods can we fit, go to the next bigger type and check if we can fit more
 	// pods. Compare pods packed on all types and select the instance type with
@@ -113,8 +113,7 @@ func (p *packingEstimator) calculatePackingForAllTypes(pods []*v1.Pod) ([]*v1.Po
 		}
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
-		if len(packings) == len(previousPacking) &&
-			podsMatch(previousPacking, packings) {
+		if podsMatch(previousPacking, packings) {
 			instanceTypesSelected = append(instanceTypesSelected, instanceOption)
 		} else if len(packings) > len(previousPacking) {
 			// If pods packed are more than compared to what we got in last
