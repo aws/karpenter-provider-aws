@@ -41,6 +41,9 @@ type ProvisionerSpec struct {
 	// launched by the Provisioner. If unspecified, supports all types. Cannot
 	// be specified if label "node.kubernetes.io/instance-type" is specified.
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
+	// TTLSeconds determines how long to wait before attempting to terminate a node.
+	// +optional
+	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
 }
 
 var (
@@ -55,8 +58,8 @@ var (
 	ProvisionerTTLKey            = SchemeGroupVersion.Group + "/ttl"
 
 	// Use ProvisionerSpec instead
-	ZoneLabelKey                 = "topology.kubernetes.io/zone"
-	InstanceTypeLabelKey         = "node.kubernetes.io/instance-type"
+	ZoneLabelKey         = "topology.kubernetes.io/zone"
+	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
 )
 
 // ClusterSpec configures the cluster that the provisioner operates against. If

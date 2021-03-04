@@ -51,6 +51,7 @@ func FailedToSchedule(pod *v1.Pod) bool {
 func GetResources(pods ...*v1.PodSpec) v1.ResourceList {
 	cpuTotal := &resource.Quantity{}
 	memoryTotal := &resource.Quantity{}
+	podTotal := &resource.Quantity{}
 
 	for _, pod := range pods {
 		for _, container := range pod.Containers {
@@ -61,11 +62,12 @@ func GetResources(pods ...*v1.PodSpec) v1.ResourceList {
 				memoryTotal.Add(*memory)
 			}
 		}
+		podTotal.Add(*resource.NewQuantity(1, resource.BinarySI))
 	}
 	return v1.ResourceList{
 		v1.ResourceCPU:    *cpuTotal,
 		v1.ResourceMemory: *memoryTotal,
-		v1.ResourcePods:   *resource.NewQuantity(int64(len(pods)), resource.BinarySI),
+		v1.ResourcePods:   *podTotal,
 	}
 }
 

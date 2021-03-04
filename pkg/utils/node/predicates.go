@@ -42,13 +42,12 @@ func IsPastTTL(node *v1.Node) bool {
 	return time.Now().After(ttlTime)
 }
 
-// TODO: implement underutilized function (some generalized predicate)
-func IsUnderutilized(pods []*v1.Pod) bool {
-	counter := 0
+// IsUnderutilized returns if the node has 0 non-daemosnset pods
+func IsUnderutilized(node *v1.Node, pods []*v1.Pod) bool {
 	for _, pod := range pods {
 		if !scheduling.IsOwnedByDaemonSet(pod) {
-			counter += 1
+			return false
 		}
 	}
-	return counter == 0
+	return true
 }

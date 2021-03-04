@@ -14,5 +14,17 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+// +kubebuilder:webhook:path=/mutate-provisioning-karpenter-sh-v1alpha1-provisioner,mutating=true,sideEffects=None,failurePolicy=fail,groups=provisioning.karpenter.sh,resources=provisioners,verbs=create;update,versions=v1alpha1,name=mprovisioner.kb.io
+
+var _ webhook.Defaulter = &Provisioner{}
+
 func (r *Provisioner) Default() {
+	if r.Spec.TTLSeconds == nil {
+		r.Spec.TTLSeconds = ptr.Int32(300)
+	}
 }
