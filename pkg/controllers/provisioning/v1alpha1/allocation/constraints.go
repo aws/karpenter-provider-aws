@@ -153,11 +153,12 @@ func (c *Constraints) getNodeOverhead(ctx context.Context, pod *v1.Pod, node *v1
 	}
 
 	// 3. Compute overhead
-	overhead := v1.ResourceList{v1.ResourceCPU: resource.Quantity{}, v1.ResourceMemory: resource.Quantity{}}
+	cpuTotal := &resource.Quantity{}
+	memoryTotal := &resource.Quantity{}
 	for _, daemonSet := range daemonSets {
 		resources := scheduling.GetResources(&daemonSet.Spec.Template.Spec)
-		overhead.Cpu().Add(*resources.Cpu())
-		overhead.Memory().Add(*resources.Memory())
+		cpuTotal.Add(*resources.Cpu())
+		memoryTotal.Add(*resources.Memory())
 	}
-	return overhead, nil
+	return v1.ResourceList{v1.ResourceCPU: *cpuTotal, v1.ResourceMemory: *memoryTotal}, nil
 }

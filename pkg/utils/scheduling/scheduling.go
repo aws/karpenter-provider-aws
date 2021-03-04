@@ -49,16 +49,21 @@ func FailedToSchedule(pod *v1.Pod) bool {
 
 // GetResources returns the total resources of the pod.
 func GetResources(pod *v1.PodSpec) v1.ResourceList {
-	resources := v1.ResourceList{v1.ResourceCPU: resource.Quantity{}, v1.ResourceMemory: resource.Quantity{}}
+	cpuTotal := &resource.Quantity{}
+	memoryTotal := &resource.Quantity{}
+
 	for _, container := range pod.Containers {
 		if cpu := container.Resources.Requests.Cpu(); cpu != nil {
-			resources.Cpu().Add(*cpu)
+			cpuTotal.Add(*cpu)
 		}
 		if memory := container.Resources.Requests.Memory(); memory != nil {
-			resources.Memory().Add(*memory)
+			memoryTotal.Add(*memory)
 		}
 	}
-	return resources
+	return v1.ResourceList{
+		v1.ResourceCPU:    *cpuTotal,
+		v1.ResourceMemory: *memoryTotal,
+	}
 }
 
 // IsSchedulable returns true if the pod can schedule to the node
