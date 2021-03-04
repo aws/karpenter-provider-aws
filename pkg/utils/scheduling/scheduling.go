@@ -47,22 +47,25 @@ func FailedToSchedule(pod *v1.Pod) bool {
 	return false
 }
 
-// GetResources returns the total resources of the pod.
-func GetResources(pod *v1.PodSpec) v1.ResourceList {
+// GetResources returns the total resources of a variadic list of pods.
+func GetResources(pods ...*v1.PodSpec) v1.ResourceList {
 	cpuTotal := &resource.Quantity{}
 	memoryTotal := &resource.Quantity{}
 
-	for _, container := range pod.Containers {
-		if cpu := container.Resources.Requests.Cpu(); cpu != nil {
-			cpuTotal.Add(*cpu)
-		}
-		if memory := container.Resources.Requests.Memory(); memory != nil {
-			memoryTotal.Add(*memory)
+	for _, pod := range pods {
+		for _, container := range pod.Containers {
+			if cpu := container.Resources.Requests.Cpu(); cpu != nil {
+				cpuTotal.Add(*cpu)
+			}
+			if memory := container.Resources.Requests.Memory(); memory != nil {
+				memoryTotal.Add(*memory)
+			}
 		}
 	}
 	return v1.ResourceList{
 		v1.ResourceCPU:    *cpuTotal,
 		v1.ResourceMemory: *memoryTotal,
+		v1.ResourcePods:   *resource.NewQuantity(int64(len(pods)), resource.BinarySI),
 	}
 }
 
