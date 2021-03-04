@@ -6,12 +6,10 @@ The easiest way is to provision an instance per pending pod, however, its not ve
 
 At a very high level, filter and group the pending pods into these smaller groups which can be scheduled together in one or more nodes in the same zone. Once these pods are grouped, following steps are taken to bin pack each group individually -
 
-- Sort the pods in the group based on non-increasing order of the resources requested.
-- Filter all the instance types available, given the cloud provider and node contraints (such as - zones, architecture).
-- Sort these instance based on increasing order of their capacity (CPU and memory).
-- Loop through the pods, starting with the biggest pod and selecting the smallest instance type.
-    - If the pod doesn't fit this instance type, skip and select next bigger instance type.
-    - If the pod fits this instance type, check how many more pods we can fit on this instance type.
-    - Compare all the instance types and select the one with max pods fit.
-- Select the next biggest pod which is not packed in previous iterations and follow the same procedure starting with smallest instance type.
-
+1. Sort the pods in the group based on non-increasing order of the resources requested.
+2. Filter all the instance types available, given the cloud provider and node contraints (such as - zones, architecture).
+3. Start with the largest pod and an instance tpye.
+    - If the pod doesn't fit this instance type, skip this instance type and select next bigger instance type.
+    - If the pod fits this instance type, check all the remaining pods from largest to smallest how many can fit on this given instance type. 
+    - Compare all the instance types starting with the largest pod in step 3 and select the instance type with max pods fit.
+4. Loop through the remaining pods, any pod which is not packed in previous iterations, follow the same procedure in step 3.

@@ -140,9 +140,16 @@ func (p *packingEstimator) calculatePackingForInstance(instance *nodeCapacity, p
 		memory := calculateMemoryRequested(pod)
 		if err := instance.reserveCapacity(cpu, memory); err != nil {
 			if errors.Is(err, ErrInsufficientCapacity) {
-				// If we can't pack this pod, we can't do any better return the
-				// packings we have already calculated
-				break
+				// First we need to find the instance on which we can fit the
+				// largest pods, it can't fit here, return and try with a next
+				// bigger instance type
+				if len(packing) == 0 {
+					return packing, nil
+				}
+				// We have already packed a bigger pod on this instance type, if
+				// we can't pack this pod, check the next pod it might be
+				// smaller in size and help fill the gaps on the instance
+				continue
 			}
 			return nil, fmt.Errorf("reserve capacity failed %w", err)
 		}

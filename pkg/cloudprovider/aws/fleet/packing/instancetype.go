@@ -16,7 +16,6 @@ package packing
 
 import (
 	"errors"
-	"sort"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -75,8 +74,6 @@ var (
 var ErrInsufficientCapacity = errors.New("insufficient capacity")
 
 func (p *packingEstimator) getInstanceTypes(filter string) []*nodeCapacity {
-	// sort by increasing capacity of the instance
-	sort.Sort(byCapacity{nodePools})
 	return nodePools
 }
 
@@ -105,26 +102,4 @@ func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) error {
 	nc.utilizedCapacity[v1.ResourceCPU] = *targetCPU
 	nc.utilizedCapacity[v1.ResourceMemory] = *targetMemory
 	return nil
-}
-
-type nodeCapacities []*nodeCapacity
-
-func (t nodeCapacities) Len() int {
-	return len(t)
-}
-
-func (t nodeCapacities) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-type byCapacity struct{ nodeCapacities }
-
-func (c byCapacity) Less(i, j int) bool {
-	if c.nodeCapacities[i].totalCapacity.Cpu().MilliValue() ==
-		c.nodeCapacities[j].totalCapacity.Cpu().MilliValue() {
-		return c.nodeCapacities[i].totalCapacity.Memory().MilliValue() <
-			c.nodeCapacities[j].totalCapacity.Memory().MilliValue()
-	}
-	return c.nodeCapacities[i].totalCapacity.Cpu().MilliValue() <
-		c.nodeCapacities[j].totalCapacity.Cpu().MilliValue()
 }
