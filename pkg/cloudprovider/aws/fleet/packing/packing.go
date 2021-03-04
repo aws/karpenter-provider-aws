@@ -166,12 +166,15 @@ func podsMatch(first, second []*v1.Pod) bool {
 	if len(first) != len(second) {
 		return false
 	}
-	podSeen := map[*v1.Pod]struct{}{}
+	podkey := func(pod *v1.Pod) string {
+		return pod.Namespace + "/" + pod.Name
+	}
+	podSeen := map[string]struct{}{}
 	for _, pod := range first {
-		podSeen[pod] = struct{}{}
+		podSeen[podkey(pod)] = struct{}{}
 	}
 	for _, pod := range second {
-		if _, ok := podSeen[pod]; !ok {
+		if _, ok := podSeen[podkey(pod)]; !ok {
 			return false
 		}
 	}

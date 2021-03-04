@@ -90,7 +90,6 @@ func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
 }
 
 func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) error {
-
 	// TODO reserve pods count
 	targetCPU := nc.utilizedCapacity.Cpu()
 	targetCPU.Add(cpu)
