@@ -31,8 +31,8 @@ var (
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
 			utilizedCapacity: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("0"),
-				v1.ResourceMemory: resource.MustParse("0"),
+				v1.ResourceCPU:    resource.Quantity{},
+				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
@@ -42,8 +42,8 @@ var (
 				v1.ResourceMemory: resource.MustParse("32Gi"),
 			},
 			utilizedCapacity: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("0"),
-				v1.ResourceMemory: resource.MustParse("0"),
+				v1.ResourceCPU:    resource.Quantity{},
+				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
@@ -53,8 +53,8 @@ var (
 				v1.ResourceMemory: resource.MustParse("16Gi"),
 			},
 			utilizedCapacity: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("0"),
-				v1.ResourceMemory: resource.MustParse("0"),
+				v1.ResourceCPU:    resource.Quantity{},
+				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
@@ -64,8 +64,8 @@ var (
 				v1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			utilizedCapacity: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("0"),
-				v1.ResourceMemory: resource.MustParse("0"),
+				v1.ResourceCPU:    resource.Quantity{},
+				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 	}

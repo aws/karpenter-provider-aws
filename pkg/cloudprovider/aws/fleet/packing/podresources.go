@@ -15,6 +15,7 @@ limitations under the License.
 package packing
 
 import (
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -32,19 +33,21 @@ func (pods sortablePods) Swap(i, j int) {
 type byResourceRequested struct{ sortablePods }
 
 func (r byResourceRequested) Less(a, b int) bool {
-	cpuPodA := calculateCPURequested(r.sortablePods[a])
-	cpuPodB := calculateCPURequested(r.sortablePods[b])
+	resourcesPodA := scheduling.GetResources(&r.sortablePods[a].Spec)
+	resourcesPodB := scheduling.GetResources(&r.sortablePods[b].Spec)
+	cpuPodA := resourcesPodA[v1.ResourceCPU]
+	cpuPodB := resourcesPodB[v1.ResourceCPU]
 	if cpuPodA.Equal(cpuPodB) {
 		// check for memory
-		memPodA := calculateMemoryRequested(r.sortablePods[a])
-		memPodB := calculateMemoryRequested(r.sortablePods[b])
-		return memPodA.MilliValue() < memPodB.MilliValue()
+		memPodA := resourcesPodA[v1.ResourceMemory]
+		memPodB := resourcesPodB[v1.ResourceMemory]
+		return memPodA.Cmp(memPodB) == -1
 	}
-	return cpuPodA.MilliValue() < cpuPodB.MilliValue()
+	return cpuPodA.Cmp(cpuPodB) == -1
 }
 
 func calculateCPURequested(pod *v1.Pod) resource.Quantity {
-	cpu := resource.MustParse("0")
+	cpu := resource.Quantity{}
 	for _, container := range pod.Spec.Containers {
 		cpu.Add(*container.Resources.Requests.Cpu())
 	}
@@ -52,7 +55,7 @@ func calculateCPURequested(pod *v1.Pod) resource.Quantity {
 }
 
 func calculateMemoryRequested(pod *v1.Pod) resource.Quantity {
-	memory := resource.MustParse("0")
+	memory := resource.Quantity{}
 	for _, container := range pod.Spec.Containers {
 		memory.Add(*container.Resources.Requests.Memory())
 	}
