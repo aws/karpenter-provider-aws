@@ -1,4 +1,5 @@
 # Bin packing
+> Note: Not a final design this is still in POC stage and some things might change.
 
 Karpenter provisions instances based on the number of pending pods and their resource requirements (CPU and Memory). These requirements vary and are configured by the pod owners. Karpenter needs to make sure that there is sufficient capacity among the provisioned instances for these pods to be scheduled.
 

@@ -19,9 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// TODO get this information from node-selector
+// TODO get this information from node-instance-selector
 var (
-	nodePools = []*nodeCapacity{
+	capacityTypes = []*nodeCapacity{
 		{
 			instanceType: "m5.8xlarge",
 			totalCapacity: v1.ResourceList{
@@ -81,12 +81,12 @@ func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
 		nc.totalCapacity.Memory().Cmp(memory) >= 0
 }
 
-func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) bool {
+func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
 	// TODO reserve pods count
 	targetCPU := nc.utilizedCapacity.Cpu()
-	targetCPU.Add(cpu)
+	targetCPU.Add(*resources.Cpu())
 	targetMemory := nc.utilizedCapacity.Memory()
-	targetMemory.Add(memory)
+	targetMemory.Add(*resources.Memory())
 	if !nc.isAllocatable(*targetCPU, *targetMemory) {
 		return false
 	}

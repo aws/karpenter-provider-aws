@@ -20,6 +20,8 @@ import (
 	"sort"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/utils/binpacking"
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -63,7 +65,7 @@ func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error
 func (p *podPacker) packPods(pods []*v1.Pod) ([]*Packing, error) {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
-	sort.Sort(sort.Reverse(byResourceRequested{pods}))
+	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
 	estimator := newPackingEstimator()
 	packings := []*Packing{}
 	// start with the biggest pod check max how many pods can we fit with this pod
@@ -71,7 +73,7 @@ func (p *podPacker) packPods(pods []*v1.Pod) ([]*Packing, error) {
 		if estimator.isPodPacked(pod) {
 			continue
 		}
-		packing := estimator.calculatePackingForPod(start, pods)
+		packing := estimator.calculatePackingForPod(pods[start:])
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 || len(packing.InstanceTypes) == 0 {
 			return nil, fmt.Errorf("no instance type found for packing %d pods", len(pods))
@@ -104,24 +106,24 @@ func (p *packingEstimator) setPodsPacked(pods ...*v1.Pod) {
 
 // TODO filter instance types based on node contraints like availability zones etc.
 func (p *packingEstimator) getNodeCapacities(filter ...string) []*nodeCapacity {
-	return nodePools
+	return capacityTypes
 }
 
-// calculatePackingForPod will calculate the packing for pods starting from
-// start index, it returns the max pods that can be packed and a list of
-// instance types with this pod.
-func (p *packingEstimator) calculatePackingForPod(start int, pods []*v1.Pod) *Packing {
+// calculatePackingForPod will calculate the packing for pod[0] and maximum number
+// of pods we can fit with it, returns the pods that can be packed
+// and a list of instance types.
+func (p *packingEstimator) calculatePackingForPod(pods []*v1.Pod) *Packing {
 	podsPacked := []*v1.Pod{}
 	instanceTypesSelected := []*nodeCapacity{}
 	// Get all available instance types for every instance
-	// try to fit as many pods as possible with pods[start] pod.
+	// try to fit as many pods as possible with pods[0].
 
 	// TODO add filters
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
 	// TODO count number of pods created on an instance type
 	for _, instanceOption := range p.getNodeCapacities("") {
 		// check how many pods we can fit on this instance type
-		packings, err := p.packingForInstance(instanceOption, start, pods)
+		packings, err := p.packingForInstance(instanceOption, pods)
 		if err != nil {
 			zap.S().Errorf("Failed to calculate packing for instance type %s, err, %w", instanceOption.instanceType, err)
 			continue
@@ -147,18 +149,14 @@ func (p *packingEstimator) calculatePackingForPod(start int, pods []*v1.Pod) *Pa
 	return &Packing{Pods: podsPacked, InstanceTypes: instanceTypeNames}
 }
 
-func (p *packingEstimator) packingForInstance(instance *nodeCapacity, start int, pods []*v1.Pod) ([]*v1.Pod, error) {
+func (p *packingEstimator) packingForInstance(capacity *nodeCapacity, pods []*v1.Pod) ([]*v1.Pod, error) {
 	packing := []*v1.Pod{}
 	// start with the largest pod based on resources requested
-	// pods before the start index have been packed
-	for i := start; i < len(pods); i++ {
-		pod := pods[i]
+	for _, pod := range pods {
 		if p.isPodPacked(pod) {
 			continue
 		}
-		cpu := cpuFor(pod)
-		memory := memoryFor(pod)
-		if ok := instance.reserveCapacity(*cpu, *memory); !ok {
+		if ok := capacity.reserve(scheduling.GetResources(&pod.Spec)); !ok {
 			// First we need to find the instance on which we can fit the
 			// largest pods, it can't fit here, return and try with a next
 			// bigger instance type
@@ -172,7 +170,7 @@ func (p *packingEstimator) packingForInstance(instance *nodeCapacity, start int,
 		}
 		packing = append(packing, pod)
 	}
-	instance.utilizedCapacity = v1.ResourceList{
+	capacity.utilizedCapacity = v1.ResourceList{
 		v1.ResourceCPU:    resource.Quantity{},
 		v1.ResourceMemory: resource.Quantity{},
 	}
