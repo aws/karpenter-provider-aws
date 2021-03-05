@@ -26,11 +26,13 @@ import (
 )
 
 type podPacker struct {
+	// TODO use this ec2 API to get the instance types
 	ec2 ec2iface.EC2API
 }
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
+	// TODO use ctx when calling ec2 API
 	Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error)
 }
 
@@ -53,13 +55,14 @@ func NewPacker(ec2 ec2iface.EC2API) Packer {
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error) {
-	// 1. Arrange pods in decreasing order by the amount of CPU requested, if
-	// CPU requested is equal compare memory requested.
+	// TODO use ctx when calling ec2 API
 	return p.packPods(pods)
 }
 
 // takes a list of pods, sorts them based on their resource requirements compared by CPU and memory.
 func (p *podPacker) packPods(pods []*v1.Pod) ([]*Packing, error) {
+	// Sort pods in decreasing order by the amount of CPU requested, if
+	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(byResourceRequested{pods}))
 	estimator := newPackingEstimator()
 	packings := []*Packing{}
