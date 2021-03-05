@@ -15,8 +15,6 @@ limitations under the License.
 package packing
 
 import (
-	"errors"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -71,12 +69,6 @@ var (
 	}
 )
 
-var ErrInsufficientCapacity = errors.New("insufficient capacity")
-
-func (p *packingEstimator) getInstanceTypes(filter string) []*nodeCapacity {
-	return nodePools
-}
-
 type nodeCapacity struct {
 	instanceType     string
 	utilizedCapacity v1.ResourceList
@@ -89,16 +81,16 @@ func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
 		nc.totalCapacity.Memory().Cmp(memory) >= 0
 }
 
-func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) error {
+func (nc *nodeCapacity) reserveCapacity(cpu, memory resource.Quantity) bool {
 	// TODO reserve pods count
 	targetCPU := nc.utilizedCapacity.Cpu()
 	targetCPU.Add(cpu)
 	targetMemory := nc.utilizedCapacity.Memory()
 	targetMemory.Add(memory)
 	if !nc.isAllocatable(*targetCPU, *targetMemory) {
-		return ErrInsufficientCapacity
+		return false
 	}
 	nc.utilizedCapacity[v1.ResourceCPU] = *targetCPU
 	nc.utilizedCapacity[v1.ResourceMemory] = *targetMemory
-	return nil
+	return true
 }

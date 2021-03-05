@@ -33,31 +33,23 @@ func (pods sortablePods) Swap(i, j int) {
 type byResourceRequested struct{ sortablePods }
 
 func (r byResourceRequested) Less(a, b int) bool {
-	resourcesPodA := scheduling.GetResources(&r.sortablePods[a].Spec)
-	resourcesPodB := scheduling.GetResources(&r.sortablePods[b].Spec)
-	cpuPodA := resourcesPodA[v1.ResourceCPU]
-	cpuPodB := resourcesPodB[v1.ResourceCPU]
-	if cpuPodA.Equal(cpuPodB) {
+	cpuPodA := cpuFor(r.sortablePods[a])
+	cpuPodB := cpuFor(r.sortablePods[b])
+	if cpuPodA.Equal(*cpuPodB) {
 		// check for memory
-		memPodA := resourcesPodA[v1.ResourceMemory]
-		memPodB := resourcesPodB[v1.ResourceMemory]
-		return memPodA.Cmp(memPodB) == -1
+		memPodA := memoryFor(r.sortablePods[a])
+		memPodB := memoryFor(r.sortablePods[b])
+		return memPodA.Cmp(*memPodB) == -1
 	}
-	return cpuPodA.Cmp(cpuPodB) == -1
+	return cpuPodA.Cmp(*cpuPodB) == -1
 }
 
-func calculateCPURequested(pod *v1.Pod) resource.Quantity {
-	cpu := resource.Quantity{}
-	for _, container := range pod.Spec.Containers {
-		cpu.Add(*container.Resources.Requests.Cpu())
-	}
-	return cpu
+func cpuFor(pod *v1.Pod) *resource.Quantity {
+	resources := scheduling.GetResources(&pod.Spec)
+	return resources.Cpu()
 }
 
-func calculateMemoryRequested(pod *v1.Pod) resource.Quantity {
-	memory := resource.Quantity{}
-	for _, container := range pod.Spec.Containers {
-		memory.Add(*container.Resources.Requests.Memory())
-	}
-	return memory
+func memoryFor(pod *v1.Pod) *resource.Quantity {
+	resources := scheduling.GetResources(&pod.Spec)
+	return resources.Memory()
 }
