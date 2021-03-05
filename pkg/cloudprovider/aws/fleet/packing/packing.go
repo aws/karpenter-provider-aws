@@ -105,14 +105,13 @@ func (p *packingEstimator) getNodeCapacities(filter ...string) []*nodeCapacity {
 }
 
 // calculatePackingForPod will calculate the packing for pods starting from
-// start index, it returns the max pods that can be packed on a set of
+// start index, it returns the max pods that can be packed and a list of
 // instance types with this pod.
 func (p *packingEstimator) calculatePackingForPod(start int, pods []*v1.Pod) *Packing {
 	podsPacked := []*v1.Pod{}
 	instanceTypesSelected := []*nodeCapacity{}
-	// Get all available instance types reverse sorted by their capacity, for every instance
-	// try to fit as many pods as possible. return the list of instances with
-	// highest pods packed and the pods.
+	// Get all available instance types for every instance
+	// try to fit as many pods as possible with pods[start] pod.
 
 	// TODO add filters
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
