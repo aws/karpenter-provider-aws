@@ -1,8 +1,8 @@
 # Bin packing
 
-Karpenter provisions instances based on the number of pending pods and their resource requirements (CPU and Memory). These requirements vary and is configured by the pod owners. Karpenter needs to make sure that there is sufficient capacity among the provisioned instances for these pods to be scheduled.
+Karpenter provisions instances based on the number of pending pods and their resource requirements (CPU and Memory). These requirements vary and are configured by the pod owners. Karpenter needs to make sure that there is sufficient capacity among the provisioned instances for these pods to be scheduled.
 
-The easiest way is to provision an instance per pending pod, however, its not very efficient and can incur infrastructure cost for the user. In order to be able to schedule pods efficiently and be cost effective, Karpenter packs these pods on to the available instance types with the given set of constraints. Karpenter follows the [First Fit Decreasing (FFD)](https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)) algorithm for bin packing the pods. FFD technique chosen is less complex and relatively faster considering the number of pods and instance types available are not too high.
+The easiest way is to provision an instance per pending pod, however, this is not very efficient and can incur infrastructure costs for the user. In order to be able to schedule pods efficiently and be cost effective, Karpenter packs these pods on to the available instance types with the given set of constraints. Karpenter follows the [First Fit Decreasing (FFD)](https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)) algorithm for bin packing the pods. The FFD technique chosen is less complex and relatively faster considering the number of pods and instance types available are not too high.
 
 At a very high level, filter and group the pending pods into these smaller groups which can be scheduled together in one or more nodes in the same zone. Once these pods are grouped, following steps are taken to bin pack each group individually -
 
