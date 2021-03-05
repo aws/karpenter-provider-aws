@@ -67,27 +67,11 @@ type Capacity interface {
 // Constraints for an efficient binpacking solution of pods onto nodes, given
 // overhead and node constraints.
 type Constraints struct {
-	NodeConstraints
+	provisioningv1alpha1.Constraints
 	// Pods is a list of equivalently schedulable pods to be binpacked.
 	Pods []*v1.Pod
 	// Overhead resources per node from daemonsets.
 	Overhead v1.ResourceList
-}
-
-// NodeConstraints constrain each node within the binpacking solution.
-type NodeConstraints struct {
-	// Labels applied to nodes, may cause cloudprovider specific behavior.
-	Labels map[string]string
-	// Taints applied to nodes, may cause cloudprovider specific behavior.
-	Taints []v1.Taint
-	// Zones optionally constrains the zone where the node is launched.
-	Zones []string
-	// InstanceTypes optionally constraints the instance type for the node.
-	InstanceTypes []string
-	// OperatingSystem constrains the underlying operating system.
-	OperatingSystem OperatingSystem
-	// Architecture constrains the underlying architecture.
-	Architecture Architecture
 }
 
 // Packing is a solution to packing pods onto nodes given constraints.
@@ -95,18 +79,6 @@ type Packing struct {
 	Node *v1.Node
 	Pods []*v1.Pod
 }
-
-type Architecture string
-
-const (
-	ArchitectureAmd64 Architecture = "amd64"
-)
-
-type OperatingSystem string
-
-const (
-	OperatingSystemLinux OperatingSystem = "linux"
-)
 
 // Options are injected into cloud providers' factories
 type Options struct {

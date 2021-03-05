@@ -20,7 +20,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	f "github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,7 +40,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 	// Groups uniqueness is tracked by hash(NodeConstraints)
 	groups := map[uint64]*cloudprovider.Constraints{}
 	for _, pod := range pods {
-		constraints := c.getConstraints(provisioner, pod)
+		constraints := provisioner.ConstraintsWithOverrides(pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
@@ -50,7 +49,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 		// Create new group if one doesn't exist
 		if _, ok := groups[key]; !ok {
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
-			overhead, err := c.getNodeOverhead(ctx, pod, &v1.Node{
+			overhead, err := c.getNodeOverhead(ctx, &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{Labels: constraints.Labels},
 				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Taints},
 			})
@@ -58,9 +57,9 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 				return nil, fmt.Errorf("computing node overhead, %w", err)
 			}
 			groups[key] = &cloudprovider.Constraints{
-				NodeConstraints: constraints,
-				Pods:            []*v1.Pod{},
-				Overhead:        overhead,
+				Constraints: *constraints,
+				Pods:        []*v1.Pod{},
+				Overhead:    overhead,
 			}
 		}
 		// Append pod to group, guaranteed to exist
@@ -74,70 +73,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 	return result, nil
 }
 
-func (c *Constraints) getConstraints(provisioner *v1alpha1.Provisioner, pod *v1.Pod) cloudprovider.NodeConstraints {
-	return cloudprovider.NodeConstraints{
-		Taints:          provisioner.Spec.Taints,
-		Zones:           c.getZones(provisioner, pod),
-		InstanceTypes:   c.getInstanceTypes(provisioner, pod),
-		Labels:          c.getLabels(provisioner, pod),
-		Architecture:    c.getArchitecture(pod),
-		OperatingSystem: c.getOperatingSystem(pod),
-	}
-}
-
-func (c *Constraints) getLabels(provisioner *v1alpha1.Provisioner, pod *v1.Pod) map[string]string {
-	// These keys are guaranteed to not collide due to validation logic
-	return f.UnionStringMaps(
-		provisioner.Spec.Labels,
-		pod.Spec.NodeSelector,
-		map[string]string{
-			v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-			v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-		},
-	)
-}
-
-func (c *Constraints) getZones(provisioner *v1alpha1.Provisioner, pod *v1.Pod) []string {
-	// Pod may override zone
-	if zone, ok := pod.Spec.NodeSelector[v1alpha1.ZoneLabelKey]; ok {
-		return []string{zone}
-	}
-	// Default to provisioner constraints
-	if len(provisioner.Spec.Zones) != 0 {
-		return provisioner.Spec.Zones
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func (c *Constraints) getInstanceTypes(provisioner *v1alpha1.Provisioner, pod *v1.Pod) []string {
-	// pod may override instance type
-	if instanceType, ok := pod.Spec.NodeSelector[v1alpha1.InstanceTypeLabelKey]; ok {
-		return []string{instanceType}
-	}
-	// Default to provisioner constraints
-	if len(provisioner.Spec.InstanceTypes) != 0 {
-		return provisioner.Spec.InstanceTypes
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func (c *Constraints) getArchitecture(pod *v1.Pod) cloudprovider.Architecture {
-	if architecture, ok := pod.Spec.NodeSelector[v1alpha1.ArchitectureLabelKey]; ok {
-		return cloudprovider.Architecture(architecture)
-	}
-	return cloudprovider.ArchitectureAmd64
-}
-
-func (c *Constraints) getOperatingSystem(pod *v1.Pod) cloudprovider.OperatingSystem {
-	if operatingSystem, ok := pod.Spec.NodeSelector[v1alpha1.OperatingSystemLabelKey]; ok {
-		return cloudprovider.OperatingSystem(operatingSystem)
-	}
-	return cloudprovider.OperatingSystemLinux
-}
-
-func (c *Constraints) getNodeOverhead(ctx context.Context, pod *v1.Pod, node *v1.Node) (v1.ResourceList, error) {
+func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.ResourceList, error) {
 	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := c.kubeClient.List(ctx, daemonSetList); err != nil {

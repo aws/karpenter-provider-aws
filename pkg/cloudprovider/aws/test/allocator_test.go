@@ -80,19 +80,7 @@ var _ = Describe("Allocation", func() {
 		ExpectCleanedUp(ns.Client)
 	})
 
-	It("should default to unconstrained instance types", func() {
-		// TODO @pgogia
-	})
-	It("should respect provisioner constrained instance types", func() {
-		// TODO @pgogia
-	})
-	It("should respect pod constrained instance type", func() {
-		// TODO @pgogia
-	})
-	It("should fail conflicting pod constrained instance type", func() {
-		// TODO @pgogia
-	})
-	It("should default to unconstrained zones", func() {
+	It("should default to a cluster zone", func() {
 		fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 			{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
 			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
@@ -137,7 +125,7 @@ var _ = Describe("Allocation", func() {
 				},
 			))
 	})
-	It("should respect provisioner constrained zones", func() {
+	It("should default to a provisioner's zone", func() {
 		fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 			{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
 			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
@@ -147,8 +135,8 @@ var _ = Describe("Allocation", func() {
 		prov := &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster"},
-				Zones:   []string{"test-zone-1a", "test-zone-1b"},
+				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster"},
+				Constraints: v1alpha1.Constraints{Zones: []string{"test-zone-1a", "test-zone-1b"}},
 			},
 		}
 		pod := test.PodWith(test.PodOptions{
@@ -179,7 +167,7 @@ var _ = Describe("Allocation", func() {
 			),
 		)
 	})
-	It("should respect pod constrained zone", func() {
+	It("should allow pod to override default zone", func() {
 		fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 			{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
 			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
@@ -189,13 +177,13 @@ var _ = Describe("Allocation", func() {
 		prov := &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster"},
-				Zones:   []string{"test-zone-1a", "test-zone-1b"},
+				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster"},
+				Constraints: v1alpha1.Constraints{Zones: []string{"test-zone-1a", "test-zone-1b"}},
 			},
 		}
 		pod := test.PodWith(test.PodOptions{
 			Namespace:    ns.Name,
-			NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1b"},
+			NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"},
 			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 		})
 		ExpectCreatedWithStatus(ns.Client, pod)
@@ -210,38 +198,11 @@ var _ = Describe("Allocation", func() {
 		Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 			ContainElements(
 				&ec2.FleetLaunchTemplateOverridesRequest{
-					AvailabilityZone: aws.String("test-zone-1b"),
+					AvailabilityZone: aws.String("test-zone-1c"),
 					InstanceType:     aws.String("m5.large"),
-					SubnetId:         aws.String("test-subnet-2"),
+					SubnetId:         aws.String("test-subnet-3"),
 				},
 			),
 		)
-	})
-	It("should fail conflicting pod constrained zone", func() {
-		fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-			{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
-			{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
-			{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
-		}}
-		// Setup
-		prov := &v1alpha1.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
-			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster"},
-				Zones:   []string{"test-zone-1a", "test-zone-1b"},
-			},
-		}
-		pod := test.PodWith(test.PodOptions{
-			Namespace:    ns.Name,
-			NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1-c"},
-			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-		})
-		ExpectCreatedWithStatus(ns.Client, pod)
-		ExpectCreated(ns.Client, prov)
-		ExpectEventuallyReconciled(ns.Client, prov)
-		// Assertions
-		scheduled := &v1.Pod{}
-		Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-		Expect(scheduled.Spec.NodeName).To(BeEmpty())
 	})
 })

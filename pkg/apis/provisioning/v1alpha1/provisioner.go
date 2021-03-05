@@ -15,13 +15,45 @@ limitations under the License.
 package v1alpha1
 
 import (
+	f "github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ProvisionerSpec is the top level provisioner specification. Provisioners
+// launch nodes in response to pods where status.conditions[type=unschedulable,
+// status=true]. Node configuration is driven by through a combination of
+// provisioner specification (defaults) and pod scheduling constraints
+// (overrides). A single provisioner is capable of managing highly diverse
+// capacity within a single cluster and in most cases, only one should be
+// necessary. For advanced use cases like workload separation and sharding, it's
+// possible to define multiple provisioners. These provisioners may have
+// different defaults and can be specifically targeted by pods using
+// pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
 type ProvisionerSpec struct {
 	// +optional
 	Cluster *ClusterSpec `json:"cluster,omitempty"`
+	// Constraints applied to nodes created by the provisioner
+	Constraints `json:"inline"`
+}
+
+// ClusterSpec configures the cluster that the provisioner operates against. If
+// not specified, it will default to using the controller's kube-config.
+type ClusterSpec struct {
+	// Name is required to detect implementing cloud provider resources.
+	// +required
+	Name string `json:"name"`
+	// CABundle is required for nodes to verify API Server certificates.
+	// +required
+	CABundle string `json:"caBundle"`
+	// Endpoint is required for nodes to connect to the API Server.
+	// +required
+	Endpoint string `json:"endpoint"`
+}
+
+// Constraints are applied to all nodes created by the provisioner. They can be
+// overriden by NodeSelectors at the pod level.
+type Constraints struct {
 	// Taints will be applied to every node launched by the Provisioner. If
 	// specified, the provisioner will not provision nodes for pods that do not
 	// have matching tolerations.
@@ -40,11 +72,30 @@ type ProvisionerSpec struct {
 	// InstanceTypes constraints which instances types will be used for nodes
 	// launched by the Provisioner. If unspecified, supports all types. Cannot
 	// be specified if label "node.kubernetes.io/instance-type" is specified.
+	// +optional
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
 	// TTLSeconds determines how long to wait before attempting to terminate a node.
 	// +optional
 	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
+	// Architecture constraints the underlying node architecture
+	// +optional
+	Architecture *Architecture `json:"architecture,omitempty"`
+	// OperatingSystem constrain the underlying node operating system
+	// +optional
+	OperatingSystem *OperatingSystem `json:"operatingSystem,omitempty"`
 }
+
+type Architecture string
+
+var (
+	ArchitectureAmd64 Architecture = "amd64"
+)
+
+type OperatingSystem string
+
+var (
+	OperatingSystemLinux OperatingSystem = "linux"
+)
 
 var (
 	// Well known, supported labels
@@ -61,20 +112,6 @@ var (
 	ZoneLabelKey         = "topology.kubernetes.io/zone"
 	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
 )
-
-// ClusterSpec configures the cluster that the provisioner operates against. If
-// not specified, it will default to using the controller's kube-config.
-type ClusterSpec struct {
-	// Name is required to detect implementing cloud provider resources.
-	// +required
-	Name string `json:"name"`
-	// CABundle is required for nodes to verify API Server certificates.
-	// +required
-	CABundle string `json:"caBundle"`
-	// Endpoint is required for nodes to connect to the API Server.
-	// +required
-	Endpoint string `json:"endpoint"`
-}
 
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true
@@ -93,4 +130,81 @@ type ProvisionerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provisioner `json:"items"`
+}
+
+func (p *Provisioner) ConstraintsWithOverrides(pod *v1.Pod) *Constraints {
+	return &Constraints{
+		Taints:          p.Spec.Taints,
+		Labels:          p.Spec.Constraints.getLabels(p.Name, p.Namespace, pod),
+		Zones:           p.Spec.Constraints.getZones(pod),
+		InstanceTypes:   p.Spec.Constraints.getInstanceTypes(pod),
+		Architecture:    p.Spec.Constraints.getArchitecture(pod),
+		OperatingSystem: p.Spec.Constraints.getOperatingSystem(pod),
+	}
+}
+
+func (c *Constraints) getLabels(name string, namespace string, pod *v1.Pod) map[string]string {
+	// These keys are guaranteed to not collide due to validation logic
+	return f.UnionStringMaps(
+		c.Labels,
+		pod.Spec.NodeSelector,
+		map[string]string{
+			ProvisionerNameLabelKey:      name,
+			ProvisionerNamespaceLabelKey: namespace,
+		},
+	)
+}
+
+func (c *Constraints) getZones(pod *v1.Pod) []string {
+	// Pod may override zone
+	if zone, ok := pod.Spec.NodeSelector[ZoneLabelKey]; ok {
+		return []string{zone}
+	}
+	// Default to provisioner constraints
+	if len(c.Zones) != 0 {
+		return c.Zones
+	}
+	// Otherwise unconstrained
+	return nil
+}
+
+func (c *Constraints) getInstanceTypes(pod *v1.Pod) []string {
+	// Pod may override instance type
+	if instanceType, ok := pod.Spec.NodeSelector[InstanceTypeLabelKey]; ok {
+		return []string{instanceType}
+	}
+	// Default to provisioner constraints
+	if len(c.InstanceTypes) != 0 {
+		return c.InstanceTypes
+	}
+	// Otherwise unconstrained
+	return nil
+}
+
+func (c *Constraints) getArchitecture(pod *v1.Pod) *Architecture {
+	// Pod may override arch
+	if architecture, ok := pod.Spec.NodeSelector[ArchitectureLabelKey]; ok {
+		arch := Architecture(architecture)
+		return &arch
+	}
+	// Use constraints if defined
+	if c.Architecture != nil {
+		return c.Architecture
+	}
+	// Default to amd64
+	return &ArchitectureAmd64
+}
+
+func (c *Constraints) getOperatingSystem(pod *v1.Pod) *OperatingSystem {
+	// Pod may override os
+	if operatingSystem, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+		os := OperatingSystem(operatingSystem)
+		return &os
+	}
+	// Use constraints if defined
+	if c.OperatingSystem != nil {
+		return c.OperatingSystem
+	}
+	// Default to linux
+	return &OperatingSystemLinux
 }
