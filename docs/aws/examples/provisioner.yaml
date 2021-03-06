@@ -8,7 +8,6 @@ spec:
     name: "${CLUSTER_NAME}"
     caBundle: "${CLUSTER_CA_BUNDLE}"
     endpoint: "${CLUSTER_ENDPOINT}"
-  ttlSeconds: 180
   taints:
     - key: example.com/special-taint
       effect: NoSchedule

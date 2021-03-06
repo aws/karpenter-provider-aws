@@ -72,7 +72,6 @@ spec:
     name: ${CLUSTER_NAME}
     caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.certificateAuthority.data")
     endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.endpoint")
-  ttlSeconds: 180
 EOF
 kubectl get provisioner default -oyaml
 ```

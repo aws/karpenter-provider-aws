@@ -84,6 +84,7 @@ rules:
   - ""
   resources:
   - pods/binding
+  - pods/eviction
   verbs:
   - create
 - apiGroups:

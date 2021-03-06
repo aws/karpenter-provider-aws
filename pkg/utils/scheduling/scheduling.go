@@ -38,24 +38,6 @@ func IsOwnedByDaemonSet(pod *v1.Pod) bool {
 	return false
 }
 
-/*
-IsOwnedByControllerObject returns true if a pod is owned by one of the following:
-- Replication Controller
-- DaemonSet
-- ReplicaSet
-- StatefulSet
-- Job
-- Cronjob
-*/
-func IsOwnedByControllerObject(pod *v1.Pod) bool {
-	for _, owner := range pod.ObjectMeta.OwnerReferences {
-		if owner.Controller != nil && *owner.Controller {
-			return true
-		}
-	}
-	return false
-}
-
 func FailedToSchedule(pod *v1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
