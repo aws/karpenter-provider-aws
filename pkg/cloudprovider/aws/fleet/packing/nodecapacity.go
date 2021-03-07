@@ -21,47 +21,47 @@ import (
 
 // TODO get this information from node-instance-selector
 var (
-	capacityTypes = []*nodeCapacity{
+	nodeCapacities = []*nodeCapacity{
 		{
 			instanceType: "m5.8xlarge",
-			totalCapacity: v1.ResourceList{
+			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("32000m"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
-			utilizedCapacity: v1.ResourceList{
+			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
 				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
 			instanceType: "m5.2xlarge",
-			totalCapacity: v1.ResourceList{
+			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("8000m"),
 				v1.ResourceMemory: resource.MustParse("32Gi"),
 			},
-			utilizedCapacity: v1.ResourceList{
+			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
 				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
 			instanceType: "m5.xlarge",
-			totalCapacity: v1.ResourceList{
+			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("4000m"),
 				v1.ResourceMemory: resource.MustParse("16Gi"),
 			},
-			utilizedCapacity: v1.ResourceList{
+			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
 				v1.ResourceMemory: resource.Quantity{},
 			},
 		},
 		{
 			instanceType: "m5.large",
-			totalCapacity: v1.ResourceList{
+			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("2000m"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
 			},
-			utilizedCapacity: v1.ResourceList{
+			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
 				v1.ResourceMemory: resource.Quantity{},
 			},
@@ -70,27 +70,27 @@ var (
 )
 
 type nodeCapacity struct {
-	instanceType     string
-	utilizedCapacity v1.ResourceList
-	totalCapacity    v1.ResourceList
+	instanceType string
+	reserved     v1.ResourceList
+	total        v1.ResourceList
 }
 
 func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
 	// TODO check pods count
-	return nc.totalCapacity.Cpu().Cmp(cpu) >= 0 &&
-		nc.totalCapacity.Memory().Cmp(memory) >= 0
+	return nc.total.Cpu().Cmp(cpu) >= 0 &&
+		nc.total.Memory().Cmp(memory) >= 0
 }
 
 func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
 	// TODO reserve pods count
-	targetCPU := nc.utilizedCapacity.Cpu()
+	targetCPU := nc.reserved.Cpu()
 	targetCPU.Add(*resources.Cpu())
-	targetMemory := nc.utilizedCapacity.Memory()
+	targetMemory := nc.reserved.Memory()
 	targetMemory.Add(*resources.Memory())
 	if !nc.isAllocatable(*targetCPU, *targetMemory) {
 		return false
 	}
-	nc.utilizedCapacity[v1.ResourceCPU] = *targetCPU
-	nc.utilizedCapacity[v1.ResourceMemory] = *targetMemory
+	nc.reserved[v1.ResourceCPU] = *targetCPU
+	nc.reserved[v1.ResourceMemory] = *targetMemory
 	return true
 }

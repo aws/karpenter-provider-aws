@@ -16,7 +16,6 @@ package packing
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -58,11 +57,6 @@ func NewPacker(ec2 ec2iface.EC2API) Packer {
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error) {
 	// TODO use ctx when calling ec2 API
-	return p.packPods(pods)
-}
-
-// takes a list of pods, sorts them based on their resource requirements compared by CPU and memory.
-func (p *podPacker) packPods(pods []*v1.Pod) ([]*Packing, error) {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
@@ -75,8 +69,9 @@ func (p *podPacker) packPods(pods []*v1.Pod) ([]*Packing, error) {
 		}
 		packing := estimator.calculatePackingForPod(pods[start:])
 		// checked all instance type and found no packing option
-		if len(packing.Pods) == 0 || len(packing.InstanceTypes) == 0 {
-			return nil, fmt.Errorf("no instance type found for packing %d pods", len(pods))
+		if len(packing.Pods) == 0 {
+			zap.S().Warnf("Failed to find instance type for pod %s/%s ", pods[start].Namespace, pods[start].Name)
+			continue
 		}
 		// keep a track of pods we have packed
 		estimator.setPodsPacked(packing.Pods...)
@@ -106,75 +101,71 @@ func (p *packingEstimator) setPodsPacked(pods ...*v1.Pod) {
 
 // TODO filter instance types based on node contraints like availability zones etc.
 func (p *packingEstimator) getNodeCapacities(filter ...string) []*nodeCapacity {
-	return capacityTypes
+	return nodeCapacities
 }
 
 // calculatePackingForPod will calculate the packing for pod[0] and maximum number
 // of pods we can fit with it, returns the pods that can be packed
 // and a list of instance types.
 func (p *packingEstimator) calculatePackingForPod(pods []*v1.Pod) *Packing {
-	podsPacked := []*v1.Pod{}
-	instanceTypesSelected := []*nodeCapacity{}
+	bestPackedPods := []*v1.Pod{}
+	bestCapacitiesSelected := []*nodeCapacity{}
 	// Get all available instance types for every instance
 	// try to fit as many pods as possible with pods[0].
 
 	// TODO add filters
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
 	// TODO count number of pods created on an instance type
-	for _, instanceOption := range p.getNodeCapacities("") {
+	for _, nc := range p.getNodeCapacities("") {
 		// check how many pods we can fit on this instance type
-		packings, err := p.packingForInstance(instanceOption, pods)
-		if err != nil {
-			zap.S().Errorf("Failed to calculate packing for instance type %s, err, %w", instanceOption.instanceType, err)
-			continue
-		}
-		if len(packings) == 0 {
+		packedPods := p.packPodsForCapacity(nc, pods)
+		if len(packedPods) == 0 {
 			continue
 		}
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
-		if podsMatch(podsPacked, packings) {
-			instanceTypesSelected = append(instanceTypesSelected, instanceOption)
-		} else if len(packings) > len(podsPacked) {
+		if podsMatch(bestPackedPods, packedPods) {
+			bestCapacitiesSelected = append(bestCapacitiesSelected, nc)
+		} else if len(packedPods) > len(bestPackedPods) {
 			// If pods packed are more than compared to what we got in last
 			// iteration, consider using this instance type
-			podsPacked = packings
-			instanceTypesSelected = []*nodeCapacity{instanceOption}
+			bestPackedPods = packedPods
+			bestCapacitiesSelected = []*nodeCapacity{nc}
 		}
 	}
-	instanceTypeNames := []string{}
-	for _, instance := range instanceTypesSelected {
-		instanceTypeNames = append(instanceTypeNames, instance.instanceType)
+	capacityNames := []string{}
+	for _, capacity := range bestCapacitiesSelected {
+		capacityNames = append(capacityNames, capacity.instanceType)
 	}
-	return &Packing{Pods: podsPacked, InstanceTypes: instanceTypeNames}
+	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}
 }
 
-func (p *packingEstimator) packingForInstance(capacity *nodeCapacity, pods []*v1.Pod) ([]*v1.Pod, error) {
+func (p *packingEstimator) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) []*v1.Pod {
 	packing := []*v1.Pod{}
 	// start with the largest pod based on resources requested
 	for _, pod := range pods {
 		if p.isPodPacked(pod) {
 			continue
 		}
-		if ok := capacity.reserve(scheduling.GetResources(&pod.Spec)); !ok {
-			// First we need to find the instance on which we can fit the
-			// largest pods, it can't fit here, return and try with a next
-			// bigger instance type
-			if len(packing) == 0 {
-				return packing, nil
-			}
-			// We have already packed a bigger pod on this instance type, if
-			// we can't pack this pod, check the next pod it might be
-			// smaller in size and help fill the gaps on the instance
+		if ok := capacity.reserve(scheduling.GetResources(&pod.Spec)); ok {
+			packing = append(packing, pod)
 			continue
 		}
-		packing = append(packing, pod)
+		// First we need to find the instance on which we can fit the
+		// largest pods, it can't fit here, return and try with a next
+		// bigger instance type
+		if len(packing) == 0 {
+			return nil
+		}
+		// We have already packed a bigger pod on this instance type, if
+		// we can't pack this pod, check the next pod it might be
+		// smaller in size and help fill the gaps on the instance
 	}
-	capacity.utilizedCapacity = v1.ResourceList{
+	capacity.reserved = v1.ResourceList{
 		v1.ResourceCPU:    resource.Quantity{},
 		v1.ResourceMemory: resource.Quantity{},
 	}
-	return packing, nil
+	return packing
 }
 
 func podsMatch(first, second []*v1.Pod) bool {
