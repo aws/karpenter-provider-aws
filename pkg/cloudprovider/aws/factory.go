@@ -17,6 +17,7 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
@@ -47,7 +48,7 @@ type Factory struct {
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
-	sess := withRegion(session.Must(session.NewSession()))
+	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	EC2 := ec2.New(sess)
 	return &Factory{
 		AutoscalingClient: autoscaling.New(sess),
