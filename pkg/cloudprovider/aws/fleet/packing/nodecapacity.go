@@ -80,17 +80,17 @@ func (nc *nodeCapacity) reserve(podSpec *v1.PodSpec) bool {
 	resources := scheduling.GetResources(podSpec)
 	cpu := nc.reserved.Cpu()
 	cpu.Add(*resources.Cpu())
-	targetMemory := nc.reserved.Memory()
-	targetMemory.Add(*resources.Memory())
-	targetPodCount := nc.reserved.Pods()
-	targetPodCount.Add(*resource.NewQuantity(1, resource.BinarySI))
+	memory := nc.reserved.Memory()
+	memory.Add(*resources.Memory())
+	podCount := nc.reserved.Pods()
+	podCount.Add(*resource.NewQuantity(1, resource.BinarySI))
 	// If pod fits reserve the capacity
-	if nc.total.Cpu().Cmp(*targetCPU) >= 0 &&
-		nc.total.Memory().Cmp(*targetMemory) >= 0 &&
-		nc.total.Pods().Cmp(*targetPodCount) >= 0 {
-		nc.reserved[v1.ResourceCPU] = *targetCPU
-		nc.reserved[v1.ResourceMemory] = *targetMemory
-		nc.reserved[v1.ResourcePods] = *targetPodCount
+	if nc.total.Cpu().Cmp(*cpu) >= 0 &&
+		nc.total.Memory().Cmp(*memory) >= 0 &&
+		nc.total.Pods().Cmp(*podCount) >= 0 {
+		nc.reserved[v1.ResourceCPU] = *cpu
+		nc.reserved[v1.ResourceMemory] = *memory
+		nc.reserved[v1.ResourcePods] = *podCount
 		return true
 	}
 	return false
