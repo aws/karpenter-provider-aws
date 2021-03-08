@@ -34,7 +34,7 @@ type ProvisionerSpec struct {
 	// +optional
 	Cluster *ClusterSpec `json:"cluster,omitempty"`
 	// Constraints applied to nodes created by the provisioner
-	Constraints `json:"inline"`
+	Constraints `json:",inline"`
 }
 
 // ClusterSpec configures the cluster that the provisioner operates against. If
