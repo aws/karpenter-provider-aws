@@ -32,7 +32,6 @@ func (pods SortablePods) Swap(i, j int) {
 type ByResourcesRequested struct{ SortablePods }
 
 func (r ByResourcesRequested) Less(a, b int) bool {
-
 	resourcePodA := scheduling.GetResources(&r.SortablePods[a].Spec)
 	resourcePodB := scheduling.GetResources(&r.SortablePods[b].Spec)
 	if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
