@@ -61,9 +61,10 @@ func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
 	packings := []*Packing{}
+	var packing *Packing
 	remainingPods := pods
 	for len(remainingPods) > 0 {
-		packing, leftOvers := p.packWithLargestPod(remainingPods)
+		packing, remainingPods = p.packWithLargestPod(remainingPods)
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
 			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, pods[0].Name)
@@ -71,7 +72,6 @@ func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error
 			continue
 		}
 		packings = append(packings, packing)
-		remainingPods = leftOvers
 		zap.S().Debugf("For %d pod(s) instance types selected are %v", len(packing.Pods), packing.InstanceTypes)
 	}
 	return packings, nil
@@ -87,13 +87,14 @@ func (p *podPacker) getNodeCapacities() []*nodeCapacity {
 // that fit; with their node capacities and list of leftover pods
 func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
-	remainingPods := []*v1.Pod{}
+	packedPods := []*v1.Pod{}
+	remainingPods := pods
 	bestCapacitiesSelected := []*nodeCapacity{}
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
 	// TODO count number of pods created on an instance type
 	for _, nc := range p.getNodeCapacities() {
 		// check how many pods we can fit with the available capacity
-		packedPods, leftOvers := p.packPodsForCapacity(nc, pods)
+		packedPods, remainingPods = p.packPodsForCapacity(nc, pods)
 		if len(packedPods) == 0 {
 			continue
 		}
@@ -106,7 +107,6 @@ func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 			// iteration, consider using this instance type
 			bestPackedPods = packedPods
 			bestCapacitiesSelected = []*nodeCapacity{nc}
-			remainingPods = leftOvers
 		}
 	}
 	capacityNames := []string{}
