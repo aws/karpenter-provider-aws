@@ -87,7 +87,7 @@ func (p *podPacker) getNodeCapacities() []*nodeCapacity {
 // that fit; with their node capacities and list of leftover pods
 func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
-	packedPods := []*v1.Pod{}
+	var packedPods []*v1.Pod
 	remainingPods := pods
 	bestCapacitiesSelected := []*nodeCapacity{}
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
