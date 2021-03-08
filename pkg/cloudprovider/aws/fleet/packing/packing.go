@@ -20,7 +20,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -87,9 +86,9 @@ func (p *podPacker) getNodeCapacities() []*nodeCapacity {
 // that fit; with their node capacities and list of leftover pods
 func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
+	bestCapacities := []*nodeCapacity{}
 	var packedPods []*v1.Pod
 	remainingPods := pods
-	bestCapacitiesSelected := []*nodeCapacity{}
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
 	// TODO count number of pods created on an instance type
 	for _, nc := range p.getNodeCapacities() {
@@ -101,16 +100,16 @@ func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
 		if podsMatch(bestPackedPods, packedPods) {
-			bestCapacitiesSelected = append(bestCapacitiesSelected, nc)
+			bestCapacities = append(bestCapacities, nc)
 		} else if len(packedPods) > len(bestPackedPods) {
 			// If pods packed are more than compared to what we got in last
 			// iteration, consider using this instance type
 			bestPackedPods = packedPods
-			bestCapacitiesSelected = []*nodeCapacity{nc}
+			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
 	capacityNames := []string{}
-	for _, capacity := range bestCapacitiesSelected {
+	for _, capacity := range bestCapacities {
 		capacityNames = append(capacityNames, capacity.instanceType)
 	}
 	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
@@ -119,7 +118,7 @@ func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) (packedPods, remainingPods []*v1.Pod) {
 	// start with the largest pod based on resources requested
 	for _, pod := range pods {
-		if ok := capacity.reserve(scheduling.GetResources(&pod.Spec)); ok {
+		if ok := capacity.reserve(&pod.Spec); ok {
 			packedPods = append(packedPods, pod)
 			continue
 		}

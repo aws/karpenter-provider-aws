@@ -66,9 +66,6 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			},
 			Overrides: overrides,
 		}},
-		OnDemandOptions: &ec2.OnDemandOptionsRequest{
-			AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice),
-		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)

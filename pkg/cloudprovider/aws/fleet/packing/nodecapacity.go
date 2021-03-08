@@ -15,6 +15,7 @@ limitations under the License.
 package packing
 
 import (
+	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -75,22 +76,22 @@ type nodeCapacity struct {
 	total        v1.ResourceList
 }
 
-func (nc *nodeCapacity) isAllocatable(cpu, memory resource.Quantity) bool {
-	// TODO check pods count
-	return nc.total.Cpu().Cmp(cpu) >= 0 &&
-		nc.total.Memory().Cmp(memory) >= 0
-}
-
-func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
-	// TODO reserve pods count
-	targetCPU := nc.reserved.Cpu()
-	targetCPU.Add(*resources.Cpu())
+func (nc *nodeCapacity) reserve(podSpec *v1.PodSpec) bool {
+	resources := scheduling.GetResources(podSpec)
+	cpu := nc.reserved.Cpu()
+	cpu.Add(*resources.Cpu())
 	targetMemory := nc.reserved.Memory()
 	targetMemory.Add(*resources.Memory())
-	if !nc.isAllocatable(*targetCPU, *targetMemory) {
-		return false
+	targetPodCount := nc.reserved.Pods()
+	targetPodCount.Add(*resource.NewQuantity(1, resource.BinarySI))
+	// If pod fits reserve the capacity
+	if nc.total.Cpu().Cmp(*targetCPU) >= 0 &&
+		nc.total.Memory().Cmp(*targetMemory) >= 0 &&
+		nc.total.Pods().Cmp(*targetPodCount) >= 0 {
+		nc.reserved[v1.ResourceCPU] = *targetCPU
+		nc.reserved[v1.ResourceMemory] = *targetMemory
+		nc.reserved[v1.ResourcePods] = *targetPodCount
+		return true
 	}
-	nc.reserved[v1.ResourceCPU] = *targetCPU
-	nc.reserved[v1.ResourceMemory] = *targetMemory
-	return true
+	return false
 }
