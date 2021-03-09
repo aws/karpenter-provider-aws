@@ -28,6 +28,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("32000m"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
+				v1.ResourcePods:   resource.MustParse("100"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -39,6 +40,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("8000m"),
 				v1.ResourceMemory: resource.MustParse("32Gi"),
+				v1.ResourcePods:   resource.MustParse("50"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -50,6 +52,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("4000m"),
 				v1.ResourceMemory: resource.MustParse("16Gi"),
+				v1.ResourcePods:   resource.MustParse("20"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -61,6 +64,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("2000m"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
+				v1.ResourcePods:   resource.MustParse("10"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
