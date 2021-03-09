@@ -21,6 +21,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -41,6 +42,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
 
+	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
 	launchTemplate, err := c.vpcProvider.GetLaunchTemplate(ctx, c.spec.Cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)
@@ -55,7 +57,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	var instanceIds []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnetOptions)
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
