@@ -97,7 +97,7 @@ spec:
     spec:
       containers:
         - name: inflate
-          image: k8s.gcr.io/pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
           resources:
             requests:
               cpu: 1
