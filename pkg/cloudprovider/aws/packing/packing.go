@@ -88,8 +88,10 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []
 			}
 		}
 	})
-	nodeCapacitiesCopy := make([]*nodeCapacity, len(nodeCapacities))
-	copy(nodeCapacitiesCopy, nodeCapacities)
+	nodeCapacitiesCopy := make([]*nodeCapacity, 0)
+	for _, nc := range nodeCapacities {
+		nodeCapacitiesCopy = append(nodeCapacitiesCopy, &nodeCapacity{nc.instanceType, nc.reserved.DeepCopy(), nc.total.DeepCopy()})
+	}
 	return nodeCapacitiesCopy
 }
 
