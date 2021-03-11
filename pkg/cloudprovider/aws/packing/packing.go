@@ -80,16 +80,17 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 
 // TODO filter instance types based on node contraints like availability zones etc.
 func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []*nodeCapacity {
-	p.reserveOnce.Do(
-		func() {
-			for _, nc := range nodeCapacities {
-				kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
-				if ok := nc.reserve(binpacking.MergeResources(constraints.Overhead, kubeletOverhead)); !ok {
-					zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
-				}
+	p.reserveOnce.Do(func() {
+		for _, nc := range nodeCapacities {
+			kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
+			if ok := nc.reserve(binpacking.MergeResources(constraints.Overhead, kubeletOverhead)); !ok {
+				zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
 			}
-		})
-	return nodeCapacities
+		}
+	})
+	nodeCapacitiesCopy := make([]*nodeCapacity, len(nodeCapacities))
+	copy(nodeCapacitiesCopy, nodeCapacities)
+	return nodeCapacitiesCopy
 }
 
 type packingsPerCapacity struct {
@@ -131,10 +132,6 @@ func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *clou
 
 func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingsPerCapacity {
 	// start with the largest pod based on resources requested
-	resetCapacity := capacity.reserved.DeepCopy()
-	defer func() {
-		capacity.reserved = resetCapacity
-	}()
 	result := &packingsPerCapacity{packed: []*v1.Pod{}, unpacked: []*v1.Pod{}}
 	for _, pod := range pods {
 		if ok := capacity.reserveForPod(&pod.Spec); ok {
