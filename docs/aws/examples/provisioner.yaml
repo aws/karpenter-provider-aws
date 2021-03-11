@@ -12,11 +12,6 @@ spec:
     - key: example.com/special-taint
       effect: NoSchedule
   labels:
-    ##### Common #####
-    # Constrain node operating system, default="linux"
-    kubernetes.io/os: linux
-    # Constrain node architecture, default="amd64"
-    kubernetes.io/arch: amd64
     ##### AWS Specific #####
     # Constrain node launch template, default="bottlerocket"
     kubernetes.amazonaws.com/launchTemplateId: "bottlerocket-qwertyuiop"
