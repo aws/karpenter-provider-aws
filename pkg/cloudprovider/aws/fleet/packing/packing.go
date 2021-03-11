@@ -87,12 +87,12 @@ func (p *podPacker) getNodeCapacities() []*nodeCapacity {
 func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestCapacities := []*nodeCapacity{}
-	remainingPods := []*v1.Pod{}
+	remainingPods := pods
 	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
 	// TODO count number of pods created on an instance type
 	for _, nc := range p.getNodeCapacities() {
 		// check how many pods we can fit with the available capacity
-		packedPods, leftOvers := p.packPodsForCapacity(nc, pods)
+		packedPods, unpackedPods := p.packPodsForCapacity(nc, pods)
 		if len(packedPods) == 0 {
 			continue
 		}
@@ -104,7 +104,7 @@ func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 			// If pods packed are more than compared to what we got in last
 			// iteration, consider using this instance type
 			bestPackedPods = packedPods
-			remainingPods = leftOvers
+			remainingPods = unpackedPods
 			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
