@@ -47,7 +47,7 @@ type Packing struct {
 
 // NewPacker returns a Packer implementation
 func NewPacker(ec2 ec2iface.EC2API) Packer {
-	return &podPacker{ec2: ec2, reserveOnce: sync.Once{}}
+	return &podPacker{ec2: ec2}
 }
 
 // Pack returns the packings for the provided pods. Computes a set of viable
@@ -100,25 +100,25 @@ type packingsPerCapacity struct {
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *podPacker) packWithLargestPod(podsToBePacked []*v1.Pod, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod) {
+func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestCapacities := []*nodeCapacity{}
-	remainingPods := podsToBePacked
+	remainingPods := unpackedPods
 	for _, nc := range p.getNodeCapacities(constraints) {
 		// check how many pods we can fit with the available capacity
-		pods := p.packPodsForCapacity(nc, podsToBePacked)
-		if len(pods.packed) == 0 {
+		result := p.packPodsForCapacity(nc, unpackedPods)
+		if len(result.packed) == 0 {
 			continue
 		}
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
-		if podsMatch(bestPackedPods, pods.packed) {
+		if podsMatch(bestPackedPods, result.packed) {
 			bestCapacities = append(bestCapacities, nc)
-		} else if len(pods.packed) > len(bestPackedPods) {
+		} else if len(result.packed) > len(bestPackedPods) {
 			// If pods packed are more than compared to what we got in last
 			// iteration, consider using this instance type
-			bestPackedPods = pods.packed
-			remainingPods = pods.unpacked
+			bestPackedPods = result.packed
+			remainingPods = result.unpacked
 			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
