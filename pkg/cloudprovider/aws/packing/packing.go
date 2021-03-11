@@ -95,7 +95,7 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []
 	return nodeCapacitiesCopy
 }
 
-type packingsPerCapacity struct {
+type packingResult struct {
 	packed   []*v1.Pod
 	unpacked []*v1.Pod
 }
@@ -132,9 +132,9 @@ func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *clou
 	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
 }
 
-func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingsPerCapacity {
+func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {
 	// start with the largest pod based on resources requested
-	result := &packingsPerCapacity{packed: []*v1.Pod{}, unpacked: []*v1.Pod{}}
+	result := &packingResult{packed: []*v1.Pod{}, unpacked: []*v1.Pod{}}
 	for _, pod := range pods {
 		if ok := capacity.reserveForPod(&pod.Spec); ok {
 			result.packed = append(result.packed, pod)
