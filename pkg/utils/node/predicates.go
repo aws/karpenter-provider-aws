@@ -42,7 +42,7 @@ func IsPastTTL(node *v1.Node) bool {
 	return time.Now().After(ttlTime)
 }
 
-// IsUnderutilized returns if the node has 0 non-daemosnset pods
+// IsUnderutilized returns if the node has 0 non-daemonset pods
 func IsUnderutilized(node *v1.Node, pods []*v1.Pod) bool {
 	for _, pod := range pods {
 		if !scheduling.IsOwnedByDaemonSet(pod) {

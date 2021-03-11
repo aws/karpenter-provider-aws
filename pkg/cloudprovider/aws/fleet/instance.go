@@ -84,6 +84,9 @@ func (p *InstanceProvider) Create(ctx context.Context,
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
+	if len(nodes) == 0 {
+		return nil
+	}
 	ids := p.getInstanceIDs(nodes)
 
 	_, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{

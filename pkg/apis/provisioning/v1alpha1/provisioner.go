@@ -15,7 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	f "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -106,12 +106,20 @@ var (
 	// Reserved labels
 	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
 	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
-	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
-	ProvisionerTTLKey            = SchemeGroupVersion.Group + "/ttl"
+	ProvisionerPhaseLabel        = SchemeGroupVersion.Group + "/lifecycle-phase"
+
+	// Reserved annotations
+	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"
 
 	// Use ProvisionerSpec instead
 	ZoneLabelKey         = "topology.kubernetes.io/zone"
 	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
+)
+
+const (
+	ProvisionerUnderutilizedPhase = "underutilized"
+	ProvisionerTerminablePhase    = "terminable"
+	ProvisionerDrainingPhase      = "draining"
 )
 
 // Provisioner is the Schema for the Provisioners API
@@ -146,7 +154,7 @@ func (p *Provisioner) ConstraintsWithOverrides(pod *v1.Pod) *Constraints {
 
 func (c *Constraints) getLabels(name string, namespace string, pod *v1.Pod) map[string]string {
 	// These keys are guaranteed to not collide due to validation logic
-	return f.UnionStringMaps(
+	return functional.UnionStringMaps(
 		c.Labels,
 		pod.Spec.NodeSelector,
 		map[string]string{

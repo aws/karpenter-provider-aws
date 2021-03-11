@@ -72,7 +72,7 @@ func main() {
 		&scalablenodegroupv1alpha1.Controller{CloudProvider: cloudProviderFactory},
 		&metricsproducerv1alpha1.Controller{ProducerFactory: metricsProducerFactory},
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
-		reallocation.NewController(manager.GetClient(), cloudProviderFactory),
+		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")
 }
