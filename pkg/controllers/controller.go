@@ -85,7 +85,7 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
 	// 3. Validate
-	if err := c.For().ValidateCreate(); err != nil {
+	if err := resource.ValidateCreate(); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "could not validate kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		zap.S().Errorf("Controller failed to validate kind %s, %s",
