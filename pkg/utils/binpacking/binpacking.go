@@ -17,6 +17,7 @@ package binpacking
 import (
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type SortablePods []*v1.Pod
@@ -39,4 +40,70 @@ func (r ByResourcesRequested) Less(a, b int) bool {
 		return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == -1
 	}
 	return resourcePodA.Cpu().Cmp(*resourcePodB.Cpu()) == -1
+}
+
+func MergeResources(resources ...v1.ResourceList) v1.ResourceList {
+	result := v1.ResourceList{}
+	cpu := result.Cpu()
+	memory := result.Memory()
+	pods := result.Pods()
+	for _, resource := range resources {
+		cpu.Add(resource.Cpu().DeepCopy())
+		memory.Add(resource.Memory().DeepCopy())
+		pods.Add(resource.Pods().DeepCopy())
+	}
+	result[v1.ResourceCPU] = *cpu
+	result[v1.ResourceMemory] = *memory
+	result[v1.ResourcePods] = *pods
+	return result
+}
+
+var (
+	cpuPercentRanges = []struct {
+		start      int64
+		end        int64
+		percentage float64
+	}{
+		{
+			start:      0,
+			end:        1000,
+			percentage: 0.06,
+		},
+		{
+			start:      1000,
+			end:        2000,
+			percentage: 0.01,
+		},
+		{
+			start:      2000,
+			end:        4000,
+			percentage: 0.005,
+		},
+		{
+			start:      4000,
+			end:        1 << 31,
+			percentage: 0.0025,
+		},
+	}
+)
+
+// refer - https://github.com/awslabs/amazon-eks-ami/blob/ff690788dfaf399e6919eebb59371ee923617df4/files/bootstrap.sh#L183-L194
+// refer - https://github.com/awslabs/amazon-eks-ami/pull/419#issuecomment-609985305
+func CalculateKubeletOverhead(nodeCapacity v1.ResourceList) v1.ResourceList {
+	overhead := v1.ResourceList{}
+	nodeCPU := nodeCapacity.Cpu().MilliValue()
+	numPods := nodeCapacity.Pods().Value()
+	kubeletCPU := int64(0)
+	for _, cpuPercentRange := range cpuPercentRanges {
+		if nodeCPU >= cpuPercentRange.start {
+			r := float64(cpuPercentRange.end - cpuPercentRange.start)
+			if nodeCPU < cpuPercentRange.end {
+				r = float64(nodeCPU - cpuPercentRange.start)
+			}
+			kubeletCPU += int64(r * cpuPercentRange.percentage)
+		}
+	}
+	overhead[v1.ResourceCPU] = *resource.NewMilliQuantity(kubeletCPU, resource.DecimalSI)
+	overhead[v1.ResourceMemory] = *resource.NewMilliQuantity((11*numPods)+255, resource.DecimalSI)
+	return overhead
 }

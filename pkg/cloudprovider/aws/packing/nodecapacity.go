@@ -15,6 +15,7 @@ limitations under the License.
 package packing
 
 import (
+	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -23,12 +24,25 @@ import (
 // TODO get this information from node-instance-selector
 var (
 	nodeCapacities = []*nodeCapacity{
+
+		{
+			instanceType: "m5.24xlarge",
+			total: v1.ResourceList{
+				v1.ResourceCPU:    resource.MustParse("96000m"),
+				v1.ResourceMemory: resource.MustParse("384Gi"),
+				v1.ResourcePods:   resource.MustParse("737"),
+			},
+			reserved: v1.ResourceList{
+				v1.ResourceCPU:    resource.Quantity{},
+				v1.ResourceMemory: resource.Quantity{},
+			},
+		},
 		{
 			instanceType: "m5.8xlarge",
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("32000m"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
-				v1.ResourcePods:   resource.MustParse("100"),
+				v1.ResourcePods:   resource.MustParse("234"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -40,7 +54,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("8000m"),
 				v1.ResourceMemory: resource.MustParse("32Gi"),
-				v1.ResourcePods:   resource.MustParse("50"),
+				v1.ResourcePods:   resource.MustParse("58"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -52,7 +66,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("4000m"),
 				v1.ResourceMemory: resource.MustParse("16Gi"),
-				v1.ResourcePods:   resource.MustParse("20"),
+				v1.ResourcePods:   resource.MustParse("58"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -64,7 +78,7 @@ var (
 			total: v1.ResourceList{
 				v1.ResourceCPU:    resource.MustParse("2000m"),
 				v1.ResourceMemory: resource.MustParse("8Gi"),
-				v1.ResourcePods:   resource.MustParse("10"),
+				v1.ResourcePods:   resource.MustParse("29"),
 			},
 			reserved: v1.ResourceList{
 				v1.ResourceCPU:    resource.Quantity{},
@@ -80,22 +94,20 @@ type nodeCapacity struct {
 	total        v1.ResourceList
 }
 
-func (nc *nodeCapacity) reserve(podSpec *v1.PodSpec) bool {
-	resources := scheduling.GetResources(podSpec)
-	cpu := nc.reserved.Cpu()
-	cpu.Add(*resources.Cpu())
-	memory := nc.reserved.Memory()
-	memory.Add(*resources.Memory())
-	podCount := nc.reserved.Pods()
-	podCount.Add(*resource.NewQuantity(1, resource.BinarySI))
+func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
+	targetUtilization := binpacking.MergeResources(nc.reserved, resources)
 	// If pod fits reserve the capacity
-	if nc.total.Cpu().Cmp(*cpu) >= 0 &&
-		nc.total.Memory().Cmp(*memory) >= 0 &&
-		nc.total.Pods().Cmp(*podCount) >= 0 {
-		nc.reserved[v1.ResourceCPU] = *cpu
-		nc.reserved[v1.ResourceMemory] = *memory
-		nc.reserved[v1.ResourcePods] = *podCount
+	if nc.total.Cpu().Cmp(*targetUtilization.Cpu()) >= 0 &&
+		nc.total.Memory().Cmp(*targetUtilization.Memory()) >= 0 &&
+		nc.total.Pods().Cmp(*targetUtilization.Pods()) >= 0 {
+		nc.reserved = targetUtilization
 		return true
 	}
 	return false
+}
+
+func (nc *nodeCapacity) reserveForPod(podSpec *v1.PodSpec) bool {
+	resources := scheduling.GetResources(podSpec)
+	resources[v1.ResourcePods] = *resource.NewQuantity(1, resource.BinarySI)
+	return nc.reserve(resources)
 }

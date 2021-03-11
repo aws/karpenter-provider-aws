@@ -17,23 +17,25 @@ package packing
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type podPacker struct {
 	// TODO use this ec2 API to get the instance types
-	ec2 ec2iface.EC2API
+	ec2         ec2iface.EC2API
+	reserveOnce sync.Once
 }
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
 	// TODO use ctx when calling ec2 API
-	Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error)
+	Pack(ctx context.Context, constraints *cloudprovider.Constraints) ([]*Packing, error)
 }
 
 // Packing contains a list of pods that can be placed on any of Instance type
@@ -45,7 +47,7 @@ type Packing struct {
 
 // NewPacker returns a Packer implementation
 func NewPacker(ec2 ec2iface.EC2API) Packer {
-	return &podPacker{ec2: ec2}
+	return &podPacker{ec2: ec2, reserveOnce: sync.Once{}}
 }
 
 // Pack returns the packings for the provided pods. Computes a set of viable
@@ -54,19 +56,19 @@ func NewPacker(ec2 ec2iface.EC2API) Packer {
 // the same zone as tightly as possible. It follows the First Fit Decreasing bin
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error) {
+func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constraints) ([]*Packing, error) {
 	// TODO use ctx when calling ec2 API
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
-	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
+	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: constraints.Pods}))
 	packings := []*Packing{}
 	var packing *Packing
-	remainingPods := pods
+	remainingPods := constraints.Pods
 	for len(remainingPods) > 0 {
-		packing, remainingPods = p.packWithLargestPod(remainingPods)
+		packing, remainingPods = p.packWithLargestPod(remainingPods, constraints)
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
-			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, pods[0].Name)
+			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, remainingPods[0].Name)
 			remainingPods = remainingPods[1:]
 			continue
 		}
@@ -77,34 +79,46 @@ func (p *podPacker) Pack(ctx context.Context, pods []*v1.Pod) ([]*Packing, error
 }
 
 // TODO filter instance types based on node contraints like availability zones etc.
-func (p *podPacker) getNodeCapacities() []*nodeCapacity {
+func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []*nodeCapacity {
+	p.reserveOnce.Do(
+		func() {
+			for _, nc := range nodeCapacities {
+				kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
+				if ok := nc.reserve(binpacking.MergeResources(constraints.Overhead, kubeletOverhead)); !ok {
+					zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
+				}
+			}
+		})
 	return nodeCapacities
+}
+
+type packingsPerCapacity struct {
+	packed   []*v1.Pod
+	unpacked []*v1.Pod
 }
 
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
+func (p *podPacker) packWithLargestPod(podsToBePacked []*v1.Pod, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestCapacities := []*nodeCapacity{}
-	remainingPods := pods
-	// TODO reserve (Kubelet+ daemon sets) overhead for instance types
-	// TODO count number of pods created on an instance type
-	for _, nc := range p.getNodeCapacities() {
+	remainingPods := podsToBePacked
+	for _, nc := range p.getNodeCapacities(constraints) {
 		// check how many pods we can fit with the available capacity
-		packedPods, unpackedPods := p.packPodsForCapacity(nc, pods)
-		if len(packedPods) == 0 {
+		pods := p.packPodsForCapacity(nc, podsToBePacked)
+		if len(pods.packed) == 0 {
 			continue
 		}
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
-		if podsMatch(bestPackedPods, packedPods) {
+		if podsMatch(bestPackedPods, pods.packed) {
 			bestCapacities = append(bestCapacities, nc)
-		} else if len(packedPods) > len(bestPackedPods) {
+		} else if len(pods.packed) > len(bestPackedPods) {
 			// If pods packed are more than compared to what we got in last
 			// iteration, consider using this instance type
-			bestPackedPods = packedPods
-			remainingPods = unpackedPods
+			bestPackedPods = pods.packed
+			remainingPods = pods.unpacked
 			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
@@ -115,24 +129,26 @@ func (p *podPacker) packWithLargestPod(pods []*v1.Pod) (*Packing, []*v1.Pod) {
 	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
 }
 
-func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) (packedPods, remainingPods []*v1.Pod) {
+func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingsPerCapacity {
 	// start with the largest pod based on resources requested
+	resetCapacity := capacity.reserved.DeepCopy()
+	defer func() {
+		capacity.reserved = resetCapacity
+	}()
+	result := &packingsPerCapacity{packed: []*v1.Pod{}, unpacked: []*v1.Pod{}}
 	for _, pod := range pods {
-		if ok := capacity.reserve(&pod.Spec); ok {
-			packedPods = append(packedPods, pod)
+		if ok := capacity.reserveForPod(&pod.Spec); ok {
+			result.packed = append(result.packed, pod)
 			continue
 		}
 		// if largest pod can't be packed try next node capacity
-		if len(packedPods) == 0 {
-			return nil, pods
+		if len(result.packed) == 0 {
+			result.unpacked = append(result.unpacked, pods...)
+			return result
 		}
-		remainingPods = append(remainingPods, pod)
+		result.unpacked = append(result.unpacked, pod)
 	}
-	capacity.reserved = v1.ResourceList{
-		v1.ResourceCPU:    resource.Quantity{},
-		v1.ResourceMemory: resource.Quantity{},
-	}
-	return
+	return result
 }
 
 func podsMatch(first, second []*v1.Pod) bool {
