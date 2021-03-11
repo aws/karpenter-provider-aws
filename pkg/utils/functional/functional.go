@@ -19,6 +19,7 @@ import (
 	"math"
 
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	"go.uber.org/multierr"
 )
 
 // GreaterThanInt32 returns values greater than the target value
@@ -137,10 +138,9 @@ type Errorable func() error
 
 // AllSucceed returns nil if all errorables return nil, otherwise returns the first error.
 func AllSucceed(errorables ...func() error) error {
+	var err error
 	for _, errorable := range errorables {
-		if err := errorable(); err != nil {
-			return err
-		}
+		err = multierr.Append(err, errorable())
 	}
-	return nil
+	return err
 }

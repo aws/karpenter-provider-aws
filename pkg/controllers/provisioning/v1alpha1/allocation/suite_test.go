@@ -76,7 +76,12 @@ var _ = Describe("Allocation", func() {
 
 	Context("Reconcilation", func() {
 		It("should provision nodes for unconstrained pods", func() {
-			p := &v1alpha1.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name}}
+			p := &v1alpha1.Provisioner{
+				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
+				Spec: v1alpha1.ProvisionerSpec{
+					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				},
+			}
 			pods := []*v1.Pod{
 				test.PodWith(test.PodOptions{
 					Namespace:  ns.Name,
@@ -105,7 +110,12 @@ var _ = Describe("Allocation", func() {
 
 		It("should provision nodes for pods with supported node selectors", func() {
 			// Setup
-			p := &v1alpha1.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name}}
+			p := &v1alpha1.Provisioner{
+				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
+				Spec: v1alpha1.ProvisionerSpec{
+					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				},
+			}
 			coschedulable := []client.Object{
 				// Unconstrained
 				test.PodWith(test.PodOptions{

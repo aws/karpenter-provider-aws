@@ -12,12 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fleet
+package test
 
 import (
 	"context"
 	"strings"
-	"testing"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,13 +36,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t, "Provisioner", []Reporter{printer.NewlineReporter{}})
-}
 
 var controller *allocation.Controller
 var fakeEC2API *fake.EC2API
@@ -90,7 +83,7 @@ var _ = Describe("Allocation", func() {
 		prov := &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster"},
+				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			},
 		}
 		pod := test.PodWith(test.PodOptions{
@@ -135,7 +128,7 @@ var _ = Describe("Allocation", func() {
 		prov := &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster"},
+				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 				Constraints: v1alpha1.Constraints{Zones: []string{"test-zone-1a", "test-zone-1b"}},
 			},
 		}
@@ -177,7 +170,7 @@ var _ = Describe("Allocation", func() {
 		prov := &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster"},
+				Cluster:     &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 				Constraints: v1alpha1.Constraints{Zones: []string{"test-zone-1a", "test-zone-1b"}},
 			},
 		}

@@ -87,3 +87,13 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, nodes)
 }
+
+func init() {
+	v1alpha1.AddSupportedArchitectures(
+		v1alpha1.ArchitectureAmd64,
+		v1alpha1.ArchitectureArm64,
+	)
+	v1alpha1.AddSupportedOperatingSystems(
+		v1alpha1.OperatingSystemLinux,
+	)
+}

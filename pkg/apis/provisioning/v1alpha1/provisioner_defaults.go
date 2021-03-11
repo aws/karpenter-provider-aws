@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +kubebuilder:webhook:path=/mutate-provisioning-karpenter-sh-v1alpha1-provisioner,mutating=true,sideEffects=None,failurePolicy=fail,groups=provisioning.karpenter.sh,resources=provisioners,verbs=create;update,versions=v1alpha1,name=mprovisioner.kb.io
+// +kubebuilder:webhook:path=/mutate-provisioning-karpenter-sh-v1alpha1-provisioner,mutating=true,sideEffects=None,failurePolicy=fail,groups=provisioning.karpenter.sh,resources=provisioners,verbs=create;update,versions=v1alpha1,name=mutation.provisioning.karpenter.sh
 
 package v1alpha1
 

@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	functional "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/zap"
