@@ -4,25 +4,6 @@ metadata:
   name: karpenter
 rules:
 - apiGroups:
-  - autoscaling.karpenter.sh
-  resources:
-  - horizontalautoscalers
-  - horizontalautoscalers/status
-  - metricsproducers
-  - metricsproducers/status
-  - scalablenodegroups
-  - scalablenodegroups/status
-  - provisioners
-  - provisioners/status
-  verbs:
-  - create
-  - delete
-  - patch
-  - get
-  - list
-  - patch
-  - watch
-- apiGroups:
   - provisioning.karpenter.sh
   resources:
   - provisioners
@@ -44,15 +25,6 @@ rules:
   - get
   - patch
   - update
-  - watch
-- apiGroups:
-  - '*'
-  resources:
-  - '*/scale'
-  verbs:
-  - update
-  - get
-  - list
   - watch
 - apiGroups:
   - ""

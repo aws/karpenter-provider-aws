@@ -17,7 +17,6 @@ package fake
 import (
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
@@ -48,22 +47,6 @@ func NewNotImplementedFactory() *Factory {
 	return &Factory{WantErr: NotImplementedError}
 }
 
-func (f *Factory) NodeGroupFor(sng *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	msg := ""
-	if !f.NodeGroupStable {
-		msg = NodeGroupMessage
-	}
-	return &NodeGroup{
-		WantErr:  f.WantErr,
-		Stable:   f.NodeGroupStable,
-		Message:  msg,
-		Replicas: f.NodeReplicas[sng.ID],
-	}
-}
-
-func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
-	return &Queue{Id: spec.ID, WantErr: f.WantErr}
-}
 func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
 	return &Capacity{}
 }

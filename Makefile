@@ -51,9 +51,6 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	# CRDs don't currently jive with volatile time.
 	# `properties[lastTransitionTime].type: Unsupported value: "Any": supported
 	# values: "array", "boolean", "integer", "number", "object", "string"`
-	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_horizontalautoscalers.yaml
-	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_scalablenodegroups.yaml
-	perl -pi -e 's/Any/string/g' config/crd/bases/autoscaling.karpenter.sh_metricsproducers.yaml
 	perl -pi -e 's/Any/string/g' config/crd/bases/provisioning.karpenter.sh_provisioners.yaml
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
@@ -72,7 +69,7 @@ helm: ## Generate Helm Chart
 
 docs: ## Generate Docs
 	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/autoscaling/v1alpha1 \
+		-api-dir ./pkg/apis/provisioning/v1alpha1 \
 		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
 		-out-file docs/README.md \
 		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/template

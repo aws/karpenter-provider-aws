@@ -19,9 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"

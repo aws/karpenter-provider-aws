@@ -17,7 +17,6 @@ package cloudprovider
 import (
 	"context"
 
-	autoscalingv1alpha1 "github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -26,34 +25,8 @@ import (
 
 // Factory instantiates the cloud provider's resources
 type Factory interface {
-	// NodeGroupFor returns a node group for the provided spec
-	NodeGroupFor(sng *autoscalingv1alpha1.ScalableNodeGroupSpec) NodeGroup
-	// QueueFor returns a queue for the provided spec
-	QueueFor(queue *autoscalingv1alpha1.QueueSpec) Queue
 	// Capacity returns a provisioner for the provider to create instances
 	CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) Capacity
-}
-
-// Queue abstracts all provider specific behavior for Queues
-type Queue interface {
-	// Name returns the name of the queue
-	Name() string
-	// Length returns the length of the queue
-	Length() (int64, error)
-	// OldestMessageAge returns the age of the oldest message
-	OldestMessageAgeSeconds() (int64, error)
-}
-
-// NodeGroup abstracts all provider specific behavior for NodeGroups.
-// It is meant to be used by controllers.
-type NodeGroup interface {
-	// SetReplicas sets the desired replicas for the node group
-	SetReplicas(count int32) error
-	// GetReplicas returns the number of schedulable replicas in the node group
-	GetReplicas() (int32, error)
-	// Stabilized returns true if a node group is not currently adding or
-	// removing replicas. Otherwise, returns false with a message.
-	Stabilized() (bool, string, error)
 }
 
 // Capacity provisions a set of nodes that fulfill a set of constraints.

@@ -2,9 +2,7 @@
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,11 +27,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/awslabs/karpenter/pkg/apis/autoscaling/v1alpha1"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -57,26 +53,6 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		ec2:               EC2,
 		FleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.ClientSet),
 		kubeClient:        options.Client,
-	}
-}
-
-func (f *Factory) NodeGroupFor(spec *v1alpha1.ScalableNodeGroupSpec) cloudprovider.NodeGroup {
-	switch spec.Type {
-	case v1alpha1.AWSEC2AutoScalingGroup:
-		return NewAutoScalingGroup(spec.ID, f.AutoscalingClient)
-	case v1alpha1.AWSEKSNodeGroup:
-		return NewManagedNodeGroup(spec.ID, f.eks, f.AutoscalingClient, f.kubeClient)
-	default:
-		return fake.NewNotImplementedFactory().NodeGroupFor(spec)
-	}
-}
-
-func (f *Factory) QueueFor(spec *v1alpha1.QueueSpec) cloudprovider.Queue {
-	switch spec.Type {
-	case v1alpha1.AWSSQSQueueType:
-		return NewSQSQueue(spec.ID, f.sqs)
-	default:
-		return fake.NewNotImplementedFactory().QueueFor(spec)
 	}
 }
 
