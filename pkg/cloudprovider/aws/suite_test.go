@@ -12,41 +12,77 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package aws
 
 import (
+	"testing"
+
 	"context"
+
 	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/patrickmn/go-cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
+
+	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	cloudprovideraws "github.com/awslabs/karpenter/pkg/cloudprovider/aws"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
 	"github.com/awslabs/karpenter/pkg/test/environment"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func TestAPIs(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecsWithDefaultAndCustomReporters(t, "AWS Cloud Provider", []Reporter{printer.NewlineReporter{}})
+}
 
 var controller *allocation.Controller
 var fakeEC2API *fake.EC2API
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
+	vpcProvider := &VPCProvider{
+		subnetProvider: &SubnetProvider{
+			ec2:         fakeEC2API,
+			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+	}
+	launchTemplateProvider := &LaunchTemplateProvider{
+		ec2:                 fakeEC2API,
+		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		instanceProfileProvider: &InstanceProfileProvider{
+			iam:                  &fake.IAMAPI{},
+			kubeClient:           e.Manager.GetClient(),
+			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		securityGroupProvider: &SecurityGroupProvider{
+			ec2:                fakeEC2API,
+			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		ssm:       &fake.SSMAPI{},
+		clientSet: clientSet,
+	}
 	controller = allocation.NewController(
 		e.Manager.GetClient(),
 		clientSet.CoreV1(),
-		&cloudprovideraws.Factory{FleetFactory: fleet.NewFactory(fakeEC2API, &fake.IAMAPI{}, &fake.SSMAPI{}, e.Manager.GetClient(), clientSet)},
+		&Factory{
+			vpcProvider:            vpcProvider,
+			nodeFactory:            &NodeFactory{ec2: fakeEC2API},
+			instanceProvider:       &InstanceProvider{ec2: fakeEC2API, vpc: vpcProvider},
+			packer:                 packing.NewPacker(fakeEC2API),
+			launchTemplateProvider: launchTemplateProvider,
+		},
 	)
 	e.Manager.Register(controller)
 })
@@ -197,5 +233,43 @@ var _ = Describe("Allocation", func() {
 				},
 			),
 		)
+	})
+})
+
+var _ = Describe("Validation", func() {
+	var provisioner *v1alpha1.Provisioner
+
+	BeforeEach(func() {
+		provisioner = &v1alpha1.Provisioner{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: strings.ToLower(randomdata.SillyName()),
+			},
+			Spec: v1alpha1.ProvisionerSpec{
+				Cluster: &v1alpha1.ClusterSpec{
+					Name:     "test-cluster",
+					Endpoint: "https://test-cluster",
+					CABundle: "dGVzdC1jbHVzdGVyCg==",
+				},
+			},
+		}
+	})
+
+	It("should support architectures", func() {
+		for _, architecture := range []*v1alpha1.Architecture{
+			&v1alpha1.ArchitectureAmd64,
+			&v1alpha1.ArchitectureArm64,
+		} {
+			provisioner.Spec.Architecture = architecture
+			Expect(provisioner.ValidateCreate()).To(Succeed())
+		}
+	})
+
+	It("should support operating systems", func() {
+		for _, operatingSystem := range []*v1alpha1.OperatingSystem{
+			&v1alpha1.OperatingSystemLinux,
+		} {
+			provisioner.Spec.OperatingSystem = operatingSystem
+			Expect(provisioner.ValidateCreate()).To(Succeed())
+		}
 	})
 })

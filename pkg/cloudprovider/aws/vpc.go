@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fleet
+package aws
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	f "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
@@ -79,7 +79,7 @@ func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *clou
 		return zones, nil
 	}
 	// Supported by provider and by constraints
-	return f.IntersectStringSlice(zones, constraints.Zones), nil
+	return functional.IntersectStringSlice(zones, constraints.Zones), nil
 }
 
 type ZonalSubnets map[string][]*ec2.Subnet
