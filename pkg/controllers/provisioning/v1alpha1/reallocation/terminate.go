@@ -63,7 +63,10 @@ func (t *Terminator) cordonNodes(ctx context.Context, provisioner *v1alpha1.Prov
 		if !node.Spec.Unschedulable {
 			persisted := node.DeepCopy()
 			node.Spec.Unschedulable = true
-			node.Labels[v1alpha1.ProvisionerPhaseLabel] = v1alpha1.ProvisionerDrainingPhase
+			node.Labels = functional.UnionStringMaps(
+				node.Labels,
+				map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerDrainingPhase},
+			)
 			if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				return fmt.Errorf("patching node %s, %w", node.Name, err)
 			}

@@ -75,8 +75,14 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 	// 3. Set TTL for each underutilized node
 	for _, node := range ttlable {
 		persisted := node.DeepCopy()
-		node.Labels[v1alpha1.ProvisionerPhaseLabel] = v1alpha1.ProvisionerUnderutilizedPhase
-		node.Annotations[v1alpha1.ProvisionerTTLKey] = time.Now().Add(time.Duration(*provisioner.Spec.TTLSeconds) * time.Second).Format(time.RFC3339)
+		node.Labels = functional.UnionStringMaps(
+			node.Labels,
+			map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerUnderutilizedPhase},
+		)
+		node.Annotations = functional.UnionStringMaps(
+			node.Annotations,
+			map[string]string{v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(*provisioner.Spec.TTLSeconds) * time.Second).Format(time.RFC3339)},
+		)
 		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
@@ -128,7 +134,10 @@ func (u *Utilization) markTerminable(ctx context.Context, provisioner *v1alpha1.
 	for _, node := range nodes {
 		if utilsnode.IsPastTTL(node) {
 			persisted := node.DeepCopy()
-			node.Labels[v1alpha1.ProvisionerPhaseLabel] = v1alpha1.ProvisionerTerminablePhase
+			node.Labels = functional.UnionStringMaps(
+				node.Labels,
+				map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerTerminablePhase},
+			)
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				return fmt.Errorf("patching node %s, %w", node.Name, err)
 			}
