@@ -20,11 +20,11 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -81,20 +81,12 @@ func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.Re
 	}
 
 	// 2. filter DaemonSets to include those that will schedule on this node
-	daemonSets := []appsv1.DaemonSet{}
+	podSpecs := make([]*v1.PodSpec, 0)
 	for _, daemonSet := range daemonSetList.Items {
 		if scheduling.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
-			daemonSets = append(daemonSets, daemonSet)
+			podSpecs = append(podSpecs, &daemonSet.Spec.Template.Spec)
 		}
 	}
-
-	// 3. Compute overhead
-	cpuTotal := &resource.Quantity{}
-	memoryTotal := &resource.Quantity{}
-	for _, daemonSet := range daemonSets {
-		resources := scheduling.GetResources(&daemonSet.Spec.Template.Spec)
-		cpuTotal.Add(*resources.Cpu())
-		memoryTotal.Add(*resources.Memory())
-	}
-	return v1.ResourceList{v1.ResourceCPU: *cpuTotal, v1.ResourceMemory: *memoryTotal}, nil
+	resourcesTotal := resources.Merge(resources.ForPods(podSpecs...))
+	return v1.ResourceList{v1.ResourceCPU: *resourcesTotal.Cpu(), v1.ResourceMemory: *resourcesTotal.Memory()}, nil
 }

@@ -17,19 +17,18 @@ package packing
 import (
 	"context"
 	"sort"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
 
 type podPacker struct {
 	// TODO use this ec2 API to get the instance types
-	ec2         ec2iface.EC2API
-	reserveOnce sync.Once
+	ec2 ec2iface.EC2API
 }
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
@@ -80,19 +79,16 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 
 // TODO filter instance types based on node contraints like availability zones etc.
 func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []*nodeCapacity {
-	p.reserveOnce.Do(func() {
-		for _, nc := range nodeCapacities {
-			kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
-			if ok := nc.reserve(binpacking.MergeResources(constraints.Overhead, kubeletOverhead)); !ok {
-				zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
-			}
-		}
-	})
-	nodeCapacitiesCopy := make([]*nodeCapacity, 0)
+	result := make([]*nodeCapacity, 0)
 	for _, nc := range nodeCapacities {
-		nodeCapacitiesCopy = append(nodeCapacitiesCopy, &nodeCapacity{nc.instanceType, nc.reserved.DeepCopy(), nc.total.DeepCopy()})
+		ncc := nc.Copy()
+		kubeletOverhead := binpacking.CalculateKubeletOverhead(ncc.total)
+		if ok := ncc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
+			zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", ncc.instanceType)
+		}
+		result = append(result, ncc)
 	}
-	return nodeCapacitiesCopy
+	return result
 }
 
 type packingResult struct {
@@ -134,7 +130,7 @@ func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *clou
 
 func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {
 	// start with the largest pod based on resources requested
-	result := &packingResult{packed: []*v1.Pod{}, unpacked: []*v1.Pod{}}
+	result := &packingResult{}
 	for _, pod := range pods {
 		if ok := capacity.reserveForPod(&pod.Spec); ok {
 			result.packed = append(result.packed, pod)

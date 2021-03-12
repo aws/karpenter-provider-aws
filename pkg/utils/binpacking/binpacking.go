@@ -15,7 +15,7 @@ limitations under the License.
 package binpacking
 
 import (
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -33,29 +33,13 @@ func (pods SortablePods) Swap(i, j int) {
 type ByResourcesRequested struct{ SortablePods }
 
 func (r ByResourcesRequested) Less(a, b int) bool {
-	resourcePodA := scheduling.GetResources(&r.SortablePods[a].Spec)
-	resourcePodB := scheduling.GetResources(&r.SortablePods[b].Spec)
+	resourcePodA := resources.ForPods(&r.SortablePods[a].Spec)
+	resourcePodB := resources.ForPods(&r.SortablePods[b].Spec)
 	if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
 		// check for memory
 		return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == -1
 	}
 	return resourcePodA.Cpu().Cmp(*resourcePodB.Cpu()) == -1
-}
-
-func MergeResources(resources ...v1.ResourceList) v1.ResourceList {
-	result := v1.ResourceList{}
-	cpu := result.Cpu()
-	memory := result.Memory()
-	pods := result.Pods()
-	for _, resource := range resources {
-		cpu.Add(resource.Cpu().DeepCopy())
-		memory.Add(resource.Memory().DeepCopy())
-		pods.Add(resource.Pods().DeepCopy())
-	}
-	result[v1.ResourceCPU] = *cpu
-	result[v1.ResourceMemory] = *memory
-	result[v1.ResourcePods] = *pods
-	return result
 }
 
 var (

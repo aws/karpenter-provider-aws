@@ -15,8 +15,7 @@ limitations under the License.
 package packing
 
 import (
-	"github.com/awslabs/karpenter/pkg/utils/binpacking"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	resourcesUtil "github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -94,8 +93,12 @@ type nodeCapacity struct {
 	total        v1.ResourceList
 }
 
+func (nc *nodeCapacity) Copy() *nodeCapacity {
+	return &nodeCapacity{nc.instanceType, nc.reserved.DeepCopy(), nc.total.DeepCopy()}
+}
+
 func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
-	targetUtilization := binpacking.MergeResources(nc.reserved, resources)
+	targetUtilization := resourcesUtil.Merge(nc.reserved, resources)
 	// If pod fits reserve the capacity
 	if nc.total.Cpu().Cmp(*targetUtilization.Cpu()) >= 0 &&
 		nc.total.Memory().Cmp(*targetUtilization.Memory()) >= 0 &&
@@ -107,7 +110,7 @@ func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
 }
 
 func (nc *nodeCapacity) reserveForPod(podSpec *v1.PodSpec) bool {
-	resources := scheduling.GetResources(podSpec)
+	resources := resourcesUtil.ForPods(podSpec)
 	resources[v1.ResourcePods] = *resource.NewQuantity(1, resource.BinarySI)
 	return nc.reserve(resources)
 }
