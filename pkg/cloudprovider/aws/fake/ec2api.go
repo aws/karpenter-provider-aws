@@ -30,6 +30,7 @@ type EC2API struct {
 	DescribeLaunchTemplatesOutput *ec2.DescribeLaunchTemplatesOutput
 	DescribeSubnetsOutput         *ec2.DescribeSubnetsOutput
 	DescribeSecurityGroupsOutput  *ec2.DescribeSecurityGroupsOutput
+	DescribeInstanceTypesOutput   *ec2.DescribeInstanceTypesOutput
 	WantErr                       error
 
 	CalledWithCreateFleetInput []ec2.CreateFleetInput
@@ -96,4 +97,94 @@ func (a *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.Describ
 		return a.DescribeSecurityGroupsOutput, nil
 	}
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{{GroupId: aws.String("test-group")}}}, nil
+}
+
+func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, opts ...request.Option) error {
+	if a.WantErr != nil {
+		return a.WantErr
+	}
+	if a.DescribeInstanceTypesOutput != nil {
+		fn(a.DescribeInstanceTypesOutput, false)
+		return nil
+	}
+	fn(&ec2.DescribeInstanceTypesOutput{
+		InstanceTypes: []*ec2.InstanceTypeInfo{
+			{
+				InstanceType:                 aws.String("m5.large"),
+				SupportedUsageClasses:        []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(2),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(8),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(3),
+					Ipv4AddressesPerInterface: aws.Int64(30),
+				},
+			},
+			{
+				InstanceType:                 aws.String("m5.xlarge"),
+				SupportedUsageClasses:        []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
+			{
+				InstanceType:                 aws.String("m5.2xlarge"),
+				SupportedUsageClasses:        []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(8),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(32),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
+			{
+				InstanceType:                 aws.String("m5.4xlarge"),
+				SupportedUsageClasses:        []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(16),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(64),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(8),
+					Ipv4AddressesPerInterface: aws.Int64(240),
+				},
+			},
+			{
+				InstanceType:                 aws.String("m5.8xlarge"),
+				SupportedUsageClasses:        []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(32),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(128),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(8),
+					Ipv4AddressesPerInterface: aws.Int64(240),
+				},
+			},
+		},
+	}, false)
+	return nil
 }

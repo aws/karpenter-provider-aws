@@ -18,6 +18,8 @@ import (
 	"context"
 	"sort"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
@@ -29,6 +31,11 @@ import (
 type podPacker struct {
 	// TODO use this ec2 API to get the instance types
 	ec2 ec2iface.EC2API
+}
+
+type packingResult struct {
+	packed   []*v1.Pod
+	unpacked []*v1.Pod
 }
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
@@ -77,23 +84,45 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 	return packings, nil
 }
 
-// TODO filter instance types based on node contraints like availability zones etc.
 func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []*nodeCapacity {
 	result := make([]*nodeCapacity, 0)
-	for _, nc := range nodeCapacities {
-		ncc := nc.Copy()
-		kubeletOverhead := binpacking.CalculateKubeletOverhead(ncc.total)
-		if ok := ncc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
-			zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", ncc.instanceType)
+	describeInstanceTypesInput := &ec2.DescribeInstanceTypesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("processor-info.supported-architecture"),
+				Values: []*string{aws.String("x86_64")},
+			},
+			{
+				Name:   aws.String("supported-usage-class"),
+				Values: []*string{aws.String("on-demand")},
+			},
+			{
+				Name:   aws.String("supported-virtualization-type"),
+				Values: []*string{aws.String("hvm")},
+			},
+		},
+	}
+	err := p.ec2.DescribeInstanceTypesPagesWithContext(context.TODO(), describeInstanceTypesInput, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+		for _, instanceTypeInfo := range page.InstanceTypes {
+			nc, err := instanceTypeInfoToNodeCapacity(*instanceTypeInfo)
+			if err != nil {
+				zap.S().Warnf("Failed to convert instanceTypeInfo to a nodeCapacity, %s", err.Error())
+				continue
+			}
+			ncc := nc.Copy()
+			kubeletOverhead := binpacking.CalculateKubeletOverhead(ncc.total)
+			if ok := ncc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
+				zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", ncc.instanceType)
+			}
+			result = append(result, nc)
 		}
-		result = append(result, ncc)
+		return lastPage
+	})
+
+	if err != nil {
+		zap.S().Warnf("Failed to fetch instance types using ec2.DescribeInstanceTypes, %s", err.Error())
 	}
 	return result
-}
-
-type packingResult struct {
-	packed   []*v1.Pod
-	unpacked []*v1.Pod
 }
 
 // packWithLargestPod will try to pack max number of pods with largest pod in
