@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fleet
+package aws
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet/packing"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )

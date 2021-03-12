@@ -13,51 +13,84 @@ limitations under the License.
 package aws
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/patrickmn/go-cache"
+)
+
+const (
+	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup resources.
+	CacheTTL = 5 * time.Minute
+	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
+	CacheCleanupInterval = 10 * time.Minute
+	// ClusterTagKeyFormat is set on all Kubernetes owned resources.
+	ClusterTagKeyFormat = "kubernetes.io/cluster/%s"
+	// KarpenterTagKeyFormat is set on all Karpenter owned resources.
+	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
 type Factory struct {
-	AutoscalingClient autoscalingiface.AutoScalingAPI
-	sqs               sqsiface.SQSAPI
-	eks               eksiface.EKSAPI
-	ec2               ec2iface.EC2API
-	FleetFactory      *fleet.Factory
-	kubeClient        client.Client
+	vpcProvider            *VPCProvider
+	nodeFactory            *NodeFactory
+	instanceProvider       *InstanceProvider
+	packer                 packing.Packer
+	launchTemplateProvider *LaunchTemplateProvider
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	EC2 := ec2.New(sess)
+	vpcProvider := &VPCProvider{
+		subnetProvider: &SubnetProvider{
+			ec2:         EC2,
+			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+	}
+	launchTemplateProvider := &LaunchTemplateProvider{
+		ec2:                 EC2,
+		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		instanceProfileProvider: &InstanceProfileProvider{
+			iam:                  iam.New(sess),
+			kubeClient:           options.Client,
+			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		securityGroupProvider: &SecurityGroupProvider{
+			ec2:                EC2,
+			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+		},
+		ssm:       ssm.New(sess),
+		clientSet: options.ClientSet,
+	}
+
 	return &Factory{
-		AutoscalingClient: autoscaling.New(sess),
-		eks:               eks.New(sess),
-		sqs:               sqs.New(sess),
-		ec2:               EC2,
-		FleetFactory:      fleet.NewFactory(EC2, iam.New(sess), ssm.New(sess), options.Client, options.ClientSet),
-		kubeClient:        options.Client,
+		vpcProvider:            vpcProvider,
+		nodeFactory:            &NodeFactory{ec2: EC2},
+		instanceProvider:       &InstanceProvider{ec2: EC2, vpc: vpcProvider},
+		packer:                 packing.NewPacker(EC2),
+		launchTemplateProvider: launchTemplateProvider,
 	}
 }
 
 func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
-	return f.FleetFactory.For(spec)
+	return &Capacity{
+		spec:                   spec,
+		nodeFactory:            f.nodeFactory,
+		instanceProvider:       f.instanceProvider,
+		vpcProvider:            f.vpcProvider,
+		packer:                 f.packer,
+		launchTemplateProvider: f.launchTemplateProvider,
+	}
 }
 
 func withRegion(sess *session.Session) *session.Session {

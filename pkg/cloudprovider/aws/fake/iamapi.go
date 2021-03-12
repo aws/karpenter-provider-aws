@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fleet"
 )
 
 type IAMAPI struct {
@@ -39,7 +38,7 @@ func (a *IAMAPI) GetInstanceProfileWithContext(context.Context, *iam.GetInstance
 	}
 	return &iam.GetInstanceProfileOutput{
 		InstanceProfile: &iam.InstanceProfile{
-			InstanceProfileName: aws.String(fleet.KarpenterNodeInstanceProfileName),
+			InstanceProfileName: aws.String("KarpenterNodeInstanceProfile"),
 			Roles:               []*iam.Role{{Arn: aws.String("test-role")}},
 		},
 	}, nil
