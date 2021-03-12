@@ -10,14 +10,13 @@ require (
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.8.0 // indirect
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.16.0
 	gopkg.in/retry.v1 v1.0.3
-	k8s.io/api v0.19.3
-	k8s.io/apimachinery v0.19.3
-	k8s.io/client-go v0.19.3
-	knative.dev/pkg v0.0.0-20191217184203-cf220a867b3d
+	k8s.io/api v0.19.7
+	k8s.io/apimachinery v0.19.7
+	k8s.io/client-go v0.19.7
+	knative.dev/pkg v0.0.0-20210311174826-40488532be3f
 	sigs.k8s.io/controller-runtime v0.7.0-alpha.3
 	sigs.k8s.io/yaml v1.2.0
 )

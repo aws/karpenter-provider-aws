@@ -73,9 +73,9 @@ func NewLocal(options ...LocalOption) Environment {
 
 	return &Local{
 		Environment: envtest.Environment{
-			CRDDirectoryPaths: []string{project.RelativeToRoot("config/crd/bases")},
+			CRDDirectoryPaths: []string{project.RelativeToRoot("config")},
 			WebhookInstallOptions: envtest.WebhookInstallOptions{
-				Paths: []string{project.RelativeToRoot("config/webhook")},
+				Paths: []string{project.RelativeToRoot("config")},
 			},
 		},
 		Server:  ghttp.NewServer(),
