@@ -24,7 +24,7 @@ helm install karpenter karpenter/karpenter
 ```
 
 ## Docs
-- [Examples](docs/examples)
+- [Examples](docs/aws/examples)
 - [Working Group](docs/working-group)
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Design](docs/designs/DESIGN.md)
