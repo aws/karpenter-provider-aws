@@ -16,7 +16,6 @@ package scheduling
 
 import (
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -45,30 +44,6 @@ func FailedToSchedule(pod *v1.Pod) bool {
 		}
 	}
 	return false
-}
-
-// GetResources returns the total resources of a variadic list of pods.
-func GetResources(pods ...*v1.PodSpec) v1.ResourceList {
-	cpuTotal := &resource.Quantity{}
-	memoryTotal := &resource.Quantity{}
-	podTotal := &resource.Quantity{}
-
-	for _, pod := range pods {
-		for _, container := range pod.Containers {
-			if cpu := container.Resources.Requests.Cpu(); cpu != nil {
-				cpuTotal.Add(*cpu)
-			}
-			if memory := container.Resources.Requests.Memory(); memory != nil {
-				memoryTotal.Add(*memory)
-			}
-		}
-		podTotal.Add(*resource.NewQuantity(1, resource.BinarySI))
-	}
-	return v1.ResourceList{
-		v1.ResourceCPU:    *cpuTotal,
-		v1.ResourceMemory: *memoryTotal,
-		v1.ResourcePods:   *podTotal,
-	}
 }
 
 // IsSchedulable returns true if the pod can schedule to the node

@@ -38,7 +38,7 @@ type Capacity struct {
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	// 1. Compute Packing given the constraints
-	instancePackings, err := c.packer.Pack(ctx, constraints.Pods)
+	instancePackings, err := c.packer.Pack(ctx, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("computing bin packing, %w", err)
 	}
