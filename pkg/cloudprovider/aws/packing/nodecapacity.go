@@ -23,106 +23,28 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// TODO get this information from node-instance-selector
-var (
-	fallbackNodeCapacities = []*nodeCapacity{
-
-		{
-			instanceType: "m5.24xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("96000m"),
-				v1.ResourceMemory: resource.MustParse("384Gi"),
-				v1.ResourcePods:   resource.MustParse("737"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.8xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("32000m"),
-				v1.ResourceMemory: resource.MustParse("128Gi"),
-				v1.ResourcePods:   resource.MustParse("234"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.2xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("8000m"),
-				v1.ResourceMemory: resource.MustParse("32Gi"),
-				v1.ResourcePods:   resource.MustParse("58"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("4000m"),
-				v1.ResourceMemory: resource.MustParse("16Gi"),
-				v1.ResourcePods:   resource.MustParse("58"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.large",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("2000m"),
-				v1.ResourceMemory: resource.MustParse("8Gi"),
-				v1.ResourcePods:   resource.MustParse("29"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-	}
-)
-
-func instanceTypeInfoToNodeCapacity(instanceTypeInfo ec2.InstanceTypeInfo) (*nodeCapacity, error) {
+func instanceTypeInfoToNodeCapacity(instanceTypeInfo ec2.InstanceTypeInfo) *nodeCapacity {
 	instanceTypeName := *instanceTypeInfo.InstanceType
-	vcpusInMillicores := fmt.Sprintf("%dm", *instanceTypeInfo.VCpuInfo.DefaultVCpus*1000)
-	vcpusResource, err := resource.ParseQuantity(vcpusInMillicores)
-	if err != nil {
-		return nil, fmt.Errorf("parsing %s millicores resource quantity \"%s\" from instanceTypeInfo, %w", instanceTypeName, vcpusInMillicores, err)
-	}
-	memory := fmt.Sprintf("%dMi", *instanceTypeInfo.MemoryInfo.SizeInMiB)
-	memoryResource, err := resource.ParseQuantity(memory)
-	if err != nil {
-		return nil, fmt.Errorf("parsing %s memory resource quantity \"%s\", %w", instanceTypeName, memory, err)
-	}
+	vcpusInMillicores := resource.MustParse(fmt.Sprint(*instanceTypeInfo.VCpuInfo.DefaultVCpus * 1000))
+	memory := resource.MustParse(fmt.Sprintf("%dMi", *instanceTypeInfo.MemoryInfo.SizeInMiB))
 	// The number of pods per node is calculated using the formula:
 	//   max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 	podCapacity := *instanceTypeInfo.NetworkInfo.MaximumNetworkInterfaces*(*instanceTypeInfo.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
-	podCapacityResource, err := resource.ParseQuantity(fmt.Sprint(podCapacity))
-	if err != nil {
-		return nil, fmt.Errorf("parsing %s pod capacity resource quantity \"%d\", %w", instanceTypeName, podCapacity, err)
-	}
+	podCapacityResource := resource.MustParse(fmt.Sprint(podCapacity))
 
 	return &nodeCapacity{
 		instanceType: instanceTypeName,
 		total: v1.ResourceList{
-			v1.ResourceCPU:    vcpusResource,
-			v1.ResourceMemory: memoryResource,
+			v1.ResourceCPU:    vcpusInMillicores,
+			v1.ResourceMemory: memory,
 			v1.ResourcePods:   podCapacityResource,
 		},
 		reserved: v1.ResourceList{
 			v1.ResourceCPU:    resource.Quantity{},
 			v1.ResourceMemory: resource.Quantity{},
 		},
-	}, nil
+	}
 }
 
 type nodeCapacity struct {
