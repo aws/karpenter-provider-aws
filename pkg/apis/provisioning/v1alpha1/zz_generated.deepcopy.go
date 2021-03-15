@@ -20,7 +20,7 @@ package v1alpha1
 
 import (
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
 )
 
@@ -73,12 +73,12 @@ func (in *Constraints) DeepCopyInto(out *Constraints) {
 	}
 	if in.Architecture != nil {
 		in, out := &in.Architecture, &out.Architecture
-		*out = new(Architecture)
+		*out = new(string)
 		**out = **in
 	}
 	if in.OperatingSystem != nil {
 		in, out := &in.OperatingSystem, &out.OperatingSystem
-		*out = new(OperatingSystem)
+		*out = new(string)
 		**out = **in
 	}
 }

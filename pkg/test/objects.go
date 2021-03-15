@@ -46,8 +46,9 @@ type PodOptions struct {
 	Namespace        string
 	Image            string
 	NodeName         string
-	NodeSelector     map[string]string
 	ResourceRequests v1.ResourceList
+	NodeSelector     map[string]string
+	Tolerations      []v1.Toleration
 	Conditions       []v1.PodCondition
 }
 
@@ -68,6 +69,7 @@ func PodWith(options PodOptions) *v1.Pod {
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: options.NodeSelector,
+			Tolerations:  options.Tolerations,
 			Containers: []v1.Container{{
 				Name:  options.Name,
 				Image: options.Image,

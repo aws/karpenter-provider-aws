@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,7 +26,7 @@ import (
 // Factory instantiates the cloud provider's resources
 type Factory interface {
 	// Capacity returns a provisioner for the provider to create instances
-	CapacityFor(spec *provisioning.ProvisionerSpec) Capacity
+	CapacityFor(spec *v1alpha1.ProvisionerSpec) Capacity
 }
 
 // Capacity provisions a set of nodes that fulfill a set of constraints.
@@ -35,12 +35,20 @@ type Capacity interface {
 	Create(context.Context, *Constraints) ([]Packing, error)
 	// Delete nodes in cloudprovider
 	Delete(context.Context, []*v1.Node) error
+	// GetInstanceTypes returns the instance types supported by the cloud provider.
+	GetInstanceTypes(ctx context.Context) ([]string, error)
+	// GetZones returns the zones supported by the cloud provider.
+	GetZones(ctx context.Context) ([]string, error)
+	// GetArchitectures returns the architectures supported by the cloud provider.
+	GetArchitectures(ctx context.Context) ([]string, error)
+	// GetOperatingSystems returns the operating systems supported by the cloud provider.
+	GetOperatingSystems(ctx context.Context) ([]string, error)
 }
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given
 // overhead and node constraints.
 type Constraints struct {
-	provisioning.Constraints
+	v1alpha1.Constraints
 	// Pods is a list of equivalently schedulable pods to be binpacked.
 	Pods []*v1.Pod
 	// Overhead resources per node from daemonsets.

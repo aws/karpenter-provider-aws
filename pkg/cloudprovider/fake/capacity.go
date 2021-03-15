@@ -57,3 +57,31 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 	return nil
 }
+
+func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
+	return []string{
+		"test-zone-1",
+		"test-zone-2",
+	}, nil
+}
+
+func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
+	return []string{
+		"test-instance-type-1",
+		"test-instance-type-2",
+	}, nil
+}
+
+func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
+	return []string{
+		"test-architecture-1",
+		"test-architecture-2",
+	}, nil
+}
+
+func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
+	return []string{
+		"test-operating-system-1",
+		"test-operating-system-2",
+	}, nil
+}

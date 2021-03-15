@@ -133,14 +133,27 @@ func UniqueStrings(strings []string) []string {
 	return unique
 }
 
-// Errorable is a function that returns an error
-type Errorable func() error
+func ContainsString(strings []string, candidate string) bool {
+	for _, s := range strings {
+		if candidate == s {
+			return true
+		}
+	}
+	return false
+}
 
-// AllSucceed returns nil if all errorables return nil, otherwise returns the first error.
-func AllSucceed(errorables ...func() error) error {
+// ValidateAll returns nil if all errorables return nil, otherwise returns the concatenated failure messages.
+func ValidateAll(errorables ...func() error) error {
 	var err error
 	for _, errorable := range errorables {
 		err = multierr.Append(err, errorable())
 	}
 	return err
+}
+
+// ExecuteAll executes all functions
+func ExecuteAll(executables ...func()) {
+	for _, executable := range executables {
+		executable()
+	}
 }
