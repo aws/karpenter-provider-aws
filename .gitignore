@@ -3,7 +3,3 @@ bin/
 coverage.out
 coverage.html
 *.test
-
-# Code generation
-config/crd/bases
-config/webhook/manifests.yaml

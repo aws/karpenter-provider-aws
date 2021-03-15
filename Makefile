@@ -10,9 +10,9 @@ WITH_RELEASE_REPO = KO_DOCKER_REPO=${RELEASE_REPO}
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-dev: codegen verify test ## Run all steps in the developer loop
+dev: verify test ## Run all steps in the developer loop
 
-ci: codegen verify battletest ## Run all steps used by continuous integration
+ci: verify battletest ## Run all steps used by continuous integration
 
 release: publish helm docs ## Run all steps in release workflow
 
@@ -35,32 +35,17 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go fmt ./...
 	golangci-lint run
 
-codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
-	controller-gen \
-		object:headerFile="hack/boilerplate.go.txt" \
-		webhook \
-		crd:trivialVersions=false \
-		paths="./pkg/..." \
-		output:crd:artifacts:config=config/crd/bases \
-		output:webhook:artifacts:config=config/webhook
-
-	./hack/boilerplate.sh
-
-	# Hack to remove v1.AdmissionReview until https://github.com/kubernetes-sigs/controller-runtime/issues/1161 is fixed
-	perl -pi -e 's/^  - v1$$//g' config/webhook/manifests.yaml
-	# CRDs don't currently jive with volatile time.
-	# `properties[lastTransitionTime].type: Unsupported value: "Any": supported
-	# values: "array", "boolean", "integer", "number", "object", "string"`
-	perl -pi -e 's/Any/string/g' config/crd/bases/provisioning.karpenter.sh_provisioners.yaml
-
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	kubectl kustomize config | $(WITH_GOFLAGS) ko apply -B -f -
+	$(WITH_GOFLAGS) ko apply -B -f config
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	kubectl kustomize config | ko delete -f -
+	ko delete -f config
+
+codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
+	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	kubectl kustomize config | $(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > $(RELEASE_MANIFEST)
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > $(RELEASE_MANIFEST)
 
 helm: ## Generate Helm Chart
 	cp $(RELEASE_MANIFEST) charts/karpenter/templates

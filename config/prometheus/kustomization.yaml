@@ -1,5 +1,0 @@
-resources:
-- prometheus.yaml
-- monitor.yaml
-- rbac.yaml
-- service.yaml

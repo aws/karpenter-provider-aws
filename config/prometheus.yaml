@@ -1,3 +1,31 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: karpenter-monitor
+  namespace: karpenter
+spec:
+  replicas: 1
+  serviceMonitorSelector:
+    matchLabels:
+      control-plane: karpenter
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: karpenter
+  name: karpenter-metrics-monitor
+  namespace: karpenter
+spec:
+  endpoints:
+  - path: /metrics
+    port: http
+    interval: 5s
+    scheme: http
+  selector:
+    matchLabels:
+      control-plane: karpenter
+---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
