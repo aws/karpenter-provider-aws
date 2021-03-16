@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -75,7 +75,7 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 	for len(remainingPods) > 0 {
 		packing, remainingPods, err = p.packWithLargestPod(remainingPods, constraints)
 		if err != nil {
-			return packings, err
+			return packings, fmt.Errorf("packing with largest pod, %w", err)
 		}
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
@@ -116,7 +116,7 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([
 
 func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []*ec2.Filter {
 	architecture := "x86_64"
-	if constraints.Architecture != nil && *constraints.Architecture == provisioningv1alpha1.ArchitectureArm64 {
+	if constraints.Architecture != nil && *constraints.Architecture == provisioning.ArchitectureArm64 {
 		architecture = string(*constraints.Architecture)
 	}
 

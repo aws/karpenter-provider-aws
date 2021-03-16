@@ -17,7 +17,7 @@ package fake
 import (
 	"fmt"
 
-	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
@@ -47,6 +47,6 @@ func NewNotImplementedFactory() *Factory {
 	return &Factory{WantErr: NotImplementedError}
 }
 
-func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
+func (f *Factory) CapacityFor(spec *provisioning.ProvisionerSpec) cloudprovider.Capacity {
 	return &Capacity{}
 }
