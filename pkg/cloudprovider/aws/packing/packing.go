@@ -116,7 +116,7 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([
 
 func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []*ec2.Filter {
 	architecture := "x86_64"
-	if constraints.Architecture != nil || *constraints.Architecture == provisioningv1alpha1.ArchitectureArm64 {
+	if constraints.Architecture != nil && *constraints.Architecture == provisioningv1alpha1.ArchitectureArm64 {
 		architecture = string(*constraints.Architecture)
 	}
 
