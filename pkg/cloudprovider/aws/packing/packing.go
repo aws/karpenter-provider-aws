@@ -153,7 +153,7 @@ func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *clou
 	remainingPods := unpackedPods
 	nodeCapacities, err := p.getNodeCapacities(constraints)
 	if err != nil {
-		return nil, bestPackedPods, err
+		return nil, nil, err
 	}
 	for _, nc := range nodeCapacities {
 		// check how many pods we can fit with the available capacity

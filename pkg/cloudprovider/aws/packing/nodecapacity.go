@@ -44,6 +44,7 @@ func nodeCapacityFrom(instanceTypeInfo ec2.InstanceTypeInfo) *nodeCapacity {
 		reserved: v1.ResourceList{
 			v1.ResourceCPU:    resource.Quantity{},
 			v1.ResourceMemory: resource.Quantity{},
+			v1.ResourcePods:   resource.Quantity{},
 		},
 	}
 }
