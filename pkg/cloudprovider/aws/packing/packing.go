@@ -135,11 +135,10 @@ func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []
 		},
 	}
 	if len(constraints.InstanceTypes) != 0 {
-		instanceTypesFilter := &ec2.Filter{
+		filters = append(filters, &ec2.Filter{
 			Name:   aws.String("instance-type"),
 			Values: aws.StringSlice(constraints.InstanceTypes),
-		}
-		filters = append(filters, instanceTypesFilter)
+		})
 	}
 	return filters
 }
