@@ -41,11 +41,6 @@ func nodeCapacityFrom(instanceTypeInfo ec2.InstanceTypeInfo) *nodeCapacity {
 			v1.ResourcePods: resource.MustParse(fmt.Sprint(
 				*instanceTypeInfo.NetworkInfo.MaximumNetworkInterfaces*(*instanceTypeInfo.NetworkInfo.Ipv4AddressesPerInterface-1) + 2)),
 		},
-		reserved: v1.ResourceList{
-			v1.ResourceCPU:    resource.Quantity{},
-			v1.ResourceMemory: resource.Quantity{},
-			v1.ResourcePods:   resource.Quantity{},
-		},
 	}
 }
 
