@@ -101,7 +101,7 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([
 			nc := nodeCapacityFrom(*instanceTypeInfo)
 			kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
 			if ok := nc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
-				zap.S().Infof("Excluding instance type %s because there is not enough resources for the kubelet overhead", nc.instanceType)
+				zap.S().Infof("Excluding instance type %s because there are not enough resources for the kubelet overhead", nc.instanceType)
 			}
 			result = append(result, nc)
 		}
