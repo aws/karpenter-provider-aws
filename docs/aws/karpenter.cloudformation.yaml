@@ -52,6 +52,8 @@ Resources:
               - "ec2:DescribeInstances"
               - "ec2:DescribeSecurityGroups"
               - "ec2:DescribeSubnets"
+              - "ec2:DescribeInstanceTypes"
+              - "ec2:DescribeInstanceTypeOfferings"
               - "iam:GetInstanceProfile"
               - "ssm:GetParameter"
   KarpenterNodeInstanceProfile:

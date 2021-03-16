@@ -16,9 +16,13 @@ package packing
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -27,8 +31,12 @@ import (
 )
 
 type podPacker struct {
-	// TODO use this ec2 API to get the instance types
 	ec2 ec2iface.EC2API
+}
+
+type packingResult struct {
+	packed   []*v1.Pod
+	unpacked []*v1.Pod
 }
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
@@ -60,11 +68,15 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: constraints.Pods}))
-	packings := []*Packing{}
+	var packings []*Packing
 	var packing *Packing
+	var err error
 	remainingPods := constraints.Pods
 	for len(remainingPods) > 0 {
-		packing, remainingPods = p.packWithLargestPod(remainingPods, constraints)
+		packing, remainingPods, err = p.packWithLargestPod(remainingPods, constraints)
+		if err != nil {
+			return packings, fmt.Errorf("packing with largest pod, %w", err)
+		}
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
 			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, remainingPods[0].Name)
@@ -77,33 +89,72 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 	return packings, nil
 }
 
-// TODO filter instance types based on node contraints like availability zones etc.
-func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) []*nodeCapacity {
-	result := make([]*nodeCapacity, 0)
-	for _, nc := range nodeCapacities {
-		ncc := nc.Copy()
-		kubeletOverhead := binpacking.CalculateKubeletOverhead(ncc.total)
-		if ok := ncc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
-			zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", ncc.instanceType)
-		}
-		result = append(result, ncc)
+func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([]*nodeCapacity, error) {
+	result := []*nodeCapacity{}
+
+	describeInstanceTypesInput := &ec2.DescribeInstanceTypesInput{
+		Filters: describeInstanceTypesFiltersFrom(constraints),
 	}
-	return result
+
+	err := p.ec2.DescribeInstanceTypesPagesWithContext(context.TODO(), describeInstanceTypesInput, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
+		for _, instanceTypeInfo := range page.InstanceTypes {
+			nc := nodeCapacityFrom(*instanceTypeInfo)
+			kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
+			if ok := nc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
+				zap.S().Infof("Excluding instance type %s because there are not enough resources for the kubelet overhead", nc.instanceType)
+			}
+			result = append(result, nc)
+		}
+		return lastPage
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
+	}
+	return result, nil
 }
 
-type packingResult struct {
-	packed   []*v1.Pod
-	unpacked []*v1.Pod
+func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []*ec2.Filter {
+	architecture := "x86_64"
+	if constraints.Architecture != nil && *constraints.Architecture == provisioning.ArchitectureArm64 {
+		architecture = string(*constraints.Architecture)
+	}
+
+	filters := []*ec2.Filter{
+		{
+			Name:   aws.String("processor-info.supported-architecture"),
+			Values: []*string{&architecture},
+		},
+		{
+			Name:   aws.String("supported-usage-class"),
+			Values: []*string{aws.String("on-demand")},
+		},
+		{
+			Name:   aws.String("supported-virtualization-type"),
+			Values: []*string{aws.String("hvm")},
+		},
+	}
+	if len(constraints.InstanceTypes) != 0 {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("instance-type"),
+			Values: aws.StringSlice(constraints.InstanceTypes),
+		})
+	}
+	return filters
 }
 
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod) {
+func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod, error) {
 	bestPackedPods := []*v1.Pod{}
 	bestCapacities := []*nodeCapacity{}
 	remainingPods := unpackedPods
-	for _, nc := range p.getNodeCapacities(constraints) {
+	nodeCapacities, err := p.getNodeCapacities(constraints)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, nc := range nodeCapacities {
 		// check how many pods we can fit with the available capacity
 		result := p.packPodsForCapacity(nc, unpackedPods)
 		if len(result.packed) == 0 {
@@ -125,7 +176,7 @@ func (p *podPacker) packWithLargestPod(unpackedPods []*v1.Pod, constraints *clou
 	for _, capacity := range bestCapacities {
 		capacityNames = append(capacityNames, capacity.instanceType)
 	}
-	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
+	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods, nil
 }
 
 func (p *podPacker) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {

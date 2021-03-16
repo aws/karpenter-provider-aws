@@ -15,82 +15,33 @@ limitations under the License.
 package packing
 
 import (
+	"fmt"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 	resourcesUtil "github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-)
-
-// TODO get this information from node-instance-selector
-var (
-	nodeCapacities = []*nodeCapacity{
-
-		{
-			instanceType: "m5.24xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("96000m"),
-				v1.ResourceMemory: resource.MustParse("384Gi"),
-				v1.ResourcePods:   resource.MustParse("737"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.8xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("32000m"),
-				v1.ResourceMemory: resource.MustParse("128Gi"),
-				v1.ResourcePods:   resource.MustParse("234"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.2xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("8000m"),
-				v1.ResourceMemory: resource.MustParse("32Gi"),
-				v1.ResourcePods:   resource.MustParse("58"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.xlarge",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("4000m"),
-				v1.ResourceMemory: resource.MustParse("16Gi"),
-				v1.ResourcePods:   resource.MustParse("58"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-		{
-			instanceType: "m5.large",
-			total: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("2000m"),
-				v1.ResourceMemory: resource.MustParse("8Gi"),
-				v1.ResourcePods:   resource.MustParse("29"),
-			},
-			reserved: v1.ResourceList{
-				v1.ResourceCPU:    resource.Quantity{},
-				v1.ResourceMemory: resource.Quantity{},
-			},
-		},
-	}
 )
 
 type nodeCapacity struct {
 	instanceType string
 	reserved     v1.ResourceList
 	total        v1.ResourceList
+}
+
+func nodeCapacityFrom(instanceTypeInfo ec2.InstanceTypeInfo) *nodeCapacity {
+	return &nodeCapacity{
+		instanceType: *instanceTypeInfo.InstanceType,
+		total: v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse(fmt.Sprint(*instanceTypeInfo.VCpuInfo.DefaultVCpus)),
+			v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", *instanceTypeInfo.MemoryInfo.SizeInMiB)),
+			// The number of pods per node is calculated using the formula:
+			// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+			// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+			v1.ResourcePods: resource.MustParse(fmt.Sprint(
+				*instanceTypeInfo.NetworkInfo.MaximumNetworkInterfaces*(*instanceTypeInfo.NetworkInfo.Ipv4AddressesPerInterface-1) + 2)),
+		},
+	}
 }
 
 func (nc *nodeCapacity) Copy() *nodeCapacity {

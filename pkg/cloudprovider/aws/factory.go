@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	provisioningv1alpha1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
@@ -82,7 +82,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	}
 }
 
-func (f *Factory) CapacityFor(spec *provisioningv1alpha1.ProvisionerSpec) cloudprovider.Capacity {
+func (f *Factory) CapacityFor(spec *provisioning.ProvisionerSpec) cloudprovider.Capacity {
 	return &Capacity{
 		spec:                   spec,
 		nodeFactory:            f.nodeFactory,
