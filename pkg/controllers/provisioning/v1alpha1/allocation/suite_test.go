@@ -39,7 +39,7 @@ import (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Provisioner",
+		"Provisioner/Allocator",
 		[]Reporter{printer.NewlineReporter{}})
 }
 

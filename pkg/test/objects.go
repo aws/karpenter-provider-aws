@@ -45,6 +45,7 @@ type PodOptions struct {
 	Name             string
 	Namespace        string
 	Image            string
+	NodeName         string
 	NodeSelector     map[string]string
 	ResourceRequests v1.ResourceList
 	Conditions       []v1.PodCondition
@@ -74,6 +75,7 @@ func PodWith(options PodOptions) *v1.Pod {
 					Requests: options.ResourceRequests,
 				},
 			}},
+			NodeName: options.NodeName,
 		},
 		Status: v1.PodStatus{Conditions: options.Conditions},
 	}
@@ -82,6 +84,7 @@ func PodWith(options PodOptions) *v1.Pod {
 type NodeOptions struct {
 	Name          string
 	Labels        map[string]string
+	Annotations   map[string]string
 	ReadyStatus   v1.ConditionStatus
 	Unschedulable bool
 	Allocatable   v1.ResourceList
@@ -97,11 +100,15 @@ func NodeWith(options NodeOptions) *v1.Node {
 	if options.Labels == nil {
 		options.Labels = map[string]string{}
 	}
+	if options.Annotations == nil {
+		options.Annotations = map[string]string{}
+	}
 
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   options.Name,
-			Labels: options.Labels,
+			Name:        options.Name,
+			Labels:      options.Labels,
+			Annotations: options.Annotations,
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
