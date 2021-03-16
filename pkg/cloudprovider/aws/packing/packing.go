@@ -31,7 +31,6 @@ import (
 )
 
 type podPacker struct {
-	// TODO use this ec2 API to get the instance types
 	ec2 ec2iface.EC2API
 }
 
@@ -69,7 +68,7 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: constraints.Pods}))
-	packings := []*Packing{}
+	var packings []*Packing
 	var packing *Packing
 	var err error
 	remainingPods := constraints.Pods
@@ -91,18 +90,18 @@ func (p *podPacker) Pack(ctx context.Context, constraints *cloudprovider.Constra
 }
 
 func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([]*nodeCapacity, error) {
-	result := make([]*nodeCapacity, 0)
+	result := []*nodeCapacity{}
 
 	describeInstanceTypesInput := &ec2.DescribeInstanceTypesInput{
-		Filters: constraintsToDescribeInstanceTypesFilters(constraints),
+		Filters: describeInstanceTypesFiltersFrom(constraints),
 	}
 
 	err := p.ec2.DescribeInstanceTypesPagesWithContext(context.TODO(), describeInstanceTypesInput, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceTypeInfo := range page.InstanceTypes {
-			nc := instanceTypeInfoToNodeCapacity(*instanceTypeInfo)
+			nc := nodeCapacityFrom(*instanceTypeInfo)
 			kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
 			if ok := nc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
-				zap.S().Errorf("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
+				zap.S().Infof("Failed to reserve kubelet overhead for node capacity type %v", nc.instanceType)
 			}
 			result = append(result, nc)
 		}
@@ -115,7 +114,7 @@ func (p *podPacker) getNodeCapacities(constraints *cloudprovider.Constraints) ([
 	return result, nil
 }
 
-func constraintsToDescribeInstanceTypesFilters(constraints *cloudprovider.Constraints) []*ec2.Filter {
+func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []*ec2.Filter {
 	architecture := "x86_64"
 	if constraints.Architecture != nil || *constraints.Architecture == provisioningv1alpha1.ArchitectureArm64 {
 		architecture = string(*constraints.Architecture)
@@ -135,16 +134,13 @@ func constraintsToDescribeInstanceTypesFilters(constraints *cloudprovider.Constr
 			Values: []*string{aws.String("hvm")},
 		},
 	}
-
-	instanceTypeConstraints := make([]*string, 0)
-	instanceTypesFilter := &ec2.Filter{
-		Name:   aws.String("instance-type"),
-		Values: instanceTypeConstraints,
+	if len(constraints.InstanceTypes) != 0 {
+		instanceTypesFilter := &ec2.Filter{
+			Name:   aws.String("instance-type"),
+			Values: aws.StringSlice(constraints.InstanceTypes),
+		}
+		filters = append(filters, instanceTypesFilter)
 	}
-	for _, instanceType := range constraints.InstanceTypes {
-		instanceTypesFilter.Values = append(instanceTypesFilter.Values, &instanceType)
-	}
-	filters = append(filters, instanceTypesFilter)
 	return filters
 }
 
