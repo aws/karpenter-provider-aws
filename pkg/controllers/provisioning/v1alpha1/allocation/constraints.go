@@ -81,7 +81,7 @@ func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.Re
 	}
 
 	// 2. filter DaemonSets to include those that will schedule on this node
-	podSpecs := make([]*v1.PodSpec, 0)
+	podSpecs := []*v1.PodSpec{}
 	for _, daemonSet := range daemonSetList.Items {
 		if scheduling.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
 			podSpecs = append(podSpecs, &daemonSet.Spec.Template.Spec)
