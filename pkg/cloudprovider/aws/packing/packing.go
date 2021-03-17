@@ -133,6 +133,10 @@ func describeInstanceTypesFiltersFrom(constraints *cloudprovider.Constraints) []
 			Name:   aws.String("supported-virtualization-type"),
 			Values: []*string{aws.String("hvm")},
 		},
+		{
+			Name:   aws.String("burstable-performance-supported"),
+			Values: []*string{aws.String("false")},
+		},
 	}
 	if len(constraints.InstanceTypes) != 0 {
 		filters = append(filters, &ec2.Filter{
