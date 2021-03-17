@@ -25,6 +25,7 @@ helm install karpenter karpenter/karpenter
 
 ## Docs
 - [API](docs/README.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Examples](docs/aws/examples)
 - [Working Group](docs/working-group)
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
