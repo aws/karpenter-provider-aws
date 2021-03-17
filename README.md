@@ -24,11 +24,10 @@ helm install karpenter karpenter/karpenter
 ```
 
 ## Docs
+- [API](docs/README.md)
 - [Examples](docs/aws/examples)
 - [Working Group](docs/working-group)
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
-- [Design](docs/designs/DESIGN.md)
-- [FAQs](docs/FAQs.md)
 - [Contributing](docs/CONTRIBUTING.md)
 
 ## Terms
