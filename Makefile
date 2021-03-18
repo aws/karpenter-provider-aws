@@ -1,7 +1,7 @@
 GOFLAGS ?= "-tags=${CLOUD_PROVIDER}"
 
 RELEASE_REPO ?= public.ecr.aws/b6u6q9h4
-RELEASE_VERSION ?= v0.1.2
+RELEASE_VERSION ?= v0.1.3
 RELEASE_MANIFEST = releases/${CLOUD_PROVIDER}/manifest.yaml
 
 WITH_GOFLAGS = GOFLAGS=${GOFLAGS}
@@ -45,11 +45,11 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f - > $(RELEASE_MANIFEST)
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) -f config > $(RELEASE_MANIFEST)
 
 helm: ## Generate Helm Chart
 	cp $(RELEASE_MANIFEST) charts/karpenter/templates
-	yq w -i charts/karpenter/Chart.yaml version $(RELEASE_VERSION)
+	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
 	cd charts; helm package karpenter; helm repo index .
 
 docs: ## Generate Docs
