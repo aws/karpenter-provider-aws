@@ -15,7 +15,7 @@ Karpenter optimizes for scheduling latency and utilization efficiency using two 
 
 Check out the [FAQs](docs/FAQs.md) to learn more.
 
-![](docs/images/karpenter-overview.png)
+![](docs/images/karpenter-overview.jpg)
 
 This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 ## Installation
