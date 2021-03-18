@@ -1,519 +1,161 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: karpenter-selfsigned-issuer
+  namespace: karpenter
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: karpenter-serving-cert
+  namespace: karpenter
+spec:
+  dnsNames:
+    - karpenter-webhook-service.karpenter.svc
+    - karpenter-webhook-service.karpenter.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: karpenter-selfsigned-issuer
+  secretName: karpenter-webhook-server-cert # this secret will not be prefixed, since it's not managed by kustomize
+
+---
 apiVersion: v1
-kind: Namespace
+kind: Service
 metadata:
+  name: karpenter-webhook-service
+  namespace: karpenter
   labels:
     control-plane: karpenter
+spec:
+  ports:
+    - port: 443
+      targetPort: webhook
+  selector:
+    control-plane: karpenter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter-metrics-service
+  namespace: karpenter
+  labels:
+    control-plane: karpenter
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: metrics
+  selector:
+    control-plane: karpenter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: karpenter
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
-    controller-gen.kubebuilder.io/version: v0.4.0
-  creationTimestamp: null
+  namespace: karpenter
   labels:
     control-plane: karpenter
-  name: horizontalautoscalers.autoscaling.karpenter.sh
 spec:
-  group: autoscaling.karpenter.sh
-  names:
-    kind: HorizontalAutoscaler
-    listKind: HorizontalAutoscalerList
-    plural: horizontalautoscalers
-    shortNames:
-      - horizontalautoscaler
-    singular: horizontalautoscaler
-  scope: Namespaced
-  versions:
-    - additionalPrinterColumns:
-        - jsonPath: .spec.minReplicas
-          name: min
-          type: string
-        - jsonPath: .status.desiredReplicas
-          name: desired
-          type: string
-        - jsonPath: .spec.maxReplicas
-          name: max
-          type: string
-        - jsonPath: .status.conditions[?(@.type=='Ready')].status
-          name: ready
-          type: string
-        - jsonPath: .status.lastScaleTime
-          name: last-scale-time
-          type: string
-        - jsonPath: .metadata.creationTimestamp
-          name: age
-          type: date
-      name: v1alpha1
-      schema:
-        openAPIV3Schema:
-          description: HorizontalAutoscaler is the Schema for the horizontalautoscalers API
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-              type: string
-            metadata:
-              type: object
-            spec:
-              description: HorizontalAutoscalerSpec is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#HorizontalPodAutoscalerSpec This enables parity of functionality between Pod and Node autoscaling, with a few minor differences. 1. ObjectSelector is replaced by NodeSelector. 2. Metrics.PodsMetricSelector is replaced by the more generic Metrics.ReplicaMetricSelector.
-              properties:
-                behavior:
-                  description: Behavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively). If not set, the default ScalingRules for scale up and scale down are used.
-                  properties:
-                    scaleDown:
-                      description: ScaleDown is scaling policy for scaling Down. If not set, the default value is to allow to scale down to minReplicas, with a 300 second stabilization window (i.e., the highest recommendation for the last 300sec is used).
-                      properties:
-                        policies:
-                          description: policies is a list of potential scaling polices which can be used during scaling. At least one policy must be specified, otherwise the ScalingRules will be discarded as invalid
-                          items:
-                            description: ScalingPolicy is a single policy which must hold true for a specified past interval.
-                            properties:
-                              periodSeconds:
-                                description: PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
-                                format: int32
-                                type: integer
-                              type:
-                                description: Type is used to specify the scaling policy.
-                                type: string
-                              value:
-                                description: Value contains the amount of change which is permitted by the policy. It must be greater than zero
-                                format: int32
-                                type: integer
-                            required:
-                              - periodSeconds
-                              - type
-                              - value
-                            type: object
-                          type: array
-                        selectPolicy:
-                          description: selectPolicy is used to specify which policy should be used. If not set, the default value MaxPolicySelect is used.
-                          type: string
-                        stabilizationWindowSeconds:
-                          description: 'StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).'
-                          format: int32
-                          type: integer
-                      type: object
-                    scaleUp:
-                      description: 'ScaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:   * increase no more than 4 replicas per 60 seconds   * double the number of replicas per 60 seconds No stabilization is used.'
-                      properties:
-                        policies:
-                          description: policies is a list of potential scaling polices which can be used during scaling. At least one policy must be specified, otherwise the ScalingRules will be discarded as invalid
-                          items:
-                            description: ScalingPolicy is a single policy which must hold true for a specified past interval.
-                            properties:
-                              periodSeconds:
-                                description: PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
-                                format: int32
-                                type: integer
-                              type:
-                                description: Type is used to specify the scaling policy.
-                                type: string
-                              value:
-                                description: Value contains the amount of change which is permitted by the policy. It must be greater than zero
-                                format: int32
-                                type: integer
-                            required:
-                              - periodSeconds
-                              - type
-                              - value
-                            type: object
-                          type: array
-                        selectPolicy:
-                          description: selectPolicy is used to specify which policy should be used. If not set, the default value MaxPolicySelect is used.
-                          type: string
-                        stabilizationWindowSeconds:
-                          description: 'StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).'
-                          format: int32
-                          type: integer
-                      type: object
-                  type: object
-                maxReplicas:
-                  description: MaxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up. It cannot be less that minReplicas.
-                  format: int32
-                  type: integer
-                metrics:
-                  description: Metrics contains the specifications for which to use to calculate the desired replica count (the maximum replica count across all metrics will be used).  The desired replica count is calculated multiplying the ratio between the target value and the current value by the current number of replicas.  Ergo, metrics used must decrease as the replica count is increased, and vice-versa.  See the individual metric source types for more information about how each type of metric must respond. If not set, the default metric will be set to 80% average CPU utilization.
-                  items:
-                    description: Metric is modeled after https://godoc.org/k8s.io/api/autoscaling/v2beta2#MetricSpec
-                    properties:
-                      prometheus:
-                        description: PrometheusMetricSource defines a metric in Prometheus
-                        properties:
-                          query:
-                            type: string
-                          target:
-                            description: MetricTarget defines the target value, average value, or average utilization of a specific metric
-                            properties:
-                              averageUtilization:
-                                description: AverageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type
-                                format: int32
-                                type: integer
-                              averageValue:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: AverageValue is the target value of the average of the metric across all relevant pods (as a quantity)
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              type:
-                                description: Type represents whether the metric type is Utilization, Value, or AverageValue Value is the target value of the metric (as a quantity).
-                                type: string
-                              value:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                            required:
-                              - type
-                            type: object
-                        required:
-                          - query
-                          - target
-                        type: object
-                    type: object
-                  type: array
-                minReplicas:
-                  description: MinReplicas is the lower limit for the number of replicas to which the autoscaler can scale down. It is allowed to be 0.
-                  format: int32
-                  type: integer
-                scaleTargetRef:
-                  description: ScaleTargetRef points to the target resource to scale.
-                  properties:
-                    apiVersion:
-                      description: API version of the referent
-                      type: string
-                    kind:
-                      description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
-                      type: string
-                    name:
-                      description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
-                      type: string
-                  required:
-                    - kind
-                    - name
-                  type: object
-              required:
-                - maxReplicas
-                - minReplicas
-                - scaleTargetRef
-              type: object
-            status:
-              description: HorizontalAutoscalerStatus defines the observed state of HorizontalAutoscaler
-              properties:
-                conditions:
-                  description: Conditions is the set of conditions required for this autoscaler to scale its target, and indicates whether or not those conditions are met.
-                  items:
-                    description: 'Conditions defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
-                    properties:
-                      lastTransitionTime:
-                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
-                        type: string
-                      message:
-                        description: A human readable message indicating details about the transition.
-                        type: string
-                      reason:
-                        description: The reason for the condition's last transition.
-                        type: string
-                      severity:
-                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
-                        type: string
-                      status:
-                        description: Status of the condition, one of True, False, Unknown.
-                        type: string
-                      type:
-                        description: Type of condition.
-                        type: string
-                    required:
-                      - status
-                      - type
-                    type: object
-                  type: array
-                currentMetrics:
-                  description: CurrentMetrics is the last read state of the metrics used by this autoscaler.
-                  items:
-                    description: MetricStatus contains status information for the configured metrics source. This status has a one-of semantic and will only ever contain one value.
-                    properties:
-                      prometheus:
-                        properties:
-                          current:
-                            description: Current contains the current value for the given metric
-                            properties:
-                              averageUtilization:
-                                description: currentAverageUtilization is the current value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
-                                format: int32
-                                type: integer
-                              averageValue:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: AverageValue is the current value of the average of the metric across all relevant pods (as a quantity)
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              value:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: Value is the current value of the metric (as a quantity).
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                            type: object
-                          query:
-                            description: Query of the metric
-                            type: string
-                        required:
-                          - current
-                          - query
-                        type: object
-                    type: object
-                  type: array
-                currentReplicas:
-                  description: CurrentReplicas is current number of replicas of pods managed by this autoscaler, as last seen by the autoscaler.
-                  format: int32
-                  type: integer
-                desiredReplicas:
-                  description: DesiredReplicas is the desired number of replicas of pods managed by this autoscaler, as last calculated by the autoscaler.
-                  format: int32
-                  type: integer
-                lastScaleTime:
-                  description: LastScaleTime is the last time the HorizontalAutoscaler scaled the number of pods, used by the autoscaler to control how often the number of pods is changed.
-                  type: string
-              type: object
-          type: object
-      served: true
-      storage: true
-      subresources:
-        status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
+  selector:
+    matchLabels:
+      control-plane: karpenter
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: karpenter
+    spec:
+      serviceAccountName: karpenter
+      containers:
+        - name: manager
+          image: public.ecr.aws/b6u6q9h4/controller:v0.1.3@sha256:f9c28aeeb6c80b1c768eb2123946c15fe24fdf10f1227d3a5df3b01137eaa1cb
+          resources:
+            limits:
+              cpu: 100m
+              memory: 30Mi
+            requests:
+              cpu: 100m
+              memory: 20Mi
+          ports:
+            - name: webhook
+              containerPort: 9443
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: karpenter-webhook-server-cert
+
 ---
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
 metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.4.0
-  creationTimestamp: null
-  labels:
-    control-plane: karpenter
-  name: metricsproducers.autoscaling.karpenter.sh
+  name: karpenter-monitor
+  namespace: karpenter
 spec:
-  group: autoscaling.karpenter.sh
-  names:
-    kind: MetricsProducer
-    listKind: MetricsProducerList
-    plural: metricsproducers
-    shortNames:
-      - metricsproducer
-    singular: metricsproducer
-  scope: Namespaced
-  versions:
-    - additionalPrinterColumns:
-        - jsonPath: .status.conditions[?(@.type=='Ready')].status
-          name: ready
-          type: string
-        - jsonPath: .metadata.creationTimestamp
-          name: age
-          type: date
-      name: v1alpha1
-      schema:
-        openAPIV3Schema:
-          description: MetricsProducer is the Schema for the MetricsProducers API
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-              type: string
-            metadata:
-              type: object
-            spec:
-              description: MetricsProducerSpec defines an object that outputs metrics.
-              properties:
-                pendingCapacity:
-                  description: PendingCapacity produces a metric that recommends increases or decreases to the sizes of a set of node groups based on pending pods.
-                  properties:
-                    nodeSelector:
-                      additionalProperties:
-                        type: string
-                      description: NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
-                      type: object
-                  required:
-                    - nodeSelector
-                  type: object
-                queue:
-                  description: Queue produces metrics about a specified queue, such as length and age of oldest message,
-                  properties:
-                    id:
-                      type: string
-                    type:
-                      description: QueueType corresponds to an implementation of a queue
-                      type: string
-                  required:
-                    - id
-                    - type
-                  type: object
-                reservedCapacity:
-                  description: ReservedCapacity produces a metric corresponding to the ratio of committed resources to available resources for the nodes of a specified node group.
-                  properties:
-                    nodeSelector:
-                      additionalProperties:
-                        type: string
-                      description: NodeSelector specifies a node group. The selector must uniquely identify a set of nodes.
-                      type: object
-                  required:
-                    - nodeSelector
-                  type: object
-                scheduleSpec:
-                  description: Schedule produces a metric according to a specified schedule.
-                  properties:
-                    behaviors:
-                      description: Behaviors may be layered to achieve complex scheduling autoscaling logic
-                      items:
-                        description: ScheduledBehavior sets the metric to a replica value based on a start and end pattern.
-                        properties:
-                          end:
-                            description: Pattern is a strongly-typed version of crontabs
-                            properties:
-                              days:
-                                description: When Days, Months, or Weekdays are left out, they are represented by wildcards, meaning any time matches
-                                type: string
-                              hours:
-                                type: string
-                              minutes:
-                                description: When minutes or hours are left out, they are assumed to match to 0
-                                type: string
-                              months:
-                                description: List of 3-letter abbreviations i.e. Jan, Feb, Mar
-                                type: string
-                              weekdays:
-                                description: List of 3-letter abbreviations i.e. "Mon, Tue, Wed"
-                                type: string
-                            type: object
-                          replicas:
-                            description: The value the MetricsProducer will emit when the current time is within start and end
-                            format: int32
-                            type: integer
-                          start:
-                            description: Pattern is a strongly-typed version of crontabs
-                            properties:
-                              days:
-                                description: When Days, Months, or Weekdays are left out, they are represented by wildcards, meaning any time matches
-                                type: string
-                              hours:
-                                type: string
-                              minutes:
-                                description: When minutes or hours are left out, they are assumed to match to 0
-                                type: string
-                              months:
-                                description: List of 3-letter abbreviations i.e. Jan, Feb, Mar
-                                type: string
-                              weekdays:
-                                description: List of 3-letter abbreviations i.e. "Mon, Tue, Wed"
-                                type: string
-                            type: object
-                        required:
-                          - end
-                          - replicas
-                          - start
-                        type: object
-                      type: array
-                    defaultReplicas:
-                      description: A schedule defaults to this value when no behaviors are active
-                      format: int32
-                      type: integer
-                    timezone:
-                      description: 'Defaults to UTC. Users will specify their schedules assuming this is their timezone ref: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones'
-                      type: string
-                  required:
-                    - behaviors
-                    - defaultReplicas
-                  type: object
-              type: object
-            status:
-              description: MetricsProducerStatus defines the observed state of the resource.
-              properties:
-                conditions:
-                  description: Conditions is the set of conditions required for the metrics producer to successfully publish metrics to the metrics server
-                  items:
-                    description: 'Conditions defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
-                    properties:
-                      lastTransitionTime:
-                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
-                        type: string
-                      message:
-                        description: A human readable message indicating details about the transition.
-                        type: string
-                      reason:
-                        description: The reason for the condition's last transition.
-                        type: string
-                      severity:
-                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
-                        type: string
-                      status:
-                        description: Status of the condition, one of True, False, Unknown.
-                        type: string
-                      type:
-                        description: Type of condition.
-                        type: string
-                    required:
-                      - status
-                      - type
-                    type: object
-                  type: array
-                pendingCapacity:
-                  type: object
-                queue:
-                  properties:
-                    length:
-                      description: Length of the Queue
-                      format: int64
-                      type: integer
-                    oldestMessageAgeSeconds:
-                      description: The age of the oldest message in the queue in seconds
-                      format: int64
-                      type: integer
-                  required:
-                    - length
-                  type: object
-                reservedCapacity:
-                  additionalProperties:
-                    type: string
-                  type: object
-                scheduledCapacity:
-                  properties:
-                    currentValue:
-                      description: The current recommendation - the metric the MetricsProducer is emitting
-                      format: int32
-                      type: integer
-                    nextValue:
-                      description: Not Currently Implemented The next recommendation for the metric
-                      format: int32
-                      type: integer
-                    nextValueTime:
-                      description: Not Currently Implemented The time in the future where CurrentValue will switch to NextValue
-                      type: string
-                  type: object
-              type: object
-          type: object
-      served: true
-      storage: true
-      subresources:
-        status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
+  replicas: 1
+  serviceMonitorSelector:
+    matchLabels:
+      control-plane: karpenter
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: karpenter
+  name: karpenter-metrics-monitor
+  namespace: karpenter
+spec:
+  endpoints:
+    - path: /metrics
+      port: http
+      interval: 5s
+      scheme: http
+  selector:
+    matchLabels:
+      control-plane: karpenter
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: karpenter-metrics-reader
+rules:
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: karpenter-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: karpenter-metrics-reader
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: karpenter
+
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -521,8 +163,6 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.0
   creationTimestamp: null
-  labels:
-    control-plane: karpenter
   name: provisioners.provisioning.karpenter.sh
 spec:
   group: provisioning.karpenter.sh
@@ -547,15 +187,11 @@ spec:
             metadata:
               type: object
             spec:
+              description: ProvisionerSpec is the top level provisioner specification. Provisioners launch nodes in response to pods where status.conditions[type=unschedulable, status=true]. Node configuration is driven by through a combination of provisioner specification (defaults) and pod scheduling constraints (overrides). A single provisioner is capable of managing highly diverse capacity within a single cluster and in most cases, only one should be necessary. For advanced use cases like workload separation and sharding, it's possible to define multiple provisioners. These provisioners may have different defaults and can be specifically targeted by pods using pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
               properties:
-                allocator:
-                  description: AllocatorSpec configures node allocation policy
-                  properties:
-                    instanceTypes:
-                      items:
-                        type: string
-                      type: array
-                  type: object
+                architecture:
+                  description: Architecture constraints the underlying node architecture
+                  type: string
                 cluster:
                   description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
                   properties:
@@ -573,9 +209,51 @@ spec:
                     - endpoint
                     - name
                   type: object
-                reallocator:
-                  description: ReallocatorSpec configures node reallocation policy
+                instanceTypes:
+                  description: InstanceTypes constraints which instances types will be used for nodes launched by the Provisioner. If unspecified, supports all types. Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
+                  items:
+                    type: string
+                  type: array
+                labels:
+                  additionalProperties:
+                    type: string
+                  description: Labels will be applied to every node launched by the Provisioner unless overriden by pod node selectors. Well known labels control provisioning behavior. Additional labels may be supported by your cloudprovider.
                   type: object
+                operatingSystem:
+                  description: OperatingSystem constrain the underlying node operating system
+                  type: string
+                taints:
+                  description: Taints will be applied to every node launched by the Provisioner. If specified, the provisioner will not provision nodes for pods that do not have matching tolerations.
+                  items:
+                    description: The node this Taint is attached to has the "effect" on any pod that does not tolerate the Taint.
+                    properties:
+                      effect:
+                        description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
+                        type: string
+                      key:
+                        description: Required. The taint key to be applied to a node.
+                        type: string
+                      timeAdded:
+                        description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
+                        format: date-time
+                        type: string
+                      value:
+                        description: The taint value corresponding to the taint key.
+                        type: string
+                    required:
+                      - effect
+                      - key
+                    type: object
+                  type: array
+                ttlSeconds:
+                  description: TTLSeconds determines how long to wait before attempting to terminate a node.
+                  format: int32
+                  type: integer
+                zones:
+                  description: Zones constrains where nodes will be launched by the Provisioner. If unspecified, defaults to all zones in the region. Cannot be specified if label "topology.kubernetes.io/zone" is specified.
+                  items:
+                    type: string
+                  type: array
               type: object
             status:
               description: ProvisionerStatus defines the observed state of Provisioner
@@ -623,291 +301,44 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
-    controller-gen.kubebuilder.io/version: v0.4.0
-  creationTimestamp: null
-  labels:
-    control-plane: karpenter
-  name: scalablenodegroups.autoscaling.karpenter.sh
-spec:
-  group: autoscaling.karpenter.sh
-  names:
-    kind: ScalableNodeGroup
-    listKind: ScalableNodeGroupList
-    plural: scalablenodegroups
-    shortNames:
-      - scalablenodegroup
-    singular: scalablenodegroup
-  scope: Namespaced
-  versions:
-    - additionalPrinterColumns:
-        - jsonPath: .spec.replicas
-          name: desired
-          type: string
-        - jsonPath: .status.replicas
-          name: current
-          type: string
-        - jsonPath: .spec.type
-          name: type
-          type: string
-        - jsonPath: .status.conditions[?(@.type=='Ready')].status
-          name: ready
-          type: string
-        - jsonPath: .metadata.creationTimestamp
-          name: age
-          type: date
-      name: v1alpha1
-      schema:
-        openAPIV3Schema:
-          description: ScalableNodeGroup is the Schema for the ScalableNodeGroups API
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-              type: string
-            metadata:
-              type: object
-            spec:
-              description: ScalableNodeGroupSpec is an abstract representation for a Cloud Provider's Node Group. It implements https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#scale-subresource which enables it to be targeted by Horizontal Pod Autoscalers.
-              properties:
-                id:
-                  description: ID to identify the underlying resource
-                  type: string
-                replicas:
-                  description: Replicas is the desired number of replicas for the targeted Node Group
-                  format: int32
-                  type: integer
-                type:
-                  description: Type for the resource of name ScalableNodeGroup.ObjectMeta.Name
-                  type: string
-              required:
-                - id
-                - type
-              type: object
-            status:
-              description: ScalableNodeGroupStatus holds status information for the ScalableNodeGroup
-              properties:
-                conditions:
-                  description: Conditions is the set of conditions required for the scalable node group to successfully enforce the replica count of the underlying group
-                  items:
-                    description: 'Conditions defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
-                    properties:
-                      lastTransitionTime:
-                        description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).
-                        type: string
-                      message:
-                        description: A human readable message indicating details about the transition.
-                        type: string
-                      reason:
-                        description: The reason for the condition's last transition.
-                        type: string
-                      severity:
-                        description: Severity with which to treat failures of this type of condition. When this is not specified, it defaults to Error.
-                        type: string
-                      status:
-                        description: Status of the condition, one of True, False, Unknown.
-                        type: string
-                      type:
-                        description: Type of condition.
-                        type: string
-                    required:
-                      - status
-                      - type
-                    type: object
-                  type: array
-                replicas:
-                  description: Replicas displays the actual size of the ScalableNodeGroup at the time of the last reconciliation
-                  format: int32
-                  type: integer
-              type: object
-          type: object
-      served: true
-      storage: true
-      subresources:
-        scale:
-          labelSelectorPath: .status.selector
-          specReplicasPath: .spec.replicas
-          statusReplicasPath: .status.replicas
-        status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
-  creationTimestamp: null
-  labels:
-    control-plane: karpenter
-  name: karpenter-mutating-webhook-configuration
-  namespace: karpenter
-webhooks:
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /mutate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
-    failurePolicy: Fail
-    name: mhorizontalautoscaler.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - horizontalautoscalers
-    sideEffects: None
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /mutate-autoscaling-karpenter-sh-v1alpha1-metricsproducer
-    failurePolicy: Fail
-    name: mmetricsproducer.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - metricsproducers
-    sideEffects: None
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /mutate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
-    failurePolicy: Fail
-    name: mscalablenodegroup.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - scalablenodegroups
-    sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
-  creationTimestamp: null
-  labels:
-    control-plane: karpenter
-  name: karpenter-validating-webhook-configuration
-  namespace: karpenter
-webhooks:
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /validate-autoscaling-karpenter-sh-v1alpha1-horizontalautoscaler
-    failurePolicy: Fail
-    name: vhorizontalautoscaler.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - horizontalautoscalers
-    sideEffects: None
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /validate-autoscaling-karpenter-sh-v1alpha1-metricsproducer
-    failurePolicy: Fail
-    name: vmetricsproducer.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - metricsproducers
-    sideEffects: None
-  - admissionReviewVersions:
-      - v1beta1
-    clientConfig:
-      caBundle: Cg==
-      service:
-        name: karpenter-webhook-service
-        namespace: karpenter
-        path: /validate-autoscaling-karpenter-sh-v1alpha1-scalablenodegroup
-    failurePolicy: Fail
-    name: scalablenodegroup.kb.io
-    rules:
-      - apiGroups:
-          - autoscaling.karpenter.sh
-        apiVersions:
-          - v1alpha1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - scalablenodegroups
-    sideEffects: None
+
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  labels:
-    control-plane: karpenter
   name: karpenter
   namespace: karpenter
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: karpenter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: karpenter
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter-leader-election
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: karpenter-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: karpenter
+    namespace: karpenter
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  labels:
-    control-plane: karpenter
   name: karpenter-leader-election
-  namespace: karpenter
 rules:
   - apiGroups:
       - ""
@@ -939,29 +370,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    control-plane: karpenter
   name: karpenter
 rules:
-  - apiGroups:
-      - autoscaling.karpenter.sh
-    resources:
-      - horizontalautoscalers
-      - horizontalautoscalers/status
-      - metricsproducers
-      - metricsproducers/status
-      - scalablenodegroups
-      - scalablenodegroups/status
-      - provisioners
-      - provisioners/status
-    verbs:
-      - create
-      - delete
-      - patch
-      - get
-      - list
-      - patch
-      - watch
   - apiGroups:
       - provisioning.karpenter.sh
     resources:
@@ -986,15 +396,6 @@ rules:
       - update
       - watch
   - apiGroups:
-      - '*'
-    resources:
-      - '*/scale'
-    verbs:
-      - update
-      - get
-      - list
-      - watch
-  - apiGroups:
       - ""
     resources:
       - nodes
@@ -1003,6 +404,8 @@ rules:
       - get
       - list
       - watch
+      - patch
+      - delete
   - apiGroups:
       - ""
     resources:
@@ -1022,205 +425,76 @@ rules:
       - ""
     resources:
       - pods/binding
+      - pods/eviction
     verbs:
       - create
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-metrics-reader
-rules:
-  - nonResourceURLs:
-      - /metrics
-    verbs:
-      - get
   - apiGroups:
-      - ""
+      - apps
     resources:
-      - services
-      - endpoints
+      - daemonsets
     verbs:
-      - get
       - list
       - watch
+
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
 metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-leader-election
-  namespace: karpenter
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: karpenter-leader-election
-subjects:
-  - kind: ServiceAccount
-    name: karpenter
-    namespace: karpenter
+  creationTimestamp: null
+  name: karpenter-mutating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /mutate-provisioning-karpenter-sh-v1alpha1-provisioner
+    failurePolicy: Fail
+    name: mutation.provisioning.karpenter.sh
+    rules:
+      - apiGroups:
+          - provisioning.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - provisioners
+    sideEffects: None
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
 metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-metrics
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: karpenter-metrics-reader
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: karpenter
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: karpenter
-subjects:
-  - kind: ServiceAccount
-    name: karpenter
-    namespace: karpenter
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-webhook-service
-  namespace: karpenter
-spec:
-  ports:
-    - port: 443
-      targetPort: webhook
-  selector:
-    control-plane: karpenter
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-metrics-service
-  namespace: karpenter
-spec:
-  ports:
-    - name: http
-      port: 8080
-      targetPort: metrics
-  selector:
-    control-plane: karpenter
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter
-  namespace: karpenter
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      control-plane: karpenter
-  template:
-    metadata:
-      labels:
-        control-plane: karpenter
-    spec:
-      containers:
-        - image: public.ecr.aws/b6u6q9h4/controller:v0.1.2@sha256:253a3685cebb3c547d410a1848bd00a44bb8a8220e7e003282ba53d1d66abf97
-          name: manager
-          ports:
-            - containerPort: 9443
-              name: webhook
-              protocol: TCP
-            - containerPort: 8080
-              name: metrics
-          resources:
-            limits:
-              cpu: 100m
-              memory: 30Mi
-            requests:
-              cpu: 100m
-              memory: 20Mi
-          volumeMounts:
-            - mountPath: /tmp/k8s-webhook-server/serving-certs
-              name: cert
-              readOnly: true
-      securityContext:
-        fsGroup: 1000
-      serviceAccountName: karpenter
-      volumes:
-        - name: cert
-          secret:
-            defaultMode: 420
-            secretName: webhook-server-cert
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-serving-cert
-  namespace: karpenter
-spec:
-  dnsNames:
-    - karpenter-webhook-service.karpenter.svc
-    - karpenter-webhook-service.karpenter.svc.cluster.local
-  issuerRef:
-    kind: Issuer
-    name: karpenter-selfsigned-issuer
-  secretName: webhook-server-cert
----
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-selfsigned-issuer
-  namespace: karpenter
-spec:
-  selfSigned: {}
----
-apiVersion: monitoring.coreos.com/v1
-kind: Prometheus
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-monitor
-  namespace: karpenter
-spec:
-  replicas: 1
-  serviceMonitorSelector:
-    matchLabels:
-      control-plane: karpenter
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-metrics-monitor
-  namespace: karpenter
-spec:
-  endpoints:
-    - interval: 5s
-      path: /metrics
-      port: http
-      scheme: http
-  selector:
-    matchLabels:
-      control-plane: karpenter
+  creationTimestamp: null
+  name: karpenter-validating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /validate-provisioning-karpenter-sh-v1alpha1-provisioner
+    failurePolicy: Fail
+    name: validation.provisioning.karpenter.sh
+    rules:
+      - apiGroups:
+          - provisioning.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - provisioners
+    sideEffects: None
 
 ---
