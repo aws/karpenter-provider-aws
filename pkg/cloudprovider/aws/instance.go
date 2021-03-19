@@ -70,15 +70,15 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	// TODO aggregate errors
-	if count := len(createFleetOutput.Errors); count > 0 {
-		return nil, fmt.Errorf("errors while creating fleet, %v", createFleetOutput.Errors)
-	}
 	if count := len(createFleetOutput.Instances); count != 1 {
-		return nil, fmt.Errorf("expected 1 instance, but got %d", count)
+		return nil, fmt.Errorf("expected 1 instance, but got %d due to errors %v", count, createFleetOutput.Errors)
 	}
 	if count := len(createFleetOutput.Instances[0].InstanceIds); count != 1 {
-		return nil, fmt.Errorf("expected 1 instance ids, but got %d", count)
+		return nil, fmt.Errorf("expected 1 instance ids, but got %d due to errors %v", count, createFleetOutput.Errors)
+	}
+	// TODO aggregate errors
+	if count := len(createFleetOutput.Errors); count > 0 {
+		zap.S().Warnf("CreateFleet encountered %d errors, but still launched instances, %v", count, createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
