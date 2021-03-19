@@ -59,7 +59,7 @@ type LaunchTemplateProvider struct {
 
 // Translate architecture into AWS-recognized name for Bottlerocket
 // AMIs in the parameter store.
-func normalizeArchitecture(architecture v1alpha1.Architecture) string {
+func normalizeArchitecture(architecture string) string {
 	switch architecture {
 	case v1alpha1.ArchitectureAmd64:
 		return "x86_64"

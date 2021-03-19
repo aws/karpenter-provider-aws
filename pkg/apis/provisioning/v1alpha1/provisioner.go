@@ -79,23 +79,19 @@ type Constraints struct {
 	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
 	// Architecture constraints the underlying node architecture
 	// +optional
-	Architecture *Architecture `json:"architecture,omitempty"`
+	Architecture *string `json:"architecture,omitempty"`
 	// OperatingSystem constrain the underlying node operating system
 	// +optional
-	OperatingSystem *OperatingSystem `json:"operatingSystem,omitempty"`
+	OperatingSystem *string `json:"operatingSystem,omitempty"`
 }
 
-type Architecture string
-
 var (
-	ArchitectureAmd64 Architecture = "amd64"
-	ArchitectureArm64 Architecture = "arm64"
+	ArchitectureAmd64 = "amd64"
+	ArchitectureArm64 = "arm64"
 )
 
-type OperatingSystem string
-
 var (
-	OperatingSystemLinux OperatingSystem = "linux"
+	OperatingSystemLinux = "linux"
 )
 
 var (
@@ -190,11 +186,10 @@ func (c *Constraints) getInstanceTypes(pod *v1.Pod) []string {
 	return nil
 }
 
-func (c *Constraints) getArchitecture(pod *v1.Pod) *Architecture {
+func (c *Constraints) getArchitecture(pod *v1.Pod) *string {
 	// Pod may override arch
 	if architecture, ok := pod.Spec.NodeSelector[ArchitectureLabelKey]; ok {
-		arch := Architecture(architecture)
-		return &arch
+		return &architecture
 	}
 	// Use constraints if defined
 	if c.Architecture != nil {
@@ -204,11 +199,10 @@ func (c *Constraints) getArchitecture(pod *v1.Pod) *Architecture {
 	return &ArchitectureAmd64
 }
 
-func (c *Constraints) getOperatingSystem(pod *v1.Pod) *OperatingSystem {
+func (c *Constraints) getOperatingSystem(pod *v1.Pod) *string {
 	// Pod may override os
 	if operatingSystem, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
-		os := OperatingSystem(operatingSystem)
-		return &os
+		return &operatingSystem
 	}
 	// Use constraints if defined
 	if c.OperatingSystem != nil {

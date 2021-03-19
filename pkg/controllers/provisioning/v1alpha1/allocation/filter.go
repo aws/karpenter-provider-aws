@@ -19,16 +19,19 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Filter struct {
-	kubeClient client.Client
+	kubeClient    client.Client
+	cloudProvider cloudprovider.Factory
 }
 
 func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*v1.Pod, error) {
@@ -38,13 +41,40 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 		return nil, fmt.Errorf("listing unscheduled pods, %w", err)
 	}
 
+	// 2. Get Supported Labels
+	capacity := f.cloudProvider.CapacityFor(&provisioner.Spec)
+	architectures, err := capacity.GetArchitectures(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting supported architectures, %w", err)
+	}
+	operatingSystems, err := capacity.GetOperatingSystems(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting supported operating systems, %w", err)
+	}
+	zones, err := capacity.GetZones(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting supported zones, %w", err)
+	}
+	instanceTypes, err := capacity.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting supported instance types, %w", err)
+	}
+	supportedLabels := map[string][]string{
+		v1alpha1.ArchitectureLabelKey:    architectures,
+		v1alpha1.OperatingSystemLabelKey: operatingSystems,
+		v1alpha1.ZoneLabelKey:            zones,
+		v1alpha1.InstanceTypeLabelKey:    instanceTypes,
+	}
+
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, pod := range pods.Items {
-		if err := functional.AllSucceed(
-			func() error { return f.isProvisionable(&pod) },
-			func() error { return f.hasSupportedSchedulingConstraints(&pod) },
+		if err := functional.ValidateAll(
+			func() error { return f.isUnschedulable(&pod) },
 			func() error { return f.matchesProvisioner(&pod, provisioner) },
+			func() error { return f.hasSupportedSchedulingConstraints(&pod) },
+			func() error { return f.toleratesTaints(&pod, provisioner) },
+			func() error { return f.hasSupportedLabels(&pod, supportedLabels) },
 		); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				pod.Name, pod.Namespace,
@@ -58,7 +88,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(pod *v1.Pod) error {
+func (f *Filter) isUnschedulable(pod *v1.Pod) error {
 	if !scheduling.FailedToSchedule(pod) {
 		return fmt.Errorf("awaiting scheduling")
 	}
@@ -94,4 +124,28 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha1.Provision
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s/%s", name, namespace)
+}
+
+func (f *Filter) toleratesTaints(pod *v1.Pod, provisioner *v1alpha1.Provisioner) error {
+	var err error
+	for _, taint := range provisioner.Spec.Taints {
+		if !scheduling.ToleratesTaint(&pod.Spec, taint) {
+			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
+		}
+	}
+	return err
+}
+
+func (f *Filter) hasSupportedLabels(pod *v1.Pod, supportedLabels map[string][]string) error {
+	var err error
+	for label, supported := range supportedLabels {
+		selected, ok := pod.Spec.NodeSelector[label]
+		if !ok {
+			continue
+		}
+		if !functional.ContainsString(supported, selected) {
+			err = multierr.Append(err, fmt.Errorf("unsupported value for label %s = %s", label, selected))
+		}
+	}
+	return err
 }

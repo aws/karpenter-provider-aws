@@ -26,6 +26,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var (
@@ -37,16 +38,11 @@ func init() {
 	log.PanicIfError(apis.AddToScheme(scheme), "adding apis to scheme")
 }
 
-type Manager interface {
-	manager.Manager
-	Register(controllers ...Controller) Manager
-}
-
 type GenericControllerManager struct {
 	manager.Manager
 }
 
-// NewManager instantiates a controller manager or panics
+// NewManagerOrDie instantiates a controller manager or panics
 func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
 	options.Scheme = scheme
 	manager, err := controllerruntime.NewManager(config, options)
@@ -56,7 +52,8 @@ func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Man
 	return &GenericControllerManager{Manager: manager}
 }
 
-func (m *GenericControllerManager) Register(controllers ...Controller) Manager {
+// RegisterControllers registers a set of controllers to the controller manager
+func (m *GenericControllerManager) RegisterControllers(controllers ...Controller) Manager {
 	for _, controller := range controllers {
 		controlledObject := controller.For()
 		var builder = controllerruntime.NewControllerManagedBy(m).For(controlledObject)
@@ -70,6 +67,14 @@ func (m *GenericControllerManager) Register(controllers ...Controller) Manager {
 			"Failed to register controller to manager for %s", controlledObject)
 		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controlledObject).Complete(),
 			"Failed to register controller to manager for %s", controlledObject)
+	}
+	return m
+}
+
+// RegisterWebhooks registers a set of webhooks to the controller manager
+func (m *GenericControllerManager) RegisterWebhooks(webhooks ...Webhook) Manager {
+	for _, w := range webhooks {
+		m.GetWebhookServer().Register(w.Path(), &webhook.Admission{Handler: w})
 	}
 	return m
 }

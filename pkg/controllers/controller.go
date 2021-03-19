@@ -17,52 +17,14 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-// Controller is an interface implemented by Karpenter custom resources.
-type Controller interface {
-	// Reconcile hands a hydrated kubernetes resource to the controller for
-	// reconciliation. Any changes made to the resource's status are persisted
-	// after Reconcile returns, even if it returns an error.
-	Reconcile(Object) error
-	// Interval returns an interval that the controller should wait before
-	// executing another reconciliation loop. If set to zero, will only execute
-	// on watch events or the global resync interval.
-	Interval() time.Duration
-	// For returns a default instantiation of the resource and is injected by
-	// data from the API Server at the start of the reconciliation loop.
-	For() Object
-	// Owns returns a slice of resources that are watched by this resources.
-	// Watch events are triggered if owner references are set on the resource.
-	Owns() []Object
-}
-
-// NamedController allows controllers to optionally implement a Name() function which will be used instead of the
-// reconciled resource's name. This is useful when writing multiple controllers for a single resource type.
-type NamedController interface {
-	Controller
-	// Name returns the name of the controller
-	Name() string
-}
-
-// Object provides an abstraction over a kubernetes custom resource with
-// methods necessary to standardize reconciliation behavior in Karpenter.
-type Object interface {
-	client.Object
-	webhook.Validator
-	webhook.Defaulter
-	StatusConditions() apis.ConditionManager
-}
 
 // GenericController implements controllerruntime.Reconciler and runs a
 // standardized reconciliation workflow against incoming resource watch events.
@@ -83,14 +45,8 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
-	// 3. Validate
-	if err := resource.ValidateCreate(); err != nil {
-		resource.StatusConditions().MarkFalse(v1alpha1.Active, "could not validate kind %s, %s",
-			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		zap.S().Errorf("Controller failed to validate kind %s, %s",
-			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		// 4. Reconcile
-	} else if err := c.Controller.Reconcile(resource); err != nil {
+	// 3. Reconcile
+	if err := c.Controller.Reconcile(resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())

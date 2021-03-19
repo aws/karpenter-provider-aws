@@ -16,10 +16,11 @@ package reallocation
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
@@ -27,6 +28,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
 	"github.com/awslabs/karpenter/pkg/test/environment"
+	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -47,12 +49,16 @@ func TestAPIs(t *testing.T) {
 
 var controller *Controller
 var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
+	cloudProvider := fake.NewFactory(cloudprovider.Options{})
 	controller = NewController(
 		e.Manager.GetClient(),
 		corev1.NewForConfigOrDie(e.Manager.GetConfig()),
-		fake.NewFactory(cloudprovider.Options{}),
+		cloudProvider,
 	)
-	e.Manager.Register(controller)
+	e.Manager.RegisterWebhooks(
+		&webhooksprovisioning.Validator{CloudProvider: cloudProvider},
+		&webhooksprovisioning.Defaulter{},
+	).RegisterControllers(controller)
 })
 
 var _ = BeforeSuite(func() {

@@ -88,12 +88,23 @@ func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, nodes)
 }
 
-func init() {
-	v1alpha1.AddSupportedArchitectures(
+func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
+	return nil, nil // TODO @bwagner5
+}
+
+func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
+	return c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
+}
+
+func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
+	return []string{
 		v1alpha1.ArchitectureAmd64,
 		v1alpha1.ArchitectureArm64,
-	)
-	v1alpha1.AddSupportedOperatingSystems(
+	}, nil
+}
+
+func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
+	return []string{
 		v1alpha1.OperatingSystemLinux,
-	)
+	}, nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"k8s.io/client-go/kubernetes"
@@ -56,7 +57,11 @@ func main() {
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
 	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), ClientSet: clientSet})
-	err := manager.Register(
+
+	err := manager.RegisterWebhooks(
+		&webhooksprovisioning.Defaulter{},
+		&webhooksprovisioning.Validator{CloudProvider: cloudProviderFactory},
+	).RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())

@@ -57,7 +57,7 @@ func (c *Controller) Name() string {
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
 		cloudProvider: cloudProvider,
-		filter:        &Filter{kubeClient: kubeClient},
+		filter:        &Filter{kubeClient: kubeClient, cloudProvider: cloudProvider},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
 		constraints:   &Constraints{kubeClient: kubeClient},
 	}
