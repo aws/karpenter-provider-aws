@@ -10,6 +10,33 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (03/18/21)
+## Attendees
+- Ellis Tarn
+- Prateek Gogia
+- Nick Tran
+- Brandon Wagner
+- Shreyas Srinivasan
+- Jeff Wisman
+- Jacob Gabrielson
+
+## Notes
+- Community Topics
+- Roadmap Discussion
+- Instance Type unavailable in some Zones
+  - [PG] Started running in us-west-2, using any instance types
+    - Instance type not available in some zones
+  - [BW] We shouldn't fail the request if the fleet request has some errors
+    - Some of the capacity can be available, even if others have errors
+  - [PG] Difficult to predict the output
+  - [BW] Need to return successfully even if some errors
+  - [ET] We can handle the leakage case if the nodes are labeled as part of userdata
+  - [JG] Difficult to set these labels for Bottlerocket
+  - [ET] Potentially can implement a garbage collector against tagged instances
+- Karpenter OOM Killed
+  - [PG] 20mb limit, too low, shouldn't be limits
+  - [ET] Could potentially pare down the cached fields for the objects to reduce footprint
+
 # Meeting notes (02/18/21)
 
 ## Attendees
@@ -41,16 +68,16 @@ Please contribute to our meeting notes by opening a PR.
 - [ET] Responssible for GC, PDB and have some sane policy
 - [ET] Provisioning Group has large number of heterogenous nodes.
 - [JB] NG to force capacity to a single failure domain.
-- [ET] Boils down to online/offline bin packing, check the constraints and group a set of pods that can be run together. Each group is equally deployable. 
+- [ET] Boils down to online/offline bin packing, check the constraints and group a set of pods that can be run together. Each group is equally deployable.
 - [JB] Defrag the pods comparing the pods on node and calculating the delta within the pods.
 - [Elmiko] Sounds interesting, from the prespective of openshift it will com  down to - what resources are customers paying for, debugging(why autoscaler did what it did)? Why did the autoscaler create FOO? How do we avoid cost overrun scenarios.
 - [JB] Provisioner is very functional and observabilty can be common
 - [ET] Create an audit trail for a bin packing solution and customer can verify why this decision was being and adding observability.
 - [JB] Treating it like a blackbox and check what its doing?
 - [Elmiko] Openshift prespective, limit to what the provisioner can create, provisioner is not backed by the instances but by the mem/CPU capacity
-- [Elmiko] Even if making this shift in direction, it would be nice to still have some metric or signal plugged into the algorithm 
+- [Elmiko] Even if making this shift in direction, it would be nice to still have some metric or signal plugged into the algorithm
 - [JB] Over provisioning knob is going to be important. If you see 10 pods create an extra node for the next pod.
-- [ET] Minimize the scheduling latency, to create a right size of synthetic pods 
+- [ET] Minimize the scheduling latency, to create a right size of synthetic pods
 - [ET] CA add 0-30 seconds, ASG 0-30 seconds and MNG 0-30 seconds based on cluster load size, we removed this machinery and without any optimization saw ~55 seconds for the node to be ready.
 - [JB] Having signals is really powerfull, if the provisioner has a over-provision signal. Metrics part is really important for some of the use case.
 - [JB] If the metrics are not in your scheduler, you can be a little slow.
@@ -71,7 +98,7 @@ Please contribute to our meeting notes by opening a PR.
 - Nathan Taber
 - Ellis Tarn
 - Nick Tran
-- Brandon Wagner 
+- Brandon Wagner
 - Guy Templeton
 
 ## Notes
@@ -92,7 +119,7 @@ Please contribute to our meeting notes by opening a PR.
     - [Guy] 3 minutes for the nodes to schedulable
     - [Ellis] m5.large took about 63 seconds with ready pods
         - Create fleet is more modern API call with some parameters
-    - [Nathan] 
+    - [Nathan]
         - CA is slow in case of large clusters
         - We have a requirement for compute resources and need that to be fullfiled by a service.
         - Pre-selected ASG and shape sizes to create the nodes
@@ -108,14 +135,14 @@ Please contribute to our meeting notes by opening a PR.
 - [Ellis] CA has 2 steps of configurations- ASGs and pods
 - [Guy] Nicer approach, worry is how flexible that approach is? Seems like a very Google like approach of doing things with auto-provisioner.
     - [Ellis] - Configuring every single pod with a label is a lot of work, compared to having taints at capacity.
-- [Ellis] Provisioning and scheduling decisions- 
+- [Ellis] Provisioning and scheduling decisions-
     - CA emulates scheduling and now karpenter knows instanceID
     - We create a node object in Kubernetes and immediately bind the pod to the node and when the node becomes ready, pod image gets pulled and runs.
     - Kube-scheduler is bypassed in this approach
     - Simulations effort is not used when actual bin-packing is done by Kube-scheduler
     - [Guy] Interesting approach, definetly sold on pod topology routing, can see benefits with bin-packing compared to guessing.
         - You might end up more closely packed compared to the scheduler
-    - [Ellis] Scoring doesn't matter anymore because we don't have a set of nodes to select from    
+    - [Ellis] Scoring doesn't matter anymore because we don't have a set of nodes to select from
     - [Subhu] How does node ready failure will be handled?
         - Controller has node IDs and constantly compares with cloud provider nodes
     - [Ellis] Bin packing is very cloud provider specific
@@ -135,11 +162,11 @@ Please contribute to our meeting notes by opening a PR.
 - Subhrangshu Kumar Sarkar
 - Prateek Gogia
 - Nick Tran
-- Brandon Wagner 
+- Brandon Wagner
 - Guy Templeton
 
 ## Notes:
-- [Ellis] Conversation with Joe Burnett from sig-autoscaling 
+- [Ellis] Conversation with Joe Burnett from sig-autoscaling
     - HPA should work with scalable node group, as long you use an external metrics.
     - POC is possible working with HPA
 - [Ellis] Nick has made good progress in terms of API for scheduled scaling.
