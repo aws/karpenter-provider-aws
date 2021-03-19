@@ -31,6 +31,12 @@ type VPCProvider struct {
 	subnetProvider *SubnetProvider
 }
 
+func NewVPCProvider(subnetProvider *SubnetProvider) *VPCProvider {
+	return &VPCProvider{
+		subnetProvider: subnetProvider,
+	}
+}
+
 func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]string, error) {
 	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
 	if err != nil {

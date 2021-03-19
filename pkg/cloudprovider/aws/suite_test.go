@@ -81,7 +81,8 @@ var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 		vpcProvider:            vpcProvider,
 		nodeFactory:            &NodeFactory{ec2: fakeEC2API},
 		instanceProvider:       &InstanceProvider{ec2: fakeEC2API, vpc: vpcProvider},
-		packer:                 packing.NewPacker(fakeEC2API),
+		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API, vpcProvider),
+		packer:                 packing.NewPacker(),
 		launchTemplateProvider: launchTemplateProvider,
 	}
 	e.Manager.RegisterWebhooks(

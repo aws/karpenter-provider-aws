@@ -43,9 +43,10 @@ const (
 type Factory struct {
 	vpcProvider            *VPCProvider
 	nodeFactory            *NodeFactory
-	instanceProvider       *InstanceProvider
 	packer                 packing.Packer
+	instanceProvider       *InstanceProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	instanceTypeProvider   *InstanceTypeProvider
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
@@ -76,8 +77,9 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	return &Factory{
 		vpcProvider:            vpcProvider,
 		nodeFactory:            &NodeFactory{ec2: EC2},
+		packer:                 packing.NewPacker(),
 		instanceProvider:       &InstanceProvider{ec2: EC2, vpc: vpcProvider},
-		packer:                 packing.NewPacker(EC2),
+		instanceTypeProvider:   NewInstanceTypeProvider(EC2, vpcProvider),
 		launchTemplateProvider: launchTemplateProvider,
 	}
 }
@@ -86,10 +88,11 @@ func (f *Factory) CapacityFor(spec *v1alpha1.ProvisionerSpec) cloudprovider.Capa
 	return &Capacity{
 		spec:                   spec,
 		nodeFactory:            f.nodeFactory,
+		packer:                 f.packer,
 		instanceProvider:       f.instanceProvider,
 		vpcProvider:            f.vpcProvider,
-		packer:                 f.packer,
 		launchTemplateProvider: f.launchTemplateProvider,
+		instanceTypeProvider:   f.instanceTypeProvider,
 	}
 }
 

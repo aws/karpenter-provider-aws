@@ -57,6 +57,7 @@ Resources:
               - "ec2:DescribeSubnets"
               - "ec2:DescribeInstanceTypes"
               - "ec2:DescribeInstanceTypeOfferings"
+              - "ec2:DescribeAvailabilityZones"
               - "iam:GetInstanceProfile"
               - "ssm:GetParameter"
   KarpenterNodeInstanceProfile:

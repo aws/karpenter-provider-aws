@@ -36,16 +36,20 @@ type InstanceProvider struct {
 // Create an instance given the constraints.
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
-	instanceTypeOptions []string,
+	instanceTypeOptions map[string][]*ec2.InstanceTypeInfo,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for _, instanceType := range instanceTypeOptions {
-		for zone, subnets := range zonalSubnetOptions {
+	for zone, instanceTypes := range instanceTypeOptions {
+		subnets, ok := zonalSubnetOptions[zone]
+		if !ok || len(subnets) == 0 {
+			continue
+		}
+		for _, instanceType := range instanceTypes {
 			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
 				AvailabilityZone: aws.String(zone),
-				InstanceType:     aws.String(instanceType),
+				InstanceType:     aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
 			})
