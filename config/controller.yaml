@@ -44,14 +44,24 @@ spec:
       labels:
         control-plane: karpenter
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/os
+                  operator: In
+                  values:
+                    - linux
+                - key: kubernetes.io/arch
+                  operator: In
+                  values:
+                    - amd64
       serviceAccountName: karpenter
       containers:
       - name: manager
         image: ko://github.com/awslabs/karpenter/cmd/controller
         resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
           requests:
             cpu: 100m
             memory: 20Mi
