@@ -11,7 +11,7 @@ Yes. Taints are an opt-out mechanism which allows customers to specify the nodes
 ### Does Karpenter support topology spread constraints?
 Yes. Provisioners respect `pod.spec.topologySpreadConstraints`. Allocating pods with these constraints may yield highly fragmented nodes, due to their strict nature and complexity of “online binpacking” algorithms. However, the reallocation pass is able to produce much more efficient packings using “offline binpacking” techniques.
 ### Does Karpenter support affinity?
-No. Karpenter intentionally does not support affinity due the to [scalability limitations](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) outlined by SIG Scalability. Do you have a use case for affinity? We're excited to hear about it in our [Working Group](working-group/README.md).
+No. Karpenter intentionally does not support affinity due the to [scalability limitations](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) outlined by SIG Scalability. Instead, we recommend using node selectors or taints instead of node affinity and pod topology spread instead of pod affinity. Do you have a use case for affinity that we're missing? We're excited to hear about it in our [Working Group](working-group/README.md).
 ### Does Karpenter support custom resource like accelerators or HPC?
 Yes. Support for specific custom resources can be implemented by your cloud provider.
 ### Does Karpenter support daemonsets?
