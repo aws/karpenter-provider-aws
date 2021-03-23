@@ -29,24 +29,27 @@ import (
 	h "github.com/awslabs/karpenter/pkg/test"
 )
 
-var instanceTypeMocks = map[string]*ec2.InstanceTypeInfo{
-	"m5.large": {
-		InstanceType:                  aws.String("m5.large"),
-		SupportedUsageClasses:         []*string{aws.String("on-demand")},
-		BurstablePerformanceSupported: aws.Bool(false),
-		ProcessorInfo: &ec2.ProcessorInfo{
-			SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+var (
+	instanceTypeMocks = map[string]*ec2.InstanceTypeInfo{
+		"m5.large": {
+			InstanceType:                  aws.String("m5.large"),
+			SupportedUsageClasses:         []*string{aws.String("on-demand")},
+			BurstablePerformanceSupported: aws.Bool(false),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
 		},
-	},
-	"m6g.large": {
-		InstanceType:                  aws.String("m6g.large"),
-		SupportedUsageClasses:         []*string{aws.String("on-demand")},
-		BurstablePerformanceSupported: aws.Bool(false),
-		ProcessorInfo: &ec2.ProcessorInfo{
-			SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+		"m6g.large": {
+			InstanceType:                  aws.String("m6g.large"),
+			SupportedUsageClasses:         []*string{aws.String("on-demand")},
+			BurstablePerformanceSupported: aws.Bool(false),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+			},
 		},
-	},
-}
+	}
+	emptyArch = ""
+)
 
 func TestGet_InstanceTypes(t *testing.T) {
 	// Setup
@@ -99,6 +102,7 @@ func TestGet_InstanceTypesFilteredByInstanceType(t *testing.T) {
 	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
 	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
 	constraints := &cloudprovider.Constraints{}
+	constraints.Architecture = &emptyArch
 	constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
 
 	// Test
@@ -121,6 +125,7 @@ func TestGet_InstanceTypesFilteredByZoneID(t *testing.T) {
 	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
 	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
 	constraints := &cloudprovider.Constraints{}
+	constraints.Architecture = &emptyArch
 	constraints.Zones = []string{testZoneID}
 
 	// Test

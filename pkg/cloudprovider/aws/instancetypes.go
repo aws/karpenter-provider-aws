@@ -147,29 +147,17 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo, constraints *cloudprovider.Constraints) []*ec2.InstanceTypeInfo {
 	filteredInstancePools := []*ec2.InstanceTypeInfo{}
 	architecture := "x86_64"
-	if constraints.Architecture != nil && *constraints.Architecture == v1alpha1.ArchitectureArm64 {
+	if *constraints.Architecture == v1alpha1.ArchitectureArm64 {
 		architecture = string(*constraints.Architecture)
 	}
 
 	for _, instanceTypeInfo := range instanceTypes {
-		if len(constraints.InstanceTypes) != 0 {
-			if !functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType) {
-				continue
-			}
-		}
-		if !functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) {
-			continue
-		}
-		if !functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") {
-			continue
-		}
-		if *instanceTypeInfo.BurstablePerformanceSupported {
-			continue
-		}
-		if instanceTypeInfo.FpgaInfo != nil {
-			continue
-		}
-		if instanceTypeInfo.GpuInfo != nil {
+		if (len(constraints.InstanceTypes) != 0 && !functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) ||
+			!functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) ||
+			!functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") ||
+			*instanceTypeInfo.BurstablePerformanceSupported ||
+			instanceTypeInfo.FpgaInfo != nil ||
+			instanceTypeInfo.GpuInfo != nil {
 			continue
 		}
 		filteredInstancePools = append(filteredInstancePools, instanceTypeInfo)
