@@ -16,7 +16,6 @@ eksctl create cluster \
 --name ${CLUSTER_NAME} \
 --version 1.19 \
 --region ${AWS_DEFAULT_REGION} \
---nodegroup-name karpenter-aws-demo \
 --node-type m5.large \
 --nodes 1 \
 --nodes-min 1 \
