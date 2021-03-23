@@ -14,7 +14,7 @@ Skip this step if you already have a cluster.
 ```bash
 eksctl create cluster \
 --name ${CLUSTER_NAME} \
---version 1.18 \
+--version 1.19 \
 --region ${AWS_DEFAULT_REGION} \
 --nodegroup-name karpenter-aws-demo \
 --node-type m5.large \
@@ -25,17 +25,17 @@ eksctl create cluster \
 ```
 
 ### Create IAM Resources
-This command will create IAM resources used by Karpenter. We recommend using Cloud Formation and IAM Roles for Service Accounts to manage these permissions. For production use, please review and restrict these permissions for your use case.
+This command will create IAM resources used by Karpenter. We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions. For production use, please review and restrict these permissions for your use case.
 ```bash
 aws cloudformation deploy \
-  --stack-name Karpenter \
+  --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
 ### Install Karpenter Controller and Dependencies
-Karpenter relies on cert-manager for certificates and prometheus for metrics.
+Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for TLS certificates and [Prometheus](https://prometheus.io/) for metrics.
 
 ```bash
 ./hack/quick-install.sh
@@ -59,7 +59,7 @@ EOM
 kubectl delete pods -n karpenter -l control-plane=karpenter # Restart controller to load credentials
 ```
 
-### Create a Provisoner
+### Create a Provisioner
 Create a default Provisioner that launches nodes configured with cluster name, endpoint, and caBundle.
 ```bash
 cat <<EOF | kubectl apply -f -
