@@ -60,9 +60,9 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, clusterName string, cons
 		if err != nil {
 			return nil, fmt.Errorf("retrieving all instance types, %w", err)
 		}
-		instanceTypes, err = p.filterByLocation(ctx, instanceTypes, zone)
+		instanceTypes, err = p.filterByZoneOfferings(ctx, instanceTypes, zone)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("filtering instance types by zone offerings, %w", err)
 		}
 		p.instanceTypeCache.SetDefault(zone, instanceTypes)
 		zoneToInstanceTypeInfo[zone] = instanceTypes
@@ -155,8 +155,8 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo,
 	return filteredInstancePools
 }
 
-// filterByLocation returns a list of instance types that are supported in the provided availability zone using the ec2 DescribeInstanceTypeOfferings API
-func (p *InstanceTypeProvider) filterByLocation(ctx context.Context, instanceTypes []*ec2.InstanceTypeInfo, zone string) ([]*ec2.InstanceTypeInfo, error) {
+// filterByZoneOfferings returns a list of instance types that are supported in the provided availability zone using the ec2 DescribeInstanceTypeOfferings API
+func (p *InstanceTypeProvider) filterByZoneOfferings(ctx context.Context, instanceTypes []*ec2.InstanceTypeInfo, zone string) ([]*ec2.InstanceTypeInfo, error) {
 	inputs := &ec2.DescribeInstanceTypeOfferingsInput{
 		Filters: []*ec2.Filter{
 			{
