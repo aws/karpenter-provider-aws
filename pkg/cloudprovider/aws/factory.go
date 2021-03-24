@@ -53,6 +53,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	EC2 := ec2.New(sess)
 	vpcProvider := &VPCProvider{
+		ec2: EC2,
 		subnetProvider: &SubnetProvider{
 			ec2:         EC2,
 			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),

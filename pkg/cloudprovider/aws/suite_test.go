@@ -56,12 +56,11 @@ var fakeEC2API *fake.EC2API
 var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
-	vpcProvider := &VPCProvider{
-		subnetProvider: &SubnetProvider{
-			ec2:         fakeEC2API,
-			subnetCache: subnetCache,
-		},
+	subnetProvider := &SubnetProvider{
+		ec2:         fakeEC2API,
+		subnetCache: subnetCache,
 	}
+	vpcProvider := NewVPCProvider(fakeEC2API, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2:                 fakeEC2API,
 		launchTemplateCache: launchTemplateCache,

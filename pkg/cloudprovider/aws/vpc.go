@@ -28,12 +28,16 @@ import (
 )
 
 type VPCProvider struct {
+	ec2            ec2iface.EC2API
 	subnetProvider *SubnetProvider
+	zoneCache      *cache.Cache
 }
 
-func NewVPCProvider(subnetProvider *SubnetProvider) *VPCProvider {
+func NewVPCProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *VPCProvider {
 	return &VPCProvider{
+		ec2:            ec2api,
 		subnetProvider: subnetProvider,
+		zoneCache:      cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
 
@@ -73,6 +77,27 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 		return nil, fmt.Errorf("failed to find viable zonal subnet pairing")
 	}
 	return constrainedZonalSubnets, nil
+}
+
+// NormalizeZones takes zone names or ids and returns them all as zone names
+func (p *VPCProvider) NormalizeZones(ctx context.Context, zones []string) ([]string, error) {
+	allZonesKey := "all"
+	azs, ok := p.zoneCache.Get(allZonesKey)
+	if !ok {
+		azsOutput, err := p.ec2.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
+		if err != nil {
+			return zones, fmt.Errorf("retrieving availability zones, %w", err)
+		}
+		p.zoneCache.SetDefault(allZonesKey, azsOutput.AvailabilityZones)
+		azs = azsOutput.AvailabilityZones
+	}
+
+	zoneNames := []string{}
+	for _, az := range azs.([]*ec2.AvailabilityZone) {
+		zoneNames = append(zoneNames, *az.ZoneName)
+	}
+	zap.S().Debugf("Successfully normalized %d zone(s) to their respective zone name(s)", len(zones))
+	return zoneNames, nil
 }
 
 func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {

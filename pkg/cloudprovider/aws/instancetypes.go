@@ -43,23 +43,13 @@ func NewInstanceTypeProvider(ec2 ec2iface.EC2API, vpcProvider *VPCProvider) *Ins
 
 // Get instance types that are availble per availability zone
 func (p *InstanceTypeProvider) Get(ctx context.Context, clusterName string, constraints *cloudprovider.Constraints) (map[string][]*ec2.InstanceTypeInfo, error) {
-	locations := constraints.Zones
-	// If no zone constraints were specified, use all zones that the cluster spans
-	if len(locations) == 0 {
-		var err error
-		locations, err = p.vpc.GetZones(ctx, clusterName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// locations could be zone names and zone ids, so normalize them to all be zone names
-	locations, err := p.normalizeZones(ctx, locations)
+	zones, err := p.retrieveZonesFrom(ctx, constraints, clusterName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retrieving availability zones, %w", err)
 	}
 
 	zoneToInstanceTypeInfo := map[string][]*ec2.InstanceTypeInfo{}
-	for _, zone := range locations {
+	for _, zone := range zones {
 		if instanceTypes, ok := p.instanceTypeCache.Get(zone); ok {
 			zoneToInstanceTypeInfo[zone] = instanceTypes.([]*ec2.InstanceTypeInfo)
 			continue
@@ -68,7 +58,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, clusterName string, cons
 		// populate the cache by zonal keys
 		instanceTypes, err := p.getAllInstanceTypes(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("retrieving all instance types, %w", err)
 		}
 		instanceTypes, err = p.filterByLocation(ctx, instanceTypes, zone)
 		if err != nil {
@@ -200,15 +190,20 @@ func (p *InstanceTypeProvider) filterByLocation(ctx context.Context, instanceTyp
 	return instanceTypeInfoSupported, nil
 }
 
-// normalizeZones takes zone names or ids and returns them all as zone names
-func (p *InstanceTypeProvider) normalizeZones(ctx context.Context, zones []string) ([]string, error) {
-	azs, err := p.ec2.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
+func (p *InstanceTypeProvider) retrieveZonesFrom(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
+	zones := constraints.Zones
+	// If no zone constraints were specified, use all zones that the cluster spans
+	if len(zones) == 0 {
+		var err error
+		zones, err = p.vpc.GetZones(ctx, clusterName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// zones could be zone names and zone ids, so normalize them to all be zone names
+	zones, err := p.vpc.NormalizeZones(ctx, zones)
 	if err != nil {
-		return zones, err
+		return nil, err
 	}
-	zoneNames := []string{}
-	for _, az := range azs.AvailabilityZones {
-		zoneNames = append(zoneNames, *az.ZoneName)
-	}
-	return zoneNames, nil
+	return zones, nil
 }
