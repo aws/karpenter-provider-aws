@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package test
 
 import (
 	"context"
@@ -35,7 +35,7 @@ import (
 )
 
 /*
-Local is an Environment for e2e local testing. It stands up an API Server, ETCD,
+Environment is for e2e local testing. It stands up an API Server, ETCD,
 and a controller-runtime manager. It's possible to run multiple environments
 simultaneously, as the ports are randomized. A common use case for this is
 parallel tests using ginkgo's parallelization functionality. The environment is
@@ -51,12 +51,13 @@ BeforeSuite(func() { env.Start() })
 AfterSuite(func() { env.Stop() })
 
 */
-type Local struct {
+type Environment struct {
 	envtest.Environment
 	Manager controllers.Manager
 	Server  *ghttp.Server
+	Client  client.Client
 
-	options []LocalOption
+	options []EnvironmentOption
 	ctx     context.Context
 	stop    context.CancelFunc
 	cleanup *sync.WaitGroup
@@ -65,13 +66,12 @@ type Local struct {
 // LocalOption passes the Local environment to an option function. This is
 // useful for registering controllers with the controller-runtime manager or for
 // customizing Client, Scheme, or other variables.
-type LocalOption func(env *Local)
+type EnvironmentOption func(env *Environment)
 
-func NewLocal(options ...LocalOption) Environment {
+func NewEnvironment(options ...EnvironmentOption) *Environment {
 	log.Setup(controllerruntimezap.UseDevMode(true))
 	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
-
-	return &Local{
+	return &Environment{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("config")},
 			WebhookInstallOptions: envtest.WebhookInstallOptions{
@@ -86,31 +86,7 @@ func NewLocal(options ...LocalOption) Environment {
 	}
 }
 
-func (e *Local) NewNamespace() (*Namespace, error) {
-	client, err := client.New(e.Manager.GetConfig(), client.Options{
-		Scheme: e.Manager.GetScheme(),
-		Mapper: e.Manager.GetRESTMapper(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	ns := NewNamespace(client)
-	if err := e.Manager.GetClient().Create(context.Background(), &ns.Namespace); err != nil {
-		return nil, err
-	}
-
-	e.cleanup.Add(1)
-	go func() {
-		<-e.ctx.Done()
-		if err := e.Manager.GetClient().Delete(context.Background(), &ns.Namespace); err != nil {
-			zap.S().Errorf("Failed to tear down namespace, %s", err.Error())
-		}
-		e.cleanup.Done()
-	}()
-	return ns, nil
-}
-
-func (e *Local) Start() (err error) {
+func (e *Environment) Start() (err error) {
 	// Environment
 	if _, err := e.Environment.Start(); err != nil {
 		return fmt.Errorf("starting environment, %w", err)
@@ -123,6 +99,16 @@ func (e *Local) Start() (err error) {
 		Port:               e.WebhookInstallOptions.LocalServingPort,
 		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
 	})
+
+	// Client
+	kubeClient, err := client.New(e.Manager.GetConfig(), client.Options{
+		Scheme: e.Manager.GetScheme(),
+		Mapper: e.Manager.GetRESTMapper(),
+	})
+	if err != nil {
+		return err
+	}
+	e.Client = kubeClient
 
 	// options
 	for _, option := range e.options {
@@ -156,7 +142,7 @@ func (e *Local) Start() (err error) {
 	})
 }
 
-func (e *Local) Stop() error {
+func (e *Environment) Stop() error {
 	e.stop()
 	e.cleanup.Wait()
 	return e.Environment.Stop()

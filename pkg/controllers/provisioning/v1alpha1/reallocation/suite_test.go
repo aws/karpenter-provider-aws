@@ -27,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
-	"github.com/awslabs/karpenter/pkg/test/environment"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,7 +47,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var controller *Controller
-var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
+var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := fake.NewFactory(cloudprovider.Options{})
 	controller = NewController(
 		e.Manager.GetClient(),
@@ -70,49 +69,43 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reallocation", func() {
-	var ns *environment.Namespace
+	var provisioner *v1alpha1.Provisioner
 
 	BeforeEach(func() {
-		var err error
-		ns, err = env.NewNamespace()
-		Expect(err).NotTo(HaveOccurred())
+		provisioner = &v1alpha1.Provisioner{
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()),
+				Namespace: "default",
+			},
+			Spec: v1alpha1.ProvisionerSpec{
+				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+			},
+		}
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(ns.Client)
+		ExpectCleanedUp(env.Manager.GetClient())
 	})
 
 	Context("Reconciliation", func() {
 		It("should label nodes as underutilized", func() {
-			provisioner := &v1alpha1.Provisioner{
-				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
-				Spec: v1alpha1.ProvisionerSpec{
-					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-				},
-			}
+
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 					v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 				},
 			})
-			ExpectCreatedWithStatus(ns.Client, node)
+			ExpectCreatedWithStatus(env.Client, node)
 
-			ExpectCreated(ns.Client, provisioner)
-			ExpectEventuallyReconciled(ns.Client, provisioner)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).To(HaveKeyWithValue(v1alpha1.ProvisionerPhaseLabel, v1alpha1.ProvisionerUnderutilizedPhase))
 			Expect(updatedNode.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
 		It("should remove labels from utilized nodes", func() {
-			provisioner := &v1alpha1.Provisioner{
-				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
-				Spec: v1alpha1.ProvisionerSpec{
-					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-				},
-			}
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
@@ -130,25 +123,19 @@ var _ = Describe("Reallocation", func() {
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			})
 
-			ExpectCreatedWithStatus(ns.Client, node)
-			ExpectCreatedWithStatus(ns.Client, pod)
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreatedWithStatus(env.Client, pod)
 
-			ExpectCreated(ns.Client, provisioner)
-			ExpectEventuallyReconciled(ns.Client, provisioner)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha1.ProvisionerPhaseLabel))
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
 
 		It("should terminate nodes marked terminable", func() {
-			provisioner := &v1alpha1.Provisioner{
-				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
-				Spec: v1alpha1.ProvisionerSpec{
-					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-				},
-			}
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
@@ -159,13 +146,13 @@ var _ = Describe("Reallocation", func() {
 					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(-100) * time.Second).Format(time.RFC3339),
 				},
 			})
-			ExpectCreatedWithStatus(ns.Client, node)
+			ExpectCreatedWithStatus(env.Client, node)
 
-			ExpectCreated(ns.Client, provisioner)
-			ExpectEventuallyReconciled(ns.Client, provisioner)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Eventually(Expect(errors.IsNotFound(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
+			Eventually(Expect(errors.IsNotFound(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
 		})
 	})
 })

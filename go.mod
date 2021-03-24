@@ -18,5 +18,4 @@ require (
 	k8s.io/client-go v0.19.7
 	knative.dev/pkg v0.0.0-20210311174826-40488532be3f
 	sigs.k8s.io/controller-runtime v0.7.0-alpha.3
-	sigs.k8s.io/yaml v1.2.0
 )
