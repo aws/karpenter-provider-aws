@@ -39,13 +39,13 @@ type Capacity struct {
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	// 1. Filter for instance types that fit constraints
-	zoneToInstanceTypes, err := c.instanceTypeProvider.Get(ctx, c.spec.Cluster.Name, constraints)
+	zonalInstanceTypes, err := c.instanceTypeProvider.Get(ctx, c.spec.Cluster.Name, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("filtering instance types by constraints, %w", err)
 	}
 
 	// 2. Compute Packing given the pods and instance types
-	instancePackings := c.packer.Pack(ctx, constraints.Pods, c.instanceTypeProvider.UniqueInstanceTypesFrom(zoneToInstanceTypes))
+	instancePackings := c.packer.Pack(ctx, constraints.Pods, c.instanceTypeProvider.UniqueInstanceTypesFrom(zonalInstanceTypes))
 
 	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
@@ -63,7 +63,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
 		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate,
-			c.instanceTypeProvider.InstanceTypesPerZoneFrom(packing.InstanceTypes, zoneToInstanceTypes), zonalSubnetOptions)
+			c.instanceTypeProvider.InstanceTypesPerZoneFrom(packing.InstanceTypes, zonalInstanceTypes), zonalSubnetOptions)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
