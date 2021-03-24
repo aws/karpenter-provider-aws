@@ -33,8 +33,8 @@ type NodeFactory struct {
 	ec2 ec2iface.EC2API
 }
 
-// For a given set of instanceIds return a map of instanceID to Kubernetes node object.
-func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[string]*v1.Node, error) {
+// For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
+func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
 	// Backoff retry is necessary here because EC2's APIs are eventually
 	// consistent. In most cases, this call will only be made once.
 	// TODO Use https://docs.aws.amazon.com/sdk-for-go/api/aws/request/#WithRetryer
@@ -43,7 +43,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceIds []*string) (map[strin
 		MaxDelay: 10 * time.Second,
 		Factor:   2, Jitter: true,
 	}, nil); attempt.Next(); {
-		describeInstancesOutput, err := n.ec2.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIds})
+		describeInstancesOutput, err := n.ec2.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
 		if err == nil {
 			return n.nodesFrom(describeInstancesOutput.Reservations), nil
 		}

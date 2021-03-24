@@ -30,7 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/awsutils"
+	awsutils "github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"

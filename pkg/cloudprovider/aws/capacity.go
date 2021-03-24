@@ -59,7 +59,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}
 
 	// 2. Create Instances
-	var instanceIds []*string
+	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
 		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate,
@@ -69,11 +69,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
 		podsForInstance[*instanceID] = packing.Pods
-		instanceIds = append(instanceIds, instanceID)
+		instanceIDs = append(instanceIDs, instanceID)
 	}
 
 	// 3. Convert to Nodes
-	nodes, err := c.nodeFactory.For(ctx, instanceIds)
+	nodes, err := c.nodeFactory.For(ctx, instanceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
