@@ -95,7 +95,7 @@ func (p *InstanceTypeProvider) InstanceTypesPerZoneFrom(instanceTypeNames []stri
 	for zone, instanceTypes := range instancePools {
 		for _, instanceTypeName := range instanceTypeNames {
 			for _, instanceType := range instanceTypes {
-				if instanceType != nil && *instanceType.InstanceType == instanceTypeName {
+				if *instanceType.InstanceType == instanceTypeName {
 					result[zone] = append(result[zone], instanceType)
 				}
 			}
