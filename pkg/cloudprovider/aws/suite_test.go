@@ -159,19 +159,16 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-1"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-1"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1b"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-2"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-2"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1c"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-3"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-3"),
 					},
 				))
 		})
@@ -198,14 +195,12 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-1"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-1"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1b"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-2"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-2"),
 					},
 				),
 			)
@@ -234,9 +229,8 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1c"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-3"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-3"),
 					},
 				),
 			)
