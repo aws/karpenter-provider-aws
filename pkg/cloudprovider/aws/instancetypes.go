@@ -114,13 +114,16 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 				Name:   aws.String("supported-virtualization-type"),
 				Values: []*string{aws.String("hvm")},
 			},
+			// TODO: remove this filter after bare-metal functionality is implemented and tested
 			{
 				Name:   aws.String("bare-metal"),
 				Values: []*string{aws.String("false")},
 			},
+			// TODO: remove this filter after more advanced instance type filtering is implemented
+			//       this filter is temporarily being used to keep the fleet request size from exceeding the max size
 			{
 				Name:   aws.String("instance-type"),
-				Values: aws.StringSlice([]string{"m5.*", "c5.*", "r5.*", "m5a.*", "c5a.*", "r5a.*", "m4.*", "c4.*", "r4.*", "m6g.*", "c6g.*", "r6g.*"}),
+				Values: aws.StringSlice([]string{"m*", "c*", "r*", "a*", "t3*", "t4*"}),
 			},
 		},
 	}

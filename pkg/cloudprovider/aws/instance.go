@@ -48,8 +48,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		}
 		for _, instanceType := range instanceTypes {
 			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
-				AvailabilityZone: aws.String(zone),
-				InstanceType:     aws.String(*instanceType.InstanceType),
+				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
 			})

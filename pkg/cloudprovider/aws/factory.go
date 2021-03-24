@@ -52,13 +52,11 @@ type Factory struct {
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	ec2api := ec2.New(sess)
-	vpcProvider := &VPCProvider{
-		ec2: ec2api,
-		subnetProvider: &SubnetProvider{
-			ec2:         ec2api,
-			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
-		},
+	subnetProvider := &SubnetProvider{
+		ec2:         ec2api,
+		subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
 	}
+	vpcProvider := NewVPCProvider(ec2api, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2:                 ec2api,
 		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
