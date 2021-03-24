@@ -131,6 +131,7 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 	if err != nil {
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
+	zap.S().Debugf("Successfully discovered %d EC2 instance types", len(instanceTypes))
 	return instanceTypes, nil
 }
 
@@ -140,17 +141,16 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo,
 	architecture := awsutils.NormalizeArchitecture(*constraints.Architecture)
 
 	for _, instanceTypeInfo := range instanceTypes {
-		if (len(constraints.InstanceTypes) != 0 && !functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) ||
-			!functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) ||
-			!functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") ||
-			*instanceTypeInfo.BurstablePerformanceSupported ||
-			instanceTypeInfo.FpgaInfo != nil ||
-			instanceTypeInfo.GpuInfo != nil {
-			continue
+		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&
+			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) &&
+			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") &&
+			!*instanceTypeInfo.BurstablePerformanceSupported &&
+			instanceTypeInfo.FpgaInfo == nil &&
+			instanceTypeInfo.GpuInfo == nil {
+			filtered = append(filtered, instanceTypeInfo)
 		}
-		filteredInstancePools = append(filteredInstancePools, instanceTypeInfo)
 	}
-	return filteredInstancePools
+	return filtered
 }
 
 // filterByZoneOfferings returns a list of instance types that are supported in the provided availability zone using the ec2 DescribeInstanceTypeOfferings API
@@ -185,6 +185,7 @@ func (p *InstanceTypeProvider) filterByZoneOfferings(ctx context.Context, instan
 			}
 		}
 	}
+	zap.S().Debugf("Successfully discovered %d EC2 instance types supported in the %s availability zone", len(instanceTypeInfoSupported), zone)
 	return instanceTypeInfoSupported, nil
 }
 
