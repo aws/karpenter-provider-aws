@@ -21,10 +21,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/awsutils"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
+	"go.uber.org/zap"
 )
 
 type InstanceTypeProvider struct {
@@ -135,11 +136,8 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
 func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo, constraints *cloudprovider.Constraints) []*ec2.InstanceTypeInfo {
-	filteredInstancePools := []*ec2.InstanceTypeInfo{}
-	architecture := "x86_64"
-	if *constraints.Architecture == v1alpha1.ArchitectureArm64 {
-		architecture = string(*constraints.Architecture)
-	}
+	filtered := []*ec2.InstanceTypeInfo{}
+	architecture := awsutils.NormalizeArchitecture(*constraints.Architecture)
 
 	for _, instanceTypeInfo := range instanceTypes {
 		if (len(constraints.InstanceTypes) != 0 && !functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) ||

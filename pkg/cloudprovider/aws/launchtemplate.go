@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/awsutils"
 
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -57,23 +58,12 @@ type LaunchTemplateProvider struct {
 	clientSet               *kubernetes.Clientset
 }
 
-// Translate architecture into AWS-recognized name for Bottlerocket
-// AMIs in the parameter store.
-func normalizeArchitecture(architecture string) string {
-	switch architecture {
-	case v1alpha1.ArchitectureAmd64:
-		return "x86_64"
-	default:
-		return string(architecture)
-	}
-}
-
 func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *cloudprovider.Constraints) (*ec2.LaunchTemplate, error) {
-	arch := normalizeArchitecture(*constraints.Architecture)
+	arch := awsutils.NormalizeArchitecture(*constraints.Architecture)
 	name := launchTemplateName(cluster.Name, arch)
 	if launchTemplate, ok := p.launchTemplateCache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
