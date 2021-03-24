@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	awsutils "github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -138,7 +138,7 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
 func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo, constraints *cloudprovider.Constraints) []*ec2.InstanceTypeInfo {
 	filtered := []*ec2.InstanceTypeInfo{}
-	architecture := awsutils.NormalizeArchitecture(*constraints.Architecture)
+	architecture := utils.NormalizeArchitecture(*constraints.Architecture)
 
 	for _, instanceTypeInfo := range instanceTypes {
 		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&

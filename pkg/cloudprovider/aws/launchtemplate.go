@@ -30,7 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	awsutils "github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -63,7 +63,7 @@ func launchTemplateName(clusterName string, arch string) string {
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *cloudprovider.Constraints) (*ec2.LaunchTemplate, error) {
-	arch := awsutils.NormalizeArchitecture(*constraints.Architecture)
+	arch := utils.NormalizeArchitecture(*constraints.Architecture)
 	name := launchTemplateName(cluster.Name, arch)
 	if launchTemplate, ok := p.launchTemplateCache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
