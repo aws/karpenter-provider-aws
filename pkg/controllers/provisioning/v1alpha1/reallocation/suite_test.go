@@ -101,11 +101,11 @@ var _ = Describe("Reallocation", func() {
 			ExpectCreated(ns.Client, provisioner)
 			ExpectEventuallyReconciled(ns.Client, provisioner)
 
-			Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, node)).To(Succeed())
-			Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.ProvisionerPhaseLabel, v1alpha1.ProvisionerUnderutilizedPhase))
-			Expect(node.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
+			updatedNode := &v1.Node{}
+			Expect(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.Labels).To(HaveKeyWithValue(v1alpha1.ProvisionerPhaseLabel, v1alpha1.ProvisionerUnderutilizedPhase))
+			Expect(updatedNode.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
-
 		It("should remove labels from utilized nodes", func() {
 			provisioner := &v1alpha1.Provisioner{
 				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
@@ -142,33 +142,6 @@ var _ = Describe("Reallocation", func() {
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
 
-		It("should terminate nodes with expired TTL", func() {
-			provisioner := &v1alpha1.Provisioner{
-				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
-				Spec: v1alpha1.ProvisionerSpec{
-					Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-				},
-			}
-			node := test.NodeWith(test.NodeOptions{
-				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-					v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-					v1alpha1.ProvisionerPhaseLabel:        v1alpha1.ProvisionerUnderutilizedPhase,
-				},
-				Annotations: map[string]string{
-					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(-100) * time.Second).Format(time.RFC3339),
-				},
-			})
-			ExpectCreatedWithStatus(ns.Client, node)
-
-			ExpectCreated(ns.Client, provisioner)
-			ExpectEventuallyReconciled(ns.Client, provisioner)
-
-			err := ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, node)
-			Expect(err).ToNot(Succeed())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
-		})
-
 		It("should terminate nodes marked terminable", func() {
 			provisioner := &v1alpha1.Provisioner{
 				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: ns.Name},
@@ -191,9 +164,8 @@ var _ = Describe("Reallocation", func() {
 			ExpectCreated(ns.Client, provisioner)
 			ExpectEventuallyReconciled(ns.Client, provisioner)
 
-			err := ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, node)
-			Expect(err).ToNot(Succeed())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
+			updatedNode := &v1.Node{}
+			Eventually(Expect(errors.IsNotFound(ns.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
 		})
 	})
 })
