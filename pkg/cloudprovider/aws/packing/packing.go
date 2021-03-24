@@ -62,11 +62,11 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.
 	var packing *Packing
 	remainingPods := pods
 	nodeCapacities := []*nodeCapacity{}
-	for _, instanceTypeInfo := range instanceTypes {
-		nodeCapacities = append(nodeCapacities, nodeCapacityFrom(*instanceTypeInfo))
+	for _, instanceType := range instanceTypes {
+		nodeCapacities = append(nodeCapacities, nodeCapacityFrom(*instanceType))
 	}
 	for len(remainingPods) > 0 {
-		packing, remainingPods = packWithLargestPod(remainingPods, nodeCapacities)
+		packing, remainingPods = p.packWithLargestPod(remainingPods, nodeCapacities)
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
 			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, remainingPods[0].Name)
@@ -74,7 +74,7 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.
 			continue
 		}
 		packings = append(packings, packing)
-		zap.S().Debugf("For %d pod(s), %d instance types are selected %v", len(packing.Pods), len(packing.InstanceTypes), packing.InstanceTypes)
+		zap.S().Debugf("Selected %d instance type options for %d pod(s) %v", len(packing.InstanceTypes), len(packing.Pods), packing.InstanceTypes)
 	}
 	return packings
 }
@@ -82,19 +82,19 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func packWithLargestPod(unpackedPods []*v1.Pod, nodeCapacities []*nodeCapacity) (*Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, nodeCapacities []*nodeCapacity) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestCapacities := []*nodeCapacity{}
 	remainingPods := unpackedPods
 	for _, nc := range nodeCapacities {
 		// check how many pods we can fit with the available capacity
-		result := packPodsForCapacity(nc, unpackedPods)
+		result := p.packPodsForCapacity(nc, unpackedPods)
 		if len(result.packed) == 0 {
 			continue
 		}
 		// If the pods packed are the same as before, this instance type can be
 		// considered as a backup option in case we get ICE
-		if podsMatch(bestPackedPods, result.packed) {
+		if p.podsMatch(bestPackedPods, result.packed) {
 			bestCapacities = append(bestCapacities, nc)
 		} else if len(result.packed) > len(bestPackedPods) {
 			// If pods packed are more than compared to what we got in last
@@ -111,7 +111,7 @@ func packWithLargestPod(unpackedPods []*v1.Pod, nodeCapacities []*nodeCapacity) 
 	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
 }
 
-func packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {
+func (*packer) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {
 	// start with the largest pod based on resources requested
 	result := &packingResult{}
 	for _, pod := range pods {
@@ -129,7 +129,7 @@ func packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult 
 	return result
 }
 
-func podsMatch(first, second []*v1.Pod) bool {
+func (*packer) podsMatch(first, second []*v1.Pod) bool {
 	if len(first) != len(second) {
 		return false
 	}
