@@ -30,7 +30,7 @@ aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
 ### Install Karpenter Controller and Dependencies
@@ -51,7 +51,7 @@ eksctl utils associate-iam-oidc-provider \
 kubectl patch serviceaccount karpenter -n karpenter --patch "$(cat <<-EOM
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole-${CLUSTER_NAME}
 EOM
 )"
 
