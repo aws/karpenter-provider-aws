@@ -1,5 +1,5 @@
 # Roadmap
-
+*Disclaimer: All items and owners are subject to change.*
 ## Releases
 
 * v0.2
@@ -10,7 +10,7 @@
     - Karpenter is ready to be used in non-production scenarios and supports a majority of known use cases.
 * v0.4
     - Date: Q4, 2021
-    - Karpenter is ready to be used in production and been rigorously tested for scale and performance
+    - Karpenter is ready to be used in production and been rigorously tested for scale and performance.
 
 | Component    | Feature                                                | Scope  | Owner           |
 | ------------ | ------------------------------------------------------ | ------ | --------------- |
@@ -19,21 +19,19 @@
 | Reallocator  | Terminate nodes if unused for some TTL (5 minutes)     | v0.2   | njtran          |
 | Allocator    | AWS: C, M, R Instance Family Support (General Purpose) | v0.2   | prateekgogia    |
 | Allocator    | AWS: T Instance Family Support (Burstable)             | v0.3   | bwagner5        |
-| Allocator    | Workload isolation Support (taints)                    | v0.3   | ellistarn       |
-| Allocator    | Workload isolation Support (node selectors)            | v0.3   | ellistarn       |
-| Allocator    | High Availabiity Topology Spread                       | v0.3   | ellistarn       |
-| Allocator    | Spot Instance Types                                    | v0.3   | bwagner5        |
-| Allocator    | ARM Nodes                                              | v0.3   | jacobgabrielson |
-| Termination  | Design - Graceful Termination                          | v0.3   | njtran          |
-| Allocator    | EBS Volumes launched in the correct zone               | v0.4   | prateekgogia    |
-| Allocator    | P/G Instance Family Support (Accelerators)             | v0.4   | bwagner5        |
-| Upgrade      | Design - Node Upgrade                                  | v0.4   | njtran          |
-| Interruption | Design - Spot Rebalance, Maintenance Events            | v0.4   | prateekgogia    |
-| Project      | Separate AWS Cloud Provider repository                 | v0.4   | ellistarn       |
+| Allocator    | Workload Isolation Support (taints, node selectors)    | v0.3   | ellistarn       |
+| Allocator    | AWS: Spot Instance Types                               | v0.3   | bwagner5        |
+| Allocator    | AWS: ARM Instance Types                                | v0.3   | jacobgabrielson |
+| Allocator    | Accelerator Instance Types                             | v0.3   |                 |
+| Termination  | Graceful node termination (cordon/drain)               | v0.3   | njtran          |
+| Interruption | Instance interruption events                           | v0.4   |                 |
+| Allocator    | High Availabiity Support (topology spread, affinity)   | v0.4   | prateekgogia    |
+| Project      | AWS: Separate AWS Cloud Provider repository            | v0.4   | prateekgogia    |
 | Project      | Scale Testing                                          | v0.4   | njtran          |
 | Project      | Performance Testing                                    | v0.4   | jacobgabrielson |
 | Project      | ARM Karpenter Binaries                                 | v0.4   |                 |
 | Project      | Helm Charts                                            | v0.4   |                 |
+| Allocator    | AWS: EBS Volumes launched in the correct zone          | Future |                 |
 | Allocator    | Sophisticated binpacking heuristics                    | Future |                 |
 | Allocator    | Mac                                                    | Future |                 |
 | Allocator    | Windows                                                | Future |                 |
