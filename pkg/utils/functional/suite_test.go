@@ -13,43 +13,44 @@ func TestFunctional(t *testing.T) {
 }
 
 var _ = Describe("Functional", func() {
-	// var (
-	// 	emptyInt32 []int32
-	// 	//		oneInt32   []int32
-	// 	//longInt32  []int32
-	// )
-
-	// Context("With empty slice", func() {
-	// 	Specify("should return empty slice", func() {
-	// 		//Expect(functional.GreaterThanInt32(emptyInt32, 23)).To(BeEmpty())
-	// 		Expect(GreaterThanInt32(emptyInt32, 23)).To(BeEmpty())
-	// 		Expect(LessThanInt32(emptyInt32, 23)).To(BeEmpty())
-	// 		alwaysTrue := func(_, _ int32) bool { return true }
-	// 		Expect(FilterInt32(emptyInt32, 23, alwaysTrue)).To(BeEmpty())
-	// 	})
-	// })
-
-	// Context("MergeInto", func() {
-	// 	It("does nothing with empty", func() {
-	// 		dest := struct {
-	// 			a int
-	// 			b int
-	// 		}{a: 2, b: 3}
-	// 		orig := dest
-	// 		MergeInto(dest)
-	// 		Expect(dest).To(Equal(orig))
-	// 	})
-
-	// 	It("does nothing with copy", func() {
-	// 		dest := struct {
-	// 			a int
-	// 			b int
-	// 		}{a: 2, b: 3}
-	// 		orig := dest
-	// 		same := dest
-	// 		MergeInto(&dest, &same)
-	// 		Expect(dest).To(Equal(orig))
-	// 	})
-
-	// })
+	Context("UnionStringMaps", func() {
+		When("empty args", func() {
+			It("returns empty map", func() {
+				Expect(UnionStringMaps()).To(BeEmpty())
+			})
+		})
+		m := map[string]string{
+			"a": "b",
+			"c": "d",
+		}
+		When("one arg", func() {
+			It("returns the arg", func() {
+				Expect(UnionStringMaps(m)).To(Equal(m))
+			})
+		})
+		When("2nd overwrites first", func() {
+			overwriter := map[string]string{
+				"a": "y",
+				"c": "z",
+			}
+			It("returns the 2nd arg", func() {
+				Expect(UnionStringMaps(m, overwriter)).To(Equal(overwriter))
+			})
+		})
+		When("2nd is disjoint", func() {
+			disjoiner := map[string]string{
+				"d": "y",
+				"e": "z",
+			}
+			It("returns the union", func() {
+				union := map[string]string{
+					"a": "b",
+					"c": "d",
+					"d": "y",
+					"e": "z",
+				}
+				Expect(UnionStringMaps(m, disjoiner)).To(Equal(union))
+			})
+		})
+	})
 })
