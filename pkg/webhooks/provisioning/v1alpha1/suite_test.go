@@ -23,7 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
-	"github.com/awslabs/karpenter/pkg/test/environment"
+	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -40,7 +40,7 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var env environment.Environment = environment.NewLocal(func(e *environment.Local) {
+var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 	e.Manager.RegisterWebhooks(
 		&Validator{CloudProvider: fake.NewFactory(cloudprovider.Options{})},
 		&Defaulter{},
@@ -56,18 +56,13 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Validation", func() {
-	var ns *environment.Namespace
 	var provisioner *v1alpha1.Provisioner
 
 	BeforeEach(func() {
-		var err error
-		ns, err = env.NewNamespace()
-		Expect(err).NotTo(HaveOccurred())
-
 		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      strings.ToLower(randomdata.SillyName()),
-				Namespace: ns.Name,
+				Namespace: "default",
 			},
 			Spec: v1alpha1.ProvisionerSpec{
 				Cluster: &v1alpha1.ClusterSpec{
@@ -80,7 +75,7 @@ var _ = Describe("Validation", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(ns.Client)
+		ExpectCleanedUp(env.Client)
 	})
 
 	It("should fail for empty cluster specification", func() {
@@ -91,7 +86,7 @@ var _ = Describe("Validation", func() {
 			{Name: "test-cluster", Endpoint: "https://test-cluster"},
 		} {
 			provisioner.Spec.Cluster = cluster
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		}
 	})
 
@@ -107,65 +102,65 @@ var _ = Describe("Validation", func() {
 			v1alpha1.InstanceTypeLabelKey,
 		} {
 			provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		}
 	})
 
 	Context("Zones", func() {
 		It("should succeed if unspecified", func() {
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.Zones = []string{"unknown"}
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.Zones = []string{"test-zone-1"}
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})
 
 	Context("InstanceTypes", func() {
 		It("should succeed if unspecified", func() {
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.InstanceTypes = []string{"unknown"}
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.InstanceTypes = []string{
 				// TODO @bwagner5
 			}
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})
 
 	Context("Architecture", func() {
 		It("should succeed if unspecified", func() {
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.Architecture = ptr.String("unknown")
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.Architecture = ptr.String("test-architecture-1")
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})
 
 	Context("OperatingSystem", func() {
 		It("should succeed if unspecified", func() {
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.OperatingSystem = ptr.String("unknown")
-			Expect(ns.Create(context.Background(), provisioner)).ToNot(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.OperatingSystem = ptr.String("test-operating-system-1")
-			Expect(ns.Create(context.Background(), provisioner)).To(Succeed())
+			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})
 })

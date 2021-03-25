@@ -22,25 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Pod(node string, namespace string, resources v1.ResourceList) *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      strings.ToLower(randomdata.SillyName()),
-			Namespace: namespace,
-		},
-		Spec: v1.PodSpec{
-			NodeName: node,
-			Containers: []v1.Container{{
-				Name:  "pause",
-				Image: "k8s.gcr.io/pause",
-				Resources: v1.ResourceRequirements{
-					Requests: resources,
-				},
-			}},
-		},
-	}
-}
-
 type PodOptions struct {
 	Name             string
 	Namespace        string
@@ -57,7 +38,7 @@ func PodWith(options PodOptions) *v1.Pod {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
 	if options.Namespace == "" {
-		options.Namespace = strings.ToLower(randomdata.SillyName())
+		options.Namespace = "default"
 	}
 	if options.Image == "" {
 		options.Image = "k8s.gcr.io/pause"
