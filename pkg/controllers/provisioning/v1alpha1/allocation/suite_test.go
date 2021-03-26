@@ -67,6 +67,7 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Allocation", func() {
 	var provisioner *v1alpha1.Provisioner
+	var ctx context.Context
 	BeforeEach(func() {
 		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
@@ -77,6 +78,7 @@ var _ = Describe("Allocation", func() {
 				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			},
 		}
+		ctx = context.Background()
 	})
 
 	AfterEach(func() {
@@ -100,11 +102,11 @@ var _ = Describe("Allocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			nodes := &v1.NodeList{}
-			Expect(env.Client.List(context.Background(), nodes)).To(Succeed())
+			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, object := range pods {
 				pod := v1.Pod{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: object.GetName(), Namespace: object.GetNamespace()}, &pod)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: object.GetName(), Namespace: object.GetNamespace()}, &pod)).To(Succeed())
 				Expect(pod.Spec.NodeName).To(Equal(nodes.Items[0].Name))
 			}
 		})
@@ -161,20 +163,20 @@ var _ = Describe("Allocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			nodes := &v1.NodeList{}
-			Expect(env.Client.List(context.Background(), nodes)).To(Succeed())
+			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range append(schedulable, coschedulable...) {
 				scheduled := &v1.Pod{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
 				node := &v1.Node{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
 				for key, value := range scheduled.Spec.NodeSelector {
 					Expect(node.Labels[key]).To(Equal(value))
 				}
 			}
 			for _, pod := range unschedulable {
 				unscheduled := &v1.Pod{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
 		})
@@ -219,17 +221,17 @@ var _ = Describe("Allocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			nodes := &v1.NodeList{}
-			Expect(env.Client.List(context.Background(), nodes)).To(Succeed())
+			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, pod := range schedulable {
 				scheduled := &v1.Pod{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
 				node := &v1.Node{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
 			}
 			for _, pod := range unschedulable {
 				unscheduled := &v1.Pod{}
-				Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
+				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
 		})

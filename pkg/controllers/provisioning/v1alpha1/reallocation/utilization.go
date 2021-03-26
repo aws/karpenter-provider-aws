@@ -52,7 +52,6 @@ func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha1.Provi
 // markUnderutilized adds a TTL to underutilized nodes
 func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	ttlable := []*v1.Node{}
-
 	// 1. Get all provisioner nodes
 	nodes, err := u.getNodes(ctx, provisioner, map[string]string{})
 	if err != nil {

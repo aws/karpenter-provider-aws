@@ -17,7 +17,6 @@ package allocation
 import (
 	"context"
 	"fmt"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -44,7 +43,6 @@ func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, no
 		Type:   v1.NodeReady,
 		Status: v1.ConditionUnknown,
 	}}
-
 	// 2. Create node
 	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("creating node %s, %w", node.Name, err)

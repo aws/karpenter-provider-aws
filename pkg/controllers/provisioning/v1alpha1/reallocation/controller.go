@@ -62,9 +62,8 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes a reallocation control loop for the resource
-func (c *Controller) Reconcile(object controllers.Object) error {
+func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
-	ctx := context.TODO()
 	if err := c.utilization.Reconcile(ctx, provisioner); err != nil {
 		return fmt.Errorf("reconciling utilization sub-controller, %w", err)
 	}

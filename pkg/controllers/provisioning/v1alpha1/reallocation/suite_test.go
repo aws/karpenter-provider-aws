@@ -70,6 +70,7 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Reallocation", func() {
 	var provisioner *v1alpha1.Provisioner
+	var ctx context.Context
 
 	BeforeEach(func() {
 		provisioner = &v1alpha1.Provisioner{
@@ -80,6 +81,7 @@ var _ = Describe("Reallocation", func() {
 				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			},
 		}
+		ctx = context.Background()
 	})
 
 	AfterEach(func() {
@@ -101,7 +103,7 @@ var _ = Describe("Reallocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).To(HaveKeyWithValue(v1alpha1.ProvisionerPhaseLabel, v1alpha1.ProvisionerUnderutilizedPhase))
 			Expect(updatedNode.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
@@ -130,7 +132,7 @@ var _ = Describe("Reallocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha1.ProvisionerPhaseLabel))
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
@@ -152,7 +154,7 @@ var _ = Describe("Reallocation", func() {
 			ExpectEventuallyReconciled(env.Client, provisioner)
 
 			updatedNode := &v1.Node{}
-			Eventually(Expect(errors.IsNotFound(env.Client.Get(context.Background(), client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
+			Eventually(Expect(errors.IsNotFound(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
 		})
 	})
 })
