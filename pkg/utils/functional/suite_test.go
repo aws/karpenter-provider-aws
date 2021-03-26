@@ -52,5 +52,26 @@ var _ = Describe("Functional", func() {
 				Expect(UnionStringMaps(m, disjoiner)).To(Equal(union))
 			})
 		})
+
+		When("3rd and 2nd collide", func() {
+			m2 := map[string]string{
+				"d": "y",
+				"e": "z",
+			}
+			m3 := map[string]string{
+				"d": "q",
+				"e": "z",
+			}
+
+			Specify("3rd takes precedence", func() {
+				union := map[string]string{
+					"a": "b",
+					"c": "d",
+					"d": "q",
+					"e": "z",
+				}
+				Expect(UnionStringMaps(m, m2, m3)).To(Equal(union))
+			})
+		})
 	})
 })
