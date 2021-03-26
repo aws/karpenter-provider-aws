@@ -33,7 +33,7 @@ Resources:
   KarpenterControllerPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
-      PolicyName: Karpenter
+      PolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
       Roles:
         -
           Ref: "KarpenterControllerRole"
@@ -62,7 +62,7 @@ Resources:
   KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
-      InstanceProfileName: "KarpenterNodeInstanceProfile"
+      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
         - Ref: "KarpenterNodeInstanceRole"
