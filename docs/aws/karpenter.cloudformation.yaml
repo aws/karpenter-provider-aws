@@ -4,11 +4,14 @@ Parameters:
   OpenIDConnectIdentityProvider:
     Type: String
     Description: "Example oidc.eks.us-west-2.amazonaws.com/id/1234567890"
+  ClusterName:
+    Type: String
+    Description: "EKS cluster name"
 Resources:
   KarpenterControllerRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: KarpenterControllerRole
+      RoleName: !Sub "KarpenterControllerRole-${ClusterName}"
       Path: /
       AssumeRolePolicyDocument: !Sub |
         {
@@ -66,7 +69,7 @@ Resources:
   KarpenterNodeInstanceRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: "KarpenterNodeRole"
+      RoleName: !Sub "KarpenterNodeRole-${ClusterName}"
       Path: /
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
