@@ -14,7 +14,7 @@ Skip this step if you already have a cluster.
 ```bash
 eksctl create cluster \
 --name ${CLUSTER_NAME} \
---version 1.19 \
+--version 1.18 \
 --region ${AWS_DEFAULT_REGION} \
 --node-type m5.large \
 --nodes 1 \
