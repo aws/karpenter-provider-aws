@@ -14,11 +14,18 @@ func TestFunctional(t *testing.T) {
 
 var _ = Describe("Functional", func() {
 	Context("UnionStringMaps", func() {
+		var empty = make(map[string]string)
 		When("empty args", func() {
 			It("returns empty map", func() {
 				Expect(UnionStringMaps()).To(BeEmpty())
 			})
 		})
+		When("all args are empty", func() {
+			It("returns empty map", func() {
+				Expect(UnionStringMaps(empty, empty, empty, empty)).To(BeEmpty())
+			})
+		})
+
 		m := map[string]string{
 			"a": "b",
 			"c": "d",
@@ -53,12 +60,12 @@ var _ = Describe("Functional", func() {
 			})
 		})
 
-		When("3rd and 2nd collide", func() {
+		When("4th and 2nd collide", func() {
 			m2 := map[string]string{
 				"d": "y",
 				"e": "z",
 			}
-			m3 := map[string]string{
+			m4 := map[string]string{
 				"d": "q",
 				"e": "z",
 			}
@@ -70,7 +77,7 @@ var _ = Describe("Functional", func() {
 					"d": "q",
 					"e": "z",
 				}
-				Expect(UnionStringMaps(m, m2, m3)).To(Equal(union))
+				Expect(UnionStringMaps(m, m2, empty, m4)).To(Equal(union))
 			})
 		})
 	})
