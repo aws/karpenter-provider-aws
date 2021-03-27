@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
 type InstanceProvider struct {
@@ -36,17 +37,17 @@ type InstanceProvider struct {
 // Create an instance given the constraints.
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
-	zonalInstanceTypeOptions map[string][]*ec2.InstanceTypeInfo,
+	instanceTypeOptions []*cloudprovider.Instance,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for zone, instanceTypes := range zonalInstanceTypeOptions {
-		subnets := zonalSubnetOptions[zone]
-		if len(subnets) == 0 {
-			continue
-		}
-		for _, instanceType := range instanceTypes {
+	for _, instanceType := range instanceTypeOptions {
+		for _, zone := range instanceType.Zones {
+			subnets := zonalSubnetOptions[zone]
+			if len(subnets) == 0 {
+				continue
+			}
 			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
 				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.

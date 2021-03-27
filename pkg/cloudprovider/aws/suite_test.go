@@ -32,7 +32,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/packing"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"

@@ -18,7 +18,7 @@ import (
 	"context"
 	"sort"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -33,14 +33,14 @@ type packer struct{}
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
-	Pack(context.Context, []*v1.Pod, []*ec2.InstanceTypeInfo) []*Packing
+	Pack(context.Context, []*v1.Pod, []*cloudprovider.Instance) []*Packing
 }
 
 // Packing contains a list of pods that can be placed on any of Instance type
 // in the InstanceTypes
 type Packing struct {
 	Pods          []*v1.Pod
-	InstanceTypes []string
+	InstanceTypes []*cloudprovider.Instance
 }
 
 // NewPacker returns a Packer implementation
@@ -54,7 +54,7 @@ func NewPacker() Packer {
 // the same zone as tightly as possible. It follows the First Fit Decreasing bin
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.InstanceTypeInfo) []*Packing {
+func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*cloudprovider.Instance) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
@@ -63,7 +63,7 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.
 	remainingPods := pods
 	nodeCapacities := []*nodeCapacity{}
 	for _, instanceType := range instanceTypes {
-		nodeCapacities = append(nodeCapacities, nodeCapacityFrom(*instanceType))
+		nodeCapacities = append(nodeCapacities, nodeCapacityFrom(instanceType))
 	}
 	for len(remainingPods) > 0 {
 		packing, remainingPods = p.packWithLargestPod(remainingPods, nodeCapacities)
@@ -74,7 +74,11 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*ec2.
 			continue
 		}
 		packings = append(packings, packing)
-		zap.S().Debugf("Selected %d instance type options for %d pod(s) %v", len(packing.InstanceTypes), len(packing.Pods), packing.InstanceTypes)
+		instanceTypeNames := []string{}
+		for _, it := range packing.InstanceTypes {
+			instanceTypeNames = append(instanceTypeNames, *it.InstanceType)
+		}
+		zap.S().Debugf("Selected %d instance type options for %d pod(s) %v", len(packing.InstanceTypes), len(packing.Pods), instanceTypeNames)
 	}
 	return packings
 }
@@ -104,11 +108,11 @@ func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, nodeCapacities []*no
 			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
-	capacityNames := []string{}
+	instanceTypes := []*cloudprovider.Instance{}
 	for _, capacity := range bestCapacities {
-		capacityNames = append(capacityNames, capacity.instanceType)
+		instanceTypes = append(instanceTypes, capacity.instanceType)
 	}
-	return &Packing{Pods: bestPackedPods, InstanceTypes: capacityNames}, remainingPods
+	return &Packing{Pods: bestPackedPods, InstanceTypes: instanceTypes}, remainingPods
 }
 
 func (*packer) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *packingResult {

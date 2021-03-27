@@ -54,182 +54,88 @@ var (
 func TestGet_InstanceTypes(t *testing.T) {
 	// Setup
 	g := NewWithT(t)
-	clusterName := "test-cluster"
 	testZone := "test-zone"
-	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
+	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 	constraints := &cloudprovider.Constraints{}
 	constraints.Architecture = &v1alpha1.ArchitectureAmd64
 
 	// iterate twice to ensure cache miss works the same as a cache hit
 	for range []int{0, 1} {
 		// Test
-		zonalInstanceTypes, err := instanceTypeProvider.Get(context.Background(), clusterName, constraints)
+		instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
 		// Assertions
 		g.Expect(err).ShouldNot(HaveOccurred())
-		g.Expect(len(zonalInstanceTypes)).Should(Equal(1))
-
-		instanceTypes := zonalInstanceTypes[testZone]
 		g.Expect(len(instanceTypes)).Should(Equal(1))
-		g.Expect(*instanceTypes[0].InstanceType).Should(Equal("m5.large"))
+		instanceType := instanceTypes[0]
+		g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+		g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
 	}
 }
 
 func TestGet_InstanceTypesFilteredByARM64(t *testing.T) {
 	// Setup
 	g := NewWithT(t)
-	clusterName := "test-cluster"
 	testZone := "test-zone"
-	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
+	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 	constraints := &cloudprovider.Constraints{}
 	constraints.Architecture = &v1alpha1.ArchitectureArm64
 
 	// Test
-	zonalInstanceTypes, err := instanceTypeProvider.Get(context.Background(), clusterName, constraints)
+	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
 	// Assertions
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(zonalInstanceTypes)).Should(Equal(1))
-
-	instanceTypes := zonalInstanceTypes[testZone]
 	g.Expect(len(instanceTypes)).Should(Equal(0))
 }
 
 func TestGet_InstanceTypesFilteredByInstanceType(t *testing.T) {
 	//Setup
 	g := NewWithT(t)
-	clusterName := "test-cluster"
 	testZone := "test-zone"
-	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
+	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 	constraints := &cloudprovider.Constraints{}
 	constraints.Architecture = &defaultArch
 	constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
 
 	// Test
-	zonalInstanceTypes, err := instanceTypeProvider.Get(context.Background(), clusterName, constraints)
+	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
 	// Assertions
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(zonalInstanceTypes)).Should(Equal(1))
-
-	instanceTypes := zonalInstanceTypes[testZone]
 	g.Expect(len(instanceTypes)).Should(Equal(1))
-	g.Expect(*instanceTypes[0].InstanceType).Should(Equal("m5.large"))
+	instanceType := instanceTypes[0]
+	g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+	g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
 }
 
 func TestGet_InstanceTypesFilteredByZoneID(t *testing.T) {
 	// Setup
 	g := NewWithT(t)
-	clusterName := "test-cluster"
 	testZone := "test-zone"
 	testZoneID := fmt.Sprintf("%s-id", testZone)
-	ec2, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2, &vpcProvider)
+	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 	constraints := &cloudprovider.Constraints{}
 	constraints.Architecture = &defaultArch
 	constraints.Zones = []string{testZoneID}
 
 	// Test
-	zonalInstanceTypes, err := instanceTypeProvider.Get(context.Background(), clusterName, constraints)
+	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
 	// Assertions
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(zonalInstanceTypes)).Should(Equal(1))
-
-	instanceTypes := zonalInstanceTypes[testZone]
 	g.Expect(len(instanceTypes)).Should(Equal(1))
-	g.Expect(*instanceTypes[0].InstanceType).Should(Equal("m5.large"))
-}
-
-func TestUniqueInstanceTypesFrom(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{}, []string{})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	instancePools := map[string][]*ec2.InstanceTypeInfo{
-		"test-zone1": {instanceTypeMocks["m5.large"], instanceTypeMocks["m5.large"]},
-		"test-zone2": {instanceTypeMocks["m5.large"], instanceTypeMocks["m6g.large"]},
-	}
-
-	// Test
-	uniqueInstanceTypes := instanceTypeProvider.UniqueInstanceTypesFrom(instancePools)
-
-	// Assertions
-	g.Expect(len(uniqueInstanceTypes)).Should(Equal(2))
-	instanceTypes := map[string]bool{}
-	for _, it := range uniqueInstanceTypes {
-		instanceTypes[*it.InstanceType] = true
-	}
-	g.Expect(instanceTypes["m5.large"]).Should(Equal(true))
-	g.Expect(instanceTypes["m6g.large"]).Should(Equal(true))
-}
-
-func TestUniqueInstanceTypesFrom_EmptyInstancePools(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{}, []string{})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	instancePools := map[string][]*ec2.InstanceTypeInfo{}
-
-	// Test
-	uniqueInstanceTypes := instanceTypeProvider.UniqueInstanceTypesFrom(instancePools)
-
-	// Asertions
-	g.Expect(len(uniqueInstanceTypes)).Should(Equal(0))
-}
-
-func TestInstanceTypesPerZoneFrom(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{}, []string{})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	instancePools := map[string][]*ec2.InstanceTypeInfo{
-		"test-zone1": {instanceTypeMocks["m5.large"]},
-		"test-zone2": {instanceTypeMocks["m5.large"], instanceTypeMocks["m6g.large"]},
-	}
-
-	// Test
-	instanceTypesPerZone := instanceTypeProvider.InstanceTypesPerZoneFrom([]string{"m5.large", "m6g.large"}, instancePools)
-
-	// Assertions
-	g.Expect(len(instanceTypesPerZone)).Should(Equal(2))
-	g.Expect(*instanceTypeMocks["m5.large"].InstanceType).Should(Equal(*instanceTypesPerZone["test-zone1"][0].InstanceType))
-	g.Expect(*instanceTypeMocks["m5.large"].InstanceType).Should(Equal(*instanceTypesPerZone["test-zone2"][0].InstanceType))
-	g.Expect(*instanceTypeMocks["m6g.large"].InstanceType).Should(Equal(*instanceTypesPerZone["test-zone2"][1].InstanceType))
-}
-
-func TestInstanceTypesPerZoneFrom_EmptyZoneMapping(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{}, []string{})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	instancePools := map[string][]*ec2.InstanceTypeInfo{
-		"test-zone1": {instanceTypeMocks["m5.large"]},
-		"test-zone2": {instanceTypeMocks["m5.large"], instanceTypeMocks["m6g.large"]},
-	}
-
-	// Test
-	instanceTypesPerZone := instanceTypeProvider.InstanceTypesPerZoneFrom([]string{}, instancePools)
-
-	// Assertions
-	g.Expect(len(instanceTypesPerZone)).Should(Equal(0))
-}
-
-func TestInstanceTypesPerZoneFrom_EmptyInstanceTypes(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{}, []string{})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	instancePools := map[string][]*ec2.InstanceTypeInfo{}
-
-	// Test
-	instanceTypesPerZone := instanceTypeProvider.InstanceTypesPerZoneFrom([]string{"m5.large", "m6g.large"}, instancePools)
-
-	// Assertions
-	g.Expect(len(instanceTypesPerZone)).Should(Equal(0))
+	instanceType := instanceTypes[0]
+	g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+	g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
 }
 
 // Test Helpers

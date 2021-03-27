@@ -43,10 +43,10 @@ func NewInstanceTypeProvider(ec2 ec2iface.EC2API, vpcProvider *VPCProvider) *Ins
 }
 
 // Get instance types that are availble per availability zone
-func (p *InstanceTypeProvider) Get(ctx context.Context, clusterName string, constraints *cloudprovider.Constraints) (map[string][]*ec2.InstanceTypeInfo, error) {
-	zones, err := p.retrieveZonesFrom(ctx, constraints, clusterName)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving availability zones, %w", err)
+func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints *cloudprovider.Constraints) ([]*cloudprovider.Instance, error) {
+	zones := []string{}
+	for zone := range zonalSubnetOptions {
+		zones = append(zones, zone)
 	}
 
 	zoneToInstanceTypeInfo := map[string][]*ec2.InstanceTypeInfo{}
@@ -69,40 +69,23 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, clusterName string, cons
 		zoneToInstanceTypeInfo[zone] = instanceTypes
 	}
 
+	ec2InstanceTypes := map[string]*cloudprovider.Instance{}
 	for zone, instanceTypes := range zoneToInstanceTypeInfo {
-		zoneToInstanceTypeInfo[zone] = p.filterFrom(instanceTypes, constraints)
-	}
-	return zoneToInstanceTypeInfo, nil
-}
-
-// UniqueInstanceTypesFrom returns a unique slice of InstanceTypeInfo structs from the values of the instancePools passed in
-func (p *InstanceTypeProvider) UniqueInstanceTypesFrom(instancePools map[string][]*ec2.InstanceTypeInfo) []*ec2.InstanceTypeInfo {
-	result := []*ec2.InstanceTypeInfo{}
-	uniqueInstanceTypes := map[string]bool{}
-	for _, instanceTypes := range instancePools {
-		for _, instanceType := range instanceTypes {
-			if _, ok := uniqueInstanceTypes[*instanceType.InstanceType]; !ok {
-				uniqueInstanceTypes[*instanceType.InstanceType] = true
-				result = append(result, instanceType)
+		for _, it := range p.filterFrom(instanceTypes, constraints) {
+			if instanceType, ok := ec2InstanceTypes[*it.InstanceType]; ok {
+				instanceType.Zones = append(instanceType.Zones, zone)
+			} else {
+				ec2InstanceTypes[*it.InstanceType] = &cloudprovider.Instance{InstanceTypeInfo: *it, Zones: []string{zone}}
 			}
 		}
 	}
-	return result
-}
 
-// InstanceTypesPerZoneFrom returns a mapping of zone to InstanceTypeInfo based on the provided slice of instance types names and mapping of all zones to InstanceTypeInfo
-func (p *InstanceTypeProvider) InstanceTypesPerZoneFrom(instanceTypeNames []string, instancePools map[string][]*ec2.InstanceTypeInfo) map[string][]*ec2.InstanceTypeInfo {
-	result := map[string][]*ec2.InstanceTypeInfo{}
-	for zone, instanceTypes := range instancePools {
-		for _, instanceTypeName := range instanceTypeNames {
-			for _, instanceType := range instanceTypes {
-				if *instanceType.InstanceType == instanceTypeName {
-					result[zone] = append(result[zone], instanceType)
-				}
-			}
-		}
+	instanceTypes := []*cloudprovider.Instance{}
+	for _, instanceType := range ec2InstanceTypes {
+		instanceTypes = append(instanceTypes, instanceType)
 	}
-	return result
+
+	return instanceTypes, nil
 }
 
 // getAllInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
@@ -190,22 +173,4 @@ func (p *InstanceTypeProvider) filterByZoneOfferings(ctx context.Context, instan
 	}
 	zap.S().Debugf("Successfully discovered %d EC2 instance types supported in the %s availability zone", len(instanceTypeInfoSupported), zone)
 	return instanceTypeInfoSupported, nil
-}
-
-func (p *InstanceTypeProvider) retrieveZonesFrom(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
-	zones := constraints.Zones
-	// If no zone constraints were specified, use all zones that the cluster spans
-	if len(zones) == 0 {
-		var err error
-		zones, err = p.vpc.GetZones(ctx, clusterName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// zones could be zone names and zone ids, so normalize them to all be zone names
-	zones, err := p.vpc.NormalizeZones(ctx, zones)
-	if err != nil {
-		return nil, err
-	}
-	return zones, nil
 }

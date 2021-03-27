@@ -60,8 +60,14 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
 
-	// 2. Constrain by zones
-	constrainedZones, err := p.getConstrainedZones(ctx, constraints, clusterName)
+	// 2. Normalize zone constraints to all be zone names
+	zones, err := p.normalizeZones(ctx, constraints.Zones)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Constrain by zones
+	constrainedZones, err := p.getConstrainedZones(ctx, zones, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("getting zones, %w", err)
 	}
@@ -79,8 +85,8 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 	return constrainedZonalSubnets, nil
 }
 
-// NormalizeZones takes zone names or ids and returns them all as zone names
-func (p *VPCProvider) NormalizeZones(ctx context.Context, zones []string) ([]string, error) {
+// normalizeZones takes zone names or ids and returns them all as zone names
+func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]string, error) {
 	allZonesKey := "all"
 	azs, ok := p.zoneCache.Get(allZonesKey)
 	if !ok {
@@ -100,17 +106,17 @@ func (p *VPCProvider) NormalizeZones(ctx context.Context, zones []string) ([]str
 	return zoneNames, nil
 }
 
-func (p *VPCProvider) getConstrainedZones(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) ([]string, error) {
+func (p *VPCProvider) getConstrainedZones(ctx context.Context, zoneConstraints []string, clusterName string) ([]string, error) {
 	zones, err := p.GetZones(ctx, clusterName)
 	if err != nil {
 		return nil, err
 	}
 	// Unconstrained
-	if constraints.Zones == nil {
+	if len(zoneConstraints) == 0 {
 		return zones, nil
 	}
 	// Supported by provider and by constraints
-	return functional.IntersectStringSlice(zones, constraints.Zones), nil
+	return functional.IntersectStringSlice(zones, zoneConstraints), nil
 }
 
 type ZonalSubnets map[string][]*ec2.Subnet
