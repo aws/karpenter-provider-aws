@@ -17,6 +17,7 @@ package reallocation
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -60,18 +61,16 @@ func (t *Terminator) cordonNodes(ctx context.Context, provisioner *v1alpha1.Prov
 	}
 	// 2. Cordon nodes
 	for _, node := range nodeList {
-		if !node.Spec.Unschedulable {
-			persisted := node.DeepCopy()
-			node.Spec.Unschedulable = true
-			node.Labels = functional.UnionStringMaps(
-				node.Labels,
-				map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerDrainingPhase},
-			)
-			if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-				return fmt.Errorf("patching node %s, %w", node.Name, err)
-			}
-			zap.S().Debugf("Cordoned node %s", node.Name)
+		persisted := node.DeepCopy()
+		node.Spec.Unschedulable = true
+		node.Labels = functional.UnionStringMaps(
+			node.Labels,
+			map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerDrainingPhase},
+		)
+		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
+		zap.S().Debugf("Cordoned node %s", node.Name)
 	}
 	return nil
 }
