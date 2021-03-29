@@ -99,8 +99,12 @@ func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]str
 	}
 
 	zoneNames := []string{}
-	for _, az := range azs.([]*ec2.AvailabilityZone) {
-		zoneNames = append(zoneNames, *az.ZoneName)
+	for _, zone := range zones {
+		for _, az := range azs.([]*ec2.AvailabilityZone) {
+			if zone == *az.ZoneName || zone == *az.ZoneId {
+				zoneNames = append(zoneNames, *az.ZoneName)
+			}
+		}
 	}
 	zap.S().Debugf("Successfully normalized %d zone(s) to their respective zone name(s)", len(zones))
 	return zoneNames, nil
