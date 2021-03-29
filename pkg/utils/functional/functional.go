@@ -159,6 +159,7 @@ func ExecuteAll(executables ...func()) {
 	}
 }
 
+// HasAnyPrefix returns true if any of the provided prefixes match the given string s
 func HasAnyPrefix(s string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(s, prefix) {

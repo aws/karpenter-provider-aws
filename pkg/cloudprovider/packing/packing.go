@@ -20,6 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
@@ -33,7 +34,7 @@ type packer struct{}
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
-	Pack(context.Context, []*v1.Pod, []*cloudprovider.Instance) []*Packing
+	Pack(context.Context, []*v1.Pod, []*cloudprovider.Instance, *cloudprovider.Constraints) []*Packing
 }
 
 // Packing contains a list of pods that can be placed on any of Instance type
@@ -54,17 +55,14 @@ func NewPacker() Packer {
 // the same zone as tightly as possible. It follows the First Fit Decreasing bin
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*cloudprovider.Instance) []*Packing {
+func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*cloudprovider.Instance, constraints *cloudprovider.Constraints) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
 	var packings []*Packing
 	var packing *Packing
 	remainingPods := pods
-	nodeCapacities := []*nodeCapacity{}
-	for _, instanceType := range instanceTypes {
-		nodeCapacities = append(nodeCapacities, nodeCapacityFrom(instanceType))
-	}
+	nodeCapacities := p.getNodeCapacities(instanceTypes, constraints)
 	for len(remainingPods) > 0 {
 		packing, remainingPods = p.packWithLargestPod(remainingPods, nodeCapacities)
 		// checked all instance type and found no packing option
@@ -81,6 +79,20 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*clou
 		zap.S().Debugf("Selected %d instance type options for %d pod(s) %v", len(packing.InstanceTypes), len(packing.Pods), instanceTypeNames)
 	}
 	return packings
+}
+
+func (*packer) getNodeCapacities(instanceTypes []*cloudprovider.Instance, constraints *cloudprovider.Constraints) []*nodeCapacity {
+	nodeCapacities := []*nodeCapacity{}
+	for _, instanceType := range instanceTypes {
+		nc := nodeCapacityFrom(instanceType)
+		kubeletOverhead := binpacking.CalculateKubeletOverhead(nc.total)
+		if ok := nc.reserve(resources.Merge(constraints.Overhead, kubeletOverhead)); !ok {
+			zap.S().Infof("Excluding instance type %s because there are not enough resources for the kubelet overhead", nc.instanceType)
+			continue
+		}
+		nodeCapacities = append(nodeCapacities, nc)
+	}
+	return nodeCapacities
 }
 
 // packWithLargestPod will try to pack max number of pods with largest pod in

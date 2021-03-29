@@ -57,13 +57,9 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 		}
 
 		// populate the cache by zonal keys
-		instanceTypes, err := p.getAllInstanceTypes(ctx)
+		instanceTypes, err := p.getInstanceTypesForZone(ctx, zone)
 		if err != nil {
-			return nil, fmt.Errorf("retrieving all instance types, %w", err)
-		}
-		instanceTypes, err = p.filterByZoneOfferings(ctx, instanceTypes, zone)
-		if err != nil {
-			return nil, fmt.Errorf("filtering instance types by zone offerings, %w", err)
+			return nil, err
 		}
 		p.instanceTypeCache.SetDefault(zone, instanceTypes)
 		zoneToInstanceTypeInfo[zone] = instanceTypes
@@ -85,6 +81,41 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 		instanceTypes = append(instanceTypes, instanceType)
 	}
 
+	return instanceTypes, nil
+}
+
+// GetAllInstanceTypeNames returns all instance type names without filtering based on constraints
+func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context, clusterName string) ([]string, error) {
+	zones, err := p.vpc.GetZones(ctx, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	instanceTypeNames := []string{}
+	for _, zone := range zones {
+		instanceTypes, ok := p.instanceTypeCache.Get(zone)
+		if !ok {
+			instanceTypes, err = p.getInstanceTypesForZone(ctx, zone)
+			if err != nil {
+				return nil, err
+			}
+			p.instanceTypeCache.SetDefault(zone, instanceTypes)
+		}
+		for _, instanceType := range instanceTypes.([]*ec2.InstanceTypeInfo) {
+			instanceTypeNames = append(instanceTypeNames, *instanceType.InstanceType)
+		}
+	}
+	return instanceTypeNames, nil
+}
+
+func (p *InstanceTypeProvider) getInstanceTypesForZone(ctx context.Context, zone string) ([]*ec2.InstanceTypeInfo, error) {
+	instanceTypes, err := p.getAllInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving all instance types, %w", err)
+	}
+	instanceTypes, err = p.filterByZoneOfferings(ctx, instanceTypes, zone)
+	if err != nil {
+		return nil, fmt.Errorf("filtering instance types by zone offerings, %w", err)
+	}
 	return instanceTypes, nil
 }
 

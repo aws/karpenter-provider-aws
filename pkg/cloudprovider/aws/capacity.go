@@ -51,7 +51,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}
 
 	// 3. Compute Packing given the pods and instance types
-	instancePackings := c.packer.Pack(ctx, constraints.Pods, zonalInstanceTypes)
+	instancePackings := c.packer.Pack(ctx, constraints.Pods, zonalInstanceTypes, constraints)
 
 	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
@@ -94,7 +94,7 @@ func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 }
 
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
-	return nil, nil // TODO @bwagner5
+	return c.instanceTypeProvider.GetAllInstanceTypeNames(ctx, c.spec.Cluster.Name)
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
