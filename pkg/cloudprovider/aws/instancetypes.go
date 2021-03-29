@@ -97,17 +97,6 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 				Name:   aws.String("supported-virtualization-type"),
 				Values: []*string{aws.String("hvm")},
 			},
-			// TODO: remove this filter after bare-metal functionality is implemented and tested
-			{
-				Name:   aws.String("bare-metal"),
-				Values: []*string{aws.String("false")},
-			},
-			// TODO: remove this filter after more advanced instance type filtering is implemented
-			//       this filter is temporarily being used to keep the fleet request size from exceeding the max size
-			{
-				Name:   aws.String("instance-type"),
-				Values: aws.StringSlice([]string{"m*", "c*", "r*", "a*", "t3*", "t4*"}),
-			},
 		},
 	}
 	err := p.ec2.DescribeInstanceTypesPagesWithContext(ctx, describeInstanceTypesInput, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
@@ -128,15 +117,25 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo,
 
 	for _, instanceTypeInfo := range instanceTypes {
 		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&
+			(len(constraints.InstanceTypes) != 0 || p.isDefaultInstanceType(instanceTypeInfo)) &&
 			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) &&
-			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") &&
-			!*instanceTypeInfo.BurstablePerformanceSupported &&
-			instanceTypeInfo.FpgaInfo == nil &&
-			instanceTypeInfo.GpuInfo == nil {
+			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") {
 			filtered = append(filtered, instanceTypeInfo)
 		}
 	}
 	return filtered
+}
+
+// isDefaultInstanceType returns true if the instance type provided conforms to the default instance type criteria
+// This function is used to make sure we launch instance types that are suited for general workloads
+func (p *InstanceTypeProvider) isDefaultInstanceType(instanceTypeInfo *ec2.InstanceTypeInfo) bool {
+	if instanceTypeInfo.FpgaInfo == nil &&
+		instanceTypeInfo.GpuInfo == nil &&
+		!*instanceTypeInfo.BareMetal &&
+		functional.HasAnyPrefix(*instanceTypeInfo.InstanceType, "m", "c", "r", "a", "t3", "t4") {
+		return true
+	}
+	return false
 }
 
 // filterByZoneOfferings returns a list of instance types that are supported in the provided availability zone using the ec2 DescribeInstanceTypeOfferings API

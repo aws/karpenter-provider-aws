@@ -130,6 +130,7 @@ func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 				SupportedUsageClasses:         []*string{aws.String("on-demand")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -149,6 +150,7 @@ func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 				SupportedUsageClasses:         []*string{aws.String("on-demand")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},

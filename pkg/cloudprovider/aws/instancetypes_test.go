@@ -35,6 +35,7 @@ var (
 			InstanceType:                  aws.String("m5.large"),
 			SupportedUsageClasses:         []*string{aws.String("on-demand")},
 			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
 			ProcessorInfo: &ec2.ProcessorInfo{
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
@@ -43,6 +44,7 @@ var (
 			InstanceType:                  aws.String("m6g.large"),
 			SupportedUsageClasses:         []*string{aws.String("on-demand")},
 			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
 			ProcessorInfo: &ec2.ProcessorInfo{
 				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
 			},
