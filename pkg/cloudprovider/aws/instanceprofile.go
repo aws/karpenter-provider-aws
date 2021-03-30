@@ -35,28 +35,28 @@ const (
 )
 
 type InstanceProfileProvider struct {
-	iam                  iamiface.IAMAPI
-	kubeClient           client.Client
-	instanceProfileCache *cache.Cache
+	iamapi     iamiface.IAMAPI
+	kubeClient client.Client
+	cache      *cache.Cache
 }
 
-func NewInstanceProfileProvider(iam iamiface.IAMAPI, kubeClient client.Client) *InstanceProfileProvider {
+func NewInstanceProfileProvider(iamapi iamiface.IAMAPI, kubeClient client.Client) *InstanceProfileProvider {
 	return &InstanceProfileProvider{
-		iam:                  iam,
-		kubeClient:           kubeClient,
-		instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+		iamapi:     iamapi,
+		kubeClient: kubeClient,
+		cache:      cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
 
 func (p *InstanceProfileProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*iam.InstanceProfile, error) {
-	if instanceProfile, ok := p.instanceProfileCache.Get(cluster.Name); ok {
+	if instanceProfile, ok := p.cache.Get(cluster.Name); ok {
 		return instanceProfile.(*iam.InstanceProfile), nil
 	}
 	return p.getInstanceProfile(ctx, cluster)
 }
 
 func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*iam.InstanceProfile, error) {
-	output, err := p.iam.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
+	output, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(KarpenterNodeInstanceProfileName),
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluste
 		}
 	}
 	zap.S().Debugf("Successfully discovered instance profile %s for cluster %s", *output.InstanceProfile.InstanceProfileName, cluster.Name)
-	p.instanceProfileCache.Set(cluster.Name, output.InstanceProfile, CacheTTL)
+	p.cache.Set(cluster.Name, output.InstanceProfile, CacheTTL)
 	return output.InstanceProfile, nil
 }
 

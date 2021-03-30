@@ -17,7 +17,6 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -66,10 +65,4 @@ type Packing struct {
 type Options struct {
 	Client    client.Client
 	ClientSet *kubernetes.Clientset
-}
-
-type Instance struct {
-	// TODO replace w/ generic instance parameters
-	ec2.InstanceTypeInfo
-	Zones []string
 }

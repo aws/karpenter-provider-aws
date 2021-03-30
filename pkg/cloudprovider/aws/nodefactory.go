@@ -30,7 +30,7 @@ import (
 )
 
 type NodeFactory struct {
-	ec2 ec2iface.EC2API
+	ec2api ec2iface.EC2API
 }
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
@@ -43,7 +43,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[strin
 		MaxDelay: 10 * time.Second,
 		Factor:   2, Jitter: true,
 	}, nil); attempt.Next(); {
-		describeInstancesOutput, err := n.ec2.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
+		describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
 		if err == nil {
 			return n.nodesFrom(describeInstancesOutput.Reservations), nil
 		}

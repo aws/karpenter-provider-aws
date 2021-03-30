@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/packing"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/patrickmn/go-cache"
 )
@@ -53,21 +53,21 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
-		ec2:         ec2api,
-		subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 	vpcProvider := NewVPCProvider(ec2api, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
-		ec2:                 ec2api,
-		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 		instanceProfileProvider: &InstanceProfileProvider{
-			iam:                  iam.New(sess),
-			kubeClient:           options.Client,
-			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+			iamapi:     iam.New(sess),
+			kubeClient: options.Client,
+			cache:      cache.New(CacheTTL, CacheCleanupInterval),
 		},
 		securityGroupProvider: &SecurityGroupProvider{
-			ec2:                ec2api,
-			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+			ec2api: ec2api,
+			cache:  cache.New(CacheTTL, CacheCleanupInterval),
 		},
 		ssm:       ssm.New(sess),
 		clientSet: options.ClientSet,
@@ -75,9 +75,9 @@ func NewFactory(options cloudprovider.Options) *Factory {
 
 	return &Factory{
 		vpcProvider:            vpcProvider,
-		nodeFactory:            &NodeFactory{ec2: ec2api},
+		nodeFactory:            &NodeFactory{ec2api: ec2api},
 		packer:                 packing.NewPacker(),
-		instanceProvider:       &InstanceProvider{ec2: ec2api, vpc: vpcProvider},
+		instanceProvider:       &InstanceProvider{ec2api: ec2api, vpc: vpcProvider},
 		instanceTypeProvider:   NewInstanceTypeProvider(ec2api, vpcProvider),
 		launchTemplateProvider: launchTemplateProvider,
 	}

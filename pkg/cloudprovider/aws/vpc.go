@@ -27,17 +27,21 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	allZonesKey = "all"
+)
+
 type VPCProvider struct {
-	ec2            ec2iface.EC2API
+	ec2api         ec2iface.EC2API
 	subnetProvider *SubnetProvider
-	zoneCache      *cache.Cache
+	cache          *cache.Cache
 }
 
 func NewVPCProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *VPCProvider {
 	return &VPCProvider{
-		ec2:            ec2api,
+		ec2api:         ec2api,
 		subnetProvider: subnetProvider,
-		zoneCache:      cache.New(CacheTTL, CacheCleanupInterval),
+		cache:          cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
 
@@ -87,14 +91,13 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 
 // normalizeZones takes zone names or ids and returns them all as zone names
 func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]string, error) {
-	allZonesKey := "all"
-	azs, ok := p.zoneCache.Get(allZonesKey)
+	azs, ok := p.cache.Get(allZonesKey)
 	if !ok {
-		azsOutput, err := p.ec2.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
+		azsOutput, err := p.ec2api.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
 		if err != nil {
 			return zones, fmt.Errorf("retrieving availability zones, %w", err)
 		}
-		p.zoneCache.SetDefault(allZonesKey, azsOutput.AvailabilityZones)
+		p.cache.SetDefault(allZonesKey, azsOutput.AvailabilityZones)
 		azs = azsOutput.AvailabilityZones
 	}
 
@@ -126,26 +129,26 @@ func (p *VPCProvider) getConstrainedZones(ctx context.Context, zoneConstraints [
 type ZonalSubnets map[string][]*ec2.Subnet
 
 type SubnetProvider struct {
-	ec2         ec2iface.EC2API
-	subnetCache *cache.Cache
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
 }
 
-func NewSubnetProvider(ec2 ec2iface.EC2API) *SubnetProvider {
+func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	return &SubnetProvider{
-		ec2:         ec2,
-		subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
 
 func (s *SubnetProvider) Get(ctx context.Context, clusterName string) (ZonalSubnets, error) {
-	if zonalSubnets, ok := s.subnetCache.Get(clusterName); ok {
+	if zonalSubnets, ok := s.cache.Get(clusterName); ok {
 		return zonalSubnets.(ZonalSubnets), nil
 	}
 	return s.getZonalSubnets(ctx, clusterName)
 }
 
 func (s *SubnetProvider) getZonalSubnets(ctx context.Context, clusterName string) (ZonalSubnets, error) {
-	describeSubnetOutput, err := s.ec2.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
+	describeSubnetOutput, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("tag-key"),
 			Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
@@ -164,7 +167,7 @@ func (s *SubnetProvider) getZonalSubnets(ctx context.Context, clusterName string
 		}
 	}
 
-	s.subnetCache.Set(clusterName, zonalSubnetMap, CacheTTL)
+	s.cache.Set(clusterName, zonalSubnetMap, CacheTTL)
 	zap.S().Debugf("Successfully discovered subnets in %d zones for cluster %s", len(zonalSubnetMap), clusterName)
 	return zonalSubnetMap, nil
 }

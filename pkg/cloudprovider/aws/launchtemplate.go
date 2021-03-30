@@ -50,8 +50,8 @@ cluster-name = "{{.Name}}"
 )
 
 type LaunchTemplateProvider struct {
-	ec2                     ec2iface.EC2API
-	launchTemplateCache     *cache.Cache
+	ec2api                  ec2iface.EC2API
+	cache                   *cache.Cache
 	instanceProfileProvider *InstanceProfileProvider
 	securityGroupProvider   *SecurityGroupProvider
 	ssm                     ssmiface.SSMAPI
@@ -65,20 +65,20 @@ func launchTemplateName(clusterName string, arch string) string {
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *cloudprovider.Constraints) (*ec2.LaunchTemplate, error) {
 	arch := utils.NormalizeArchitecture(*constraints.Architecture)
 	name := launchTemplateName(cluster.Name, arch)
-	if launchTemplate, ok := p.launchTemplateCache.Get(name); ok {
+	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
 	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, arch)
 	if err != nil {
 		return nil, err
 	}
-	p.launchTemplateCache.Set(name, launchTemplate, CacheTTL)
+	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }
 
 // TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
 func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, cluster *v1alpha1.ClusterSpec, arch string) (*ec2.LaunchTemplate, error) {
-	describelaunchTemplateOutput, err := p.ec2.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	describelaunchTemplateOutput, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(launchTemplateName(cluster.Name, arch))},
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
@@ -114,7 +114,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 		return nil, fmt.Errorf("getting user data, %w", err)
 	}
 
-	output, err := p.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
+	output, err := p.ec2api.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(cluster.Name, arch)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{

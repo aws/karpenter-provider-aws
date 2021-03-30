@@ -18,12 +18,19 @@ import (
 	"context"
 	"sort"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/binpacking"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
+
+type Instance struct {
+	// TODO replace w/ generic instance parameters
+	ec2.InstanceTypeInfo
+	Zones []string
+}
 
 type packingResult struct {
 	packed   []*v1.Pod
@@ -34,14 +41,14 @@ type packer struct{}
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
-	Pack(context.Context, []*v1.Pod, []*cloudprovider.Instance, *cloudprovider.Constraints) []*Packing
+	Pack(context.Context, []*v1.Pod, []*Instance, *cloudprovider.Constraints) []*Packing
 }
 
 // Packing contains a list of pods that can be placed on any of Instance type
 // in the InstanceTypes
 type Packing struct {
 	Pods          []*v1.Pod
-	InstanceTypes []*cloudprovider.Instance
+	InstanceTypes []*Instance
 }
 
 // NewPacker returns a Packer implementation
@@ -55,7 +62,7 @@ func NewPacker() Packer {
 // the same zone as tightly as possible. It follows the First Fit Decreasing bin
 // packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*cloudprovider.Instance, constraints *cloudprovider.Constraints) []*Packing {
+func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Instance, constraints *cloudprovider.Constraints) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
@@ -81,7 +88,7 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*clou
 	return packings
 }
 
-func (*packer) getNodeCapacities(instanceTypes []*cloudprovider.Instance, constraints *cloudprovider.Constraints) []*nodeCapacity {
+func (*packer) getNodeCapacities(instanceTypes []*Instance, constraints *cloudprovider.Constraints) []*nodeCapacity {
 	nodeCapacities := []*nodeCapacity{}
 	for _, instanceType := range instanceTypes {
 		nc := nodeCapacityFrom(instanceType)
@@ -120,7 +127,7 @@ func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, nodeCapacities []*no
 			bestCapacities = []*nodeCapacity{nc}
 		}
 	}
-	instanceTypes := []*cloudprovider.Instance{}
+	instanceTypes := []*Instance{}
 	for _, capacity := range bestCapacities {
 		instanceTypes = append(instanceTypes, capacity.instanceType)
 	}

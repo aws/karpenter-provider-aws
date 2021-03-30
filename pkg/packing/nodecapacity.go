@@ -17,19 +17,18 @@ package packing
 import (
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	resourcesUtil "github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type nodeCapacity struct {
-	instanceType *cloudprovider.Instance
+	instanceType *Instance
 	reserved     v1.ResourceList
 	total        v1.ResourceList
 }
 
-func nodeCapacityFrom(instanceType *cloudprovider.Instance) *nodeCapacity {
+func nodeCapacityFrom(instanceType *Instance) *nodeCapacity {
 	return &nodeCapacity{
 		instanceType: instanceType,
 		total: v1.ResourceList{

@@ -32,8 +32,8 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/packing"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -57,29 +57,29 @@ var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider := &SubnetProvider{
-		ec2:         fakeEC2API,
-		subnetCache: subnetCache,
+		ec2api: fakeEC2API,
+		cache:  subnetCache,
 	}
 	vpcProvider := NewVPCProvider(fakeEC2API, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
-		ec2:                 fakeEC2API,
-		launchTemplateCache: launchTemplateCache,
+		ec2api: fakeEC2API,
+		cache:  launchTemplateCache,
 		instanceProfileProvider: &InstanceProfileProvider{
-			iam:                  &fake.IAMAPI{},
-			kubeClient:           e.Manager.GetClient(),
-			instanceProfileCache: instanceProfileCache,
+			iamapi:     &fake.IAMAPI{},
+			kubeClient: e.Manager.GetClient(),
+			cache:      instanceProfileCache,
 		},
 		securityGroupProvider: &SecurityGroupProvider{
-			ec2:                fakeEC2API,
-			securityGroupCache: securityGroupCache,
+			ec2api: fakeEC2API,
+			cache:  securityGroupCache,
 		},
 		ssm:       &fake.SSMAPI{},
 		clientSet: clientSet,
 	}
 	cloudProviderFactory := &Factory{
 		vpcProvider:            vpcProvider,
-		nodeFactory:            &NodeFactory{ec2: fakeEC2API},
-		instanceProvider:       &InstanceProvider{ec2: fakeEC2API, vpc: vpcProvider},
+		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
+		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API, vpc: vpcProvider},
 		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API, vpcProvider),
 		packer:                 packing.NewPacker(),
 		launchTemplateProvider: launchTemplateProvider,

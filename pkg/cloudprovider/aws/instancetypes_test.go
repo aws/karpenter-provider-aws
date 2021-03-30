@@ -17,7 +17,6 @@ package aws_test
 import (
 	"context"
 	"fmt"
-	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -26,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	cloudprovideraws "github.com/awslabs/karpenter/pkg/cloudprovider/aws"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
@@ -51,94 +51,115 @@ var (
 		},
 	}
 	defaultArch = "amd64"
+	testZone    = "test-zone"
 )
 
-func TestGet_InstanceTypes(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	testZone := "test-zone"
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-	constraints := &cloudprovider.Constraints{}
-	constraints.Architecture = &v1alpha1.ArchitectureAmd64
+var _ = Describe("InstanceTypes", func() {
 
-	// iterate twice to ensure cache miss works the same as a cache hit
-	for range []int{0, 1} {
-		// Test
-		instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
+	Describe("Getting Instance Types", func() {
+		Context("With amd64 architecture", func() {
+			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
+			constraints := &cloudprovider.Constraints{}
+			constraints.Architecture = &v1alpha1.ArchitectureAmd64
+			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-		// Assertions
-		g.Expect(err).ShouldNot(HaveOccurred())
-		g.Expect(len(instanceTypes)).Should(Equal(1))
-		instanceType := instanceTypes[0]
-		g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-		g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
-	}
-}
+			It("should not error", func() {
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 
-func TestGet_InstanceTypesFilteredByARM64(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	testZone := "test-zone"
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-	constraints := &cloudprovider.Constraints{}
-	constraints.Architecture = &v1alpha1.ArchitectureArm64
+			It("should return one m5.large supported in test-zone", func() {
+				Expect(len(instanceTypes)).Should(Equal(1))
+				instanceType := instanceTypes[0]
+				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+			})
+		})
 
-	// Test
-	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
+		Context("With arm64 architecture", func() {
+			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m6g.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
+			constraints := &cloudprovider.Constraints{}
+			constraints.Architecture = &v1alpha1.ArchitectureArm64
+			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-	// Assertions
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(instanceTypes)).Should(Equal(0))
-}
+			It("should not error", func() {
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 
-func TestGet_InstanceTypesFilteredByInstanceType(t *testing.T) {
-	//Setup
-	g := NewWithT(t)
-	testZone := "test-zone"
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-	constraints := &cloudprovider.Constraints{}
-	constraints.Architecture = &defaultArch
-	constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
+			It("should return one m6g.large supported in test-zone", func() {
+				Expect(len(instanceTypes)).Should(Equal(1))
+				instanceType := instanceTypes[0]
+				Expect(*instanceType.InstanceType).Should(Equal("m6g.large"))
+				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+			})
+		})
 
-	// Test
-	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
+		Context("With arm64 architecture but no arm64 instance types supported", func() {
+			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
+			constraints := &cloudprovider.Constraints{}
+			constraints.Architecture = &v1alpha1.ArchitectureArm64
+			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-	// Assertions
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(instanceTypes)).Should(Equal(1))
-	instanceType := instanceTypes[0]
-	g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-	g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
-}
+			It("should not error", func() {
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 
-func TestGet_InstanceTypesFilteredByZoneID(t *testing.T) {
-	// Setup
-	g := NewWithT(t)
-	testZone := "test-zone"
-	testZoneID := fmt.Sprintf("%s-id", testZone)
-	ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-	instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-	zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-	constraints := &cloudprovider.Constraints{}
-	constraints.Architecture = &defaultArch
-	constraints.Zones = []string{testZoneID}
+			It("should not return any instance types", func() {
+				Expect(len(instanceTypes)).Should(Equal(0))
+			})
+		})
 
-	// Test
-	instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
+		Context("With allowed instance types constraint", func() {
+			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
+			constraints := &cloudprovider.Constraints{}
+			constraints.Architecture = &defaultArch
+			constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
+			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-	// Assertions
-	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(len(instanceTypes)).Should(Equal(1))
-	instanceType := instanceTypes[0]
-	g.Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-	g.Expect(instanceType.Zones[0]).Should(Equal(testZone))
-}
+			It("should not error", func() {
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("should return one m5.large supported in test-zone", func() {
+				Expect(len(instanceTypes)).Should(Equal(1))
+				instanceType := instanceTypes[0]
+				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+			})
+		})
+
+		Context("With zone ID constraint", func() {
+			testZoneID := fmt.Sprintf("%s-id", testZone)
+			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
+			constraints := &cloudprovider.Constraints{}
+			constraints.Architecture = &defaultArch
+			constraints.Zones = []string{testZoneID}
+			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
+
+			It("should not error", func() {
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("should return one m5.large supported in test-zone", func() {
+				Expect(len(instanceTypes)).Should(Equal(1))
+				instanceType := instanceTypes[0]
+				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
+				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+			})
+		})
+
+	})
+
+})
 
 // Test Helpers
 
