@@ -26,26 +26,26 @@ import (
 )
 
 type SecurityGroupProvider struct {
-	ec2                ec2iface.EC2API
-	securityGroupCache *cache.Cache
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
 }
 
-func NewSecurityGroupProvider(ec2 ec2iface.EC2API) *SecurityGroupProvider {
+func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	return &SecurityGroupProvider{
-		ec2:                ec2,
-		securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
 
 func (s *SecurityGroupProvider) Get(ctx context.Context, clusterName string) ([]*ec2.SecurityGroup, error) {
-	if securityGroups, ok := s.securityGroupCache.Get(clusterName); ok {
+	if securityGroups, ok := s.cache.Get(clusterName); ok {
 		return securityGroups.([]*ec2.SecurityGroup), nil
 	}
 	return s.getSecurityGroups(ctx, clusterName)
 }
 
 func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterName string) ([]*ec2.SecurityGroup, error) {
-	describeSecurityGroupOutput, err := s.ec2.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
+	describeSecurityGroupOutput, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("tag-key"),
 			Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
@@ -56,7 +56,7 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterNa
 	}
 
 	securityGroups := describeSecurityGroupOutput.SecurityGroups
-	s.securityGroupCache.Set(clusterName, securityGroups, CacheTTL)
+	s.cache.Set(clusterName, securityGroups, CacheTTL)
 	zap.S().Debugf("Successfully discovered %d security groups for cluster %s", len(securityGroups), clusterName)
 	return securityGroups, nil
 }

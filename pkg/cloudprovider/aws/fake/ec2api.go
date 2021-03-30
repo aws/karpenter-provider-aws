@@ -25,13 +25,15 @@ import (
 
 type EC2API struct {
 	ec2iface.EC2API
-	CreateFleetOutput             *ec2.CreateFleetOutput
-	DescribeInstancesOutput       *ec2.DescribeInstancesOutput
-	DescribeLaunchTemplatesOutput *ec2.DescribeLaunchTemplatesOutput
-	DescribeSubnetsOutput         *ec2.DescribeSubnetsOutput
-	DescribeSecurityGroupsOutput  *ec2.DescribeSecurityGroupsOutput
-	DescribeInstanceTypesOutput   *ec2.DescribeInstanceTypesOutput
-	WantErr                       error
+	CreateFleetOutput                   *ec2.CreateFleetOutput
+	DescribeInstancesOutput             *ec2.DescribeInstancesOutput
+	DescribeLaunchTemplatesOutput       *ec2.DescribeLaunchTemplatesOutput
+	DescribeSubnetsOutput               *ec2.DescribeSubnetsOutput
+	DescribeSecurityGroupsOutput        *ec2.DescribeSecurityGroupsOutput
+	DescribeInstanceTypesOutput         *ec2.DescribeInstanceTypesOutput
+	DescribeInstanceTypeOfferingsOutput *ec2.DescribeInstanceTypeOfferingsOutput
+	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
+	WantErr                             error
 
 	CalledWithCreateFleetInput []ec2.CreateFleetInput
 }
@@ -99,6 +101,20 @@ func (a *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.Describ
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{{GroupId: aws.String("test-group")}}}, nil
 }
 
+func (a *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
+	if a.WantErr != nil {
+		return nil, a.WantErr
+	}
+	if a.DescribeAvailabilityZonesOutput != nil {
+		return a.DescribeAvailabilityZonesOutput, nil
+	}
+	return &ec2.DescribeAvailabilityZonesOutput{AvailabilityZones: []*ec2.AvailabilityZone{
+		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a")},
+		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b")},
+		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c")},
+	}}, nil
+}
+
 func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, opts ...request.Option) error {
 	if a.WantErr != nil {
 		return a.WantErr
@@ -110,9 +126,14 @@ func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 	fn(&ec2.DescribeInstanceTypesOutput{
 		InstanceTypes: []*ec2.InstanceTypeInfo{
 			{
-				InstanceType:                 aws.String("m5.large"),
-				SupportedUsageClasses:        []*string{aws.String("on-demand")},
-				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				InstanceType:                  aws.String("m5.large"),
+				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
 				VCpuInfo: &ec2.VCpuInfo{
 					DefaultVCpus: aws.Int64(2),
 				},
@@ -125,9 +146,14 @@ func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 				},
 			},
 			{
-				InstanceType:                 aws.String("m5.xlarge"),
-				SupportedUsageClasses:        []*string{aws.String("on-demand")},
-				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
+				InstanceType:                  aws.String("m5.xlarge"),
+				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
 				VCpuInfo: &ec2.VCpuInfo{
 					DefaultVCpus: aws.Int64(4),
 				},
@@ -139,50 +165,48 @@ func (a *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 					Ipv4AddressesPerInterface: aws.Int64(60),
 				},
 			},
+		},
+	}, false)
+	return nil
+}
+
+func (a *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, opts ...request.Option) error {
+	if a.WantErr != nil {
+		return a.WantErr
+	}
+	if a.DescribeInstanceTypeOfferingsOutput != nil {
+		fn(a.DescribeInstanceTypeOfferingsOutput, false)
+		return nil
+	}
+	fn(&ec2.DescribeInstanceTypeOfferingsOutput{
+		InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
 			{
-				InstanceType:                 aws.String("m5.2xlarge"),
-				SupportedUsageClasses:        []*string{aws.String("on-demand")},
-				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(8),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(32),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(4),
-					Ipv4AddressesPerInterface: aws.Int64(60),
-				},
+				InstanceType: aws.String("m5.large"),
+				Location:     aws.String("test-zone-1a"),
 			},
 			{
-				InstanceType:                 aws.String("m5.4xlarge"),
-				SupportedUsageClasses:        []*string{aws.String("on-demand")},
-				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(16),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(64),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(8),
-					Ipv4AddressesPerInterface: aws.Int64(240),
-				},
+				InstanceType: aws.String("m5.large"),
+				Location:     aws.String("test-zone-1b"),
 			},
 			{
-				InstanceType:                 aws.String("m5.8xlarge"),
-				SupportedUsageClasses:        []*string{aws.String("on-demand")},
-				SupportedVirtualizationTypes: []*string{aws.String("hvm")},
-				VCpuInfo: &ec2.VCpuInfo{
-					DefaultVCpus: aws.Int64(32),
-				},
-				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(128),
-				},
-				NetworkInfo: &ec2.NetworkInfo{
-					MaximumNetworkInterfaces:  aws.Int64(8),
-					Ipv4AddressesPerInterface: aws.Int64(240),
-				},
+				InstanceType: aws.String("m5.large"),
+				Location:     aws.String("test-zone-1c"),
+			},
+			{
+				InstanceType: aws.String("m5.xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m5.2xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m5.4xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m5.8xlarge"),
+				Location:     aws.String("test-zone-1a"),
 			},
 		},
 	}, false)

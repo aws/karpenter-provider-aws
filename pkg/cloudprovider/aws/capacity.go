@@ -20,7 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 )
@@ -33,15 +33,25 @@ type Capacity struct {
 	instanceProvider       *InstanceProvider
 	vpcProvider            *VPCProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	instanceTypeProvider   *InstanceTypeProvider
 }
 
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
-	// 1. Compute Packing given the constraints
-	instancePackings, err := c.packer.Pack(ctx, constraints)
+	// 1. Retrieve normalized zones from constraints or all zones that the cluster spans if no zonal constraints are specified
+	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
 	if err != nil {
-		return nil, fmt.Errorf("computing bin packing, %w", err)
+		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
+
+	// 2. Filter for instance types that fit constraints
+	zonalInstanceTypes, err := c.instanceTypeProvider.Get(ctx, zonalSubnetOptions, constraints)
+	if err != nil {
+		return nil, fmt.Errorf("filtering instance types by constraints, %w", err)
+	}
+
+	// 3. Compute Packing given the pods and instance types
+	instancePackings := c.packer.Pack(ctx, constraints.Pods, zonalInstanceTypes, constraints)
 
 	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
@@ -49,13 +59,8 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
 
-	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
-	if err != nil {
-		return nil, fmt.Errorf("getting zonal subnets, %w", err)
-	}
-
-	// 2. Create Instances
-	var instanceIds []*string
+	// 4. Create Instances
+	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
 		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions)
@@ -64,11 +69,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 			return nil, fmt.Errorf("creating capacity %w", err)
 		}
 		podsForInstance[*instanceID] = packing.Pods
-		instanceIds = append(instanceIds, instanceID)
+		instanceIDs = append(instanceIDs, instanceID)
 	}
 
-	// 3. Convert to Nodes
-	nodes, err := c.nodeFactory.For(ctx, instanceIds)
+	// 5. Convert to Nodes
+	nodes, err := c.nodeFactory.For(ctx, instanceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
@@ -89,7 +94,7 @@ func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 }
 
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
-	return nil, nil // TODO @bwagner5
+	return c.instanceTypeProvider.GetAllInstanceTypeNames(ctx, c.spec.Cluster.Name)
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {

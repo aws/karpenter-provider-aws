@@ -69,18 +69,18 @@ type Constraints struct {
 	// label "topology.kubernetes.io/zone" is specified.
 	// +optional
 	Zones []string `json:"zones,omitempty"`
-	// InstanceTypes constraints which instances types will be used for nodes
-	// launched by the Provisioner. If unspecified, supports all types. Cannot
-	// be specified if label "node.kubernetes.io/instance-type" is specified.
+	// InstanceTypes constrains which instances types will be used for nodes
+	// launched by the Provisioner. If unspecified, it will support all types.
+	// Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
 	// +optional
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
 	// TTLSeconds determines how long to wait before attempting to terminate a node.
 	// +optional
 	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
-	// Architecture constraints the underlying node architecture
+	// Architecture constrains the underlying node architecture
 	// +optional
 	Architecture *string `json:"architecture,omitempty"`
-	// OperatingSystem constrain the underlying node operating system
+	// OperatingSystem constrains the underlying node operating system
 	// +optional
 	OperatingSystem *string `json:"operatingSystem,omitempty"`
 }

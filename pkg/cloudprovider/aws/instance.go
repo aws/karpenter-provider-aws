@@ -26,26 +26,30 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/packing"
 )
 
 type InstanceProvider struct {
-	ec2 ec2iface.EC2API
-	vpc *VPCProvider
+	ec2api ec2iface.EC2API
+	vpc    *VPCProvider
 }
 
 // Create an instance given the constraints.
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
-	instanceTypeOptions []string,
+	instanceTypeOptions []*packing.Instance,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, instanceType := range instanceTypeOptions {
-		for zone, subnets := range zonalSubnetOptions {
+		for _, zone := range instanceType.Zones {
+			subnets := zonalSubnetOptions[zone]
+			if len(subnets) == 0 {
+				continue
+			}
 			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
-				AvailabilityZone: aws.String(zone),
-				InstanceType:     aws.String(instanceType),
+				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
 			})
@@ -53,7 +57,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	}
 
 	// 2. Create fleet
-	createFleetOutput, err := p.ec2.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
+	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
@@ -89,7 +93,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) erro
 	}
 	ids := p.getInstanceIDs(nodes)
 
-	_, err := p.ec2.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	_, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: ids,
 	})
 	if err != nil {

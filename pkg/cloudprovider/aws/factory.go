@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/patrickmn/go-cache"
 )
@@ -43,31 +43,31 @@ const (
 type Factory struct {
 	vpcProvider            *VPCProvider
 	nodeFactory            *NodeFactory
-	instanceProvider       *InstanceProvider
 	packer                 packing.Packer
+	instanceProvider       *InstanceProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	instanceTypeProvider   *InstanceTypeProvider
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
-	EC2 := ec2.New(sess)
-	vpcProvider := &VPCProvider{
-		subnetProvider: &SubnetProvider{
-			ec2:         EC2,
-			subnetCache: cache.New(CacheTTL, CacheCleanupInterval),
-		},
+	ec2api := ec2.New(sess)
+	subnetProvider := &SubnetProvider{
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
+	vpcProvider := NewVPCProvider(ec2api, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
-		ec2:                 EC2,
-		launchTemplateCache: cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api: ec2api,
+		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 		instanceProfileProvider: &InstanceProfileProvider{
-			iam:                  iam.New(sess),
-			kubeClient:           options.Client,
-			instanceProfileCache: cache.New(CacheTTL, CacheCleanupInterval),
+			iamapi:     iam.New(sess),
+			kubeClient: options.Client,
+			cache:      cache.New(CacheTTL, CacheCleanupInterval),
 		},
 		securityGroupProvider: &SecurityGroupProvider{
-			ec2:                EC2,
-			securityGroupCache: cache.New(CacheTTL, CacheCleanupInterval),
+			ec2api: ec2api,
+			cache:  cache.New(CacheTTL, CacheCleanupInterval),
 		},
 		ssm:       ssm.New(sess),
 		clientSet: options.ClientSet,
@@ -75,9 +75,10 @@ func NewFactory(options cloudprovider.Options) *Factory {
 
 	return &Factory{
 		vpcProvider:            vpcProvider,
-		nodeFactory:            &NodeFactory{ec2: EC2},
-		instanceProvider:       &InstanceProvider{ec2: EC2, vpc: vpcProvider},
-		packer:                 packing.NewPacker(EC2),
+		nodeFactory:            &NodeFactory{ec2api: ec2api},
+		packer:                 packing.NewPacker(),
+		instanceProvider:       &InstanceProvider{ec2api: ec2api, vpc: vpcProvider},
+		instanceTypeProvider:   NewInstanceTypeProvider(ec2api, vpcProvider),
 		launchTemplateProvider: launchTemplateProvider,
 	}
 }
@@ -86,10 +87,11 @@ func (f *Factory) CapacityFor(spec *v1alpha1.ProvisionerSpec) cloudprovider.Capa
 	return &Capacity{
 		spec:                   spec,
 		nodeFactory:            f.nodeFactory,
+		packer:                 f.packer,
 		instanceProvider:       f.instanceProvider,
 		vpcProvider:            f.vpcProvider,
-		packer:                 f.packer,
 		launchTemplateProvider: f.launchTemplateProvider,
+		instanceTypeProvider:   f.instanceTypeProvider,
 	}
 }
 

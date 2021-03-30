@@ -32,8 +32,8 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/packing"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -56,32 +56,32 @@ var fakeEC2API *fake.EC2API
 var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
-	vpcProvider := &VPCProvider{
-		subnetProvider: &SubnetProvider{
-			ec2:         fakeEC2API,
-			subnetCache: subnetCache,
-		},
+	subnetProvider := &SubnetProvider{
+		ec2api: fakeEC2API,
+		cache:  subnetCache,
 	}
+	vpcProvider := NewVPCProvider(fakeEC2API, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
-		ec2:                 fakeEC2API,
-		launchTemplateCache: launchTemplateCache,
+		ec2api: fakeEC2API,
+		cache:  launchTemplateCache,
 		instanceProfileProvider: &InstanceProfileProvider{
-			iam:                  &fake.IAMAPI{},
-			kubeClient:           e.Manager.GetClient(),
-			instanceProfileCache: instanceProfileCache,
+			iamapi:     &fake.IAMAPI{},
+			kubeClient: e.Manager.GetClient(),
+			cache:      instanceProfileCache,
 		},
 		securityGroupProvider: &SecurityGroupProvider{
-			ec2:                fakeEC2API,
-			securityGroupCache: securityGroupCache,
+			ec2api: fakeEC2API,
+			cache:  securityGroupCache,
 		},
 		ssm:       &fake.SSMAPI{},
 		clientSet: clientSet,
 	}
 	cloudProviderFactory := &Factory{
 		vpcProvider:            vpcProvider,
-		nodeFactory:            &NodeFactory{ec2: fakeEC2API},
-		instanceProvider:       &InstanceProvider{ec2: fakeEC2API, vpc: vpcProvider},
-		packer:                 packing.NewPacker(fakeEC2API),
+		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
+		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API, vpc: vpcProvider},
+		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API, vpcProvider),
+		packer:                 packing.NewPacker(),
 		launchTemplateProvider: launchTemplateProvider,
 	}
 	e.Manager.RegisterWebhooks(
@@ -159,19 +159,16 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-1"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-1"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1b"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-2"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-2"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1c"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-3"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-3"),
 					},
 				))
 		})
@@ -198,14 +195,12 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1a"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-1"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-1"),
 					},
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1b"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-2"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-2"),
 					},
 				),
 			)
@@ -234,9 +229,8 @@ var _ = Describe("Allocation", func() {
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
 					&ec2.FleetLaunchTemplateOverridesRequest{
-						AvailabilityZone: aws.String("test-zone-1c"),
-						InstanceType:     aws.String("m5.large"),
-						SubnetId:         aws.String("test-subnet-3"),
+						InstanceType: aws.String("m5.large"),
+						SubnetId:     aws.String("test-subnet-3"),
 					},
 				),
 			)

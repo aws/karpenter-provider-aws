@@ -17,6 +17,7 @@ package functional
 import (
 	"encoding/json"
 	"math"
+	"strings"
 
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"go.uber.org/multierr"
@@ -156,4 +157,14 @@ func ExecuteAll(executables ...func()) {
 	for _, executable := range executables {
 		executable()
 	}
+}
+
+// HasAnyPrefix returns true if any of the provided prefixes match the given string s
+func HasAnyPrefix(s string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
 }
