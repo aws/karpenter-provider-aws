@@ -25,7 +25,7 @@ var _ = Describe("Functional", func() {
 		})
 
 		Context("non-empty args", func() {
-			m := map[string]string{
+			original := map[string]string{
 				"a": "b",
 				"c": "d",
 			}
@@ -37,17 +37,17 @@ var _ = Describe("Functional", func() {
 				"d": "y",
 				"e": "z",
 			}
-			m4 := map[string]string{
+			uberwriter := map[string]string{
 				"d": "q",
 				"e": "z",
 			}
 
 			Specify("one arg returns the arg", func() {
-				Expect(UnionStringMaps(m)).To(Equal(m))
+				Expect(UnionStringMaps(original)).To(Equal(original))
 			})
 
 			Specify("2nd overrrides first", func() {
-				Expect(UnionStringMaps(m, overwriter)).To(Equal(overwriter))
+				Expect(UnionStringMaps(original, overwriter)).To(Equal(overwriter))
 			})
 
 			Specify("returns the union when disjoint", func() {
@@ -57,7 +57,7 @@ var _ = Describe("Functional", func() {
 					"d": "y",
 					"e": "z",
 				}
-				Expect(UnionStringMaps(m, disjoiner)).To(Equal(union))
+				Expect(UnionStringMaps(original, disjoiner)).To(Equal(union))
 			})
 
 			Specify("final arg takes precedence", func() {
@@ -67,7 +67,7 @@ var _ = Describe("Functional", func() {
 					"d": "q",
 					"e": "z",
 				}
-				Expect(UnionStringMaps(m, disjoiner, empty, m4)).To(Equal(union))
+				Expect(UnionStringMaps(original, disjoiner, empty, uberwriter)).To(Equal(union))
 			})
 		})
 	})
