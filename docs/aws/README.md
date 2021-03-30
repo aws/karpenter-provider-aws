@@ -58,6 +58,11 @@ EOM
 kubectl delete pods -n karpenter -l control-plane=karpenter # Restart controller to load credentials
 ```
 
+### (Optional) Enable Verbose Logging
+```bash
+kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
+```
+
 ### Create a Provisioner
 Create a default Provisioner that launches nodes configured with cluster name, endpoint, and caBundle.
 ```bash
