@@ -15,11 +15,13 @@ func TestFunctional(t *testing.T) {
 var _ = Describe("Functional", func() {
 	Context("UnionStringMaps", func() {
 		var empty = make(map[string]string)
+
 		When("empty args", func() {
 			It("returns empty map", func() {
 				Expect(UnionStringMaps()).To(BeEmpty())
 			})
 		})
+
 		When("all args are empty", func() {
 			It("returns empty map", func() {
 				Expect(UnionStringMaps(empty, empty, empty, empty)).To(BeEmpty())
@@ -30,11 +32,13 @@ var _ = Describe("Functional", func() {
 			"a": "b",
 			"c": "d",
 		}
+
 		When("one arg", func() {
 			It("returns the arg", func() {
 				Expect(UnionStringMaps(m)).To(Equal(m))
 			})
 		})
+
 		When("2nd overwrites first", func() {
 			overwriter := map[string]string{
 				"a": "y",
@@ -44,6 +48,7 @@ var _ = Describe("Functional", func() {
 				Expect(UnionStringMaps(m, overwriter)).To(Equal(overwriter))
 			})
 		})
+
 		When("2nd is disjoint", func() {
 			disjoiner := map[string]string{
 				"d": "y",
@@ -81,4 +86,13 @@ var _ = Describe("Functional", func() {
 			})
 		})
 	})
+
+	// Context("IntersectStringSlice", func() {
+	// 	Context("all empty"), func() {
+	// 		It("returns empty", func() {
+
+	// 		})
+	// 	})
+	// })
+
 })
