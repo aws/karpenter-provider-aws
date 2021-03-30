@@ -108,6 +108,6 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 ### Cleanup
 ```bash
 ./hack/quick-install.sh --delete
-aws cloudformation delete-stack --stack-name Karpenter
+aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```
