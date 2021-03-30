@@ -14,59 +14,26 @@ func TestFunctional(t *testing.T) {
 
 var _ = Describe("Functional", func() {
 	Context("UnionStringMaps", func() {
-		var empty = make(map[string]string)
+		empty := make(map[string]string)
 
-		When("empty args", func() {
-			It("returns empty map", func() {
-				Expect(UnionStringMaps()).To(BeEmpty())
-			})
+		Specify("no args returns empty", func() {
+			Expect(UnionStringMaps()).To(BeEmpty())
 		})
 
-		When("all args are empty", func() {
-			It("returns empty map", func() {
-				Expect(UnionStringMaps(empty, empty, empty, empty)).To(BeEmpty())
-			})
+		Specify("all empty returns empty", func() {
+			Expect(UnionStringMaps(empty, empty, empty, empty)).To(BeEmpty())
 		})
 
-		m := map[string]string{
-			"a": "b",
-			"c": "d",
-		}
-
-		When("one arg", func() {
-			It("returns the arg", func() {
-				Expect(UnionStringMaps(m)).To(Equal(m))
-			})
-		})
-
-		When("2nd overwrites first", func() {
+		Context("non-empty args", func() {
+			m := map[string]string{
+				"a": "b",
+				"c": "d",
+			}
 			overwriter := map[string]string{
 				"a": "y",
 				"c": "z",
 			}
-			It("returns the 2nd arg", func() {
-				Expect(UnionStringMaps(m, overwriter)).To(Equal(overwriter))
-			})
-		})
-
-		When("2nd is disjoint", func() {
 			disjoiner := map[string]string{
-				"d": "y",
-				"e": "z",
-			}
-			It("returns the union", func() {
-				union := map[string]string{
-					"a": "b",
-					"c": "d",
-					"d": "y",
-					"e": "z",
-				}
-				Expect(UnionStringMaps(m, disjoiner)).To(Equal(union))
-			})
-		})
-
-		When("4th and 2nd collide", func() {
-			m2 := map[string]string{
 				"d": "y",
 				"e": "z",
 			}
@@ -75,14 +42,32 @@ var _ = Describe("Functional", func() {
 				"e": "z",
 			}
 
-			Specify("3rd takes precedence", func() {
+			Specify("one arg returns the arg", func() {
+				Expect(UnionStringMaps(m)).To(Equal(m))
+			})
+
+			Specify("2nd overrrides first", func() {
+				Expect(UnionStringMaps(m, overwriter)).To(Equal(overwriter))
+			})
+
+			Specify("returns the union when disjoint", func() {
+				union := map[string]string{
+					"a": "b",
+					"c": "d",
+					"d": "y",
+					"e": "z",
+				}
+				Expect(UnionStringMaps(m, disjoiner)).To(Equal(union))
+			})
+
+			Specify("final arg takes precedence", func() {
 				union := map[string]string{
 					"a": "b",
 					"c": "d",
 					"d": "q",
 					"e": "z",
 				}
-				Expect(UnionStringMaps(m, m2, empty, m4)).To(Equal(union))
+				Expect(UnionStringMaps(m, disjoiner, empty, m4)).To(Equal(union))
 			})
 		})
 	})
