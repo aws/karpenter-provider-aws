@@ -65,11 +65,8 @@ var _ = Describe("InstanceTypes", func() {
 			constraints.Architecture = &v1alpha1.ArchitectureAmd64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-			It("should not error", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
 			It("should return one m5.large supported in test-zone", func() {
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
 				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
@@ -85,11 +82,8 @@ var _ = Describe("InstanceTypes", func() {
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-			It("should not error", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
 			It("should return one m6g.large supported in test-zone", func() {
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
 				Expect(*instanceType.InstanceType).Should(Equal("m6g.large"))
@@ -105,11 +99,8 @@ var _ = Describe("InstanceTypes", func() {
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-			It("should not error", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
 			It("should not return any instance types", func() {
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(0))
 			})
 		})
@@ -123,11 +114,8 @@ var _ = Describe("InstanceTypes", func() {
 			constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-			It("should not error", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
 			It("should return one m5.large supported in test-zone", func() {
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
 				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
@@ -145,11 +133,8 @@ var _ = Describe("InstanceTypes", func() {
 			constraints.Zones = []string{testZoneID}
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
-			It("should not error", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
 			It("should return one m5.large supported in test-zone", func() {
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
 				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
