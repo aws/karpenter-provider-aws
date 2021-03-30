@@ -64,10 +64,8 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes an allocation control loop for the resource
-func (c *Controller) Reconcile(object controllers.Object) error {
+func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) error {
 	provisioner := object.(*v1alpha1.Provisioner)
-	ctx := context.TODO()
-
 	// 1. Filter pods
 	pods, err := c.filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {

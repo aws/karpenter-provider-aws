@@ -61,10 +61,10 @@ func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluste
 		InstanceProfileName: aws.String(instanceProfileName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("retriving instance profile %s, %w", instanceProfileName, err)
+		return nil, fmt.Errorf("retrieving instance profile %s, %w", instanceProfileName, err)
 	}
 	for _, role := range output.InstanceProfile.Roles {
-		if err := p.addToAWSAuthConfigmap(role); err != nil {
+		if err := p.addToAWSAuthConfigmap(ctx, role); err != nil {
 			return nil, fmt.Errorf("adding role %s, %w", *role.RoleName, err)
 		}
 	}
@@ -73,9 +73,9 @@ func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluste
 	return output.InstanceProfile, nil
 }
 
-func (p *InstanceProfileProvider) addToAWSAuthConfigmap(role *iam.Role) error {
+func (p *InstanceProfileProvider) addToAWSAuthConfigmap(ctx context.Context, role *iam.Role) error {
 	awsAuth := &v1.ConfigMap{}
-	if err := p.kubeClient.Get(context.TODO(), types.NamespacedName{Name: "aws-auth", Namespace: "kube-system"}, awsAuth); err != nil {
+	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: "aws-auth", Namespace: "kube-system"}, awsAuth); err != nil {
 		return fmt.Errorf("retrieving configmap aws-auth, %w", err)
 	}
 	if strings.Contains(awsAuth.Data["mapRoles"], *role.Arn) {
@@ -89,7 +89,7 @@ func (p *InstanceProfileProvider) addToAWSAuthConfigmap(role *iam.Role) error {
   - system:nodes
   rolearn: %s
   username: system:node:{{EC2PrivateDNSName}}`, *role.Arn)
-	if err := p.kubeClient.Update(context.TODO(), awsAuth); err != nil {
+	if err := p.kubeClient.Update(ctx, awsAuth); err != nil {
 		return fmt.Errorf("updating configmap aws-auth, %w", err)
 	}
 	zap.S().Debugf("Successfully patched configmap aws-auth with roleArn %s", *role.Arn)

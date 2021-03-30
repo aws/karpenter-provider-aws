@@ -15,6 +15,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"time"
 
 	"knative.dev/pkg/apis"
@@ -28,7 +29,7 @@ type Controller interface {
 	// Reconcile hands a hydrated kubernetes resource to the controller for
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
-	Reconcile(Object) error
+	Reconcile(context.Context, Object) error
 	// Interval returns an interval that the controller should wait before
 	// executing another reconciliation loop. If set to zero, will only execute
 	// on watch events or the global resync interval.

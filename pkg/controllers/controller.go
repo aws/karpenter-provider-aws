@@ -46,7 +46,7 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
 	// 3. Reconcile
-	if err := c.Controller.Reconcile(resource); err != nil {
+	if err := c.Controller.Reconcile(ctx, resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())

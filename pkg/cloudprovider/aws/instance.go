@@ -20,13 +20,13 @@ import (
 	"math/rand"
 	"strings"
 
-	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/packing"
+
+	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 )
 
 type InstanceProvider struct {
@@ -55,7 +55,6 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			})
 		}
 	}
-
 	// 2. Create fleet
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
