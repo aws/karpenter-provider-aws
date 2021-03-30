@@ -86,13 +86,4 @@ var _ = Describe("Functional", func() {
 			})
 		})
 	})
-
-	// Context("IntersectStringSlice", func() {
-	// 	Context("all empty"), func() {
-	// 		It("returns empty", func() {
-
-	// 		})
-	// 	})
-	// })
-
 })
