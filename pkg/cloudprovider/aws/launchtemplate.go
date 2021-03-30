@@ -63,12 +63,12 @@ func launchTemplateName(clusterName string, arch string) string {
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *cloudprovider.Constraints) (*ec2.LaunchTemplate, error) {
-	arch := utils.NormalizeArchitecture(*constraints.Architecture)
-	name := launchTemplateName(cluster.Name, arch)
+	arch := utils.NormalizeArchitecture(constraints.Architecture)
+	name := launchTemplateName(cluster.Name, *arch)
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
-	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, arch)
+	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, *arch)
 	if err != nil {
 		return nil, err
 	}

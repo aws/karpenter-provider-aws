@@ -78,7 +78,7 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		nodeFactory:            &NodeFactory{ec2api: ec2api},
 		packer:                 packing.NewPacker(),
 		instanceProvider:       &InstanceProvider{ec2api: ec2api, vpc: vpcProvider},
-		instanceTypeProvider:   NewInstanceTypeProvider(ec2api, vpcProvider),
+		instanceTypeProvider:   NewInstanceTypeProvider(ec2api),
 		launchTemplateProvider: launchTemplateProvider,
 	}
 }

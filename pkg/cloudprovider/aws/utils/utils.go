@@ -14,14 +14,20 @@ limitations under the License.
 
 package utils
 
-import "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+)
 
 // NormalizeArchitecture translates architecture into an AWS-recognized architecture name
-func NormalizeArchitecture(architecture string) string {
-	switch architecture {
+func NormalizeArchitecture(architecture *string) *string {
+	if architecture == nil {
+		return nil
+	}
+	switch *architecture {
 	case v1alpha1.ArchitectureAmd64:
-		return "x86_64"
+		return aws.String("x86_64")
 	default:
-		return string(architecture)
+		return architecture
 	}
 }
