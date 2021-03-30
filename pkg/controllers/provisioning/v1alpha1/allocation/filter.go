@@ -40,6 +40,9 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	if err := f.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing unscheduled pods, %w", err)
 	}
+	if len(pods.Items) == 0 {
+		return nil, nil
+	}
 
 	// 2. Get Supported Labels
 	capacity := f.cloudProvider.CapacityFor(&provisioner.Spec)
