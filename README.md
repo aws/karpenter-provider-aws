@@ -5,9 +5,8 @@ Karpenter is a node lifecycle management solution. It observes incoming pods and
 It's responsible for:
 - **Launching** nodes for unschedulable pods
 - **Replacing** existing nodes to improve resource utilization
-- **Upgrading** nodes with outdated kubelet versions
+- **Terminating** nodes if outdated or no longer needed
 - **Draining** nodes gracefully before preemption
-- **Terminating** nodes if no longer needed
 
 For most use cases, the entirety of a cluster’s capacity can be managed by a single Karpenter [Provisioner](./docs/README.md). Availability zone, instance type, capacity type, machine image, and scheduling constraints are automatically determined by the controller using a combination of defaults and overrides. Additionally, you can define multiple Provisioners, enabling use cases like isolation, entitlements, and sharding.
 
