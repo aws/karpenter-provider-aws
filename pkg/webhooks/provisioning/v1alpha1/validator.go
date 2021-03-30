@@ -58,6 +58,7 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 		func() error { return v.validateInstanceTypes(ctx, &provisioner.Spec) },
 		func() error { return v.validateArchitecture(ctx, &provisioner.Spec) },
 		func() error { return v.validateOperatingSystem(ctx, &provisioner.Spec) },
+		func() error { return v.validateCapacityType(ctx, &provisioner.Spec) },
 	); err != nil {
 		return admission.Denied(fmt.Sprintf("failed to validate provisioner '%s/%s', %s", provisioner.Name, provisioner.Namespace, err.Error()))
 	}
@@ -91,6 +92,7 @@ func (v *Validator) validateLabels(ctx context.Context, spec *v1alpha1.Provision
 			v1alpha1.ProvisionerTTLKey,
 			v1alpha1.ZoneLabelKey,
 			v1alpha1.InstanceTypeLabelKey,
+			v1alpha1.CapacityTypeLabelKey,
 		} {
 			if restricted == label {
 				return fmt.Errorf("spec.labels contains restricted label '%s'", label)
@@ -156,6 +158,20 @@ func (v *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.Pr
 		if !functional.ContainsString(supportedInstanceTypes, instanceType) {
 			return fmt.Errorf("unsupported instance type '%s' not in %v", instanceType, supportedInstanceTypes)
 		}
+	}
+	return nil
+}
+
+func (p *Validator) validateCapacityType(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+	if spec.CapacityType == nil {
+		return nil
+	}
+	supportedCapacityTypes, err := p.CloudProvider.CapacityFor(spec).GetCapacityTypes(ctx)
+	if err != nil {
+		return fmt.Errorf("getting supported capacity types, %w", err)
+	}
+	if !functional.ContainsString(supportedCapacityTypes, *spec.CapacityType) {
+		return fmt.Errorf("unsupported capacity type '%s' not in %v", *spec.CapacityType, supportedCapacityTypes)
 	}
 	return nil
 }

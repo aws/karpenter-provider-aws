@@ -39,6 +39,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
 	instanceTypeOptions []*packing.Instance,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
+	capacityType string,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
@@ -59,8 +60,11 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
+			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
+		},
+		SpotOptions: &ec2.SpotOptionsRequest{
+			AllocationStrategy: aws.String("capacity-optimized"),
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{

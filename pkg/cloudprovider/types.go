@@ -43,6 +43,10 @@ type Capacity interface {
 	GetArchitectures(ctx context.Context) ([]string, error)
 	// GetOperatingSystems returns the operating systems supported by the cloud provider.
 	GetOperatingSystems(ctx context.Context) ([]string, error)
+	// GetCapacityTypes returns the capacity types supported by the cloud provider.
+	GetCapacityTypes(ctx context.Context) ([]string, error)
+	// DefaultCapacityType returns the default capacity type for the cloud provider
+	DefaultCapacityType(ctx context.Context) (string, error)
 }
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given

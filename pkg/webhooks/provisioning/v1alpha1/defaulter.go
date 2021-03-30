@@ -19,16 +19,20 @@ package v1alpha1
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Defaulter defaults Provisioners
 type Defaulter struct {
-	decoder *admission.Decoder
+	CloudProvider cloudprovider.Factory
+	decoder       *admission.Decoder
 }
 
 // Path of the webhook handler
@@ -49,7 +53,10 @@ func (v *Defaulter) Handle(ctx context.Context, req admission.Request) admission
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	v.applyDefaults(&provisioner.Spec)
+	if err := v.applyDefaults(ctx, &provisioner.Spec); err != nil {
+		return admission.Errored(0, fmt.Errorf("applying defaults to provisioner, %w", err))
+	}
+
 	marshaled, err := json.Marshal(provisioner)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -57,12 +64,28 @@ func (v *Defaulter) Handle(ctx context.Context, req admission.Request) admission
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
 }
 
-func (v *Defaulter) applyDefaults(spec *provisioning.ProvisionerSpec) {
-	v.defaultTTL(spec)
+func (v *Defaulter) applyDefaults(ctx context.Context, spec *provisioning.ProvisionerSpec) error {
+	return functional.ValidateAll(
+		func() error { return v.defaultTTL(spec) },
+		func() error { return v.defaultCapacityType(ctx, spec) },
+	)
 }
 
-func (v *Defaulter) defaultTTL(spec *provisioning.ProvisionerSpec) {
+func (v *Defaulter) defaultTTL(spec *provisioning.ProvisionerSpec) error {
 	if spec.TTLSeconds == nil {
 		spec.TTLSeconds = ptr.Int32(300)
 	}
+	return nil
+}
+
+func (v *Defaulter) defaultCapacityType(ctx context.Context, spec *provisioning.ProvisionerSpec) error {
+	if spec.CapacityType != nil {
+		return nil
+	}
+	capacityType, err := v.CloudProvider.CapacityFor(spec).DefaultCapacityType(ctx)
+	if err != nil {
+		return fmt.Errorf("getting default capacity type from cloud provider, %w", err)
+	}
+	spec.CapacityType = &capacityType
+	return nil
 }

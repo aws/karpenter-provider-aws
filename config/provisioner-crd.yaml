@@ -33,7 +33,10 @@ spec:
             description: ProvisionerSpec is the top level provisioner specification. Provisioners launch nodes in response to pods where status.conditions[type=unschedulable, status=true]. Node configuration is driven by through a combination of provisioner specification (defaults) and pod scheduling constraints (overrides). A single provisioner is capable of managing highly diverse capacity within a single cluster and in most cases, only one should be necessary. For advanced use cases like workload separation and sharding, it's possible to define multiple provisioners. These provisioners may have different defaults and can be specifically targeted by pods using pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
             properties:
               architecture:
-                description: Architecture constraints the underlying node architecture
+                description: Architecture constrains the underlying node architecture
+                type: string
+              capacityType:
+                description: CapacityType constrains what type of capacity is launched by the Provisioner If unspecified, it will launch on-demand nodes.
                 type: string
               cluster:
                 description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
@@ -53,7 +56,7 @@ spec:
                 - name
                 type: object
               instanceTypes:
-                description: InstanceTypes constraints which instances types will be used for nodes launched by the Provisioner. If unspecified, supports all types. Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
+                description: InstanceTypes constrains which instances types will be used for nodes launched by the Provisioner. If unspecified, it will support all types. Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
                 items:
                   type: string
                 type: array
@@ -63,7 +66,7 @@ spec:
                 description: Labels will be applied to every node launched by the Provisioner unless overriden by pod node selectors. Well known labels control provisioning behavior. Additional labels may be supported by your cloudprovider.
                 type: object
               operatingSystem:
-                description: OperatingSystem constrain the underlying node operating system
+                description: OperatingSystem constrains the underlying node operating system
                 type: string
               taints:
                 description: Taints will be applied to every node launched by the Provisioner. If specified, the provisioner will not provision nodes for pods that do not have matching tolerations.

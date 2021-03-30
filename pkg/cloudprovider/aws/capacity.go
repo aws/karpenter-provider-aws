@@ -25,6 +25,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+var (
+	capacityTypeSpot     = "spot"
+	capacityTypeOnDemand = "on-demand"
+)
+
 // Capacity cloud provider implementation using AWS Fleet.
 type Capacity struct {
 	spec                   *v1alpha1.ProvisionerSpec
@@ -63,7 +68,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions)
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, *constraints.CapacityType)
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
@@ -120,4 +125,15 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 	return []string{
 		v1alpha1.OperatingSystemLinux,
 	}, nil
+}
+
+func (c *Capacity) GetCapacityTypes(ctx context.Context) ([]string, error) {
+	return []string{
+		capacityTypeSpot,
+		capacityTypeOnDemand,
+	}, nil
+}
+
+func (c *Capacity) DefaultCapacityType(ctx context.Context) (string, error) {
+	return capacityTypeOnDemand, nil
 }

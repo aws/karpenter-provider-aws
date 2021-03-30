@@ -154,7 +154,7 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, con
 		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&
 			(len(constraints.InstanceTypes) != 0 || p.isDefaultInstanceType(instanceTypeInfo)) &&
 			(architecture == nil || functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), *architecture)) &&
-			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") &&
+			(constraints.CapacityType == nil || functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), *constraints.CapacityType)) &&
 			(len(zones) == 0 || len(functional.IntersectStringSlice(instanceTypeInfo.Zones, zones)) > 0) {
 			filtered = append(filtered, instanceTypeInfo)
 		}

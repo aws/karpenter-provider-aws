@@ -85,3 +85,14 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 		"test-operating-system-2",
 	}, nil
 }
+
+func (c *Capacity) GetCapacityTypes(ctx context.Context) ([]string, error) {
+	return []string{
+		"on-demand",
+		"spot",
+	}, nil
+}
+
+func (c *Capacity) DefaultCapacityType(ctx context.Context) (string, error) {
+	return "on-demand", nil
+}
