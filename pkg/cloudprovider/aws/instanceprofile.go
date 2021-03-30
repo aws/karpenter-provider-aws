@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	KarpenterNodeInstanceProfileName = "KarpenterNodeInstanceProfile"
+	KarpenterNodeInstanceProfileNameFormat = "KarpenterNodeInstanceProfile-%s"
 )
 
 type InstanceProfileProvider struct {
@@ -56,11 +56,12 @@ func (p *InstanceProfileProvider) Get(ctx context.Context, cluster *v1alpha1.Clu
 }
 
 func (p *InstanceProfileProvider) getInstanceProfile(ctx context.Context, cluster *v1alpha1.ClusterSpec) (*iam.InstanceProfile, error) {
+	instanceProfileName := fmt.Sprintf(KarpenterNodeInstanceProfileNameFormat, cluster.Name)
 	output, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
-		InstanceProfileName: aws.String(KarpenterNodeInstanceProfileName),
+		InstanceProfileName: aws.String(instanceProfileName),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("retriving instance profile %s, %w", KarpenterNodeInstanceProfileName, err)
+		return nil, fmt.Errorf("retriving instance profile %s, %w", instanceProfileName, err)
 	}
 	for _, role := range output.InstanceProfile.Roles {
 		if err := p.addToAWSAuthConfigmap(role); err != nil {
