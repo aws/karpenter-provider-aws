@@ -1,3 +1,9 @@
+![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/Presubmit)
+![GitHub stars](https://img.shields.io/github/stars/awslabs/karpenter)
+![GitHub forks](https://img.shields.io/github/forks/awslabs/karpenter)
+![GitHub License](https://img.shields.io/github/license/awslabs/karpenter)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/karpenter/issues)
+
 ![](docs/images/karpenter-banner.png)
 
 Karpenter is a node lifecycle management solution. It observes incoming pods and launches the right instances for the situation. Instance selection decisions are intent based and driven by the specification of incoming pods, including resource requests and scheduling constraints.
