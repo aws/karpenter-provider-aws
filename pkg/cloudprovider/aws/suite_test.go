@@ -80,7 +80,7 @@ var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
 		vpcProvider:            vpcProvider,
 		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
 		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API, vpc: vpcProvider},
-		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API, vpcProvider),
+		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API),
 		packer:                 packing.NewPacker(),
 		launchTemplateProvider: launchTemplateProvider,
 	}

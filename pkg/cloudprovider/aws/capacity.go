@@ -93,7 +93,7 @@ func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 }
 
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
-	return c.instanceTypeProvider.GetAllInstanceTypeNames(ctx, c.spec.Cluster.Name)
+	return c.instanceTypeProvider.GetAllInstanceTypeNames(ctx)
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {

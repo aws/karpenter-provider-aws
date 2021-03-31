@@ -108,7 +108,6 @@ func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]str
 			}
 		}
 	}
-	zap.S().Debugf("Successfully normalized %d zone(s) to their respective zone name(s)", len(zones))
 	return zoneNames, nil
 }
 

@@ -16,7 +16,6 @@ package aws_test
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -58,8 +57,8 @@ var _ = Describe("InstanceTypes", func() {
 
 	Describe("Getting Instance Types", func() {
 		Context("With amd64 architecture", func() {
-			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 			constraints := &cloudprovider.Constraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureAmd64
@@ -75,8 +74,8 @@ var _ = Describe("InstanceTypes", func() {
 		})
 
 		Context("With arm64 architecture", func() {
-			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m6g.large"})
-			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m6g.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 			constraints := &cloudprovider.Constraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
@@ -92,8 +91,8 @@ var _ = Describe("InstanceTypes", func() {
 		})
 
 		Context("With arm64 architecture but no arm64 instance types supported", func() {
-			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 			constraints := &cloudprovider.Constraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
@@ -106,31 +105,12 @@ var _ = Describe("InstanceTypes", func() {
 		})
 
 		Context("With allowed instance types constraint", func() {
-			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
+			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
+			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
 			constraints := &cloudprovider.Constraints{}
 			constraints.Architecture = &defaultArch
 			constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
-			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
-
-			It("should return one m5.large supported in test-zone", func() {
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(len(instanceTypes)).Should(Equal(1))
-				instanceType := instanceTypes[0]
-				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-				Expect(instanceType.Zones[0]).Should(Equal(testZone))
-			})
-		})
-
-		Context("With zone ID constraint", func() {
-			testZoneID := fmt.Sprintf("%s-id", testZone)
-			ec2api, vpcProvider := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
-			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api, &vpcProvider)
-			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-			constraints := &cloudprovider.Constraints{}
-			constraints.Architecture = &defaultArch
-			constraints.Zones = []string{testZoneID}
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
 			It("should return one m5.large supported in test-zone", func() {
@@ -148,11 +128,8 @@ var _ = Describe("InstanceTypes", func() {
 
 // Test Helpers
 
-func getInstanceTypeProviderMocks(zones []string, instanceTypes []string) (ec2iface.EC2API, cloudprovideraws.VPCProvider) {
-	testSubnet := "test-subnet"
+func getInstanceTypeProviderMocks(zones []string, instanceTypes []string) ec2iface.EC2API {
 	ec2api := &fake.EC2API{
-		DescribeSubnetsOutput:               &ec2.DescribeSubnetsOutput{},
-		DescribeAvailabilityZonesOutput:     &ec2.DescribeAvailabilityZonesOutput{},
 		DescribeInstanceTypesOutput:         &ec2.DescribeInstanceTypesOutput{},
 		DescribeInstanceTypeOfferingsOutput: &ec2.DescribeInstanceTypeOfferingsOutput{},
 	}
@@ -161,27 +138,13 @@ func getInstanceTypeProviderMocks(zones []string, instanceTypes []string) (ec2if
 		ec2api.DescribeInstanceTypesOutput.InstanceTypes = append(ec2api.DescribeInstanceTypesOutput.InstanceTypes, instanceTypeMocks[instanceType])
 	}
 	for _, zone := range zones {
-		zoneId := fmt.Sprintf("%s-id", zone)
 		for _, instanceType := range instanceTypes {
 			offering := &ec2.InstanceTypeOffering{
 				InstanceType: &instanceType,
 				Location:     &zone,
 			}
 			ec2api.DescribeInstanceTypeOfferingsOutput.InstanceTypeOfferings = append(ec2api.DescribeInstanceTypeOfferingsOutput.InstanceTypeOfferings, offering)
-			subnet := ec2.Subnet{
-				SubnetId:         &testSubnet,
-				AvailabilityZone: &zone,
-			}
-			ec2api.DescribeSubnetsOutput.Subnets = append(ec2api.DescribeSubnetsOutput.Subnets, &subnet)
-			az := ec2.AvailabilityZone{
-				ZoneName: &zone,
-				ZoneId:   &zoneId,
-			}
-			ec2api.DescribeAvailabilityZonesOutput.AvailabilityZones = append(ec2api.DescribeAvailabilityZonesOutput.AvailabilityZones, &az)
 		}
 	}
-
-	subnetProvider := cloudprovideraws.NewSubnetProvider(ec2api)
-	vpcProvider := cloudprovideraws.NewVPCProvider(ec2api, subnetProvider)
-	return ec2api, *vpcProvider
+	return ec2api
 }

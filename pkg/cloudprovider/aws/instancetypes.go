@@ -29,16 +29,18 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	allInstanceTypesKey = "all"
+)
+
 type InstanceTypeProvider struct {
 	ec2api ec2iface.EC2API
-	vpc    *VPCProvider
 	cache  *cache.Cache
 }
 
-func NewInstanceTypeProvider(ec2api ec2iface.EC2API, vpcProvider *VPCProvider) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api: ec2api,
-		vpc:    vpcProvider,
 		cache:  cache.New(CacheTTL, CacheCleanupInterval),
 	}
 }
@@ -50,74 +52,76 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 		zones = append(zones, zone)
 	}
 
-	zoneToInstanceTypeInfo := map[string][]*ec2.InstanceTypeInfo{}
-	for _, zone := range zones {
-		if instanceTypes, ok := p.cache.Get(zone); ok {
-			zoneToInstanceTypeInfo[zone] = instanceTypes.([]*ec2.InstanceTypeInfo)
-			continue
-		}
-
-		// populate the cache by zonal keys
-		instanceTypes, err := p.getInstanceTypesForZone(ctx, zone)
+	var supportedInstanceTypes []*packing.Instance
+	if instanceTypes, ok := p.cache.Get(allInstanceTypesKey); ok {
+		supportedInstanceTypes = instanceTypes.([]*packing.Instance)
+	} else {
+		var err error
+		supportedInstanceTypes, err = p.getZonalInstanceTypes(ctx)
 		if err != nil {
 			return nil, err
 		}
-		p.cache.SetDefault(zone, instanceTypes)
-		zoneToInstanceTypeInfo[zone] = instanceTypes
+		p.cache.SetDefault(allInstanceTypesKey, supportedInstanceTypes)
+		zap.S().Debugf("Successfully discovered %d EC2 instance types", len(supportedInstanceTypes))
 	}
 
-	ec2InstanceTypes := map[string]*packing.Instance{}
-	for zone, instanceTypes := range zoneToInstanceTypeInfo {
-		for _, it := range p.filterFrom(instanceTypes, constraints) {
-			if instanceType, ok := ec2InstanceTypes[*it.InstanceType]; ok {
-				instanceType.Zones = append(instanceType.Zones, zone)
-			} else {
-				ec2InstanceTypes[*it.InstanceType] = &packing.Instance{InstanceTypeInfo: *it, Zones: []string{zone}}
-			}
-		}
-	}
-
-	instanceTypes := []*packing.Instance{}
-	for _, instanceType := range ec2InstanceTypes {
-		instanceTypes = append(instanceTypes, instanceType)
-	}
-
-	return instanceTypes, nil
+	return p.filterFrom(supportedInstanceTypes, constraints, zones), nil
 }
 
 // GetAllInstanceTypeNames returns all instance type names without filtering based on constraints
-func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context, clusterName string) ([]string, error) {
-	zones, err := p.vpc.GetZones(ctx, clusterName)
+func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context) ([]string, error) {
+	supportedInstanceTypes, err := p.Get(ctx, map[string][]*ec2.Subnet{}, &cloudprovider.Constraints{})
 	if err != nil {
 		return nil, err
 	}
 	instanceTypeNames := []string{}
-	for _, zone := range zones {
-		instanceTypes, ok := p.cache.Get(zone)
-		if !ok {
-			instanceTypes, err = p.getInstanceTypesForZone(ctx, zone)
-			if err != nil {
-				return nil, err
-			}
-			p.cache.SetDefault(zone, instanceTypes)
-		}
-		for _, instanceType := range instanceTypes.([]*ec2.InstanceTypeInfo) {
-			instanceTypeNames = append(instanceTypeNames, *instanceType.InstanceType)
-		}
+	for _, instanceType := range supportedInstanceTypes {
+		instanceTypeNames = append(instanceTypeNames, *instanceType.InstanceType)
 	}
+
 	return instanceTypeNames, nil
 }
 
-func (p *InstanceTypeProvider) getInstanceTypesForZone(ctx context.Context, zone string) ([]*ec2.InstanceTypeInfo, error) {
+func (p *InstanceTypeProvider) getZonalInstanceTypes(ctx context.Context) ([]*packing.Instance, error) {
 	instanceTypes, err := p.getAllInstanceTypes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving all instance types, %w", err)
 	}
-	instanceTypes, err = p.filterByZoneOfferings(ctx, instanceTypes, zone)
-	if err != nil {
-		return nil, fmt.Errorf("filtering instance types by zone offerings, %w", err)
+
+	inputs := &ec2.DescribeInstanceTypeOfferingsInput{
+		LocationType: aws.String("availability-zone"),
 	}
-	return instanceTypes, nil
+
+	zonalInstanceTypeNames := map[string][]string{}
+	err = p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, inputs, func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
+		for _, offerings := range output.InstanceTypeOfferings {
+			zonalInstanceTypeNames[*offerings.Location] = append(zonalInstanceTypeNames[*offerings.Location], *offerings.InstanceType)
+		}
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
+	}
+
+	// aggregate supported zones into each instance type
+	ec2InstanceTypes := map[string]*packing.Instance{}
+	supportedInstanceTypes := []*packing.Instance{}
+	for _, instanceTypeInfo := range instanceTypes {
+		for zone, instanceTypeNames := range zonalInstanceTypeNames {
+			for _, instanceTypeName := range instanceTypeNames {
+				if instanceTypeName == *instanceTypeInfo.InstanceType {
+					if it, ok := ec2InstanceTypes[instanceTypeName]; ok {
+						it.Zones = append(it.Zones, zone)
+					} else {
+						instanceType := &packing.Instance{InstanceTypeInfo: *instanceTypeInfo, Zones: []string{zone}}
+						supportedInstanceTypes = append(supportedInstanceTypes, instanceType)
+						ec2InstanceTypes[instanceTypeName] = instanceType
+					}
+				}
+			}
+		}
+	}
+	return supportedInstanceTypes, nil
 }
 
 // getAllInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
@@ -138,20 +142,20 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 	if err != nil {
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
-	zap.S().Debugf("Successfully discovered %d EC2 instance types", len(instanceTypes))
 	return instanceTypes, nil
 }
 
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
-func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo, constraints *cloudprovider.Constraints) []*ec2.InstanceTypeInfo {
-	filtered := []*ec2.InstanceTypeInfo{}
-	architecture := utils.NormalizeArchitecture(*constraints.Architecture)
+func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints *cloudprovider.Constraints, zones []string) []*packing.Instance {
+	filtered := []*packing.Instance{}
+	architecture := utils.NormalizeArchitecture(constraints.Architecture)
 
 	for _, instanceTypeInfo := range instanceTypes {
 		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&
 			(len(constraints.InstanceTypes) != 0 || p.isDefaultInstanceType(instanceTypeInfo)) &&
-			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), architecture) &&
-			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") {
+			(architecture == nil || functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), *architecture)) &&
+			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") &&
+			(len(zones) == 0 || len(functional.IntersectStringSlice(instanceTypeInfo.Zones, zones)) > 0) {
 			filtered = append(filtered, instanceTypeInfo)
 		}
 	}
@@ -160,45 +164,9 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*ec2.InstanceTypeInfo,
 
 // isDefaultInstanceType returns true if the instance type provided conforms to the default instance type criteria
 // This function is used to make sure we launch instance types that are suited for general workloads
-func (p *InstanceTypeProvider) isDefaultInstanceType(instanceTypeInfo *ec2.InstanceTypeInfo) bool {
+func (p *InstanceTypeProvider) isDefaultInstanceType(instanceTypeInfo *packing.Instance) bool {
 	return instanceTypeInfo.FpgaInfo == nil &&
 		instanceTypeInfo.GpuInfo == nil &&
 		!*instanceTypeInfo.BareMetal &&
 		functional.HasAnyPrefix(*instanceTypeInfo.InstanceType, "m", "c", "r", "a", "t3", "t4")
-}
-
-// filterByZoneOfferings returns a list of instance types that are supported in the provided availability zone using the ec2 DescribeInstanceTypeOfferings API
-func (p *InstanceTypeProvider) filterByZoneOfferings(ctx context.Context, instanceTypes []*ec2.InstanceTypeInfo, zone string) ([]*ec2.InstanceTypeInfo, error) {
-	inputs := &ec2.DescribeInstanceTypeOfferingsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("location"),
-				Values: aws.StringSlice([]string{zone}),
-			},
-		},
-		LocationType: aws.String("availability-zone"),
-	}
-
-	instanceTypeNamesSupported := []string{}
-
-	err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, inputs, func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
-		for _, offerings := range output.InstanceTypeOfferings {
-			instanceTypeNamesSupported = append(instanceTypeNamesSupported, *offerings.InstanceType)
-		}
-		return true
-	})
-	if err != nil {
-		return instanceTypes, fmt.Errorf("describing instance type location offerings, %w", err)
-	}
-
-	instanceTypeInfoSupported := []*ec2.InstanceTypeInfo{}
-	for _, instanceTypeInfo := range instanceTypes {
-		for _, instanceTypeName := range instanceTypeNamesSupported {
-			if instanceTypeName == *instanceTypeInfo.InstanceType {
-				instanceTypeInfoSupported = append(instanceTypeInfoSupported, instanceTypeInfo)
-			}
-		}
-	}
-	zap.S().Debugf("Successfully discovered %d EC2 instance types supported in the %s availability zone", len(instanceTypeInfoSupported), zone)
-	return instanceTypeInfoSupported, nil
 }
