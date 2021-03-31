@@ -23,7 +23,7 @@ spec:
     - key:
       effect:
   zones:
-	- 
+    - 
   instanceTypes:
     -
   ttlSeconds:
@@ -139,13 +139,13 @@ apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
-	# applied only to arm64
+    # applied only to arm64
     arm64:
-	  node.k8s.aws/launch-template-id: id-of-arm64-based-ami
-	x86_64:
-	  node.k8s.aws/launch-template-id: id-of-x86_64-based-ami
+      node.k8s.aws/launch-template-id: id-of-arm64-based-ami
+    x86_64:
+      node.k8s.aws/launch-template-id: id-of-x86_64-based-ami
     # applied everywhere
-	other-label: other-value
+    other-label: other-value
 ```
 
 Or:
@@ -156,10 +156,10 @@ kind: Provisioner
 spec:
   # applied everywhere
   labels:
- 	 other-label: other-value
+     other-label: other-value
   # applied only to arm64
   arm64-labels:
-	 node.k8s.aws/launch-template-id: id-of-arm64-based-ami
+     node.k8s.aws/launch-template-id: id-of-arm64-based-ami
   # applied only to x86_64
   x86_64-labels:
 ```
@@ -172,9 +172,9 @@ apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
-	  node.k8s.aws/launch-template-id/arm64: id-of-arm64-based-ami
-	  # or?
-	  node.k8s.aws/arm64/launch-template-id: id-of-arm64-based-ami
+      node.k8s.aws/launch-template-id/arm64: id-of-arm64-based-ami
+      # or?
+      node.k8s.aws/arm64/launch-template-id: id-of-arm64-based-ami
 ```
 
 This might be very non-standard however and defy expectations.
