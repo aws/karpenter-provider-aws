@@ -67,14 +67,24 @@ spec:
       labels:
         control-plane: karpenter
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
       serviceAccountName: karpenter
       containers:
         - name: manager
-          image: public.ecr.aws/b6u6q9h4/controller:v0.1.3@sha256:f9c28aeeb6c80b1c768eb2123946c15fe24fdf10f1227d3a5df3b01137eaa1cb
+          image: public.ecr.aws/b6u6q9h4/controller:v0.2.0@sha256:d624380aaf2d20f006196e3edf38a5e186dc6e84a7065c1ef66bf99a002da09d
           resources:
-            limits:
-              cpu: 100m
-              memory: 30Mi
             requests:
               cpu: 100m
               memory: 20Mi

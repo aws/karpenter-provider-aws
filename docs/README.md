@@ -10,14 +10,6 @@
 </p>
 Resource Types:
 <ul></ul>
-<h3 id="provisioning.karpenter.sh/v1alpha1.Architecture">Architecture
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Constraints">Constraints</a>)
-</p>
-<p>
-</p>
 <h3 id="provisioning.karpenter.sh/v1alpha1.ClusterSpec">ClusterSpec
 </h3>
 <p>
@@ -142,9 +134,9 @@ label &ldquo;topology.kubernetes.io/zone&rdquo; is specified.</p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>InstanceTypes constraints which instances types will be used for nodes
-launched by the Provisioner. If unspecified, supports all types. Cannot
-be specified if label &ldquo;node.kubernetes.io/instance-type&rdquo; is specified.</p>
+<p>InstanceTypes constrains which instances types will be used for nodes
+launched by the Provisioner. If unspecified, it will support all types.
+Cannot be specified if label &ldquo;node.kubernetes.io/instance-type&rdquo; is specified.</p>
 </td>
 </tr>
 <tr>
@@ -163,40 +155,28 @@ int32
 <td>
 <code>architecture</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Architecture">
-Architecture
-</a>
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Architecture constraints the underlying node architecture</p>
+<p>Architecture constrains the underlying node architecture</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>operatingSystem</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.OperatingSystem">
-OperatingSystem
-</a>
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>OperatingSystem constrain the underlying node operating system</p>
+<p>OperatingSystem constrains the underlying node operating system</p>
 </td>
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha1.OperatingSystem">OperatingSystem
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Constraints">Constraints</a>)
-</p>
-<p>
-</p>
 <h3 id="provisioning.karpenter.sh/v1alpha1.Provisioner">Provisioner
 </h3>
 <p>
@@ -388,5 +368,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>6f583a6</code>.
+on git commit <code>4a6d377</code>.
 </em></p>
