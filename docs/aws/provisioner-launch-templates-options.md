@@ -109,20 +109,23 @@ since ACK is using it, and it's short, we should use `k8s.aws` as the
 root suffix going forward. (Obviously while maintaining
 backwards-compatibility with any extant labels.)
 
-Furthermore, in keeping with apparent Kubernetes
+Furthermore, in keeping with Kubernetes
 [convention](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type),
 we should use `node.k8s.aws/` as the prefix for any node labels we
 choose to use.
 
-Lastly, in keeping with Kubernetes conventions (like
+Lastly, in keeping with another Kubernetes convention (such as
 `kubernetes.io/service-name`), we should use `lower-case-with-hypens`,
 not `camelCase` for words following the `/`.
 
-One paritial solution to this would be to remove the ability to
-specify the `architecture` in the provisioner at all. However, this
-does not seem like a good idea because the provisioner is not specific
-to EC2, and therefore the specific behavior of provider behavior
-(launch templates) doesn't seem like it merits that kind of change.
+## Architecture
+
+One paritial solution to the architecture issue brought up above would
+be to remove the ability to specify the `architecture` in the
+provisioner at all. However, this does not seem like a good idea
+because the provisioner is not specific to EC2, and therefore the
+specific behavior of cloud provider behavior (such as launch
+templates) doesn't seem like it merits that kind of change.
 
 Another solution would be to allow the user to specify architecture
 specific labels:
@@ -132,13 +135,42 @@ apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
+	# applied only to arm64
     arm64:
-	  kubernetes.amazonaws.com/launchTemplateId: id-of-arm64-based-ami
+	  node.k8s.aws/launch-template-id: id-of-arm64-based-ami
 	x86_64:
-	  kubernetes.amazonaws.com/launchTemplateId: id-of-x86_64-based-ami
-	  
+	  node.k8s.aws/launch-template-id: id-of-x86_64-based-ami
+    # applied everywhere
+	other-label: other-value
 ```
 
+Or:
 
+```yaml
+apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+spec:
+  # applied everywhere
+  labels:
+ 	 other-label: other-value
+  # applied only to arm64
+  arm64-labels:
+	 node.k8s.aws/launch-template-id: id-of-arm64-based-ami
+  # applied only to x86_64
+  x86_64-labels:
+```
 
+Another possibility is to add another "path element" to the label name
+to make it architecture specific:
 
+```yaml
+apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+spec:
+  labels:
+	  node.k8s.aws/launch-template-id/arm64: id-of-arm64-based-ami
+	  # or?
+	  node.k8s.aws/arm64/launch-template-id: id-of-arm64-based-ami
+```
+
+This might be very non-standard however and defy expectations.
