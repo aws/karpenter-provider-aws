@@ -208,6 +208,7 @@ more input from users).
 - If the user specifies an incompatible `architecture` in the
   provisioner spec, or incompatible `kubernetes.io/arch` in their pod
   spec, then the launch template won't work.
-- Users may be confused trying to figure out how to support multiple
-  architectures in the same cluster (that is, they may find it
-  difficult to figure out that they need two provisioners)
+- Users who want to specify their own launch template may be confused
+  trying to figure out how to support multiple architectures in the
+  same cluster (that is, they may find it difficult to figure out that
+  they need two provisioners)
