@@ -100,6 +100,10 @@ The provisioner does not allow the customer to specify a
 `kubernetes.io/arch` label in the `labels` section, so there is no
 risk of a conflict between that and the launch template.
 
+Another problem users might run into is that their pod spec might
+specify a node selector for an architecture that the provisioner
+doesn't support.
+
 # Solutions
 
 ## Label Naming
@@ -174,3 +178,20 @@ spec:
 ```
 
 This might be very non-standard however and defy expectations.
+
+## Recommendations
+
+For now the recommendation is to support the following in provisioner
+`spec.labels`:
+
+- `node.k8s.aws/launch-template-id`: id of launch template
+- `node.k8s.aws/launch-template-version`: version number or `$LATEST`
+
+If the user specifies an incompatible `architecture` in the
+provisioner spec, or 
+
+
+While this will limit the provisioner to one architecture implicitly,
+it seems like the complexity of the solutions aren't worth it (at
+least not without more input from users).
+
