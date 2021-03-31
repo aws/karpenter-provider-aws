@@ -37,8 +37,8 @@ spec:
 ```
 
 As of Mar 2021, support for these labels is not yet implemented, so
-before doing this document presents some alternatives. The next
-section outlines why we might want to do this.
+before doing that work, this document presents some alternatives. The
+next section outlines why we might want to do this.
 
 ## Potential Issues
 
@@ -124,7 +124,7 @@ not `camelCase` for words following the `/`.
 
 ## Architecture
 
-One paritial solution to the architecture issue brought up above would
+One partial solution to the architecture issue brought up above would
 be to remove the ability to specify the `architecture` in the
 provisioner at all. However, this does not seem like a good idea
 because the provisioner is not specific to EC2, and therefore the
