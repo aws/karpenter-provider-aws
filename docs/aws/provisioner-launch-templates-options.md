@@ -179,7 +179,7 @@ spec:
 
 This might be very non-standard however and defy expectations.
 
-## Recommendations
+## Recommendation
 
 For now the recommendation is to support the following in provisioner
 `spec.labels`:
@@ -187,11 +187,27 @@ For now the recommendation is to support the following in provisioner
 - `node.k8s.aws/launch-template-id`: id of launch template
 - `node.k8s.aws/launch-template-version`: version number or `$LATEST`
 
-If the user specifies an incompatible `architecture` in the
-provisioner spec, or 
-
-
 While this will limit the provisioner to one architecture implicitly,
-it seems like the complexity of the solutions aren't worth it (at
-least not without more input from users).
+it seems like the complexity of the solutions aren't worth it (without
+more input from users).
 
+### Pros
+
+- Node labels are short
+- Node labels match the ACK project
+- Node labels conform to Kubernetes standards
+- Could theoretically be extended in some future date by adding
+  `/<arch>` into labels (assuming that would not violate
+  standards/expectations)
+- Simple and intuitive most of the time (that is, as long as users
+  aren't expecting the provisioner to support multiple architectures
+  and custom launch templates at the same time).
+
+### Cons
+
+- If the user specifies an incompatible `architecture` in the
+  provisioner spec, or incompatible `kubernetes.io/arch` in their pod
+  spec, then the launch template won't work.
+- Users may be confused trying to figure out how to support multiple
+  architectures in the same cluster (that is, they may find it
+  difficult to figure out that they need two provisioners)
