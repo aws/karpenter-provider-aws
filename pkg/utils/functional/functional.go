@@ -65,7 +65,7 @@ func MinInt32(values []int32) int32 {
 func SelectInt32(values []int32, selector func(int32, int32) int32) int32 {
 	selected := values[0]
 	for _, value := range values {
-		selected = selector(selected, int32(value))
+		selected = selector(selected, value)
 	}
 	return selected
 }

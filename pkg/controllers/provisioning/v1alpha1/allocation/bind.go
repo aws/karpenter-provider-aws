@@ -17,7 +17,6 @@ package allocation
 import (
 	"context"
 	"fmt"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ type Binder struct {
 	coreV1Client corev1.CoreV1Interface
 }
 
-func (b *Binder) Bind(ctx context.Context, provisioner *v1alpha1.Provisioner, node *v1.Node, pods []*v1.Pod) error {
+func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Mark NodeReady=Unknown
 	// Unfortunately, this detail is necessary to prevent kube-scheduler from
 	// scheduling pods to nodes before they're created. Node Lifecycle

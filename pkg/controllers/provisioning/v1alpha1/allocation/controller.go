@@ -96,7 +96,7 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 	// 4. Bind pods to nodes
 	for _, packing := range packings {
 		zap.S().Infof("Binding %d pods to node %s", len(packing.Pods), packing.Node.Name)
-		if err := c.binder.Bind(ctx, provisioner, packing.Node, packing.Pods); err != nil {
+		if err := c.binder.Bind(ctx, packing.Node, packing.Pods); err != nil {
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}

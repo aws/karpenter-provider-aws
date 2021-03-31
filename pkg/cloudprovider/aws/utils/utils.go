@@ -22,6 +22,6 @@ func NormalizeArchitecture(architecture string) string {
 	case v1alpha1.ArchitectureAmd64:
 		return "x86_64"
 	default:
-		return string(architecture)
+		return architecture
 	}
 }

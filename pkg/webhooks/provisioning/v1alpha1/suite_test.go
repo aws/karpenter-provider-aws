@@ -40,7 +40,7 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
+var env = test.NewEnvironment(func(e *test.Environment) {
 	e.Manager.RegisterWebhooks(
 		&Validator{CloudProvider: fake.NewFactory(cloudprovider.Options{})},
 		&Defaulter{},
