@@ -36,10 +36,10 @@ func (p *Provisioner) StatusConditions() apis.ConditionManager {
 	).Manage(p)
 }
 
-func (s *Provisioner) GetConditions() apis.Conditions {
-	return s.Status.Conditions
+func (p *Provisioner) GetConditions() apis.Conditions {
+	return p.Status.Conditions
 }
 
-func (s *Provisioner) SetConditions(conditions apis.Conditions) {
-	s.Status.Conditions = conditions
+func (p *Provisioner) SetConditions(conditions apis.Conditions) {
+	p.Status.Conditions = conditions
 }

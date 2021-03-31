@@ -53,7 +53,7 @@ var launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 var instanceProfileCache = cache.New(CacheTTL, CacheCleanupInterval)
 var securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 var fakeEC2API *fake.EC2API
-var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
+var env = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider := &SubnetProvider{

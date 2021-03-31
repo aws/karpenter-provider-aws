@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	IgnoredOwners []schema.GroupVersionKind = []schema.GroupVersionKind{
+	IgnoredOwners = []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
 	}
 )

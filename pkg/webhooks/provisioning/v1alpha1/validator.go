@@ -64,7 +64,7 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 	return admission.Allowed("")
 }
 
-func (p *Validator) validateClusterSpec(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateClusterSpec(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	if spec.Cluster == nil {
 		return fmt.Errorf("spec.cluster must be defined")
 	}
@@ -80,7 +80,7 @@ func (p *Validator) validateClusterSpec(ctx context.Context, spec *v1alpha1.Prov
 	return nil
 }
 
-func (p *Validator) validateLabels(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateLabels(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	for label := range spec.Labels {
 		for _, restricted := range []string{
 			v1alpha1.ArchitectureLabelKey,
@@ -100,11 +100,11 @@ func (p *Validator) validateLabels(ctx context.Context, spec *v1alpha1.Provision
 	return nil
 }
 
-func (p *Validator) validateArchitecture(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateArchitecture(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	if spec.Architecture == nil {
 		return nil
 	}
-	supportedArchitectures, err := p.CloudProvider.CapacityFor(spec).GetArchitectures(ctx)
+	supportedArchitectures, err := v.CloudProvider.CapacityFor(spec).GetArchitectures(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported architectures, %w", err)
 	}
@@ -114,11 +114,11 @@ func (p *Validator) validateArchitecture(ctx context.Context, spec *v1alpha1.Pro
 	return nil
 }
 
-func (p *Validator) validateOperatingSystem(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateOperatingSystem(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	if spec.OperatingSystem == nil {
 		return nil
 	}
-	supportedOperatingSystems, err := p.CloudProvider.CapacityFor(spec).GetOperatingSystems(ctx)
+	supportedOperatingSystems, err := v.CloudProvider.CapacityFor(spec).GetOperatingSystems(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported operating systems, %w", err)
 	}
@@ -128,11 +128,11 @@ func (p *Validator) validateOperatingSystem(ctx context.Context, spec *v1alpha1.
 	return nil
 }
 
-func (p *Validator) validateZones(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateZones(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	if spec.Zones == nil {
 		return nil
 	}
-	supportedZones, err := p.CloudProvider.CapacityFor(spec).GetZones(ctx)
+	supportedZones, err := v.CloudProvider.CapacityFor(spec).GetZones(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported zones, %w", err)
 	}
@@ -144,11 +144,11 @@ func (p *Validator) validateZones(ctx context.Context, spec *v1alpha1.Provisione
 	return nil
 }
 
-func (p *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
+func (v *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
 	if spec.InstanceTypes == nil {
 		return nil
 	}
-	supportedInstanceTypes, err := p.CloudProvider.CapacityFor(spec).GetInstanceTypes(ctx)
+	supportedInstanceTypes, err := v.CloudProvider.CapacityFor(spec).GetInstanceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported instance types, %w", err)
 	}

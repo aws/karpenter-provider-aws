@@ -47,7 +47,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var controller *Controller
-var env *test.Environment = test.NewEnvironment(func(e *test.Environment) {
+var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := fake.NewFactory(cloudprovider.Options{})
 	controller = NewController(
 		e.Manager.GetClient(),
