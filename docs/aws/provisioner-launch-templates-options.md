@@ -53,6 +53,11 @@ Another consideration is that, regardless of which suffix is
 ultimately chosen, should the node labels look like
 `node.<suffix>/something` rather than `<suffix>/something`?
 
+Lastly, a casual survey of other widely-used Kubernetes labels would
+suggest that using dashes is more common than camel case, so the
+portion following the `/` should most likely look like
+`launch-template-id`.
+
 ### Launch Templates and Architecture
 
 At present, Launch Templates must specify an AMI-ID (ImageId)
@@ -60,4 +65,9 @@ At present, Launch Templates must specify an AMI-ID (ImageId)
 Although the `ImageId` field is not, technically, required, since
 CreateFleet does not allow overriding the `ImageId`, it effectively is
 required. Since AMIs are architecture-specific, this means that Launch
-Templates are, transitively, arch specific.
+Templates are, transitively, architecture-specific as well.
+
+One problem is that this might be confusing due to the presence of the
+`architecture` field in the spec. The implication to a user, if they
+do not specify an architecture, is that the Provisioner can handle all
+architectures. 
