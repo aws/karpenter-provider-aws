@@ -227,3 +227,12 @@ Provisioner) being caught when the user runs `kubectl`.
   "reach in" to the provider to do further validation, which is
   additional complexity (that said, it doesn't sound like this is
   unheard-of behavior in similar projects, either).
+
+# Open Questions
+
+## CAPI Integration
+
+It would be nice if the AWS cloud provider for Karpenter could
+leverage and/or work smoothly with
+[CAPI](https://github.com/kubernetes-sigs/cluster-api). We will
+address this in a separate document.
