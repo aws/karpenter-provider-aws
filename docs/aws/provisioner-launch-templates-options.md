@@ -2,11 +2,11 @@
 
 ## Intro
 
-This document presents some options for how the AWS-specific portions
-of the Provisioner could handle [Launch
+This document presents some options for how the AWS-specific (cloud
+provider) portions of the Provisioner could handle [Launch
 Templates](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templates.html).
 
-Presently, the Provisioner has the following shape:
+Presently, the provisioner has the following shape:
 
 ```yaml
 apiVersion: provisioning.karpenter.sh/v1alpha1
@@ -31,14 +31,16 @@ spec:
   # overriden by pod node selectors. Well known labels control provisioning
   # behavior. Additional labels may be supported by your cloudprovider.
   labels:
+    # These are AWS-specific
     kubernetes.amazonaws.com/launchTemplateId:
     kubernetes.amazonaws.com/launchTemplateVersion:
     kubernetes.amazonaws.com/capacityType:
 ```
 
-As of Mar 2021, support for these labels is not yet implemented, so
-before doing that work, this document presents some alternatives. The
-next section outlines why we might want to do this.
+As of Mar 2021, support for these labels in the AWS cloud provider is
+not yet implemented, so before doing that work, this document presents
+some alternatives. The next section outlines why we might want to do
+this.
 
 ## Potential Issues
 
@@ -46,30 +48,34 @@ next section outlines why we might want to do this.
 
 The [AWS Controllers for Kubernetes
 (ACK)](https://github.com/aws-controllers-k8s/community) project is
-using the label naming convention of `*.k8s.aws/*`. Should the AWS
-portion of this project follow that convention?
+using the label naming convention of `*.k8s.aws/*`. The AWS cloud
+provider portion of this project should consider following that
+convention.
 
 Another consideration is that, regardless of which suffix is
-ultimately chosen, should the node labels look like
-`node.<suffix>/something` rather than `<suffix>/something`?
+ultimately chosen, the node labels should possibly look like
+`node.<suffix>/something`, rather than `<suffix>/something`.
 
-Lastly, a casual survey of other widely-used Kubernetes labels would
-suggest that using dashes is more common than camel case, so the
-portion following the `/` should most likely look like
-`launch-template-id`.
+Lastly, a casual survey of other widely-used Kubernetes labels shows
+that using dashes is more common than camel case, so the portion
+following the `/` should probably look like `launch-template-id`.
 
 ### Launch Templates and Architecture
 
-At present, Launch Templates must specify an AMI-ID (ImageId)
+At present, EC2 launch templates must specify an AMI-ID (`ImageId`)
 ([docs](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestLaunchTemplateData.html)).
-Although the `ImageId` field is not, technically, required, since
-CreateFleet does not allow overriding the `ImageId`, it effectively is
-required. Since AMIs are architecture-specific, this means that Launch
-Templates are, transitively, architecture-specific as well.
+Although the field is not, technically, required, in practice is
+actually is mandatory because
+[CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html)
+does not allow
+[overriding](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_FleetLaunchTemplateOverridesRequest.html)
+the `ImageId`, it effectively *is* required. Since AMIs are
+architecture-specific, this means that launch templates are,
+transitively, architecture-specific as well.
 
 One problem is that this might be confusing due to the presence of the
 `architecture` field in the spec. The implication to a user, if they
-do not specify an architecture, is that the provisioner can handle all
+do not specify `architecture`, is that the provisioner can handle all
 architectures. But if they specify a launch template, their
 provisioner is now architecture-specific.
 
@@ -184,12 +190,18 @@ This might be very non-standard however and defy expectations.
 For now the recommendation is to support the following in provisioner
 `spec.labels`:
 
-- `node.k8s.aws/launch-template-id`: id of launch template
+- `node.k8s.aws/launch-template-id`: (optional) id of launch template
+  and cannot be specified if `architecture` 
 - `node.k8s.aws/launch-template-version`: version number or `$LATEST`
+  (optional, default `$LATEST`) (cannot be specified unless
+  `node.k8s.aws/launch-template-id` is present
+- `node.k8s.aws/capacity-type`: listed here for completeness
 
 While this will limit the provisioner to one architecture implicitly,
 it seems like the complexity of the solutions aren't worth it (without
-more input from users).
+more input from users). It will also result in obvious problems (such
+as specifying both `architecture` and a launch template in the same
+Provisioner) being caught when the user runs `kubectl`.
 
 ### Pros
 
@@ -212,3 +224,7 @@ more input from users).
   trying to figure out how to support multiple architectures in the
   same cluster (that is, they may find it difficult to figure out that
   they need two provisioners)
+- This does require the (generic) provisioner validating webhook to
+  "reach in" to the provider to do further validation, which is
+  additional complexity (that said, it doesn't sound like this is
+  unheard-of behavior in similar projects, either).
