@@ -196,10 +196,11 @@ For now the recommendation is to support the following in provisioner
   `node.k8s.aws/launch-template-id` is present
 - `node.k8s.aws/capacity-type`: listed here for completeness
 
-While this will limit the provisioner to one architecture implicitly,
-it seems like the complexity of the solutions aren't worth it (without
-more input from users). It will also result in obvious problems (such
-as specifying both `architecture` and a launch template in the same
+While this will limit the provisioner to one default architecture (pod
+specs can still override by specifying a launch template), it seems
+like the complexity of the solutions aren't worth it (without more
+input from users). It will also result in obvious problems (such as
+specifying both `architecture` and a launch template in the same
 Provisioner) being caught when the user runs `kubectl`.
 
 ### Pros
@@ -236,3 +237,9 @@ It would be nice if the AWS cloud provider for Karpenter could
 leverage and/or work smoothly with
 [CAPI](https://github.com/kubernetes-sigs/cluster-api). We will
 address this in a separate document.
+
+## Multiple Provisioners
+
+This document mentions the potentiality of multiple provisioners
+running within the same cluster, but does not explain how that would
+work. That should also be addressed in a separate document.
