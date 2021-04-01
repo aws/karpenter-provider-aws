@@ -10,6 +10,65 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (04/01/21)
+
+## Attendees
+- Jacob Gabrielson
+- Prateek Gogia
+- Viji Sarathy
+- Shreyas Srinivasan
+- Nathan Taber
+- Ellis Tarn
+- Nick Tran
+- Brandon Wagner
+- Guy Templeton
+- Joe Burnett
+- Elmiko
+
+## Announcements
+ - Karpenter v0.2.0 released this week 
+    
+## Notes
+- [BW] Working on Spot support in Karpenter
+    - How does labeling works for spot instances in general?
+    - Spot vs on-demand percentage for deployment?
+.....
+- [VS] Homogenous NG ....
+- [ET] Some percentage of pods spot vs non-spot in a deployment
+- [BW] Ocean from spot.io add `spottiest.io/spot-percentage: 90`
+- [GT] We don't use percentage based deployment, currently on on-demand ECS, if Karpenter can offer we can checkout
+- [El] CAPI has a generic node-termination handler w/ drain/cordon and a generic interface for spot instances and has a ton of CRDs (Machines, MachineSets, MachineDeployments vs MachinePools)
+    - You deploy different controllers and machine actuaters to reconcile and create instances.
+    - Machine CR interacts directly with cloud interface (e.g. RunInstance)
+- [BW] CAPI moving from run instances API to fleet API in the next release
+- [ET] How does the preemption work?
+    - [El] They are planning to change the way to its done today and need to go deep dive to understand
+- Reading [AWS Provisioner Launch Template Options](https://github.com/awslabs/karpenter/pull/330/files?short_path=3078f76) Proposal from Jacob
+- [JG] Its hard to specify if LT is arch specific? Hard to know what arch LT supports? If LT doesn't specify an AMI its not going to work.
+- [El] Depends some people like webhook pattern, some don't, CAPI has this pattern
+- [El] You can return an error in validating webhook or have an error when the request hit cloud provider. Could potentially just resolve this via validation at pod and provisioner level
+    - Might want to pass validation logic into the provisioner
+    - validating web hooks should go down to the provider level?
+    - advantage is that kubectl will give immediate feedback
+    - [ET] we can relax later
+    - At provisioner level ValidatingWebhooks can protect from this before the object is persisted
+    - If layered under other resources, might not block as expected on creation
+- [ET] How does CAPI handle this?
+    - [El] CAPI picking templates - creat machine set - in there u define template you want to use ahead of time you already create infra tempalte - might have pre-created, when I create machineset, pick template I'd want ot use, folow model of replication controller
+    - [El] Each individual provider has its own template
+    - [ET] How do you pick one template over another?
+    - CAPI references re: MachineTemplate for AWS: [awsmachine_types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha3/awsmachine_types.go#L51)
+[types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha3/types.go#L36)
+- [PG] We shouldn't validate pods with webhook and just log in Karpenter, to keep the same experience as native Kubernetes
+- [El] Where do we stand with a Cluster API Cloud Provider for Karpenter?
+  - [ET] Multiple ways for this to work
+  - [El] If using a group style, increase MachineSets replica count
+  - [El] In CAPI, all machines are owned by MachineSets or MachineDeployments
+  - [BW] Instead of stamping out machines, could stamp our MachineDeployments(replicas=1)
+  - make sure that on karp side the way it creates infra templates is in same resource version group - make sure aren't false rejections - integration issues
+  - [El] similar CA concept - some future work would be CAPI custom resource that just speaks to autoscaler, just expose this "autoscaling" obj to autoscaler - it has all this info in it from autoscaler side, it has everything it needs CAPI doesn't have to expose
+  - [El] Multiple passes through cloud provider specific -> agnostic -> specific -> agnostic
+
 # Meeting notes (03/18/21)
 ## Attendees
 - Ellis Tarn
