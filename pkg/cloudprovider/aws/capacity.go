@@ -31,13 +31,13 @@ import (
 )
 
 const (
-	nodeLabelPrefix = "node.k8s.aws"
+	nodeLabelPrefix      = "node.k8s.aws"
+	capacityTypeSpot     = "spot"
+	capacityTypeOnDemand = "on-demand"
 )
 
 var (
-	capacityTypeSpot     = "spot"
-	capacityTypeOnDemand = "on-demand"
-	capacityTypeLabel    = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
+	capacityTypeLabel = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
@@ -57,12 +57,12 @@ type AWSConstraints struct {
 	CapacityType string
 }
 
-func NewAWSConstraints(constraints *cloudprovider.Constraints) AWSConstraints {
+func NewAWSConstraints(constraints *cloudprovider.Constraints) *AWSConstraints {
 	capacityType, ok := constraints.Labels[capacityTypeLabel]
 	if !ok {
 		capacityType = capacityTypeOnDemand
 	}
-	return AWSConstraints{
+	return &AWSConstraints{
 		Constraints:  *constraints,
 		CapacityType: capacityType,
 	}

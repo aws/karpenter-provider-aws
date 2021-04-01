@@ -59,7 +59,7 @@ var _ = Describe("InstanceTypes", func() {
 			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
 			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-			constraints := cloudprovideraws.AWSConstraints{}
+			constraints := &cloudprovideraws.AWSConstraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureAmd64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
@@ -76,7 +76,7 @@ var _ = Describe("InstanceTypes", func() {
 			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m6g.large"})
 			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-			constraints := cloudprovideraws.AWSConstraints{}
+			constraints := &cloudprovideraws.AWSConstraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
@@ -93,7 +93,7 @@ var _ = Describe("InstanceTypes", func() {
 			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
 			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-			constraints := cloudprovideraws.AWSConstraints{}
+			constraints := &cloudprovideraws.AWSConstraints{}
 			constraints.Architecture = &v1alpha1.ArchitectureArm64
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)
 
@@ -107,7 +107,7 @@ var _ = Describe("InstanceTypes", func() {
 			ec2api := getInstanceTypeProviderMocks([]string{testZone}, []string{"m5.large"})
 			instanceTypeProvider := cloudprovideraws.NewInstanceTypeProvider(ec2api)
 			zonalSubnetOptions := map[string][]*ec2.Subnet{testZone: nil}
-			constraints := cloudprovideraws.AWSConstraints{}
+			constraints := &cloudprovideraws.AWSConstraints{}
 			constraints.Architecture = &defaultArch
 			constraints.InstanceTypes = append(constraints.InstanceTypes, "m5.large")
 			instanceTypes, err := instanceTypeProvider.Get(context.Background(), zonalSubnetOptions, constraints)

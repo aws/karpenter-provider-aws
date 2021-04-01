@@ -45,7 +45,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 }
 
 // Get instance types that are availble per availability zone
-func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints AWSConstraints) ([]*packing.Instance, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints *AWSConstraints) ([]*packing.Instance, error) {
 	zones := []string{}
 	for zone := range zonalSubnetOptions {
 		zones = append(zones, zone)
@@ -69,7 +69,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 
 // GetAllInstanceTypeNames returns all instance type names without filtering based on constraints
 func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context) ([]string, error) {
-	supportedInstanceTypes, err := p.Get(ctx, map[string][]*ec2.Subnet{}, AWSConstraints{})
+	supportedInstanceTypes, err := p.Get(ctx, map[string][]*ec2.Subnet{}, &AWSConstraints{})
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 }
 
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
-func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints AWSConstraints, zones []string) []*packing.Instance {
+func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints *AWSConstraints, zones []string) []*packing.Instance {
 	filtered := []*packing.Instance{}
 	architecture := utils.NormalizeArchitecture(constraints.Architecture)
 

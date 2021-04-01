@@ -69,7 +69,7 @@ func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]strin
 	return zones, nil
 }
 
-func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints AWSConstraints, clusterName string) (map[string][]*ec2.Subnet, error) {
+func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *AWSConstraints, clusterName string) (map[string][]*ec2.Subnet, error) {
 	// 1. Get all subnets
 	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
 	if err != nil {

@@ -61,7 +61,7 @@ func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints AWSConstraints) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *AWSConstraints) (*ec2.LaunchTemplate, error) {
 	arch := utils.NormalizeArchitecture(constraints.Architecture)
 	name := launchTemplateName(cluster.Name, *arch)
 	if launchTemplate, ok := p.cache.Get(name); ok {
