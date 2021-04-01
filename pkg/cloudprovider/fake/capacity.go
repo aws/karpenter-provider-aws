@@ -86,13 +86,6 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 	}, nil
 }
 
-func (c *Capacity) GetCapacityTypes(ctx context.Context) ([]string, error) {
-	return []string{
-		"on-demand",
-		"spot",
-	}, nil
-}
-
-func (c *Capacity) DefaultCapacityType(ctx context.Context) (string, error) {
-	return "on-demand", nil
+func (c *Capacity) ValidateLabels(labels map[string]string) error {
+	return nil
 }

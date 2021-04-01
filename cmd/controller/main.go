@@ -59,7 +59,7 @@ func main() {
 	cloudProviderFactory := registry.NewFactory(cloudprovider.Options{Client: manager.GetClient(), ClientSet: clientSet})
 
 	err := manager.RegisterWebhooks(
-		&webhooksprovisioning.Defaulter{CloudProvider: cloudProviderFactory},
+		&webhooksprovisioning.Defaulter{},
 		&webhooksprovisioning.Validator{CloudProvider: cloudProviderFactory},
 	).RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),

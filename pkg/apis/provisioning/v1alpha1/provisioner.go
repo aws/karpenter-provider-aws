@@ -83,10 +83,6 @@ type Constraints struct {
 	// OperatingSystem constrains the underlying node operating system
 	// +optional
 	OperatingSystem *string `json:"operatingSystem,omitempty"`
-	// CapacityType constrains what type of capacity is launched by the Provisioner
-	// If unspecified, it will launch on-demand nodes.
-	// +optional
-	CapacityType *string `json:"capacityType,omitempty"`
 }
 
 var (
@@ -107,7 +103,6 @@ var (
 	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
 	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
 	ProvisionerPhaseLabel        = SchemeGroupVersion.Group + "/lifecycle-phase"
-	CapacityTypeLabelKey         = SchemeGroupVersion.Group + "/capacityType"
 
 	// Reserved annotations
 	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"
@@ -150,7 +145,6 @@ func (p *Provisioner) ConstraintsWithOverrides(pod *v1.Pod) *Constraints {
 		InstanceTypes:   p.Spec.Constraints.getInstanceTypes(pod),
 		Architecture:    p.Spec.Constraints.getArchitecture(pod),
 		OperatingSystem: p.Spec.Constraints.getOperatingSystem(pod),
-		CapacityType:    p.Spec.Constraints.getCapacityType(pod),
 	}
 }
 
@@ -162,7 +156,6 @@ func (c *Constraints) getLabels(name string, namespace string, pod *v1.Pod) map[
 		map[string]string{
 			ProvisionerNameLabelKey:      name,
 			ProvisionerNamespaceLabelKey: namespace,
-			CapacityTypeLabelKey:         *c.getCapacityType(pod),
 		},
 	)
 }
@@ -217,17 +210,4 @@ func (c *Constraints) getOperatingSystem(pod *v1.Pod) *string {
 	}
 	// Default to linux
 	return &OperatingSystemLinux
-}
-
-func (c *Constraints) getCapacityType(pod *v1.Pod) *string {
-	// Pod may override capacity type
-	if capacityType, ok := pod.Spec.NodeSelector[CapacityTypeLabelKey]; ok {
-		return &capacityType
-	}
-	// Use constraints if defined
-	if c.CapacityType != nil {
-		return c.CapacityType
-	}
-	// Default to unconstrained
-	return nil
 }

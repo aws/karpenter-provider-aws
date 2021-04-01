@@ -35,9 +35,6 @@ spec:
               architecture:
                 description: Architecture constrains the underlying node architecture
                 type: string
-              capacityType:
-                description: CapacityType constrains what type of capacity is launched by the Provisioner If unspecified, it will launch on-demand nodes.
-                type: string
               cluster:
                 description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
                 properties:

@@ -152,6 +152,16 @@ func ValidateAll(errorables ...func() error) error {
 	return err
 }
 
+// All returns true if all the predicate funcs return true and false otherwise.
+func All(predicates ...func() bool) bool {
+	for _, predicate := range predicates {
+		if !predicate() {
+			return false
+		}
+	}
+	return true
+}
+
 // ExecuteAll executes all functions
 func ExecuteAll(executables ...func()) {
 	for _, executable := range executables {
