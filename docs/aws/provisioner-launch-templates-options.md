@@ -69,9 +69,8 @@ actually is mandatory because
 [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html)
 does not allow
 [overriding](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_FleetLaunchTemplateOverridesRequest.html)
-the `ImageId`, it effectively *is* required. Since AMIs are
-architecture-specific, this means that launch templates are,
-transitively, architecture-specific as well.
+the `ImageId`. Since AMIs are architecture-specific, this means that
+launch templates are, transitively, architecture-specific as well.
 
 One problem is that this might be confusing due to the presence of the
 `architecture` field in the spec. The implication to a user, if they
