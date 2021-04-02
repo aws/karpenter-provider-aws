@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/packing"
+	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -86,31 +86,29 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
+func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) (map[string]bool, error) {
 	if len(nodes) == 0 {
-		return nil
+		return nil, nil
 	}
-	ids := p.getInstanceIDs(nodes)
+	ids := p.GetInstanceIDs(nodes)
 
-	_, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	deleted, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: ids,
 	})
 	if err != nil {
-		return fmt.Errorf("terminating %d instances, %w", len(ids), err)
+		return nil, fmt.Errorf("terminating %d instances, %w", len(ids), err)
 	}
-
-	return nil
+	deletedIds := map[string]bool{}
+	for _, instance := range deleted.TerminatingInstances {
+		deletedIds[*instance.InstanceId] = true
+	}
+	return deletedIds, nil
 }
 
-func (p *InstanceProvider) getInstanceIDs(nodes []*v1.Node) []*string {
+func (p *InstanceProvider) GetInstanceIDs(nodes []*v1.Node) []*string {
 	ids := []*string{}
 	for _, node := range nodes {
-		id := strings.Split(node.Spec.ProviderID, "/")
-		if len(id) < 5 {
-			zap.S().Debugf("Continuing after failure to parse instance id, %s has invalid format", node.Name)
-			continue
-		}
-		ids = append(ids, aws.String(id[4]))
+		ids = append(ids, utilsnode.GetInstanceId(node))
 	}
 	return ids
 }

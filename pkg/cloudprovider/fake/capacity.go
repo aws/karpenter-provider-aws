@@ -54,8 +54,8 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}}, nil
 }
 
-func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
-	return nil
+func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) (map[string]bool, error) {
+	return nil, nil
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {

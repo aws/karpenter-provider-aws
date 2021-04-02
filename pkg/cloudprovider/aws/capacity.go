@@ -89,7 +89,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	return nodePackings, nil
 }
 
-func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
+func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) (map[string]bool, error) {
 	return c.instanceProvider.Terminate(ctx, nodes)
 }
 

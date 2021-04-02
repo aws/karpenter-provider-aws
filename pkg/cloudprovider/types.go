@@ -34,7 +34,7 @@ type Capacity interface {
 	// Create a set of nodes to fulfill the desired capacity given constraints.
 	Create(context.Context, *Constraints) ([]Packing, error)
 	// Delete nodes in cloudprovider
-	Delete(context.Context, []*v1.Node) error
+	Delete(context.Context, []*v1.Node) (map[string]bool, error)
 	// GetInstanceTypes returns the instance types supported by the cloud provider.
 	GetInstanceTypes(ctx context.Context) ([]string, error)
 	// GetZones returns the zones supported by the cloud provider.

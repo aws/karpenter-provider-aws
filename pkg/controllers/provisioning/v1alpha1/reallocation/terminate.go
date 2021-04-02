@@ -21,8 +21,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -126,17 +128,20 @@ func (t *Terminator) terminateNodes(ctx context.Context, provisioner *v1alpha1.P
 // deleteNode uses a cloudprovider-specific delete to delete a set of nodes
 func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node, provisioner *v1alpha1.Provisioner) error {
 	// 1. Delete node in cloudprovider's instanceprovider
-	if err := t.cloudprovider.CapacityFor(&provisioner.Spec).Delete(ctx, nodes); err != nil {
+	deleted, err := t.cloudprovider.CapacityFor(&provisioner.Spec).Delete(ctx, nodes)
+	if err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Delete node in APIServer
 	// TODO: Prevent leaked nodes: ensure a node is not deleted in apiserver if not deleted in cloudprovider
 	// Use the returned ids from the cloudprovider's Delete() function, and then only delete those ids in the apiserver
 	for _, node := range nodes {
-		if err := t.kubeClient.Delete(ctx, node); err != nil {
-			zap.S().Debugf("Continuing after failing to delete node %s, %s", node.Name, err.Error())
+		if _, ok := deleted[*utilsnode.GetInstanceId(node)]; ok {
+			if err := t.kubeClient.Delete(ctx, node); err != nil {
+				zap.S().Debugf("Continuing after failing to delete node %s, %s", node.Name, err.Error())
+			}
+			zap.S().Infof("Terminated node %s", node.Name)
 		}
-		zap.S().Infof("Terminated node %s", node.Name)
 	}
 	return nil
 }
