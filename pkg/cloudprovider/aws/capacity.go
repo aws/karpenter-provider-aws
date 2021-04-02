@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
@@ -97,7 +98,15 @@ func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
-	return c.vpcProvider.GetZones(ctx, c.spec.Cluster.Name)
+	azs, err := c.vpcProvider.GetAllZones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	zones := []string{}
+	for _, az := range azs {
+		zones = append(zones, *az.ZoneName, *az.ZoneId)
+	}
+	return zones, nil
 }
 
 func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
