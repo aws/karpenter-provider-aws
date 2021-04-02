@@ -34,6 +34,7 @@ const (
 	nodeLabelPrefix      = "node.k8s.aws"
 	capacityTypeSpot     = "spot"
 	capacityTypeOnDemand = "on-demand"
+	maxInstanceTypes     = 10
 )
 
 var (
@@ -98,6 +99,9 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
+		if len(packing.InstanceTypes) > maxInstanceTypes {
+			packing.InstanceTypes = packing.InstanceTypes[:maxInstanceTypes]
+		}
 		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, awsConstraints.CapacityType)
 		if err != nil {
 			// TODO Aggregate errors and continue

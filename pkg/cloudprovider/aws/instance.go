@@ -35,6 +35,7 @@ type InstanceProvider struct {
 }
 
 // Create an instance given the constraints.
+// instanceTypeOptions should be sorted by priority for spot capacity type.
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
 	instanceTypeOptions []*packing.Instance,
@@ -43,28 +44,36 @@ func (p *InstanceProvider) Create(ctx context.Context,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for _, instanceType := range instanceTypeOptions {
+	for i, instanceType := range instanceTypeOptions {
 		for _, zone := range instanceType.Zones {
 			subnets := zonalSubnetOptions[zone]
 			if len(subnets) == 0 {
 				continue
 			}
-			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
+			overridesRequest := &ec2.FleetLaunchTemplateOverridesRequest{
 				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
-			})
+			}
+			if capacityType == capacityTypeSpot {
+				overridesRequest.Priority = aws.Float64(float64(i))
+			}
+			overrides = append(overrides, overridesRequest)
 		}
 	}
 	// 2. Create fleet
+
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
+		OnDemandOptions: &ec2.OnDemandOptionsRequest{
+			AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice),
+		},
 		SpotOptions: &ec2.SpotOptionsRequest{
-			AllocationStrategy: aws.String("capacity-optimized"),
+			AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized),
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{

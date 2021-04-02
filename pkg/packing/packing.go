@@ -56,11 +56,11 @@ func NewPacker() Packer {
 	return &packer{}
 }
 
-// Pack returns the packings for the provided pods. Computes a set of viable
-// instance types for each packing of pods. Instance variety enables EC2 to make
-// better cost and availability decisions. Pods provided are all schedulable in
-// the same zone as tightly as possible. It follows the First Fit Decreasing bin
-// packing technique, reference-
+// Pack returns the node packings for the provided pods. It computes a set of viable
+// instance types for each packing of pods. Instance variety enables the cloud provider
+// to make better cost and availability decisions. The instance types returned are sorted by resources.
+// Pods provided are all schedulable in the same zone as tightly as possible.
+// It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Instance, constraints *cloudprovider.Constraints) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
@@ -79,6 +79,8 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Inst
 			continue
 		}
 		packings = append(packings, packing)
+		// sort instance type packings by vcpus and memory resources
+		sortByResources(packing.InstanceTypes)
 		instanceTypeNames := []string{}
 		for _, it := range packing.InstanceTypes {
 			instanceTypeNames = append(instanceTypeNames, *it.InstanceType)
@@ -172,4 +174,13 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 		}
 	}
 	return true
+}
+
+func sortByResources(instances []*Instance) {
+	sort.Slice(instances, func(i, j int) bool {
+		if *instances[i].VCpuInfo.DefaultVCpus == *instances[j].VCpuInfo.DefaultVCpus {
+			return *instances[i].MemoryInfo.SizeInMiB < *instances[j].MemoryInfo.SizeInMiB
+		}
+		return *instances[i].VCpuInfo.DefaultVCpus < *instances[j].VCpuInfo.DefaultVCpus
+	})
 }
