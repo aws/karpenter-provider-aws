@@ -264,7 +264,8 @@ it (without more input from users).
   provisioner spec, or incompatible `kubernetes.io/arch` in their pod
   spec, then that launch template won't be used (or, in initial
   versions of the provisioner, that pod would get ignored by
-  Karpenter).
+  Karpenter). While this might usually be what the user intended,
+  sometimes it might be surprising.
 - Users who want to specify their own launch template may be confused
   trying to figure out how to support multiple architectures in the
   same cluster (that is, they may find it difficult to figure out that
@@ -283,7 +284,7 @@ kind: Pod
 spec:
   nodeSelector:
     kubernetes.io/arch: arm64
-	provisioning.karpenter.sh/name: some-provisioner
+    provisioning.karpenter.sh/name: some-provisioner
 ```
 
 # Open Questions
