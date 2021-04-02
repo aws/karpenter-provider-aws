@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -42,6 +43,19 @@ func NewVPCProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *VPC
 		subnetProvider: subnetProvider,
 		cache:          cache.New(CacheTTL, CacheCleanupInterval),
 	}
+}
+
+func (p *VPCProvider) GetAllAvailabilityZones(ctx context.Context) ([]*ec2.AvailabilityZone, error) {
+	azs, ok := p.cache.Get(allZonesKey)
+	if ok {
+		return azs.([]*ec2.AvailabilityZone), nil
+	}
+	azsOutput, err := p.ec2api.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
+	if err != nil {
+		return nil, fmt.Errorf("retrieving availability zones, %w", err)
+	}
+	p.cache.SetDefault(allZonesKey, azsOutput.AvailabilityZones)
+	return azsOutput.AvailabilityZones, nil
 }
 
 func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]string, error) {
@@ -90,19 +104,14 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 
 // normalizeZones takes zone names or ids and returns them all as zone names
 func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]string, error) {
-	azs, ok := p.cache.Get(allZonesKey)
-	if !ok {
-		azsOutput, err := p.ec2api.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
-		if err != nil {
-			return zones, fmt.Errorf("retrieving availability zones, %w", err)
-		}
-		p.cache.SetDefault(allZonesKey, azsOutput.AvailabilityZones)
-		azs = azsOutput.AvailabilityZones
+	azs, err := p.GetAllAvailabilityZones(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	zoneNames := []string{}
 	for _, zone := range zones {
-		for _, az := range azs.([]*ec2.AvailabilityZone) {
+		for _, az := range azs {
 			if zone == *az.ZoneName || zone == *az.ZoneId {
 				zoneNames = append(zoneNames, *az.ZoneName)
 			}
