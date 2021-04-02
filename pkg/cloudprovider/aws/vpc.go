@@ -45,7 +45,7 @@ func NewVPCProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *VPC
 	}
 }
 
-func (p *VPCProvider) GetAllAvailabilityZones(ctx context.Context) ([]*ec2.AvailabilityZone, error) {
+func (p *VPCProvider) GetAllZones(ctx context.Context) ([]*ec2.AvailabilityZone, error) {
 	azs, ok := p.cache.Get(allZonesKey)
 	if ok {
 		return azs.([]*ec2.AvailabilityZone), nil
@@ -104,7 +104,7 @@ func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudpro
 
 // normalizeZones takes zone names or ids and returns them all as zone names
 func (p *VPCProvider) normalizeZones(ctx context.Context, zones []string) ([]string, error) {
-	azs, err := p.GetAllAvailabilityZones(ctx)
+	azs, err := p.GetAllZones(ctx)
 	if err != nil {
 		return nil, err
 	}
