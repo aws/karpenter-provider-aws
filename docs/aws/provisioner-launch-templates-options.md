@@ -235,18 +235,19 @@ If the user specifies an incompatible `architecture` in the
 provisioner spec, or incompatible `kubernetes.io/arch` in their pod
 spec, then the provisioner will instead use the default launch
 template for that architecture. (Note this feature may not be
-implemented in the first version).
+implemented in the first version; in the first version the provisioner
+will ignore pods with incompatible architectures).
 
-While this will limit the provisioner to one default architecture (pod
-specs can still override by specifying a launch template), it seems
-like the complexity of the solutions aren't worth it (without more
-input from users). It will also result in
+While this will limit the provisioner to a single default launch
+template (pod specs can still override by specifying a launch
+template), it seems like the complexity of the solutions aren't worth
+it (without more input from users).
 
 ### Pros
 
-- Node labels are short
+- Node labels are shorter
 - Node labels match the ACK project
-- Node labels conform to Kubernetes standards
+- Node labels conform to Kubernetes standard
 - Could theoretically be extended in some future date by adding
   `/<arch>` into labels (assuming that would not violate
   standards/expectations)
