@@ -3,7 +3,7 @@
 ## Intro
 
 This document presents some options for how the AWS-specific (cloud
-provider) portions of the Provisioner could handle [Launch
+provider) portions of the provisioner could handle [Launch
 Templates](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templates.html).
 
 Presently, the provisioner has the following shape:
@@ -88,7 +88,7 @@ kind: Provisioner
 spec:
   architecture: arm64
   labels:
-    kubernetes.amazonaws.com/launchTemplateId: id-of-x86_64-based-ami
+    kubernetes.amazonaws.com/launchTemplateId: id-of-x86_64-lt
 ```
 
 In this case, the provisioner will only launch ARM-based instances,
@@ -146,9 +146,9 @@ spec:
   labels:
     # applied only to arm64
     arm64:
-      node.k8s.aws/launch-template-id: id-of-arm64-based-ami
+      node.k8s.aws/launch-template-id: id-of-arm64-lt
     x86_64:
-      node.k8s.aws/launch-template-id: id-of-x86_64-based-ami
+      node.k8s.aws/launch-template-id: id-of-x86_64-lt
     # applied everywhere
     other-label: other-value
 ```
@@ -164,7 +164,7 @@ spec:
      other-label: other-value
   # applied only to arm64
   arm64-labels:
-     node.k8s.aws/launch-template-id: id-of-arm64-based-ami
+     node.k8s.aws/launch-template-id: id-of-arm64-based-lt
   # applied only to x86_64
   x86_64-labels:
 ```
@@ -177,12 +177,47 @@ apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
-      node.k8s.aws/launch-template-id/arm64: id-of-arm64-based-ami
+      node.k8s.aws/launch-template-id/arm64: id-of-arm64-lt
       # or?
-      node.k8s.aws/arm64/launch-template-id: id-of-arm64-based-ami
+      node.k8s.aws/arm64/launch-template-id: id-of-arm64-lt
 ```
 
-This might be very non-standard however and defy expectations.
+This might be very non-standard however and defy expectations. Also,
+there is no guarantee that the user correctly specified `arm64`; the
+launch template might still actually refer to an `x86_64` image.
+
+Note also that the provisioner could determine (through EC2 APIs) the
+architecture of the `ImageId` referred to by a launch template, and
+then ignore pod specs that specify and incompatible
+`kubernetes.io/arch` in a [node
+selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
+For example, imagine the pod spec of a pending pod contains:
+
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  nodeSelector:
+    kubernetes.io/arch: arm64
+```
+
+If a provisioner is configured as follows:
+
+```yaml
+apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+spec:
+  labels:
+      node.k8s.aws/launch-template-id: id-of-lt-with-x86_64-based-ami
+```
+
+Then it could ignore that pending pod since there is no way it could
+possibly work. Another possiblity is that it could ignore the launch
+template `node.k8s.aws/launch-template-id` for that pod and revert to
+the default dynamically-generated
+([Bottlerocket](https://aws.amazon.com/bottlerocket/)) launch template
+that would work for that architecture.
+
 
 ## Recommendation
 
@@ -196,12 +231,16 @@ For now the recommendation is to support the following in provisioner
   `node.k8s.aws/launch-template-id` is present
 - `node.k8s.aws/capacity-type`: listed here for completeness
 
+If the user specifies an incompatible `architecture` in the
+provisioner spec, or incompatible `kubernetes.io/arch` in their pod
+spec, then the provisioner will instead use the default launch
+template for that architecture. (Note this feature may not be
+implemented in the first version).
+
 While this will limit the provisioner to one default architecture (pod
 specs can still override by specifying a launch template), it seems
 like the complexity of the solutions aren't worth it (without more
-input from users). It will also result in obvious problems (such as
-specifying both `architecture` and a launch template in the same
-Provisioner) being caught when the user runs `kubectl`.
+input from users). It will also result in
 
 ### Pros
 
@@ -214,12 +253,17 @@ Provisioner) being caught when the user runs `kubectl`.
 - Simple and intuitive most of the time (that is, as long as users
   aren't expecting the provisioner to support multiple architectures
   and custom launch templates at the same time).
-
+- Obvious problems (such as specifying both `architecture` and a
+  launch template in the same provisioner spec) will be caught early,
+  such as when the user runs `kubectl`.
+  
 ### Cons
 
 - If the user specifies an incompatible `architecture` in the
   provisioner spec, or incompatible `kubernetes.io/arch` in their pod
-  spec, then the launch template won't work.
+  spec, then that launch template won't be used (or, in initial
+  versions of the provisioner, that pod would get ignored by
+  Karpenter).
 - Users who want to specify their own launch template may be confused
   trying to figure out how to support multiple architectures in the
   same cluster (that is, they may find it difficult to figure out that
@@ -228,6 +272,18 @@ Provisioner) being caught when the user runs `kubectl`.
   "reach in" to the provider to do further validation, which is
   additional complexity (that said, it doesn't sound like this is
   unheard-of behavior in similar projects, either).
+  
+Customers can use multiple provisioners by differentiating in their
+pod specs:
+
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  nodeSelector:
+    kubernetes.io/arch: arm64
+	provisioning.karpenter.sh/name: some-provisioner
+```
 
 # Open Questions
 
@@ -238,8 +294,3 @@ leverage and/or work smoothly with
 [CAPI](https://github.com/kubernetes-sigs/cluster-api). We will
 address this in a separate document.
 
-## Multiple Provisioners
-
-This document mentions the potentiality of multiple provisioners
-running within the same cluster, but does not explain how that would
-work. That should also be addressed in a separate document.
