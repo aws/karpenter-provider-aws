@@ -145,7 +145,7 @@ func (t *Terminator) getNodes(ctx context.Context, provisioner *v1alpha1.Provisi
 	if err := t.kubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
 		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-	}, provisioner.Spec.Labels, additionalLabels))); err != nil {
+	}, additionalLabels))); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
 	return ptr.NodeListToSlice(nodes), nil
