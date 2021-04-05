@@ -86,6 +86,6 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 	}, nil
 }
 
-func (c *Capacity) ValidateLabels(labels map[string]string) error {
+func (c *Capacity) Validate(ctx context.Context) error {
 	return nil
 }

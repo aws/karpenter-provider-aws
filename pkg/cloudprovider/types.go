@@ -43,8 +43,8 @@ type Capacity interface {
 	GetArchitectures(context.Context) ([]string, error)
 	// GetOperatingSystems returns the operating systems supported by the cloud provider.
 	GetOperatingSystems(context.Context) ([]string, error)
-	// ValidateLabels validates cloud provider specific labels
-	ValidateLabels(map[string]string) error
+	// Validate cloud provider specific components of the cluster spec
+	Validate(context.Context) error
 }
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given

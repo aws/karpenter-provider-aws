@@ -16,6 +16,7 @@ package packing
 
 import (
 	"context"
+	"math"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -79,7 +80,6 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Inst
 			continue
 		}
 		packings = append(packings, packing)
-		// sort instance type packings by vcpus and memory resources
 		sortByResources(packing.InstanceTypes)
 		instanceTypeNames := []string{}
 		for _, it := range packing.InstanceTypes {
@@ -176,11 +176,16 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 	return true
 }
 
+// sortByResources sorts instance type packings by vcpus and memory resources
 func sortByResources(instances []*Instance) {
 	sort.Slice(instances, func(i, j int) bool {
-		if *instances[i].VCpuInfo.DefaultVCpus == *instances[j].VCpuInfo.DefaultVCpus {
-			return *instances[i].MemoryInfo.SizeInMiB < *instances[j].MemoryInfo.SizeInMiB
-		}
-		return *instances[i].VCpuInfo.DefaultVCpus < *instances[j].VCpuInfo.DefaultVCpus
+		// Euclidean distance from origin using vcpus and memory
+		// sqrt(vcpus[i]^2 + memoryInGiB[i]^2) < sqrt(vcpus[j]^2 + memoryInGiB[j]^2)
+		return math.Sqrt(
+			math.Pow(2, float64(*instances[i].VCpuInfo.DefaultVCpus))+
+				math.Pow(2, float64(*instances[i].MemoryInfo.SizeInMiB)/1024)) <
+			math.Sqrt(
+				math.Pow(2, float64(*instances[j].VCpuInfo.DefaultVCpus))+
+					math.Pow(2, float64(*instances[j].MemoryInfo.SizeInMiB)/1024))
 	})
 }

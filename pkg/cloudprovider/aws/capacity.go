@@ -17,28 +17,12 @@ package aws
 import (
 	"context"
 	"fmt"
-<<<<<<< HEAD
-=======
-	"strings"
->>>>>>> 8d6d79b (implement capacity-type in the cloud provider)
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-)
-
-const (
-	nodeLabelPrefix      = "node.k8s.aws"
-	capacityTypeSpot     = "spot"
-	capacityTypeOnDemand = "on-demand"
-	maxInstanceTypes     = 10
-)
-
-var (
-	capacityTypeLabel = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
 )
 
 // Capacity cloud provider implementation using AWS Fleet.
@@ -52,27 +36,10 @@ type Capacity struct {
 	instanceTypeProvider   *InstanceTypeProvider
 }
 
-// AWSConstraints are AWS specific constraints
-type AWSConstraints struct {
-	cloudprovider.Constraints
-	CapacityType string
-}
-
-func NewAWSConstraints(constraints *cloudprovider.Constraints) *AWSConstraints {
-	capacityType, ok := constraints.Labels[capacityTypeLabel]
-	if !ok {
-		capacityType = capacityTypeOnDemand
-	}
-	return &AWSConstraints{
-		Constraints:  *constraints,
-		CapacityType: capacityType,
-	}
-}
-
 // Create a set of nodes given the constraints.
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
+func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	// 1. Create AWS Cloud Provider constraints and apply defaults
-	awsConstraints := NewAWSConstraints(constraints)
+	awsConstraints := NewAWSConstraints(cloudProviderConstraints)
 
 	// 2. Retrieve normalized zones from constraints or all zones that the cluster spans if no zonal constraints are specified
 	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, awsConstraints, c.spec.Cluster.Name)
@@ -87,7 +54,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	}
 
 	// 4. Compute Packing given the pods and instance types
-	instancePackings := c.packer.Pack(ctx, awsConstraints.Pods, zonalInstanceTypes, constraints)
+	instancePackings := c.packer.Pack(ctx, awsConstraints.Pods, zonalInstanceTypes, cloudProviderConstraints)
 
 	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(awsConstraints.Pods), len(instancePackings))
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, awsConstraints)
@@ -99,10 +66,7 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
-		if len(packing.InstanceTypes) > maxInstanceTypes {
-			packing.InstanceTypes = packing.InstanceTypes[:maxInstanceTypes]
-		}
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, awsConstraints.CapacityType)
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, awsConstraints.GetCapacityType())
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
@@ -159,21 +123,4 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 	return []string{
 		v1alpha1.OperatingSystemLinux,
 	}, nil
-}
-
-func (c *Capacity) ValidateLabels(labels map[string]string) error {
-	for key, value := range labels {
-		if strings.HasPrefix(key, nodeLabelPrefix) {
-			switch key {
-			case capacityTypeLabel:
-				capacityTypes := []string{capacityTypeSpot, capacityTypeOnDemand}
-				if !functional.ContainsString(capacityTypes, value) {
-					return fmt.Errorf("%s must be one of %v", key, capacityTypes)
-				}
-			default:
-				return fmt.Errorf("%s/* is reserved for AWS cloud provider use", nodeLabelPrefix)
-			}
-		}
-	}
-	return nil
 }
