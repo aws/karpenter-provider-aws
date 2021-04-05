@@ -17,6 +17,8 @@ package reallocation
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
@@ -24,7 +26,6 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type Utilization struct {
@@ -151,7 +152,7 @@ func (u *Utilization) getNodes(ctx context.Context, provisioner *v1alpha1.Provis
 	if err := u.kubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
 		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
 		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-	}, provisioner.Spec.Labels, additionalLabels))); err != nil {
+	}, additionalLabels))); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
 	return ptr.NodeListToSlice(nodes), nil
