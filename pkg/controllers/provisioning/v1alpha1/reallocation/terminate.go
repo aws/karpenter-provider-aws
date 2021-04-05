@@ -130,8 +130,6 @@ func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node, provisio
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Delete node in APIServer
-	// TODO: Prevent leaked nodes: ensure a node is not deleted in apiserver if not deleted in cloudprovider
-	// Use the returned ids from the cloudprovider's Delete() function, and then only delete those ids in the apiserver
 	for _, node := range nodes {
 		if err := t.kubeClient.Delete(ctx, node); err != nil {
 			zap.S().Debugf("Continuing after failing to delete node %s, %s", node.Name, err.Error())
