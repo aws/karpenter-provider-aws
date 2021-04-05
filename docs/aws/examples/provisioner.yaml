@@ -14,8 +14,8 @@ spec:
   labels:
     ##### AWS Specific #####
     # Constrain node launch template, default="bottlerocket"
-    kubernetes.amazonaws.com/launchTemplateId: "bottlerocket-qwertyuiop"
+    node.k8s.aws/launch-template-id: "bottlerocket-qwertyuiop"
     # Constrain node launch template, default="$LATEST"
-    kubernetes.amazonaws.com/launchTemplateVersion: "my-special-version"
+    node.k8s.aws/launch-template-version: "my-special-version"
     # Constrain node capacity type, default="on-demand"
-    kubernetes.amazonaws.com/capacityType: "spot"
+    node.k8s.aws/capacity-type: "spot"
