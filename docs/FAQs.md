@@ -1,9 +1,12 @@
 # FAQs
+## General
+### How does a Provisioner decide to manage a particular node?
+Each node will have a set of predetermined Karpenter labels. Provisioners will use `name` and `namespace` labels to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in. e.g. a provisioner will only consider a node for termination if its phase label says "underutilized".
 ## Allocation
 ### How should I define scheduling constraints?
-Karpenter takes a layered approach to scheduling constraints. Each Cloud Provider has its own set of global defaults, which are overriden by defaults specified in the Provisoner, which are overriden by Pod scheduling constraints. This model requires minimal configuration for most use cases, and supports diverse workloads using a single Provisioner.
+Karpenter takes a layered approach to scheduling constraints. Each Cloud Provider has its own set of global defaults, which are overriden by defaults specified in the Provisioner, which are overridden by Pod scheduling constraints. This model requires minimal configuration for most use cases, and supports diverse workloads using a single Provisioner.
 ### Does Karpenter replace the Kube Scheduler?
-No. Provisioners work in tandem with the Kube Scheduler. When capacity is unconstrained, the Kube Scheduler will schedule pods as usual. It may schedule pods to nodes managed by Provisioner or other types of capacity in the cluster. Provisioners only attempt to schedule pods of when `type=PodScheduled,reason=Unschedulable`. In this case, they will make a provisioning decision, launch new capacity, and bind pods to the provisioned nodes. Provisioners do not wait for the Kube Scheduler to make a scheduling decision in this case, as the decision is already made by nature of making a provisioning decision. It's possible that a node from another management solution could create a race between the kube scheduler and Karpenter. In this case, the first binding call will win. If Karpenter loses this race, the node will eventually be cleaned up.
+No. Provisioners work in tandem with the Kube Scheduler. When capacity is unconstrained, the Kube Scheduler will schedule pods as usual. It may schedule pods to nodes managed by Provisioners or other types of capacity in the cluster. Provisioners only attempt to schedule pods when `type=PodScheduled,reason=Unschedulable`. In this case, they will make a provisioning decision, launch new capacity, and bind pods to the provisioned nodes. Provisioners do not wait for the Kube Scheduler to make a scheduling decision in this case, as the decision is already made by nature of making a provisioning decision. It's possible that a node from another management solution could create a race between the kube scheduler and Karpenter. In this case, the first binding call will win. If Karpenter loses this race, the node will eventually be cleaned up.
 ### Does Karpenter support node selectors?
 Yes. Node selectors are an opt-in mechanism which allows customers to specify the nodes to which a pod can schedule. Provisioners recognize well known node selectors on incoming pods and use them to constrain the nodes they generate. For example, well known selectors like `node.kubernetes.io/instance-type`, `topology.kubernetes.io/zone`, `kubernetes.io/os`, `kubernetes.io/arch` are supported, and will ensure that provisioned nodes are constrained accordingly. Additionally, customers may specify arbitrary labels, which will be automatically applied to every node launched by the Provisioner.
 ### Does Karpenter support taints?
@@ -21,13 +24,16 @@ Provisioners are heterogeneous, which means that the nodes they manage are sprea
 ### What if my pod is schedulable for multiple Provisioners?
 It's possible that an unconstrained pods could flexibly schedule in multiple groups. In this case, Provisioners will race to create a scheduling lease for the pod before launching new nodes, which avoids unnecessary scale out.
 ## Reallocation
-TODO
+### How does Karpenter decide which nodes it can terminate? 
+A provisioner will only take action on nodes that it manages. This means that a node will only be considered for termination if it is labeled underutilized by the provisioner that manages it.
+### How do I know if a node is underutilized?
+Nodes are labeled underutilized if they have 0 non-daemonset pods scheduled. We plan to include more use cases in the future. A node needs to be underutilized for a period of time before being considered for termination.
+### How does Karpenter terminate nodes?
+Karpenter annotates nodes that are underutilized with a time to live (TTL). If the node remains underutilized after the TTL expires, Karpenter then [cordons](https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration) the node and uses the [Kubernetes Eviction API](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/#eviction-api) to evict all non-daemonset pods. Once the node is empty, the node is terminated.
+### Does Karpenter support Pod Disruption Budgets?
+Yes. The Kubernetes Eviction API will not delete pods that violate a [Pod Disruption Budget (PDB)](https://kubernetes.io/docs/tasks/run-application/configure-pdb/). It also disallows eviction of any pod covered by multiple PDBs, so most users will want to avoid overlapping selectors. See [this](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets) for more.
 ### Does Karpenter support scale to zero?
 Yes. Provisioners start at zero and launch or terminate nodes as necessary. We recommend that customers maintain a small amount of static capacity to bootstrap system controllers or run Karpenter outside of their cluster.
-## Upgrade
-TODO
-## Interruption
-TODO
 ## Compatibility
 ### Which Kubernetes versions does Karpenter support?
 Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with all Kubernetes versions greater than v1.16. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
