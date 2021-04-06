@@ -159,8 +159,13 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, con
 }
 
 func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints []string, instance *packing.Instance) bool {
-	return (len(instanceTypeConstraints) != 0 || p.isDefaultInstanceType(instance)) &&
-		len(instanceTypeConstraints) == 0 || functional.ContainsString(instanceTypeConstraints, *instance.InstanceType)
+	if len(instanceTypeConstraints) == 0 && p.isDefaultInstanceType(instance) {
+		return true
+	}
+	if len(instanceTypeConstraints) != 0 && functional.ContainsString(instanceTypeConstraints, *instance.InstanceType) {
+		return true
+	}
+	return false
 }
 
 // isDefaultInstanceType returns true if the instance type provided conforms to the default instance type criteria
