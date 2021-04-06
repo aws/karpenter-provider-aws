@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -70,7 +69,7 @@ func (p *VPCProvider) GetZones(ctx context.Context, clusterName string) ([]strin
 	return zones, nil
 }
 
-func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints *cloudprovider.Constraints, clusterName string) (map[string][]*ec2.Subnet, error) {
+func (p *VPCProvider) GetZonalSubnets(ctx context.Context, constraints Constraints, clusterName string) (map[string][]*ec2.Subnet, error) {
 	// 1. Get all subnets
 	zonalSubnets, err := p.subnetProvider.Get(ctx, clusterName)
 	if err != nil {

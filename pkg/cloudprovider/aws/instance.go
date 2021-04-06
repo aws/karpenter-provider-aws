@@ -29,38 +29,72 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+const (
+	// maxInstanceTypes defines the number of instance type options to pass to fleet
+	maxInstanceTypes = 20
+)
+
 type InstanceProvider struct {
 	ec2api ec2iface.EC2API
 	vpc    *VPCProvider
 }
 
 // Create an instance given the constraints.
+// instanceTypeOptions should be sorted by priority for spot capacity type.
+// If spot is not used, the instanceTypeOptions are not required to be sorted
+// because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
 	instanceTypeOptions []*packing.Instance,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
+	capacityType string,
 ) (*string, error) {
-	// 1. Construct override options.
+	// 1. Trim the instanceTypeOptions so that the fleet request doesn't get too large
+	// If ~130 instance types are passed into fleet, the request can exceed the EC2 request size limit (145kb)
+	// due to the overrides expansion for subnetId (depends on number of AZs), Instance Type, and Priority.
+	// For spot capacity-optimized-prioritized, the request should be smaller to prevent using
+	// excessively large instance types that are more plentiful in capacity which the algorithm will bias towards.
+	// packing.InstanceTypes is sorted by vcpus and memory ascending so it's safe to trim the end of the list
+	// to remove excessively large instance types
+	if len(instanceTypeOptions) > maxInstanceTypes {
+		instanceTypeOptions = instanceTypeOptions[:maxInstanceTypes]
+	}
+	// 2. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for _, instanceType := range instanceTypeOptions {
+	for i, instanceType := range instanceTypeOptions {
 		for _, zone := range instanceType.Zones {
 			subnets := zonalSubnetOptions[zone]
 			if len(subnets) == 0 {
 				continue
 			}
-			overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
+			override := &ec2.FleetLaunchTemplateOverridesRequest{
 				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
-			})
+			}
+			// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+			// to reduce the likelihood of getting an excessively large instance type.
+			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+			if capacityType == capacityTypeSpot {
+				override.Priority = aws.Float64(float64(i))
+			}
+			overrides = append(overrides, override)
 		}
 	}
-	// 2. Create fleet
+	// 3. Create fleet
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-			DefaultTargetCapacityType: aws.String(ec2.DefaultTargetCapacityTypeOnDemand),
+			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
+		},
+		// OnDemandOptions are allowed to be specified even when requesting spot
+		OnDemandOptions: &ec2.OnDemandOptionsRequest{
+			AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice),
+		},
+		// SpotOptions are allowed to be specified even when requesting on-demand
+		SpotOptions: &ec2.SpotOptionsRequest{
+			AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized),
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{

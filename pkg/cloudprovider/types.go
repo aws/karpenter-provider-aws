@@ -36,13 +36,15 @@ type Capacity interface {
 	// Delete nodes in cloudprovider
 	Delete(context.Context, []*v1.Node) error
 	// GetInstanceTypes returns the instance types supported by the cloud provider.
-	GetInstanceTypes(ctx context.Context) ([]string, error)
+	GetInstanceTypes(context.Context) ([]string, error)
 	// GetZones returns the zones supported by the cloud provider.
-	GetZones(ctx context.Context) ([]string, error)
+	GetZones(context.Context) ([]string, error)
 	// GetArchitectures returns the architectures supported by the cloud provider.
-	GetArchitectures(ctx context.Context) ([]string, error)
+	GetArchitectures(context.Context) ([]string, error)
 	// GetOperatingSystems returns the operating systems supported by the cloud provider.
-	GetOperatingSystems(ctx context.Context) ([]string, error)
+	GetOperatingSystems(context.Context) ([]string, error)
+	// Validate cloud provider specific components of the cluster spec
+	Validate(context.Context) error
 }
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given

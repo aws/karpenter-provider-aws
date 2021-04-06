@@ -85,3 +85,7 @@ func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 		"test-operating-system-2",
 	}, nil
 }
+
+func (c *Capacity) Validate(ctx context.Context) error {
+	return nil
+}

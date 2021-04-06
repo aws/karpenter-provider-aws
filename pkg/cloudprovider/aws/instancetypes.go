@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -46,7 +45,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 }
 
 // Get instance types that are availble per availability zone
-func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints *cloudprovider.Constraints) ([]*packing.Instance, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints Constraints) ([]*packing.Instance, error) {
 	zones := []string{}
 	for zone := range zonalSubnetOptions {
 		zones = append(zones, zone)
@@ -70,7 +69,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 
 // GetAllInstanceTypeNames returns all instance type names without filtering based on constraints
 func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context) ([]string, error) {
-	supportedInstanceTypes, err := p.Get(ctx, map[string][]*ec2.Subnet{}, &cloudprovider.Constraints{})
+	supportedInstanceTypes, err := p.Get(ctx, map[string][]*ec2.Subnet{}, Constraints{})
 	if err != nil {
 		return nil, err
 	}
@@ -146,20 +145,27 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 }
 
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
-func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints *cloudprovider.Constraints, zones []string) []*packing.Instance {
+func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints Constraints, zones []string) []*packing.Instance {
 	filtered := []*packing.Instance{}
-	architecture := utils.NormalizeArchitecture(constraints.Architecture)
-
 	for _, instanceTypeInfo := range instanceTypes {
-		if (len(constraints.InstanceTypes) == 0 || functional.ContainsString(constraints.InstanceTypes, *instanceTypeInfo.InstanceType)) &&
-			(len(constraints.InstanceTypes) != 0 || p.isDefaultInstanceType(instanceTypeInfo)) &&
-			(architecture == nil || functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.ProcessorInfo.SupportedArchitectures), *architecture)) &&
-			functional.ContainsString(aws.StringValueSlice(instanceTypeInfo.SupportedUsageClasses), "on-demand") &&
-			(len(zones) == 0 || len(functional.IntersectStringSlice(instanceTypeInfo.Zones, zones)) > 0) {
+		if p.isInstanceTypeSupported(constraints.InstanceTypes, instanceTypeInfo) &&
+			p.isCapacityTypeSupported(constraints.GetCapacityType(), instanceTypeInfo) &&
+			p.isArchitectureSupported(utils.NormalizeArchitecture(constraints.Architecture), instanceTypeInfo) &&
+			p.isZonesSupported(zones, instanceTypeInfo) {
 			filtered = append(filtered, instanceTypeInfo)
 		}
 	}
 	return filtered
+}
+
+func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints []string, instance *packing.Instance) bool {
+	if len(instanceTypeConstraints) == 0 && p.isDefaultInstanceType(instance) {
+		return true
+	}
+	if len(instanceTypeConstraints) != 0 && functional.ContainsString(instanceTypeConstraints, *instance.InstanceType) {
+		return true
+	}
+	return false
 }
 
 // isDefaultInstanceType returns true if the instance type provided conforms to the default instance type criteria
@@ -169,4 +175,18 @@ func (p *InstanceTypeProvider) isDefaultInstanceType(instanceTypeInfo *packing.I
 		instanceTypeInfo.GpuInfo == nil &&
 		!*instanceTypeInfo.BareMetal &&
 		functional.HasAnyPrefix(*instanceTypeInfo.InstanceType, "m", "c", "r", "a", "t3", "t4")
+}
+
+func (p *InstanceTypeProvider) isArchitectureSupported(architecture *string, instance *packing.Instance) bool {
+	return architecture == nil ||
+		functional.ContainsString(aws.StringValueSlice(instance.ProcessorInfo.SupportedArchitectures), *architecture)
+}
+
+func (p *InstanceTypeProvider) isCapacityTypeSupported(capacityType string, instance *packing.Instance) bool {
+	return capacityType == "" ||
+		functional.ContainsString(aws.StringValueSlice(instance.SupportedUsageClasses), capacityType)
+}
+
+func (p *InstanceTypeProvider) isZonesSupported(zones []string, instance *packing.Instance) bool {
+	return len(zones) == 0 || len(functional.IntersectStringSlice(instance.Zones, zones)) > 0
 }

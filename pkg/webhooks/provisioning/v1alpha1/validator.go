@@ -58,6 +58,7 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 		func() error { return v.validateInstanceTypes(ctx, &provisioner.Spec) },
 		func() error { return v.validateArchitecture(ctx, &provisioner.Spec) },
 		func() error { return v.validateOperatingSystem(ctx, &provisioner.Spec) },
+		func() error { return v.CloudProvider.CapacityFor(&provisioner.Spec).Validate(ctx) },
 	); err != nil {
 		return admission.Denied(fmt.Sprintf("failed to validate provisioner '%s/%s', %s", provisioner.Name, provisioner.Namespace, err.Error()))
 	}

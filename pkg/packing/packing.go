@@ -16,6 +16,7 @@ package packing
 
 import (
 	"context"
+	"math"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -56,11 +57,11 @@ func NewPacker() Packer {
 	return &packer{}
 }
 
-// Pack returns the packings for the provided pods. Computes a set of viable
-// instance types for each packing of pods. Instance variety enables EC2 to make
-// better cost and availability decisions. Pods provided are all schedulable in
-// the same zone as tightly as possible. It follows the First Fit Decreasing bin
-// packing technique, reference-
+// Pack returns the node packings for the provided pods. It computes a set of viable
+// instance types for each packing of pods. Instance variety enables the cloud provider
+// to make better cost and availability decisions. The instance types returned are sorted by resources.
+// Pods provided are all schedulable in the same zone as tightly as possible.
+// It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Instance, constraints *cloudprovider.Constraints) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
@@ -79,6 +80,7 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Inst
 			continue
 		}
 		packings = append(packings, packing)
+		sortByResources(packing.InstanceTypes)
 		instanceTypeNames := []string{}
 		for _, it := range packing.InstanceTypes {
 			instanceTypeNames = append(instanceTypeNames, *it.InstanceType)
@@ -172,4 +174,18 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 		}
 	}
 	return true
+}
+
+// sortByResources sorts instance type packings by vcpus and memory resources
+func sortByResources(instances []*Instance) {
+	sort.Slice(instances, func(i, j int) bool {
+		// Euclidean distance from origin using vcpus and memory
+		// sqrt(vcpus[i]^2 + memoryInGiB[i]^2) < sqrt(vcpus[j]^2 + memoryInGiB[j]^2)
+		return math.Sqrt(
+			math.Pow(2, float64(*instances[i].VCpuInfo.DefaultVCpus))+
+				math.Pow(2, float64(*instances[i].MemoryInfo.SizeInMiB)/1024)) <
+			math.Sqrt(
+				math.Pow(2, float64(*instances[j].VCpuInfo.DefaultVCpus))+
+					math.Pow(2, float64(*instances[j].MemoryInfo.SizeInMiB)/1024))
+	})
 }
