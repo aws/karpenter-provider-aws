@@ -30,7 +30,7 @@ var (
 	capacityTypeLabel = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
 )
 
-// AWSConstraints are AWS specific constraints
+// Constraints are AWS specific constraints
 type Constraints cloudprovider.Constraints
 
 func (a *Constraints) GetCapacityType() string {

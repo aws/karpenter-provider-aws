@@ -38,7 +38,7 @@ type Capacity struct {
 
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
-	// 1. Create AWS Cloud Provider constraints and apply defaults
+	// 1. Cast to access AWS specific constraints
 	constraints := Constraints(*cloudProviderConstraints)
 
 	// 2. Retrieve normalized zones from constraints or all zones that the cluster spans if no zonal constraints are specified
