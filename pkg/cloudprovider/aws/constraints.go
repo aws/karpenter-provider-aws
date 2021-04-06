@@ -31,17 +31,9 @@ var (
 )
 
 // AWSConstraints are AWS specific constraints
-type AWSConstraints struct {
-	*cloudprovider.Constraints
-}
+type Constraints cloudprovider.Constraints
 
-func NewAWSConstraints(constraints *cloudprovider.Constraints) *AWSConstraints {
-	return &AWSConstraints{
-		constraints,
-	}
-}
-
-func (a *AWSConstraints) GetCapacityType() string {
+func (a *Constraints) GetCapacityType() string {
 	capacityType, ok := a.Labels[capacityTypeLabel]
 	if !ok {
 		capacityType = capacityTypeOnDemand

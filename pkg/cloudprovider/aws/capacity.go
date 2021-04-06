@@ -39,25 +39,25 @@ type Capacity struct {
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	// 1. Create AWS Cloud Provider constraints and apply defaults
-	awsConstraints := NewAWSConstraints(cloudProviderConstraints)
+	constraints := Constraints(*cloudProviderConstraints)
 
 	// 2. Retrieve normalized zones from constraints or all zones that the cluster spans if no zonal constraints are specified
-	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, awsConstraints, c.spec.Cluster.Name)
+	zonalSubnetOptions, err := c.vpcProvider.GetZonalSubnets(ctx, constraints, c.spec.Cluster.Name)
 	if err != nil {
 		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
 
 	// 3. Filter for instance types that fit constraints
-	zonalInstanceTypes, err := c.instanceTypeProvider.Get(ctx, zonalSubnetOptions, awsConstraints)
+	zonalInstanceTypes, err := c.instanceTypeProvider.Get(ctx, zonalSubnetOptions, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("filtering instance types by constraints, %w", err)
 	}
 
 	// 4. Compute Packing given the pods and instance types
-	instancePackings := c.packer.Pack(ctx, awsConstraints.Pods, zonalInstanceTypes, cloudProviderConstraints)
+	instancePackings := c.packer.Pack(ctx, constraints.Pods, zonalInstanceTypes, cloudProviderConstraints)
 
-	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(awsConstraints.Pods), len(instancePackings))
-	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, awsConstraints)
+	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
+	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
@@ -66,7 +66,7 @@ func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudpr
 	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, awsConstraints.GetCapacityType())
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, constraints.GetCapacityType())
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)
@@ -82,8 +82,8 @@ func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudpr
 	}
 	nodePackings := []cloudprovider.Packing{}
 	for instanceID, node := range nodes {
-		node.Labels = awsConstraints.Labels
-		node.Spec.Taints = awsConstraints.Taints
+		node.Labels = constraints.Labels
+		node.Spec.Taints = constraints.Taints
 		nodePackings = append(nodePackings, cloudprovider.Packing{
 			Node: node,
 			Pods: podsForInstance[instanceID],

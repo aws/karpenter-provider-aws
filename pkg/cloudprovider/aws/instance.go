@@ -31,7 +31,7 @@ import (
 
 const (
 	// maxInstanceTypes defines the number of instance type options to pass to fleet
-	maxInstanceTypes = 10
+	maxInstanceTypes = 20
 )
 
 type InstanceProvider struct {
@@ -50,6 +50,10 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	capacityType string,
 ) (*string, error) {
 	// 1. Trim the instanceTypeOptions so that the fleet request doesn't get too large
+	// If ~130 instance types are passed into fleet, the request can exceed the EC2 request size limit (145kb)
+	// due to the overrides expansion for subnetId (depends on number of AZs), Instance Type, and Priority.
+	// For spot capacity-optimized-prioritized, the request should be smaller to prevent using
+	// excessively large instance types that are more plentiful in capacity which the algorithm will bias towards.
 	// packing.InstanceTypes is sorted by vcpus and memory ascending so it's safe to trim the end of the list
 	// to remove excessively large instance types
 	if len(instanceTypeOptions) > maxInstanceTypes {
@@ -63,7 +67,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			if len(subnets) == 0 {
 				continue
 			}
-			overridesRequest := &ec2.FleetLaunchTemplateOverridesRequest{
+			override := &ec2.FleetLaunchTemplateOverridesRequest{
 				InstanceType: aws.String(*instanceType.InstanceType),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
@@ -72,9 +76,9 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			// to reduce the likelihood of getting an excessively large instance type.
 			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
 			if capacityType == capacityTypeSpot {
-				overridesRequest.Priority = aws.Float64(float64(i))
+				override.Priority = aws.Float64(float64(i))
 			}
-			overrides = append(overrides, overridesRequest)
+			overrides = append(overrides, override)
 		}
 	}
 	// 3. Create fleet
@@ -84,9 +88,11 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
+		// OnDemandOptions are allowed to be specified even when requesting spot
 		OnDemandOptions: &ec2.OnDemandOptionsRequest{
 			AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice),
 		},
+		// SpotOptions are allowed to be specified even when requesting on-demand
 		SpotOptions: &ec2.SpotOptionsRequest{
 			AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized),
 		},
