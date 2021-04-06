@@ -299,7 +299,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should succeed if supported", func() {
 				provisioner.Spec.InstanceTypes = []string{
-					// TODO @bwagner5
+					"m5.large",
 				}
 				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 			})

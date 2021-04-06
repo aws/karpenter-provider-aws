@@ -130,7 +130,7 @@ var _ = Describe("Validation", func() {
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.InstanceTypes = []string{
-				// TODO @bwagner5
+				"test-instance-type-1",
 			}
 			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
