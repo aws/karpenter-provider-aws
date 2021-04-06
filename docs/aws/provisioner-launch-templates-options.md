@@ -192,7 +192,7 @@ then ignore pod specs that specify and incompatible
 `kubernetes.io/arch` in a [node
 selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
 For example, imagine the pod spec of a pending pod contains:
-
+p
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -231,6 +231,10 @@ For now the recommendation is to support the following in provisioner
   `node.k8s.aws/launch-template-id` is present
 - `node.k8s.aws/capacity-type`: listed here for completeness
 
+### The Fine Print
+
+#### Validation
+
 If the user specifies an incompatible `architecture` in the
 provisioner spec, or incompatible `kubernetes.io/arch` in their pod
 spec, then the provisioner will instead use the default launch
@@ -238,10 +242,38 @@ template for that architecture. (Note this feature may not be
 implemented in the first version; in the first version the provisioner
 will ignore pods with incompatible architectures).
 
-While this will limit the provisioner to a single default launch
-template (pod specs can still override by specifying a launch
-template), it seems like the complexity of the solutions aren't worth
-it (without more input from users).
+#### Node Selectors and Capacity Pools
+
+If two presently-unschedulable pods are defined like so (that is, one
+has a launch template in a node selector and one does not):
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: podA
+spec:
+  nodeSelector:
+	node.k8s.aws/launch-template-id=x
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: podB
+spec:
+```
+
+Then they will not launch on the same instance. In this case at least
+two instances would launch.
+
+#### Multiple Provisioners
+
+While specifying a `launch-template-id` on a provisioner will limit
+that provisioner to a single default launch template (pod specs can
+still override by specifying a launch template), it seems like the
+complexity of the other solutions that might allow multiple launch
+templates on a single provisioner aren't worth the code complexity
+(without more input from users).
 
 ### Pros
 
@@ -296,3 +328,10 @@ leverage and/or work smoothly with
 [CAPI](https://github.com/kubernetes-sigs/cluster-api). We will
 address this in a separate document.
 
+## Launch Template Names
+
+We could support something like:
+
+- `node.k8s.aws/launch-template-name`: (optional) name of launch template
+
+Names do not appear to be unique.
