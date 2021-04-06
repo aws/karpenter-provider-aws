@@ -192,7 +192,7 @@ then ignore pod specs that specify and incompatible
 `kubernetes.io/arch` in a [node
 selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
 For example, imagine the pod spec of a pending pod contains:
-p
+
 ```yaml
 apiVersion: v1
 kind: Pod
