@@ -254,7 +254,7 @@ metadata:
   name: podA
 spec:
   nodeSelector:
-	node.k8s.aws/launch-template-id=x
+    node.k8s.aws/launch-template-id=x
 ---
 apiVersion: v1
 kind: Pod
