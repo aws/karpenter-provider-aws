@@ -148,6 +148,7 @@ rules:
     resources:
       - services
       - endpoints
+      - pods
     verbs:
       - get
       - list
