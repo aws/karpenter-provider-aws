@@ -27,14 +27,17 @@ const (
 )
 
 var (
-	capacityTypeLabel = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
+	capacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
+	launchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
+	launchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
+	allowedLabels              = []string{capacityTypeLabel, launchTemplateIdLabel, launchTemplateVersionLabel}
 )
 
 // Constraints are AWS specific constraints
 type Constraints cloudprovider.Constraints
 
-func (a *Constraints) GetCapacityType() string {
-	capacityType, ok := a.Labels[capacityTypeLabel]
+func (c *Constraints) GetCapacityType() string {
+	capacityType, ok := c.Labels[capacityTypeLabel]
 	if !ok {
 		capacityType = capacityTypeOnDemand
 	}

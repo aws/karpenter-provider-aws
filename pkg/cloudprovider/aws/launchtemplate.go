@@ -121,10 +121,16 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags: []*ec2.Tag{{
-					Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, cluster.Name)),
-					Value: aws.String("owned"),
-				}},
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, cluster.Name)),
+						Value: aws.String("owned"),
+					},
+					{
+						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, cluster.Name)),
+						Value: aws.String("owned"),
+					},
+				},
 			}},
 			SecurityGroupIds: securityGroupIds,
 			UserData:         userData,

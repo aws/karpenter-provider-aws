@@ -25,10 +25,6 @@ var (
 	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
 )
 
-const (
-	NodeGroupMessage = "fake factory message"
-)
-
 type Factory struct {
 	WantErr error
 	// NodeReplicas is used by tests to control observed replicas.
