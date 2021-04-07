@@ -15,7 +15,6 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
 	"testing"
 
 	"context"
@@ -237,9 +236,6 @@ var _ = Describe("Allocation", func() {
 			)
 		})
 		It("should launch two instances for pods with different node selectors", func() {
-			fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
-			}}
 			// Setup
 			pod1Options := test.PodOptions{
 				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": randomdata.SillyName()},
@@ -256,19 +252,13 @@ var _ = Describe("Allocation", func() {
 			// Assertions
 			scheduled1 := &v1.Pod{}
 			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod1.GetName(), Namespace: pod1.GetNamespace()}, scheduled1)).To(Succeed())
-
 			scheduled2 := &v1.Pod{}
 			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod2.GetName(), Namespace: pod2.GetNamespace()}, scheduled2)).To(Succeed())
-
-			fmt.Printf("scheduled1: %v\nscheduled2: %v\n", scheduled1, scheduled2)
+			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
 			node1 := &v1.Node{}
 			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled1.Spec.NodeName}, node1)).To(Succeed())
 			node2 := &v1.Node{}
 			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled2.Spec.NodeName}, node2)).To(Succeed())
-
-			fmt.Printf("node1: %v\n", node1)
-			fmt.Printf("node2: %v\n", node2)
-
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
 		})
 	})
