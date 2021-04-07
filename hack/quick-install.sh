@@ -31,7 +31,6 @@ EOF
 delete() {
   helm delete karpenter || true
   helm delete cert-manager --namespace cert-manager || true
-  helm delete kube-prometheus-stack --namespace monitoring || true
   kubectl delete namespace karpenter cert-manager monitoring || true
 }
 
@@ -40,7 +39,6 @@ delete() {
 # `helm delete <OLD_INSTALLATION>`
 apply() {
   helm repo add jetstack https://charts.jetstack.io
-  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
   helm repo add karpenter https://awslabs.github.io/karpenter/charts
   helm repo update
 
@@ -48,10 +46,6 @@ apply() {
     --version v1.2.0 \
     --create-namespace --namespace cert-manager \
     --set installCRDs=true \
-    --atomic
-  helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-    --version 13.7.1 \
-    --create-namespace --namespace monitoring \
     --atomic
   helm upgrade --install karpenter karpenter/karpenter \
     --version 0.2.0 \
