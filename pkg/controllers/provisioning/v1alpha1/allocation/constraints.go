@@ -69,6 +69,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 	for _, group := range groups {
 		result = append(result, group)
 	}
+	fmt.Printf("pod groups are: %v\n", result)
 	return result, nil
 }
 
