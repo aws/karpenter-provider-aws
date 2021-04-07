@@ -238,15 +238,14 @@ var _ = Describe("Allocation", func() {
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
 			pod1Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": randomdata.SillyName()},
+				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"},
 				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
 			pod2Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": randomdata.SillyName()},
+				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"},
 				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
 			pod1 := test.PodWith(pod1Options)
 			pod2 := test.PodWith(pod2Options)
-			ExpectCreatedWithStatus(env.Client, pod1)
-			ExpectCreatedWithStatus(env.Client, pod2)
+			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
