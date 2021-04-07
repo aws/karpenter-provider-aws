@@ -26,12 +26,12 @@ import (
 func (c *Capacity) Validate(ctx context.Context) error {
 	return functional.ValidateAll(
 		c.validateAllowedLabels,
-		c.validateCapacityLabel,
+		c.validateCapacityTypeLabel,
 		c.validateLaunchTemplateLabels,
 	)
 }
 
-func (c *Capacity) validateCapacityLabel() error {
+func (c *Capacity) validateCapacityTypeLabel() error {
 	value, ok := c.spec.Labels[capacityTypeLabel]
 	if !ok {
 		return nil
