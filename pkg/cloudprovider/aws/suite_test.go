@@ -266,7 +266,7 @@ var _ = Describe("Allocation", func() {
 					Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 				}
 			})
-			It("should not fail for unrestricted labels", func() {
+			It("should recognize well known labels", func() {
 				provisioner.Spec.Labels = map[string]string{
 					"node.k8s.aws/launch-template-version": randomdata.SillyName(),
 					"node.k8s.aws/launch-template-id":      "23",
