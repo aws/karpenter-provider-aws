@@ -30,6 +30,7 @@ var (
 	capacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
 	launchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
 	launchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
+	allowedLabels              = []string{capacityTypeLabel, launchTemplateIdLabel, launchTemplateVersionLabel}
 )
 
 // Constraints are AWS specific constraints

@@ -24,31 +24,41 @@ import (
 
 // Validate cloud provider specific components of the cluster spec
 func (c *Capacity) Validate(ctx context.Context) error {
-	return c.validateLabels()
+	return functional.ValidateAll(
+		c.validateAllowedLabels,
+		c.validateCapacityLabel,
+		c.validateLaunchTemplateLabels,
+	)
 }
 
-func (c *Capacity) validateLabels() error {
-	hasLaunchTemplateId := false
-	hasLaunchTemplateVersion := false
-	for key, value := range c.spec.Labels {
+func (c *Capacity) validateCapacityLabel() error {
+	value, ok := c.spec.Labels[capacityTypeLabel]
+	if !ok {
+		return nil
+	}
+	capacityTypes := []string{capacityTypeSpot, capacityTypeOnDemand}
+	if !functional.ContainsString(capacityTypes, value) {
+		return fmt.Errorf("%s must be one of %v", capacityTypeLabel, capacityTypes)
+	}
+	return nil
+}
+
+func (c *Capacity) validateAllowedLabels() error {
+	for key := range c.spec.Labels {
 		if strings.HasPrefix(key, nodeLabelPrefix) {
-			switch key {
-			case capacityTypeLabel:
-				capacityTypes := []string{capacityTypeSpot, capacityTypeOnDemand}
-				if !functional.ContainsString(capacityTypes, value) {
-					return fmt.Errorf("%s must be one of %v", key, capacityTypes)
-				}
-			case launchTemplateIdLabel:
-				hasLaunchTemplateId = true
-			case launchTemplateVersionLabel:
-				hasLaunchTemplateVersion = true
-			default:
+			if !functional.ContainsString(allowedLabels, key) {
 				return fmt.Errorf("%s is reserved for AWS cloud provider use", key)
 			}
 		}
 	}
-	if hasLaunchTemplateVersion && !hasLaunchTemplateId {
-		return fmt.Errorf("%s can only be specified with %s", launchTemplateVersionLabel, launchTemplateIdLabel)
+	return nil
+}
+
+func (c *Capacity) validateLaunchTemplateLabels() error {
+	if _, versionExists := c.spec.Labels[launchTemplateVersionLabel]; versionExists {
+		if _, bothExist := c.spec.Labels[launchTemplateIdLabel]; !bothExist {
+			return fmt.Errorf("%s can only be specified with %s", launchTemplateVersionLabel, launchTemplateIdLabel)
+		}
 	}
 	return nil
 }
