@@ -34,7 +34,7 @@ aws cloudformation deploy \
 ```
 
 ### Install Karpenter Controller and Dependencies
-Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for TLS certificates and [Prometheus](https://prometheus.io/) for metrics.
+Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for Webhook TLS certificates.
 
 ```bash
 ./hack/quick-install.sh
