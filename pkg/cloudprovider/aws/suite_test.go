@@ -266,7 +266,19 @@ var _ = Describe("Allocation", func() {
 					Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 				}
 			})
+			It("should not fail for unrestricted labels", func() {
+				provisioner.Spec.Labels = map[string]string{
+					"node.k8s.aws/launch-template-version": randomdata.SillyName(),
+					"node.k8s.aws/launch-template-id":      "23",
+				}
+				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+			})
+			It("should fail if only launch template version label present", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-version": randomdata.SillyName()}
+				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+			})
 		})
+
 		Context("Zones", func() {
 			It("should succeed if unspecified", func() {
 				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())

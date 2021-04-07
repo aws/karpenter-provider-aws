@@ -28,6 +28,8 @@ func (c *Capacity) Validate(ctx context.Context) error {
 }
 
 func (c *Capacity) validateLabels() error {
+	hasLaunchTemplateId := false
+	hasLaunchTemplateVersion := false
 	for key, value := range c.spec.Labels {
 		if strings.HasPrefix(key, nodeLabelPrefix) {
 			switch key {
@@ -36,10 +38,17 @@ func (c *Capacity) validateLabels() error {
 				if !functional.ContainsString(capacityTypes, value) {
 					return fmt.Errorf("%s must be one of %v", key, capacityTypes)
 				}
+			case launchTemplateIdLabel:
+				hasLaunchTemplateId = true
+			case launchTemplateVersionLabel:
+				hasLaunchTemplateVersion = true
 			default:
-				return fmt.Errorf("%s/* is reserved for AWS cloud provider use", nodeLabelPrefix)
+				return fmt.Errorf("%s is reserved for AWS cloud provider use", key)
 			}
 		}
+	}
+	if hasLaunchTemplateVersion && !hasLaunchTemplateId {
+		return fmt.Errorf("%s can only be specified with %s", launchTemplateVersionLabel, launchTemplateIdLabel)
 	}
 	return nil
 }
