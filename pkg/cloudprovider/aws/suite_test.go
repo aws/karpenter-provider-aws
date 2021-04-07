@@ -235,7 +235,7 @@ var _ = Describe("Allocation", func() {
 				),
 			)
 		})
-		It("should launch two instances for pods with different node selectors", func() {
+		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
 			pod1Options := test.PodOptions{
 				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": randomdata.SillyName()},
