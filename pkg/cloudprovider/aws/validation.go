@@ -45,10 +45,9 @@ func (c *Capacity) validateCapacityTypeLabel() error {
 
 func (c *Capacity) validateAllowedLabels() error {
 	for key := range c.spec.Labels {
-		if strings.HasPrefix(key, nodeLabelPrefix) {
-			if !functional.ContainsString(allowedLabels, key) {
-				return fmt.Errorf("%s is reserved for AWS cloud provider use", key)
-			}
+		if strings.HasPrefix(key, nodeLabelPrefix) &&
+			!functional.ContainsString(allowedLabels, key) {
+			return fmt.Errorf("%s is reserved for AWS cloud provider use", key)
 		}
 	}
 	return nil
