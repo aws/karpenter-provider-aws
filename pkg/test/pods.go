@@ -1,4 +1,4 @@
-package pods
+package test
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Options customizes a Pod.
-type Options struct {
+// PodOptions customizes a Pod.
+type PodOptions struct {
 	Name             string
 	Namespace        string
 	Image            string
@@ -22,7 +22,7 @@ type Options struct {
 	Conditions       []v1.PodCondition
 }
 
-func defaults(options Options) *v1.Pod {
+func defaults(options PodOptions) *v1.Pod {
 	if options.Name == "" {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
@@ -58,19 +58,19 @@ func defaults(options Options) *v1.Pod {
 
 // Pending creates a pending test pod with the minimal set of other
 // fields defaulted to something sane.
-func Pending() *v1.Pod {
-	return defaults(Options{})
+func PendingPod() *v1.Pod {
+	return defaults(PodOptions{})
 }
 
 // PendingWith creates a pending test pod with fields overridden by
 // options.
-func PendingWith(options Options) *v1.Pod {
-	return With(Pending(), options)
+func PendingPodWith(options PodOptions) *v1.Pod {
+	return PodWith(PendingPod(), options)
 }
 
 // With overrides, in-place, pod with any non-zero elements of
 // options. It returns the same pod simply for ease of use.
-func With(pod *v1.Pod, options Options) *v1.Pod {
+func PodWith(pod *v1.Pod, options PodOptions) *v1.Pod {
 	if err := mergo.Merge(pod, defaults(options), mergo.WithOverride); err != nil {
 		panic(fmt.Sprintf("unexpected error in test code: %v", err))
 	}

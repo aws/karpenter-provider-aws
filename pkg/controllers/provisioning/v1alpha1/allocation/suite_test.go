@@ -24,7 +24,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
-	"github.com/awslabs/karpenter/pkg/test/pods"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,7 +87,7 @@ var _ = Describe("Allocation", func() {
 
 	Context("Reconcilation", func() {
 		It("should provision nodes for unconstrained pods", func() {
-			ps := []*v1.Pod{pods.Pending(), pods.Pending()}
+			ps := []*v1.Pod{test.PendingPod(), test.PendingPod()}
 			for _, pod := range ps {
 				ExpectCreatedWithStatus(env.Client, pod)
 			}
@@ -107,42 +106,42 @@ var _ = Describe("Allocation", func() {
 		It("should provision nodes for pods with supported node selectors", func() {
 			coschedulable := []client.Object{
 				// Unconstrained
-				pods.Pending(),
+				test.PendingPod(),
 				// Constrained by provisioner
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ProvisionerNameLabelKey: provisioner.Name, v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace},
 				}),
 			}
 			schedulable := []client.Object{
 				// Constrained by zone
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by instanceType
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "test-instance-type-1"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by architecture
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "test-architecture-1"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by operating system
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "test-operating-system-1"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by arbitrary label
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{"foo": "bar"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ProvisionerNameLabelKey: "test", v1alpha1.ProvisionerNamespaceLabelKey: "test"},
 					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
@@ -175,33 +174,33 @@ var _ = Describe("Allocation", func() {
 			provisioner.Spec.Taints = []v1.Taint{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}}
 			schedulable := []client.Object{
 				// Tolerates with OpExists
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists}},
 					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Tolerates with OpEqual
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "test-value", Operator: v1.TolerationOpEqual}},
 					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			unschedulable := []client.Object{
 				// Missing toleration
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// key mismatch with OpExists
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}},
 					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// value mismatch with OpEqual
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "invalid", Operator: v1.TolerationOpEqual}},
 					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// key mismatch with OpEqual
-				pods.PendingWith(pods.Options{
+				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Value: "test-value", Operator: v1.TolerationOpEqual}},
 					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),

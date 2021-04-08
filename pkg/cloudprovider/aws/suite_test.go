@@ -35,7 +35,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
-	"github.com/awslabs/karpenter/pkg/test/pods"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -145,7 +144,7 @@ var _ = Describe("Allocation", func() {
 				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
 			}}
 			// Setup
-			pod := pods.Pending()
+			pod := test.PendingPod()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -179,7 +178,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := pods.Pending()
+			pod := test.PendingPod()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -210,7 +209,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := pods.PendingWith(pods.Options{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
+			pod := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -231,8 +230,8 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
-			pod1 := pods.PendingWith(pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
-			pod2 := pods.PendingWith(pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
+			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
+			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
