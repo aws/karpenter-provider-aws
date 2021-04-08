@@ -144,9 +144,7 @@ var _ = Describe("Allocation", func() {
 				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
 			}}
 			// Setup
-			pod := test.PodWith(test.PodOptions{
-				Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := test.PendingPod()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -180,9 +178,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PodWith(test.PodOptions{
-				Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := test.PendingPod()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -213,10 +209,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PodWith(test.PodOptions{
-				NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -237,14 +230,8 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
-			pod1Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
-			pod2Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
-			pod1 := test.PodWith(pod1Options)
-			pod2 := test.PodWith(pod2Options)
+			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
+			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
