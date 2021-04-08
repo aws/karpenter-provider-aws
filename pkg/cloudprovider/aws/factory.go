@@ -53,8 +53,7 @@ type Factory struct {
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
-	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
-	sess = withUserAgent(sess)
+	sess := withUserAgent(withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint}))))
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
 		ec2api: ec2api,
