@@ -87,8 +87,8 @@ var _ = Describe("Allocation", func() {
 
 	Context("Reconcilation", func() {
 		It("should provision nodes for unconstrained pods", func() {
-			ps := []*v1.Pod{test.PendingPod(), test.PendingPod()}
-			for _, pod := range ps {
+			pods := []*v1.Pod{test.PendingPod(), test.PendingPod()}
+			for _, pod := range pods {
 				ExpectCreatedWithStatus(env.Client, pod)
 			}
 			ExpectCreated(env.Client, provisioner)
@@ -97,7 +97,7 @@ var _ = Describe("Allocation", func() {
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
-			for _, object := range ps {
+			for _, object := range pods {
 				pod := v1.Pod{}
 				Expect(env.Client.Get(ctx, client.ObjectKey{Name: object.GetName(), Namespace: object.GetNamespace()}, &pod)).To(Succeed())
 				Expect(pod.Spec.NodeName).To(Equal(nodes.Items[0].Name))
