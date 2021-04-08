@@ -32,7 +32,7 @@ func defaults(options PodOptions) *v1.Pod {
 	if options.Image == "" {
 		options.Image = "k8s.gcr.io/pause"
 	}
-	if len(options.Conditions) < 1 {
+	if len(options.Conditions) == 0 {
 		options.Conditions = []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}
 	}
 	return &v1.Pod{
