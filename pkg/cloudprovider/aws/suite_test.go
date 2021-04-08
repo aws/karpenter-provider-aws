@@ -35,6 +35,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
+	"github.com/awslabs/karpenter/pkg/test/pods"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -144,9 +145,7 @@ var _ = Describe("Allocation", func() {
 				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
 			}}
 			// Setup
-			pod := test.PodWith(test.PodOptions{
-				Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := pods.Pending()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -180,9 +179,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PodWith(test.PodOptions{
-				Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := pods.Pending()
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -213,10 +210,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PodWith(test.PodOptions{
-				NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			})
+			pod := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -237,14 +231,8 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
-			pod1Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
-			pod2Options := test.PodOptions{
-				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"},
-				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
-			pod1 := test.PodWith(pod1Options)
-			pod2 := test.PodWith(pod2Options)
+			pod1 := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
+			pod2 := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)

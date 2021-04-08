@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
+	"github.com/awslabs/karpenter/pkg/test/pods"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +119,7 @@ var _ = Describe("Reallocation", func() {
 					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
-			pod := test.PodWith(test.PodOptions{
+			pod := pods.With(pods.Pending(), pods.Options{
 				Name:       strings.ToLower(randomdata.SillyName()),
 				Namespace:  provisioner.Namespace,
 				NodeName:   node.Name,
