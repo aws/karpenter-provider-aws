@@ -119,7 +119,7 @@ var _ = Describe("Reallocation", func() {
 					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
-			pod := pods.With(pods.Pending(), pods.Options{
+			pod := pods.PendingWith(pods.Options{
 				Name:       strings.ToLower(randomdata.SillyName()),
 				Namespace:  provisioner.Namespace,
 				NodeName:   node.Name,

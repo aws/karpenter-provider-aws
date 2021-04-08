@@ -210,7 +210,7 @@ var _ = Describe("Allocation", func() {
 			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
+			pod := pods.PendingWith(pods.Options{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
 			ExpectCreatedWithStatus(env.Client, pod)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
@@ -231,8 +231,8 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
-			pod1 := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
-			pod2 := pods.With(pods.Pending(), pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
+			pod1 := pods.PendingWith(pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
+			pod2 := pods.PendingWith(pods.Options{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
