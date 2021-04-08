@@ -147,8 +147,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
+			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
@@ -179,8 +179,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
+			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
@@ -208,8 +208,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
+			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
@@ -228,10 +228,10 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled1 := ExpectPodCreated(env.Client, pod1.GetName(), pod1.GetNamespace())
-			scheduled2 := ExpectPodCreated(env.Client, pod2.GetName(), pod2.GetNamespace())
-			ExpectNodeCreated(env.Client, scheduled1.Spec.NodeName)
-			ExpectNodeCreated(env.Client, scheduled2.Spec.NodeName)
+			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
+			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
+			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+			ExpectNodeExists(env.Client, scheduled2.Spec.NodeName)
 			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
 		})

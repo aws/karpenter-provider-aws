@@ -34,13 +34,13 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func ExpectPodCreated(c client.Client, name string, namespace string) *v1.Pod {
+func ExpectPodExists(c client.Client, name string, namespace string) *v1.Pod {
 	pod := &v1.Pod{}
 	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
 	return pod
 }
 
-func ExpectNodeCreated(c client.Client, name string) *v1.Node {
+func ExpectNodeExists(c client.Client, name string) *v1.Node {
 	node := &v1.Node{}
 	Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node

@@ -98,7 +98,7 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, object := range pods {
-				pod := ExpectPodCreated(env.Client, object.GetName(), object.GetNamespace())
+				pod := ExpectPodExists(env.Client, object.GetName(), object.GetNamespace())
 				Expect(pod.Spec.NodeName).To(Equal(nodes.Items[0].Name))
 			}
 		})
@@ -155,14 +155,14 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range append(schedulable, coschedulable...) {
-				scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
-				node := ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				node := ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 				for key, value := range scheduled.Spec.NodeSelector {
 					Expect(node.Labels[key]).To(Equal(value))
 				}
 			}
 			for _, pod := range unschedulable {
-				unscheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
 		})
@@ -203,11 +203,11 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, pod := range schedulable {
-				scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
-				ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				unscheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
 			}
 		})
