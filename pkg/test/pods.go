@@ -56,19 +56,19 @@ func defaults(options PodOptions) *v1.Pod {
 	}
 }
 
-// Pending creates a pending test pod with the minimal set of other
+// PendingPod creates a pending test pod with the minimal set of other
 // fields defaulted to something sane.
 func PendingPod() *v1.Pod {
 	return defaults(PodOptions{})
 }
 
-// PendingWith creates a pending test pod with fields overridden by
+// PendingPodWith creates a pending test pod with fields overridden by
 // options.
 func PendingPodWith(options PodOptions) *v1.Pod {
 	return PodWith(PendingPod(), options)
 }
 
-// With overrides, in-place, pod with any non-zero elements of
+// PodWith overrides, in-place, pod with any non-zero elements of
 // options. It returns the same pod simply for ease of use.
 func PodWith(pod *v1.Pod, options PodOptions) *v1.Pod {
 	if err := mergo.Merge(pod, defaults(options), mergo.WithOverride); err != nil {
