@@ -54,8 +54,7 @@ type Factory struct {
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
-	// add karpenter user-agent string to AWS session
-	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(fmt.Sprintf("karpenter-%s", project.Version)))
+	sess = withUserAgent(sess)
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
 		ec2api: ec2api,
@@ -104,5 +103,12 @@ func withRegion(sess *session.Session) *session.Session {
 	region, err := ec2metadata.New(sess).Region()
 	log.PanicIfError(err, "failed to call the metadata server's region API")
 	sess.Config.Region = aws.String(region)
+	return sess
+}
+
+// withUserAgent adds a karpenter specific user-agent string to AWS session
+func withUserAgent(sess *session.Session) *session.Session {
+	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
+	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
 	return sess
 }
