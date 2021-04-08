@@ -236,16 +236,12 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled1 := &v1.Pod{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod1.GetName(), Namespace: pod1.GetNamespace()}, scheduled1)).To(Succeed())
-			scheduled2 := &v1.Pod{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod2.GetName(), Namespace: pod2.GetNamespace()}, scheduled2)).To(Succeed())
-			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
-			node1 := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled1.Spec.NodeName}, node1)).To(Succeed())
-			node2 := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled2.Spec.NodeName}, node2)).To(Succeed())
+			scheduled1 := ExpectPodCreated(env.Client, pod1.GetName(), pod1.GetNamespace())
+			scheduled2 := ExpectPodCreated(env.Client, pod2.GetName(), pod2.GetNamespace())
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
+			ExpectNodeCreated(env.Client, scheduled1.Spec.NodeName)
+			ExpectNodeCreated(env.Client, scheduled2.Spec.NodeName)
+			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
 		})
 	})
 	Context("Validation", func() {
