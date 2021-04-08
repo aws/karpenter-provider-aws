@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Options customizes a Pod.
 type Options struct {
 	Name             string
 	Namespace        string
@@ -55,10 +56,14 @@ func defaults(options Options) *v1.Pod {
 	}
 }
 
+// Pending creates a pending test pod with the minimal set of other
+// fields defaulted to something sane.
 func Pending() *v1.Pod {
 	return defaults(Options{})
 }
 
+// PendingWith creates a pending test pod with fields overridden by
+// options.
 func PendingWith(options Options) *v1.Pod {
 	return With(Pending(), options)
 }
@@ -67,7 +72,7 @@ func PendingWith(options Options) *v1.Pod {
 // options. It returns the same pod simply for ease of use.
 func With(pod *v1.Pod, options Options) *v1.Pod {
 	if err := mergo.Merge(pod, defaults(options), mergo.WithOverride); err != nil {
-		panic(fmt.Sprintf("test code, should never happen: %v", err))
+		panic(fmt.Sprintf("unexpected error in test code: %v", err))
 	}
 	return pod
 }
