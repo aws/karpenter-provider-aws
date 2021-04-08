@@ -203,15 +203,12 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, pod := range schedulable {
-				scheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-				node := &v1.Node{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+				scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				unscheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
-				Expect(unscheduled.Spec.NodeName).To(Equal(""))
+				unscheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
 			}
 		})
 	})

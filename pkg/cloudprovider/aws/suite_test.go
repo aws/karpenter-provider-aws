@@ -26,7 +26,6 @@ import (
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	"github.com/Pallinder/go-randomdata"
@@ -38,7 +37,6 @@ import (
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -149,10 +147,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := &v1.Pod{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-			node := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
@@ -183,10 +179,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := &v1.Pod{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-			node := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
@@ -214,10 +208,8 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
-			scheduled := &v1.Pod{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-			node := &v1.Node{}
-			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+			scheduled := ExpectPodCreated(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeCreated(env.Client, scheduled.Spec.NodeName)
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
 			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
 				ContainElements(
