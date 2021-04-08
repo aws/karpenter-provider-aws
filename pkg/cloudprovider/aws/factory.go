@@ -13,11 +13,13 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -26,6 +28,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -51,6 +54,8 @@ type Factory struct {
 
 func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
+	// add karpenter user-agent string to AWS session
+	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(fmt.Sprintf("karpenter-%s", project.Version)))
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
 		ec2api: ec2api,
