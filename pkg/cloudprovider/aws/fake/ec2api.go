@@ -16,7 +16,9 @@ package fake
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -36,6 +38,7 @@ type EC2API struct {
 	WantErr                             error
 
 	CalledWithCreateFleetInput []ec2.CreateFleetInput
+	Instances                  []*ec2.Instance
 }
 
 func (a *EC2API) Reset() {
@@ -50,7 +53,13 @@ func (a *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 	if a.CreateFleetOutput != nil {
 		return a.CreateFleetOutput, nil
 	}
-	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{aws.String("test-instance")}}}}, nil
+	instance := &ec2.Instance{
+		InstanceId:     aws.String(randomdata.SillyName()),
+		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone")},
+		PrivateDnsName: aws.String(fmt.Sprintf("test-instance-%d.example.com", len(a.Instances))),
+	}
+	a.Instances = append(a.Instances, instance)
+	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil
 }
 
 func (a *EC2API) DescribeInstancesWithContext(context.Context, *ec2.DescribeInstancesInput, ...request.Option) (*ec2.DescribeInstancesOutput, error) {
@@ -61,11 +70,7 @@ func (a *EC2API) DescribeInstancesWithContext(context.Context, *ec2.DescribeInst
 		return a.DescribeInstancesOutput, nil
 	}
 	return &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{{
-			InstanceId:     aws.String("test-instance"),
-			PrivateDnsName: aws.String("test-private-dns-name"),
-			Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone")}},
-		}}},
+		Reservations: []*ec2.Reservation{{Instances: a.Instances}},
 	}, nil
 }
 

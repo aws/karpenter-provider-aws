@@ -235,6 +235,31 @@ var _ = Describe("Allocation", func() {
 				),
 			)
 		})
+		It("should launch separate instances for pods with different node selectors", func() {
+			// Setup
+			pod1Options := test.PodOptions{
+				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"},
+				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
+			pod2Options := test.PodOptions{
+				NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"},
+				Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
+			pod1 := test.PodWith(pod1Options)
+			pod2 := test.PodWith(pod2Options)
+			ExpectCreatedWithStatus(env.Client, pod1, pod2)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
+			// Assertions
+			scheduled1 := &v1.Pod{}
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod1.GetName(), Namespace: pod1.GetNamespace()}, scheduled1)).To(Succeed())
+			scheduled2 := &v1.Pod{}
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: pod2.GetName(), Namespace: pod2.GetNamespace()}, scheduled2)).To(Succeed())
+			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
+			node1 := &v1.Node{}
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled1.Spec.NodeName}, node1)).To(Succeed())
+			node2 := &v1.Node{}
+			Expect(env.Client.Get(context.Background(), client.ObjectKey{Name: scheduled2.Spec.NodeName}, node2)).To(Succeed())
+			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
+		})
 	})
 	Context("Validation", func() {
 		Context("ClusterSpec", func() {
