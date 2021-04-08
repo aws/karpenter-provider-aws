@@ -238,10 +238,10 @@ var _ = Describe("Allocation", func() {
 			// Assertions
 			scheduled1 := ExpectPodCreated(env.Client, pod1.GetName(), pod1.GetNamespace())
 			scheduled2 := ExpectPodCreated(env.Client, pod2.GetName(), pod2.GetNamespace())
-			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
 			ExpectNodeCreated(env.Client, scheduled1.Spec.NodeName)
 			ExpectNodeCreated(env.Client, scheduled2.Spec.NodeName)
 			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
+			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
 		})
 	})
 	Context("Validation", func() {
