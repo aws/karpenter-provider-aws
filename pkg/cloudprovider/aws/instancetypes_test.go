@@ -66,7 +66,7 @@ var _ = Describe("InstanceTypes", func() {
 
 			It("should return one m5.large supported in test-zone", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(len(instanceTypes)).Should(Equal(1))
+				Expect(instanceTypes).Should(HaveLen(1))
 				instanceType := instanceTypes[0]
 				Expect(instanceType.Name()).Should(Equal("m5.large"))
 				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
@@ -83,7 +83,7 @@ var _ = Describe("InstanceTypes", func() {
 
 			It("should return one m6g.large supported in test-zone", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(len(instanceTypes)).Should(Equal(1))
+				Expect(instanceTypes).Should(HaveLen(1))
 				instanceType := instanceTypes[0]
 				Expect(instanceType.Name()).Should(Equal("m6g.large"))
 				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
@@ -100,7 +100,7 @@ var _ = Describe("InstanceTypes", func() {
 
 			It("should not return any instance types", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(len(instanceTypes)).Should(Equal(0))
+				Expect(instanceTypes).Should(BeEmpty())
 			})
 		})
 
@@ -115,7 +115,7 @@ var _ = Describe("InstanceTypes", func() {
 
 			It("should return one m5.large supported in test-zone", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(len(instanceTypes)).Should(Equal(1))
+				Expect(instanceTypes).Should(HaveLen(1))
 				instanceType := instanceTypes[0]
 				Expect(instanceType.Name()).Should(Equal("m5.large"))
 				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
