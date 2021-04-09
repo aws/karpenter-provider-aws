@@ -19,6 +19,12 @@ import (
 	"runtime"
 )
 
+var (
+	// Version is the karpenter app version injected during compilation
+	// when using the Makefile
+	Version = "unspecified"
+)
+
 func RelativeToRoot(path string) string {
 	_, file, _, _ := runtime.Caller(0)
 	manifestsRoot := filepath.Join(filepath.Dir(file), "..", "..", "..")

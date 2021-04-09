@@ -1,9 +1,10 @@
-GOFLAGS ?= "-tags=${CLOUD_PROVIDER}"
-
 RELEASE_REPO ?= public.ecr.aws/b6u6q9h4
-RELEASE_VERSION ?= v0.2.0
+RELEASE_VERSION ?= $(shell git describe --tags --always --dirty)
 RELEASE_MANIFEST = releases/${CLOUD_PROVIDER}/manifest.yaml
 
+## Inject the app version into project.Version
+LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=${RELEASE_VERSION}"
+GOFLAGS ?= "-tags=${CLOUD_PROVIDER} ${LDFLAGS}"
 WITH_GOFLAGS = GOFLAGS=${GOFLAGS}
 WITH_RELEASE_REPO = KO_DOCKER_REPO=${RELEASE_REPO}
 
