@@ -222,6 +222,9 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
+			fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
+			}}
 			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
 			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
