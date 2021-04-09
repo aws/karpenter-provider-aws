@@ -100,7 +100,11 @@ func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnet
 	if e.DescribeSubnetsOutput != nil {
 		return e.DescribeSubnetsOutput, nil
 	}
-	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")}}}, nil
+	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
+		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
+		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
+		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
+	}}, nil
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.DescribeSecurityGroupsInput, ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
