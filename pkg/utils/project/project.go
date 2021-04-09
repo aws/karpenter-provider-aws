@@ -22,7 +22,7 @@ import (
 var (
 	// Version is the karpenter app version injected during compilation
 	// when using the Makefile
-	Version = "dev"
+	Version = "unspecified"
 )
 
 func RelativeToRoot(path string) string {
