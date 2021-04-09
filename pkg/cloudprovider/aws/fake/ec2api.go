@@ -43,6 +43,7 @@ type EC2API struct {
 
 func (a *EC2API) Reset() {
 	a.CalledWithCreateFleetInput = nil
+	a.Instances = nil
 }
 
 func (a *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFleetInput, options ...request.Option) (*ec2.CreateFleetOutput, error) {
