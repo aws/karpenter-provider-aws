@@ -130,8 +130,10 @@ var _ = Describe("InstanceTypes", func() {
 
 func getInstanceTypeProviderMocks(zones []string, instanceTypes []string) ec2iface.EC2API {
 	ec2api := &fake.EC2API{
-		DescribeInstanceTypesOutput:         &ec2.DescribeInstanceTypesOutput{},
-		DescribeInstanceTypeOfferingsOutput: &ec2.DescribeInstanceTypeOfferingsOutput{},
+		EC2Behavior: fake.EC2Behavior{
+			DescribeInstanceTypesOutput:         &ec2.DescribeInstanceTypesOutput{},
+			DescribeInstanceTypeOfferingsOutput: &ec2.DescribeInstanceTypeOfferingsOutput{},
+		},
 	}
 
 	for _, instanceType := range instanceTypes {

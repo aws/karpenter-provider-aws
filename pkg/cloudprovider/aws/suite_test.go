@@ -136,11 +136,6 @@ var _ = Describe("Allocation", func() {
 
 	Context("Reconciliation", func() {
 		It("should default to a cluster zone", func() {
-			fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
-				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
-			}}
 			// Setup
 			pod := test.PendingPod()
 			ExpectCreatedWithStatus(env.Client, pod)
@@ -167,11 +162,6 @@ var _ = Describe("Allocation", func() {
 				))
 		})
 		It("should default to a provisioner's zone", func() {
-			fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
-				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
-			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
 			pod := test.PendingPod()
@@ -196,11 +186,6 @@ var _ = Describe("Allocation", func() {
 			)
 		})
 		It("should allow pod to override default zone", func() {
-			fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")},
-				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b")},
-				{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c")},
-			}}
 			// Setup
 			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
 			pod := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
