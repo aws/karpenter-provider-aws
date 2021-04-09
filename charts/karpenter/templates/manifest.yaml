@@ -83,7 +83,7 @@ spec:
       serviceAccountName: karpenter
       containers:
         - name: manager
-          image: public.ecr.aws/b6u6q9h4/controller:v0.2.0@sha256:d624380aaf2d20f006196e3edf38a5e186dc6e84a7065c1ef66bf99a002da09d
+          image: public.ecr.aws/b6u6q9h4/controller:v0.2.1@sha256:60d43d76a2dba337238bec9bf79b58294774f7a367accc0f3fba0fcbd2878773
           resources:
             requests:
               cpu: 100m
@@ -106,65 +106,6 @@ spec:
           secret:
             defaultMode: 420
             secretName: karpenter-webhook-server-cert
-
----
-apiVersion: monitoring.coreos.com/v1
-kind: Prometheus
-metadata:
-  name: karpenter-monitor
-  namespace: karpenter
-spec:
-  replicas: 1
-  serviceMonitorSelector:
-    matchLabels:
-      control-plane: karpenter
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  labels:
-    control-plane: karpenter
-  name: karpenter-metrics-monitor
-  namespace: karpenter
-spec:
-  endpoints:
-    - path: /metrics
-      port: http
-      interval: 5s
-      scheme: http
-  selector:
-    matchLabels:
-      control-plane: karpenter
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: karpenter-metrics-reader
-rules:
-  - nonResourceURLs: ["/metrics"]
-    verbs: ["get"]
-  - apiGroups:
-      - ""
-    resources:
-      - services
-      - endpoints
-    verbs:
-      - get
-      - list
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: karpenter-metrics
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: karpenter-metrics-reader
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: karpenter
 
 ---
 apiVersion: apiextensions.k8s.io/v1
@@ -200,7 +141,7 @@ spec:
               description: ProvisionerSpec is the top level provisioner specification. Provisioners launch nodes in response to pods where status.conditions[type=unschedulable, status=true]. Node configuration is driven by through a combination of provisioner specification (defaults) and pod scheduling constraints (overrides). A single provisioner is capable of managing highly diverse capacity within a single cluster and in most cases, only one should be necessary. For advanced use cases like workload separation and sharding, it's possible to define multiple provisioners. These provisioners may have different defaults and can be specifically targeted by pods using pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
               properties:
                 architecture:
-                  description: Architecture constraints the underlying node architecture
+                  description: Architecture constrains the underlying node architecture
                   type: string
                 cluster:
                   description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
@@ -220,7 +161,7 @@ spec:
                     - name
                   type: object
                 instanceTypes:
-                  description: InstanceTypes constraints which instances types will be used for nodes launched by the Provisioner. If unspecified, supports all types. Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
+                  description: InstanceTypes constrains which instances types will be used for nodes launched by the Provisioner. If unspecified, it will support all types. Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
                   items:
                     type: string
                   type: array
@@ -230,7 +171,7 @@ spec:
                   description: Labels will be applied to every node launched by the Provisioner unless overriden by pod node selectors. Well known labels control provisioning behavior. Additional labels may be supported by your cloudprovider.
                   type: object
                 operatingSystem:
-                  description: OperatingSystem constrain the underlying node operating system
+                  description: OperatingSystem constrains the underlying node operating system
                   type: string
                 taints:
                   description: Taints will be applied to every node launched by the Provisioner. If specified, the provisioner will not provision nodes for pods that do not have matching tolerations.
