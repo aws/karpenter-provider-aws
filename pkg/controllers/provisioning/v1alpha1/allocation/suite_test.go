@@ -98,8 +98,7 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, object := range pods {
-				pod := v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: object.GetName(), Namespace: object.GetNamespace()}, &pod)).To(Succeed())
+				pod := ExpectPodExists(env.Client, object.GetName(), object.GetNamespace())
 				Expect(pod.Spec.NodeName).To(Equal(nodes.Items[0].Name))
 			}
 		})
@@ -156,17 +155,14 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range append(schedulable, coschedulable...) {
-				scheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-				node := &v1.Node{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				node := ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 				for key, value := range scheduled.Spec.NodeSelector {
 					Expect(node.Labels[key]).To(Equal(value))
 				}
 			}
 			for _, pod := range unschedulable {
-				unscheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
+				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
 		})
@@ -176,33 +172,26 @@ var _ = Describe("Allocation", func() {
 				// Tolerates with OpExists
 				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists}},
-					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Tolerates with OpEqual
 				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "test-value", Operator: v1.TolerationOpEqual}},
-					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			unschedulable := []client.Object{
 				// Missing toleration
-				test.PendingPodWith(test.PodOptions{
-					Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-				}),
+				test.PendingPod(),
 				// key mismatch with OpExists
 				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}},
-					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// value mismatch with OpEqual
 				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "invalid", Operator: v1.TolerationOpEqual}},
-					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// key mismatch with OpEqual
 				test.PendingPodWith(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Value: "test-value", Operator: v1.TolerationOpEqual}},
-					Conditions:  []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -214,15 +203,12 @@ var _ = Describe("Allocation", func() {
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
 			for _, pod := range schedulable {
-				scheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, scheduled)).To(Succeed())
-				node := &v1.Node{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: scheduled.Spec.NodeName}, node)).To(Succeed())
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				unscheduled := &v1.Pod{}
-				Expect(env.Client.Get(ctx, client.ObjectKey{Name: pod.GetName(), Namespace: pod.GetNamespace()}, unscheduled)).To(Succeed())
-				Expect(unscheduled.Spec.NodeName).To(Equal(""))
+				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
 			}
 		})
 	})
