@@ -89,7 +89,8 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(context.Context, *ec2.Descri
 		return e.DescribeLaunchTemplatesOutput, nil
 	}
 	return &ec2.DescribeLaunchTemplatesOutput{LaunchTemplates: []*ec2.LaunchTemplate{{
-		LaunchTemplateName: aws.String("test-launch-template"),
+		LaunchTemplateName: aws.String("test-launch-template-name"),
+		LaunchTemplateId:   aws.String("test-launch-template-id"),
 	}}}, nil
 }
 

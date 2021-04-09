@@ -61,18 +61,28 @@ func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplateDescriptor, error) {
+	// If the customer specified an id, just use that.
+	if desc := constraints.GetLaunchTemplate(); desc != nil {
+		return desc, nil
+	}
+
 	arch := utils.NormalizeArchitecture(constraints.Architecture)
 	name := launchTemplateName(cluster.Name, *arch)
+	version := "$Default"
+	result := &LaunchTemplateDescriptor{
+		Version: &version,
+	}
 	if launchTemplate, ok := p.cache.Get(name); ok {
-		return launchTemplate.(*ec2.LaunchTemplate), nil
+		result.Id = launchTemplate.(*ec2.LaunchTemplate).LaunchTemplateId
+		return result, nil
 	}
 	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, *arch)
 	if err != nil {
 		return nil, err
 	}
 	p.cache.Set(name, launchTemplate, CacheTTL)
-	return launchTemplate, nil
+	return result, nil
 }
 
 // TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
