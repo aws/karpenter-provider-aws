@@ -220,7 +220,7 @@ var _ = Describe("Allocation", func() {
 				),
 			)
 		})
-		FIt("should launch separate instances for pods with different node selectors", func() {
+		It("should launch separate instances for pods with different node selectors", func() {
 			// Setup
 			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
 			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
