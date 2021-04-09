@@ -62,7 +62,7 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 	}
 	instance := &ec2.Instance{
 		InstanceId:     aws.String(randomdata.SillyName()),
-		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone")},
+		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
 		PrivateDnsName: aws.String(fmt.Sprintf("test-instance-%d.example.com", len(e.Instances))),
 	}
 	e.Instances = append(e.Instances, instance)
@@ -100,7 +100,7 @@ func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnet
 	if e.DescribeSubnetsOutput != nil {
 		return e.DescribeSubnetsOutput, nil
 	}
-	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{{SubnetId: aws.String("test-subnet"), AvailabilityZone: aws.String("test-zone")}}}, nil
+	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a")}}}, nil
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.DescribeSecurityGroupsInput, ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
