@@ -1,5 +1,5 @@
 RELEASE_REPO ?= public.ecr.aws/b6u6q9h4
-RELEASE_VERSION ?= $(shell git describe --tags --always --dirty)
+RELEASE_VERSION ?= $(shell git describe --tags --always)
 RELEASE_MANIFEST = releases/${CLOUD_PROVIDER}/manifest.yaml
 
 ## Inject the app version into project.Version
