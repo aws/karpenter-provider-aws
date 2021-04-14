@@ -17,6 +17,7 @@ package allocation
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -80,12 +81,11 @@ func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.Re
 	}
 
 	// 2. filter DaemonSets to include those that will schedule on this node
-	podSpecs := []*v1.PodSpec{}
+	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		if scheduling.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
-			podSpecs = append(podSpecs, &daemonSet.Spec.Template.Spec)
+			pods = append(pods, &v1.Pod{Spec: daemonSet.Spec.Template.Spec})
 		}
 	}
-	resourcesTotal := resources.Merge(resources.ForPods(podSpecs...))
-	return v1.ResourceList{v1.ResourceCPU: *resourcesTotal.Cpu(), v1.ResourceMemory: *resourcesTotal.Memory()}, nil
+	return resources.RequestsForPods(pods...), nil
 }

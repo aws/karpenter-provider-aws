@@ -55,8 +55,8 @@ func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudpr
 
 	// 4. Compute Packing given the pods and instance types
 	instancePackings := c.packer.Pack(ctx, constraints.Pods, zonalInstanceTypes, cloudProviderConstraints)
+	zap.S().Debugf("Computed %d packing(s) for %d provisionable pod(s)", len(instancePackings), len(constraints.Pods))
 
-	zap.S().Debugf("Computed packings for %d pod(s) onto %d node(s)", len(constraints.Pods), len(instancePackings))
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, constraints)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template, %w", err)

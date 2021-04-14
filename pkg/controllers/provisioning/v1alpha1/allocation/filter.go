@@ -147,7 +147,7 @@ func (f *Filter) hasSupportedLabels(pod *v1.Pod, supportedLabels map[string][]st
 			continue
 		}
 		if !functional.ContainsString(supported, selected) {
-			err = multierr.Append(err, fmt.Errorf("unsupported value for label %s = %s", label, selected))
+			err = multierr.Append(err, fmt.Errorf("unsupported value for label %s=%s", label, selected))
 		}
 	}
 	return err

@@ -17,7 +17,7 @@ package packing
 import (
 	"fmt"
 
-	resourcesUtil "github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -29,16 +29,18 @@ type nodeCapacity struct {
 }
 
 func nodeCapacityFrom(instanceType *Instance) *nodeCapacity {
+	// The number of pods per node is calculated using the formula:
+	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+	podResources := *instanceType.NetworkInfo.MaximumNetworkInterfaces*(*instanceType.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 	return &nodeCapacity{
 		instanceType: instanceType,
 		total: v1.ResourceList{
-			v1.ResourceCPU:    resource.MustParse(fmt.Sprint(*instanceType.VCpuInfo.DefaultVCpus)),
-			v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", *instanceType.MemoryInfo.SizeInMiB)),
-			// The number of pods per node is calculated using the formula:
-			// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-			// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-			v1.ResourcePods: resource.MustParse(fmt.Sprint(
-				*instanceType.NetworkInfo.MaximumNetworkInterfaces*(*instanceType.NetworkInfo.Ipv4AddressesPerInterface-1) + 2)),
+			v1.ResourceCPU:      resource.MustParse(fmt.Sprint(*instanceType.VCpuInfo.DefaultVCpus)),
+			v1.ResourceMemory:   resource.MustParse(fmt.Sprintf("%dMi", *instanceType.MemoryInfo.SizeInMiB)),
+			resources.NvidiaGPU: resource.MustParse(fmt.Sprint(countNvidiaGPUs(instanceType))),
+			resources.AWSNeuron: resource.MustParse(fmt.Sprint(countAWSNeurons(instanceType))),
+			v1.ResourcePods:     resource.MustParse(fmt.Sprint(podResources)),
 		},
 	}
 }
@@ -47,20 +49,20 @@ func (nc *nodeCapacity) Copy() *nodeCapacity {
 	return &nodeCapacity{nc.instanceType, nc.reserved.DeepCopy(), nc.total.DeepCopy()}
 }
 
-func (nc *nodeCapacity) reserve(resources v1.ResourceList) bool {
-	targetUtilization := resourcesUtil.Merge(nc.reserved, resources)
-	// If pod fits reserve the capacity
-	if nc.total.Cpu().Cmp(*targetUtilization.Cpu()) >= 0 &&
-		nc.total.Memory().Cmp(*targetUtilization.Memory()) >= 0 &&
-		nc.total.Pods().Cmp(*targetUtilization.Pods()) >= 0 {
-		nc.reserved = targetUtilization
-		return true
+func (nc *nodeCapacity) reserve(requests v1.ResourceList) bool {
+	candidate := resources.Merge(nc.reserved, requests)
+	// If any candidate resource exceeds total, fail to reserve
+	for resourceName, quantity := range candidate {
+		if quantity.Cmp(nc.total[resourceName]) > 0 {
+			return false
+		}
 	}
-	return false
+	nc.reserved = candidate
+	return true
 }
 
-func (nc *nodeCapacity) reserveForPod(podSpec *v1.PodSpec) bool {
-	resources := resourcesUtil.ForPods(podSpec)
-	resources[v1.ResourcePods] = *resource.NewQuantity(1, resource.BinarySI)
-	return nc.reserve(resources)
+func (nc *nodeCapacity) reserveForPod(pod *v1.Pod) bool {
+	requests := resources.RequestsForPods(pod)
+	requests[v1.ResourcePods] = *resource.NewQuantity(1, resource.BinarySI)
+	return nc.reserve(requests)
 }

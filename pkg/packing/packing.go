@@ -75,7 +75,7 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instanceTypes []*Inst
 		packing, remainingPods = p.packWithLargestPod(remainingPods, nodeCapacities)
 		// checked all instance type and found no packing option
 		if len(packing.Pods) == 0 {
-			zap.S().Warnf("Failed to find instance type for pod %s/%s ", remainingPods[0].Namespace, remainingPods[0].Name)
+			zap.S().Warnf("Failed to find viable instance type for pod %s/%s ", remainingPods[0].Namespace, remainingPods[0].Name)
 			remainingPods = remainingPods[1:]
 			continue
 		}
@@ -140,7 +140,7 @@ func (*packer) packPodsForCapacity(capacity *nodeCapacity, pods []*v1.Pod) *pack
 	// start with the largest pod based on resources requested
 	result := &packingResult{}
 	for _, pod := range pods {
-		if ok := capacity.reserveForPod(&pod.Spec); ok {
+		if ok := capacity.reserveForPod(pod); ok {
 			result.packed = append(result.packed, pod)
 			continue
 		}
@@ -178,14 +178,42 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 
 // sortByResources sorts instance type packings by vcpus and memory resources
 func sortByResources(instances []*Instance) {
-	sort.Slice(instances, func(i, j int) bool {
-		// Euclidean distance from origin using vcpus and memory
-		// sqrt(vcpus[i]^2 + memoryInGiB[i]^2) < sqrt(vcpus[j]^2 + memoryInGiB[j]^2)
-		return math.Sqrt(
-			math.Pow(2, float64(*instances[i].VCpuInfo.DefaultVCpus))+
-				math.Pow(2, float64(*instances[i].MemoryInfo.SizeInMiB)/1024)) <
-			math.Sqrt(
-				math.Pow(2, float64(*instances[j].VCpuInfo.DefaultVCpus))+
-					math.Pow(2, float64(*instances[j].MemoryInfo.SizeInMiB)/1024))
-	})
+	sort.Slice(instances, func(i, j int) bool { return weightOf(instances[i]) < weightOf(instances[j]) })
+}
+
+func weightOf(instance *Instance) float64 {
+	return euclidean(
+		float64(*instance.VCpuInfo.DefaultVCpus),
+		float64(*instance.MemoryInfo.SizeInMiB/1024), // 1 gb = 1 cpu
+		float64(countNvidiaGPUs(instance))*1000,      // Heavily weigh gpus x 1000
+		float64(countAWSNeurons(instance))*1000,      // Heavily weigh neurons x1000
+	)
+}
+
+func euclidean(values ...float64) float64 {
+	sum := float64(0)
+	for _, value := range values {
+		sum += math.Pow(2, value)
+	}
+	return math.Pow(.5, sum)
+}
+
+func countNvidiaGPUs(instance *Instance) int64 {
+	count := int64(0)
+	if instance.GpuInfo != nil {
+		for _, gpu := range instance.GpuInfo.Gpus {
+			count += *gpu.Count
+		}
+	}
+	return count
+}
+
+func countAWSNeurons(instance *Instance) int64 {
+	count := int64(0)
+	if instance.InferenceAcceleratorInfo != nil {
+		for _, accelerator := range instance.InferenceAcceleratorInfo.Accelerators {
+			count += *accelerator.Count
+		}
+	}
+	return count
 }

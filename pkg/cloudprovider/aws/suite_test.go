@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
@@ -37,6 +38,8 @@ import (
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -219,6 +222,106 @@ var _ = Describe("Allocation", func() {
 			ExpectNodeExists(env.Client, scheduled2.Spec.NodeName)
 			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
+		})
+		It("should launch instances for Nvidia GPU resource requests", func() {
+			// Setup
+			pod1 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+				},
+			})
+			// Should pack onto same instance
+			pod2 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+				},
+			})
+			// Should pack onto a separate instance
+			pod3 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+				},
+			})
+			ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
+			// Assertions
+			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
+			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
+			scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
+			Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
+			Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
+			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+			ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
+				ContainElements(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("p3.8xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				),
+			)
+			Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
+				ContainElements(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("p3.8xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				),
+			)
+		})
+		It("should launch instances for AWS Neuron resource requests", func() {
+			// Setup
+			pod1 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+				},
+			})
+			// Should pack onto same instance
+			pod2 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+				},
+			})
+			// Should pack onto a separate instance
+			pod3 := test.PendingPodWith(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+				},
+			})
+			ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
+			// Assertions
+			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
+			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
+			scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
+			Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
+			Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
+			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+			ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
+				ContainElements(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("inf1.6xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				),
+			)
+			Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
+				ContainElements(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("inf1.6xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				),
+			)
 		})
 	})
 	Context("Validation", func() {

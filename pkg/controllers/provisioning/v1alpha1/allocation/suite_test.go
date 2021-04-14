@@ -25,7 +25,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
@@ -115,34 +117,28 @@ var _ = Describe("Allocation", func() {
 				// Constrained by zone
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by instanceType
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "test-instance-type-1"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by architecture
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "test-architecture-1"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by operating system
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "test-operating-system-1"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 				// Constrained by arbitrary label
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{"foo": "bar"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
 				test.PendingPodWith(test.PodOptions{
 					NodeSelector: map[string]string{v1alpha1.ProvisionerNameLabelKey: "test", v1alpha1.ProvisionerNamespaceLabelKey: "test"},
-					Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 				}),
 			}
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -210,6 +206,46 @@ var _ = Describe("Allocation", func() {
 				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
 			}
+		})
+		It("should account for daemonsets", func() {
+			daemonsets := []client.Object{
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{Name: "daemons", Namespace: "default"},
+					Spec: appsv1.DaemonSetSpec{
+						Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "test"}},
+						Template: v1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "test"}},
+							Spec: test.PendingPodWith(test.PodOptions{
+								ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+							}).Spec,
+						}},
+				},
+			}
+			schedulable := []client.Object{
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+				}),
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+				}),
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+				}),
+			}
+			ExpectCreatedWithStatus(env.Client, daemonsets...)
+			ExpectCreatedWithStatus(env.Client, schedulable...)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
+
+			nodes := &v1.NodeList{}
+			Expect(env.Client.List(ctx, nodes)).To(Succeed())
+			Expect(len(nodes.Items)).To(Equal(1))
+			for _, pod := range schedulable {
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
+			}
+			Expect(*nodes.Items[0].Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*nodes.Items[0].Status.Allocatable.Memory()).To(Equal(resource.MustParse("4000Mi")))
 		})
 	})
 })
