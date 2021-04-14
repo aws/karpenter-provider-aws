@@ -10,7 +10,7 @@ import (
 
 // Retryer implements the aws request.Retryer interface
 // and adds support for retrying ec2 InvalidInstanceID.NotFound
-// which can occurr when instances have recently been created
+// which can occur when instances have recently been created
 // and are not yet describe-able due to eventual consistency
 type Retryer struct {
 	baseRetryer request.Retryer
