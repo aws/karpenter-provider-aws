@@ -1,4 +1,5 @@
 bin/
+build/
 # Generated code coverage
 coverage.out
 coverage.html
