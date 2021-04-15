@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
@@ -53,7 +54,10 @@ type Factory struct {
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
-	sess := withUserAgent(withRegion(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint}))))
+	sess := withUserAgent(withRegion(session.Must(
+		session.NewSession(request.WithRetryer(
+			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
+			utils.NewRetryer())))))
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
 		ec2api: ec2api,

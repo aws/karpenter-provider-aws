@@ -17,13 +17,10 @@ package aws
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"go.uber.org/zap"
-	"gopkg.in/retry.v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,24 +32,14 @@ type NodeFactory struct {
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
 func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
-	// Backoff retry is necessary here because EC2's APIs are eventually
-	// consistent. In most cases, this call will only be made once.
-	// TODO Use https://docs.aws.amazon.com/sdk-for-go/api/aws/request/#WithRetryer
-	for attempt := retry.Start(retry.Exponential{
-		Initial:  1 * time.Second,
-		MaxDelay: 10 * time.Second,
-		Factor:   2, Jitter: true,
-	}, nil); attempt.Next(); {
-		describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
-		if err == nil {
-			return n.nodesFrom(describeInstancesOutput.Reservations), nil
-		}
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() != "InvalidInstanceID.NotFound" {
-			return nil, aerr
-		}
-		zap.S().Debugf("Retrying DescribeInstances due to eventual consistency: fleet created, but instances not yet found.")
+	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
+	if err == nil {
+		return n.nodesFrom(describeInstancesOutput.Reservations), nil
 	}
-	return nil, fmt.Errorf("failed to describe ec2 instances")
+	if aerr, ok := err.(awserr.Error); ok {
+		return nil, aerr
+	}
+	return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 }
 
 func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {

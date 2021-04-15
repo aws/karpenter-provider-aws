@@ -13,7 +13,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.16.0
-	gopkg.in/retry.v1 v1.0.3
 	k8s.io/api v0.19.7
 	k8s.io/apimachinery v0.19.7
 	k8s.io/client-go v0.19.7
