@@ -10,6 +10,32 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (04/15/21)
+## Attendees
+- Ellis Tarn
+- Nick Tran
+- Brandon Wagner
+- Guy Templeton
+- Elton Pinto
+- Elmiko
+
+## Announcements
+- Spot support checked in v0.2.1
+- GPU support in PR
+
+## Notes
+- Slack
+  - Need a slack channel to chat about Karpenter.
+  - Can we use Kubernetes slack? AWS Slack?
+- Skyscanner integration
+  - Guy to play around with Karpenter spot support in dev clusters.
+- Cluster API
+  - Potential cloud provider implementation
+  - Use MachineTemplates to determinine possible instances
+  - Create/Delete directly via Machine CRs
+  - Pass underlying cloud provider selection via node labels
+  - Need to make binpacking logic vendor neutral
+
 # Meeting notes (04/01/21)
 
 ## Attendees
@@ -26,8 +52,8 @@ Please contribute to our meeting notes by opening a PR.
 - Elmiko
 
 ## Announcements
- - Karpenter v0.2.0 released this week 
-    
+- Karpenter v0.2.0 released this week
+
 ## Notes
 - [BW] Working on Spot support in Karpenter
     - How does labeling works for spot instances in general?
