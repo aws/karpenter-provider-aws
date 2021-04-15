@@ -15,19 +15,24 @@ limitations under the License.
 package utils
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 )
 
-// NormalizeArchitecture translates architecture into an AWS-recognized architecture name
-func NormalizeArchitecture(architecture *string) *string {
-	if architecture == nil {
-		return nil
+var kubeToAWSArchitectures = map[string]string{
+	v1alpha1.ArchitectureAmd64: "x86_64",
+	v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
+}
+
+// EC2Architecture translates architecture into an AWS-recognized architecture name
+func EC2Architecture(architecture string) string {
+	return kubeToAWSArchitectures[architecture]
+}
+
+func KubeArchitecture(architecture string) string {
+	for kube, aws := range kubeToAWSArchitectures {
+		if architecture == aws {
+			return kube
+		}
 	}
-	switch *architecture {
-	case v1alpha1.ArchitectureAmd64:
-		return aws.String("x86_64")
-	default:
-		return architecture
-	}
+	return ""
 }

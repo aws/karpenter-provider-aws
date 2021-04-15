@@ -62,11 +62,15 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	if err != nil {
 		return nil, fmt.Errorf("getting supported instance types, %w", err)
 	}
+	instanceTypeNames := []string{}
+	for _, instanceType := range instanceTypes {
+		instanceTypeNames = append(instanceTypeNames, instanceType.Name())
+	}
 	supportedLabels := map[string][]string{
 		v1alpha1.ArchitectureLabelKey:    architectures,
 		v1alpha1.OperatingSystemLabelKey: operatingSystems,
 		v1alpha1.ZoneLabelKey:            zones,
-		v1alpha1.InstanceTypeLabelKey:    instanceTypes,
+		v1alpha1.InstanceTypeLabelKey:    instanceTypeNames,
 	}
 
 	// 2. Filter pods that aren't provisionable

@@ -130,7 +130,7 @@ var _ = Describe("Validation", func() {
 		})
 		It("should succeed if supported", func() {
 			provisioner.Spec.InstanceTypes = []string{
-				"test-instance-type-1",
+				"default-instance-type",
 			}
 			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
@@ -145,7 +145,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
-			provisioner.Spec.Architecture = ptr.String("test-architecture-1")
+			provisioner.Spec.Architecture = ptr.String("amd64")
 			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})
@@ -159,7 +159,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
-			provisioner.Spec.OperatingSystem = ptr.String("test-operating-system-1")
+			provisioner.Spec.OperatingSystem = ptr.String("linux")
 			Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
 		})
 	})

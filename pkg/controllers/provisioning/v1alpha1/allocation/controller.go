@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"go.uber.org/zap"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -33,6 +34,7 @@ type Controller struct {
 	filter        *Filter
 	binder        *Binder
 	constraints   *Constraints
+	packer        packing.Packer
 	cloudProvider cloudprovider.Factory
 }
 
@@ -61,6 +63,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		filter:        &Filter{kubeClient: kubeClient, cloudProvider: cloudProvider},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
 		constraints:   &Constraints{kubeClient: kubeClient},
+		packer:        packing.NewPacker(),
 	}
 }
 
@@ -78,26 +81,32 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
 	// 2. Group by constraints
-	groups, err := c.constraints.Group(ctx, provisioner, pods)
+	constraintGroups, err := c.constraints.Group(ctx, provisioner, pods)
 	if err != nil {
 		return fmt.Errorf("building constraint groups, %w", err)
 	}
 
-	// 3. Create capacity and packings
-	var packings []cloudprovider.Packing
-	for _, constraints := range groups {
-		packing, err := c.cloudProvider.CapacityFor(&provisioner.Spec).Create(ctx, constraints)
+	// 3. Binpack each group
+	capacity := c.cloudProvider.CapacityFor(&provisioner.Spec)
+	packings := []*cloudprovider.Packing{}
+	for _, constraintGroup := range constraintGroups {
+		instanceTypes, err := capacity.GetInstanceTypes(ctx)
 		if err != nil {
-			zap.S().Errorf("Continuing after failing to create capacity, %s", err.Error())
-		} else {
-			packings = append(packings, packing...)
+			return fmt.Errorf("getting instance types, %w", err)
 		}
+		packings = append(packings, c.packer.Pack(ctx, constraintGroup, instanceTypes)...)
+	}
+
+	// 4. Create packedNodes for packings
+	packedNodes, err := capacity.Create(ctx, packings)
+	if err != nil {
+		return fmt.Errorf("creating capacity, %w", err)
 	}
 
 	// 4. Bind pods to nodes
-	for _, packing := range packings {
-		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packing.Pods), packing.Node.Name)
-		if err := c.binder.Bind(ctx, packing.Node, packing.Pods); err != nil {
+	for _, packedNode := range packedNodes {
+		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
+		if err := c.binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}

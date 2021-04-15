@@ -15,8 +15,10 @@ limitations under the License.
 package packing
 
 import (
+	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/binpacking"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -34,12 +36,31 @@ type Result struct {
 	unpacked []*v1.Pod
 }
 
-func PackablesFrom(instanceTypes []cloudprovider.InstanceType, overhead v1.ResourceList) []*Packable {
+// PackablesFor creates viable packables for the provided constraints, excluding
+// those that can't fit resources or violate constraints.
+func PackablesFor(instanceTypes []cloudprovider.InstanceType, constraints *Constraints) []*Packable {
 	packables := []*Packable{}
 	for _, instanceType := range instanceTypes {
-		packable := PackableFrom(instanceType)
-		if ok := packable.reserve(resources.Merge(overhead, binpacking.CalculateKubeletOverhead(packable.total))); !ok {
+		packable := PackableFor(instanceType)
+		// 1. Filter viable instance types
+		if err := functional.ValidateAll(
+			func() error { return packable.validateZones(constraints) },
+			func() error { return packable.validateInstanceType(constraints) },
+			func() error { return packable.validateArchitecture(constraints) },
+			func() error { return packable.validateOperatingSystem(constraints) },
+			func() error { return packable.validateNvidiaGpus(constraints) },
+			func() error { return packable.validateAWSNeurons(constraints) },
+		); err != nil {
+			continue
+		}
+		// 2. Calculate Kubelet Overhead
+		if ok := packable.reserve(instanceType.Overhead()); !ok {
 			zap.S().Debugf("Excluding instance type %s because there are not enough resources for the kubelet overhead", packable.Name())
+			continue
+		}
+		// 3. Calculate Daemonset Overhead
+		if len(packable.Pack(constraints.Daemons).unpacked) > 0 {
+			zap.S().Debugf("Excluding instance type %s because there are not enough resources for daemons", packable.Name())
 			continue
 		}
 		packables = append(packables, packable)
@@ -47,27 +68,29 @@ func PackablesFrom(instanceTypes []cloudprovider.InstanceType, overhead v1.Resou
 	return packables
 }
 
-func PackableFrom(instance cloudprovider.InstanceType) *Packable {
+func PackableFor(i cloudprovider.InstanceType) *Packable {
 	return &Packable{
-		InstanceType: instance,
+		InstanceType: i,
 		total: v1.ResourceList{
-			v1.ResourceCPU:      *instance.CPU(),
-			v1.ResourceMemory:   *instance.Memory(),
-			resources.NvidiaGPU: *instance.NvidiaGPUs(),
-			resources.AWSNeuron: *instance.AWSNeurons(),
-			v1.ResourcePods:     *instance.Pods(),
+			v1.ResourceCPU:      *i.CPU(),
+			v1.ResourceMemory:   *i.Memory(),
+			resources.NvidiaGPU: *i.NvidiaGPUs(),
+			resources.AWSNeuron: *i.AWSNeurons(),
+			v1.ResourcePods:     *i.Pods(),
 		},
 	}
 }
 
+// Pack attempts to pack the pods into capacity, keeping track of previously
+// packed pods. If the capacity cannot fit the pod, they are set aside.
 func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	result := &Result{}
 	for _, pod := range pods {
-		if ok := p.reserveForPod(pod); ok {
+		if ok := p.reservePod(pod); ok {
 			result.packed = append(result.packed, pod)
 			continue
 		}
-		// if largest pod can't be packed try next node capacity
+		// if largest pod can't be packed, set it aside
 		if len(result.packed) == 0 {
 			result.unpacked = append(result.unpacked, pods...)
 			return result
@@ -89,8 +112,76 @@ func (p *Packable) reserve(requests v1.ResourceList) bool {
 	return true
 }
 
-func (p *Packable) reserveForPod(pod *v1.Pod) bool {
+func (p *Packable) reservePod(pod *v1.Pod) bool {
 	requests := resources.RequestsForPods(pod)
 	requests[v1.ResourcePods] = *resource.NewQuantity(1, resource.BinarySI)
 	return p.reserve(requests)
+}
+
+func (p *Packable) validateInstanceType(constraints *Constraints) error {
+	if len(constraints.InstanceTypes) == 0 {
+		return nil
+	}
+	if !functional.ContainsString(constraints.InstanceTypes, p.Name()) {
+		return fmt.Errorf("instance type %s is not in %v", p.Name(), constraints.InstanceTypes)
+	}
+	return nil
+}
+
+func (p *Packable) validateArchitecture(constraints *Constraints) error {
+	if constraints.Architecture == nil {
+		return nil
+	}
+	if !functional.ContainsString(p.Architectures(), *constraints.Architecture) {
+		return fmt.Errorf("architecture %s is not in %v", *constraints.Architecture, p.Architectures())
+	}
+	return nil
+}
+
+func (p *Packable) validateOperatingSystem(constraints *Constraints) error {
+	if constraints.OperatingSystem == nil {
+		return nil
+	}
+	if !functional.ContainsString(p.OperatingSystems(), *constraints.OperatingSystem) {
+		return fmt.Errorf("operating system %s is not in %v", *constraints.OperatingSystem, p.OperatingSystems())
+	}
+	return nil
+}
+
+func (p *Packable) validateZones(constraints *Constraints) error {
+	if len(constraints.Zones) == 0 {
+		return nil
+	}
+	if len(functional.IntersectStringSlice(constraints.Zones, p.Zones())) == 0 {
+		return fmt.Errorf("zones %v are not in %v", constraints.Zones, p.Zones())
+	}
+	return nil
+}
+
+func (p *Packable) validateNvidiaGpus(constraints *Constraints) error {
+	if p.InstanceType.NvidiaGPUs().IsZero() {
+		return nil
+	}
+	for _, pod := range constraints.Pods {
+		for _, container := range pod.Spec.Containers {
+			if _, ok := container.Resources.Requests[resources.NvidiaGPU]; ok {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("nvidia gpu is not required")
+}
+
+func (p *Packable) validateAWSNeurons(constraints *Constraints) error {
+	if p.InstanceType.NvidiaGPUs().IsZero() {
+		return nil
+	}
+	for _, pod := range constraints.Pods {
+		for _, container := range pod.Spec.Containers {
+			if _, ok := container.Resources.Requests[resources.NvidiaGPU]; ok {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("aws neuron is not required")
 }

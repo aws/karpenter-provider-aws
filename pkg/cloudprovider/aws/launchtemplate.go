@@ -61,7 +61,7 @@ func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints *Constraints) (*LaunchTemplate, error) {
 	// If the customer specified a launch template then just use it
 	if result := constraints.GetLaunchTemplate(); result != nil {
 		return result, nil
@@ -69,8 +69,8 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 
 	// See if we have a cached copy of the default one first, to avoid
 	// making an API call to EC2
-	arch := utils.NormalizeArchitecture(constraints.Architecture)
-	name := launchTemplateName(cluster.Name, *arch)
+	arch := utils.EC2Architecture(aws.StringValue(constraints.Architecture))
+	name := launchTemplateName(cluster.Name, arch)
 	result := &LaunchTemplate{
 		Version: aws.String(defaultLaunchTemplateVersion),
 	}
@@ -80,7 +80,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 	}
 
 	// Call EC2 to get launch template, creating if necessary
-	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, *arch)
+	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, arch)
 	if err != nil {
 		return nil, err
 	}

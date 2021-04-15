@@ -120,15 +120,15 @@ var _ = Describe("Allocation", func() {
 				}),
 				// Constrained by instanceType
 				test.PendingPodWith(test.PodOptions{
-					NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "test-instance-type-1"},
+					NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "default-instance-type"},
 				}),
 				// Constrained by architecture
 				test.PendingPodWith(test.PodOptions{
-					NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "test-architecture-1"},
+					NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "arm64"},
 				}),
 				// Constrained by operating system
 				test.PendingPodWith(test.PodOptions{
-					NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "test-operating-system-1"},
+					NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "windows"},
 				}),
 				// Constrained by arbitrary label
 				test.PendingPodWith(test.PodOptions{
@@ -216,20 +216,20 @@ var _ = Describe("Allocation", func() {
 						Template: v1.PodTemplateSpec{
 							ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "test"}},
 							Spec: test.PendingPodWith(test.PodOptions{
-								ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+								ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 							}).Spec,
 						}},
 				},
 			}
 			schedulable := []client.Object{
 				test.PendingPodWith(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
 				test.PendingPodWith(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
 				test.PendingPodWith(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1000Mi")}},
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
 			}
 			ExpectCreatedWithStatus(env.Client, daemonsets...)
@@ -245,7 +245,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			Expect(*nodes.Items[0].Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
-			Expect(*nodes.Items[0].Status.Allocatable.Memory()).To(Equal(resource.MustParse("4000Mi")))
+			Expect(*nodes.Items[0].Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 	})
 })

@@ -36,7 +36,6 @@ const (
 
 type InstanceProvider struct {
 	ec2api ec2iface.EC2API
-	vpc    *VPCProvider
 }
 
 // Create an instance given the constraints.

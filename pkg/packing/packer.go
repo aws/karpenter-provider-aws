@@ -19,25 +19,30 @@ import (
 	"math"
 	"sort"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
-	"github.com/awslabs/karpenter/pkg/utils/binpacking"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+// Constraints for an efficient binpacking solution of pods onto nodes, given
+// overhead and node constraints.
+type Constraints struct {
+	*v1alpha1.Constraints
+	// Pods is a list of equivalently schedulable pods to be binpacked.
+	Pods []*v1.Pod
+	// Daemons resources per node.
+	Daemons []*v1.Pod
+}
+
 type packer struct{}
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
-	Pack(context.Context, []*v1.Pod, []cloudprovider.InstanceType, *cloudprovider.Constraints) []*Packing
-}
-
-// Packing contains a list of pods that can be placed on any of InstanceType options
-type Packing struct {
-	Pods                []*v1.Pod
-	InstanceTypeOptions []cloudprovider.InstanceType
+	Pack(context.Context, *Constraints, []cloudprovider.InstanceType) []*cloudprovider.Packing
 }
 
 // NewPacker returns a Packer implementation
@@ -51,15 +56,15 @@ func NewPacker() Packer {
 // Pods provided are all schedulable in the same zone as tightly as possible.
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instances []cloudprovider.InstanceType, constraints *cloudprovider.Constraints) []*Packing {
+func (p *packer) Pack(ctx context.Context, constraints *Constraints, instances []cloudprovider.InstanceType) []*cloudprovider.Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
-	sort.Sort(sort.Reverse(binpacking.ByResourcesRequested{SortablePods: pods}))
-	var packings []*Packing
-	var packing *Packing
-	remainingPods := pods
+	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: constraints.Pods}))
+	var packings []*cloudprovider.Packing
+	var packing *cloudprovider.Packing
+	remainingPods := constraints.Pods
 	for len(remainingPods) > 0 {
-		packing, remainingPods = p.packWithLargestPod(remainingPods, instances, constraints)
+		packing, remainingPods = p.packWithLargestPod(remainingPods, constraints, instances)
 		// checked all instance types and found no packing option
 		if len(packing.Pods) == 0 {
 			zap.S().Warnf("Failed to compute packing for pod(s) %v with instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), instanceTypeNames(instances))
@@ -75,11 +80,11 @@ func (p *packer) Pack(ctx context.Context, pods []*v1.Pod, instances []cloudprov
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, instances []cloudprovider.InstanceType, constraints *cloudprovider.Constraints) (*Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, constraints *Constraints, instances []cloudprovider.InstanceType) (*cloudprovider.Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
-	for _, packable := range PackablesFrom(instances, constraints.Overhead) {
+	for _, packable := range PackablesFor(instances, constraints) {
 		// check how many pods we can fit with the available capacity
 		result := packable.Pack(unpackedPods)
 		if len(result.packed) == 0 {
@@ -98,7 +103,7 @@ func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, instances []cloudpro
 		}
 	}
 	sortByResources(bestInstances)
-	return &Packing{Pods: bestPackedPods, InstanceTypeOptions: bestInstances}, remainingPods
+	return &cloudprovider.Packing{Pods: bestPackedPods, Constraints: constraints.Constraints, InstanceTypeOptions: bestInstances}, remainingPods
 }
 
 func (*packer) podsMatch(first, second []*v1.Pod) bool {
@@ -156,4 +161,26 @@ func instanceTypeNames(instanceTypes []cloudprovider.InstanceType) []string {
 		names = append(names, instanceType.Name())
 	}
 	return names
+}
+
+type SortablePods []*v1.Pod
+
+func (pods SortablePods) Len() int {
+	return len(pods)
+}
+
+func (pods SortablePods) Swap(i, j int) {
+	pods[i], pods[j] = pods[j], pods[i]
+}
+
+type ByResourcesRequested struct{ SortablePods }
+
+func (r ByResourcesRequested) Less(a, b int) bool {
+	resourcePodA := resources.RequestsForPods(r.SortablePods[a])
+	resourcePodB := resources.RequestsForPods(r.SortablePods[b])
+	if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
+		// check for memory
+		return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == -1
+	}
+	return resourcePodA.Cpu().Cmp(*resourcePodB.Cpu()) == -1
 }
