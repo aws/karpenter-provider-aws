@@ -35,6 +35,9 @@ type ProvisionerSpec struct {
 	Cluster *ClusterSpec `json:"cluster,omitempty"`
 	// Constraints applied to nodes created by the provisioner
 	Constraints `json:",inline"`
+	// TTLSeconds determines how long to wait before attempting to terminate a node.
+	// +optional
+	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
 }
 
 // ClusterSpec configures the cluster that the provisioner operates against. If
@@ -74,9 +77,6 @@ type Constraints struct {
 	// Cannot be specified if label "node.kubernetes.io/instance-type" is specified.
 	// +optional
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
-	// TTLSeconds determines how long to wait before attempting to terminate a node.
-	// +optional
-	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
 	// Architecture constrains the underlying node architecture
 	// +optional
 	Architecture *string `json:"architecture,omitempty"`
