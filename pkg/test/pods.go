@@ -14,9 +14,10 @@ import (
 type PodOptions struct {
 	Name             string
 	Namespace        string
+	OwnerReferences  []metav1.OwnerReference
 	Image            string
 	NodeName         string
-	ResourceRequests v1.ResourceList
+	ResourceRequirements v1.ResourceRequirements
 	NodeSelector     map[string]string
 	Tolerations      []v1.Toleration
 	Conditions       []v1.PodCondition
@@ -37,8 +38,9 @@ func defaults(options PodOptions) *v1.Pod {
 	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      options.Name,
-			Namespace: options.Namespace,
+			Name:            options.Name,
+			Namespace:       options.Namespace,
+			OwnerReferences: options.OwnerReferences,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: options.NodeSelector,
@@ -46,9 +48,7 @@ func defaults(options PodOptions) *v1.Pod {
 			Containers: []v1.Container{{
 				Name:  options.Name,
 				Image: options.Image,
-				Resources: v1.ResourceRequirements{
-					Requests: options.ResourceRequests,
-				},
+				Resources: options.ResourceRequirements,
 			}},
 			NodeName: options.NodeName,
 		},

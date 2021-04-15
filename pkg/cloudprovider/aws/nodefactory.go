@@ -32,6 +32,10 @@ type NodeFactory struct {
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
 func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
+	// EC2 will return all instances if unspecified, so we must short circuit
+	if len(instanceIDs) == 0 {
+		return nil, nil
+	}
 	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
 	if err == nil {
 		return n.nodesFrom(describeInstancesOutput.Reservations), nil

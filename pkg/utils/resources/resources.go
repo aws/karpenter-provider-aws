@@ -14,31 +14,35 @@ limitations under the License.
 
 package resources
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+)
 
-func Merge(resources ...v1.ResourceList) v1.ResourceList {
-	result := v1.ResourceList{}
-	cpu := result.Cpu()
-	memory := result.Memory()
-	pods := result.Pods()
-	for _, resource := range resources {
-		cpu.Add(resource.Cpu().DeepCopy())
-		memory.Add(resource.Memory().DeepCopy())
-		pods.Add(resource.Pods().DeepCopy())
-	}
-	result[v1.ResourceCPU] = *cpu
-	result[v1.ResourceMemory] = *memory
-	result[v1.ResourcePods] = *pods
-	return result
-}
+const (
+	NvidiaGPU = "nvidia.com/gpu"
+	AWSNeuron = "aws.amazon.com/neuron"
+)
 
-// ForPods returns the total resources of a variadic list of pods.
-func ForPods(pods ...*v1.PodSpec) v1.ResourceList {
+// RequestsForPodSpecs returns the total resources of a variadic list of podspecs.
+func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	resources := []v1.ResourceList{}
 	for _, pod := range pods {
-		for _, container := range pod.Containers {
+		for _, container := range pod.Spec.Containers {
 			resources = append(resources, container.Resources.Requests)
 		}
 	}
 	return Merge(resources...)
+}
+
+// Merge the resources from the variadic into a single v1.ResourceList
+func Merge(resources ...v1.ResourceList) v1.ResourceList {
+	result := v1.ResourceList{}
+	for _, resourceList := range resources {
+		for resourceName, quantity := range resourceList {
+			current := result[resourceName]
+			current.Add(quantity)
+			result[resourceName] = current
+		}
+	}
+	return result
 }

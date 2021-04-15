@@ -9,6 +9,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/utils/log"
@@ -45,8 +46,11 @@ func main() {
 	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
 	flag.Parse()
-
-	log.Setup(controllerruntimezap.UseDevMode(options.EnableVerboseLogging), controllerruntimezap.ConsoleEncoder())
+	log.Setup(
+		controllerruntimezap.UseDevMode(options.EnableVerboseLogging),
+		controllerruntimezap.ConsoleEncoder(),
+		controllerruntimezap.StacktraceLevel(zapcore.DPanicLevel),
+	)
 	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
 		LeaderElection:     true,
 		LeaderElectionID:   "karpenter-leader-election",

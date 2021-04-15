@@ -33,8 +33,8 @@ func (pods SortablePods) Swap(i, j int) {
 type ByResourcesRequested struct{ SortablePods }
 
 func (r ByResourcesRequested) Less(a, b int) bool {
-	resourcePodA := resources.ForPods(&r.SortablePods[a].Spec)
-	resourcePodB := resources.ForPods(&r.SortablePods[b].Spec)
+	resourcePodA := resources.RequestsForPods(r.SortablePods[a])
+	resourcePodB := resources.RequestsForPods(r.SortablePods[b])
 	if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
 		// check for memory
 		return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == -1

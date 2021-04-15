@@ -21,6 +21,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,7 @@ type Capacity struct {
 
 func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
 	name := strings.ToLower(randomdata.SillyName())
+	requests := resources.Merge(resources.RequestsForPods(constraints.Pods...), constraints.Overhead)
 	return []cloudprovider.Packing{{
 		Node: &v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
@@ -42,11 +44,11 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 				Taints:     constraints.Taints,
 			},
 			Status: v1.NodeStatus{
+				// Right sized the instance
 				Allocatable: v1.ResourceList{
-					// The (fake) mythical mega-machine
 					v1.ResourcePods:   resource.MustParse("1000000"),
-					v1.ResourceCPU:    resource.MustParse("1000000"),
-					v1.ResourceMemory: resource.MustParse("1000000Gi"),
+					v1.ResourceCPU:    *requests.Cpu(),
+					v1.ResourceMemory: *requests.Memory(),
 				},
 			},
 		},

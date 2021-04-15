@@ -181,6 +181,57 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 					Ipv4AddressesPerInterface: aws.Int64(60),
 				},
 			},
+			{
+				InstanceType:                  aws.String("p3.8xlarge"),
+				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(32),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(249856),
+				},
+				GpuInfo: &ec2.GpuInfo{
+					Gpus: []*ec2.GpuDeviceInfo{{
+						Manufacturer: aws.String("NVIDIA"),
+						Count:        aws.Int64(4),
+					}},
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
+			{
+				InstanceType:                  aws.String("inf1.6xlarge"),
+				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(24),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(49152),
+				},
+				InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
+					Accelerators: []*ec2.InferenceDeviceInfo{{
+						Manufacturer: aws.String("AWS"),
+						Count: aws.Int64(4),
+				}}},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
 		},
 	}, false)
 	return nil
@@ -222,6 +273,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Conte
 			},
 			{
 				InstanceType: aws.String("m5.8xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("inf1.6xlarge"),
 				Location:     aws.String("test-zone-1a"),
 			},
 		},
