@@ -9,13 +9,13 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -46,6 +46,7 @@ func main() {
 	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
 	flag.Parse()
+
 	log.Setup(
 		controllerruntimezap.UseDevMode(options.EnableVerboseLogging),
 		controllerruntimezap.ConsoleEncoder(),
