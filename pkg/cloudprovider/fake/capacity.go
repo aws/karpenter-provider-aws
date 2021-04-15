@@ -44,9 +44,9 @@ func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constr
 				Taints:     constraints.Taints,
 			},
 			Status: v1.NodeStatus{
-				// Right size the instance
+				// Right sized the instance
 				Allocatable: v1.ResourceList{
-					v1.ResourcePods:   resource.MustParse(fmt.Sprint(len(constraints.Pods) + 2)),
+					v1.ResourcePods:   resource.MustParse("1000000"),
 					v1.ResourceCPU:    *requests.Cpu(),
 					v1.ResourceMemory: *requests.Memory(),
 				},

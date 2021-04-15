@@ -193,9 +193,9 @@ func weightOf(instance *Instance) float64 {
 func euclidean(values ...float64) float64 {
 	sum := float64(0)
 	for _, value := range values {
-		sum += math.Pow(2, value)
+		sum += math.Pow(value, 2)
 	}
-	return math.Pow(.5, sum)
+	return math.Pow(sum, .5)
 }
 
 func countNvidiaGPUs(instance *Instance) int64 {
