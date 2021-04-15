@@ -26,15 +26,15 @@ import (
 
 // PodOptions customizes a Pod.
 type PodOptions struct {
-	Name             string
-	Namespace        string
-	OwnerReferences  []metav1.OwnerReference
-	Image            string
-	NodeName         string
+	Name                 string
+	Namespace            string
+	OwnerReferences      []metav1.OwnerReference
+	Image                string
+	NodeName             string
 	ResourceRequirements v1.ResourceRequirements
-	NodeSelector     map[string]string
-	Tolerations      []v1.Toleration
-	Conditions       []v1.PodCondition
+	NodeSelector         map[string]string
+	Tolerations          []v1.Toleration
+	Conditions           []v1.PodCondition
 }
 
 func defaults(options PodOptions) *v1.Pod {
@@ -60,8 +60,8 @@ func defaults(options PodOptions) *v1.Pod {
 			NodeSelector: options.NodeSelector,
 			Tolerations:  options.Tolerations,
 			Containers: []v1.Container{{
-				Name:  options.Name,
-				Image: options.Image,
+				Name:      options.Name,
+				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
 			NodeName: options.NodeName,

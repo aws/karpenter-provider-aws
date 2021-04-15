@@ -16,6 +16,7 @@ package resources
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -45,4 +46,10 @@ func Merge(resources ...v1.ResourceList) v1.ResourceList {
 		}
 	}
 	return result
+}
+
+// Quantity parses the string value into a *Quantity
+func Quantity(value string) *resource.Quantity {
+	r := resource.MustParse(value)
+	return &r
 }

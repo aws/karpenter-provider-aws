@@ -73,10 +73,10 @@ var (
 
 // refer - https://github.com/awslabs/amazon-eks-ami/blob/ff690788dfaf399e6919eebb59371ee923617df4/files/bootstrap.sh#L183-L194
 // refer - https://github.com/awslabs/amazon-eks-ami/pull/419#issuecomment-609985305
-func CalculateKubeletOverhead(nodeCapacity v1.ResourceList) v1.ResourceList {
+func CalculateKubeletOverhead(resources v1.ResourceList) v1.ResourceList {
 	overhead := v1.ResourceList{}
-	nodeCPU := nodeCapacity.Cpu().MilliValue()
-	numPods := nodeCapacity.Pods().Value()
+	nodeCPU := resources.Cpu().MilliValue()
+	numPods := resources.Pods().Value()
 	kubeletCPU := int64(0)
 	for _, cpuPercentRange := range cpuPercentRanges {
 		if nodeCPU >= cpuPercentRange.start {

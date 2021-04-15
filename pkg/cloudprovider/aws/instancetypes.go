@@ -21,13 +21,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
-	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -47,25 +48,31 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 }
 
 // Get instance types that are availble per availability zone
-func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints Constraints) ([]*packing.Instance, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints Constraints) ([]cloudprovider.InstanceType, error) {
 	zones := []string{}
 	for zone := range zonalSubnetOptions {
 		zones = append(zones, zone)
 	}
 
-	var supportedInstanceTypes []*packing.Instance
-	if instanceTypes, ok := p.cache.Get(allInstanceTypesKey); ok {
-		supportedInstanceTypes = instanceTypes.([]*packing.Instance)
+	var instanceTypes []*InstanceType
+	if cached, ok := p.cache.Get(allInstanceTypesKey); ok {
+		instanceTypes = cached.([]*InstanceType)
 	} else {
 		var err error
-		supportedInstanceTypes, err = p.getZonalInstanceTypes(ctx)
+		instanceTypes, err = p.getZonalInstanceTypes(ctx)
 		if err != nil {
 			return nil, err
 		}
-		p.cache.SetDefault(allInstanceTypesKey, supportedInstanceTypes)
-		zap.S().Debugf("Successfully discovered %d EC2 instance types", len(supportedInstanceTypes))
+		p.cache.SetDefault(allInstanceTypesKey, instanceTypes)
+		zap.S().Debugf("Successfully discovered %d EC2 instance types", len(instanceTypes))
 	}
-	return p.filterFrom(supportedInstanceTypes, constraints, zones), nil
+
+	// Filter by constraints and zones
+	constrainedInstanceTypes := []cloudprovider.InstanceType{}
+	for _, instanceType := range p.filterFrom(instanceTypes, constraints, zones) {
+		constrainedInstanceTypes = append(constrainedInstanceTypes, instanceType)
+	}
+	return constrainedInstanceTypes, nil
 }
 
 // GetAllInstanceTypeNames returns all instance type names without filtering based on constraints
@@ -76,12 +83,12 @@ func (p *InstanceTypeProvider) GetAllInstanceTypeNames(ctx context.Context) ([]s
 	}
 	instanceTypeNames := []string{}
 	for _, instanceType := range supportedInstanceTypes {
-		instanceTypeNames = append(instanceTypeNames, *instanceType.InstanceType)
+		instanceTypeNames = append(instanceTypeNames, instanceType.Name())
 	}
 	return instanceTypeNames, nil
 }
 
-func (p *InstanceTypeProvider) getZonalInstanceTypes(ctx context.Context) ([]*packing.Instance, error) {
+func (p *InstanceTypeProvider) getZonalInstanceTypes(ctx context.Context) ([]*InstanceType, error) {
 	instanceTypes, err := p.getAllInstanceTypes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving all instance types, %w", err)
@@ -103,18 +110,18 @@ func (p *InstanceTypeProvider) getZonalInstanceTypes(ctx context.Context) ([]*pa
 	}
 
 	// aggregate supported zones into each instance type
-	ec2InstanceTypes := map[string]*packing.Instance{}
-	supportedInstanceTypes := []*packing.Instance{}
-	for _, instanceTypeInfo := range instanceTypes {
+	ec2InstanceTypes := map[string]*InstanceType{}
+	supportedInstanceTypes := []*InstanceType{}
+	for _, instanceType := range instanceTypes {
 		for zone, instanceTypeNames := range zonalInstanceTypeNames {
 			for _, instanceTypeName := range instanceTypeNames {
-				if instanceTypeName == *instanceTypeInfo.InstanceType {
+				if instanceTypeName == *instanceType.InstanceType {
 					if it, ok := ec2InstanceTypes[instanceTypeName]; ok {
-						it.Zones = append(it.Zones, zone)
+						it.ZoneOptions = append(it.ZoneOptions, zone)
 					} else {
-						instanceType := &packing.Instance{InstanceTypeInfo: *instanceTypeInfo, Zones: []string{zone}}
-						supportedInstanceTypes = append(supportedInstanceTypes, instanceType)
-						ec2InstanceTypes[instanceTypeName] = instanceType
+						instanceType := InstanceType{InstanceTypeInfo: *instanceType, ZoneOptions: []string{zone}}
+						supportedInstanceTypes = append(supportedInstanceTypes, &instanceType)
+						ec2InstanceTypes[instanceTypeName] = &instanceType
 					}
 				}
 			}
@@ -145,27 +152,27 @@ func (p *InstanceTypeProvider) getAllInstanceTypes(ctx context.Context) ([]*ec2.
 }
 
 // filterFrom returns a filtered list of instance types based on the provided resource constraints
-func (p *InstanceTypeProvider) filterFrom(instanceTypes []*packing.Instance, constraints Constraints, zones []string) []*packing.Instance {
-	filtered := []*packing.Instance{}
-	for _, instanceTypeInfo := range instanceTypes {
+func (p *InstanceTypeProvider) filterFrom(instanceTypes []*InstanceType, constraints Constraints, zones []string) []*InstanceType {
+	filtered := []*InstanceType{}
+	for _, instanceType := range instanceTypes {
 		requests := resources.RequestsForPods(constraints.Pods...)
-		if p.isInstanceTypeSupported(constraints.InstanceTypes, instanceTypeInfo) &&
-			p.isCapacityTypeSupported(constraints.GetCapacityType(), instanceTypeInfo) &&
-			p.isArchitectureSupported(utils.NormalizeArchitecture(constraints.Architecture), instanceTypeInfo) &&
-			p.isZonesSupported(zones, instanceTypeInfo) &&
-			p.isNvidiaGPUSupported(requests, instanceTypeInfo) &&
-			p.isAWSNeuronSupported(requests, instanceTypeInfo) {
-			filtered = append(filtered, instanceTypeInfo)
+		if p.isInstanceTypeSupported(constraints.InstanceTypes, instanceType) &&
+			p.isCapacityTypeSupported(constraints.GetCapacityType(), instanceType) &&
+			p.isArchitectureSupported(utils.NormalizeArchitecture(constraints.Architecture), instanceType) &&
+			p.isZonesSupported(zones, instanceType) &&
+			p.isNvidiaGPUSupported(requests, instanceType) &&
+			p.isAWSNeuronSupported(requests, instanceType) {
+			filtered = append(filtered, instanceType)
 		}
 	}
 	return filtered
 }
 
-func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints []string, instance *packing.Instance) bool {
-	if len(instanceTypeConstraints) == 0 && p.isDefaultInstanceType(instance) {
+func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints []string, instanceType *InstanceType) bool {
+	if len(instanceTypeConstraints) == 0 && p.isDefaultInstanceType(instanceType) {
 		return true
 	}
-	if len(instanceTypeConstraints) != 0 && functional.ContainsString(instanceTypeConstraints, *instance.InstanceType) {
+	if len(instanceTypeConstraints) != 0 && functional.ContainsString(instanceTypeConstraints, instanceType.Name()) {
 		return true
 	}
 	return false
@@ -173,39 +180,95 @@ func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints [
 
 // isDefaultInstanceType returns true if the instance type provided conforms to the default instance type criteria
 // This function is used to make sure we launch instance types that are suited for general workloads
-func (p *InstanceTypeProvider) isDefaultInstanceType(instanceTypeInfo *packing.Instance) bool {
-	return instanceTypeInfo.FpgaInfo == nil &&
-		!*instanceTypeInfo.BareMetal &&
-		functional.HasAnyPrefix(*instanceTypeInfo.InstanceType,
+func (p *InstanceTypeProvider) isDefaultInstanceType(instanceType *InstanceType) bool {
+	return instanceType.FpgaInfo == nil &&
+		!*instanceType.BareMetal &&
+		functional.HasAnyPrefix(instanceType.Name(),
 			"m", "c", "r", "a", // Standard
 			"t3", "t4", // Burstable
 			"p", "inf", "g", // Accelerators
 		)
 }
 
-func (p *InstanceTypeProvider) isArchitectureSupported(architecture *string, instance *packing.Instance) bool {
-	return architecture == nil ||
-		functional.ContainsString(aws.StringValueSlice(instance.ProcessorInfo.SupportedArchitectures), *architecture)
-}
-
-func (p *InstanceTypeProvider) isCapacityTypeSupported(capacityType string, instance *packing.Instance) bool {
-	return capacityType == "" ||
-		functional.ContainsString(aws.StringValueSlice(instance.SupportedUsageClasses), capacityType)
-}
-
-func (p *InstanceTypeProvider) isNvidiaGPUSupported(requests v1.ResourceList, instanceTypeInfo *packing.Instance) bool {
-	if _, ok := requests[resources.NvidiaGPU]; ok {
-		return instanceTypeInfo.GpuInfo != nil && *instanceTypeInfo.GpuInfo.Gpus[0].Manufacturer == "NVIDIA"
+func (p *InstanceTypeProvider) isArchitectureSupported(architecture *string, instance *InstanceType) bool {
+	if architecture == nil {
+		return true
 	}
-	return true
-}
-func (p *InstanceTypeProvider) isAWSNeuronSupported(requests v1.ResourceList, instanceTypeInfo *packing.Instance) bool {
-	if _, ok := requests[resources.AWSNeuron]; ok {
-		return instanceTypeInfo.InferenceAcceleratorInfo != nil && *instanceTypeInfo.InferenceAcceleratorInfo.Accelerators[0].Manufacturer == "AWS"
-	}
-	return true
+	return functional.ContainsString(aws.StringValueSlice(instance.ProcessorInfo.SupportedArchitectures), *architecture)
 }
 
-func (p *InstanceTypeProvider) isZonesSupported(zones []string, instance *packing.Instance) bool {
-	return len(zones) == 0 || len(functional.IntersectStringSlice(instance.Zones, zones)) > 0
+func (p *InstanceTypeProvider) isCapacityTypeSupported(capacityType string, instance *InstanceType) bool {
+	if capacityType == "" {
+		return true
+	}
+	return functional.ContainsString(aws.StringValueSlice(instance.SupportedUsageClasses), capacityType)
+}
+
+func (p *InstanceTypeProvider) isNvidiaGPUSupported(requests v1.ResourceList, instanceType *InstanceType) bool {
+	if _, ok := requests[resources.NvidiaGPU]; !ok {
+		return true
+	}
+	return !instanceType.NvidiaGPUs().IsZero()
+}
+func (p *InstanceTypeProvider) isAWSNeuronSupported(requests v1.ResourceList, instanceType *InstanceType) bool {
+	if _, ok := requests[resources.AWSNeuron]; !ok {
+		return true
+	}
+	return !instanceType.AWSNeurons().IsZero()
+}
+
+func (p *InstanceTypeProvider) isZonesSupported(zones []string, instanceType *InstanceType) bool {
+	if len(zones) == 0 {
+		return true
+	}
+	return len(functional.IntersectStringSlice(instanceType.Zones(), zones)) > 0
+}
+
+type InstanceType struct {
+	ec2.InstanceTypeInfo
+	ZoneOptions []string
+}
+
+func (instance InstanceType) Name() string {
+	return *instance.InstanceType
+}
+func (instance InstanceType) Zones() []string {
+	return instance.ZoneOptions
+}
+
+func (instance InstanceType) CPU() *resource.Quantity {
+	return resources.Quantity(fmt.Sprint(*instance.VCpuInfo.DefaultVCpus))
+}
+
+func (instance InstanceType) Memory() *resource.Quantity {
+	return resources.Quantity(fmt.Sprintf("%dMi", *instance.MemoryInfo.SizeInMiB))
+}
+
+func (instance InstanceType) Pods() *resource.Quantity {
+	// The number of pods per node is calculated using the formula:
+	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+	return resources.Quantity(fmt.Sprint(*instance.NetworkInfo.MaximumNetworkInterfaces*(*instance.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+}
+
+func (instance InstanceType) NvidiaGPUs() *resource.Quantity {
+	count := int64(0)
+	if instance.GpuInfo != nil {
+		for _, gpu := range instance.GpuInfo.Gpus {
+			if *instance.GpuInfo.Gpus[0].Manufacturer == "NVIDIA" {
+				count += *gpu.Count
+			}
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func (instance InstanceType) AWSNeurons() *resource.Quantity {
+	count := int64(0)
+	if instance.InferenceAcceleratorInfo != nil {
+		for _, accelerator := range instance.InferenceAcceleratorInfo.Accelerators {
+			count += *accelerator.Count
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
 }

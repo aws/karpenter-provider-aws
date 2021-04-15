@@ -68,8 +68,8 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
-				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+				Expect(instanceType.Name()).Should(Equal("m5.large"))
+				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
 			})
 		})
 
@@ -85,8 +85,8 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
-				Expect(*instanceType.InstanceType).Should(Equal("m6g.large"))
-				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+				Expect(instanceType.Name()).Should(Equal("m6g.large"))
+				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
 			})
 		})
 
@@ -117,8 +117,8 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(instanceTypes)).Should(Equal(1))
 				instanceType := instanceTypes[0]
-				Expect(*instanceType.InstanceType).Should(Equal("m5.large"))
-				Expect(instanceType.Zones[0]).Should(Equal(testZone))
+				Expect(instanceType.Name()).Should(Equal("m5.large"))
+				Expect(instanceType.Zones()[0]).Should(Equal(testZone))
 			})
 		})
 

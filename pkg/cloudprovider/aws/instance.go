@@ -23,7 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/packing"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -45,7 +45,7 @@ type InstanceProvider struct {
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *ec2.LaunchTemplate,
-	instanceTypeOptions []*packing.Instance,
+	instanceTypeOptions []cloudprovider.InstanceType,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 	capacityType string,
 ) (*string, error) {
@@ -62,13 +62,13 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	// 2. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
-		for _, zone := range instanceType.Zones {
+		for _, zone := range instanceType.Zones() {
 			subnets := zonalSubnetOptions[zone]
 			if len(subnets) == 0 {
 				continue
 			}
 			override := &ec2.FleetLaunchTemplateOverridesRequest{
-				InstanceType: aws.String(*instanceType.InstanceType),
+				InstanceType: aws.String(instanceType.Name()),
 				// FleetAPI cannot span subnets from the same AZ, so randomize.
 				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
 			}
