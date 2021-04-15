@@ -39,7 +39,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[strin
 	if aerr, ok := err.(awserr.Error); ok {
 		return nil, aerr
 	}
-	return nil, fmt.Errorf("failed to describe ec2 instances")
+	return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 }
 
 func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {

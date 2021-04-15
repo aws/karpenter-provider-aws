@@ -57,7 +57,6 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	sess := withUserAgent(withRegion(session.Must(
 		session.NewSession(request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			// use a custom retryer to take care of ec2 eventual consistency
 			utils.NewRetryer())))))
 	ec2api := ec2.New(sess)
 	subnetProvider := &SubnetProvider{
