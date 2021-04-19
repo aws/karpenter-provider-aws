@@ -67,15 +67,19 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 		return desc, nil
 	}
 
+	// See if we have a cached copy of the default one first, to avoid
+	// making an API call to EC2
 	arch := utils.NormalizeArchitecture(constraints.Architecture)
 	name := launchTemplateName(cluster.Name, *arch)
 	result := &LaunchTemplate{
 		Version: aws.String(defaultLaunchTemplateVersion),
 	}
-	if launchTemplate, ok := p.cache.Get(name); ok {
-		result.Id = launchTemplate.(*ec2.LaunchTemplate).LaunchTemplateId
+	if cached, ok := p.cache.Get(name); ok {
+		result.Id = cached.(*ec2.LaunchTemplate).LaunchTemplateId
 		return result, nil
 	}
+
+	// Call EC2 to get launch template, creating if necessary
 	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, *arch)
 	if err != nil {
 		return nil, err
