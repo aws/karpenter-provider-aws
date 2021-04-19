@@ -63,8 +63,8 @@ func launchTemplateName(clusterName string, arch string) string {
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplate, error) {
 	// If the customer specified a launch template then just use it
-	if desc := constraints.GetLaunchTemplate(); desc != nil {
-		return desc, nil
+	if result := constraints.GetLaunchTemplate(); result != nil {
+		return result, nil
 	}
 
 	// See if we have a cached copy of the default one first, to avoid
