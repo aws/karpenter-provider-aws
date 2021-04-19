@@ -4,7 +4,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repo
+    - name: Checkout Repository
       uses: actions/checkout@v2
 
     - name: Setup Go
@@ -20,7 +20,7 @@ jobs:
       env: 
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload code coverage
+    - name: Upload Code Coverage
       uses: actions/upload-artifact@v2
       with:
         name: coverage

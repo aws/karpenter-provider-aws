@@ -1,8 +1,6 @@
 RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 RELEASE_MANIFEST = releases/$(CLOUD_PROVIDER)/manifest.yaml
-BUILD_DIR ?= build
-$(shell mkdir -p $(BUILD_DIR))
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
@@ -39,8 +37,8 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	golangci-lint run
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
-	go build $(GOFLAGS) -o $(BUILD_DIR)/karpenter cmd/controller/main.go 
-	golicense hack/license-config.hcl $(BUILD_DIR)/karpenter
+	go build $(GOFLAGS) -o karpenter cmd/controller/main.go 
+	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
 	$(WITH_GOFLAGS) ko apply -B -f config
