@@ -44,7 +44,7 @@ type InstanceProvider struct {
 // If spot is not used, the instanceTypeOptions are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate *LaunchTemplateDescriptor,
+	launchTemplate *LaunchTemplate,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 	capacityType string,

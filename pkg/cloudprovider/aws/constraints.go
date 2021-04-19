@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	nodeLabelPrefix      = "node.k8s.aws"
-	capacityTypeSpot     = "spot"
-	capacityTypeOnDemand = "on-demand"
+	nodeLabelPrefix              = "node.k8s.aws"
+	capacityTypeSpot             = "spot"
+	capacityTypeOnDemand         = "on-demand"
+	defaultLaunchTemplateVersion = "$Default"
 )
 
 var (
@@ -56,7 +57,7 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 	}
 	version, ok := c.Labels[LaunchTemplateVersionLabel]
 	if !ok {
-		version = "$Default"
+		version = defaultLaunchTemplateVersion
 	}
 	return &LaunchTemplate{
 		Id:      &id,

@@ -61,7 +61,7 @@ func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplateDescriptor, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplate, error) {
 	// If the customer specified a launch template then just use it
 	if desc := constraints.GetLaunchTemplate(); desc != nil {
 		return desc, nil
@@ -69,9 +69,8 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 
 	arch := utils.NormalizeArchitecture(constraints.Architecture)
 	name := launchTemplateName(cluster.Name, *arch)
-	version := "$Default"
-	result := &LaunchTemplateDescriptor{
-		Version: &version,
+	result := &LaunchTemplate{
+		Version: aws.String(defaultLaunchTemplateVersion),
 	}
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		result.Id = launchTemplate.(*ec2.LaunchTemplate).LaunchTemplateId
