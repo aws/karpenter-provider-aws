@@ -6,9 +6,6 @@ allow = [
    "BSD 2-Clause \"Simplified\" License",
    "MPL-2.0"
 ]
-deny = [
-   "GNU General Public License v2.0"
-]
 translate = {
 
 }
