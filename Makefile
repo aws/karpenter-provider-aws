@@ -15,7 +15,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify battletest ## Run all steps used by continuous integration
+ci: verify licenses battletest ## Run all steps used by continuous integration
 
 release: publish helm docs ## Run all steps in release workflow
 

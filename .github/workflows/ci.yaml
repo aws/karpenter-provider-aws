@@ -17,15 +17,11 @@ jobs:
         make toolchain 
         echo "/usr/local/kubebuilder/bin" >> $GITHUB_PATH
         make ci
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload code coverage
       uses: actions/upload-artifact@v2
       with:
         name: coverage
         path: coverage.html
-
-    - name: Verify Licenses
-      if: github.event_name == 'push'
-      run: make licenses
-      env: 
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
