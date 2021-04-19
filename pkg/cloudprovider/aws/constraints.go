@@ -44,21 +44,21 @@ func (c *Constraints) GetCapacityType() string {
 	return capacityType
 }
 
-type LaunchTemplateDescriptor struct {
+type LaunchTemplate struct {
 	Id      *string
 	Version *string
 }
 
-func (c *Constraints) GetLaunchTemplate() *LaunchTemplateDescriptor {
+func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 	id, ok := c.Labels[LaunchTemplateIdLabel]
 	if !ok {
 		return nil
 	}
 	version, ok := c.Labels[LaunchTemplateVersionLabel]
 	if !ok {
-		version = "Default"
+		version = "$Default"
 	}
-	return &LaunchTemplateDescriptor{
+	return &LaunchTemplate{
 		Id:      &id,
 		Version: &version,
 	}
