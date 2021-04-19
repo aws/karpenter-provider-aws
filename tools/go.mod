@@ -8,6 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.31.0
 	github.com/google/ko v0.6.0
 	github.com/mikefarah/yq/v4 v4.6.1
+	github.com/mitchellh/golicense v0.2.0
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3 // indirect
 	sigs.k8s.io/controller-tools v0.4.0

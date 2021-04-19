@@ -1,4 +1,4 @@
-![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/Presubmit)
+![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/CI)
 ![Go Report](https://goreportcard.com/badge/github.com/awslabs/karpenter)
 ![GitHub stars](https://img.shields.io/github/stars/awslabs/karpenter)
 ![GitHub forks](https://img.shields.io/github/forks/awslabs/karpenter)
