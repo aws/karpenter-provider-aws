@@ -66,7 +66,7 @@ func (c *Capacity) Create(ctx context.Context, cloudProviderConstraints *cloudpr
 	var instanceIDs []*string
 	podsForInstance := make(map[string][]*v1.Pod)
 	for _, packing := range instancePackings {
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypes, zonalSubnetOptions, constraints.GetCapacityType())
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnetOptions, constraints.GetCapacityType())
 		if err != nil {
 			// TODO Aggregate errors and continue
 			return nil, fmt.Errorf("creating capacity %w", err)

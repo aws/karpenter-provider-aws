@@ -17,6 +17,7 @@ package allocation
 import (
 	"context"
 	"fmt"
+
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,8 +52,6 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	for _, pod := range pods {
 		if err := b.bind(ctx, node, pod); err != nil {
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
-		} else {
-			zap.S().Debugf("Successfully bound pod %s/%s to node %s", pod.Namespace, pod.Name, node.Name)
 		}
 	}
 	return nil

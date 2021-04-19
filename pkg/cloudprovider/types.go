@@ -19,6 +19,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -67,4 +68,15 @@ type Packing struct {
 type Options struct {
 	Client    client.Client
 	ClientSet *kubernetes.Clientset
+}
+
+// InstanceType
+type InstanceType interface {
+	Name() string
+	Zones() []string
+	CPU() *resource.Quantity
+	Memory() *resource.Quantity
+	Pods() *resource.Quantity
+	NvidiaGPUs() *resource.Quantity
+	AWSNeurons() *resource.Quantity
 }

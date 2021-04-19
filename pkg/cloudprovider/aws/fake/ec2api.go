@@ -225,8 +225,8 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 				InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
 					Accelerators: []*ec2.InferenceDeviceInfo{{
 						Manufacturer: aws.String("AWS"),
-						Count: aws.Int64(4),
-				}}},
+						Count:        aws.Int64(4),
+					}}},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(4),
 					Ipv4AddressesPerInterface: aws.Int64(60),
