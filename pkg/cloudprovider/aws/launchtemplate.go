@@ -80,6 +80,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.Clus
 	if err != nil {
 		return nil, err
 	}
+	result.Id = launchTemplate.LaunchTemplateId
 	p.cache.Set(name, launchTemplate, CacheTTL)
 	return result, nil
 }
