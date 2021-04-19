@@ -120,20 +120,28 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 	return true
 }
 
-// sortByResources sorts instance type packings by vcpus and memory resources
-func sortByResources(instances []cloudprovider.InstanceType) {
-	sort.Slice(instances, func(i, j int) bool { return weightOf(instances[i]) < weightOf(instances[j]) })
+// sortByResources sorts instance types, selecting smallest first. Instance are
+// ordered using a weighted euclidean, a useful algorithm for reducing a high
+// dimesional space into a single heuristic value. In the future, we may explore
+// pricing APIs to explicitly order what the euclidean is estimating.
+func sortByResources(instanceTypes []cloudprovider.InstanceType) {
+	sort.Slice(instanceTypes, func(i, j int) bool { return weightOf(instanceTypes[i]) < weightOf(instanceTypes[j]) })
 }
 
-func weightOf(instance cloudprovider.InstanceType) float64 {
+// weightOf uses a euclidean distance function to compare the instance types.
+// Units are normalized such that 1cpu = 1gb mem. Additionally, accelerators
+// carry an arbitrarily large weight such that they will dominate the priority,
+// but if equal, will still fall back to the weight of other dimensions.
+func weightOf(instanceType cloudprovider.InstanceType) float64 {
 	return euclidean(
-		float64(instance.CPU().Value()),
-		float64(instance.Memory().ScaledValue(resource.Mega)), // 1 gb = 1 cpu
-		float64(instance.NvidiaGPUs().Value())*1000,           // Heavily weigh gpus x 1000
-		float64(instance.AWSNeurons().Value())*1000,           // Heavily weigh neurons x1000
+		float64(instanceType.CPU().Value()),
+		float64(instanceType.Memory().ScaledValue(resource.Mega)), // 1 gb = 1 cpu
+		float64(instanceType.NvidiaGPUs().Value())*1000,           // Heavily weigh gpus x 1000
+		float64(instanceType.AWSNeurons().Value())*1000,           // Heavily weigh neurons x1000
 	)
 }
 
+// euclidean measures the n-dimensional distance from the origin.
 func euclidean(values ...float64) float64 {
 	sum := float64(0)
 	for _, value := range values {

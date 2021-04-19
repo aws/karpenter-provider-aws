@@ -47,7 +47,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 	}
 }
 
-// Get instance types that are availble per availability zone
+// Get instance types that are available per availability zone
 func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[string][]*ec2.Subnet, constraints Constraints) ([]cloudprovider.InstanceType, error) {
 	zones := []string{}
 	for zone := range zonalSubnetOptions {
@@ -67,7 +67,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, zonalSubnetOptions map[s
 		zap.S().Debugf("Successfully discovered %d EC2 instance types", len(instanceTypes))
 	}
 
-	// Filter by constraints and zones
+	// Filter by constraints and zones and convert to cloudprovider interface
 	constrainedInstanceTypes := []cloudprovider.InstanceType{}
 	for _, instanceType := range p.filterFrom(instanceTypes, constraints, zones) {
 		constrainedInstanceTypes = append(constrainedInstanceTypes, instanceType)
@@ -156,19 +156,19 @@ func (p *InstanceTypeProvider) filterFrom(instanceTypes []*InstanceType, constra
 	filtered := []*InstanceType{}
 	for _, instanceType := range instanceTypes {
 		requests := resources.RequestsForPods(constraints.Pods...)
-		if p.isInstanceTypeSupported(constraints.InstanceTypes, instanceType) &&
-			p.isCapacityTypeSupported(constraints.GetCapacityType(), instanceType) &&
-			p.isArchitectureSupported(utils.NormalizeArchitecture(constraints.Architecture), instanceType) &&
-			p.isZonesSupported(zones, instanceType) &&
-			p.isNvidiaGPUSupported(requests, instanceType) &&
-			p.isAWSNeuronSupported(requests, instanceType) {
+		if p.validateInstanceType(constraints.InstanceTypes, instanceType) &&
+			p.validateCapacityType(constraints.GetCapacityType(), instanceType) &&
+			p.validateArchitecture(utils.NormalizeArchitecture(constraints.Architecture), instanceType) &&
+			p.validateZones(zones, instanceType) &&
+			p.validateNvidiaGPU(requests, instanceType) &&
+			p.validateAWSNeuron(requests, instanceType) {
 			filtered = append(filtered, instanceType)
 		}
 	}
 	return filtered
 }
 
-func (p *InstanceTypeProvider) isInstanceTypeSupported(instanceTypeConstraints []string, instanceType *InstanceType) bool {
+func (p *InstanceTypeProvider) validateInstanceType(instanceTypeConstraints []string, instanceType *InstanceType) bool {
 	if len(instanceTypeConstraints) == 0 && p.isDefaultInstanceType(instanceType) {
 		return true
 	}
@@ -190,34 +190,35 @@ func (p *InstanceTypeProvider) isDefaultInstanceType(instanceType *InstanceType)
 		)
 }
 
-func (p *InstanceTypeProvider) isArchitectureSupported(architecture *string, instance *InstanceType) bool {
+func (p *InstanceTypeProvider) validateArchitecture(architecture *string, instanceType *InstanceType) bool {
 	if architecture == nil {
 		return true
 	}
-	return functional.ContainsString(aws.StringValueSlice(instance.ProcessorInfo.SupportedArchitectures), *architecture)
+	return functional.ContainsString(aws.StringValueSlice(instanceType.ProcessorInfo.SupportedArchitectures), *architecture)
 }
 
-func (p *InstanceTypeProvider) isCapacityTypeSupported(capacityType string, instance *InstanceType) bool {
+func (p *InstanceTypeProvider) validateCapacityType(capacityType string, instanceType *InstanceType) bool {
 	if capacityType == "" {
 		return true
 	}
-	return functional.ContainsString(aws.StringValueSlice(instance.SupportedUsageClasses), capacityType)
+	return functional.ContainsString(aws.StringValueSlice(instanceType.SupportedUsageClasses), capacityType)
 }
 
-func (p *InstanceTypeProvider) isNvidiaGPUSupported(requests v1.ResourceList, instanceType *InstanceType) bool {
+func (p *InstanceTypeProvider) validateNvidiaGPU(requests v1.ResourceList, instanceType *InstanceType) bool {
 	if _, ok := requests[resources.NvidiaGPU]; !ok {
 		return true
 	}
 	return !instanceType.NvidiaGPUs().IsZero()
 }
-func (p *InstanceTypeProvider) isAWSNeuronSupported(requests v1.ResourceList, instanceType *InstanceType) bool {
+
+func (p *InstanceTypeProvider) validateAWSNeuron(requests v1.ResourceList, instanceType *InstanceType) bool {
 	if _, ok := requests[resources.AWSNeuron]; !ok {
 		return true
 	}
 	return !instanceType.AWSNeurons().IsZero()
 }
 
-func (p *InstanceTypeProvider) isZonesSupported(zones []string, instanceType *InstanceType) bool {
+func (p *InstanceTypeProvider) validateZones(zones []string, instanceType *InstanceType) bool {
 	if len(zones) == 0 {
 		return true
 	}
@@ -229,33 +230,33 @@ type InstanceType struct {
 	ZoneOptions []string
 }
 
-func (instance InstanceType) Name() string {
-	return *instance.InstanceType
+func (i InstanceType) Name() string {
+	return *i.InstanceType
 }
-func (instance InstanceType) Zones() []string {
-	return instance.ZoneOptions
-}
-
-func (instance InstanceType) CPU() *resource.Quantity {
-	return resources.Quantity(fmt.Sprint(*instance.VCpuInfo.DefaultVCpus))
+func (i InstanceType) Zones() []string {
+	return i.ZoneOptions
 }
 
-func (instance InstanceType) Memory() *resource.Quantity {
-	return resources.Quantity(fmt.Sprintf("%dMi", *instance.MemoryInfo.SizeInMiB))
+func (i InstanceType) CPU() *resource.Quantity {
+	return resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
 }
 
-func (instance InstanceType) Pods() *resource.Quantity {
+func (i InstanceType) Memory() *resource.Quantity {
+	return resources.Quantity(fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB))
+}
+
+func (i InstanceType) Pods() *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-	return resources.Quantity(fmt.Sprint(*instance.NetworkInfo.MaximumNetworkInterfaces*(*instance.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+	return resources.Quantity(fmt.Sprint(*i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
 }
 
-func (instance InstanceType) NvidiaGPUs() *resource.Quantity {
+func (i InstanceType) NvidiaGPUs() *resource.Quantity {
 	count := int64(0)
-	if instance.GpuInfo != nil {
-		for _, gpu := range instance.GpuInfo.Gpus {
-			if *instance.GpuInfo.Gpus[0].Manufacturer == "NVIDIA" {
+	if i.GpuInfo != nil {
+		for _, gpu := range i.GpuInfo.Gpus {
+			if *i.GpuInfo.Gpus[0].Manufacturer == "NVIDIA" {
 				count += *gpu.Count
 			}
 		}
@@ -263,10 +264,10 @@ func (instance InstanceType) NvidiaGPUs() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (instance InstanceType) AWSNeurons() *resource.Quantity {
+func (i InstanceType) AWSNeurons() *resource.Quantity {
 	count := int64(0)
-	if instance.InferenceAcceleratorInfo != nil {
-		for _, accelerator := range instance.InferenceAcceleratorInfo.Accelerators {
+	if i.InferenceAcceleratorInfo != nil {
+		for _, accelerator := range i.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
 		}
 	}
