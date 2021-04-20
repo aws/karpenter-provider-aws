@@ -32,13 +32,13 @@ func (c *Capacity) Validate(ctx context.Context) error {
 }
 
 func (c *Capacity) validateCapacityTypeLabel() error {
-	value, ok := c.spec.Labels[capacityTypeLabel]
+	value, ok := c.spec.Labels[CapacityTypeLabel]
 	if !ok {
 		return nil
 	}
 	capacityTypes := []string{capacityTypeSpot, capacityTypeOnDemand}
 	if !functional.ContainsString(capacityTypes, value) {
-		return fmt.Errorf("%s must be one of %v", capacityTypeLabel, capacityTypes)
+		return fmt.Errorf("%s must be one of %v", CapacityTypeLabel, capacityTypes)
 	}
 	return nil
 }
@@ -54,9 +54,9 @@ func (c *Capacity) validateAllowedLabels() error {
 }
 
 func (c *Capacity) validateLaunchTemplateLabels() error {
-	if _, versionExists := c.spec.Labels[launchTemplateVersionLabel]; versionExists {
-		if _, bothExist := c.spec.Labels[launchTemplateIdLabel]; !bothExist {
-			return fmt.Errorf("%s can only be specified with %s", launchTemplateVersionLabel, launchTemplateIdLabel)
+	if _, versionExists := c.spec.Labels[LaunchTemplateVersionLabel]; versionExists {
+		if _, bothExist := c.spec.Labels[LaunchTemplateIdLabel]; !bothExist {
+			return fmt.Errorf("%s can only be specified with %s", LaunchTemplateVersionLabel, LaunchTemplateIdLabel)
 		}
 	}
 	return nil

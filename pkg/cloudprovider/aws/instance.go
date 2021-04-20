@@ -44,7 +44,7 @@ type InstanceProvider struct {
 // If spot is not used, the instanceTypeOptions are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate *ec2.LaunchTemplate,
+	launchTemplate *LaunchTemplate,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 	capacityType string,
@@ -98,8 +98,8 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: launchTemplate.LaunchTemplateName,
-				Version:            aws.String("$Default"),
+				LaunchTemplateId: launchTemplate.Id,
+				Version:          launchTemplate.Version,
 			},
 			Overrides: overrides,
 		}},

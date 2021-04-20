@@ -60,6 +60,10 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 	if e.CreateFleetOutput != nil {
 		return e.CreateFleetOutput, nil
 	}
+	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId == nil &&
+		input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
+		return nil, fmt.Errorf("missing launch template id or name")
+	}
 	instance := &ec2.Instance{
 		InstanceId:     aws.String(randomdata.SillyName()),
 		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
@@ -89,7 +93,8 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(context.Context, *ec2.Descri
 		return e.DescribeLaunchTemplatesOutput, nil
 	}
 	return &ec2.DescribeLaunchTemplatesOutput{LaunchTemplates: []*ec2.LaunchTemplate{{
-		LaunchTemplateName: aws.String("test-launch-template"),
+		LaunchTemplateName: aws.String("test-launch-template-name"),
+		LaunchTemplateId:   aws.String("test-launch-template-id"),
 	}}}, nil
 }
 

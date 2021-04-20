@@ -208,20 +208,24 @@ var _ = Describe("Allocation", func() {
 				),
 			)
 		})
-		It("should launch separate instances for pods with different node selectors", func() {
+		It("should launch nodes for pods with different node selectors", func() {
 			// Setup
-			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "abc123"}})
-			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{"node.k8s.aws/launch-template-id": "34sy4s"}})
+			lt1 := "abc123"
+			lt2 := "34sy4s"
+			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: lt1}})
+			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: lt2}})
 			ExpectCreatedWithStatus(env.Client, pod1, pod2)
 			ExpectCreated(env.Client, provisioner)
 			ExpectEventuallyReconciled(env.Client, provisioner)
 			// Assertions
 			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-			ExpectNodeExists(env.Client, scheduled2.Spec.NodeName)
+			node1 := ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+			node2 := ExpectNodeExists(env.Client, scheduled2.Spec.NodeName)
 			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
 			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
+			Expect(node1.ObjectMeta.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, lt1))
+			Expect(node2.ObjectMeta.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, lt2))
 		})
 		It("should launch instances for Nvidia GPU resource requests", func() {
 			// Setup

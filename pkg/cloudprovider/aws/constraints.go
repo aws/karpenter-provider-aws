@@ -21,25 +21,46 @@ import (
 )
 
 const (
-	nodeLabelPrefix      = "node.k8s.aws"
-	capacityTypeSpot     = "spot"
-	capacityTypeOnDemand = "on-demand"
+	nodeLabelPrefix              = "node.k8s.aws"
+	capacityTypeSpot             = "spot"
+	capacityTypeOnDemand         = "on-demand"
+	defaultLaunchTemplateVersion = "$Default"
 )
 
 var (
-	capacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
-	launchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
-	launchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
-	allowedLabels              = []string{capacityTypeLabel, launchTemplateIdLabel, launchTemplateVersionLabel}
+	CapacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
+	LaunchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
+	LaunchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
+	allowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
 )
 
 // Constraints are AWS specific constraints
 type Constraints cloudprovider.Constraints
 
 func (c *Constraints) GetCapacityType() string {
-	capacityType, ok := c.Labels[capacityTypeLabel]
+	capacityType, ok := c.Labels[CapacityTypeLabel]
 	if !ok {
 		capacityType = capacityTypeOnDemand
 	}
 	return capacityType
+}
+
+type LaunchTemplate struct {
+	Id      *string
+	Version *string
+}
+
+func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
+	id, ok := c.Labels[LaunchTemplateIdLabel]
+	if !ok {
+		return nil
+	}
+	version, ok := c.Labels[LaunchTemplateVersionLabel]
+	if !ok {
+		version = defaultLaunchTemplateVersion
+	}
+	return &LaunchTemplate{
+		Id:      &id,
+		Version: &version,
+	}
 }

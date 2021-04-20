@@ -61,18 +61,32 @@ func launchTemplateName(clusterName string, arch string) string {
 	return fmt.Sprintf(launchTemplateNameFormat, clusterName, arch)
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec, constraints Constraints) (*LaunchTemplate, error) {
+	// If the customer specified a launch template then just use it
+	if result := constraints.GetLaunchTemplate(); result != nil {
+		return result, nil
+	}
+
+	// See if we have a cached copy of the default one first, to avoid
+	// making an API call to EC2
 	arch := utils.NormalizeArchitecture(constraints.Architecture)
 	name := launchTemplateName(cluster.Name, *arch)
-	if launchTemplate, ok := p.cache.Get(name); ok {
-		return launchTemplate.(*ec2.LaunchTemplate), nil
+	result := &LaunchTemplate{
+		Version: aws.String(defaultLaunchTemplateVersion),
 	}
+	if cached, ok := p.cache.Get(name); ok {
+		result.Id = cached.(*ec2.LaunchTemplate).LaunchTemplateId
+		return result, nil
+	}
+
+	// Call EC2 to get launch template, creating if necessary
 	launchTemplate, err := p.getLaunchTemplate(ctx, cluster, *arch)
 	if err != nil {
 		return nil, err
 	}
+	result.Id = launchTemplate.LaunchTemplateId
 	p.cache.Set(name, launchTemplate, CacheTTL)
-	return launchTemplate, nil
+	return result, nil
 }
 
 // TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
