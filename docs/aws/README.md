@@ -37,7 +37,7 @@ aws cloudformation deploy \
 Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for Webhook TLS certificates.
 
 ```bash
-./hack/quick-install.sh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.1/hack/quick-install.sh)"
 ```
 
 ### Enable IRSA and attach IAM Role to Service Account
