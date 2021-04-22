@@ -19,8 +19,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,9 +35,9 @@ type Constraints struct {
 // Group separates pods into a set of equivalent scheduling groups. All pods in
 // each group can be deployed together on the same node, or separately on
 // multiple nodes. These groups map to scheduling properties like taints/labels.
-func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provisioner, pods []*v1.Pod) ([]*cloudprovider.Constraints, error) {
+func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provisioner, pods []*v1.Pod) ([]*packing.Constraints, error) {
 	// Groups uniqueness is tracked by hash(NodeConstraints)
-	groups := map[uint64]*cloudprovider.Constraints{}
+	groups := map[uint64]*packing.Constraints{}
 	for _, pod := range pods {
 		constraints := provisioner.ConstraintsWithOverrides(pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
@@ -49,31 +48,31 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provision
 		// Create new group if one doesn't exist
 		if _, ok := groups[key]; !ok {
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
-			overhead, err := c.getNodeOverhead(ctx, &v1.Node{
+			daemons, err := c.getDaemons(ctx, &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{Labels: constraints.Labels},
 				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Taints},
 			})
 			if err != nil {
 				return nil, fmt.Errorf("computing node overhead, %w", err)
 			}
-			groups[key] = &cloudprovider.Constraints{
-				Constraints: *constraints,
+			groups[key] = &packing.Constraints{
+				Constraints: constraints,
 				Pods:        []*v1.Pod{},
-				Overhead:    overhead,
+				Daemons:     daemons,
 			}
 		}
 		// Append pod to group, guaranteed to exist
 		groups[key].Pods = append(groups[key].Pods, pod)
 	}
 
-	result := []*cloudprovider.Constraints{}
+	result := []*packing.Constraints{}
 	for _, group := range groups {
 		result = append(result, group)
 	}
 	return result, nil
 }
 
-func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.ResourceList, error) {
+func (c *Constraints) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := c.kubeClient.List(ctx, daemonSetList); err != nil {
@@ -87,5 +86,5 @@ func (c *Constraints) getNodeOverhead(ctx context.Context, node *v1.Node) (v1.Re
 			pods = append(pods, &v1.Pod{Spec: daemonSet.Spec.Template.Spec})
 		}
 	}
-	return resources.RequestsForPods(pods...), nil
+	return pods, nil
 }

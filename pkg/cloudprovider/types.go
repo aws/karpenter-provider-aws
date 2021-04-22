@@ -32,12 +32,13 @@ type Factory interface {
 
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
-	// Create a set of nodes to fulfill the desired capacity given constraints.
-	Create(context.Context, *Constraints) ([]Packing, error)
+	// Create a set of nodes for each of the given constraints.
+	Create(context.Context, []*Packing) ([]*PackedNode, error)
 	// Delete nodes in cloudprovider
 	Delete(context.Context, []*v1.Node) error
-	// GetInstanceTypes returns the instance types supported by the cloud provider.
-	GetInstanceTypes(context.Context) ([]string, error)
+	// GetInstanceTypes returns the instance types supported by the cloud
+	// provider limited by the provided constraints and daemons.
+	GetInstanceTypes(ctx context.Context) ([]InstanceType, error)
 	// GetZones returns the zones supported by the cloud provider.
 	GetZones(context.Context) ([]string, error)
 	// GetArchitectures returns the architectures supported by the cloud provider.
@@ -48,19 +49,20 @@ type Capacity interface {
 	Validate(context.Context) error
 }
 
-// Constraints for an efficient binpacking solution of pods onto nodes, given
-// overhead and node constraints.
-type Constraints struct {
-	v1alpha1.Constraints
-	// Pods is a list of equivalently schedulable pods to be binpacked.
-	Pods []*v1.Pod
-	// Overhead resources per node from daemonsets.
-	Overhead v1.ResourceList
+// Packing is a binpacking solution of equivalently schedulable pods to a set of
+// viable instance types upon which they fit. All pods in the packing are
+// within the specified constraints (e.g., labels, taints).
+type Packing struct {
+	Pods                []*v1.Pod
+	InstanceTypeOptions []InstanceType
+	Constraints         *v1alpha1.Constraints
 }
 
-// Packing is a solution to packing pods onto nodes given constraints.
-type Packing struct {
-	Node *v1.Node
+// PackedNode is a node object and the pods that should be bound to it. It is
+// expected that the pods in a cloudprovider.Packing will be equivalent to the
+// pods in a cloudprovider.PackedNode.
+type PackedNode struct {
+	*v1.Node
 	Pods []*v1.Pod
 }
 
@@ -74,9 +76,12 @@ type Options struct {
 type InstanceType interface {
 	Name() string
 	Zones() []string
+	Architectures() []string
+	OperatingSystems() []string
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity
 	Pods() *resource.Quantity
 	NvidiaGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
+	Overhead() v1.ResourceList
 }

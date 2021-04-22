@@ -33,7 +33,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
-	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -61,7 +60,6 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		ec2api: fakeEC2API,
 		cache:  subnetCache,
 	}
-	vpcProvider := NewVPCProvider(fakeEC2API, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2api: fakeEC2API,
 		cache:  launchTemplateCache,
@@ -78,12 +76,11 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		clientSet: clientSet,
 	}
 	cloudProviderFactory := &Factory{
-		vpcProvider:            vpcProvider,
 		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
-		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API, vpc: vpcProvider},
-		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API),
-		packer:                 packing.NewPacker(),
 		launchTemplateProvider: launchTemplateProvider,
+		subnetProvider:         subnetProvider,
+		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API),
+		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API},
 	}
 	e.Manager.RegisterWebhooks(
 		&webhooksprovisioning.Validator{CloudProvider: cloudProviderFactory},

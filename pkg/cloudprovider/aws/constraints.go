@@ -17,7 +17,7 @@ package aws
 import (
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 )
 
 const (
@@ -35,7 +35,7 @@ var (
 )
 
 // Constraints are AWS specific constraints
-type Constraints cloudprovider.Constraints
+type Constraints v1alpha1.Constraints
 
 func (c *Constraints) GetCapacityType() string {
 	capacityType, ok := c.Labels[CapacityTypeLabel]

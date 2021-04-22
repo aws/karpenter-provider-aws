@@ -149,13 +149,17 @@ func (v *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.Pr
 	if spec.InstanceTypes == nil {
 		return nil
 	}
-	supportedInstanceTypes, err := v.CloudProvider.CapacityFor(spec).GetInstanceTypes(ctx)
+	instanceTypes, err := v.CloudProvider.CapacityFor(spec).GetInstanceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported instance types, %w", err)
 	}
+	instanceTypeNames := []string{}
+	for _, instanceType := range instanceTypes {
+		instanceTypeNames = append(instanceTypeNames, instanceType.Name())
+	}
 	for _, instanceType := range spec.InstanceTypes {
-		if !functional.ContainsString(supportedInstanceTypes, instanceType) {
-			return fmt.Errorf("unsupported instance type '%s' not in %v", instanceType, supportedInstanceTypes)
+		if !functional.ContainsString(instanceTypeNames, instanceType) {
+			return fmt.Errorf("unsupported instance type '%s' not in %v", instanceType, instanceTypeNames)
 		}
 	}
 	return nil

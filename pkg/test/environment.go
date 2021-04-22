@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/onsi/gomega/ghttp"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/util/wait"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,7 +70,7 @@ type Environment struct {
 type EnvironmentOption func(env *Environment)
 
 func NewEnvironment(options ...EnvironmentOption) *Environment {
-	log.Setup(controllerruntimezap.UseDevMode(true))
+	log.Setup(controllerruntimezap.UseDevMode(true), controllerruntimezap.ConsoleEncoder(), controllerruntimezap.StacktraceLevel(zapcore.DPanicLevel))
 	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
 	return &Environment{
 		Environment: envtest.Environment{

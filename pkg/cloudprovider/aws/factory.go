@@ -27,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
-	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/patrickmn/go-cache"
@@ -45,12 +44,11 @@ const (
 )
 
 type Factory struct {
-	vpcProvider            *VPCProvider
 	nodeFactory            *NodeFactory
-	packer                 packing.Packer
-	instanceProvider       *InstanceProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	subnetProvider         *SubnetProvider
 	instanceTypeProvider   *InstanceTypeProvider
+	instanceProvider       *InstanceProvider
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
@@ -59,11 +57,6 @@ func NewFactory(options cloudprovider.Options) *Factory {
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
 			utils.NewRetryer())))))
 	ec2api := ec2.New(sess)
-	subnetProvider := &SubnetProvider{
-		ec2api: ec2api,
-		cache:  cache.New(CacheTTL, CacheCleanupInterval),
-	}
-	vpcProvider := NewVPCProvider(ec2api, subnetProvider)
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2api: ec2api,
 		cache:  cache.New(CacheTTL, CacheCleanupInterval),
@@ -79,14 +72,12 @@ func NewFactory(options cloudprovider.Options) *Factory {
 		ssm:       ssm.New(sess),
 		clientSet: options.ClientSet,
 	}
-
 	return &Factory{
-		vpcProvider:            vpcProvider,
 		nodeFactory:            &NodeFactory{ec2api: ec2api},
-		packer:                 packing.NewPacker(),
-		instanceProvider:       &InstanceProvider{ec2api: ec2api, vpc: vpcProvider},
-		instanceTypeProvider:   NewInstanceTypeProvider(ec2api),
 		launchTemplateProvider: launchTemplateProvider,
+		subnetProvider:         NewSubnetProvider(ec2api),
+		instanceTypeProvider:   NewInstanceTypeProvider(ec2api),
+		instanceProvider:       &InstanceProvider{ec2api: ec2api},
 	}
 }
 
@@ -94,11 +85,10 @@ func (f *Factory) CapacityFor(spec *v1alpha1.ProvisionerSpec) cloudprovider.Capa
 	return &Capacity{
 		spec:                   spec,
 		nodeFactory:            f.nodeFactory,
-		packer:                 f.packer,
 		instanceProvider:       f.instanceProvider,
-		vpcProvider:            f.vpcProvider,
 		launchTemplateProvider: f.launchTemplateProvider,
 		instanceTypeProvider:   f.instanceTypeProvider,
+		subnetProvider:         f.subnetProvider,
 	}
 }
 

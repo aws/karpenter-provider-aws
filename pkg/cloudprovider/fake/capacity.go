@@ -21,7 +21,6 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,30 +29,32 @@ import (
 type Capacity struct {
 }
 
-func (c *Capacity) Create(ctx context.Context, constraints *cloudprovider.Constraints) ([]cloudprovider.Packing, error) {
-	name := strings.ToLower(randomdata.SillyName())
-	requests := resources.Merge(resources.RequestsForPods(constraints.Pods...), constraints.Overhead)
-	return []cloudprovider.Packing{{
-		Node: &v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: constraints.Labels,
-			},
-			Spec: v1.NodeSpec{
-				ProviderID: fmt.Sprintf("fake:///%s", name),
-				Taints:     constraints.Taints,
-			},
-			Status: v1.NodeStatus{
-				// Right sized the instance
-				Allocatable: v1.ResourceList{
-					v1.ResourcePods:   resource.MustParse("1000000"),
-					v1.ResourceCPU:    *requests.Cpu(),
-					v1.ResourceMemory: *requests.Memory(),
+func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+	packedNodes := []*cloudprovider.PackedNode{}
+	for _, packing := range packings {
+		name := strings.ToLower(randomdata.SillyName())
+		packedNodes = append(packedNodes, &cloudprovider.PackedNode{
+			Node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   name,
+					Labels: packing.Constraints.Labels,
+				},
+				Spec: v1.NodeSpec{
+					ProviderID: fmt.Sprintf("fake:///%s", name),
+					Taints:     packing.Constraints.Taints,
+				},
+				Status: v1.NodeStatus{
+					Allocatable: v1.ResourceList{
+						v1.ResourcePods:   *packing.InstanceTypeOptions[0].Pods(),
+						v1.ResourceCPU:    *packing.InstanceTypeOptions[0].CPU(),
+						v1.ResourceMemory: *packing.InstanceTypeOptions[0].Memory(),
+					},
 				},
 			},
-		},
-		Pods: constraints.Pods,
-	}}, nil
+			Pods: packing.Pods,
+		})
+	}
+	return packedNodes, nil
 }
 
 func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
@@ -67,24 +68,37 @@ func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
 	}, nil
 }
 
-func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]string, error) {
-	return []string{
-		"test-instance-type-1",
-		"test-instance-type-2",
+func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+	return []cloudprovider.InstanceType{
+		NewInstanceType(InstanceTypeOptions{
+			name: "default-instance-type",
+		}),
+		NewInstanceType(InstanceTypeOptions{
+			name:       "gpu-instance-type",
+			nvidiaGPUs: resource.MustParse("2"),
+		}),
+		NewInstanceType(InstanceTypeOptions{
+			name:             "windows-instance-type",
+			operatingSystems: []string{"windows"},
+		}),
+		NewInstanceType(InstanceTypeOptions{
+			name:          "arm-instance-type",
+			architectures: []string{"arm64"},
+		}),
 	}, nil
 }
 
 func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
 	return []string{
-		"test-architecture-1",
-		"test-architecture-2",
+		"amd64",
+		"arm64",
 	}, nil
 }
 
 func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
 	return []string{
-		"test-operating-system-1",
-		"test-operating-system-2",
+		"linux",
+		"windows",
 	}, nil
 }
 
