@@ -30,12 +30,12 @@ Follow the setup recommendations of your cloud provider.
 
 ### Quick Install - Controller + Dependencies
 ```
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.1/hack/quick-install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.2/hack/quick-install.sh)"
 ```
 
 ### Kubectl - Standalone
 ```
-kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/v0.2.1/releases/aws/manifest.yaml
+kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/v0.2.2/releases/aws/manifest.yaml
 ```
 
 ### Helm - Standalone

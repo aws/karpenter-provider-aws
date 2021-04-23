@@ -83,7 +83,7 @@ spec:
       serviceAccountName: karpenter
       containers:
         - name: manager
-          image: public.ecr.aws/b6u6q9h4/controller:v0.2.1@sha256:60d43d76a2dba337238bec9bf79b58294774f7a367accc0f3fba0fcbd2878773
+          image: public.ecr.aws/karpenter/controller:v0.2.2@sha256:a601fb1d5c9462697ca9add59474462f89ebb605e1a18380168e9e308ca0dcab
           resources:
             requests:
               cpu: 100m
