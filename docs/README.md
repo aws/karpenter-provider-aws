@@ -141,18 +141,6 @@ Cannot be specified if label &ldquo;node.kubernetes.io/instance-type&rdquo; is s
 </tr>
 <tr>
 <td>
-<code>ttlSeconds</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TTLSeconds determines how long to wait before attempting to terminate a node.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>architecture</code></br>
 <em>
 string
@@ -246,6 +234,18 @@ Constraints
 <p>Constraints applied to nodes created by the provisioner</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ttlSeconds</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TTLSeconds determines how long to wait before attempting to terminate a node.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -318,6 +318,18 @@ Constraints
 <p>Constraints applied to nodes created by the provisioner</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ttlSeconds</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TTLSeconds determines how long to wait before attempting to terminate a node.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="provisioning.karpenter.sh/v1alpha1.ProvisionerStatus">ProvisionerStatus
@@ -368,5 +380,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>e335f87</code>.
+on git commit <code>209a1dd</code>.
 </em></p>
