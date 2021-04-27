@@ -23,7 +23,6 @@ Check out the [FAQs](docs/FAQs.md) to learn more.
 
 <img src="docs/images/karpenter-overview.jpg" width="50%" height="50%">
 
-This is an early stage, experimental project built with ❤️ and is available as a **developer preview**. We're excited you are here - jump in, let us know what you think. We welcome contributions.
 ## Installation
 Follow the setup recommendations of your cloud provider.
 - [AWS](docs/aws)
@@ -52,9 +51,6 @@ helm install karpenter karpenter/karpenter
 - [Working Group](docs/working-group)
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](docs/CONTRIBUTING.md)
-
-## Terms
-Karpenter is an early stage, experimental project that is currently maintained by AWS and available as a preview. We request that you do not use Karpenter for production workloads at this time. See details in our [terms](docs/TERMS.md).
 
 ## License
 This project is licensed under the Apache-2.0 License.
