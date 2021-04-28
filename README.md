@@ -19,7 +19,7 @@ For most use cases, the entirety of a cluster’s capacity can be managed by a s
 
 Karpenter optimizes for scheduling latency and utilization efficiency using two complementary control loops. First, is the allocator, a fast-acting latency-sensitive controller responsible for ensuring that incoming pods are scheduled as quickly as possible. Second, is the reallocator, a slow-acting cost-sensitive controller that replaces nodes as pods requests and capacity prices shift over time. Together, they maximize the availability and efficiency of your cluster.
 
-Check out the [FAQs](docs/FAQs.md) to learn more.
+*Note: Reallocation is still in development. Check out the [FAQs](docs/FAQs.md) and [Roadmap](docs/ROADMAP.md) to learn more.*
 
 <img src="docs/images/karpenter-overview.jpg" width="50%" height="50%">
 
