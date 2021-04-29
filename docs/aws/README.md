@@ -40,14 +40,15 @@ Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.2/hack/quick-install.sh)"
 ```
 
-### Enable IRSA and attach IAM Role to Service Account
-Enables IRSA for your cluster. This command is idempotent, but only needs to be executed once per cluster.
+### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
 ```bash
+# Enables IRSA for your cluster. This command is idempotent, but only needs to be executed once per cluster.
 eksctl utils associate-iam-oidc-provider \
 --region ${AWS_DEFAULT_REGION} \
 --cluster ${CLUSTER_NAME} \
 --approve
 
+# Setup KarpenterControllerRole
 kubectl patch serviceaccount karpenter -n karpenter --patch "$(cat <<-EOM
 metadata:
   annotations:
@@ -55,7 +56,21 @@ metadata:
 EOM
 )"
 
-kubectl delete pods -n karpenter -l control-plane=karpenter # Restart controller to load credentials
+# Setup KarpenterNodeRole
+kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<-EOM
+data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+      - system:bootstrappers
+      - system:nodes
+$(kubectl get configmap -n kube-system aws-auth -ojsonpath='{.data.mapRoles}' | sed 's/^/    /')
+EOM
+)"
+
+# Restart controller to load credentials
+kubectl delete pods -n karpenter -l control-plane=karpenter
 ```
 
 ### (Optional) Enable Verbose Logging
