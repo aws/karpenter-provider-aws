@@ -27,11 +27,11 @@ Please contribute to our meeting notes by opening a PR.
 ## Notes
 - [JG] Node label bug in the karpenter implementation
 - [ET] Create Node in EC2
-- [JG] We should may be get EC2 events from eventbridge
-- [ET] We releases 0.2.2 with spot, bin packing to be vendor neutral
+- [JG] We should maybe get EC2 events from eventbridge
+- [ET] We released 0.2.2 with spot, bin packing to be vendor neutral
 - [GT] Tried 0.2.1 karpenter version, seems to work, scaling up/down deployment and will try to do some more stress testing.
 - [GT] Install process wasn't too bad
-- [ET] Do you guys use affinity, anit-affinity?
+- [ET] Do you guys use affinity, anti-affinity?
 - [GT] We use anti, not using topology at the moment
 - [ET] If a pod has affinity not nil, at the moment Karpenter ignores this
 - [JG] Are we open to having an SQS or something to get events from event bridge?
