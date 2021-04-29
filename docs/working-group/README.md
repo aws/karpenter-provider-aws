@@ -10,6 +10,36 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (04/29/21)
+
+## Attendees
+- Jacob Gabrielson
+- Prateek Gogia
+- Nathan Taber
+- Ellis Tarn
+- Nick Tran
+- Brandon Wagner
+- Guy Templeton
+
+## Announcements
+- Karpenter v0.2.2 released this week
+
+## Notes
+- [JG] Node label bug in the karpenter implementation
+- [ET] Create Node in EC2
+- [JG] We should may be get EC2 events from eventbridge
+- [ET] We releases 0.2.2 with spot, bin packing to be vendor neutral
+- [GT] Tried 0.2.1 karpenter version, seems to work, scaling up/down deployment and will try to do some more stress testing.
+- [GT] Install process wasn't too bad
+- [ET] Do you guys use affinity, anit-affinity?
+- [GT] We use anti, not using topology at the moment
+- [ET] If a pod has affinity not nil, at the moment Karpenter ignores this
+- [JG] Are we open to having an SQS or something to get events from event bridge?
+- [JG] Async mode for create fleet
+- [JG] You get an instance notification from EC2 that the node is launched, and then you get node startup notification in about 20-30 seconds
+- [ET] Keeping it vendor neutral might be tricky
+- [JG] We can try to keep Cloud provider to be async or optional, might be more work than worth it
+
 # Meeting notes (04/15/21)
 ## Attendees
 - Ellis Tarn
