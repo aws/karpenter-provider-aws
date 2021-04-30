@@ -63,11 +63,6 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2api: fakeEC2API,
 		cache:  launchTemplateCache,
-		instanceProfileProvider: &InstanceProfileProvider{
-			iamapi:     &fake.IAMAPI{},
-			kubeClient: e.Manager.GetClient(),
-			cache:      instanceProfileCache,
-		},
 		securityGroupProvider: &SecurityGroupProvider{
 			ec2api: fakeEC2API,
 			cache:  securityGroupCache,

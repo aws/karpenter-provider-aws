@@ -49,12 +49,11 @@ cluster-name = "{{.Name}}"
 )
 
 type LaunchTemplateProvider struct {
-	ec2api                  ec2iface.EC2API
-	cache                   *cache.Cache
-	instanceProfileProvider *InstanceProfileProvider
-	securityGroupProvider   *SecurityGroupProvider
-	ssm                     ssmiface.SSMAPI
-	clientSet               *kubernetes.Clientset
+	ec2api                ec2iface.EC2API
+	cache                 *cache.Cache
+	securityGroupProvider *SecurityGroupProvider
+	ssm                   ssmiface.SSMAPI
+	clientSet             *kubernetes.Clientset
 }
 
 func launchTemplateName(clusterName string, arch string) string {
@@ -113,10 +112,6 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 	if err != nil {
 		return nil, fmt.Errorf("getting security groups, %w", err)
 	}
-	instanceProfile, err := p.instanceProfileProvider.Get(ctx, cluster)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance profile, %w", err)
-	}
 	amiID, err := p.getAMIID(ctx, arch)
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI ID, %w", err)
@@ -131,7 +126,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, clust
 		LaunchTemplateName: aws.String(launchTemplateName(cluster.Name, arch)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: instanceProfile.InstanceProfileName,
+				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", cluster.Name)),
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),

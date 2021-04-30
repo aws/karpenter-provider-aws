@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -60,11 +59,6 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2api: ec2api,
 		cache:  cache.New(CacheTTL, CacheCleanupInterval),
-		instanceProfileProvider: &InstanceProfileProvider{
-			iamapi:     iam.New(sess),
-			kubeClient: options.Client,
-			cache:      cache.New(CacheTTL, CacheCleanupInterval),
-		},
 		securityGroupProvider: &SecurityGroupProvider{
 			ec2api: ec2api,
 			cache:  cache.New(CacheTTL, CacheCleanupInterval),

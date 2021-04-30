@@ -58,7 +58,6 @@ Resources:
               - "ec2:DescribeInstanceTypes"
               - "ec2:DescribeInstanceTypeOfferings"
               - "ec2:DescribeAvailabilityZones"
-              - "iam:GetInstanceProfile"
               - "ssm:GetParameter"
   KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
@@ -66,8 +65,8 @@ Resources:
       InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
-        - Ref: "KarpenterNodeInstanceRole"
-  KarpenterNodeInstanceRole:
+        - Ref: "KarpenterNodeRole"
+  KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
       RoleName: !Sub "KarpenterNodeRole-${ClusterName}"
