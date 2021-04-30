@@ -52,37 +52,37 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	if err := functional.ValidateAll(
-		func() error { return v.validateClusterSpec(ctx, &provisioner.Spec) },
-		func() error { return v.validateLabels(ctx, &provisioner.Spec) },
-		func() error { return v.validateZones(ctx, &provisioner.Spec) },
-		func() error { return v.validateInstanceTypes(ctx, &provisioner.Spec) },
-		func() error { return v.validateArchitecture(ctx, &provisioner.Spec) },
-		func() error { return v.validateOperatingSystem(ctx, &provisioner.Spec) },
-		func() error { return v.CloudProvider.CapacityFor(&provisioner.Spec).Validate(ctx) },
+		func() error { return v.validateClusterSpec(ctx, provisioner) },
+		func() error { return v.validateLabels(ctx, provisioner) },
+		func() error { return v.validateZones(ctx, provisioner) },
+		func() error { return v.validateInstanceTypes(ctx, provisioner) },
+		func() error { return v.validateArchitecture(ctx, provisioner) },
+		func() error { return v.validateOperatingSystem(ctx, provisioner) },
+		func() error { return v.CloudProvider.CapacityFor(provisioner).Validate(ctx) },
 	); err != nil {
 		return admission.Denied(fmt.Sprintf("failed to validate provisioner '%s/%s', %s", provisioner.Name, provisioner.Namespace, err.Error()))
 	}
 	return admission.Allowed("")
 }
 
-func (v *Validator) validateClusterSpec(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	if spec.Cluster == nil {
+func (v *Validator) validateClusterSpec(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	if provisioner.Spec.Cluster == nil {
 		return fmt.Errorf("spec.cluster must be defined")
 	}
-	if len(spec.Cluster.Name) == 0 {
+	if len(provisioner.Spec.Cluster.Name) == 0 {
 		return fmt.Errorf("spec.cluster.name cannot be empty")
 	}
-	if len(spec.Cluster.Endpoint) == 0 {
+	if len(provisioner.Spec.Cluster.Endpoint) == 0 {
 		return fmt.Errorf("spec.cluster.endpoint cannot be empty")
 	}
-	if len(spec.Cluster.CABundle) == 0 {
+	if len(provisioner.Spec.Cluster.CABundle) == 0 {
 		return fmt.Errorf("spec.cluster.caBundle cannot be empty")
 	}
 	return nil
 }
 
-func (v *Validator) validateLabels(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	for label := range spec.Labels {
+func (v *Validator) validateLabels(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	for label := range provisioner.Spec.Labels {
 		for _, restricted := range []string{
 			v1alpha1.ArchitectureLabelKey,
 			v1alpha1.OperatingSystemLabelKey,
@@ -101,43 +101,43 @@ func (v *Validator) validateLabels(ctx context.Context, spec *v1alpha1.Provision
 	return nil
 }
 
-func (v *Validator) validateArchitecture(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	if spec.Architecture == nil {
+func (v *Validator) validateArchitecture(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	if provisioner.Spec.Architecture == nil {
 		return nil
 	}
-	supportedArchitectures, err := v.CloudProvider.CapacityFor(spec).GetArchitectures(ctx)
+	supportedArchitectures, err := v.CloudProvider.CapacityFor(provisioner).GetArchitectures(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported architectures, %w", err)
 	}
-	if !functional.ContainsString(supportedArchitectures, *spec.Architecture) {
-		return fmt.Errorf("unsupported architecture '%s' not in %v", *spec.Architecture, supportedArchitectures)
+	if !functional.ContainsString(supportedArchitectures, *provisioner.Spec.Architecture) {
+		return fmt.Errorf("unsupported architecture '%s' not in %v", *provisioner.Spec.Architecture, supportedArchitectures)
 	}
 	return nil
 }
 
-func (v *Validator) validateOperatingSystem(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	if spec.OperatingSystem == nil {
+func (v *Validator) validateOperatingSystem(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	if provisioner.Spec.OperatingSystem == nil {
 		return nil
 	}
-	supportedOperatingSystems, err := v.CloudProvider.CapacityFor(spec).GetOperatingSystems(ctx)
+	supportedOperatingSystems, err := v.CloudProvider.CapacityFor(provisioner).GetOperatingSystems(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported operating systems, %w", err)
 	}
-	if !functional.ContainsString(supportedOperatingSystems, *spec.OperatingSystem) {
-		return fmt.Errorf("unsupported operating system '%s' not in %v", *spec.OperatingSystem, supportedOperatingSystems)
+	if !functional.ContainsString(supportedOperatingSystems, *provisioner.Spec.OperatingSystem) {
+		return fmt.Errorf("unsupported operating system '%s' not in %v", *provisioner.Spec.OperatingSystem, supportedOperatingSystems)
 	}
 	return nil
 }
 
-func (v *Validator) validateZones(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	if spec.Zones == nil {
+func (v *Validator) validateZones(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	if provisioner.Spec.Zones == nil {
 		return nil
 	}
-	supportedZones, err := v.CloudProvider.CapacityFor(spec).GetZones(ctx)
+	supportedZones, err := v.CloudProvider.CapacityFor(provisioner).GetZones(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported zones, %w", err)
 	}
-	for _, zone := range spec.Zones {
+	for _, zone := range provisioner.Spec.Zones {
 		if !functional.ContainsString(supportedZones, zone) {
 			return fmt.Errorf("unsupported zone '%s' not in %v", zone, supportedZones)
 		}
@@ -145,11 +145,11 @@ func (v *Validator) validateZones(ctx context.Context, spec *v1alpha1.Provisione
 	return nil
 }
 
-func (v *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.ProvisionerSpec) error {
-	if spec.InstanceTypes == nil {
+func (v *Validator) validateInstanceTypes(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+	if provisioner.Spec.InstanceTypes == nil {
 		return nil
 	}
-	instanceTypes, err := v.CloudProvider.CapacityFor(spec).GetInstanceTypes(ctx)
+	instanceTypes, err := v.CloudProvider.CapacityFor(provisioner).GetInstanceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("getting supported instance types, %w", err)
 	}
@@ -157,7 +157,7 @@ func (v *Validator) validateInstanceTypes(ctx context.Context, spec *v1alpha1.Pr
 	for _, instanceType := range instanceTypes {
 		instanceTypeNames = append(instanceTypeNames, instanceType.Name())
 	}
-	for _, instanceType := range spec.InstanceTypes {
+	for _, instanceType := range provisioner.Spec.InstanceTypes {
 		if !functional.ContainsString(instanceTypeNames, instanceType) {
 			return fmt.Errorf("unsupported instance type '%s' not in %v", instanceType, instanceTypeNames)
 		}

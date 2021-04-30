@@ -75,9 +75,9 @@ func NewFactory(options cloudprovider.Options) *Factory {
 	}
 }
 
-func (f *Factory) CapacityFor(spec *v1alpha1.ProvisionerSpec) cloudprovider.Capacity {
+func (f *Factory) CapacityFor(provisioner *v1alpha1.Provisioner) cloudprovider.Capacity {
 	return &Capacity{
-		spec:                   spec,
+		provisioner:            provisioner,
 		nodeFactory:            f.nodeFactory,
 		instanceProvider:       f.instanceProvider,
 		launchTemplateProvider: f.launchTemplateProvider,

@@ -32,6 +32,10 @@ var (
 	LaunchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
 	LaunchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
 	allowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
+	AWSToKubeArchitectures     = map[string]string{
+		"x86_64":                   v1alpha1.ArchitectureAmd64,
+		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
+	}
 )
 
 // Constraints are AWS specific constraints
@@ -63,4 +67,13 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 		Id:      &id,
 		Version: &version,
 	}
+}
+
+func (c *Constraints) GetArchitecture() string {
+	for aws, kube := range AWSToKubeArchitectures {
+		if *c.Architecture == kube {
+			return aws
+		}
+	}
+	return ""
 }

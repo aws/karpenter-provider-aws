@@ -27,7 +27,7 @@ import (
 
 // Capacity cloud provider implementation using AWS Fleet.
 type Capacity struct {
-	spec                   *v1alpha1.ProvisionerSpec
+	provisioner            *v1alpha1.Provisioner
 	nodeFactory            *NodeFactory
 	instanceProvider       *InstanceProvider
 	subnetProvider         *SubnetProvider
@@ -52,7 +52,7 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 	for _, packing := range packings {
 		constraints := Constraints(*packing.Constraints)
 		// 1. Get Subnets and constrain by zones
-		zonalSubnets, err := c.subnetProvider.GetZonalSubnets(ctx, c.spec.Cluster.Name)
+		zonalSubnets, err := c.subnetProvider.GetZonalSubnets(ctx, c.provisioner.Spec.Cluster.Name)
 		if err != nil {
 			return nil, fmt.Errorf("getting zonal subnets, %w", err)
 		}
@@ -63,7 +63,7 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 			}
 		}
 		// 2. Get Launch Template
-		launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.spec.Cluster, &constraints)
+		launchTemplate, err := c.launchTemplateProvider.Get(ctx, c.provisioner, &constraints)
 		if err != nil {
 			return nil, fmt.Errorf("getting launch template, %w", err)
 		}
@@ -101,11 +101,11 @@ func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
 }
 
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return c.instanceTypeProvider.Get(ctx, c.spec.Cluster)
+	return c.instanceTypeProvider.Get(ctx, c.provisioner.Spec.Cluster)
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
-	zonalSubnets, err := c.subnetProvider.GetZonalSubnets(ctx, c.spec.Cluster.Name)
+	zonalSubnets, err := c.subnetProvider.GetZonalSubnets(ctx, c.provisioner.Spec.Cluster.Name)
 	if err != nil {
 		return nil, err
 	}
