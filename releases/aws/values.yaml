@@ -2,7 +2,7 @@ serviceAccount:
   # Annotations to add to the service account (like the ARN of the IRSA role)
   annotations: {}
 controller:
-  defaultImage: public.ecr.aws/karpenter/controller:v0.2.2@sha256:a601fb1d5c9462697ca9add59474462f89ebb605e1a18380168e9e308ca0dcab
+  defaultImage: public.ecr.aws/karpenter/controller:v0.2.3@sha256:ad4332ddce1afb1080b269eeee70592c29e3e34ecd9f9f4dabe4102c415817e9
 # fill the variable below if you want to override the default image
 #  repository:
 #  tag:
