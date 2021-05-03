@@ -1,6 +1,6 @@
 RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
-RELEASE_CHART = releases/$(CLOUD_PROVIDER)
+RELEASE_CHART = charts
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
@@ -15,7 +15,7 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: publish helm docs ## Run all steps in release workflow
+release: publish verifiy-helm helm docs ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -50,17 +50,17 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
-	@mkdir -p $(RELEASE_CHART)/templates
-	@cp config/templates/* $(RELEASE_CHART)/templates
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > $(RELEASE_CHART)/values.yaml
+	#@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
+	@mkdir -p $(RELEASE_CHART)/karpenter/templates
+	@cp config/templates/* $(RELEASE_CHART)/karpenter/templates
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > $(RELEASE_CHART)/karpenter/values.yaml
+	yq e -i '.version = "$(RELEASE_VERSION)"' ./$(RELEASE_CHART)/karpenter/Chart.yaml
 
-helm: ## Generate Helm Chart
-	@mkdir -p ./charts/karpenter/templates
-	cp $(RELEASE_CHART)/templates/* charts/karpenter/templates
-	cp $(RELEASE_CHART)/values.yaml charts/karpenter
-	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
-	cd charts; helm package karpenter; helm repo index .
+verifiy-helm:
+	helm lint $(RELEASE_CHART)/karpenter
+
+helm:  ## Generate Helm Chart
+	cd $(RELEASE_CHART); helm package karpenter; helm repo index .
 
 docs: ## Generate Docs
 	gen-crd-api-reference-docs \
@@ -72,4 +72,4 @@ docs: ## Generate Docs
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm docs toolchain licenses
+.PHONY: help dev ci release test battletest verify codegen apply delete publish helm docs toolchain licenses verifiy-helm
