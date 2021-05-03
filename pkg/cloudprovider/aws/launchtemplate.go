@@ -70,6 +70,9 @@ func launchTemplateName(options *launchTemplateOptions) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.Cluster.Name, options.Provisioner.Name, options.Provisioner.Namespace, fmt.Sprint(hash))
 }
 
+// launchTemplateOptions is hashed and results in the creation of a real EC2
+// LaunchTemplate. Do not change this struct without thinking through the impact
+// to the number of LaunchTemplates that will result from this change.
 type launchTemplateOptions struct {
 	Provisioner  types.NamespacedName
 	Cluster      v1alpha1.ClusterSpec
@@ -87,7 +90,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha1.
 	options := launchTemplateOptions{
 		Provisioner:  types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace},
 		Cluster:      *provisioner.Spec.Cluster,
-		Architecture: constraints.GetArchitecture(),
+		Architecture: KubeToAWSArchitectures[*constraints.Architecture],
 		Labels:       constraints.Labels,
 		Taints:       constraints.Taints,
 	}

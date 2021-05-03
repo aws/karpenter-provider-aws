@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
@@ -36,6 +37,7 @@ var (
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
 		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
 	}
+	KubeToAWSArchitectures = functional.InvertStringMap(AWSToKubeArchitectures)
 )
 
 // Constraints are AWS specific constraints
@@ -67,13 +69,4 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 		Id:      &id,
 		Version: &version,
 	}
-}
-
-func (c *Constraints) GetArchitecture() string {
-	for aws, kube := range AWSToKubeArchitectures {
-		if *c.Architecture == kube {
-			return aws
-		}
-	}
-	return ""
 }

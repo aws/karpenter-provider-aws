@@ -89,3 +89,12 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 	}
 	return false
 }
+
+// InvertStringMap swaps keys to values and values to keys
+func InvertStringMap(stringMap map[string]string) map[string]string {
+	inverted := map[string]string{}
+	for k, v := range stringMap {
+		inverted[v] = k
+	}
+	return inverted
+}
