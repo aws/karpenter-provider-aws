@@ -1,0 +1,27 @@
+serviceAccount:
+  # Annotations to add to the service account (like the ARN of the IRSA role)
+  annotations: {}
+
+controller:
+  defaultImage: ko://github.com/awslabs/karpenter/cmd/controller
+# fill the variable below if you want to override the default image
+#  repository:
+#  tag:
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/os
+              operator: In
+              values:
+                - linux
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+                - amd64

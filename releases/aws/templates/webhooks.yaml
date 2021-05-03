@@ -1,0 +1,59 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: karpenter-mutating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /mutate-provisioning-karpenter-sh-v1alpha1-provisioner
+    failurePolicy: Fail
+    name: mutation.provisioning.karpenter.sh
+    rules:
+      - apiGroups:
+          - provisioning.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - provisioners
+    sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: karpenter-validating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: karpenter-webhook-service
+        namespace: karpenter
+        path: /validate-provisioning-karpenter-sh-v1alpha1-provisioner
+    failurePolicy: Fail
+    name: validation.provisioning.karpenter.sh
+    rules:
+      - apiGroups:
+          - provisioning.karpenter.sh
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - provisioners
+    sideEffects: None

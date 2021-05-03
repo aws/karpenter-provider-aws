@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter-webhook-service
+  namespace: karpenter
+  labels:
+    control-plane: karpenter
+spec:
+  ports:
+    - port: 443
+      targetPort: webhook
+  selector:
+    control-plane: karpenter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter-metrics-service
+  namespace: karpenter
+  labels:
+    control-plane: karpenter
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: metrics
+  selector:
+    control-plane: karpenter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter
+  namespace: karpenter
+  labels:
+    control-plane: karpenter
+spec:
+  selector:
+    matchLabels:
+      control-plane: karpenter
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: karpenter
+    spec:
+      serviceAccountName: karpenter
+      containers:
+        - name: manager
+          {{- if .Values.controller.repository }}
+          image: {{ .Values.controller.image }}:{{ .Values.controller.tag }}
+          {{- else }}
+          image: {{ .Values.controller.defaultImage }}
+          {{- end }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 20Mi
+          ports:
+            - name: webhook
+              containerPort: 9443
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: cert
+              readOnly: true
+      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
+      securityContext:
+        fsGroup: 1000
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: karpenter-webhook-server-cert
