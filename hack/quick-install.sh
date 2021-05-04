@@ -48,7 +48,7 @@ apply() {
     --set installCRDs=true \
     --atomic
   helm upgrade --install karpenter karpenter/karpenter \
-    --version 0.2.1 \
+    --version 0.2.3 \
     --create-namespace --namespace karpenter \
     --atomic
 }
