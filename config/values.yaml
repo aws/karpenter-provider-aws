@@ -5,7 +5,7 @@ serviceAccount:
 controller:
   defaultImage: ko://github.com/awslabs/karpenter/cmd/controller
 # fill the variable below if you want to override the default image
-#  repository:
+#  image:
 #  tag:
 
 nodeSelector: {}
