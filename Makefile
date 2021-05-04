@@ -50,7 +50,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	#@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
+	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
 	@mkdir -p $(RELEASE_CHART)/karpenter/templates
 	@cp config/templates/* $(RELEASE_CHART)/karpenter/templates
 	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > $(RELEASE_CHART)/karpenter/values.yaml
