@@ -27,6 +27,14 @@ spec:
   selector:
     control-plane: karpenter
 ---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: karpenter-high-priority
+value: 1000000
+globalDefault: false
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -44,6 +52,7 @@ spec:
       labels:
         control-plane: karpenter
     spec:
+      priorityClassName: karpenter-high-priority
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -63,8 +72,11 @@ spec:
         image: ko://github.com/awslabs/karpenter/cmd/controller
         resources:
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 1
+            memory: 1Gi
+          limits:
+            cpu: 1
+            memory: 1Gi
         ports:
         - name: webhook
           containerPort: 9443
