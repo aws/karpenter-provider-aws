@@ -1,6 +1,6 @@
 RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
-RELEASE_MANIFEST = releases/$(CLOUD_PROVIDER)/manifest.yaml
+RELEASE_CHART = releases/$(CLOUD_PROVIDER)
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
@@ -41,20 +41,24 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	$(WITH_GOFLAGS) ko apply -B -f config
+	helm template karpenter ./config/ | $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	ko delete -f config
+	helm template karpenter ./config/ |  ko delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config > $(RELEASE_MANIFEST)
+	@mkdir -p $(RELEASE_CHART)/templates
+	@cp config/templates/* $(RELEASE_CHART)/templates
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > $(RELEASE_CHART)/values.yaml
 
 helm: ## Generate Helm Chart
-	cp $(RELEASE_MANIFEST) charts/karpenter/templates
+	@mkdir -p ./charts/karpenter/templates
+	cp $(RELEASE_CHART)/templates/* charts/karpenter/templates
+	cp $(RELEASE_CHART)/values.yaml charts/karpenter
 	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
 	cd charts; helm package karpenter; helm repo index .
 
