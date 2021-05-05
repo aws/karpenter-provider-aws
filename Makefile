@@ -1,6 +1,5 @@
 RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
-RELEASE_CHART = charts
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"

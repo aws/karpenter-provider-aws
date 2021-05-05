@@ -21,11 +21,19 @@ metadata:
     control-plane: karpenter
 spec:
   ports:
-  - name: http
-    port: 8080
-    targetPort: metrics
+    - name: http
+      port: 8080
+      targetPort: metrics
   selector:
     control-plane: karpenter
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: karpenter-high-priority
+value: 1000000
+globalDefault: false
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -44,6 +52,7 @@ spec:
       labels:
         control-plane: karpenter
     spec:
+      priorityClassName: karpenter-high-priority
       serviceAccountName: karpenter
       containers:
         - name: manager
@@ -54,8 +63,11 @@ spec:
           {{- end }}
           resources:
             requests:
-              cpu: 100m
-              memory: 20Mi
+              cpu: 1
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 1Gi
           ports:
             - name: webhook
               containerPort: 9443
