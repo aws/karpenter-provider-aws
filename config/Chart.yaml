@@ -2,4 +2,4 @@ apiVersion: v2
 name: karpenter
 description: A Helm chart for https://github.com/awslabs/karpenter/.
 type: application
-version: 0.1
+version: 0.2.3
