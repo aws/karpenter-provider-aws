@@ -74,9 +74,9 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
 	return &Environment{
 		Environment: envtest.Environment{
-			CRDDirectoryPaths: []string{project.RelativeToRoot("config")},
+			CRDDirectoryPaths: []string{project.RelativeToRoot("config/templates/provisioner-crd.yaml")},
 			WebhookInstallOptions: envtest.WebhookInstallOptions{
-				Paths: []string{project.RelativeToRoot("config")},
+				Paths: []string{project.RelativeToRoot("config/templates/webhooks.yaml")},
 			},
 		},
 		Server:  ghttp.NewServer(),
