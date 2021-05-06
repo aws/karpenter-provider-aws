@@ -31,7 +31,7 @@ EOF
 delete() {
   helm delete karpenter || true
   helm delete cert-manager --namespace cert-manager || true
-  kubectl delete namespace karpenter cert-manager monitoring || true
+  kubectl delete namespace karpenter cert-manager || true
 }
 
 # If this fails you may have an old installation hanging around.
