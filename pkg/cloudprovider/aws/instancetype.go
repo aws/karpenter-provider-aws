@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -40,7 +39,7 @@ func (i *InstanceType) Zones() []string {
 func (i *InstanceType) Architectures() []string {
 	architectures := []string{}
 	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
-		architectures = append(architectures, utils.KubeArchitecture(aws.StringValue(architecture)))
+		architectures = append(architectures, AWSToKubeArchitectures[aws.StringValue(architecture)])
 	}
 	return architectures
 }

@@ -20,6 +20,7 @@ import (
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,9 +44,15 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 		Type:   v1.NodeReady,
 		Status: v1.ConditionUnknown,
 	}}
-	// 2. Create node
+	// 2. Idempotently create a node. In rare cases, nodes can come online and
+	// self register before the controller is able to register a node object
+	// with the API server. In the common case, we create the node object
+	// ourselves to enforce the binding decision and enable images to be pulled
+	// before the node is fully Ready.
 	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
-		return fmt.Errorf("creating node %s, %w", node.Name, err)
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("creating node %s, %w", node.Name, err)
+		}
 	}
 
 	// 3. Bind pods

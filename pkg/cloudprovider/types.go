@@ -27,7 +27,7 @@ import (
 // Factory instantiates the cloud provider's resources
 type Factory interface {
 	// Capacity returns a provisioner for the provider to create instances
-	CapacityFor(spec *v1alpha1.ProvisionerSpec) Capacity
+	CapacityFor(provisioner *v1alpha1.Provisioner) Capacity
 }
 
 // Capacity provisions a set of nodes that fulfill a set of constraints.

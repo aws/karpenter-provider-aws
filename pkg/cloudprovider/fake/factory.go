@@ -43,6 +43,6 @@ func NewNotImplementedFactory() *Factory {
 	return &Factory{WantErr: NotImplementedError}
 }
 
-func (f *Factory) CapacityFor(spec *provisioning.ProvisionerSpec) cloudprovider.Capacity {
+func (f *Factory) CapacityFor(provisioner *provisioning.Provisioner) cloudprovider.Capacity {
 	return &Capacity{}
 }

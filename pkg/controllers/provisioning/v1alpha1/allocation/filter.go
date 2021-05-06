@@ -45,7 +45,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	}
 
 	// 2. Get Supported Labels
-	capacity := f.cloudProvider.CapacityFor(&provisioner.Spec)
+	capacity := f.cloudProvider.CapacityFor(provisioner)
 	architectures, err := capacity.GetArchitectures(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting supported architectures, %w", err)

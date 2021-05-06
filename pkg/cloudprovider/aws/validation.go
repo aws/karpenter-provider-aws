@@ -32,7 +32,7 @@ func (c *Capacity) Validate(ctx context.Context) error {
 }
 
 func (c *Capacity) validateCapacityTypeLabel() error {
-	value, ok := c.spec.Labels[CapacityTypeLabel]
+	value, ok := c.provisioner.Spec.Labels[CapacityTypeLabel]
 	if !ok {
 		return nil
 	}
@@ -44,7 +44,7 @@ func (c *Capacity) validateCapacityTypeLabel() error {
 }
 
 func (c *Capacity) validateAllowedLabels() error {
-	for key := range c.spec.Labels {
+	for key := range c.provisioner.Spec.Labels {
 		if strings.HasPrefix(key, nodeLabelPrefix) &&
 			!functional.ContainsString(allowedLabels, key) {
 			return fmt.Errorf("%s is reserved for AWS cloud provider use", key)
@@ -54,8 +54,8 @@ func (c *Capacity) validateAllowedLabels() error {
 }
 
 func (c *Capacity) validateLaunchTemplateLabels() error {
-	if _, versionExists := c.spec.Labels[LaunchTemplateVersionLabel]; versionExists {
-		if _, bothExist := c.spec.Labels[LaunchTemplateIdLabel]; !bothExist {
+	if _, versionExists := c.provisioner.Spec.Labels[LaunchTemplateVersionLabel]; versionExists {
+		if _, bothExist := c.provisioner.Spec.Labels[LaunchTemplateIdLabel]; !bothExist {
 			return fmt.Errorf("%s can only be specified with %s", LaunchTemplateVersionLabel, LaunchTemplateIdLabel)
 		}
 	}

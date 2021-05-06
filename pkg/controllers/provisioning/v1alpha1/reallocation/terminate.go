@@ -126,7 +126,7 @@ func (t *Terminator) terminateNodes(ctx context.Context, provisioner *v1alpha1.P
 // deleteNode uses a cloudprovider-specific delete to delete a set of nodes
 func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node, provisioner *v1alpha1.Provisioner) error {
 	// 1. Delete node in cloudprovider's instanceprovider
-	if err := t.cloudprovider.CapacityFor(&provisioner.Spec).Delete(ctx, nodes); err != nil {
+	if err := t.cloudprovider.CapacityFor(provisioner).Delete(ctx, nodes); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Delete node in APIServer

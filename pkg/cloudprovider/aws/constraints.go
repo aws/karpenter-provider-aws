@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
@@ -32,6 +33,11 @@ var (
 	LaunchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
 	LaunchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
 	allowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
+	AWSToKubeArchitectures     = map[string]string{
+		"x86_64":                   v1alpha1.ArchitectureAmd64,
+		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
+	}
+	KubeToAWSArchitectures = functional.InvertStringMap(AWSToKubeArchitectures)
 )
 
 // Constraints are AWS specific constraints

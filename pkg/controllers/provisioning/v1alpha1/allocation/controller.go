@@ -87,7 +87,7 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 	}
 
 	// 3. Binpack each group
-	capacity := c.cloudProvider.CapacityFor(&provisioner.Spec)
+	capacity := c.cloudProvider.CapacityFor(provisioner)
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
 		instanceTypes, err := capacity.GetInstanceTypes(ctx)
