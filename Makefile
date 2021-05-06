@@ -40,22 +40,22 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template karpenter ./config/ | $(WITH_GOFLAGS) ko apply -B -f -
+	helm template karpenter config | $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter ./config/ |  ko delete -f -
+	helm template karpenter config |  ko delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	@aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
+	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
 	@cp config/templates/* charts/karpenter/templates
 	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > charts/karpenter/values.yaml
 	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
 
 helm:  ## Generate Helm Chart
-	cd charts; helm lint karpenter ;helm package karpenter; helm repo index .
+	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 
 docs: ## Generate Docs
 	gen-crd-api-reference-docs \
