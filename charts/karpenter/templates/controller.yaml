@@ -56,11 +56,7 @@ spec:
       serviceAccountName: karpenter
       containers:
         - name: manager
-          {{- if .Values.controller.repository }}
-          image: {{ .Values.controller.image }}:{{ .Values.controller.tag }}
-          {{- else }}
-          image: {{ .Values.controller.defaultImage }}
-          {{- end }}
+          image: {{ .Values.controller.image }}
           resources:
             requests:
               cpu: 1
@@ -81,15 +77,15 @@ spec:
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:
         fsGroup: 1000
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.controller.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with .Values.controller.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.controller.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
