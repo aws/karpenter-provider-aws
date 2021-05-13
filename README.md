@@ -54,5 +54,8 @@ helm install karpenter karpenter/karpenter
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
 - [Contributing](docs/CONTRIBUTING.md)
 
+## Talks
+- [Karpenter @ Container Day, May 2021](https://www.twitch.tv/videos/1010593737?t=141m50s)
+
 ## License
 This project is licensed under the Apache-2.0 License.
