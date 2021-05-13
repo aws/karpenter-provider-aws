@@ -36,21 +36,23 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	golangci-lint run
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
-	go build $(GOFLAGS) -o karpenter cmd/controller/main.go 
+	go build $(GOFLAGS) -o karpenter cmd/controller/main.go
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template karpenter charts/karpenter -f config/values.yaml | $(WITH_GOFLAGS) ko apply -B -f -
+	helm template karpenter charts/karpenter \
+		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller | \
+		$(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter -f config/values.yaml |  ko delete -f -
+	helm template karpenter charts/karpenter | ko delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko resolve -B -t $(RELEASE_VERSION) --platform all -f config/values.yaml > charts/karpenter/values.yaml
+	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) --platform all ./cmd/controller)\"" ./charts/karpenter/values.yaml
 	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
 
 helm:  ## Generate Helm Chart

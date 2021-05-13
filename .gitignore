@@ -1,6 +1,3 @@
-bin/
-karpenter
-# Generated code coverage
 coverage.out
 coverage.html
 *.test
