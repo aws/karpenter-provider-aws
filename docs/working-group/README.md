@@ -26,8 +26,8 @@ Please contribute to our meeting notes by opening a PR.
 [ET] Scaledown usecases
     -- Node TTL, terminate nodes after 90 days
     -- Defrag and empty nodes termination
-    -- Plan is to implement as a finalizer it will work with `kubectl delete nodename` command
-    -- Finalizer will be injected be a webhook as part of the node delete
+    -- Plan is to implement as a finalizer it will work with `kubectl delete node <name>` command
+    -- Finalizer will be injected by a webhook as part of the node delete
     -- karpenter will terminate the node in the cloud provider and remove the finalizer
 [El] It won't play well with CAPI, normally you will be deleting machine objects, with CAPI you can land in a weird state where CAPI objects exists
 [ET] We could potentially upstream this to k/k
