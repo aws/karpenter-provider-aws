@@ -30,7 +30,7 @@ aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
 ### Install Karpenter Controller and Dependencies
@@ -89,8 +89,8 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.certificateAuthority.data")
-    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.endpoint")
+    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq ".cluster.certificateAuthority.data")
+    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq ".cluster.endpoint")
 EOF
 kubectl get provisioner default -oyaml
 ```
