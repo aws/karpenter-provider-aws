@@ -58,6 +58,7 @@ Resources:
               - "ec2:DescribeInstanceTypes"
               - "ec2:DescribeInstanceTypeOfferings"
               - "ec2:DescribeAvailabilityZones"
+              - "iam:GetInstanceProfile"
               - "ssm:GetParameter"
   KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
