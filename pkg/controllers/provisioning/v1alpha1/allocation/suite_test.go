@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/test"
+	"github.com/awslabs/karpenter/pkg/utils/resources"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -205,6 +206,30 @@ var _ = Describe("Allocation", func() {
 			for _, pod := range unschedulable {
 				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
+			}
+		})
+		It("should provision nodes for accelerators", func() {
+			schedulable := []client.Object{
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
+				}),
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AMDGPU: resource.MustParse("1")}},
+				}),
+				test.PendingPodWith(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")}},
+				}),
+			}
+			ExpectCreatedWithStatus(env.Client, schedulable...)
+			ExpectCreated(env.Client, provisioner)
+			ExpectEventuallyReconciled(env.Client, provisioner)
+
+			nodes := &v1.NodeList{}
+			Expect(env.Client.List(ctx, nodes)).To(Succeed())
+			Expect(len(nodes.Items)).To(Equal(3))
+			for _, pod := range schedulable {
+				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 		})
 		It("should account for daemonsets", func() {

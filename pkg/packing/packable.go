@@ -49,6 +49,7 @@ func PackablesFor(instanceTypes []cloudprovider.InstanceType, constraints *Const
 			func() error { return packable.validateArchitecture(constraints) },
 			func() error { return packable.validateOperatingSystem(constraints) },
 			func() error { return packable.validateNvidiaGpus(constraints) },
+			func() error { return packable.validateAMDGpus(constraints) },
 			func() error { return packable.validateAWSNeurons(constraints) },
 		); err != nil {
 			continue
@@ -75,6 +76,7 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 			v1.ResourceCPU:      *i.CPU(),
 			v1.ResourceMemory:   *i.Memory(),
 			resources.NvidiaGPU: *i.NvidiaGPUs(),
+			resources.AMDGPU:    *i.AMDGPUs(),
 			resources.AWSNeuron: *i.AWSNeurons(),
 			v1.ResourcePods:     *i.Pods(),
 		},
@@ -172,13 +174,27 @@ func (p *Packable) validateNvidiaGpus(constraints *Constraints) error {
 	return fmt.Errorf("nvidia gpu is not required")
 }
 
-func (p *Packable) validateAWSNeurons(constraints *Constraints) error {
-	if p.InstanceType.NvidiaGPUs().IsZero() {
+func (p *Packable) validateAMDGpus(constraints *Constraints) error {
+	if p.InstanceType.AMDGPUs().IsZero() {
 		return nil
 	}
 	for _, pod := range constraints.Pods {
 		for _, container := range pod.Spec.Containers {
-			if _, ok := container.Resources.Requests[resources.NvidiaGPU]; ok {
+			if _, ok := container.Resources.Requests[resources.AMDGPU]; ok {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("amd gpu is not required")
+}
+
+func (p *Packable) validateAWSNeurons(constraints *Constraints) error {
+	if p.InstanceType.AWSNeurons().IsZero() {
+		return nil
+	}
+	for _, pod := range constraints.Pods {
+		for _, container := range pod.Spec.Containers {
+			if _, ok := container.Resources.Requests[resources.AWSNeuron]; ok {
 				return nil
 			}
 		}

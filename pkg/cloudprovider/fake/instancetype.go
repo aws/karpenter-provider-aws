@@ -48,6 +48,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			memory:           options.memory,
 			pods:             options.pods,
 			nvidiaGPUs:       options.nvidiaGPUs,
+			amdGPUs:          options.amdGPUs,
 			awsNeurons:       options.awsNeurons,
 		},
 	}
@@ -62,6 +63,7 @@ type InstanceTypeOptions struct {
 	memory           resource.Quantity
 	pods             resource.Quantity
 	nvidiaGPUs       resource.Quantity
+	amdGPUs          resource.Quantity
 	awsNeurons       resource.Quantity
 }
 
@@ -99,6 +101,10 @@ func (i *InstanceType) Pods() *resource.Quantity {
 
 func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
 	return &i.nvidiaGPUs
+}
+
+func (i *InstanceType) AMDGPUs() *resource.Quantity {
+	return &i.amdGPUs
 }
 
 func (i *InstanceType) AWSNeurons() *resource.Quantity {
