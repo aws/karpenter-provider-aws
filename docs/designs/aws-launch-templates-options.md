@@ -1,4 +1,4 @@
-# AWS Provisioner Launch Template Options
+# AWS Launch Template Options
 
 ## Intro
 
@@ -23,7 +23,7 @@ spec:
     - key:
       effect:
   zones:
-    - 
+    -
   instanceTypes:
     -
   ttlSeconds:
@@ -225,7 +225,7 @@ For now the recommendation is to support the following in provisioner
 `spec.labels`:
 
 - `node.k8s.aws/launch-template-id`: (optional) id of launch template
-  and cannot be specified if `architecture` 
+  and cannot be specified if `architecture`
 - `node.k8s.aws/launch-template-version`: version number or `$LATEST`
   (optional, default `$LATEST`) (cannot be specified unless
   `node.k8s.aws/launch-template-id` is present
@@ -289,7 +289,7 @@ templates on a single provisioner aren't worth the code complexity
 - Obvious problems (such as specifying both `architecture` and a
   launch template in the same provisioner spec) will be caught early,
   such as when the user runs `kubectl`.
-  
+
 ### Cons
 
 - If the user specifies an incompatible `architecture` in the
@@ -306,7 +306,7 @@ templates on a single provisioner aren't worth the code complexity
   "reach in" to the provider to do further validation, which is
   additional complexity (that said, it doesn't sound like this is
   unheard-of behavior in similar projects, either).
-  
+
 Customers can use multiple provisioners by differentiating in their
 pod specs:
 
