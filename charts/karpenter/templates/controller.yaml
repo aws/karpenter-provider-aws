@@ -67,9 +67,14 @@ spec:
           ports:
             - name: webhook
               containerPort: 9443
-              protocol: TCP
             - name: metrics
               containerPort: 8080
+            - name: health-probe
+              containerPort: 8081
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
           volumeMounts:
             - mountPath: /tmp/k8s-webhook-server/serving-certs
               name: cert

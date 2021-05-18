@@ -39,12 +39,14 @@ type Options struct {
 	EnableVerboseLogging bool
 	MetricsPort          int
 	WebhookPort          int
+	HealthProbePort      int
 }
 
 func main() {
 	flag.BoolVar(&options.EnableVerboseLogging, "verbose", false, "Enable verbose logging")
 	flag.IntVar(&options.WebhookPort, "webhook-port", 9443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
+	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
 	flag.Parse()
 
 	log.Setup(
@@ -53,11 +55,12 @@ func main() {
 		controllerruntimezap.StacktraceLevel(zapcore.DPanicLevel),
 	)
 	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
-		LeaderElection:     true,
-		LeaderElectionID:   "karpenter-leader-election",
-		Scheme:             scheme,
-		MetricsBindAddress: fmt.Sprintf(":%d", options.MetricsPort),
-		Port:               options.WebhookPort,
+		LeaderElection:         true,
+		LeaderElectionID:       "karpenter-leader-election",
+		Scheme:                 scheme,
+		Port:                   options.WebhookPort,
+		MetricsBindAddress:     fmt.Sprintf(":%d", options.MetricsPort),
+		HealthProbeBindAddress: fmt.Sprintf(":%d", options.HealthProbePort),
 	})
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
