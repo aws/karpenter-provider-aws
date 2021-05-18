@@ -10,6 +10,43 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (05/13/21)
+
+## Attendees
+- Prateek Gogia
+- Ellis Tarn
+- Brandon Wagner
+- Guy Templeton
+- Jeff Wisman
+- Larry Li
+- Elmiko
+
+## Notes
+[ET] Overview of the delete workflow in Karpenter
+[ET] Scaledown usecases
+    -- Node TTL, terminate nodes after 90 days
+    -- Defrag and empty nodes termination
+    -- Plan is to implement as a finalizer it will work with `kubectl delete node <name>` command
+    -- Finalizer will be injected by a webhook as part of the node delete
+    -- karpenter will terminate the node in the cloud provider and remove the finalizer
+[El] It won't play well with CAPI, normally you will be deleting machine objects, with CAPI you can land in a weird state where CAPI objects exists
+[ET] We could potentially upstream this to k/k
+[El] Users want to delete node and want to see the instance/hardware backing it gets deleted too
+[ET] NDB (Node disruption budget) similar to a PDB to drain limited nodes at a time.
+[GT] NDB Will be interesting for rolling upgrades procedure
+[LL] Teams are using their own approaches towards auto-scaling,
+    -- Trying to see if Karpenter can be a fit
+    -- Pain points, not using right machine types, bin packing not optimized
+    -- Teams are overprovisioning capacity and underutilizing the compute
+    -- Issues with custom metrics, metrics propagation and aggregation adds 2-5 minutes delay
+    -- Centralizing HPA and minimum configurations for other teams
+[LL] Quota in Cloud providers blocks from new nodes to come up
+   -- Can you select which node types to select from
+[ET] You can configure node type (on-demand/spot) on a pod spec to run a particular pod on specific nodes types
+[LL] CA talks about 3-7 minutes for pods to get into running state
+[ET] Scheduled based autoscaling for a particular time of the day
+[LL] CA has [proactive node autoscaling](https://github.com/redhat-cop/proactive-node-scaling-operator) using an operator
+
 # Meeting notes (04/29/21)
 
 ## Attendees
