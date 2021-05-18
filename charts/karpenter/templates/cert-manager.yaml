@@ -2,7 +2,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: karpenter-selfsigned-issuer
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
 ---
@@ -10,11 +10,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: karpenter-serving-cert
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-  - karpenter-webhook-service.karpenter.svc
-  - karpenter-webhook-service.karpenter.svc.cluster.local
+  - karpenter-webhook-service.{{ .Release.Namespace }}.svc
+  - karpenter-webhook-service.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: karpenter-selfsigned-issuer

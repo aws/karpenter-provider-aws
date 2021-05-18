@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: karpenter-webhook-service
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
   labels:
     control-plane: karpenter
 spec:
@@ -16,7 +16,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: karpenter-metrics-service
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
   labels:
     control-plane: karpenter
 spec:
@@ -39,7 +39,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: karpenter
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
   labels:
     control-plane: karpenter
 spec:

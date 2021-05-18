@@ -1,12 +1,14 @@
+{{- if .Values.serviceAccount.create }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: karpenter
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
   {{- with .Values.serviceAccount.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -19,12 +21,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: karpenter
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: karpenter-leader-election
+  namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -32,12 +35,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: karpenter
-  namespace: karpenter
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: karpenter-leader-election
+  namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
