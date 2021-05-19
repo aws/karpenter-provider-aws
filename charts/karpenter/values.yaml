@@ -1,5 +1,6 @@
 serviceAccount:
   create: true
+  name: karpenter
   # Annotations to add to the service account (like the ARN of the IRSA role)
   annotations: {}
 controller:

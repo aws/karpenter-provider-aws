@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: karpenter
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
   {{- with .Values.serviceAccount.annotations }}
   annotations:
@@ -20,7 +20,7 @@ roleRef:
   name: karpenter
 subjects:
 - kind: ServiceAccount
-  name: karpenter
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -34,7 +34,7 @@ roleRef:
   name: karpenter-leader-election
 subjects:
 - kind: ServiceAccount
-  name: karpenter
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

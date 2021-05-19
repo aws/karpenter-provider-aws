@@ -53,7 +53,7 @@ spec:
         control-plane: karpenter
     spec:
       priorityClassName: karpenter-high-priority
-      serviceAccountName: karpenter
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: manager
           image: {{ .Values.controller.image }}
