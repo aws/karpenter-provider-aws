@@ -75,6 +75,18 @@ func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
+func (i *InstanceType) AMDGPUs() *resource.Quantity {
+	count := int64(0)
+	if i.GpuInfo != nil {
+		for _, gpu := range i.GpuInfo.Gpus {
+			if *i.GpuInfo.Gpus[0].Manufacturer == "AMD" {
+				count += *gpu.Count
+			}
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
 func (i *InstanceType) AWSNeurons() *resource.Quantity {
 	count := int64(0)
 	if i.InferenceAcceleratorInfo != nil {

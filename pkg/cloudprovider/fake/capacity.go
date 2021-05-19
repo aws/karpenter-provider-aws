@@ -74,8 +74,16 @@ func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.Instan
 			name: "default-instance-type",
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:       "gpu-instance-type",
+			name:       "nvidia-gpu-instance-type",
 			nvidiaGPUs: resource.MustParse("2"),
+		}),
+		NewInstanceType(InstanceTypeOptions{
+			name:    "amd-gpu-instance-type",
+			amdGPUs: resource.MustParse("2"),
+		}),
+		NewInstanceType(InstanceTypeOptions{
+			name:       "aws-neuron-instance-type",
+			awsNeurons: resource.MustParse("2"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
 			name:             "windows-instance-type",

@@ -21,6 +21,7 @@ import (
 
 const (
 	NvidiaGPU = "nvidia.com/gpu"
+	AMDGPU    = "amd.com/gpu"
 	AWSNeuron = "aws.amazon.com/neuron"
 )
 

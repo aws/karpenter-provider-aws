@@ -72,7 +72,7 @@ type Options struct {
 	ClientSet *kubernetes.Clientset
 }
 
-// InstanceType
+// InstanceType describes the properties of a potential node
 type InstanceType interface {
 	Name() string
 	Zones() []string
@@ -82,6 +82,7 @@ type InstanceType interface {
 	Memory() *resource.Quantity
 	Pods() *resource.Quantity
 	NvidiaGPUs() *resource.Quantity
+	AMDGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
 	Overhead() v1.ResourceList
 }
