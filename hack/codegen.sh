@@ -12,9 +12,9 @@ controller-gen \
 
 # Fixup Webhook code generation. controller-gen assumes using kustomize; we do this instead
 yq e -i '.metadata.name = "karpenter-" + .metadata.name' charts/karpenter/templates/manifests.yaml
-yq e -i '.metadata.annotations = { "cert-manager.io/inject-ca-from" : "karpenter/karpenter-serving-cert" }' charts/karpenter/templates/manifests.yaml
+yq e -i '.metadata.annotations = { "cert-manager.io/inject-ca-from" : "{{ .Release.Namespace }}/karpenter-serving-cert" }' charts/karpenter/templates/manifests.yaml
 yq e -i '.webhooks[].clientConfig.service.name = "karpenter-webhook-service"' charts/karpenter/templates/manifests.yaml
-yq e -i '.webhooks[].clientConfig.service.namespace = "karpenter"' charts/karpenter/templates/manifests.yaml
+yq e -i '.webhooks[].clientConfig.service.namespace = "{{ .Release.Namespace }}"' charts/karpenter/templates/manifests.yaml
 yq e -i 'del(.webhooks[].admissionReviewVersions[0])' charts/karpenter/templates/manifests.yaml
 
 # Hack to remove v1.AdmissionReview until https://github.com/kubernetes-sigs/controller-runtime/issues/1161 is fixed
