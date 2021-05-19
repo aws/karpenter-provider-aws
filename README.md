@@ -29,22 +29,6 @@ Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.c
 Follow the setup recommendations of your cloud provider.
 - [AWS](docs/aws)
 
-### Quick Install - Controller + Dependencies
-```
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.3/hack/quick-install.sh)"
-```
-
-### Kubectl - Standalone
-```
-kubectl apply -f https://raw.githubusercontent.com/awslabs/karpenter/v0.2.3/releases/aws/manifest.yaml
-```
-
-### Helm - Standalone
-```
-helm repo add karpenter https://awslabs.github.io/karpenter/charts
-helm install karpenter karpenter/karpenter
-```
-
 ## Docs
 - [API](docs/README.md)
 - [FAQs](docs/FAQs.md)
