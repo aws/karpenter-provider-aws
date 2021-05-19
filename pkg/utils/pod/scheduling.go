@@ -12,30 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling
+package pod
 
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
-
-var (
-	IgnoredOwners = []schema.GroupVersionKind{
-		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
-	}
-)
-
-func IsOwnedByDaemonSet(pod *v1.Pod) bool {
-	for _, ignoredOwner := range IgnoredOwners {
-		for _, owner := range pod.ObjectMeta.OwnerReferences {
-			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 func FailedToSchedule(pod *v1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {

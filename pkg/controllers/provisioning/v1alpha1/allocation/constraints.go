@@ -17,10 +17,10 @@ package allocation
 import (
 	"context"
 	"fmt"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/packing"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -82,7 +82,7 @@ func (c *Constraints) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod,
 	// 2. filter DaemonSets to include those that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
-		if scheduling.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
+		if pod.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
 			pods = append(pods, &v1.Pod{Spec: daemonSet.Spec.Template.Spec})
 		}
 	}

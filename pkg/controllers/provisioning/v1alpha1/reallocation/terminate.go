@@ -21,8 +21,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -99,12 +99,12 @@ func (t *Terminator) terminateNodes(ctx context.Context, provisioner *v1alpha1.P
 		}
 		// 2b. Evict pods on node
 		empty := true
-		for _, pod := range pods {
-			if !scheduling.IsOwnedByDaemonSet(pod) {
+		for _, p := range pods {
+			if !pod.IsOwnedByDaemonSet(p) {
 				empty = false
-				if err := t.coreV1Client.Pods(pod.Namespace).Evict(ctx, &v1beta1.Eviction{
+				if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: pod.Name,
+						Name: p.Name,
 					},
 				}); err != nil {
 					zap.S().Debugf("Continuing after failing to evict pods from node %s, %s", node.Name, err.Error())

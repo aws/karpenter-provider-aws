@@ -16,7 +16,7 @@ package node
 
 import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 	v1 "k8s.io/api/core/v1"
 	"time"
 )
@@ -44,8 +44,11 @@ func IsPastTTL(node *v1.Node) bool {
 
 // IsUnderutilized returns if the node has 0 non-daemonset pods
 func IsUnderutilized(node *v1.Node, pods []*v1.Pod) bool {
-	for _, pod := range pods {
-		if !scheduling.IsOwnedByDaemonSet(pod) {
+	for _, p := range pods {
+		if pod.HasFailed(p) {
+			continue
+		}
+		if !pod.IsOwnedByDaemonSet(p) {
 			return false
 		}
 	}
