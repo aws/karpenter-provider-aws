@@ -7,6 +7,9 @@ GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 
+## Extra helm options
+HELM_OPTS ?= ""
+
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -41,11 +44,12 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template karpenter charts/karpenter \
+	  $(HELM_OPTS) \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller | \
 		$(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter | ko delete -f -
+	helm template karpenter $(HELM_OPTS) charts/karpenter | ko delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh

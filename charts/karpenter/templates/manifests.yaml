@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   name: karpenter-mutating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+    cert-manager.io/inject-ca-from: '{{ .Release.Namespace }}/karpenter-serving-cert'
 webhooks:
   - admissionReviewVersions:
       - v1beta1
@@ -12,7 +12,7 @@ webhooks:
       caBundle: Cg==
       service:
         name: karpenter-webhook-service
-        namespace: karpenter
+        namespace: '{{ .Release.Namespace }}'
         path: /mutate-provisioning-karpenter-sh-v1alpha1-provisioner
     failurePolicy: Fail
     name: mutation.provisioning.karpenter.sh
@@ -34,7 +34,7 @@ metadata:
   creationTimestamp: null
   name: karpenter-validating-webhook-configuration
   annotations:
-    cert-manager.io/inject-ca-from: karpenter/karpenter-serving-cert
+    cert-manager.io/inject-ca-from: '{{ .Release.Namespace }}/karpenter-serving-cert'
 webhooks:
   - admissionReviewVersions:
       - v1beta1
@@ -42,7 +42,7 @@ webhooks:
       caBundle: Cg==
       service:
         name: karpenter-webhook-service
-        namespace: karpenter
+        namespace: '{{ .Release.Namespace }}'
         path: /validate-provisioning-karpenter-sh-v1alpha1-provisioner
     failurePolicy: Fail
     name: validation.provisioning.karpenter.sh
