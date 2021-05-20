@@ -7,6 +7,7 @@ CLOUD_PROVIDER=aws
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=$USER-karpenter-demo
 AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
@@ -130,4 +131,5 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 ./hack/quick-install.sh --delete
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
+unset AWS_DEFAULT_OUTPUT
 ```
