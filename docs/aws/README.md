@@ -7,6 +7,7 @@ CLOUD_PROVIDER=aws
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=$USER-karpenter-demo
 AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
@@ -30,7 +31,7 @@ aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
 ### Install Karpenter Controller and Dependencies
@@ -89,8 +90,8 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq ".cluster.certificateAuthority.data")
-    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --output json | jq ".cluster.endpoint")
+    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.certificateAuthority.data")
+    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.endpoint")
 EOF
 kubectl get provisioner default -oyaml
 ```
@@ -130,4 +131,5 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 ./hack/quick-install.sh --delete
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
+unset AWS_DEFAULT_OUTPUT
 ```
