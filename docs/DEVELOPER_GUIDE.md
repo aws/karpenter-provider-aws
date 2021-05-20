@@ -24,7 +24,6 @@ make codegen                     # Create auto-generated YAML files.
 ```
 
 ### Developer Loop
-
 * Make sure dependencies are installed
     * Run `make codegen` to make sure yaml manifests are generated
     * Run `make toolchain` to install cli tools for building and testing the project
@@ -35,6 +34,7 @@ make codegen                     # Create auto-generated YAML files.
 * Make sure your cluster doesn't have previous installations of prometheus and cert-manager
   * Previous installations of our dependencies can interfere with our installation scripts, so to be safe, clear those, then run `./hack/quick-install.sh`
 * If running `./hack/quick-install.sh` fails with `Error: Accumulate Target`, run `make codegen` successfully, and try again.
+* If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned [here](docs/aws/README.md). This is a temporary problem with our subnet discovery system, and is being tracked [here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ### Build and Deploy
 ```
