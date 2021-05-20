@@ -28,7 +28,7 @@ This command will create IAM resources used by Karpenter. We recommend using [Cl
 ```bash
 aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
-  --template-file $(pwd)/$(curl -fsSO https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml | echo karpenter.cloudformation.yaml)  \
+  --template-file $(curl -fsSO https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml | echo karpenter.cloudformation.yaml)  \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
