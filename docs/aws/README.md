@@ -11,7 +11,9 @@ export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
-Skip this step if you already have a cluster.
+Note: If you already have a cluster with version 1.19 or above, you may need to manually tag your subnets for Karpenter to work [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904). 
+
+If your cluster version is 1.18 or below, you can skip this step.
 ```bash
 eksctl create cluster \
 --name ${CLUSTER_NAME} \
