@@ -56,7 +56,7 @@ func PackablesFor(instanceTypes []cloudprovider.InstanceType, constraints *Const
 		}
 		// 2. Calculate Kubelet Overhead
 		if ok := packable.reserve(instanceType.Overhead()); !ok {
-			zap.S().Debugf("Excluding instance type %s because there are not enough resources for the kubelet overhead", packable.Name())
+			zap.S().Debugf("Excluding instance type %s because there are not enough resources for kubelet and system overhead", packable.Name())
 			continue
 		}
 		// 3. Calculate Daemonset Overhead
