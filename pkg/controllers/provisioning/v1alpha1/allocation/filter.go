@@ -21,8 +21,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"github.com/awslabs/karpenter/pkg/utils/scheduling"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -95,11 +95,11 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	return provisionable, nil
 }
 
-func (f *Filter) isUnschedulable(pod *v1.Pod) error {
-	if !scheduling.FailedToSchedule(pod) {
+func (f *Filter) isUnschedulable(p *v1.Pod) error {
+	if !pod.FailedToSchedule(p) {
 		return fmt.Errorf("awaiting scheduling")
 	}
-	if scheduling.IsOwnedByDaemonSet(pod) {
+	if pod.IsOwnedByDaemonSet(p) {
 		return fmt.Errorf("owned by daemonset")
 	}
 	return nil
@@ -133,10 +133,10 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha1.Provision
 	return fmt.Errorf("matched another provisioner, %s/%s", name, namespace)
 }
 
-func (f *Filter) toleratesTaints(pod *v1.Pod, provisioner *v1alpha1.Provisioner) error {
+func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha1.Provisioner) error {
 	var err error
 	for _, taint := range provisioner.Spec.Taints {
-		if !scheduling.ToleratesTaint(&pod.Spec, taint) {
+		if !pod.ToleratesTaint(&p.Spec, taint) {
 			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
