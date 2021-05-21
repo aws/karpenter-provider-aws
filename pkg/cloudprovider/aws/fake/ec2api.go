@@ -159,7 +159,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(8),
+					SizeInMiB: aws.Int64(8 * 1024),
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(3),
@@ -179,7 +179,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 					DefaultVCpus: aws.Int64(4),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(16),
+					SizeInMiB: aws.Int64(16 * 1024),
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(4),
