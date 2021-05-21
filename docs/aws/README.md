@@ -11,7 +11,7 @@ export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
-Note: If you already have a cluster with version 1.19 or above, you may need to manually tag your subnets for Karpenter to work [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904). 
+Note: If you already have a cluster with version 1.19 or above, you may need to manually tag your subnets for Karpenter to work [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 If your cluster version is 1.18 or below, you can skip this step.
 ```bash
@@ -40,7 +40,7 @@ aws cloudformation deploy \
 Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for Webhook TLS certificates.
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/hack/quick-install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.5/hack/quick-install.sh)"
 ```
 
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
