@@ -7,4 +7,4 @@ controller:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  image: "public.ecr.aws/karpenter/controller:v0.2.4@sha256:488133ea46bd4be3e15bfb984af5b4e217b6780b83d26a6d41e7c4769aaa720f"
+  image: "public.ecr.aws/karpenter/controller:v0.2.5@sha256:44cf4a340637555ba46289c315d700283443533bb2b084488248cf955faf866a"
