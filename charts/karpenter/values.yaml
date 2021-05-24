@@ -4,6 +4,10 @@ serviceAccount:
   # Annotations to add to the service account (like the ARN of the IRSA role)
   annotations: {}
 controller:
+  # List of environment items to add to the controller, for example
+  # - name: AWS_REGION
+  #   value: eu-west-1
+  env: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
