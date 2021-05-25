@@ -116,7 +116,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 			((11*i.Pods().Value())+255)+
 				// system-reserved
 				100+
-				// eviction threshhold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
 				100,
 		)),
 	}
