@@ -1,5 +1,5 @@
 ![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/CI/main)
-![Go Report](https://goreportcard.com/badge/github.com/awslabs/karpenter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/awslabs/karpenter)](https://goreportcard.com/report/github.com/awslabs/karpenter)
 ![GitHub stars](https://img.shields.io/github/stars/awslabs/karpenter)
 ![GitHub forks](https://img.shields.io/github/forks/awslabs/karpenter)
 [![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/awslabs/karpenter/blob/main/LICENSE)
