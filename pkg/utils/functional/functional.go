@@ -40,7 +40,7 @@ func IntersectStringSlice(slices ...[]string) []string {
 			counts[s] = counts[s] + 1
 		}
 	}
-	// select if occured in all
+	// select if occurred in all
 	var intersection []string
 	for key, count := range counts {
 		if count == len(slices) {
