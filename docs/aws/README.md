@@ -26,11 +26,13 @@ eksctl create cluster \
 ### Create IAM Resources
 This command will create IAM resources used by Karpenter. We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions. For production use, please review and restrict these permissions for your use case.
 ```bash
-aws cloudformation deploy \
-  --stack-name Karpenter-${CLUSTER_NAME} \
-  --template-file $(TEMPOUT=$(mktemp) | curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT | echo $TEMPOUT)  \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
+TEMPOUT=$(mktemp)
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
+| aws cloudformation deploy \
+ --stack-name Karpenter-${CLUSTER_NAME} \
+ --template-file ${TEMPOUT}\
+ --capabilities CAPABILITY_NAMED_IAM \
+ --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
 ### Install Karpenter Controller and Dependencies
