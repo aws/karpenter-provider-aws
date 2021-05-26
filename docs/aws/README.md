@@ -33,7 +33,7 @@ TEMPOUT=$(mktemp)
 curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
 | aws cloudformation deploy \
  --stack-name Karpenter-${CLUSTER_NAME} \
- --template-file ${TEMPOUT}\
+ --template-file ${TEMPOUT} \
  --capabilities CAPABILITY_NAMED_IAM \
  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
