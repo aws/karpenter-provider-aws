@@ -29,7 +29,7 @@ EOF
 }
 
 delete() {
-  helm delete karpenter || true
+  helm delete karpenter --namespace karpenter || true
   helm delete cert-manager --namespace cert-manager || true
   kubectl delete namespace karpenter cert-manager || true
 }
@@ -47,10 +47,12 @@ apply() {
     --create-namespace --namespace cert-manager \
     --set installCRDs=true \
     --atomic
+  # https://cert-manager.io/docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+  echo "Waiting for cert-manager to become usable"
+  sleep 10
   helm upgrade --install karpenter karpenter/karpenter \
     --create-namespace --namespace karpenter \
     --atomic
 }
 
-usage
 main "$@"
