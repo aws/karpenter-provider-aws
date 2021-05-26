@@ -24,6 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+// EC2VMOverheadFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
+const EC2VMAvailableMemoryFactor = .925
+
 type InstanceType struct {
 	ec2.InstanceTypeInfo
 	ZoneOptions []string
@@ -53,7 +56,11 @@ func (i *InstanceType) CPU() *resource.Quantity {
 }
 
 func (i *InstanceType) Memory() *resource.Quantity {
-	return resources.Quantity(fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB))
+	return resources.Quantity(
+		fmt.Sprintf("%dMi", int32(
+			float64(*i.MemoryInfo.SizeInMiB)*EC2VMAvailableMemoryFactor,
+		)),
+	)
 }
 
 func (i *InstanceType) Pods() *resource.Quantity {
@@ -97,13 +104,24 @@ func (i *InstanceType) AWSNeurons() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// Overhead calculations copied from
-// https://github.com/awslabs/amazon-eks-ami/blob/5a3df0fdb17e540f8d5a9b405096f32d6b9b0a3f/files/bootstrap.sh#L237
+// Computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
+// Overhead calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings
 func (i *InstanceType) Overhead() v1.ResourceList {
 	overhead := v1.ResourceList{
-		v1.ResourceCPU:    *resource.NewMilliQuantity(int64(0), resource.DecimalSI),
-		v1.ResourceMemory: *resource.NewMilliQuantity((11*i.Pods().Value())+255, resource.DecimalSI),
+		v1.ResourceCPU: *resource.NewMilliQuantity(
+			100, // system-reserved
+			resource.DecimalSI),
+		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
+			// kube-reserved
+			((11*i.Pods().Value())+255)+
+				// system-reserved
+				100+
+				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+				100,
+		)),
 	}
+	// kube-reserved Computed from
+	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
 	for _, cpuRange := range []struct {
 		start      int64
 		end        int64

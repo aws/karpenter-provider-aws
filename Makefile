@@ -44,12 +44,16 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template karpenter charts/karpenter \
-	  $(HELM_OPTS) \
-		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller | \
-		$(WITH_GOFLAGS) ko apply -B -f -
+		$(HELM_OPTS) \
+		--create-namespace --namespace karpenter \
+		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
+		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter $(HELM_OPTS) charts/karpenter | ko delete -f -
+	helm template karpenter charts/karpenter \
+		$(HELM_OPTS) \
+		--create-namespace --namespace karpenter \
+		| $(WITH_GOFLAGS) ko delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh

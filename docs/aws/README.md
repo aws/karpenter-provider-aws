@@ -7,10 +7,13 @@ CLOUD_PROVIDER=aws
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=$USER-karpenter-demo
 AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
-Skip this step if you already have a cluster.
+Note: If you already have a cluster with version 1.19 or above, you may need to manually tag your subnets for Karpenter to work [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
+
+If your cluster version is 1.18 or below, you can skip this step.
 ```bash
 eksctl create cluster \
 --name ${CLUSTER_NAME} \
@@ -39,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/k
 Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for Webhook TLS certificates.
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/hack/quick-install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.5/hack/quick-install.sh)"
 ```
 
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
@@ -132,4 +135,5 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 ./hack/quick-install.sh --delete
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
+unset AWS_DEFAULT_OUTPUT
 ```

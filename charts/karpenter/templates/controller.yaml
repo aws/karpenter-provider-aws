@@ -79,6 +79,10 @@ spec:
             - mountPath: /tmp/k8s-webhook-server/serving-certs
               name: cert
               readOnly: true
+          env:
+          {{- with .Values.controller.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:
         fsGroup: 1000

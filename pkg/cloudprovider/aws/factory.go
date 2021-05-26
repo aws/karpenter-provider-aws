@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/patrickmn/go-cache"
+	"go.uber.org/zap"
 )
 
 const (
@@ -51,10 +52,15 @@ type Factory struct {
 }
 
 func NewFactory(options cloudprovider.Options) *Factory {
-	sess := withUserAgent(withRegion(session.Must(
+	sess := withUserAgent(session.Must(
 		session.NewSession(request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			utils.NewRetryer())))))
+			utils.NewRetryer()))))
+	if *sess.Config.Region == "" {
+		zap.S().Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		*sess.Config.Region = getRegionFromIMDS(sess)
+	}
+	zap.S().Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
 	launchTemplateProvider := &LaunchTemplateProvider{
 		ec2api: ec2api,
@@ -86,11 +92,11 @@ func (f *Factory) CapacityFor(provisioner *v1alpha1.Provisioner) cloudprovider.C
 	}
 }
 
-func withRegion(sess *session.Session) *session.Session {
+// get the current region from EC2 IMDS
+func getRegionFromIMDS(sess *session.Session) string {
 	region, err := ec2metadata.New(sess).Region()
 	log.PanicIfError(err, "failed to call the metadata server's region API")
-	sess.Config.Region = aws.String(region)
-	return sess
+	return region
 }
 
 // withUserAgent adds a karpenter specific user-agent string to AWS session
