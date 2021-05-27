@@ -40,6 +40,7 @@ Follow the setup recommendations of your cloud provider.
 
 ## Talks
 - [Karpenter @ Container Day, May 2021](https://www.twitch.tv/videos/1010593737?t=141m50s)
+- [Groupless Autoscaling with Karpenter @ Kubecon, May 2021](https://www.youtube.com/watch?v=43g8uPohTgc) 
 
 ## License
 This project is licensed under the Apache-2.0 License.
