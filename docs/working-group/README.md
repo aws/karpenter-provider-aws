@@ -22,30 +22,30 @@ Please contribute to our meeting notes by opening a PR.
 - Ellis Tarn
 
 ## Notes
-[PG] Made a release for 0.2.5
-[PG] We're working on termination design [here](https://github.com/awslabs/karpenter/blob/main/docs/designs/termination.md)
-[VS] I was using a launch template to specify instance types but it wasn't working
-[BW] Launch templates only allow one instance type, so we don't use launch templates to get instance types, but rather use the EC2 API to get that information
-[BW] Is there a use case to use launch templates?
-[PG] We will need to look into specifying instance types through launch templates
-[VS] How do pod labels work with provisioning nodes?
-[BW] We do node selection before it's provisioned and create capacity based on common labels specified
-[PG] Karpenter Provisioners will respect specifying availability zones
-[PG] There have been asks for recycling nodes on a recurring basis, or upgrading kubernetes version
-[VS] Once we were able to have custom AMIs, we were able to get more people to join in on another service
-[PG] We use bottlerocket AMIs and you can specify AMIs in Launch Templates or in the Provisioner
-[NTa] Should our AMIs be eventually consistent or imperative? If someone changes the AMI do we want all nodes to be upgraded to that?
-[NTa] Maybe we should consider doing a pod restarts and let Provisioners take on those pods with new AMIs
-[VS] If we do a pod restart, we need to follow evict drain best practices here as well 
-[PG] you could do a pod restart or you could delete nodes and then 
-[VS] Some people might want to have their nodes updated in groups
-[ET] Hopefully users shouldn't have to be aware of nodes, if they do, then it becomes a more node group centric choice
-[NTa] If we have someone wants to upgrade their nodes, we could use a node TTL that recycles it after 90 days
-[ET] Currently, our devs have been in this space for a while, and the first hour of learning for a user is opaque
-[VS] More demos could help understand different features of Karpenter
-[ET] Back to Launch Templates: We allow you to specify a launch template, but we inject a lot of opinions. 
-[ET] We should think more about launch templates and how we form them in the future
-[PG] If you do not provide a launch template, then we create it for you
+- [PG] Made a release for 0.2.5
+- [PG] We're working on termination design [here](https://github.com/awslabs/karpenter/blob/main/docs/designs/termination.md)
+- [VS] I was using a launch template to specify instance types but it wasn't working
+- [BW] Launch templates only allow one instance type, so we don't use launch templates to get instance types, but rather use the EC2 API to get that information
+- [BW] Is there a use case to use launch templates?
+- [PG] We will need to look into specifying instance types through launch templates
+- [VS] How do pod labels work with provisioning nodes?
+- [BW] We do node selection before it's provisioned and create capacity based on common labels specified
+- [PG] Karpenter Provisioners will respect specifying availability zones
+- [PG] There have been asks for recycling nodes on a recurring basis, or upgrading kubernetes version
+- [VS] Once we were able to have custom AMIs, we were able to get more people to join in on another service
+- [PG] We use bottlerocket AMIs and you can specify AMIs in Launch Templates or in the Provisioner
+- [NTa] Should our AMIs be eventually consistent or imperative? If someone changes the AMI do we want all nodes to be upgraded to that?
+- [NTa] Maybe we should consider doing a pod restarts and let Provisioners take on those pods with new AMIs
+- [VS] If we do a pod restart, we need to follow evict drain best practices here as well 
+- [PG] you could do a pod restart or you could delete nodes and then 
+- [VS] Some people might want to have their nodes updated in groups
+- [ET] Hopefully users shouldn't have to be aware of nodes, if they do, then it becomes a more node group centric choice
+- [NTa] If we have someone wants to upgrade their nodes, we could use a node TTL that recycles it after 90 days
+- [ET] Currently, our devs have been in this space for a while, and the first hour of learning for a user is opaque
+- [VS] More demos could help understand different features of Karpenter
+- [ET] Back to Launch Templates: We allow you to specify a launch template, but we inject a lot of opinions. 
+- [ET] We should think more about launch templates and how we form them in the future
+- [PG] If you do not provide a launch template, then we create it for you
 
 # Meeting notes (05/13/21)
 
@@ -59,30 +59,30 @@ Please contribute to our meeting notes by opening a PR.
 - Elmiko
 
 ## Notes
-[ET] Overview of the delete workflow in Karpenter
-[ET] Scaledown usecases
-    -- Node TTL, terminate nodes after 90 days
-    -- Defrag and empty nodes termination
-    -- Plan is to implement as a finalizer it will work with `kubectl delete node <name>` command
-    -- Finalizer will be injected by a webhook as part of the node delete
-    -- karpenter will terminate the node in the cloud provider and remove the finalizer
-[El] It won't play well with CAPI, normally you will be deleting machine objects, with CAPI you can land in a weird state where CAPI objects exists
-[ET] We could potentially upstream this to k/k
-[El] Users want to delete node and want to see the instance/hardware backing it gets deleted too
-[ET] NDB (Node disruption budget) similar to a PDB to drain limited nodes at a time.
-[GT] NDB Will be interesting for rolling upgrades procedure
-[LL] Teams are using their own approaches towards auto-scaling,
-    -- Trying to see if Karpenter can be a fit
-    -- Pain points, not using right machine types, bin packing not optimized
-    -- Teams are overprovisioning capacity and underutilizing the compute
-    -- Issues with custom metrics, metrics propagation and aggregation adds 2-5 minutes delay
-    -- Centralizing HPA and minimum configurations for other teams
-[LL] Quota in Cloud providers blocks from new nodes to come up
-   -- Can you select which node types to select from
-[ET] You can configure node type (on-demand/spot) on a pod spec to run a particular pod on specific nodes types
-[LL] CA talks about 3-7 minutes for pods to get into running state
-[ET] Scheduled based autoscaling for a particular time of the day
-[LL] CA has [proactive node autoscaling](https://github.com/redhat-cop/proactive-node-scaling-operator) using an operator
+- [ET] Overview of the delete workflow in Karpenter
+- [ET] Scaledown usecases
+    - Node TTL, terminate nodes after 90 days
+    - Defrag and empty nodes termination
+    - Plan is to implement as a finalizer it will work with `kubectl delete node <name>` command
+    - Finalizer will be injected by a webhook as part of the node delete
+    - karpenter will terminate the node in the cloud provider and remove the finalizer
+- [El] It won't play well with CAPI, normally you will be deleting machine objects, with CAPI you can land in a weird state where CAPI objects exists
+- [ET] We could potentially upstream this to k/k
+- [El] Users want to delete node and want to see the instance/hardware backing it gets deleted too
+- [ET] NDB (Node disruption budget) similar to a PDB to drain limited nodes at a time.
+- [GT] NDB Will be interesting for rolling upgrades procedure
+- [LL] Teams are using their own approaches towards auto-scaling,
+    - Trying to see if Karpenter can be a fit
+    - Pain points, not using right machine types, bin packing not optimized
+    - Teams are overprovisioning capacity and underutilizing the compute
+    - Issues with custom metrics, metrics propagation and aggregation adds 2-5 minutes delay
+    - Centralizing HPA and minimum configurations for other teams
+- [LL] Quota in Cloud providers blocks from new nodes to come up
+   - Can you select which node types to select from
+- [ET] You can configure node type (on-demand/spot) on a pod spec to run a particular pod on specific nodes types
+- [LL] CA talks about 3-7 minutes for pods to get into running state
+- [ET] Scheduled based autoscaling for a particular time of the day
+- [LL] CA has [proactive node autoscaling](https://github.com/redhat-cop/proactive-node-scaling-operator) using an operator
 
 # Meeting notes (04/29/21)
 
