@@ -24,9 +24,16 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
+
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -68,22 +75,22 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes an allocation control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) error {
+func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) (reconcile.Result, error) {
 	provisioner := object.(*v1alpha1.Provisioner)
 	// 1. Filter pods
 	pods, err := c.filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
-		return fmt.Errorf("filtering pods, %w", err)
+		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
 	if len(pods) == 0 {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
 	// 2. Group by constraints
 	constraintGroups, err := c.constraints.Group(ctx, provisioner, pods)
 	if err != nil {
-		return fmt.Errorf("building constraint groups, %w", err)
+		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
 	}
 
 	// 3. Binpack each group
@@ -92,7 +99,7 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 	for _, constraintGroup := range constraintGroups {
 		instanceTypes, err := capacity.GetInstanceTypes(ctx)
 		if err != nil {
-			return fmt.Errorf("getting instance types, %w", err)
+			return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 		}
 		packings = append(packings, c.packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
@@ -100,7 +107,7 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 	// 4. Create packedNodes for packings
 	packedNodes, err := capacity.Create(ctx, packings)
 	if err != nil {
-		return fmt.Errorf("creating capacity, %w", err)
+		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}
 
 	// 4. Bind pods to nodes
@@ -110,5 +117,11 @@ func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) e
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}
-	return nil
+	return reconcile.Result{}, nil
+}
+
+func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return &source.Kind{Type: &v1.Pod{}},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

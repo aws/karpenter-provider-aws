@@ -19,8 +19,12 @@ import (
 	"time"
 
 	"knative.dev/pkg/apis"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
@@ -29,7 +33,7 @@ type Controller interface {
 	// Reconcile hands a hydrated kubernetes resource to the controller for
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
-	Reconcile(context.Context, Object) error
+	Reconcile(context.Context, Object) (reconcile.Result, error)
 	// Interval returns an interval that the controller should wait before
 	// executing another reconciliation loop. If set to zero, will only execute
 	// on watch events or the global resync interval.
@@ -40,6 +44,11 @@ type Controller interface {
 	// Owns returns a slice of resources that are watched by this resources.
 	// Watch events are triggered if owner references are set on the resource.
 	Owns() []Object
+	// WatchDescription returns the necessary information to create a watch
+	//   a. Source: the resource that is being watched
+	//   b. EventHandler: which controller objects to be reconciled
+	//   c. WatchesOption: which events can be filtered out before processed
+	Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption)
 }
 
 // NamedController allows controllers to optionally implement a Name() function which will be used instead of the

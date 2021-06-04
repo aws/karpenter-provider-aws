@@ -19,12 +19,18 @@ import (
 	"fmt"
 	"time"
 
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers"
+
+	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -62,13 +68,19 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes a reallocation control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) error {
+func (c *Controller) Reconcile(ctx context.Context, object controllers.Object) (reconcile.Result, error) {
 	provisioner := object.(*v1alpha1.Provisioner)
 	if err := c.utilization.Reconcile(ctx, provisioner); err != nil {
-		return fmt.Errorf("reconciling utilization sub-controller, %w", err)
+		return reconcile.Result{}, fmt.Errorf("reconciling utilization sub-controller, %w", err)
 	}
 	if err := c.terminator.Reconcile(ctx, provisioner); err != nil {
-		return fmt.Errorf("reconciling termination sub-controller, %w", err)
+		return reconcile.Result{}, fmt.Errorf("reconciling termination sub-controller, %w", err)
 	}
-	return nil
+	return reconcile.Result{}, nil
+}
+
+func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return &source.Kind{Type: &v1.Pod{}},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

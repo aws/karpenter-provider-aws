@@ -22,8 +22,11 @@ import (
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // GenericController implements controllerruntime.Reconciler and runs a
@@ -46,7 +49,7 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
 	// 3. Reconcile
-	if err := c.Controller.Reconcile(ctx, resource); err != nil {
+	if _, err := c.Controller.Reconcile(ctx, resource); err != nil {
 		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
@@ -59,4 +62,12 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+}
+
+// WatchDescription returns the necessary information to create a watch
+//   a. source: the resource that is being watched
+//   b. eventHandler: which controller objects to be reconciled
+//   c. predicates: which events can be filtered out before processed
+func (c *GenericController) Watches(ctx context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return c.Controller.Watches(ctx)
 }
