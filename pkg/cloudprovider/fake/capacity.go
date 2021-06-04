@@ -28,6 +28,12 @@ import (
 
 type Capacity struct {
 }
+type Termination struct {
+}
+
+func (t *Termination) Terminate(ctx context.Context, nodes []*v1.Node) error {
+	return nil
+}
 
 func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	packedNodes := []*cloudprovider.PackedNode{}
@@ -55,10 +61,6 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 		})
 	}
 	return packedNodes, nil
-}
-
-func (c *Capacity) Delete(ctx context.Context, nodes []*v1.Node) error {
-	return nil
 }
 
 func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
