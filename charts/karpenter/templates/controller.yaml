@@ -43,10 +43,12 @@ metadata:
   labels:
     control-plane: karpenter
 spec:
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       control-plane: karpenter
-  replicas: 1
   template:
     metadata:
       labels:
