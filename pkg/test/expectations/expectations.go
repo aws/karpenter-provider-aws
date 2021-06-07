@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -69,28 +68,24 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectEventuallyHappy(c client.Client, objects ...controllers.Object) {
-	for _, object := range objects {
-		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
-		Eventually(func() bool {
-			Expect(c.Get(context.Background(), nn, object)).To(Succeed())
-			return object.StatusConditions().IsHappy()
-		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-			return fmt.Sprintf("resource never became happy\n%s", log.Pretty(object))
-		})
-	}
+func ExpectEventuallyHappy(c client.Client, provisioner *v1alpha1.Provisioner) {
+	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
+	Eventually(func() bool {
+		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
+		return provisioner.StatusConditions().IsHappy()
+	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+		return fmt.Sprintf("resource never became happy\n%s", log.Pretty(provisioner))
+	})
 }
 
-func ExpectEventuallyReconciled(c client.Client, objects ...controllers.Object) {
-	for _, object := range objects {
-		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
-		Eventually(func() bool {
-			Expect(c.Get(context.Background(), nn, object)).To(Succeed())
-			return !object.StatusConditions().GetCondition(v1alpha1.Active).IsUnknown()
-		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-			return fmt.Sprintf("resources active condition was never updated\n%s", log.Pretty(object))
-		})
-	}
+func ExpectEventuallyReconciled(c client.Client, provisioner *v1alpha1.Provisioner) {
+	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
+	Eventually(func() bool {
+		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
+		return !provisioner.StatusConditions().GetCondition(v1alpha1.Active).IsUnknown()
+	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+		return fmt.Sprintf("resources active condition was never updated\n%s", log.Pretty(provisioner))
+	})
 }
 
 func ExpectCleanedUp(c client.Client) {

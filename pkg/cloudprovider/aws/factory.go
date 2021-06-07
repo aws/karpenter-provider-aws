@@ -92,6 +92,10 @@ func (f *Factory) CapacityFor(provisioner *v1alpha1.Provisioner) cloudprovider.C
 	}
 }
 
+func (f *Factory) TerminateFor() cloudprovider.Termination {
+	return f.instanceProvider
+}
+
 // get the current region from EC2 IMDS
 func getRegionFromIMDS(sess *session.Session) string {
 	region, err := ec2metadata.New(sess).Region()

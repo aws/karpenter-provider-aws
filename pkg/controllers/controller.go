@@ -48,16 +48,18 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
-	// 3. Reconcile
+	// 3. Set to true to remove race condition
+	// TODO: remove status conditions on provisioners
+	if provisioner, ok := resource.(*v1alpha1.Provisioner); ok {
+		provisioner.StatusConditions().MarkTrue(v1alpha1.Active)
+	}
+	// 4. Reconcile
 	if _, err := c.Controller.Reconcile(ctx, resource); err != nil {
-		resource.StatusConditions().MarkFalse(v1alpha1.Active, "", err.Error())
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		return reconcile.Result{Requeue: true}, nil
-	} else {
-		resource.StatusConditions().MarkTrue(v1alpha1.Active)
 	}
-	// 4. Update Status using a merge patch
+	// 5. Update Status using a merge patch
 	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}

@@ -21,7 +21,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 
@@ -52,7 +51,7 @@ func (c *Controller) For() client.Object {
 
 // Owns returns the resources owned by this controller's resource.
 func (c *Controller) Owns() []client.Object {
-	return []client.Object{}
+	return nil
 }
 
 func (c *Controller) Interval() time.Duration {

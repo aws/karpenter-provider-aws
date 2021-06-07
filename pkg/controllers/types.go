@@ -64,13 +64,6 @@ type Webhook interface {
 	Path() string
 }
 
-// Object provides an abstraction over a kubernetes custom resource with
-// methods necessary to standardize reconciliation behavior in Karpenter.
-//type Object interface {
-//	client.Object
-//	StatusConditions() apis.ConditionManager
-//}
-
 // Manager manages a set of controllers and webhooks.
 type Manager interface {
 	manager.Manager

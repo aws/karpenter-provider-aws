@@ -21,7 +21,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers"
 
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -46,7 +45,7 @@ func (c *Controller) For() client.Object {
 
 // Owns returns the resources owned by this controller's resource.
 func (c *Controller) Owns() []client.Object {
-	return []client.Object{}
+	return nil
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -68,6 +67,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	provisioner := object.(*v1alpha1.Provisioner)
+
 	// 1. Set TTL on TTLable Nodes
 	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
@@ -83,7 +83,6 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
 	return reconcile.Result{}, nil
-
 }
 
 func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {

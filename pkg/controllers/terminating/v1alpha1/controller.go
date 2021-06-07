@@ -23,8 +23,12 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -40,7 +44,7 @@ func (c *Controller) For() client.Object {
 
 // Owns returns the resources owned by this controller's resource.
 func (c *Controller) Owns() []client.Object {
-	return []client.Object{}
+	return nil
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -71,4 +75,10 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
 	}
 	return reconcile.Result{}, nil
+}
+
+func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return &source.Kind{Type: &v1.Node{}},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

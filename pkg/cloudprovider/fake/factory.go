@@ -46,3 +46,7 @@ func NewNotImplementedFactory() *Factory {
 func (f *Factory) CapacityFor(provisioner *provisioning.Provisioner) cloudprovider.Capacity {
 	return &Capacity{}
 }
+
+func (f *Factory) TerminateFor() cloudprovider.Termination {
+	return &Termination{}
+}
