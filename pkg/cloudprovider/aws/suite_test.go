@@ -32,9 +32,9 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
-	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -70,21 +70,19 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		ssm:       &fake.SSMAPI{},
 		clientSet: clientSet,
 	}
-	cloudProviderFactory := &Factory{
+	cloudProvider := &Factory{
 		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
 		launchTemplateProvider: launchTemplateProvider,
 		subnetProvider:         subnetProvider,
 		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API),
 		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API},
 	}
-	e.Manager.RegisterWebhooks(
-		&webhooksprovisioning.Validator{CloudProvider: cloudProviderFactory},
-		&webhooksprovisioning.Defaulter{},
-	).RegisterControllers(
+	registry.RegisterOrDie(cloudProvider)
+	e.Manager.RegisterControllers(
 		allocation.NewController(
 			e.Manager.GetClient(),
 			clientSet.CoreV1(),
-			cloudProviderFactory,
+			cloudProvider,
 		),
 	)
 })
@@ -98,9 +96,11 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Allocation", func() {
+	var ctx context.Context
 	var provisioner *v1alpha1.Provisioner
 
 	BeforeEach(func() {
+		ctx = context.Background()
 		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      strings.ToLower(randomdata.SillyName()),
@@ -330,7 +330,7 @@ var _ = Describe("Allocation", func() {
 					{Name: "test-cluster", Endpoint: "https://test-cluster"},
 				} {
 					provisioner.Spec.Cluster = cluster
-					Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
 		})
@@ -347,7 +347,7 @@ var _ = Describe("Allocation", func() {
 					v1alpha1.InstanceTypeLabelKey,
 				} {
 					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
-					Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
 			It("should recognize well known labels", func() {
@@ -355,21 +355,21 @@ var _ = Describe("Allocation", func() {
 					"node.k8s.aws/launch-template-version": randomdata.SillyName(),
 					"node.k8s.aws/launch-template-id":      "23",
 				}
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if only launch template version label present", func() {
 				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-version": randomdata.SillyName()}
-				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 		})
 
 		Context("Zones", func() {
 			It("should succeed if unspecified", func() {
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.Zones = []string{"unknown"}
-				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should succeed if supported", func() {
 				fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
@@ -382,52 +382,52 @@ var _ = Describe("Allocation", func() {
 					"test-zone-1b",
 					"test-zone-1c",
 				}
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
 		Context("InstanceTypes", func() {
 			It("should succeed if unspecified", func() {
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.InstanceTypes = []string{"unknown"}
-				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should succeed if supported", func() {
 				provisioner.Spec.InstanceTypes = []string{
 					"m5.large",
 				}
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
 		Context("Architecture", func() {
 			It("should succeed if unspecified", func() {
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.Architecture = ptr.String("unknown")
-				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support AMD", func() {
 				provisioner.Spec.Architecture = ptr.String(v1alpha1.ArchitectureAmd64)
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should support ARM", func() {
 				provisioner.Spec.Architecture = ptr.String(v1alpha1.ArchitectureArm64)
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
 		Context("OperatingSystem", func() {
 			It("should succeed if unspecified", func() {
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.OperatingSystem = ptr.String("unknown")
-				Expect(env.Client.Create(context.Background(), provisioner)).ToNot(Succeed())
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support linux", func() {
 				provisioner.Spec.OperatingSystem = ptr.String(v1alpha1.OperatingSystemLinux)
-				Expect(env.Client.Create(context.Background(), provisioner)).To(Succeed())
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
 	})

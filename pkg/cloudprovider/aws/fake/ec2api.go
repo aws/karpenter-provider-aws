@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 )
 
 // EC2Behavior must be reset between tests otherwise tests will
@@ -206,6 +207,26 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 						Manufacturer: aws.String("NVIDIA"),
 						Count:        aws.Int64(4),
 					}},
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
+			{
+				InstanceType:                  aws.String("c6g.large"),
+				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{v1alpha1.ArchitectureArm64}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(2),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(2 * 1024),
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(4),

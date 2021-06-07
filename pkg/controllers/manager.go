@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var (
@@ -80,19 +79,9 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 		}
 		log.PanicIfError(builder.Complete(&GenericController{Controller: c, Client: m.GetClient()}),
 			"Failed to register controller to manager for %s", controlledObject)
-		log.PanicIfError(controllerruntime.NewWebhookManagedBy(m).For(controlledObject).Complete(),
-			"Failed to register controller to manager for %s", controlledObject)
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.PanicIfError(err, "Failed to add readiness probe")
-	}
-	return m
-}
-
-// RegisterWebhooks registers a set of webhooks to the controller manager
-func (m *GenericControllerManager) RegisterWebhooks(webhooks ...Webhook) Manager {
-	for _, w := range webhooks {
-		m.GetWebhookServer().Register(w.Path(), &webhook.Admission{Handler: w})
 	}
 	return m
 }

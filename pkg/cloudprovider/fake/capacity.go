@@ -24,6 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
 )
 
 type Capacity struct {
@@ -63,13 +64,6 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 	return packedNodes, nil
 }
 
-func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
-	return []string{
-		"test-zone-1",
-		"test-zone-2",
-	}, nil
-}
-
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
@@ -98,20 +92,6 @@ func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.Instan
 	}, nil
 }
 
-func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
-	return []string{
-		"amd64",
-		"arm64",
-	}, nil
-}
-
-func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
-	return []string{
-		"linux",
-		"windows",
-	}, nil
-}
-
-func (c *Capacity) Validate(ctx context.Context) error {
+func (c *Capacity) Validate(ctx context.Context) *apis.FieldError {
 	return nil
 }

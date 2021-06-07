@@ -36,11 +36,10 @@ aws cloudformation deploy \
   --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 ```
 
-### Install Karpenter Controller and Dependencies
-Karpenter relies on [cert-manager](https://github.com/jetstack/cert-manager) for Webhook TLS certificates.
-
+### Install Karpenter Controller
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.5/hack/quick-install.sh)"
+helm repo add karpenter https://awslabs.github.io/karpenter/charts
+helm install karpenter charts/karpenter --create-namespace --namespace karpenter
 ```
 
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
@@ -130,7 +129,7 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 
 ### Cleanup
 ```bash
-./hack/quick-install.sh --delete
+helm delete karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 unset AWS_DEFAULT_OUTPUT

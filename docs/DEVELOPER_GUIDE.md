@@ -18,9 +18,9 @@ The following tools are required for doing development on Karpenter.
 Based on which environment you are running a Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.
 
 ```
-make codegen                     # Create auto-generated YAML files.
-./hack/quick-install.sh          # Install cluster dependencies and karpenter
-./hack/quick-install.sh --delete # Clean everything up
+make codegen # Create auto-generated YAML files.
+make apply # Install Karpenter
+make delete # Uninstall Karpenter
 ```
 
 ### Developer Loop
@@ -31,9 +31,6 @@ make codegen                     # Create auto-generated YAML files.
     * Make sure you have valid credentials to your development repository.
     * `$KO_DOCKER_REPO` must point to your development repository
     * Your cluster must have permissions to read from the repository
-* Make sure your cluster doesn't have previous installations of prometheus and cert-manager
-  * Previous installations of our dependencies can interfere with our installation scripts, so to be safe, clear those, then run `./hack/quick-install.sh`
-* If running `./hack/quick-install.sh` fails with `Error: Accumulate Target`, run `make codegen` successfully, and try again.
 * If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned [here](docs/aws/README.md). This is a temporary problem with our subnet discovery system, and is being tracked [here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ### Build and Deploy
@@ -55,13 +52,9 @@ kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "repla
 ```
 
 ### Debugging Metrics
-Prometheus
-```bash
-open http://localhost:9090/graph && kubectl port-forward service/prometheus-operated -n karpenter 9090
-```
 Karpenter Metrics
 ```bash
-open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics-service -n karpenter 8080
+open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```
 
 ## Environment specific setup

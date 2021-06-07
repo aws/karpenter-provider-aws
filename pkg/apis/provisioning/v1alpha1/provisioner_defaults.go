@@ -1,5 +1,3 @@
-// +build !aws
-
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package v1alpha1
 
 import (
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
+	"context"
+
+	"knative.dev/pkg/ptr"
 )
 
-func NewCloudProvider(cloudprovider.Options) cloudprovider.Factory {
-	return &fake.Factory{}
+func (p *Provisioner) SetDefaults(ctx context.Context) {
+	p.Spec.SetDefaults(ctx)
+}
+
+func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {
+	if s.TTLSeconds == nil {
+		s.TTLSeconds = ptr.Int32(300)
+	}
 }

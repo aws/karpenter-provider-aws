@@ -46,11 +46,6 @@ const (
 	Active apis.ConditionType = "Active"
 )
 
-// Resource is required by pkg/client/listers/...
-func Resource(resource string) schema.GroupResource {
-	return SchemeGroupVersion.WithResource(resource).GroupResource()
-}
-
 func init() {
 	SchemeBuilder.Register(&Provisioner{}, &ProvisionerList{})
 }

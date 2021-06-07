@@ -1,14 +1,33 @@
-serviceAccount:
-  create: true
-  name: karpenter
-  # Annotations to add to the service account (like the ARN of the IRSA role)
-  annotations: {}
 controller:
-  # List of environment items to add to the controller, for example
-  # - name: AWS_REGION
-  #   value: eu-west-1
-  env: []
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  image: "public.ecr.aws/karpenter/controller:v0.2.5@sha256:44cf4a340637555ba46289c315d700283443533bb2b084488248cf955faf866a"
+  ##### Service Account ####
+  serviceAccount:
+    create: true
+    name: karpenter-controller
+    # Annotations to add to the service account (like the ARN of the IRSA role)
+    annotations: {}
+
+  ##### Deployment #####
+  deployment:
+    # List of environment items to add to the controller, for example
+    # - name: AWS_REGION
+    #   value: eu-west-1
+    env: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    image: "public.ecr.aws/karpenter/controller:v0.2.5@sha256:44cf4a340637555ba46289c315d700283443533bb2b084488248cf955faf866a"
+webhook:
+  ##### Service Account ####
+  serviceAccount:
+    create: true
+    name: karpenter-webhook
+    # Annotations to add to the service account (like the ARN of the IRSA role)
+    annotations: {}
+
+  ##### Deployment #####
+  deployment:
+    env: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    image: "public.ecr.aws/karpenter/webhook:v0.2.5@sha256:44cf4a340637555ba46289c315d700283443533bb2b084488248cf955faf866a"

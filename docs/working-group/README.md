@@ -22,8 +22,8 @@ Please contribute to our meeting notes by opening a PR.
 
 ## Notes
  - [ET]: Working on some big features for Termination handling. Remove cert manager and using knative libs to keep certs in-memory
- - [KM]: Tried Karpenter out for game server scaling. Some issues w/ subnet selection at provisioner level. Very interested in the termination logic. Curious if karpenter will do more than just deleting empty nodes. 
-- [ET]: For the scale down, we would like to do defrag where pods can be merged into a larger node so there is less overhead. We are currently looking into these features and plan on starting some sort of implementation post v0.4.0 release. Nick's work is focusing on the base to build some of these higher level features on. 
+ - [KM]: Tried Karpenter out for game server scaling. Some issues w/ subnet selection at provisioner level. Very interested in the termination logic. Curious if karpenter will do more than just deleting empty nodes.
+- [ET]: For the scale down, we would like to do defrag where pods can be merged into a larger node so there is less overhead. We are currently looking into these features and plan on starting some sort of implementation post v0.4.0 release. Nick's work is focusing on the base to build some of these higher level features on.
 - [KM]: Big issue with CA is that it can only scale down one node at a time. We have nodes that require a longer scale down.
 - [ET]: Sounds like Node Disruption Budgets would really help with the scale down case.
 - [ET]: We should really never forcibly kill a pod
@@ -95,14 +95,14 @@ Please contribute to our meeting notes by opening a PR.
 - [PG] We use bottlerocket AMIs and you can specify AMIs in Launch Templates or in the Provisioner
 - [NTa] Should our AMIs be eventually consistent or imperative? If someone changes the AMI do we want all nodes to be upgraded to that?
 - [NTa] Maybe we should consider doing a pod restarts and let Provisioners take on those pods with new AMIs
-- [VS] If we do a pod restart, we need to follow evict drain best practices here as well 
-- [PG] you could do a pod restart or you could delete nodes and then 
+- [VS] If we do a pod restart, we need to follow evict drain best practices here as well
+- [PG] you could do a pod restart or you could delete nodes and then
 - [VS] Some people might want to have their nodes updated in groups
 - [ET] Hopefully users shouldn't have to be aware of nodes, if they do, then it becomes a more node group centric choice
 - [NTa] If we have someone wants to upgrade their nodes, we could use a node TTL that recycles it after 90 days
 - [ET] Currently, our devs have been in this space for a while, and the first hour of learning for a user is opaque
 - [VS] More demos could help understand different features of Karpenter
-- [ET] Back to Launch Templates: We allow you to specify a launch template, but we inject a lot of opinions. 
+- [ET] Back to Launch Templates: We allow you to specify a launch template, but we inject a lot of opinions.
 - [ET] We should think more about launch templates and how we form them in the future
 - [PG] If you do not provide a launch template, then we create it for you
 

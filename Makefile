@@ -46,7 +46,8 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template karpenter charts/karpenter \
 		$(HELM_OPTS) \
 		--create-namespace --namespace karpenter \
-		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
+		--set controller.deployment.image=ko://github.com/awslabs/karpenter/cmd/controller \
+		--set webhook.deployment.image=ko://github.com/awslabs/karpenter/cmd/webhook \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster

@@ -21,7 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"knative.dev/pkg/apis"
 )
 
 // Factory instantiates the cloud provider's resources
@@ -39,14 +39,8 @@ type Capacity interface {
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(ctx context.Context) ([]InstanceType, error)
-	// GetZones returns the zones supported by the cloud provider.
-	GetZones(context.Context) ([]string, error)
-	// GetArchitectures returns the architectures supported by the cloud provider.
-	GetArchitectures(context.Context) ([]string, error)
-	// GetOperatingSystems returns the operating systems supported by the cloud provider.
-	GetOperatingSystems(context.Context) ([]string, error)
 	// Validate cloud provider specific components of the cluster spec
-	Validate(context.Context) error
+	Validate(context.Context) *apis.FieldError
 }
 
 type Termination interface {
@@ -73,7 +67,6 @@ type PackedNode struct {
 
 // Options are injected into cloud providers' factories
 type Options struct {
-	Client    client.Client
 	ClientSet *kubernetes.Clientset
 }
 

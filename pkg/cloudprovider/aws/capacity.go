@@ -34,16 +34,6 @@ type Capacity struct {
 	instanceTypeProvider   *InstanceTypeProvider
 }
 
-var (
-	SupportedOperatingSystems = []string{
-		v1alpha1.OperatingSystemLinux,
-	}
-	SupportedArchitectures = []string{
-		v1alpha1.ArchitectureAmd64,
-		v1alpha1.ArchitectureArm64,
-	}
-)
-
 // Create a set of nodes given the constraints.
 func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	instanceIDs := []*string{}
@@ -96,25 +86,5 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 }
 
 func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return c.instanceTypeProvider.Get(ctx, c.provisioner.Spec.Cluster)
-}
-
-func (c *Capacity) GetZones(ctx context.Context) ([]string, error) {
-	zonalSubnets, err := c.subnetProvider.GetZonalSubnets(ctx, c.provisioner.Spec.Cluster.Name)
-	if err != nil {
-		return nil, err
-	}
-	zones := []string{}
-	for zone := range zonalSubnets {
-		zones = append(zones, zone)
-	}
-	return zones, nil
-}
-
-func (c *Capacity) GetArchitectures(ctx context.Context) ([]string, error) {
-	return SupportedArchitectures, nil
-}
-
-func (c *Capacity) GetOperatingSystems(ctx context.Context) ([]string, error) {
-	return SupportedOperatingSystems, nil
+	return c.instanceTypeProvider.Get(ctx)
 }

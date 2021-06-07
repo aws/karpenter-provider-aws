@@ -44,35 +44,6 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 		return nil, nil
 	}
 
-	// 2. Get Supported Labels
-	capacity := f.cloudProvider.CapacityFor(provisioner)
-	architectures, err := capacity.GetArchitectures(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting supported architectures, %w", err)
-	}
-	operatingSystems, err := capacity.GetOperatingSystems(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting supported operating systems, %w", err)
-	}
-	zones, err := capacity.GetZones(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting supported zones, %w", err)
-	}
-	instanceTypes, err := capacity.GetInstanceTypes(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting supported instance types, %w", err)
-	}
-	instanceTypeNames := []string{}
-	for _, instanceType := range instanceTypes {
-		instanceTypeNames = append(instanceTypeNames, instanceType.Name())
-	}
-	supportedLabels := map[string][]string{
-		v1alpha1.ArchitectureLabelKey:    architectures,
-		v1alpha1.OperatingSystemLabelKey: operatingSystems,
-		v1alpha1.ZoneLabelKey:            zones,
-		v1alpha1.InstanceTypeLabelKey:    instanceTypeNames,
-	}
-
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, pod := range pods.Items {
@@ -81,7 +52,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 			func() error { return f.matchesProvisioner(&pod, provisioner) },
 			func() error { return f.hasSupportedSchedulingConstraints(&pod) },
 			func() error { return f.toleratesTaints(&pod, provisioner) },
-			func() error { return f.hasSupportedLabels(&pod, supportedLabels) },
+			func() error { return f.hasSupportedLabels(&pod) },
 		); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				pod.Name, pod.Namespace,
@@ -143,15 +114,20 @@ func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha1.Provisioner) e
 	return err
 }
 
-func (f *Filter) hasSupportedLabels(pod *v1.Pod, supportedLabels map[string][]string) error {
+func (f *Filter) hasSupportedLabels(pod *v1.Pod) error {
 	var err error
-	for label, supported := range supportedLabels {
+	for label, supported := range map[string][]string{
+		v1alpha1.ArchitectureLabelKey:    v1alpha1.SupportedArchitectures,
+		v1alpha1.OperatingSystemLabelKey: v1alpha1.SupportedOperatingSystems,
+		v1alpha1.ZoneLabelKey:            v1alpha1.SupportedZones,
+		v1alpha1.InstanceTypeLabelKey:    v1alpha1.SupportedInstanceTypes,
+	} {
 		selected, ok := pod.Spec.NodeSelector[label]
 		if !ok {
 			continue
 		}
 		if !functional.ContainsString(supported, selected) {
-			err = multierr.Append(err, fmt.Errorf("unsupported value for label %s=%s", label, selected))
+			err = multierr.Append(err, fmt.Errorf("%s not in %v for label %s", selected, supported, label))
 		}
 	}
 	return err

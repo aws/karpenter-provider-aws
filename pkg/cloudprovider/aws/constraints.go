@@ -15,24 +15,21 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
-	nodeLabelPrefix              = "node.k8s.aws"
 	capacityTypeSpot             = "spot"
 	capacityTypeOnDemand         = "on-demand"
 	defaultLaunchTemplateVersion = "$Default"
 )
 
 var (
-	CapacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
-	LaunchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
-	LaunchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
-	allowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
+	CapacityTypeLabel          = "node.k8s.aws/capacity-type"
+	LaunchTemplateIdLabel      = "node.k8s.aws/launch-template-id"
+	LaunchTemplateVersionLabel = "node.k8s.aws/launch-template-version"
+	AllowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
 	AWSToKubeArchitectures     = map[string]string{
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
 		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,

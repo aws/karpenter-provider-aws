@@ -18,6 +18,8 @@ package apis
 import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"knative.dev/pkg/webhook/resourcesemantics"
 )
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme
@@ -27,6 +29,12 @@ var AddToSchemes runtime.SchemeBuilder
 func AddToScheme(s *runtime.Scheme) error {
 	return AddToSchemes.AddToScheme(s)
 }
+
+var (
+	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
+		v1alpha1.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha1.Provisioner{},
+	}
+)
 
 func init() {
 	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)

@@ -99,7 +99,7 @@ func (f *Factory) TerminateFor() cloudprovider.Termination {
 // get the current region from EC2 IMDS
 func getRegionFromIMDS(sess *session.Session) string {
 	region, err := ec2metadata.New(sess).Region()
-	log.PanicIfError(err, "failed to call the metadata server's region API")
+	log.PanicIfError(err, "Failed to call the metadata server's region API")
 	return region
 }
 
