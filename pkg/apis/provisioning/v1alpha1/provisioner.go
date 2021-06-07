@@ -137,27 +137,20 @@ type ProvisionerList struct {
 	Items           []Provisioner `json:"items"`
 }
 
-func (p *Provisioner) ConstraintsWithOverrides(pod *v1.Pod) *Constraints {
-	return &Constraints{
-		Taints:          p.Spec.Taints,
-		Labels:          p.Spec.Constraints.getLabels(p.Name, p.Namespace, pod),
-		Zones:           p.Spec.Constraints.getZones(pod),
-		InstanceTypes:   p.Spec.Constraints.getInstanceTypes(pod),
-		Architecture:    p.Spec.Constraints.getArchitecture(pod),
-		OperatingSystem: p.Spec.Constraints.getOperatingSystem(pod),
-	}
+func (c *Constraints) WithLabel(key string, value string) *Constraints {
+	c.Labels = functional.UnionStringMaps(c.Labels, map[string]string{key: value})
+	return c
 }
 
-func (c *Constraints) getLabels(name string, namespace string, pod *v1.Pod) map[string]string {
-	// These keys are guaranteed to not collide due to validation logic
-	return functional.UnionStringMaps(
-		c.Labels,
-		pod.Spec.NodeSelector,
-		map[string]string{
-			ProvisionerNameLabelKey:      name,
-			ProvisionerNamespaceLabelKey: namespace,
-		},
-	)
+func (c *Constraints) WithOverrides(pod *v1.Pod) *Constraints {
+	return &Constraints{
+		Taints:          c.Taints,
+		Labels:          functional.UnionStringMaps(c.Labels, pod.Spec.NodeSelector),
+		Zones:           c.getZones(pod),
+		InstanceTypes:   c.getInstanceTypes(pod),
+		Architecture:    c.getArchitecture(pod),
+		OperatingSystem: c.getOperatingSystem(pod),
+	}
 }
 
 func (c *Constraints) getZones(pod *v1.Pod) []string {

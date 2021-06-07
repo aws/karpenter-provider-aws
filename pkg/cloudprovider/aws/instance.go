@@ -17,7 +17,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -40,31 +39,36 @@ type InstanceProvider struct {
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *LaunchTemplate,
 	instanceTypeOptions []cloudprovider.InstanceType,
-	zonalSubnetOptions map[string][]*ec2.Subnet,
+	subnets []*ec2.Subnet,
 	capacityType string,
 ) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, zone := range instanceType.Zones() {
-			subnets := zonalSubnetOptions[zone]
-			if len(subnets) == 0 {
-				continue
+			for _, subnet := range subnets {
+				if aws.StringValue(subnet.AvailabilityZone) == zone {
+					override := &ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String(instanceType.Name()),
+						SubnetId:     subnet.SubnetId,
+					}
+					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+					// to reduce the likelihood of getting an excessively large instance type.
+					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+					if capacityType == CapacityTypeSpot {
+						override.Priority = aws.Float64(float64(i))
+					}
+					overrides = append(overrides, override)
+					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
+					break
+				}
 			}
-			override := &ec2.FleetLaunchTemplateOverridesRequest{
-				InstanceType: aws.String(instanceType.Name()),
-				// FleetAPI cannot span subnets from the same AZ, so randomize.
-				SubnetId: aws.String(*subnets[rand.Intn(len(subnets))].SubnetId),
-			}
-			// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-			// to reduce the likelihood of getting an excessively large instance type.
-			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-			if capacityType == CapacityTypeSpot {
-				override.Priority = aws.Float64(float64(i))
-			}
-			overrides = append(overrides, override)
 		}
 	}
+	if len(overrides) == 0 {
+		return nil, fmt.Errorf("no viable {subnet, instanceType} combination")
+	}
+
 	// 2. Create fleet
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),

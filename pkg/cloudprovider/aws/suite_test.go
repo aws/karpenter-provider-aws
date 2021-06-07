@@ -119,194 +119,348 @@ var _ = Describe("Allocation", func() {
 	})
 
 	Context("Reconciliation", func() {
-		It("should default to a cluster zone", func() {
-			// Setup
-			pod := test.PendingPod()
-			ExpectCreatedWithStatus(env.Client, pod)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
-			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-1"),
+		Context("Reserved Labels", func() {
+			It("should not schedule a pod with cloud provider reserved labels", func() {
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{AWSLabelPrefix + "unknown": randomdata.SillyName()}}),
+				)
+				// Assertions
+				Expect(pod.Spec.NodeName).To(BeEmpty())
+			})
+		})
+		Context("Specialized Hardware", func() {
+			It("should launch instances for Nvidia GPU resource requests", func() {
+				// Setup
+				pod1 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
 					},
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-2"),
+				})
+				// Should pack onto same instance
+				pod2 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
 					},
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-3"),
+				})
+				// Should pack onto a separate instance
+				pod3 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
 					},
+				})
+				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
+				ExpectCreated(env.Client, provisioner)
+				ExpectEventuallyReconciled(env.Client, provisioner)
+				// Assertions
+				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
+				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
+				scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
+				Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
+				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
+				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
+					ContainElements(
+						&ec2.FleetLaunchTemplateOverridesRequest{
+							InstanceType: aws.String("p3.8xlarge"),
+							SubnetId:     aws.String("test-subnet-1"),
+						},
+					),
+				)
+				Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
+					ContainElements(
+						&ec2.FleetLaunchTemplateOverridesRequest{
+							InstanceType: aws.String("p3.8xlarge"),
+							SubnetId:     aws.String("test-subnet-1"),
+						},
+					),
+				)
+			})
+			It("should launch instances for AWS Neuron resource requests", func() {
+				// Setup
+				pod1 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+					},
+				})
+				// Should pack onto same instance
+				pod2 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+					},
+				})
+				// Should pack onto a separate instance
+				pod3 := test.PendingPod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+					},
+				})
+				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
+				ExpectCreated(env.Client, provisioner)
+				ExpectEventuallyReconciled(env.Client, provisioner)
+				// Assertions
+				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
+				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
+				scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
+				Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
+				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
+				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
+				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
+					ContainElements(
+						&ec2.FleetLaunchTemplateOverridesRequest{
+							InstanceType: aws.String("inf1.6xlarge"),
+							SubnetId:     aws.String("test-subnet-1"),
+						},
+					),
+				)
+				Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
+					ContainElements(
+						&ec2.FleetLaunchTemplateOverridesRequest{
+							InstanceType: aws.String("inf1.6xlarge"),
+							SubnetId:     aws.String("test-subnet-1"),
+						},
+					),
+				)
+			})
+		})
+		Context("CapacityType", func() {
+			It("should default to on demand", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeOnDemand))
+				Expect(node.Labels).ToNot(HaveKey(CapacityTypeLabel))
+			})
+			It("should default to a provisioner's specified capacity type", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{CapacityTypeLabel: CapacityTypeSpot}
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeSpot))
+				Expect(node.Labels).To(HaveKeyWithValue(CapacityTypeLabel, CapacityTypeSpot))
+			})
+			It("should allow a pod to override the capacity type", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{CapacityTypeLabel: CapacityTypeSpot}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeSpot))
+				Expect(node.Labels).To(HaveKeyWithValue(CapacityTypeLabel, CapacityTypeSpot))
+			})
+			It("should not schedule a pod with an invalid capacityType", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{CapacityTypeLabel: "unknown"}}),
+				)
+				// Assertions
+				Expect(pod.Spec.NodeName).To(BeEmpty())
+			})
+		})
+		Context("LaunchTemplates", func() {
+			It("should default to a generated launch template", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal("test-launch-template-id"))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
+				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateIdLabel))
+				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+			})
+			It("should default to a provisioner's launch template id and version", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{
+					LaunchTemplateIdLabel:      randomdata.SillyName(),
+					LaunchTemplateVersionLabel: randomdata.SillyName(),
+				}
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+			})
+			It("should default to a provisioner's launch template and the default launch template version", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+			})
+			It("should allow a pod to override the launch template id and version", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{
+					LaunchTemplateIdLabel:      randomdata.SillyName(),
+					LaunchTemplateVersionLabel: randomdata.SillyName(),
+				}
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{
+						LaunchTemplateIdLabel:      randomdata.SillyName(),
+						LaunchTemplateVersionLabel: randomdata.SillyName(),
+					}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(pod.Spec.NodeSelector[LaunchTemplateVersionLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, pod.Spec.NodeSelector[LaunchTemplateVersionLabel]))
+			})
+			It("should allow a pod to override the launch template id and use the default launch template version", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+			})
+			It("should allow a pod to override the launch template id and use the provisioner's launch template version", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{
+					LaunchTemplateIdLabel:      randomdata.SillyName(),
+					LaunchTemplateVersionLabel: randomdata.SillyName(),
+				}
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pod.Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+			})
+		})
+		Context("Subnets", func() {
+			It("should default to the clusters subnets", func() {
+				// Setup
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
 				))
-		})
-		It("should default to a provisioner's zone", func() {
-			// Setup
-			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PendingPod()
-			ExpectCreatedWithStatus(env.Client, pod)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
-			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-2"),
-					},
-				),
-			)
-		})
-		It("should allow pod to override default zone", func() {
-			// Setup
-			provisioner.Spec.Zones = []string{"test-zone-1a", "test-zone-1b"}
-			pod := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1c"}})
-			ExpectCreatedWithStatus(env.Client, pod)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
-			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("m5.large"),
-						SubnetId:     aws.String("test-subnet-3"),
-					},
-				),
-			)
-		})
-		It("should launch nodes for pods with different node selectors", func() {
-			// Setup
-			lt1 := "abc123"
-			lt2 := "34sy4s"
-			pod1 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: lt1}})
-			pod2 := test.PendingPodWith(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: lt2}})
-			ExpectCreatedWithStatus(env.Client, pod1, pod2)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
-			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-			node1 := ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-			node2 := ExpectNodeExists(env.Client, scheduled2.Spec.NodeName)
-			Expect(scheduled1.Spec.NodeName).NotTo(Equal(scheduled2.Spec.NodeName))
-			Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(2))
-			Expect(node1.ObjectMeta.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, lt1))
-			Expect(node2.ObjectMeta.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, lt2))
-		})
-		It("should launch instances for Nvidia GPU resource requests", func() {
-			// Setup
-			pod1 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-				},
+				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
 			})
-			// Should pack onto same instance
-			pod2 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-				},
+			It("should default to a provisioner's specified subnet name", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{SubnetNameLabel: "test-subnet-2"}
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
+				))
+				Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, provisioner.Spec.Labels[SubnetNameLabel]))
+				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
 			})
-			// Should pack onto a separate instance
-			pod3 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-					Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-				},
+			It("should default to a provisioner's specified subnet tag key", func() {
+				provisioner.Spec.Labels = map[string]string{SubnetTagKeyLabel: "TestTag"}
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+				))
+				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+				Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, provisioner.Spec.Labels[SubnetTagKeyLabel]))
 			})
-			ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
-			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-			scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
-			Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
-			Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
-			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-			ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("p3.8xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				),
-			)
-			Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("p3.8xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				),
-			)
-		})
-		It("should launch instances for AWS Neuron resource requests", func() {
-			// Setup
-			pod1 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-				},
+			It("should allow a pod to override the subnet name", func() {
+				// Setup
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetNameLabel: "test-subnet-2"}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
+				))
+				Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, pod.Spec.NodeSelector[SubnetNameLabel]))
+				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
 			})
-			// Should pack onto same instance
-			pod2 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-				},
+			It("should allow a pod to override the subnet tags", func() {
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "TestTag"}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+				))
+				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+				Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, pod.Spec.NodeSelector[SubnetTagKeyLabel]))
 			})
-			// Should pack onto a separate instance
-			pod3 := test.PendingPodWith(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
-					Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
-				},
+			It("should not schedule a pod with an invalid subnet", func() {
+				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
+				)
+				// Assertions
+				Expect(pod.Spec.NodeName).To(BeEmpty())
 			})
-			ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
-			// Assertions
-			scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
-			scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-			scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
-			Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
-			Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
-			ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-			ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-			Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("inf1.6xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				),
-			)
-			Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
-				ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("inf1.6xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				),
-			)
 		})
 	})
 	Context("Validation", func() {

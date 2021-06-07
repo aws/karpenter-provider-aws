@@ -46,12 +46,14 @@ func ExpectNodeExists(c client.Client, name string) *v1.Node {
 	return node
 }
 
-func ExpectEventuallyDeleted(c client.Client, object client.Object) {
-	Eventually(func() bool {
-		return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
-	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-		return fmt.Sprintf("expected %s/%s to be deleted, but it still exists", object.GetName(), object.GetNamespace())
-	})
+func ExpectNotFound(c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		Eventually(func() bool {
+			return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
+		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+			return fmt.Sprintf("expected %s to be deleted, but it still exists", object.GetSelfLink())
+		})
+	}
 }
 
 func ExpectCreated(c client.Client, objects ...client.Object) {
@@ -114,4 +116,11 @@ func ExpectCleanedUp(c client.Client) {
 	for _, provisioner := range provisioners.Items {
 		ExpectDeleted(c, &provisioner)
 	}
+}
+
+func AttemptProvisioning(c client.Client, provisioner *v1alpha1.Provisioner, pod *v1.Pod) *v1.Pod {
+	ExpectCreatedWithStatus(c, pod)
+	ExpectCreated(c, provisioner)
+	ExpectEventuallyReconciled(c, provisioner)
+	return ExpectPodExists(c, pod.GetName(), pod.GetNamespace())
 }

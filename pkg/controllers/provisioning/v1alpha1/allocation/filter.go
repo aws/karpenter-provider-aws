@@ -46,11 +46,11 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	provisionable := []*v1.Pod{}
 	for _, pod := range pods.Items {
 		if err := functional.ValidateAll(
-			func() error { return f.isUnschedulable(&pod) },
-			func() error { return f.matchesProvisioner(&pod, provisioner) },
-			func() error { return f.hasSupportedSchedulingConstraints(&pod) },
-			func() error { return f.toleratesTaints(&pod, provisioner) },
-			func() error { return f.hasSupportedLabels(&pod) },
+			func() error { return f.isUnschedulable(ctx, &pod) },
+			func() error { return f.matchesProvisioner(ctx, &pod, provisioner) },
+			func() error { return f.hasSupportedSchedulingConstraints(ctx, &pod) },
+			func() error { return f.toleratesTaints(ctx, &pod, provisioner) },
+			func() error { return f.withValidConstraints(ctx, &pod, provisioner) },
 		); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				pod.Name, pod.Namespace,
@@ -64,7 +64,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha1
 	return provisionable, nil
 }
 
-func (f *Filter) isUnschedulable(p *v1.Pod) error {
+func (f *Filter) isUnschedulable(ctx context.Context, p *v1.Pod) error {
 	if !pod.FailedToSchedule(p) {
 		return fmt.Errorf("awaiting scheduling")
 	}
@@ -74,7 +74,7 @@ func (f *Filter) isUnschedulable(p *v1.Pod) error {
 	return nil
 }
 
-func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
+func (f *Filter) hasSupportedSchedulingConstraints(ctx context.Context, pod *v1.Pod) error {
 	if pod.Spec.Affinity != nil {
 		return fmt.Errorf("affinity is not supported")
 	}
@@ -84,7 +84,7 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 	return nil
 }
 
-func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha1.Provisioner) error {
+func (f *Filter) matchesProvisioner(ctx context.Context, pod *v1.Pod, provisioner *v1alpha1.Provisioner) error {
 	if pod.Spec.NodeSelector == nil {
 		return nil
 	}
@@ -102,7 +102,7 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha1.Provision
 	return fmt.Errorf("matched another provisioner, %s/%s", name, namespace)
 }
 
-func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha1.Provisioner) error {
+func (f *Filter) toleratesTaints(ctx context.Context, p *v1.Pod, provisioner *v1alpha1.Provisioner) error {
 	var err error
 	for _, taint := range provisioner.Spec.Taints {
 		if !pod.ToleratesTaint(&p.Spec, taint) {
@@ -112,21 +112,9 @@ func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha1.Provisioner) e
 	return err
 }
 
-func (f *Filter) hasSupportedLabels(pod *v1.Pod) error {
-	var err error
-	for label, supported := range map[string][]string{
-		v1alpha1.ArchitectureLabelKey:    v1alpha1.SupportedArchitectures,
-		v1alpha1.OperatingSystemLabelKey: v1alpha1.SupportedOperatingSystems,
-		v1alpha1.ZoneLabelKey:            v1alpha1.SupportedZones,
-		v1alpha1.InstanceTypeLabelKey:    v1alpha1.SupportedInstanceTypes,
-	} {
-		selected, ok := pod.Spec.NodeSelector[label]
-		if !ok {
-			continue
-		}
-		if !functional.ContainsString(supported, selected) {
-			err = multierr.Append(err, fmt.Errorf("%s not in %v for label %s", selected, supported, label))
-		}
+func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha1.Provisioner) error {
+	if err := provisioner.Spec.Constraints.WithOverrides(pod).Validate(ctx); err != nil {
+		return fmt.Errorf("invalid constraints, %w", err)
 	}
-	return err
+	return nil
 }

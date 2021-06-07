@@ -31,8 +31,8 @@ type CloudProvider interface {
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
-	// Validate cloud provider specific components of the cluster spec
-	Validate(context.Context, *v1alpha1.ProvisionerSpec) *apis.FieldError
+	// Validate is a hook for additional constraint validation logic specific to the cloud provider
+	Validate(context.Context, *v1alpha1.Constraints) *apis.FieldError
 	// Terminate nodes in cloudprovider
 	Terminate(context.Context, []*v1.Node) error
 }

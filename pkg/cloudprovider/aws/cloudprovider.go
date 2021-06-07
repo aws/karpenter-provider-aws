@@ -15,7 +15,6 @@ package aws
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -108,39 +106,33 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a set of nodes given the constraints.
-func (a *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	instanceIDs := []*string{}
 	instancePackings := map[string]*cloudprovider.Packing{}
 	for _, packing := range packings {
-		constraints := Constraints(*packing.Constraints)
+		constraints := Constraints{*packing.Constraints}
 		// 1. Get Subnets and constrain by zones
-		zonalSubnets, err := a.subnetProvider.GetZonalSubnets(ctx, provisioner.Spec.Cluster.Name)
+		subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 		if err != nil {
 			return nil, fmt.Errorf("getting zonal subnets, %w", err)
 		}
-		zonalSubnetOptions := map[string][]*ec2.Subnet{}
-		for zone, subnets := range zonalSubnets {
-			if len(constraints.Zones) == 0 || functional.ContainsString(constraints.Zones, zone) {
-				zonalSubnetOptions[zone] = subnets
-			}
-		}
 		// 2. Get Launch Template
-		launchTemplate, err := a.launchTemplateProvider.Get(ctx, provisioner, &constraints)
+		launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
 		if err != nil {
 			return nil, fmt.Errorf("getting launch template, %w", err)
 		}
 		// 3. Create instance
-		instanceID, err := a.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, zonalSubnets, constraints.GetCapacityType())
+		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
 		if err != nil {
-			// TODO Aggregate errors and continue
-			return nil, fmt.Errorf("creating capacity %w", err)
+			zap.S().Errorf("Continuing after failing to launch instances, %s", err.Error())
+			continue
 		}
 		instancePackings[*instanceID] = packing
 		instanceIDs = append(instanceIDs, instanceID)
 	}
 
 	// 4. Convert to Nodes
-	nodes, err := a.nodeAPI.For(ctx, instanceIDs)
+	nodes, err := c.nodeAPI.For(ctx, instanceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("determining nodes, %w", err)
 	}
@@ -158,49 +150,16 @@ func (a *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provis
 	return packedNodes, nil
 }
 
-func (a *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return a.instanceTypeProvider.Get(ctx)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+	return c.instanceTypeProvider.Get(ctx)
 }
 
-func (a *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
-	return a.instanceProvider.Terminate(ctx, nodes)
+func (c *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
+	return c.instanceProvider.Terminate(ctx, nodes)
 }
 
 // Validate cloud provider specific components of the cluster spec
-func (a *CloudProvider) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
-	return errs.Also(
-		validateAllowedLabels(*spec),
-		validateCapacityTypeLabel(*spec),
-		validateLaunchTemplateLabels(*spec),
-	)
-}
-
-func validateAllowedLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
-	for key := range spec.Labels {
-		if strings.HasPrefix(key, AWSLabelPrefix) && !functional.ContainsString(AllowedLabels, key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
-		}
-	}
-	return errs
-}
-
-func validateCapacityTypeLabel(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
-	capacityType, ok := spec.Labels[CapacityTypeLabel]
-	if !ok {
-		return nil
-	}
-	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
-	if !functional.ContainsString(capacityTypes, capacityType) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("spec.labels[%s]", CapacityTypeLabel)))
-	}
-	return errs
-}
-
-func validateLaunchTemplateLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
-	if _, versionExists := spec.Labels[LaunchTemplateVersionLabel]; versionExists {
-		if _, bothExist := spec.Labels[LaunchTemplateIdLabel]; !bothExist {
-			return errs.Also(apis.ErrMissingField(fmt.Sprintf("spec.labels[%s]", LaunchTemplateIdLabel)))
-		}
-	}
-	return errs
+func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha1.Constraints) (errs *apis.FieldError) {
+	awsConstraints := Constraints{*constraints}
+	return awsConstraints.Validate(ctx)
 }

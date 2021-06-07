@@ -73,7 +73,7 @@ func main() {
 			ServiceName: "karpenter-webhook",
 			SecretName:  "karpenter-webhook-cert",
 		}),
-		"Karpenter Webhooks",
+		"karpenter.webhooks",
 		config,
 		certificates.NewController,
 		NewCRDDefaultingWebhook,

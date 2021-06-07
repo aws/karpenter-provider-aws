@@ -15,14 +15,20 @@ limitations under the License.
 package aws
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"knative.dev/pkg/apis"
 )
 
 const (
 	CapacityTypeSpot             = "spot"
 	CapacityTypeOnDemand         = "on-demand"
-	defaultLaunchTemplateVersion = "$Default"
+	DefaultLaunchTemplateVersion = "$Default"
 )
 
 var (
@@ -30,8 +36,16 @@ var (
 	CapacityTypeLabel          = AWSLabelPrefix + "capacity-type"
 	LaunchTemplateIdLabel      = AWSLabelPrefix + "launch-template-id"
 	LaunchTemplateVersionLabel = AWSLabelPrefix + "launch-template-version"
-	AllowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
-	AWSToKubeArchitectures     = map[string]string{
+	SubnetNameLabel            = AWSLabelPrefix + "subnet-name"
+	SubnetTagKeyLabel          = AWSLabelPrefix + "subnet-tag-key"
+	AllowedLabels              = []string{
+		CapacityTypeLabel,
+		LaunchTemplateIdLabel,
+		LaunchTemplateVersionLabel,
+		SubnetNameLabel,
+		SubnetTagKeyLabel,
+	}
+	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
 		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
 	}
@@ -39,7 +53,9 @@ var (
 )
 
 // Constraints are AWS specific constraints
-type Constraints v1alpha1.Constraints
+type Constraints struct {
+	v1alpha1.Constraints
+}
 
 func (c *Constraints) GetCapacityType() string {
 	capacityType, ok := c.Labels[CapacityTypeLabel]
@@ -61,10 +77,72 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 	}
 	version, ok := c.Labels[LaunchTemplateVersionLabel]
 	if !ok {
-		version = defaultLaunchTemplateVersion
+		version = DefaultLaunchTemplateVersion
 	}
 	return &LaunchTemplate{
 		Id:      &id,
 		Version: &version,
 	}
+}
+
+func (c *Constraints) GetSubnetName() *string {
+	subnetName, ok := c.Labels[SubnetNameLabel]
+	if !ok {
+		return nil
+	}
+	return aws.String(subnetName)
+}
+
+func (c *Constraints) GetSubnetTagKey() *string {
+	subnetTag, ok := c.Labels[SubnetTagKeyLabel]
+	if !ok {
+		return nil
+	}
+	return aws.String(subnetTag)
+}
+
+func (c *Constraints) Validate(ctx context.Context)  (errs *apis.FieldError) {
+	return errs.Also(
+		c.validateAllowedLabels(ctx),
+		c.validateCapacityType(ctx),
+		c.validateLaunchTemplate(ctx),
+		c.validateSubnets(ctx),
+	)
+}
+
+func (c *Constraints) validateAllowedLabels(ctx context.Context) (errs *apis.FieldError) {
+	for key := range c.Labels {
+		if strings.HasPrefix(key, AWSLabelPrefix) && !functional.ContainsString(AllowedLabels, key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
+		}
+	}
+	return errs
+}
+
+func (c *Constraints) validateCapacityType(ctx context.Context) (errs *apis.FieldError) {
+	capacityType, ok := c.Labels[CapacityTypeLabel]
+	if !ok {
+		return nil
+	}
+	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
+	if !functional.ContainsString(capacityTypes, capacityType) {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("spec.labels[%s]", CapacityTypeLabel)))
+	}
+	return errs
+}
+
+func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
+	if _, versionExists := c.Labels[LaunchTemplateVersionLabel]; versionExists {
+		if _, bothExist := c.Labels[LaunchTemplateIdLabel]; !bothExist {
+			return errs.Also(apis.ErrMissingField(fmt.Sprintf("spec.labels[%s]", LaunchTemplateIdLabel)))
+		}
+	}
+	return errs
+}
+
+func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
+	if c.GetSubnetName() != nil && c.GetSubnetTagKey() != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(fmt.Sprintf("spec.labels[%s]", SubnetNameLabel), fmt.Sprintf("spec.labels[%s]", SubnetTagKeyLabel)))
+	}
+	return errs
 }

@@ -37,7 +37,15 @@ type PodOptions struct {
 	Conditions           []v1.PodCondition
 }
 
-func defaults(options PodOptions) *v1.Pod {
+// Pod creates a test pod with defaults that can be overriden by PodOptions.
+// Overrides are applied in order, with a last write wins semantic.
+func Pod(optionss ...PodOptions) *v1.Pod {
+	options := PodOptions{}
+	for _, opts := range optionss {
+		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
+		}
+	}
 	if options.Name == "" {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
@@ -46,9 +54,6 @@ func defaults(options PodOptions) *v1.Pod {
 	}
 	if options.Image == "" {
 		options.Image = "k8s.gcr.io/pause"
-	}
-	if len(options.Conditions) == 0 {
-		options.Conditions = []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}
 	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -70,23 +75,9 @@ func defaults(options PodOptions) *v1.Pod {
 	}
 }
 
-// PendingPod creates a pending test pod with the minimal set of other
-// fields defaulted to something sane.
-func PendingPod() *v1.Pod {
-	return defaults(PodOptions{})
-}
-
-// PendingPodWith creates a pending test pod with fields overridden by
-// options.
-func PendingPodWith(options PodOptions) *v1.Pod {
-	return PodWith(PendingPod(), options)
-}
-
-// PodWith overrides, in-place, pod with any non-zero elements of
-// options. It returns the same pod simply for ease of use.
-func PodWith(pod *v1.Pod, options PodOptions) *v1.Pod {
-	if err := mergo.Merge(pod, defaults(options), mergo.WithOverride); err != nil {
-		panic(fmt.Sprintf("unexpected error in test code: %v", err))
-	}
-	return pod
+// PendingPod creates a test pod with a pending scheduling status condition
+func PendingPod(options ...PodOptions) *v1.Pod {
+	return Pod(append(options, PodOptions{
+		Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+	})...)
 }

@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +72,10 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 				v1.ResourcePods:   resource.MustParse("1000"),
 				v1.ResourceCPU:    resource.MustParse("96"),
 				v1.ResourceMemory: resource.MustParse("384Gi"),
+			},
+			NodeInfo: v1.NodeSystemInfo{
+				Architecture: aws.StringValue(instance.Architecture),
+				OperatingSystem: v1alpha1.OperatingSystemLinux,
 			},
 		},
 	}
