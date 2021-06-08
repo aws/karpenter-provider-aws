@@ -12,14 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocation
+package v1alpha1
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 
 	v1 "k8s.io/api/core/v1"
@@ -34,13 +33,13 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	utilization   *Utilization
+	terminator    *Terminator
 	cloudProvider cloudprovider.Factory
 }
 
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
-	return &v1alpha1.Provisioner{}
+	return &v1.Node{}
 }
 
 // Owns returns the resources owned by this controller's resource.
@@ -53,40 +52,33 @@ func (c *Controller) Interval() time.Duration {
 }
 
 func (c *Controller) Name() string {
-	return "provisioner/reallocator"
+	return "terminator"
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.Factory) *Controller {
 	return &Controller{
-		utilization:   &Utilization{kubeClient: kubeClient},
+		terminator:    &Terminator{kubeClient: kubeClient, cloudprovider: cloudProvider, coreV1Client: coreV1Client},
 		cloudProvider: cloudProvider,
 	}
 }
 
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	provisioner := object.(*v1alpha1.Provisioner)
-
-	// 1. Set TTL on TTLable Nodes
-	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
-		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
+	// 1. Cordon terminable nodes
+	if err := c.terminator.cordonNodes(ctx); err != nil {
+		return reconcile.Result{}, fmt.Errorf("cordoning terminable nodes, %w", err)
 	}
 
-	// 2. Remove TTL from Utilized Nodes
-	if err := c.utilization.clearUnderutilized(ctx, provisioner); err != nil {
-		return reconcile.Result{}, fmt.Errorf("removing ttl from node, %w", err)
-	}
-
-	// 3. Mark any Node past TTL as expired
-	if err := c.utilization.markTerminable(ctx, provisioner); err != nil {
-		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
+	// 2. Drain and delete nodes
+	if err := c.terminator.terminateNodes(ctx); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
 	}
 	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return &source.Kind{Type: &v1.Pod{}},
+	return &source.Kind{Type: &v1.Node{}},
 		&handler.EnqueueRequestForObject{},
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

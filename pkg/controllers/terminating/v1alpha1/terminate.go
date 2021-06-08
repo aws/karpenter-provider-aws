@@ -12,17 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reallocation
+package v1alpha1
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -37,25 +38,10 @@ type Terminator struct {
 	coreV1Client  corev1.CoreV1Interface
 }
 
-func (t *Terminator) Reconcile(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
-	// 1. Cordon terminable nodes
-	if err := t.cordonNodes(ctx, provisioner); err != nil {
-		return fmt.Errorf("cordoning terminable nodes, %w", err)
-	}
-
-	// 2. Drain and delete nodes
-	if err := t.terminateNodes(ctx, provisioner); err != nil {
-		return fmt.Errorf("terminating nodes, %w", err)
-	}
-	return nil
-}
-
 // cordonNodes takes in a list of expired nodes as input and cordons them
-func (t *Terminator) cordonNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+func (t *Terminator) cordonNodes(ctx context.Context) error {
 	// 1. Get terminable nodes
-	nodeList, err := t.getNodes(ctx, provisioner, map[string]string{
-		v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerTerminablePhase,
-	})
+	nodeList, err := t.getLabeledNodes(ctx, provisioning.ProvisionerTerminablePhase)
 	if err != nil {
 		return err
 	}
@@ -65,7 +51,7 @@ func (t *Terminator) cordonNodes(ctx context.Context, provisioner *v1alpha1.Prov
 		node.Spec.Unschedulable = true
 		node.Labels = functional.UnionStringMaps(
 			node.Labels,
-			map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerDrainingPhase},
+			map[string]string{provisioning.ProvisionerPhaseLabel: provisioning.ProvisionerDrainingPhase},
 		)
 		if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
@@ -76,11 +62,9 @@ func (t *Terminator) cordonNodes(ctx context.Context, provisioner *v1alpha1.Prov
 }
 
 // terminateNodes takes in a list of expired non-drained nodes and calls drain on them
-func (t *Terminator) terminateNodes(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+func (t *Terminator) terminateNodes(ctx context.Context) error {
 	// 1. Get draining nodes
-	draining, err := t.getNodes(ctx, provisioner, map[string]string{
-		v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerDrainingPhase,
-	})
+	draining, err := t.getLabeledNodes(ctx, provisioning.ProvisionerDrainingPhase)
 	if err != nil {
 		return fmt.Errorf("listing draining nodes, %w", err)
 	}
@@ -117,16 +101,16 @@ func (t *Terminator) terminateNodes(ctx context.Context, provisioner *v1alpha1.P
 		}
 	}
 	// 3. Delete empty nodes
-	if err := t.deleteNodes(ctx, drained, provisioner); err != nil {
+	if err := t.deleteNodes(ctx, drained); err != nil {
 		return fmt.Errorf("deleting %d nodes, %w", len(drained), err)
 	}
 	return nil
 }
 
 // deleteNode uses a cloudprovider-specific delete to delete a set of nodes
-func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node, provisioner *v1alpha1.Provisioner) error {
+func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node) error {
 	// 1. Delete node in cloudprovider's instanceprovider
-	if err := t.cloudprovider.CapacityFor(provisioner).Delete(ctx, nodes); err != nil {
+	if err := t.cloudprovider.TerminateFor().Terminate(ctx, nodes); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Delete node in APIServer
@@ -139,13 +123,15 @@ func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node, provisio
 	return nil
 }
 
-// getNodes returns a list of nodes with the provisioner's labels and given labels
-func (t *Terminator) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner, additionalLabels map[string]string) ([]*v1.Node, error) {
+// getLabeledNodes returns a list of nodes with the provisioner's labels and given labels
+func (t *Terminator) getLabeledNodes(ctx context.Context, phaseLabel string) ([]*v1.Node, error) {
 	nodes := &v1.NodeList{}
-	if err := t.kubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
-		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-	}, additionalLabels))); err != nil {
+	if err := t.kubeClient.List(ctx, nodes, client.HasLabels([]string{
+		provisioning.ProvisionerNameLabelKey,
+		provisioning.ProvisionerNamespaceLabelKey,
+	}), client.MatchingLabels(map[string]string{
+		provisioning.ProvisionerPhaseLabel: phaseLabel,
+	})); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
 	return ptr.NodeListToSlice(nodes), nil

@@ -28,14 +28,14 @@ import (
 type Factory interface {
 	// Capacity returns a provisioner for the provider to create instances
 	CapacityFor(provisioner *v1alpha1.Provisioner) Capacity
+	// Terminate allows the provider to terminate instances
+	TerminateFor() Termination
 }
 
 // Capacity provisions a set of nodes that fulfill a set of constraints.
 type Capacity interface {
 	// Create a set of nodes for each of the given constraints.
 	Create(context.Context, []*Packing) ([]*PackedNode, error)
-	// Delete nodes in cloudprovider
-	Delete(context.Context, []*v1.Node) error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(ctx context.Context) ([]InstanceType, error)
@@ -47,6 +47,11 @@ type Capacity interface {
 	GetOperatingSystems(context.Context) ([]string, error)
 	// Validate cloud provider specific components of the cluster spec
 	Validate(context.Context) error
+}
+
+type Termination interface {
+	// Terminate nodes in cloudprovider
+	Terminate(context.Context, []*v1.Node) error
 }
 
 // Packing is a binpacking solution of equivalently schedulable pods to a set of

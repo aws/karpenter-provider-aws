@@ -8,14 +8,14 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
-
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
+	termination "github.com/awslabs/karpenter/pkg/controllers/terminating/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -72,6 +72,7 @@ func main() {
 	).RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
+		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProviderFactory),
 	).Start(controllerruntime.SetupSignalHandler())
 	log.PanicIfError(err, "Unable to start manager")
 }
