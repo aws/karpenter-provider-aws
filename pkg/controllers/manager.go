@@ -66,7 +66,7 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 		controlledObject := c.For()
 		builder := controllerruntime.NewControllerManagedBy(m).
 			For(controlledObject).
-			Watches(c.Watches(context.Background())).
+			Watches(c.Watches()).
 			WithOptions(controller.Options{
 				RateLimiter: workqueue.NewMaxOfRateLimiter(
 					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),

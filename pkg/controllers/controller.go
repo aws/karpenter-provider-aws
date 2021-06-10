@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
-
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/apis"
@@ -42,10 +41,10 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 1. Read Spec
 	resource := c.For()
 	if err := c.Get(ctx, req.NamespacedName, resource); err != nil {
-		if errors.IsNotFound(err) {
+		if errors.IsNotFound(err) || errors.IsGone(err) {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, err
+		return reconcile.Result{Requeue: true}, err
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
@@ -58,23 +57,25 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
 		apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor).MarkTrue(conditions.Active)
 	}
-	// 5. Reconcile
-	if _, err := c.Controller.Reconcile(ctx, resource); err != nil {
+
+	// 4. Reconcile
+	result, err := c.Controller.Reconcile(ctx, resource)
+	if err != nil {
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		return reconcile.Result{Requeue: true}, nil
+		return result, err
 	}
 	// 6. Update Status using a merge patch
 	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+		return result, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+	return result, nil
 }
 
 // WatchDescription returns the necessary information to create a watch
 //   a. source: the resource that is being watched
 //   b. eventHandler: which controller objects to be reconciled
 //   c. predicates: which events can be filtered out before processed
-func (c *GenericController) Watches(ctx context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return c.Controller.Watches(ctx)
+func (c *GenericController) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return c.Controller.Watches()
 }

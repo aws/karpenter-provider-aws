@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -66,6 +67,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes a termination control loop for the resource
+<<<<<<< HEAD
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	node := object.(*v1.Node)
 	// 1. Check if node is terminable
@@ -90,8 +92,30 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	return reconcile.Result{Requeue: !drained}, nil
 }
 
-func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
 	return &source.Kind{Type: &v1.Node{}},
 		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
+		builder.WithPredicates(
+			predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool { return false }, //no-op
+				DeleteFunc: func(e event.DeleteEvent) bool { return false }, //no-op
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					node := e.ObjectNew.(*v1.Node)
+					labels := node.GetLabels()
+					// Don't watch nodes not created by provisioners
+					if _, ok := labels[provisioning.ProvisionerNameLabelKey]; !ok {
+						return false
+					}
+					if _, ok := labels[provisioning.ProvisionerNamespaceLabelKey]; !ok {
+						return false
+					}
+					if phase, ok := labels[provisioning.ProvisionerPhaseLabel]; ok {
+						return phase != provisioning.ProvisionerUnderutilizedPhase &&
+							e.ObjectOld.GetResourceVersion() != e.ObjectNew.GetResourceVersion()
+					}
+					return false
+				},
+				GenericFunc: func(e event.GenericEvent) bool { return false }, //no-op
+			},
+		)
 }

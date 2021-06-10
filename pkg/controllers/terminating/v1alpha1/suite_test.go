@@ -54,8 +54,9 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Reallocation", func() {
+var _ = Describe("Termination", func() {
 	var ctx context.Context
+
 	BeforeEach(func() {
 		ctx = context.Background()
 	})

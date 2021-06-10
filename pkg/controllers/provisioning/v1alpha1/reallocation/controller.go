@@ -81,10 +81,10 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }
 
-func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
 	return &source.Kind{Type: &v1.Pod{}},
 		&handler.EnqueueRequestForObject{},
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))

@@ -82,7 +82,7 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
 	if len(pods) == 0 {
-		return reconcile.Result{}, nil
+		return reconcile.Result{RequeueAfter: c.Interval()}, nil
 	}
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
@@ -115,10 +115,10 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }
 
-func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
 	return &source.Kind{Type: &v1.Pod{}},
 		&handler.EnqueueRequestForObject{},
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))

@@ -46,7 +46,7 @@ type Controller interface {
 	//   a. Source: the resource that is being watched
 	//   b. EventHandler: which controller objects to be reconciled
 	//   c. WatchesOption: which events can be filtered out before processed
-	Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption)
+	Watches() (source.Source, handler.EventHandler, builder.WatchesOption)
 }
 
 // NamedController allows controllers to optionally implement a Name() function which will be used instead of the
