@@ -10,6 +10,65 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (06/10/21)
+
+## Attendees
+- Ellis Tarn
+- Jacob Gabrielson
+- Brandon Wagner
+- Elmiko
+- Viji Sarathy
+- Nick Tran
+
+## Notes
+ - [ET]: Working on some big features for Termination handling. Remove cert manager and using knative libs to keep certs in-memory
+ - [KM]: Tried Karpenter out for game server scaling. Some issues w/ subnet selection at provisioner level. Very interested in the termination logic. Curious if karpenter will do more than just deleting empty nodes. 
+- [ET]: For the scale down, we would like to do defrag where pods can be merged into a larger node so there is less overhead. We are currently looking into these features and plan on starting some sort of implementation post v0.4.0 release. Nick's work is focusing on the base to build some of these higher level features on. 
+- [KM]: Big issue with CA is that it can only scale down one node at a time. We have nodes that require a longer scale down.
+- [ET]: Sounds like Node Disruption Budgets would really help with the scale down case.
+- [ET]: We should really never forcibly kill a pod
+- [Elmiko]: Wouldn't it be okay to evict a pod in some situations if no PDB exists?
+- [ET]: Yes, but eviction is more polite, but we still shouldn't force it.
+- [ET]: WRT to subnet selectors we can use a well known label selector using the subnet name but also keep looking at the cluster tag.  We can use aws tag keys for selection without using the value of the tag to make selection easier.
+- [KM]: We don't even need Name since they are not unique and the subnet name is a tag w/ key "Name".
+- [JG]: How do you (KM) terminate nodes within k8s today? It sounds like once you decide a node needs to be terminated, you wait a while.
+- [KM]: Today we use the k8s eviction api and set grace periods. We use utilization to check which nodes to terminate.
+- [JG]: So we can still respect the grace periods but do it in parallel.
+- [KM]: And we can use Node Disruption Budget too.
+- [ET]: How was the karpenter install KM?
+- [KM]: It worked well after I removed the custom launch template ID.
+- [ET]: We've been playing with the idea of not even allowing custom launch templates because they're tricky to get right due to bad configurations that are hard to validate and won't work at runtime.
+- [KM]: What is the intention around deleting LTs when you delete the cluster?
+- [ET]: We'd like to not have to use launch templates with the EC2 fleet api. The best we have today is the command in the [karpenter repo demo](https://github.com/awslabs/karpenter/blob/f202d3e68fcdf583717245763b0338a478649bc2/docs/aws/README.md#cleanup) to find resources created by karpenter based on tags. The Launch Templates are tied to a provisioner since it's a hash of the constraints. We could add a k8s finalizer on the provisioner to clean up the resources in AWS.
+- [KM]: It's hard to use the vpc-cni because of the flags you have to pass to the kubelet for max pods.
+- [ET]: We use bottlerocket by default in karpenter. In an ipv6 world,  the pod limit is basically infinite. So you (KM) don't work with the defaults?
+- [KM]: If we use karpenter, we'd probably just use the defaults. We're also looking at calico, which requires changing the max pods (increasing instead of decreasing).
+- [ET]: It might be nice to have some sort of configuration to override those parameters if you need it.
+- [JG]: Is there an issue explaining the problem here for CNIs?
+- [KM]: Yes, https://github.com/aws/containers-roadmap/issues/138
+- [ET]: Wrt to custom launch templates, we could just support a subset of the fields that you would specify in the launch template. This might be safer since karpenter will always own the launch template.
+- [VS]: What is the path to changing AMIs if karpenter doesn't support custom launch templates?
+- [ET]: We'd use label selectors for the applicable launch template fields.  User data would be ugly in a label selector.
+- [KM]: Or could put user-data in a configmap. It would nice to have a reference LaunchTemplate to see what fields are okay to use.
+- [ET]: Yes, we're getting some doc writing help, they're pretty sparse right now.
+- [VS]: If you look at EKS Managed NodeGroups docs, they say that certain fields are not allowed: https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html
+- [ET]: Generally, webhook validations shouldn't be calling EC2 which is what we'd have to do to validate Launch Templates.
+- [VS]: There are agents that companies will want to install on all of their nodes for security or monitoring purposes. So there definitely needs to be a mechanism to change AMIs or add user-data.
+- [ET]: How was your (KM) experience with karpenter's use of label selectors?
+- [KM]: It depends on how many fields users are overriding. When I specified no label selectors it just worked. But I understand that you'll need to customize stuff at some point and that can be a little tricky. For example, the LaunchTemplate version didn't accept Default because of the $. Maybe a CRD or configmap would work on syntax limited fields.
+- [ET]: Security groups at the pod level would simplify this a lot. For the LT version problem (https://github.com/awslabs/karpenter/issues/434), if you don't specify the version, we'd just use DEFAULT. And for LATEST, maybe we just don't support it and tell users to set DEFAULT to the LATEST. It's also generally a bad practice to use LATEST in docker registries since you might update containers without realizing it.
+- [KM]: I think DEFAULT support would be fine. Just using the ID would be tedious.
+- [Elmiko]: Still going over the karpenter code. Would still like to build a cloud provider for karpenter to get it working with OpenShift and Cluster API stuff.  But it's hard w/ the cluster api machine sets. Need to create a bunch of MachineSets to size 0 and then pick one. Which seems kind of clunky.
+- [ET]: Would the machine template work in cluster API?
+- [Elmiko]: We want to control the replicas in the machine set, at least in OpenShift.
+- [ET]: Karpenter is already managing the node lifecycle, I'm not sure what you already have in MachineSet lifecycle stuff?  Part of the value of removing ASG from the loop, is to simplify the communication between these APIs.
+- [ET]: Karpenter could work with MachineTemplates that are created by users. If a user just creates 1 for m5.large, then karpenter would just use m5.large. Users can create more  MachineTemplates, and karpenter will just use them.
+- [Elmiko]: Could even setup a heterogeneous machinetemplate. But maybe focusing on just a single Machine type and letting users create more if desired.
+- [ET]: Groups of machines are so predominant and an easy way to think about it. A lot of people equate provisioners to groups but they're really not. They're super heterogeneous and dynamic. Groups aren't going away, but used for different purposes.
+- [JG]: It'd be nice to have Karpenter just be a thing in CAPI. Maybe it maps to a component or we just add a little thing that is karpenter into CAPI.
+- [Elmiko]: I agree that would be cool. I think if I can just treat them like machines, and see if I can get that running first.
+
+
 # Meeting notes (05/27/21)
 
 ## Attendees
