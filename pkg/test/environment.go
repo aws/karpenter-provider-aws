@@ -14,18 +14,14 @@ package test
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net"
 	"sync"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/apimachinery/pkg/util/wait"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -69,9 +65,6 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 	return &Environment{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml")},
-			// WebhookInstallOptions: envtest.WebhookInstallOptions{
-			// 	Paths: []string{project.RelativeToRoot("charts/karpenter/templates/webhook/webhooks.yaml")},
-			// },
 		},
 		ctx:     ctx,
 		stop:    stop,
@@ -89,9 +82,6 @@ func (e *Environment) Start() (err error) {
 
 	// Manager
 	e.Manager = controllers.NewManagerOrDie(e.Config, controllerruntime.Options{
-		// CertDir:            e.WebhookInstallOptions.LocalServingCertDir,
-		// Host:               e.WebhookInstallOptions.LocalServingHost,
-		// Port:               e.WebhookInstallOptions.LocalServingPort,
 		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
 	})
 
@@ -116,25 +106,7 @@ func (e *Environment) Start() (err error) {
 			zap.S().Panic(err)
 		}
 	}()
-
-	// Wait for the manager to start
-	backOffOpts := wait.Backoff{
-		Duration: 10 * time.Millisecond,
-		Factor:   1.5,
-		Steps:    10,
-		Cap:      1 * time.Second,
-	}
-	return wait.ExponentialBackoff(backOffOpts, func() (bool, error) {
-		url := fmt.Sprintf("%s:%d", e.WebhookInstallOptions.LocalServingHost, e.WebhookInstallOptions.LocalServingPort)
-		dialer := tls.Dialer{NetDialer: &net.Dialer{}, Config: &tls.Config{InsecureSkipVerify: true}}
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(backOffOpts.Cap))
-		defer cancel()
-		conn, err := dialer.DialContext(ctx, "tcp", url)
-		if err != nil || conn.Close() != nil {
-			return false, nil // keeps trying
-		}
-		return true, nil // stops trying
-	})
+	return nil
 }
 
 func (e *Environment) Stop() error {

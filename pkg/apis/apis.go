@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	// Builder
+	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
 		v1alpha1.SchemeBuilder.AddToScheme,
 	)
