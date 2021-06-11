@@ -23,16 +23,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Validation",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Validation")
 }
 
 var _ = Describe("Validation", func() {

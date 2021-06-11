@@ -20,24 +20,23 @@ limitations under the License.
 package v1alpha1
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/apis"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-var (
-	// APIVersion is the current API version used to register these objects
-	APIVersion = "v1alpha1"
+var SchemeGroupVersion = schema.GroupVersion{Group: "provisioning.karpenter.sh", Version: "v1alpha1"}
+var SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
-	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "provisioning.karpenter.sh", Version: APIVersion}
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
-
-	// AddToScheme is required by pkg/client/...
-	AddToScheme = SchemeBuilder.AddToScheme
-)
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&Provisioner{},
+		&ProvisionerList{},
+	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	return nil
+}
 
 const (
 	// Active is a condition implemented by all resources. It indicates that the
@@ -45,7 +44,3 @@ const (
 	// necessary API calls, and isn't disabled.
 	Active apis.ConditionType = "Active"
 )
-
-func init() {
-	SchemeBuilder.Register(&Provisioner{}, &ProvisionerList{})
-}

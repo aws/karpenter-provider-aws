@@ -4,9 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/awslabs/karpenter/pkg/apis"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"k8s.io/client-go/kubernetes"
@@ -28,15 +29,26 @@ var (
 
 type Options struct {
 	Port                  int
+	HealthProbePort       int
 	ServiceName           string
 	CertificateSecretName string
 }
 
 func main() {
 	flag.IntVar(&options.Port, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
+	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
 	flag.StringVar(&options.ServiceName, "service-name", "karpenter-webhook", "The name of the webhook's service")
 	flag.StringVar(&options.CertificateSecretName, "certificate-secret-name", "karpenter-webhook-cert", "The name of the webhook's secret containing certificates")
 	flag.Parse()
+
+	// Setup a liveness handler
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/healthz", func (w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", options.HealthProbePort), mux))
+	}()
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	registry.New(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(sharedmain.ParseAndGetConfigOrDie())})
@@ -51,7 +63,7 @@ func main() {
 		certificates.NewController,
 		func(ctx context.Context, w configmap.Watcher) *controller.Impl {
 			return defaulting.NewAdmissionController(ctx,
-				fmt.Sprintf("defaulting.%s", v1alpha1.SchemeGroupVersion.Group),
+				"defaulting.provisioning.karpenter.sh",
 				"/default",
 				apis.Resources,
 				InjectContext,
@@ -60,7 +72,7 @@ func main() {
 		},
 		func(ctx context.Context, w configmap.Watcher) *controller.Impl {
 			return validation.NewAdmissionController(ctx,
-				fmt.Sprintf("validation.%s", v1alpha1.SchemeGroupVersion.Group),
+				"validation.provisioning.karpenter.sh",
 				"/validate",
 				apis.Resources,
 				InjectContext,

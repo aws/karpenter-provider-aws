@@ -22,20 +22,15 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 )
 
-// AddToSchemes may be used to add all resources defined in the project to a Scheme
-var AddToSchemes runtime.SchemeBuilder
-
-// AddToScheme adds all Resources to the Scheme
-func AddToScheme(s *runtime.Scheme) error {
-	return AddToSchemes.AddToScheme(s)
-}
-
 var (
+	// Builder
+	Builder = runtime.NewSchemeBuilder(
+		v1alpha1.SchemeBuilder.AddToScheme,
+	)
+	// AddToScheme may be used to add all resources defined in the project to a Scheme
+	AddToScheme = Builder.AddToScheme
+	// Resources
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
 		v1alpha1.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha1.Provisioner{},
 	}
 )
-
-func init() {
-	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
-}
