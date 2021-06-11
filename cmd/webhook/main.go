@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
-	"net/http"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -40,15 +37,6 @@ func main() {
 	flag.StringVar(&options.ServiceName, "service-name", "karpenter-webhook", "The name of the webhook's service")
 	flag.StringVar(&options.CertificateSecretName, "certificate-secret-name", "karpenter-webhook-cert", "The name of the webhook's secret containing certificates")
 	flag.Parse()
-
-	// Setup a liveness handler
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/healthz", func (w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", options.HealthProbePort), mux))
-	}()
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	registry.New(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(sharedmain.ParseAndGetConfigOrDie())})

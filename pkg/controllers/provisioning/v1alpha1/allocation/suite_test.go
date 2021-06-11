@@ -35,14 +35,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Provisioner/Allocator",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Provisioner/Allocator")
 }
 
 var controller *Controller

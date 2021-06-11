@@ -27,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
@@ -45,7 +44,7 @@ import (
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t, "CloudProvider/AWS", []Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "CloudProvider/AWS")
 }
 
 var subnetCache = cache.New(CacheTTL, CacheCleanupInterval)

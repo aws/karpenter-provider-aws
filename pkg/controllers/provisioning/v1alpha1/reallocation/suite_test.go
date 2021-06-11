@@ -28,19 +28,17 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Provisioner/Reallocator",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Provisioner/Reallocator")
 }
 
 var controller *Controller
@@ -74,6 +72,7 @@ var _ = Describe("Reallocation", func() {
 			},
 			Spec: v1alpha1.ProvisionerSpec{
 				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				TTLSeconds: ptr.Int32(300),
 			},
 		}
 		ctx = context.Background()
