@@ -60,7 +60,7 @@ func ExpectCreated(c client.Client, objects ...client.Object) {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
 		Eventually(func() error {
 			return c.Get(context.Background(), nn, object)
-		}, APIServerPropagationTime, RequestInterval).Should(Succeed())
+		}, ReconcilerPropagationTime, RequestInterval).Should(Succeed())
 	}
 }
 
