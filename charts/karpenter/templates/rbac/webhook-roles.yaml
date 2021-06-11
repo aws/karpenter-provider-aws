@@ -1,15 +1,3 @@
-{{- if .Values.webhook.serviceAccount.create }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ .Values.webhook.serviceAccount.name }}
-  namespace: {{ .Release.Namespace }}
-  {{- with .Values.webhook.serviceAccount.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -20,7 +8,7 @@ roleRef:
   name: karpenter-webhook
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.webhook.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -34,7 +22,7 @@ roleRef:
   name: karpenter-webhook
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.webhook.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

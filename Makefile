@@ -46,15 +46,12 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template karpenter charts/karpenter \
 		$(HELM_OPTS) \
 		--create-namespace --namespace karpenter \
-		--set controller.deployment.image=ko://github.com/awslabs/karpenter/cmd/controller \
-		--set webhook.deployment.image=ko://github.com/awslabs/karpenter/cmd/webhook \
+		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
+		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter \
-		$(HELM_OPTS) \
-		--create-namespace --namespace karpenter \
-		| $(WITH_GOFLAGS) ko delete -f -
+	helm delete karpenter --namespace karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	./hack/codegen.sh

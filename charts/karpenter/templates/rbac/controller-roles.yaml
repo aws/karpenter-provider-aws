@@ -1,10 +1,10 @@
-{{- if .Values.controller.serviceAccount.create }}
+{{- if .Values.serviceAccount.create }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .Values.controller.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
-  {{- with .Values.controller.serviceAccount.annotations }}
+  {{- with .Values.serviceAccount.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -20,7 +20,7 @@ roleRef:
   name: karpenter-controller
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.controller.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -34,7 +34,7 @@ roleRef:
   name: karpenter-leader-election
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.controller.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

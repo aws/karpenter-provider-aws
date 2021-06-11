@@ -28,10 +28,10 @@ spec:
         karpenter: webhook
     spec:
       priorityClassName: system-cluster-critical
-      serviceAccountName: {{ .Values.webhook.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: manager
-          image: {{ .Values.webhook.deployment.image }}
+          image: {{ .Values.webhook.image }}
           resources:
             requests:
               cpu: 100m
@@ -50,21 +50,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          {{- with .Values.webhook.deployment.env }}
+          {{- with .Values.webhook.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:
         fsGroup: 1000
-      {{- with .Values.webhook.deployment.nodeSelector }}
+      {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.webhook.deployment.affinity }}
+      {{- with .Values.webhook.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.webhook.deployment.tolerations }}
+      {{- with .Values.webhook.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

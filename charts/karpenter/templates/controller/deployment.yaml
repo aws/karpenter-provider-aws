@@ -28,10 +28,10 @@ spec:
         karpenter: controller
     spec:
       priorityClassName: system-cluster-critical
-      serviceAccountName: {{ .Values.controller.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: manager
-          image: {{ .Values.controller.deployment.image }}
+          image: {{ .Values.controller.image }}
           resources:
             requests:
               cpu: 1
@@ -49,21 +49,21 @@ spec:
               path: /healthz
               port: 8081
           env:
-          {{- with .Values.controller.deployment.env }}
+          {{- with .Values.controller.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:
         fsGroup: 1000
-      {{- with .Values.controller.deployment.nodeSelector }}
+      {{- with .Values.controller.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.controller.deployment.affinity }}
+      {{- with .Values.controller.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.controller.deployment.tolerations }}
+      {{- with .Values.controller.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

@@ -23,7 +23,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"github.com/onsi/gomega/ghttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -51,7 +50,6 @@ AfterSuite(func() { env.Stop() })
 type Environment struct {
 	envtest.Environment
 	Manager controllers.Manager
-	Server  *ghttp.Server
 	Client  client.Client
 
 	options []EnvironmentOption
@@ -75,7 +73,6 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 			// 	Paths: []string{project.RelativeToRoot("charts/karpenter/templates/webhook/webhooks.yaml")},
 			// },
 		},
-		Server:  ghttp.NewServer(),
 		ctx:     ctx,
 		stop:    stop,
 		options: options,
@@ -85,6 +82,7 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 
 func (e *Environment) Start() (err error) {
 	// Environment
+
 	if _, err := e.Environment.Start(); err != nil {
 		return fmt.Errorf("starting environment, %w", err)
 	}

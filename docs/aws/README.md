@@ -26,23 +26,8 @@ eksctl create cluster \
 --managed
 ```
 
-### Create IAM Resources
-This command will create IAM resources used by Karpenter. We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions. For production use, please review and restrict these permissions for your use case.
-```bash
-aws cloudformation deploy \
-  --stack-name Karpenter-${CLUSTER_NAME} \
-  --template-file ./docs/aws/karpenter.cloudformation.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
-```
-
-### Install Karpenter Controller
-```bash
-helm repo add karpenter https://awslabs.github.io/karpenter/charts
-helm install karpenter charts/karpenter --create-namespace --namespace karpenter
-```
-
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
+We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions. For production use, please review and restrict these permissions for your use case.
 ```bash
 # Enables IRSA for your cluster. This command is idempotent, but only needs to be executed once per cluster.
 eksctl utils associate-iam-oidc-provider \
@@ -50,15 +35,14 @@ eksctl utils associate-iam-oidc-provider \
 --cluster ${CLUSTER_NAME} \
 --approve
 
-# Setup KarpenterControllerRole
-kubectl patch serviceaccount karpenter -n karpenter --patch "$(cat <<-EOM
-metadata:
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole-${CLUSTER_NAME}
-EOM
-)"
+# Creates IAM resources used by Karpenter
+aws cloudformation deploy \
+  --stack-name Karpenter-${CLUSTER_NAME} \
+  --template-file ./docs/aws/karpenter.cloudformation.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
 
-# Setup KarpenterNodeRole
+# Adds the karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<-EOM
 data:
   mapRoles: |
@@ -70,14 +54,19 @@ data:
 $(kubectl get configmap -n kube-system aws-auth -ojsonpath='{.data.mapRoles}' | sed 's/^/    /')
 EOM
 )"
+```
 
-# Restart controller to load credentials
-kubectl delete pods -n karpenter -l control-plane=karpenter
+### Install Karpenter
+```bash
+helm repo add karpenter https://awslabs.github.io/karpenter/charts
+# For additional values, see https://github.com/awslabs/karpenter/blob/main/charts/karpenter/values.yaml
+helm upgrade --install karpenter charts/karpenter --create-namespace --namespace karpenter \
+  --set serviceAccount.annotations.'eks\.amazonaws\.com/role-arn'=arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole-${CLUSTER_NAME}
 ```
 
 ### (Optional) Enable Verbose Logging
 ```bash
-kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
+kubectl patch deployment karpenter-controller -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
 ```
 
 ### Create a Provisioner
