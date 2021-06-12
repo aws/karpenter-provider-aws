@@ -29,10 +29,6 @@ func Setup(opts ...controllerruntimezap.Opts) {
 	zap.ReplaceGlobals(logger)
 }
 
-func InvariantViolated(reason string) {
-	zap.S().Errorf("Invariant violated: %s. Is the validation webhook installed?", reason)
-}
-
 func PanicIfError(err error, formatter string, arguments ...interface{}) {
 	if err != nil {
 		zap.S().Panicf("%s, %v", fmt.Sprintf(formatter, arguments...), err)

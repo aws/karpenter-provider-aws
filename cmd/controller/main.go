@@ -13,6 +13,7 @@ import (
 	termination "github.com/awslabs/karpenter/pkg/controllers/terminating/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -59,12 +60,13 @@ func main() {
 	})
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
-	cloudProvider := registry.New(cloudprovider.Options{ClientSet: clientSet})
+	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
 
-	err := manager.RegisterControllers(
+	if err := manager.RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-	).Start(controllerruntime.SetupSignalHandler())
-	log.PanicIfError(err, "Unable to start manager")
+	).Start(controllerruntime.SetupSignalHandler()); err != nil {
+		zap.S().Panicf("Unable to start manager, %s", err.Error())
+	}
 }

@@ -30,21 +30,24 @@ spec:
       priorityClassName: system-cluster-critical
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
-        - name: manager
+        - name: webhook
           image: {{ .Values.webhook.image }}
           resources:
-            requests:
+            limits:
               cpu: 100m
               memory: 50Mi
-            limits:
+            requests:
               cpu: 100m
               memory: 50Mi
           ports:
             - name: webhook
               containerPort: 8443
+            - name: health-probe
+              containerPort: 8081
           livenessProbe:
-            tcpSocket:
-              port: 8443
+            httpGet:
+              path: /healthz
+              port: 8081
           env:
             - name: SYSTEM_NAMESPACE
               valueFrom:

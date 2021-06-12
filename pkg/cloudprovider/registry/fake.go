@@ -21,6 +21,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 )
 
-func NewCloudProvider(cloudprovider.Options) cloudprovider.Factory {
+func New(cloudprovider.Options) cloudprovider.Factory {
 	return &fake.Factory{}
 }

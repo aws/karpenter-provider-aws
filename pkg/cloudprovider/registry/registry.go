@@ -16,23 +16,23 @@ package registry
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/log"
 	"knative.dev/pkg/apis"
 )
 
-func New(options cloudprovider.Options) cloudprovider.Factory {
-	cloudProvider := NewCloudProvider(options)
+func NewCloudProvider(options cloudprovider.Options) cloudprovider.Factory {
+	cloudProvider := New(options)
 	RegisterOrDie(cloudProvider)
 	return cloudProvider
 }
 
 // RegisterOrDie populates supported instance types, zones, operating systems,
 // architectures, and validation logic. This operation should only be called
-// once at startup time. Typically, this call is made by registry.New(), but
-// must be called if the cloud provider is constructed directly (e.g. tests).
+// once at startup time. Typically, this call is made by NewCloudProvider(), but
+// must be called if the cloud provider is constructed manually (e.g. tests).
 func RegisterOrDie(factory cloudprovider.Factory) {
 	zones := map[string]bool{}
 	architectures := map[string]bool{}
@@ -40,7 +40,9 @@ func RegisterOrDie(factory cloudprovider.Factory) {
 
 	// TODO remove the factory pattern and avoid passing an empty provisioner
 	instanceTypes, err := factory.CapacityFor(&v1alpha1.Provisioner{}).GetInstanceTypes(context.Background())
-	log.PanicIfError(err, "Failed to retrieve instance types")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
+	}
 	for _, instanceType := range instanceTypes {
 		v1alpha1.SupportedInstanceTypes = append(v1alpha1.SupportedInstanceTypes, instanceType.Name())
 		for _, zone := range instanceType.Zones() {

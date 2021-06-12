@@ -49,7 +49,7 @@ func ExpectNodeExists(c client.Client, name string) *v1.Node {
 func ExpectEventuallyDeleted(c client.Client, object client.Object) {
 	Eventually(func() bool {
 		return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
-	}, APIServerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 		return fmt.Sprintf("expected %s/%s to be deleted, but it still exists", object.GetName(), object.GetNamespace())
 	})
 }
@@ -60,7 +60,7 @@ func ExpectCreated(c client.Client, objects ...client.Object) {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
 		Eventually(func() error {
 			return c.Get(context.Background(), nn, object)
-		}, ReconcilerPropagationTime, RequestInterval).Should(Succeed())
+		}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 	}
 }
 
