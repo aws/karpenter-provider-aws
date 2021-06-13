@@ -15,6 +15,7 @@ import (
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/leaderelection"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
@@ -58,8 +59,8 @@ func main() {
 	// Controllers and webhook
 	sharedmain.MainWithConfig(
 		webhook.WithOptions(injection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
-			ServiceName: options.ServiceName,
 			Port:        options.Port,
+			ServiceName: options.ServiceName,
 			SecretName:  options.CertificateSecretName,
 		}),
 		options.ServiceName,
@@ -96,7 +97,8 @@ func NewConfigmapValidationWebhook(ctx context.Context, cmw configmap.Watcher) *
 		"validation.webhook.configmaps.karpenter.sh",
 		"/validate-config",
 		configmap.Constructors{
-			"karpenter-logging": logging.NewConfigFromConfigMap,
+			logging.ConfigMapName():        logging.NewConfigFromConfigMap,
+			leaderelection.ConfigMapName(): leaderelection.NewConfigFromConfigMap,
 		},
 	)
 }

@@ -54,7 +54,14 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm delete karpenter --namespace karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
-	./hack/codegen.sh
+	controller-gen \
+		object:headerFile="hack/boilerplate.go.txt" \
+		crd:trivialVersions=false \
+		paths="./pkg/..." \
+		output:crd:artifacts:config=charts/karpenter/templates
+	# CRDs don't currently jive with VolatileTime, which has an Any type.
+	perl -pi -e 's/Any/string/g' charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml
+	hack/boilerplate.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)

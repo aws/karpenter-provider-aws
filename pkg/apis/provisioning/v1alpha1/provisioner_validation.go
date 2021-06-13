@@ -36,11 +36,11 @@ var (
 	}
 
 	// The following fields are injected by Cloud Providers
-	SupportedArchitectures                                                                      = []string{}
-	SupportedOperatingSystems                                                                   = []string{}
-	SupportedZones                                                                              = []string{}
-	SupportedInstanceTypes                                                                      = []string{}
-	ValidationHook            func(ctx context.Context, spec *ProvisionerSpec) *apis.FieldError = func(ctx context.Context, spec *ProvisionerSpec) *apis.FieldError { return nil }
+	SupportedArchitectures    = []string{}
+	SupportedOperatingSystems = []string{}
+	SupportedZones            = []string{}
+	SupportedInstanceTypes    = []string{}
+	ValidationHook            func(ctx context.Context, spec *ProvisionerSpec) *apis.FieldError
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -51,7 +51,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 }
 
 func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) {
-	return errs.Also(
+	errs = errs.Also(
 		s.validateClusterSpec(ctx),
 		s.validateLabels(ctx),
 		s.validateZones(ctx),
@@ -60,6 +60,10 @@ func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateOperatingSystem(ctx),
 		ValidationHook(ctx, s),
 	)
+	if ValidationHook != nil {
+		errs = errs.Also(ValidationHook(ctx, s))
+	}
+	return errs
 }
 
 func (s *ProvisionerSpec) validateClusterSpec(ctx context.Context) (errs *apis.FieldError) {
@@ -108,9 +112,6 @@ func (s *ProvisionerSpec) validateOperatingSystem(ctx context.Context) (errs *ap
 }
 
 func (s *ProvisionerSpec) validateZones(ctx context.Context) (errs *apis.FieldError) {
-	if s.Zones == nil {
-		return nil
-	}
 	for i, zone := range s.Zones {
 		if !functional.ContainsString(SupportedZones, zone) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", zone, SupportedZones), "spec.zones", i))
@@ -120,9 +121,6 @@ func (s *ProvisionerSpec) validateZones(ctx context.Context) (errs *apis.FieldEr
 }
 
 func (s *ProvisionerSpec) validateInstanceTypes(ctx context.Context) (errs *apis.FieldError) {
-	if s.InstanceTypes == nil {
-		return nil
-	}
 	for i, instanceType := range s.InstanceTypes {
 		if !functional.ContainsString(SupportedInstanceTypes, instanceType) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", instanceType, SupportedInstanceTypes), "spec.instanceTypes", i))

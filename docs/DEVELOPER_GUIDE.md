@@ -52,7 +52,6 @@ kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "repla
 ```
 
 ### Debugging Metrics
-Karpenter Metrics
 ```bash
 open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```

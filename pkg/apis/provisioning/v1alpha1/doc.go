@@ -27,16 +27,14 @@ import (
 )
 
 var SchemeGroupVersion = schema.GroupVersion{Group: "provisioning.karpenter.sh", Version: "v1alpha1"}
-var SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-
-func addKnownTypes(scheme *runtime.Scheme) error {
+var SchemeBuilder = runtime.NewSchemeBuilder(func (scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&Provisioner{},
 		&ProvisionerList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
-}
+})
 
 const (
 	// Active is a condition implemented by all resources. It indicates that the

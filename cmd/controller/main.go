@@ -13,7 +13,6 @@ import (
 	termination "github.com/awslabs/karpenter/pkg/controllers/terminating/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -67,6 +66,6 @@ func main() {
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		zap.S().Panicf("Unable to start manager, %s", err.Error())
+		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}
 }
