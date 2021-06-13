@@ -15,8 +15,6 @@ limitations under the License.
 package log
 
 import (
-	"fmt"
-
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -27,10 +25,4 @@ func Setup(opts ...controllerruntimezap.Opts) {
 	logger := controllerruntimezap.NewRaw(opts...)
 	controllerruntime.SetLogger(zapr.NewLogger(logger))
 	zap.ReplaceGlobals(logger)
-}
-
-func PanicIfError(err error, formatter string, arguments ...interface{}) {
-	if err != nil {
-		zap.S().Panicf("%s, %v", fmt.Sprintf(formatter, arguments...), err)
-	}
 }

@@ -58,7 +58,6 @@ func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateInstanceTypes(ctx),
 		s.validateArchitecture(ctx),
 		s.validateOperatingSystem(ctx),
-		ValidationHook(ctx, s),
 	)
 	if ValidationHook != nil {
 		errs = errs.Also(ValidationHook(ctx, s))

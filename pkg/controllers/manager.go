@@ -16,10 +16,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis"
-	"github.com/awslabs/karpenter/pkg/utils/log"
 
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
@@ -39,8 +39,8 @@ var (
 )
 
 func init() {
-	log.PanicIfError(clientgoscheme.AddToScheme(scheme), "adding clientgo to scheme")
-	log.PanicIfError(apis.AddToScheme(scheme), "adding apis to scheme")
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = apis.AddToScheme(scheme)
 }
 
 type GenericControllerManager struct {
@@ -51,9 +51,12 @@ type GenericControllerManager struct {
 func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
 	options.Scheme = scheme
 	manager, err := controllerruntime.NewManager(config, options)
-	log.PanicIfError(err, "Failed to create controller manager")
-	log.PanicIfError(manager.GetFieldIndexer().
-		IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex), "Failed to setup pod indexer")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create controller manager, %s", err.Error()))
+	}
+	if err := manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
+		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err.Error()))
+	}
 	return &GenericControllerManager{Manager: manager}
 }
 
@@ -77,11 +80,12 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 		for _, resource := range c.Owns() {
 			builder = builder.Owns(resource)
 		}
-		log.PanicIfError(builder.Complete(&GenericController{Controller: c, Client: m.GetClient()}),
-			"Failed to register controller to manager for %s", controlledObject)
+		if err := builder.Complete(&GenericController{Controller: c, Client: m.GetClient()}); err != nil {
+			panic(fmt.Sprintf("Failed to register controller to manager for %s", controlledObject))
+		}
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.PanicIfError(err, "Failed to add readiness probe")
+		panic(fmt.Sprintf("Failed to add readiness probe, %s", err.Error()))
 	}
 	return m
 }

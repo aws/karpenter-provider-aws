@@ -75,7 +75,6 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 
 func (e *Environment) Start() (err error) {
 	// Environment
-
 	if _, err := e.Environment.Start(); err != nil {
 		return fmt.Errorf("starting environment, %w", err)
 	}

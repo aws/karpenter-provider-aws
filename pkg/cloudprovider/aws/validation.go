@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
 )
@@ -25,13 +26,13 @@ import (
 // Validate cloud provider specific components of the cluster spec
 func (c *Capacity) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		c.validateAllowedLabels(),
-		c.validateCapacityTypeLabel(),
-		c.validateLaunchTemplateLabels(),
+		validateAllowedLabels(c.provisioner.Spec),
+		validateCapacityTypeLabel(c.provisioner.Spec),
+		validateLaunchTemplateLabels(c.provisioner.Spec),
 	)
 }
-func (c *Capacity) validateAllowedLabels() (errs *apis.FieldError) {
-	for key := range c.provisioner.Spec.Labels {
+func validateAllowedLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	for key := range spec.Labels {
 		if !functional.ContainsString(AllowedLabels, key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
 		}
@@ -39,8 +40,8 @@ func (c *Capacity) validateAllowedLabels() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Capacity) validateCapacityTypeLabel() (errs *apis.FieldError) {
-	capacityType, ok := c.provisioner.Spec.Labels[CapacityTypeLabel]
+func validateCapacityTypeLabel(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	capacityType, ok := spec.Labels[CapacityTypeLabel]
 	if !ok {
 		return nil
 	}
@@ -51,9 +52,9 @@ func (c *Capacity) validateCapacityTypeLabel() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Capacity) validateLaunchTemplateLabels() (errs *apis.FieldError) {
-	if _, versionExists := c.provisioner.Spec.Labels[LaunchTemplateVersionLabel]; versionExists {
-		if _, bothExist := c.provisioner.Spec.Labels[LaunchTemplateIdLabel]; !bothExist {
+func validateLaunchTemplateLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	if _, versionExists := spec.Labels[LaunchTemplateVersionLabel]; versionExists {
+		if _, bothExist := spec.Labels[LaunchTemplateIdLabel]; !bothExist {
 			return errs.Also(apis.ErrMissingField(fmt.Sprintf("spec.labels[%s]", LaunchTemplateIdLabel)))
 		}
 	}
