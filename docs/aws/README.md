@@ -118,7 +118,7 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=ka
 
 ### Cleanup
 ```bash
-helm delete karpenter
+helm delete karpenter -n karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 unset AWS_DEFAULT_OUTPUT
