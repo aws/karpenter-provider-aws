@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -33,7 +34,7 @@ func (c *Capacity) Validate(ctx context.Context) (errs *apis.FieldError) {
 }
 func validateAllowedLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
 	for key := range spec.Labels {
-		if !functional.ContainsString(AllowedLabels, key) {
+		if strings.HasPrefix(key, AWSLabelPrefix) && !functional.ContainsString(AllowedLabels, key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
 		}
 	}
@@ -45,7 +46,7 @@ func validateCapacityTypeLabel(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldE
 	if !ok {
 		return nil
 	}
-	capacityTypes := []string{capacityTypeSpot, capacityTypeOnDemand}
+	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
 	if !functional.ContainsString(capacityTypes, capacityType) {
 		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("spec.labels[%s]", CapacityTypeLabel)))
 	}

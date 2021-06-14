@@ -20,15 +20,16 @@ import (
 )
 
 const (
-	capacityTypeSpot             = "spot"
-	capacityTypeOnDemand         = "on-demand"
+	CapacityTypeSpot             = "spot"
+	CapacityTypeOnDemand         = "on-demand"
 	defaultLaunchTemplateVersion = "$Default"
 )
 
 var (
-	CapacityTypeLabel          = "node.k8s.aws/capacity-type"
-	LaunchTemplateIdLabel      = "node.k8s.aws/launch-template-id"
-	LaunchTemplateVersionLabel = "node.k8s.aws/launch-template-version"
+	AWSLabelPrefix             = "node.k8s.aws/"
+	CapacityTypeLabel          = AWSLabelPrefix + "capacity-type"
+	LaunchTemplateIdLabel      = AWSLabelPrefix + "launch-template-id"
+	LaunchTemplateVersionLabel = AWSLabelPrefix + "launch-template-version"
 	AllowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
 	AWSToKubeArchitectures     = map[string]string{
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
@@ -43,7 +44,7 @@ type Constraints v1alpha1.Constraints
 func (c *Constraints) GetCapacityType() string {
 	capacityType, ok := c.Labels[CapacityTypeLabel]
 	if !ok {
-		capacityType = capacityTypeOnDemand
+		capacityType = CapacityTypeOnDemand
 	}
 	return capacityType
 }

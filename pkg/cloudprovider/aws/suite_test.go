@@ -334,30 +334,39 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("Labels", func() {
-			It("should fail for restricted labels", func() {
-				for _, label := range []string{
-					v1alpha1.ArchitectureLabelKey,
-					v1alpha1.OperatingSystemLabelKey,
-					v1alpha1.ProvisionerNameLabelKey,
-					v1alpha1.ProvisionerNamespaceLabelKey,
-					v1alpha1.ProvisionerPhaseLabel,
-					v1alpha1.ProvisionerTTLKey,
-					v1alpha1.ZoneLabelKey,
-					v1alpha1.InstanceTypeLabelKey,
-				} {
-					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
+			It("should allow unrecognized labels", func() {
+				provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
-			It("should recognize well known labels", func() {
+			It("should fail if unrecognized aws labels", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/foo": randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should support launch templates", func() {
 				provisioner.Spec.Labels = map[string]string{
 					"node.k8s.aws/launch-template-version": randomdata.SillyName(),
 					"node.k8s.aws/launch-template-id":      "23",
 				}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
+			It("should allow launch template id to be specified alone", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-id": "23"}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
 			It("should fail if only launch template version label present", func() {
 				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-version": randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			})
+			It("should support on demand capacity type", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/capacity-type": CapacityTypeOnDemand}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+			It("should support spot capacity type", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/capacity-type": CapacityTypeSpot}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+			It("should fail for unrecognized capacity type", func() {
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/capacity-type": "foo"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 		})
