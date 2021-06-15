@@ -74,7 +74,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 			// to reduce the likelihood of getting an excessively large instance type.
 			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-			if capacityType == capacityTypeSpot {
+			if capacityType == CapacityTypeSpot {
 				override.Priority = aws.Float64(float64(i))
 			}
 			overrides = append(overrides, override)

@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
@@ -45,13 +44,13 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 }
 
 // Get instance types that are available per availability zone
-func (p *InstanceTypeProvider) Get(ctx context.Context, cluster *v1alpha1.ClusterSpec) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	var instanceTypes []cloudprovider.InstanceType
 	if cached, ok := p.cache.Get(allInstanceTypesKey); ok {
 		instanceTypes = cached.([]cloudprovider.InstanceType)
 	} else {
 		var err error
-		instanceTypes, err = p.get(ctx, cluster)
+		instanceTypes, err = p.get(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +60,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, cluster *v1alpha1.Cluste
 	return instanceTypes, nil
 }
 
-func (p *InstanceTypeProvider) get(ctx context.Context, cluster *v1alpha1.ClusterSpec) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	// 1. Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {

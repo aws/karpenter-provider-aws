@@ -16,8 +16,8 @@ package apiobject
 
 import (
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func PodNamespacedNames(pods []*v1.Pod) []types.NamespacedName {
@@ -28,6 +28,6 @@ func PodNamespacedNames(pods []*v1.Pod) []types.NamespacedName {
 	return namespacedNames
 }
 
-func NamespacedName(o client.Object) types.NamespacedName {
+func NamespacedName(o metav1.Object) types.NamespacedName {
 	return types.NamespacedName{Namespace: o.GetNamespace(), Name: o.GetName()}
 }

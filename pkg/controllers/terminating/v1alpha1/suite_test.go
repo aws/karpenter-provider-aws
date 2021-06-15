@@ -1,48 +1,52 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
-	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
-	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Terminator",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Termination")
 }
 
 var controller *Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := fake.NewFactory(cloudprovider.Options{})
+	cloudProvider := &fake.Factory{}
+	registry.RegisterOrDie(cloudProvider)
 	controller = NewController(
 		e.Manager.GetClient(),
 		corev1.NewForConfigOrDie(e.Manager.GetConfig()),
 		cloudProvider,
 	)
-	e.Manager.RegisterWebhooks(
-		&webhooksprovisioning.Validator{CloudProvider: cloudProvider},
-		&webhooksprovisioning.Defaulter{},
-	).RegisterControllers(controller)
+	e.Manager.RegisterControllers(controller)
 })
 
 var _ = BeforeSuite(func() {
@@ -55,10 +59,8 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Reallocation", func() {
 	var provisioner *v1alpha1.Provisioner
-	var ctx context.Context
 
 	BeforeEach(func() {
-		ctx = context.Background()
 		// Create Provisioner to give some time for the node to reconcile
 		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()),
@@ -87,11 +89,8 @@ var _ = Describe("Reallocation", func() {
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
-
 			ExpectCreated(env.Client, provisioner)
-
-			updatedNode := &v1.Node{}
-			Eventually(Expect(errors.IsNotFound(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode))).To(BeTrue()))
+			ExpectEventuallyDeleted(env.Client, node)
 		})
 	})
 })

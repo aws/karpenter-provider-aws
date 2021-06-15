@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 
@@ -60,8 +61,10 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// 5. Update Status using a merge patch
-	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+	if !reflect.DeepEqual(resource, persisted) {
+		if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
+			return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+		}
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }

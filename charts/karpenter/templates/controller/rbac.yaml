@@ -1,23 +1,11 @@
-{{- if .Values.serviceAccount.create }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Release.Namespace }}
-  {{- with .Values.serviceAccount.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: karpenter
+  name: karpenter-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: karpenter
+  name: karpenter-controller
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.serviceAccount.name }}
@@ -26,12 +14,12 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: karpenter-leader-election
+  name: karpenter-controller
   namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: karpenter-leader-election
+  name: karpenter-controller
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.serviceAccount.name }}
@@ -40,7 +28,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: karpenter-leader-election
+  name: karpenter-controller
   namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
@@ -73,7 +61,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: karpenter
+  name: karpenter-controller
 rules:
 - apiGroups:
   - provisioning.karpenter.sh

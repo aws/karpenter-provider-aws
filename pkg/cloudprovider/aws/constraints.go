@@ -15,24 +15,22 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
-	nodeLabelPrefix              = "node.k8s.aws"
-	capacityTypeSpot             = "spot"
-	capacityTypeOnDemand         = "on-demand"
+	CapacityTypeSpot             = "spot"
+	CapacityTypeOnDemand         = "on-demand"
 	defaultLaunchTemplateVersion = "$Default"
 )
 
 var (
-	CapacityTypeLabel          = fmt.Sprintf("%s/capacity-type", nodeLabelPrefix)
-	LaunchTemplateIdLabel      = fmt.Sprintf("%s/launch-template-id", nodeLabelPrefix)
-	LaunchTemplateVersionLabel = fmt.Sprintf("%s/launch-template-version", nodeLabelPrefix)
-	allowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
+	AWSLabelPrefix             = "node.k8s.aws/"
+	CapacityTypeLabel          = AWSLabelPrefix + "capacity-type"
+	LaunchTemplateIdLabel      = AWSLabelPrefix + "launch-template-id"
+	LaunchTemplateVersionLabel = AWSLabelPrefix + "launch-template-version"
+	AllowedLabels              = []string{CapacityTypeLabel, LaunchTemplateIdLabel, LaunchTemplateVersionLabel}
 	AWSToKubeArchitectures     = map[string]string{
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
 		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
@@ -46,7 +44,7 @@ type Constraints v1alpha1.Constraints
 func (c *Constraints) GetCapacityType() string {
 	capacityType, ok := c.Labels[CapacityTypeLabel]
 	if !ok {
-		capacityType = capacityTypeOnDemand
+		capacityType = CapacityTypeOnDemand
 	}
 	return capacityType
 }

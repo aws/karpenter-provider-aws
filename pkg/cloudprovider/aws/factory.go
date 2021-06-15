@@ -26,7 +26,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
-	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -99,7 +98,9 @@ func (f *Factory) TerminateFor() cloudprovider.Termination {
 // get the current region from EC2 IMDS
 func getRegionFromIMDS(sess *session.Session) string {
 	region, err := ec2metadata.New(sess).Region()
-	log.PanicIfError(err, "failed to call the metadata server's region API")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err.Error()))
+	}
 	return region
 }
 

@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -58,15 +57,8 @@ type NamedController interface {
 	Name() string
 }
 
-// Webhook implements both a handler and path and can be attached to a webhook server.
-type Webhook interface {
-	webhook.AdmissionHandler
-	Path() string
-}
-
 // Manager manages a set of controllers and webhooks.
 type Manager interface {
 	manager.Manager
 	RegisterControllers(controllers ...Controller) Manager
-	RegisterWebhooks(controllers ...Webhook) Manager
 }

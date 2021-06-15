@@ -36,7 +36,7 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod download
 	go vet ./...
 	go fmt ./...
-	golangci-lint run
+	golangci-lint run --timeout 5m # TODO Remove this timeout
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	go build $(GOFLAGS) -o karpenter cmd/controller/main.go
@@ -47,20 +47,26 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 		$(HELM_OPTS) \
 		--create-namespace --namespace karpenter \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
+		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter \
-		$(HELM_OPTS) \
-		--create-namespace --namespace karpenter \
-		| $(WITH_GOFLAGS) ko delete -f -
+	helm template karpenter charts/karpenter --namespace karpenter | kubectl delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
-	./hack/codegen.sh
+	controller-gen \
+		object:headerFile="hack/boilerplate.go.txt" \
+		crd:trivialVersions=false \
+		paths="./pkg/..." \
+		output:crd:artifacts:config=charts/karpenter/templates
+	# CRDs don't currently jive with VolatileTime, which has an Any type.
+	perl -pi -e 's/Any/string/g' charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml
+	hack/boilerplate.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) --platform all ./cmd/controller)\"" ./charts/karpenter/values.yaml
+	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) --platform all ./cmd/webhook)\"" ./charts/karpenter/values.yaml
 	yq e -i '.version = "$(RELEASE_VERSION)"' ./charts/karpenter/Chart.yaml
 
 helm:  ## Generate Helm Chart

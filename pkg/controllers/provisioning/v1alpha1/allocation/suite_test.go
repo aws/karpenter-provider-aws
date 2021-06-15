@@ -21,11 +21,10 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
-	webhooksprovisioning "github.com/awslabs/karpenter/pkg/webhooks/provisioning/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -36,28 +35,23 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Provisioner/Allocator",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Provisioner/Allocator")
 }
 
 var controller *Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := fake.NewFactory(cloudprovider.Options{})
+	cloudProvider := &fake.Factory{}
+	registry.RegisterOrDie(cloudProvider)
 	controller = NewController(
 		e.Manager.GetClient(),
 		corev1.NewForConfigOrDie(e.Manager.GetConfig()),
 		cloudProvider,
 	)
-	e.Manager.RegisterWebhooks(
-		&webhooksprovisioning.Validator{CloudProvider: cloudProvider},
-		&webhooksprovisioning.Defaulter{},
-	).RegisterControllers(controller)
+	e.Manager.RegisterControllers(controller)
 })
 
 var _ = BeforeSuite(func() {

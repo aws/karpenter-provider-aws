@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,6 +44,14 @@ func ExpectNodeExists(c client.Client, name string) *v1.Node {
 	node := &v1.Node{}
 	Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node
+}
+
+func ExpectEventuallyDeleted(c client.Client, object client.Object) {
+	Eventually(func() bool {
+		return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
+	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
+		return fmt.Sprintf("expected %s/%s to be deleted, but it still exists", object.GetName(), object.GetNamespace())
+	})
 }
 
 func ExpectCreated(c client.Client, objects ...client.Object) {
