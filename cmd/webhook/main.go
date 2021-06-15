@@ -47,15 +47,11 @@ var (
 type Options struct {
 	Port                  int
 	HealthProbePort       int
-	ServiceName           string
-	CertificateSecretName string
 }
 
 func main() {
 	flag.IntVar(&options.Port, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
-	flag.StringVar(&options.ServiceName, "service-name", "karpenter-webhook", "The name of the webhook's service")
-	flag.StringVar(&options.CertificateSecretName, "certificate-secret-name", "karpenter-webhook-cert", "The name of the webhook's secret containing certificates")
 	flag.Parse()
 
 	config := sharedmain.ParseAndGetConfigOrDie()
@@ -74,10 +70,10 @@ func main() {
 	sharedmain.MainWithConfig(
 		webhook.WithOptions(injection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 			Port:        options.Port,
-			ServiceName: options.ServiceName,
-			SecretName:  options.CertificateSecretName,
+			ServiceName: "karpenter-webhook",
+			SecretName:  "karpenter-webhook-cert",
 		}),
-		options.ServiceName,
+		"Karpenter Webhooks",
 		config,
 		certificates.NewController,
 		NewCRDDefaultingWebhook,
