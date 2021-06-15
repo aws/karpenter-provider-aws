@@ -29,11 +29,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-const (
-	// maxInstanceTypes defines the number of instance type options to pass to fleet
-	maxInstanceTypes = 20
-)
-
 type InstanceProvider struct {
 	ec2api ec2iface.EC2API
 }
@@ -48,17 +43,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	zonalSubnetOptions map[string][]*ec2.Subnet,
 	capacityType string,
 ) (*string, error) {
-	// 1. Trim the instanceTypeOptions so that the fleet request doesn't get too large
-	// If ~130 instance types are passed into fleet, the request can exceed the EC2 request size limit (145kb)
-	// due to the overrides expansion for subnetId (depends on number of AZs), Instance Type, and Priority.
-	// For spot capacity-optimized-prioritized, the request should be smaller to prevent using
-	// excessively large instance types that are more plentiful in capacity which the algorithm will bias towards.
-	// packing.InstanceTypes is sorted by vcpus and memory ascending so it's safe to trim the end of the list
-	// to remove excessively large instance types
-	if len(instanceTypeOptions) > maxInstanceTypes {
-		instanceTypeOptions = instanceTypeOptions[:maxInstanceTypes]
-	}
-	// 2. Construct override options.
+	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, zone := range instanceType.Zones() {
@@ -80,7 +65,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 			overrides = append(overrides, override)
 		}
 	}
-	// 3. Create fleet
+	// 2. Create fleet
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
 		Type: aws.String(ec2.FleetTypeInstant),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
