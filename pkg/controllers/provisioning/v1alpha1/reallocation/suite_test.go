@@ -71,7 +71,7 @@ var _ = Describe("Reallocation", func() {
 				Namespace: "default",
 			},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				Cluster:    &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 				TTLSeconds: ptr.Int32(300),
 			},
 		}

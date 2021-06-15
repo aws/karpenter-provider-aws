@@ -380,5 +380,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>1d8134b</code>.
+on git commit <code>a322855</code>.
 </em></p>

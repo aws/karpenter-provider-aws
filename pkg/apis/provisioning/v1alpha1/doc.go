@@ -27,7 +27,7 @@ import (
 )
 
 var SchemeGroupVersion = schema.GroupVersion{Group: "provisioning.karpenter.sh", Version: "v1alpha1"}
-var SchemeBuilder = runtime.NewSchemeBuilder(func (scheme *runtime.Scheme) error {
+var SchemeBuilder = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&Provisioner{},
 		&ProvisionerList{},
