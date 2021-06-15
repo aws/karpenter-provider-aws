@@ -28,9 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-const (
-	// maxInstanceTypes defines the number of instance type options to return to the cloud provider
-	maxInstanceTypes = 20
+var (
+	// MaxInstanceTypes defines the number of instance type options to return to the cloud provider
+	MaxInstanceTypes = 20
 )
 
 // Constraints for an efficient binpacking solution of pods onto nodes, given
@@ -110,8 +110,8 @@ func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, constraints *Constra
 	sortByResources(bestInstances)
 	// Trim the bestInstances so that provisioning APIs in cloud providers are not overwhelmed by the number of instance type options
 	// For example, the AWS EC2 Fleet API only allows the request to be 145kb which equates to about 130 instance type options.
-	if len(bestInstances) > maxInstanceTypes {
-		bestInstances = bestInstances[:maxInstanceTypes]
+	if len(bestInstances) > MaxInstanceTypes {
+		bestInstances = bestInstances[:MaxInstanceTypes]
 	}
 	return &cloudprovider.Packing{Pods: bestPackedPods, Constraints: constraints.Constraints, InstanceTypeOptions: bestInstances}, remainingPods
 }
