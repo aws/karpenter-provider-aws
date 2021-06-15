@@ -11,13 +11,13 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.16.3
-     
+
     - name: CI - Verifications and Tests
       run: |
-        make toolchain 
+        make toolchain
         echo "/usr/local/kubebuilder/bin" >> $GITHUB_PATH
         make ci
-      env: 
+      env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Code Coverage
