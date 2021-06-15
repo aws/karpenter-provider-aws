@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/aws/aws-sdk-go v1.38.11
+	github.com/aws/aws-sdk-go v1.38.62
 	github.com/go-logr/zapr v0.2.0
 	github.com/imdario/mergo v0.3.10
 	github.com/mitchellh/hashstructure/v2 v2.0.1
