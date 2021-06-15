@@ -20,23 +20,35 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 )
 
-type Capacity struct {
-}
-type Termination struct {
+var (
+	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
+)
+
+type API struct {
+	WantErr error
+	// NodeReplicas is used by tests to control observed replicas.
+	NodeReplicas    map[string]*int32
+	NodeGroupStable bool
 }
 
-func (t *Termination) Terminate(ctx context.Context, nodes []*v1.Node) error {
-	return nil
+func NewAPI() *API {
+	return &API{
+		WantErr:         NotImplementedError,
+		NodeReplicas:    make(map[string]*int32),
+		NodeGroupStable: true,
+	}
 }
 
-func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (a *API) Create(ctx context.Context, packings []*cloudprovider.Packing, provisioner *v1alpha1.Provisioner) ([]*cloudprovider.PackedNode, error) {
 	packedNodes := []*cloudprovider.PackedNode{}
 	for _, packing := range packings {
 		name := strings.ToLower(randomdata.SillyName())
@@ -64,7 +76,7 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 	return packedNodes, nil
 }
 
-func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (a *API) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",
@@ -92,6 +104,10 @@ func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.Instan
 	}, nil
 }
 
-func (c *Capacity) Validate(ctx context.Context) *apis.FieldError {
+func (a *API) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
+	return nil
+}
+
+func (a *API) Terminate(ctx context.Context, nodes []*v1.Node) error {
 	return nil
 }

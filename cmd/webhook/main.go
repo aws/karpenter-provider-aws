@@ -45,8 +45,8 @@ var (
 )
 
 type Options struct {
-	Port                  int
-	HealthProbePort       int
+	Port            int
+	HealthProbePort int
 }
 
 func main() {
@@ -57,7 +57,7 @@ func main() {
 	config := sharedmain.ParseAndGetConfigOrDie()
 
 	// Register the cloud provider to attach vendor specific validation logic.
-	registry.NewCloudProvider(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
+	registry.NewAPI(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
 
 	// Liveness handler
 	go func() {

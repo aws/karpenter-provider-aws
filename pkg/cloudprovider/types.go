@@ -24,26 +24,15 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-// Factory instantiates the cloud provider's resources
-type Factory interface {
-	// Capacity returns a provisioner for the provider to create instances
-	CapacityFor(provisioner *v1alpha1.Provisioner) Capacity
-	// Terminate allows the provider to terminate instances
-	TerminateFor() Termination
-}
-
-// Capacity provisions a set of nodes that fulfill a set of constraints.
-type Capacity interface {
+// API holds contains the methods necessary in a cloud provider
+type API interface {
 	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, []*Packing) ([]*PackedNode, error)
+	Create(context.Context, []*Packing, *v1alpha1.Provisioner) ([]*PackedNode, error)
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
-	GetInstanceTypes(ctx context.Context) ([]InstanceType, error)
+	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// Validate cloud provider specific components of the cluster spec
-	Validate(context.Context) *apis.FieldError
-}
-
-type Termination interface {
+	Validate(context.Context, *v1alpha1.ProvisionerSpec) *apis.FieldError
 	// Terminate nodes in cloudprovider
 	Terminate(context.Context, []*v1.Node) error
 }

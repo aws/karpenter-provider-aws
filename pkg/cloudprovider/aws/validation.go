@@ -25,11 +25,11 @@ import (
 )
 
 // Validate cloud provider specific components of the cluster spec
-func (c *Capacity) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *API) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
 	return errs.Also(
-		validateAllowedLabels(c.provisioner.Spec),
-		validateCapacityTypeLabel(c.provisioner.Spec),
-		validateLaunchTemplateLabels(c.provisioner.Spec),
+		validateAllowedLabels(*spec),
+		validateCapacityTypeLabel(*spec),
+		validateLaunchTemplateLabels(*spec),
 	)
 }
 func validateAllowedLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {

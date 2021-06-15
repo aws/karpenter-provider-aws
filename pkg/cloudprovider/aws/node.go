@@ -26,12 +26,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type NodeFactory struct {
+type NodeAPI struct {
 	ec2api ec2iface.EC2API
 }
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
-func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
+func (n *NodeAPI) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
 	// EC2 will return all instances if unspecified, so we must short circuit
 	if len(instanceIDs) == 0 {
 		return nil, nil
@@ -46,7 +46,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[strin
 	return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 }
 
-func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {
+func (n *NodeAPI) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {
 	nodes := map[string]*v1.Node{}
 	for _, reservation := range reservations {
 		for _, instance := range reservation.Instances {
@@ -56,7 +56,7 @@ func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.
 	return nodes
 }
 
-func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
+func (n *NodeAPI) nodeFrom(instance *ec2.Instance) *v1.Node {
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: *instance.PrivateDnsName,
