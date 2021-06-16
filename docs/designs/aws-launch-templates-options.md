@@ -1,5 +1,5 @@
 # AWS Launch Template Options
-
+*Authors: JacobGabrielson@*
 ## Intro
 
 This document presents some options for how the AWS-specific (cloud

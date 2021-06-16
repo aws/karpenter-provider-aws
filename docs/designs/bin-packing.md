@@ -1,4 +1,5 @@
 # Bin Packing Design Considerations
+*Authors: prateekgogia@*
 
 > Note: this is not a final design; this is still in POC stage and
 > some things might change.

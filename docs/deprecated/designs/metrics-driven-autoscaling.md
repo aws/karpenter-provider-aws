@@ -1,5 +1,7 @@
 # Metrics Driven Autoscaling
 
+*Authors: ellistarn@*
+
 Node Autoscaling (a.k.a. Cluster Autoscaling) is the process of continually adding and removing a cluster’s nodes to meet the resource demands of its pods. As users scale to increasingly large clusters, autoscaling becomes necessary for both practicality and cost reasons. While overprovisioning is a viable approach at smaller scales, it becomes prohibitively expensive as organizations grow. In response to increasing infrastructure costs, some users create manual processes to scale node groups, but this approach yields inefficient resource utilization and is error prone. Node autoscaling replaces these manual processes with automation.
 
 ## Overview
