@@ -43,11 +43,12 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template karpenter charts/karpenter \
+	kubectl create ns karpenter || true
+	helm template karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--create-namespace --namespace karpenter \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
 		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
+		--set serviceAccount.annotations.'eks\.amazonaws\.com/role-arn'=\"$$(kubectl get configmaps aws-auth -n kube-system -ojsonpath='{.data.mapRoles}' | grep KarpenterNodeRole | head -1 | cut -d ' ' -f3)\" \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
