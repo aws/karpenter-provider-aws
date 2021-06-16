@@ -52,6 +52,7 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm template karpenter charts/karpenter --namespace karpenter | kubectl delete -f -
+	kubectl delete ns karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
