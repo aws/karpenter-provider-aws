@@ -21,6 +21,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws"
 )
 
-func NewAPI(options cloudprovider.Options) cloudprovider.API {
-	return aws.NewAPI(options)
+func NewCloudProvider(options cloudprovider.Options) cloudprovider.CloudProvider {
+	return aws.NewCloudProvider(options)
 }

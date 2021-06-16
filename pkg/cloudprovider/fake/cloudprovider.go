@@ -29,26 +29,9 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-var (
-	NotImplementedError = fmt.Errorf("provider is not implemented. Are you running the correct release for your cloud provider?")
-)
+type CloudProvider struct{}
 
-type API struct {
-	WantErr error
-	// NodeReplicas is used by tests to control observed replicas.
-	NodeReplicas    map[string]*int32
-	NodeGroupStable bool
-}
-
-func NewAPI() *API {
-	return &API{
-		WantErr:         NotImplementedError,
-		NodeReplicas:    make(map[string]*int32),
-		NodeGroupStable: true,
-	}
-}
-
-func (a *API) Create(ctx context.Context, packings []*cloudprovider.Packing, provisioner *v1alpha1.Provisioner) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	packedNodes := []*cloudprovider.PackedNode{}
 	for _, packing := range packings {
 		name := strings.ToLower(randomdata.SillyName())
@@ -76,7 +59,7 @@ func (a *API) Create(ctx context.Context, packings []*cloudprovider.Packing, pro
 	return packedNodes, nil
 }
 
-func (a *API) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",
@@ -104,10 +87,10 @@ func (a *API) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceTyp
 	}, nil
 }
 
-func (a *API) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
+func (c *CloudProvider) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
 	return nil
 }
 
-func (a *API) Terminate(ctx context.Context, nodes []*v1.Node) error {
+func (c *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
 	return nil
 }

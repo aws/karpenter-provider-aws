@@ -35,7 +35,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	utilization   *Utilization
-	cloudProvider cloudprovider.API
+	cloudProvider cloudprovider.CloudProvider
 }
 
 // For returns the resource this controller is for.
@@ -57,10 +57,10 @@ func (c *Controller) Name() string {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, api cloudprovider.API) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		utilization:   &Utilization{kubeClient: kubeClient},
-		cloudProvider: api,
+		cloudProvider: cloudProvider,
 	}
 }
 

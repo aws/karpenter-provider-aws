@@ -73,7 +73,7 @@ func main() {
 	})
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
-	cloudProvider := registry.NewAPI(cloudprovider.Options{ClientSet: clientSet})
+	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
 
 	if err := manager.RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),

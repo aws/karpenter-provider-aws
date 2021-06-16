@@ -57,7 +57,7 @@ func main() {
 	config := sharedmain.ParseAndGetConfigOrDie()
 
 	// Register the cloud provider to attach vendor specific validation logic.
-	registry.NewAPI(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
+	registry.NewCloudProvider(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
 
 	// Liveness handler
 	go func() {

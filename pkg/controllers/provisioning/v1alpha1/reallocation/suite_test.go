@@ -43,7 +43,7 @@ func TestAPIs(t *testing.T) {
 
 var controller *Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := fake.NewAPI()
+	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
 	controller = NewController(
 		e.Manager.GetClient(),

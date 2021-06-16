@@ -24,10 +24,10 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-// API holds contains the methods necessary in a cloud provider
-type API interface {
+// CloudProvider holds contains the methods necessary in a cloud provider
+type CloudProvider interface {
 	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, []*Packing, *v1alpha1.Provisioner) ([]*PackedNode, error)
+	Create(context.Context, *v1alpha1.Provisioner, []*Packing) ([]*PackedNode, error)
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)

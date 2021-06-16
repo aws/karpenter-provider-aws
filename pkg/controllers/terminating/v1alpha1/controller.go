@@ -34,7 +34,7 @@ import (
 // Controller for the resource
 type Controller struct {
 	terminator    *Terminator
-	cloudProvider cloudprovider.API
+	cloudProvider cloudprovider.CloudProvider
 }
 
 // For returns the resource this controller is for.
@@ -56,10 +56,10 @@ func (c *Controller) Name() string {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, api cloudprovider.API) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: api, coreV1Client: coreV1Client},
-		cloudProvider: api,
+		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client},
+		cloudProvider: cloudProvider,
 	}
 }
 

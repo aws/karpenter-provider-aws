@@ -27,12 +27,12 @@ import (
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
-func RegisterOrDie(api cloudprovider.API) {
+func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 	zones := map[string]bool{}
 	architectures := map[string]bool{}
 	operatingSystems := map[string]bool{}
 
-	instanceTypes, err := api.GetInstanceTypes(context.Background())
+	instanceTypes, err := cloudProvider.GetInstanceTypes(context.Background())
 	if err != nil {
 		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
 	}
@@ -58,6 +58,6 @@ func RegisterOrDie(api cloudprovider.API) {
 		v1alpha1.SupportedOperatingSystems = append(v1alpha1.SupportedOperatingSystems, operatingSystem)
 	}
 	v1alpha1.ValidationHook = func(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
-		return api.Validate(ctx, spec)
+		return cloudProvider.Validate(ctx, spec)
 	}
 }

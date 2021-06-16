@@ -15,6 +15,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -32,6 +33,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/apis"
 )
 
 const (
@@ -55,15 +57,15 @@ var (
 	}
 )
 
-type API struct {
-	nodeAPI                *NodeAPI
+type CloudProvider struct {
+	nodeAPI                *NodeFactory
 	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
 	instanceTypeProvider   *InstanceTypeProvider
 	instanceProvider       *InstanceProvider
 }
 
-func NewAPI(options cloudprovider.Options) *API {
+func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 	sess := withUserAgent(session.Must(
 		session.NewSession(request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
@@ -74,8 +76,8 @@ func NewAPI(options cloudprovider.Options) *API {
 	}
 	zap.S().Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
-	return &API{
-		nodeAPI: &NodeAPI{ec2api: ec2api},
+	return &CloudProvider{
+		nodeAPI: &NodeFactory{ec2api: ec2api},
 		launchTemplateProvider: &LaunchTemplateProvider{
 			ec2api:                ec2api,
 			cache:                 cache.New(CacheTTL, CacheCleanupInterval),
@@ -106,7 +108,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a set of nodes given the constraints.
-func (a *API) Create(ctx context.Context, packings []*cloudprovider.Packing, provisioner *v1alpha1.Provisioner) ([]*cloudprovider.PackedNode, error) {
+func (a *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	instanceIDs := []*string{}
 	instancePackings := map[string]*cloudprovider.Packing{}
 	for _, packing := range packings {
@@ -156,10 +158,49 @@ func (a *API) Create(ctx context.Context, packings []*cloudprovider.Packing, pro
 	return packedNodes, nil
 }
 
-func (a *API) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (a *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return a.instanceTypeProvider.Get(ctx)
 }
 
-func (a *API) Terminate(ctx context.Context, nodes []*v1.Node) error {
+func (a *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
 	return a.instanceProvider.Terminate(ctx, nodes)
+}
+
+// Validate cloud provider specific components of the cluster spec
+func (a *CloudProvider) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	return errs.Also(
+		validateAllowedLabels(*spec),
+		validateCapacityTypeLabel(*spec),
+		validateLaunchTemplateLabels(*spec),
+	)
+}
+
+func validateAllowedLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	for key := range spec.Labels {
+		if strings.HasPrefix(key, AWSLabelPrefix) && !functional.ContainsString(AllowedLabels, key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
+		}
+	}
+	return errs
+}
+
+func validateCapacityTypeLabel(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	capacityType, ok := spec.Labels[CapacityTypeLabel]
+	if !ok {
+		return nil
+	}
+	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
+	if !functional.ContainsString(capacityTypes, capacityType) {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("spec.labels[%s]", CapacityTypeLabel)))
+	}
+	return errs
+}
+
+func validateLaunchTemplateLabels(spec v1alpha1.ProvisionerSpec) (errs *apis.FieldError) {
+	if _, versionExists := spec.Labels[LaunchTemplateVersionLabel]; versionExists {
+		if _, bothExist := spec.Labels[LaunchTemplateIdLabel]; !bothExist {
+			return errs.Also(apis.ErrMissingField(fmt.Sprintf("spec.labels[%s]", LaunchTemplateIdLabel)))
+		}
+	}
+	return errs
 }

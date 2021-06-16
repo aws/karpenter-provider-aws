@@ -34,7 +34,7 @@ import (
 
 type Terminator struct {
 	kubeClient    client.Client
-	cloudProvider cloudprovider.API
+	cloudProvider cloudprovider.CloudProvider
 	coreV1Client  corev1.CoreV1Interface
 }
 
