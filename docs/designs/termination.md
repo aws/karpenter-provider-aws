@@ -1,7 +1,7 @@
 # Karpenter Graceful Node Termination
-
+*Authors: njtran@*
 ## Overview
-Karpenter's scale down implementation is currently a proof of concept. The reallocation controller implements two actions. First, nodes are elected for termination when there aren't any pods scheduled to them. Second, nodes are cordoned and drained and deleted. Node termination follows cordon and drain [best practices](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/). 
+Karpenter's scale down implementation is currently a proof of concept. The reallocation controller implements two actions. First, nodes are elected for termination when there aren't any pods scheduled to them. Second, nodes are cordoned and drained and deleted. Node termination follows cordon and drain [best practices](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/).
 
 This design explores improvements to the termination process and proposes the separation of this logic into a new termination controller, installed as part of Karpenter.
 
@@ -23,11 +23,11 @@ The new termination process will begin with a node that receives a delete reques
 ![](../images/termination-state-machine.png)
 ### Triggering Termination
 
-The current termination process acts on a reconcile loop. We will change the termination controller to watch nodes and manage the Karpenter [finalizer](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers), making it responsible for all node termination and pod eviction logic. 
+The current termination process acts on a reconcile loop. We will change the termination controller to watch nodes and manage the Karpenter [finalizer](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers), making it responsible for all node termination and pod eviction logic.
 
-Finalizers allow controllers to implement asynchronous pre-deletion hooks and are commonly used with CRDs like Karpenter’s Provisioners. Today, a user can call `kubectl delete node` to delete a node object, but will end up leaking the underlying instance by only deleting the node object in the cluster. We will use finalizers to gracefully terminate underlying instances before Karpenter provisioned nodes are deleted, preventing instance leaking. Relying on `kubectl` for terminations gives the user more control over their cluster and a Kubernetes-native way of deleting nodes - as opposed to the status quo  of doing it manually in a cloud provider's console. 
+Finalizers allow controllers to implement asynchronous pre-deletion hooks and are commonly used with CRDs like Karpenter’s Provisioners. Today, a user can call `kubectl delete node` to delete a node object, but will end up leaking the underlying instance by only deleting the node object in the cluster. We will use finalizers to gracefully terminate underlying instances before Karpenter provisioned nodes are deleted, preventing instance leaking. Relying on `kubectl` for terminations gives the user more control over their cluster and a Kubernetes-native way of deleting nodes - as opposed to the status quo  of doing it manually in a cloud provider's console.
 
-We will additionally implement a Karpenter [Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) to validate node deletion requests and add finalizers to nodes that have been cleared for deletion. If the request will not violate a Node Disruption Budget (discussed below) and Karpenter is installed, the webhook will add the Karpenter finalizer to nodes and then allow the deletion request to go through, triggering the workflow. 
+We will additionally implement a Karpenter [Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) to validate node deletion requests and add finalizers to nodes that have been cleared for deletion. If the request will not violate a Node Disruption Budget (discussed below) and Karpenter is installed, the webhook will add the Karpenter finalizer to nodes and then allow the deletion request to go through, triggering the workflow.
 
 ### Eviction
 
@@ -43,7 +43,7 @@ In the case where a user has enabled termination protection for their underlying
 
 ### User Configuration
 
-The termination controller and associated webhooks will come installed with Karpenter, requiring no additional configuration on the user’s part. 
+The termination controller and associated webhooks will come installed with Karpenter, requiring no additional configuration on the user’s part.
 
 We will allow users to specify a `karpenter.sh/do-not-evict` label on their pods, guaranteeing that we will not evict certain pods. A node with `do-not-evict` pods will cordon but wait to drain until all `do-not-evict` pods are gone. This way, the cluster will continue to utilize its existing capacity until the `do-not-evict` pods terminate. Users can use Karpenter’s scheduling logic to colocate pods with this label onto similar nodes to load balance these pods.
 
@@ -53,9 +53,9 @@ The termination controller will be able to drain and terminate multiple nodes in
 
 We introduce an optional cluster-scoped CRD, the Node Disruption Budget (NDB), a [Pod Disruption Budget (PDB)](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets) for nodes. A user can scope an NDB to Karpenter provisioned nodes through a label selector, since nodes are created with their Provisioner’s labels. `Unavailable` nodes will be `NotReady` or have `metadata.DeletionTimestamp` set. `Available` nodes will be `Ready`.
 
-A termination is allowed if at least minAvailable nodes selected by a selector will still be available after the termination. For example, you can prevent all terminations by specifying “100%”. A termination is also allowed if at most maxUnavailable nodes selected by selector are unavailable after the termination. For example, one can prevent all terminations by specifying 0. The `minAvailable` and `maxUnavailable` fields are mutually exclusive.  
+A termination is allowed if at least minAvailable nodes selected by a selector will still be available after the termination. For example, you can prevent all terminations by specifying “100%”. A termination is also allowed if at most maxUnavailable nodes selected by selector are unavailable after the termination. For example, one can prevent all terminations by specifying 0. The `minAvailable` and `maxUnavailable` fields are mutually exclusive.
 
-Note that this is an experimental idea, and will require robustness improvements for future features such as defragmentation, over-provisioning, and more.  
+Note that this is an experimental idea, and will require robustness improvements for future features such as defragmentation, over-provisioning, and more.
 
 [PodDisruptionBudgetSpec](https://pkg.go.dev/k8s.io/api/policy/v1beta1#PodDisruptionBudgetSpec) for reference.
 
@@ -99,9 +99,9 @@ Karpenter is a node autoscaler, so it does not take responsibility for maintaini
 
 If a user wants to manually delete a Karpenter provisioned node, this design allows the user to do it safely if Karpenter is installed. Otherwise, the user will need to clean up their resources themselves.
 
-Kubernetes is unable to delete nodes that have finalizers on them. For this reason, we chose to add the Karpenter finalizer only after a delete request is validated. Yet, in the rare case that Karpenter is uninstalled while a node deletion request is processing, to finish terminating the node, the user must either: reinstall Karpenter to resume the termination logic or remove the Karpenter finalizer from the node, allowing the API Server to delete then node. 
+Kubernetes is unable to delete nodes that have finalizers on them. For this reason, we chose to add the Karpenter finalizer only after a delete request is validated. Yet, in the rare case that Karpenter is uninstalled while a node deletion request is processing, to finish terminating the node, the user must either: reinstall Karpenter to resume the termination logic or remove the Karpenter finalizer from the node, allowing the API Server to delete then node.
 
-If a node is unable to become ready for `15 minutes`, we will terminate the node. As we don’t have the ability or responsibility to diagnose the problem, we would worst case terminate a soon-to-be-healthy node. In this case, the orphaned pod(s) would trigger creation of another node. 
+If a node is unable to become ready for `15 minutes`, we will terminate the node. As we don’t have the ability or responsibility to diagnose the problem, we would worst case terminate a soon-to-be-healthy node. In this case, the orphaned pod(s) would trigger creation of another node.
 
 ## Appendix
 
@@ -127,6 +127,6 @@ In the future, we may implement the following to account for more scale down sit
 
 ### Asynchronous Termination Clarifications
 
-When pods are requested to be evicted, they are put into an Eviction Queue specific to the PDB handling the pods. The controller will call evictions serially that run asynchronously and exponentially back off and retry if they fail. 
+When pods are requested to be evicted, they are put into an Eviction Queue specific to the PDB handling the pods. The controller will call evictions serially that run asynchronously and exponentially back off and retry if they fail.
 
 Finalizers are also handled asynchronously. Adding in a Karpenter finalizer doesn’t prevent or delay other controllers from executing finalizer logic on the same node.
