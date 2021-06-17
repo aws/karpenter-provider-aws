@@ -23,6 +23,12 @@ import (
 	"knative.dev/pkg/apis"
 )
 
+func NewCloudProvider(options cloudprovider.Options) cloudprovider.CloudProvider {
+	cloudProvider := newCloudProvider(options)
+	RegisterOrDie(cloudProvider)
+	return cloudProvider
+}
+
 // RegisterOrDie populates supported instance types, zones, operating systems,
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but

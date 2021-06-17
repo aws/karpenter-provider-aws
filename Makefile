@@ -48,7 +48,6 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 		$(HELM_OPTS) \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
 		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
-		--set serviceAccount.annotations.'eks\.amazonaws\.com/role-arn'=\"$$(kubectl get configmaps aws-auth -n kube-system -ojsonpath='{.data.mapRoles}' | grep KarpenterNodeRole | head -1 | cut -d ' ' -f3)\" \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
