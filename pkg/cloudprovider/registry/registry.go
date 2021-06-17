@@ -23,23 +23,16 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-func NewCloudProvider(options cloudprovider.Options) cloudprovider.Factory {
-	cloudProvider := New(options)
-	RegisterOrDie(cloudProvider)
-	return cloudProvider
-}
-
 // RegisterOrDie populates supported instance types, zones, operating systems,
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
-func RegisterOrDie(factory cloudprovider.Factory) {
+func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 	zones := map[string]bool{}
 	architectures := map[string]bool{}
 	operatingSystems := map[string]bool{}
 
-	// TODO remove the factory pattern and avoid passing an empty provisioner
-	instanceTypes, err := factory.CapacityFor(&v1alpha1.Provisioner{}).GetInstanceTypes(context.Background())
+	instanceTypes, err := cloudProvider.GetInstanceTypes(context.Background())
 	if err != nil {
 		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
 	}
@@ -65,6 +58,6 @@ func RegisterOrDie(factory cloudprovider.Factory) {
 		v1alpha1.SupportedOperatingSystems = append(v1alpha1.SupportedOperatingSystems, operatingSystem)
 	}
 	v1alpha1.ValidationHook = func(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
-		return factory.CapacityFor(&v1alpha1.Provisioner{Spec: *spec}).Validate(ctx)
+		return cloudProvider.Validate(ctx, spec)
 	}
 }

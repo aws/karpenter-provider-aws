@@ -45,8 +45,8 @@ var (
 )
 
 type Options struct {
-	Port                  int
-	HealthProbePort       int
+	Port            int
+	HealthProbePort int
 }
 
 func main() {

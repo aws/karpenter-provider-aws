@@ -41,7 +41,7 @@ type Controller struct {
 	binder        *Binder
 	constraints   *Constraints
 	packer        packing.Packer
-	cloudProvider cloudprovider.Factory
+	cloudProvider cloudprovider.CloudProvider
 }
 
 // For returns the resource this controller is for.
@@ -63,13 +63,13 @@ func (c *Controller) Name() string {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.Factory) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		cloudProvider: cloudProvider,
-		filter:        &Filter{kubeClient: kubeClient, cloudProvider: cloudProvider},
+		filter:        &Filter{kubeClient: kubeClient},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
 		constraints:   &Constraints{kubeClient: kubeClient},
 		packer:        packing.NewPacker(),
+		cloudProvider: cloudProvider,
 	}
 }
 
@@ -93,10 +93,9 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	}
 
 	// 3. Binpack each group
-	capacity := c.cloudProvider.CapacityFor(provisioner)
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
-		instanceTypes, err := capacity.GetInstanceTypes(ctx)
+		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 		}
@@ -104,7 +103,7 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	}
 
 	// 4. Create packedNodes for packings
-	packedNodes, err := capacity.Create(ctx, packings)
+	packedNodes, err := c.cloudProvider.Create(ctx, provisioner, packings)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}

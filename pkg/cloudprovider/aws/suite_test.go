@@ -15,11 +15,9 @@ limitations under the License.
 package aws
 
 import (
-	"testing"
-
 	"context"
-
 	"strings"
+	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -55,26 +53,18 @@ var fakeEC2API *fake.EC2API
 var env = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
-	subnetProvider := &SubnetProvider{
-		ec2api: fakeEC2API,
-		cache:  subnetCache,
-	}
-	launchTemplateProvider := &LaunchTemplateProvider{
-		ec2api: fakeEC2API,
-		cache:  launchTemplateCache,
-		securityGroupProvider: &SecurityGroupProvider{
-			ec2api: fakeEC2API,
-			cache:  securityGroupCache,
+	cloudProvider := &CloudProvider{
+		nodeAPI: &NodeFactory{ec2api: fakeEC2API},
+		launchTemplateProvider: &LaunchTemplateProvider{
+			ec2api:                fakeEC2API,
+			cache:                 launchTemplateCache,
+			securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
+			ssm:                   &fake.SSMAPI{},
+			clientSet:             clientSet,
 		},
-		ssm:       &fake.SSMAPI{},
-		clientSet: clientSet,
-	}
-	cloudProvider := &Factory{
-		nodeFactory:            &NodeFactory{ec2api: fakeEC2API},
-		launchTemplateProvider: launchTemplateProvider,
-		subnetProvider:         subnetProvider,
-		instanceTypeProvider:   NewInstanceTypeProvider(fakeEC2API),
-		instanceProvider:       &InstanceProvider{ec2api: fakeEC2API},
+		subnetProvider:       NewSubnetProvider(fakeEC2API),
+		instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
+		instanceProvider:     &InstanceProvider{ec2api: fakeEC2API},
 	}
 	registry.RegisterOrDie(cloudProvider)
 	e.Manager.RegisterControllers(

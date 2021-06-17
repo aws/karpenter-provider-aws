@@ -34,7 +34,7 @@ import (
 
 type Terminator struct {
 	kubeClient    client.Client
-	cloudprovider cloudprovider.Factory
+	cloudProvider cloudprovider.CloudProvider
 	coreV1Client  corev1.CoreV1Interface
 }
 
@@ -110,7 +110,7 @@ func (t *Terminator) terminateNodes(ctx context.Context) error {
 // deleteNode uses a cloudprovider-specific delete to delete a set of nodes
 func (t *Terminator) deleteNodes(ctx context.Context, nodes []*v1.Node) error {
 	// 1. Delete node in cloudprovider's instanceprovider
-	if err := t.cloudprovider.TerminateFor().Terminate(ctx, nodes); err != nil {
+	if err := t.cloudProvider.Terminate(ctx, nodes); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Delete node in APIServer

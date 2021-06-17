@@ -20,23 +20,18 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 )
 
-type Capacity struct {
-}
-type Termination struct {
-}
+type CloudProvider struct{}
 
-func (t *Termination) Terminate(ctx context.Context, nodes []*v1.Node) error {
-	return nil
-}
-
-func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	packedNodes := []*cloudprovider.PackedNode{}
 	for _, packing := range packings {
 		name := strings.ToLower(randomdata.SillyName())
@@ -64,7 +59,7 @@ func (c *Capacity) Create(ctx context.Context, packings []*cloudprovider.Packing
 	return packedNodes, nil
 }
 
-func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",
@@ -92,6 +87,10 @@ func (c *Capacity) GetInstanceTypes(ctx context.Context) ([]cloudprovider.Instan
 	}, nil
 }
 
-func (c *Capacity) Validate(ctx context.Context) *apis.FieldError {
+func (c *CloudProvider) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
+	return nil
+}
+
+func (c *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
 	return nil
 }

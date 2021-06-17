@@ -8,8 +8,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/<YOUR_PROVIDER_NAME>"
 )
 
-func NewFactory() cloudprovider.Factory {
-	return <YOUR_PROVIDER_NAME>.NewFactory()
+func NewCloudProvider() cloudprovider.CloudProvider {
+	return <YOUR_PROVIDER_NAME>.NewCloudProvider()
 }
 ```
 
