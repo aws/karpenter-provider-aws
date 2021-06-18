@@ -67,7 +67,6 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	provisioner := object.(*v1alpha1.Provisioner)
-
 	// 1. Set TTL on TTLable Nodes
 	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)

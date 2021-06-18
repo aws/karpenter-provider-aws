@@ -17,12 +17,12 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/conditions"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -49,22 +49,24 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
-	// 3. Set to true to remove race condition
-	// TODO: remove status conditions on provisioners
-	if provisioner, ok := resource.(*v1alpha1.Provisioner); ok {
-		provisioner.StatusConditions().MarkTrue(v1alpha1.Active)
+	// 3. Set defaults to enforce invariants on object being reconciled
+	if _, ok := resource.(apis.Defaultable); ok {
+		resource.(apis.Defaultable).SetDefaults(ctx)
 	}
-	// 4. Reconcile
+	// 4. Set to true to remove race condition where multiple controllers set the status of the same object
+	// TODO: remove status conditions on provisioners
+	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
+		apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor).MarkTrue(conditions.Active)
+	}
+	// 5. Reconcile
 	if _, err := c.Controller.Reconcile(ctx, resource); err != nil {
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
 			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		return reconcile.Result{Requeue: true}, nil
 	}
-	// 5. Update Status using a merge patch
-	if !reflect.DeepEqual(resource, persisted) {
-		if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
-		}
+	// 6. Update Status using a merge patch
+	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
+		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }
