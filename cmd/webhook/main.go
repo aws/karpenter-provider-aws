@@ -17,9 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
-	"net/http"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -29,13 +26,10 @@ import (
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
-	"knative.dev/pkg/leaderelection"
-	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/webhook"
 	"knative.dev/pkg/webhook/certificates"
-	"knative.dev/pkg/webhook/configmaps"
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 )
@@ -46,25 +40,16 @@ var (
 
 type Options struct {
 	Port            int
-	HealthProbePort int
 }
 
 func main() {
 	flag.IntVar(&options.Port, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
-	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
 	flag.Parse()
 
 	config := sharedmain.ParseAndGetConfigOrDie()
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	registry.NewCloudProvider(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
-
-	// Liveness handler
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", options.HealthProbePort), mux))
-	}()
 
 	// Controllers and webhook
 	sharedmain.MainWithConfig(
@@ -73,12 +58,11 @@ func main() {
 			ServiceName: "karpenter-webhook",
 			SecretName:  "karpenter-webhook-cert",
 		}),
-		"Karpenter Webhooks",
+		"karpenter.webhooks",
 		config,
 		certificates.NewController,
 		NewCRDDefaultingWebhook,
 		NewCRDValidationWebhook,
-		NewConfigmapValidationWebhook,
 	)
 }
 
@@ -99,17 +83,6 @@ func NewCRDValidationWebhook(ctx context.Context, w configmap.Watcher) *controll
 		apis.Resources,
 		InjectContext,
 		true,
-	)
-}
-
-func NewConfigmapValidationWebhook(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
-	return configmaps.NewAdmissionController(ctx,
-		"validation.webhook.configmaps.karpenter.sh",
-		"/validate-config",
-		configmap.Constructors{
-			logging.ConfigMapName():        logging.NewConfigFromConfigMap,
-			leaderelection.ConfigMapName(): leaderelection.NewConfigFromConfigMap,
-		},
 	)
 }
 

@@ -46,8 +46,8 @@ spec:
               containerPort: 8081
           livenessProbe:
             httpGet:
-              path: /healthz
-              port: 8081
+              scheme: HTTPS
+              port: 8443
           env:
             - name: SYSTEM_NAMESPACE
               valueFrom:
