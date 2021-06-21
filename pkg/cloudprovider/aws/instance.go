@@ -108,31 +108,25 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *InstanceProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
-	if len(nodes) == 0 {
-		return nil
+func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	id, err := p.getInstanceID(node)
+	if err != nil {
+		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
-	ids := p.getInstanceIDs(nodes)
-
-	_, err := p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: ids,
+	_, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: []*string{id},
 	})
 	if err != nil {
-		return fmt.Errorf("terminating %d instances, %w", len(ids), err)
+		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
 	}
 
 	return nil
 }
 
-func (p *InstanceProvider) getInstanceIDs(nodes []*v1.Node) []*string {
-	ids := []*string{}
-	for _, node := range nodes {
-		id := strings.Split(node.Spec.ProviderID, "/")
-		if len(id) < 5 {
-			zap.S().Debugf("Continuing after failure to parse instance id, %s has invalid format", node.Name)
-			continue
-		}
-		ids = append(ids, aws.String(id[4]))
+func (p *InstanceProvider) getInstanceID(node *v1.Node) (*string, error) {
+	id := strings.Split(node.Spec.ProviderID, "/")
+	if len(id) < 5 {
+		return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
 	}
-	return ids
+	return aws.String(id[4]), nil
 }

@@ -15,16 +15,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
@@ -58,18 +54,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reallocation", func() {
-	var provisioner *v1alpha1.Provisioner
-
 	BeforeEach(func() {
-		// Create Provisioner to give some time for the node to reconcile
-		provisioner = &v1alpha1.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()),
-				Namespace: "default",
-			},
-			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-			},
-		}
 	})
 
 	AfterEach(func() {
@@ -77,20 +62,16 @@ var _ = Describe("Reallocation", func() {
 	})
 
 	Context("Reconciliation", func() {
-		It("should terminate nodes marked terminable", func() {
+		It("should terminate deleted nodes", func() {
 			node := test.NodeWith(test.NodeOptions{
+				Finalizers: []string{v1alpha1.KarpenterFinalizer},
 				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-					v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-					v1alpha1.ProvisionerPhaseLabel:        v1alpha1.ProvisionerTerminablePhase,
-				},
-				Annotations: map[string]string{
-					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(-100) * time.Second).Format(time.RFC3339),
+					v1alpha1.ProvisionerNameLabelKey:      "default",
+					v1alpha1.ProvisionerNamespaceLabelKey: "default",
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectCreated(env.Client, provisioner)
-			ExpectNotFound(env.Client, node)
+			ExpectDeletedNode(env.Client, node)
 		})
 	})
 })

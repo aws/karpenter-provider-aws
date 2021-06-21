@@ -78,7 +78,7 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	}
 
 	// 3. Mark any Node past TTL as expired
-	if err := c.utilization.markTerminable(ctx, provisioner); err != nil {
+	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
 	return reconcile.Result{}, nil

@@ -44,7 +44,7 @@ func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha1.Provi
 	}
 
 	// 3. Mark any Node past TTL as expired
-	if err := u.markTerminable(ctx, provisioner); err != nil {
+	if err := u.terminateExpired(ctx, provisioner); err != nil {
 		return fmt.Errorf("marking nodes terminable, %w", err)
 	}
 	return nil
@@ -77,7 +77,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		persisted := node.DeepCopy()
 		node.Labels = functional.UnionStringMaps(
 			node.Labels,
-			map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerUnderutilizedPhase},
+			map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"},
 		)
 		node.Annotations = functional.UnionStringMaps(
 			node.Annotations,
@@ -94,9 +94,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 // clearUnderutilized removes the TTL on underutilized nodes if there is sufficient resource usage
 func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{
-		v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerUnderutilizedPhase,
-	})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing labeled underutilized nodes, %w", err)
 	}
@@ -110,7 +108,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 
 		if !utilsnode.IsUnderutilized(node, pods) {
 			persisted := node.DeepCopy()
-			delete(node.Labels, v1alpha1.ProvisionerPhaseLabel)
+			delete(node.Labels, v1alpha1.ProvisionerUnderutilizedKey)
 			delete(node.Annotations, v1alpha1.ProvisionerTTLKey)
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				zap.S().Debugf("Could not remove underutilized labels on node %s, %w", node.Name, err)
@@ -122,24 +120,19 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 	return nil
 }
 
-// markTerminable checks if a node is past its ttl and marks it
-func (u *Utilization) markTerminable(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
+// terminateExpired checks if a node is past its ttl and marks it
+func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerPhaseLabel: "underutilized"})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// 2. Check if node is past TTL
+	// 2. Delete node if past TTL
 	for _, node := range nodes {
 		if utilsnode.IsPastTTL(node) {
-			persisted := node.DeepCopy()
-			node.Labels = functional.UnionStringMaps(
-				node.Labels,
-				map[string]string{v1alpha1.ProvisionerPhaseLabel: v1alpha1.ProvisionerTerminablePhase},
-			)
-			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-				return fmt.Errorf("patching node %s, %w", node.Name, err)
+			if err := u.kubeClient.Delete(ctx, node); err != nil {
+				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}
 		}
 	}

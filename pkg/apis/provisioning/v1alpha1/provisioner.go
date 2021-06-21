@@ -102,7 +102,7 @@ var (
 	// Reserved labels
 	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
 	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
-	ProvisionerPhaseLabel        = SchemeGroupVersion.Group + "/lifecycle-phase"
+	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
 
 	// Reserved annotations
 	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"
@@ -113,9 +113,7 @@ var (
 )
 
 const (
-	ProvisionerUnderutilizedPhase = "underutilized"
-	ProvisionerTerminablePhase    = "terminable"
-	ProvisionerDrainingPhase      = "draining"
+	KarpenterFinalizer = "karpenter.sh/termination"
 )
 
 // Provisioner is the Schema for the Provisioners API

@@ -31,6 +31,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
+
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
