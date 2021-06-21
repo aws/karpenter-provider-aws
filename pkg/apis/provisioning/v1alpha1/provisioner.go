@@ -138,7 +138,7 @@ type ProvisionerList struct {
 }
 
 func (c *Constraints) WithLabel(key string, value string) *Constraints {
-	c.Labels[key] = value
+	c.Labels = functional.UnionStringMaps(c.Labels, map[string]string{key: value})
 	return c
 }
 
