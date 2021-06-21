@@ -17,6 +17,7 @@ package allocation
 import (
 	"context"
 	"fmt"
+
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
@@ -36,10 +37,13 @@ type Constraints struct {
 // each group can be deployed together on the same node, or separately on
 // multiple nodes. These groups map to scheduling properties like taints/labels.
 func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provisioner, pods []*v1.Pod) ([]*packing.Constraints, error) {
-	// Groups uniqueness is tracked by hash(NodeConstraints)
+	// Groups uniqueness is tracked by hash(Constraints)
 	groups := map[uint64]*packing.Constraints{}
 	for _, pod := range pods {
-		constraints := provisioner.ConstraintsWithOverrides(pod)
+		constraints := provisioner.Spec.Constraints.
+			WithLabel(v1alpha1.ProvisionerNameLabelKey, provisioner.GetName()).
+			WithLabel(v1alpha1.ProvisionerNamespaceLabelKey, provisioner.GetNamespace()).
+			WithOverrides(pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)

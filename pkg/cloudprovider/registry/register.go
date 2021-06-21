@@ -20,7 +20,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"knative.dev/pkg/apis"
 )
 
 func NewCloudProvider(options cloudprovider.Options) cloudprovider.CloudProvider {
@@ -63,7 +62,5 @@ func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 	for operatingSystem := range operatingSystems {
 		v1alpha1.SupportedOperatingSystems = append(v1alpha1.SupportedOperatingSystems, operatingSystem)
 	}
-	v1alpha1.ValidationHook = func(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
-		return cloudProvider.Validate(ctx, spec)
-	}
+	v1alpha1.ConstraintsValidationHook = cloudProvider.Validate
 }

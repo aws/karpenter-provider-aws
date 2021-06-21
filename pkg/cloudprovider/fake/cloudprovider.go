@@ -22,6 +22,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -35,6 +36,16 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provis
 	packedNodes := []*cloudprovider.PackedNode{}
 	for _, packing := range packings {
 		name := strings.ToLower(randomdata.SillyName())
+		// Pick first instance type option
+		instance := packing.InstanceTypeOptions[0]
+		// Pick first zone
+		zones := instance.Zones()
+		if len(packing.Constraints.Zones) != 0 {
+			zones = functional.IntersectStringSlice(packing.Constraints.Zones, instance.Zones())
+		}
+		zone := zones[0]
+
+		// Create instance
 		packedNodes = append(packedNodes, &cloudprovider.PackedNode{
 			Node: &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
@@ -42,14 +53,18 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provis
 					Labels: packing.Constraints.Labels,
 				},
 				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("fake:///%s", name),
+					ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
 					Taints:     packing.Constraints.Taints,
 				},
 				Status: v1.NodeStatus{
+					NodeInfo: v1.NodeSystemInfo{
+						Architecture:    instance.Architectures()[0],
+						OperatingSystem: instance.OperatingSystems()[0],
+					},
 					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *packing.InstanceTypeOptions[0].Pods(),
-						v1.ResourceCPU:    *packing.InstanceTypeOptions[0].CPU(),
-						v1.ResourceMemory: *packing.InstanceTypeOptions[0].Memory(),
+						v1.ResourcePods:   *instance.Pods(),
+						v1.ResourceCPU:    *instance.CPU(),
+						v1.ResourceMemory: *instance.Memory(),
 					},
 				},
 			},
@@ -87,10 +102,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	}, nil
 }
 
-func (c *CloudProvider) Validate(ctx context.Context, spec *v1alpha1.ProvisionerSpec) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha1.Constraints) *apis.FieldError {
 	return nil
 }
 
-func (c *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
+func (c *CloudProvider) Terminate(context.Context, []*v1.Node) error {
 	return nil
 }

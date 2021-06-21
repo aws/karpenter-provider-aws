@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
@@ -37,32 +38,67 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (s *SubnetProvider) GetZonalSubnets(ctx context.Context, clusterName string) (map[string][]*ec2.Subnet, error) {
-	if zonalSubnets, ok := s.cache.Get(clusterName); ok {
-		return zonalSubnets.(map[string][]*ec2.Subnet), nil
-	}
-	zonalSubnets, err := s.getZonalSubnets(ctx, clusterName)
+func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisioner, constraints *Constraints) ([]*ec2.Subnet, error) {
+	// 1. Get all viable subnets for this provisioner
+	subnets, err := s.getSubnets(ctx, provisioner)
 	if err != nil {
 		return nil, err
 	}
-	s.cache.Set(clusterName, zonalSubnets, CacheTTL)
-	zap.S().Debugf("Successfully discovered subnets in %d zones for cluster %s", len(zonalSubnets), clusterName)
-	return zonalSubnets, nil
+	// 2. Filter by subnet name if constrained
+	if name := constraints.GetSubnetName(); name != nil {
+		subnets = filter(byName(aws.StringValue(name)), subnets)
+	}
+	// 3. Filter by subnet tag key if constrained
+	if tagKey := constraints.GetSubnetTagKey(); tagKey != nil {
+		subnets = filter(byTagKey(*tagKey), subnets)
+	}
+	return subnets, nil
 }
 
-func (s *SubnetProvider) getZonalSubnets(ctx context.Context, clusterName string) (map[string][]*ec2.Subnet, error) {
-	describeSubnetOutput, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
-		Filters: []*ec2.Filter{{
-			Name:   aws.String("tag-key"),
-			Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
-		}},
-	})
+func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*ec2.Subnet, error) {
+	if subnets, ok := s.cache.Get(provisioner.Spec.Cluster.Name); ok {
+		return subnets.([]*ec2.Subnet), nil
+	}
+	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: []*ec2.Filter{{
+		Name:   aws.String("tag-key"), // Subnets must be tagged for the cluster
+		Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, provisioner.Spec.Cluster.Name))},
+	}}})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
-	zonalSubnetMap := map[string][]*ec2.Subnet{}
-	for _, subnet := range describeSubnetOutput.Subnets {
-		zonalSubnetMap[*subnet.AvailabilityZone] = append(zonalSubnetMap[*subnet.AvailabilityZone], subnet)
+	zap.S().Debugf("Successfully discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
+	s.cache.Set(provisioner.Spec.Cluster.Name, output.Subnets, CacheTTL)
+	return output.Subnets, nil
+}
+
+func filter(predicate func(*ec2.Subnet) bool, subnets []*ec2.Subnet) []*ec2.Subnet {
+	result := []*ec2.Subnet{}
+	for _, subnet := range subnets {
+		if predicate(subnet) {
+			result = append(result, subnet)
+		}
 	}
-	return zonalSubnetMap, nil
+	return result
+}
+
+func byName(name string) func(*ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool {
+		for _, tag := range subnet.Tags {
+			if aws.StringValue(tag.Key) == "Name" {
+				return aws.StringValue(tag.Value) == name
+			}
+		}
+		return false
+	}
+}
+
+func byTagKey(tagKey string) func(*ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool {
+		for _, tag := range subnet.Tags {
+			if aws.StringValue(tag.Key) == tagKey {
+				return true
+			}
+		}
+		return false
+	}
 }

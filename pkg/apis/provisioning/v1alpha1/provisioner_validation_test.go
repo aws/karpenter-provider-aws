@@ -65,22 +65,30 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
-	It("should fail for restricted labels", func() {
-		for _, label := range []string{
-			ArchitectureLabelKey,
-			OperatingSystemLabelKey,
-			ProvisionerNameLabelKey,
-			ProvisionerNamespaceLabelKey,
-			ProvisionerPhaseLabel,
-			ProvisionerTTLKey,
-			ZoneLabelKey,
-			InstanceTypeLabelKey,
-		} {
-			provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
+	Context("Labels", func() {
+		It("should fail for invalid label keys", func() {
+			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		}
+		})
+		It("should fail for invalid label values", func() {
+			provisioner.Spec.Labels = map[string]string{randomdata.SillyName(): "/ is not allowed"}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for restricted labels", func() {
+			for _, label := range []string{
+				ArchitectureLabelKey,
+				OperatingSystemLabelKey,
+				ProvisionerNameLabelKey,
+				ProvisionerNamespaceLabelKey,
+				ProvisionerPhaseLabel,
+				ZoneLabelKey,
+				InstanceTypeLabelKey,
+			} {
+				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
 	})
-
 	Context("Zones", func() {
 		SupportedZones = append(SupportedZones, "test-zone-1")
 		It("should succeed if unspecified", func() {

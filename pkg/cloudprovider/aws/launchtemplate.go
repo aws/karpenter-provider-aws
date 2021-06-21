@@ -101,7 +101,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha1.
 		return nil, fmt.Errorf("hashing launch template, %w", err)
 	}
 
-	result := &LaunchTemplate{Version: aws.String(defaultLaunchTemplateVersion)}
+	result := &LaunchTemplate{Version: aws.String(DefaultLaunchTemplateVersion)}
 	if cached, ok := p.cache.Get(fmt.Sprint(key)); ok {
 		result.Id = cached.(*ec2.LaunchTemplate).LaunchTemplateId
 		return result, nil

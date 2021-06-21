@@ -90,7 +90,7 @@ var _ = Describe("Reallocation", func() {
 			})
 			ExpectCreatedWithStatus(env.Client, node)
 			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyDeleted(env.Client, node)
+			ExpectNotFound(env.Client, node)
 		})
 	})
 })
