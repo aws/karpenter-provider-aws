@@ -81,7 +81,6 @@ var _ = Describe("Validation", func() {
 				ProvisionerNameLabelKey,
 				ProvisionerNamespaceLabelKey,
 				ProvisionerPhaseLabel,
-				ProvisionerTTLKey,
 				ZoneLabelKey,
 				InstanceTypeLabelKey,
 			} {

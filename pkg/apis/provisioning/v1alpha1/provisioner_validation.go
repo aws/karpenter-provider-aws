@@ -53,18 +53,18 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 
 func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		s.Cluster.validate(ctx).ViaField("cluster"),
-		// This validation is on the ProvisionerSpec despire the fact that
+		s.Cluster.validate().ViaField("cluster"),
+		// This validation is on the ProvisionerSpec despite the fact that
 		// labels are a property of Constraints. This is necessary because
 		// validation is applied to constraints that include pod overrides.
 		// These labels are restricted when creating provisioners, but are not
 		// restricted for pods since they're necessary to override constraints.
-		s.validateRestrictedLabels(ctx),
+		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
 }
 
-func (s *ProvisionerSpec) validateRestrictedLabels(ctx context.Context) (errs *apis.FieldError) {
+func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	for key := range s.Labels {
 		if functional.ContainsString(RestrictedLabels, key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
@@ -73,7 +73,7 @@ func (s *ProvisionerSpec) validateRestrictedLabels(ctx context.Context) (errs *a
 	return errs
 }
 
-func (s *ClusterSpec) validate(ctx context.Context) (errs *apis.FieldError) {
+func (s *ClusterSpec) validate() (errs *apis.FieldError) {
 	if s == nil {
 		return errs.Also(apis.ErrMissingField())
 	}
@@ -96,11 +96,11 @@ func (s *ClusterSpec) validate(ctx context.Context) (errs *apis.FieldError) {
 // be ignored for provisioning.
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	errs = errs.Also(
-		c.validateLabels(ctx),
-		c.validateArchitecture(ctx),
-		c.validateOperatingSystem(ctx),
-		c.validateZones(ctx),
-		c.validateInstanceTypes(ctx),
+		c.validateLabels(),
+		c.validateArchitecture(),
+		c.validateOperatingSystem(),
+		c.validateZones(),
+		c.validateInstanceTypes(),
 	)
 	if ConstraintsValidationHook != nil {
 		errs = errs.Also(ConstraintsValidationHook(ctx, c))
@@ -108,7 +108,7 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Constraints) validateLabels(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 	for key, value := range c.Labels {
 		for _, err := range validation.IsQualifiedName(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err))
@@ -120,7 +120,7 @@ func (c *Constraints) validateLabels(ctx context.Context) (errs *apis.FieldError
 	return errs
 }
 
-func (c *Constraints) validateArchitecture(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateArchitecture() (errs *apis.FieldError) {
 	if c.Architecture == nil {
 		return nil
 	}
@@ -130,7 +130,7 @@ func (c *Constraints) validateArchitecture(ctx context.Context) (errs *apis.Fiel
 	return errs
 }
 
-func (c *Constraints) validateOperatingSystem(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateOperatingSystem() (errs *apis.FieldError) {
 	if c.OperatingSystem == nil {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (c *Constraints) validateOperatingSystem(ctx context.Context) (errs *apis.F
 	return errs
 }
 
-func (c *Constraints) validateZones(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateZones() (errs *apis.FieldError) {
 	for i, zone := range c.Zones {
 		if !functional.ContainsString(SupportedZones, zone) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", zone, SupportedZones), "zones", i))
@@ -149,7 +149,7 @@ func (c *Constraints) validateZones(ctx context.Context) (errs *apis.FieldError)
 	return errs
 }
 
-func (c *Constraints) validateInstanceTypes(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateInstanceTypes() (errs *apis.FieldError) {
 	for i, instanceType := range c.InstanceTypes {
 		if !functional.ContainsString(SupportedInstanceTypes, instanceType) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", instanceType, SupportedInstanceTypes), "instanceTypes", i))

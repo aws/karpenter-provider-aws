@@ -39,9 +39,9 @@ type PodOptions struct {
 
 // Pod creates a test pod with defaults that can be overriden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
-func Pod(optionss ...PodOptions) *v1.Pod {
+func Pod(overrides ...PodOptions) *v1.Pod {
 	options := PodOptions{}
-	for _, opts := range optionss {
+	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
 		}
