@@ -42,12 +42,10 @@ spec:
           ports:
             - name: webhook
               containerPort: 8443
-            - name: health-probe
-              containerPort: 8081
           livenessProbe:
             httpGet:
-              path: /healthz
-              port: 8081
+              scheme: HTTPS
+              port: 8443
           env:
             - name: SYSTEM_NAMESPACE
               valueFrom:
