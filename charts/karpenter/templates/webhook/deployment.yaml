@@ -42,8 +42,6 @@ spec:
           ports:
             - name: webhook
               containerPort: 8443
-            - name: health-probe
-              containerPort: 8081
           livenessProbe:
             httpGet:
               scheme: HTTPS
