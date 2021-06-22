@@ -95,15 +95,15 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).To(HaveKeyWithValue(v1alpha1.ProvisionerPhaseLabel, v1alpha1.ProvisionerUnderutilizedPhase))
+			Expect(updatedNode.Labels).To(HaveKey(v1alpha1.ProvisionerUnderutilizedLabelKey))
 			Expect(updatedNode.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
 		It("should remove labels from utilized nodes", func() {
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-					v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
-					v1alpha1.ProvisionerPhaseLabel:        v1alpha1.ProvisionerUnderutilizedPhase,
+					v1alpha1.ProvisionerNameLabelKey:          provisioner.Name,
+					v1alpha1.ProvisionerNamespaceLabelKey:     provisioner.Namespace,
+					v1alpha1.ProvisionerUnderutilizedLabelKey: "true",
 				},
 				Annotations: map[string]string{
 					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
@@ -124,7 +124,7 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha1.ProvisionerPhaseLabel))
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha1.ProvisionerUnderutilizedLabelKey))
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha1.ProvisionerTTLKey))
 		})
 	})

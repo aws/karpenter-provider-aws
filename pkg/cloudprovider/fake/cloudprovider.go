@@ -106,6 +106,6 @@ func (c *CloudProvider) Validate(context.Context, *v1alpha1.Constraints) *apis.F
 	return nil
 }
 
-func (c *CloudProvider) Terminate(context.Context, []*v1.Node) error {
+func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }

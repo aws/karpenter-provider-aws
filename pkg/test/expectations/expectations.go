@@ -22,10 +22,12 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"github.com/awslabs/karpenter/pkg/utils/log"
+
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -74,9 +76,19 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	}
 }
 
+func ExpectDeletedNode(c client.Client, n *v1.Node) {
+	persisted := n.DeepCopy()
+	n.Finalizers = []string{}
+	Expect(c.Patch(context.Background(), n, client.MergeFrom(persisted))).To(Succeed())
+	ExpectDeleted(c, n)
+}
+
 func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Expect(c.Delete(context.Background(), object)).To(Succeed())
+		Expect(c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+	}
+	for _, object := range objects {
+		ExpectNotFound(c, object)
 	}
 }
 
@@ -110,7 +122,7 @@ func ExpectCleanedUp(c client.Client) {
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
 	for _, node := range nodes.Items {
-		ExpectDeleted(c, &node)
+		ExpectDeletedNode(c, &node)
 	}
 	provisioners := v1alpha1.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())

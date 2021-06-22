@@ -154,8 +154,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	return c.instanceTypeProvider.Get(ctx)
 }
 
-func (c *CloudProvider) Terminate(ctx context.Context, nodes []*v1.Node) error {
-	return c.instanceProvider.Terminate(ctx, nodes)
+func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	return c.instanceProvider.Terminate(ctx, node)
 }
 
 // Validate cloud provider specific components of the cluster spec

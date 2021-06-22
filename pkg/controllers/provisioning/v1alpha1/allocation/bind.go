@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +33,9 @@ type Binder struct {
 }
 
 func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
-	// 1. Mark NodeReady=Unknown
+	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
+	node.Finalizers = append(node.Finalizers, v1alpha1.KarpenterFinalizer)
+	// 2. Mark NodeReady=Unknown
 	// Unfortunately, this detail is necessary to prevent kube-scheduler from
 	// scheduling pods to nodes before they're created. Node Lifecycle
 	// Controller will attach a Effect=NoSchedule taint in response to this
@@ -44,7 +47,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 		Type:   v1.NodeReady,
 		Status: v1.ConditionUnknown,
 	}}
-	// 2. Idempotently create a node. In rare cases, nodes can come online and
+	// 3. Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
@@ -55,7 +58,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 		}
 	}
 
-	// 3. Bind pods
+	// 4. Bind pods
 	for _, pod := range pods {
 		if err := b.bind(ctx, node, pod); err != nil {
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())

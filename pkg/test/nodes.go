@@ -29,6 +29,7 @@ type NodeOptions struct {
 	ReadyStatus   v1.ConditionStatus
 	Unschedulable bool
 	Allocatable   v1.ResourceList
+	Finalizers    []string
 }
 
 func NodeWith(options NodeOptions) *v1.Node {
@@ -44,12 +45,16 @@ func NodeWith(options NodeOptions) *v1.Node {
 	if options.Annotations == nil {
 		options.Annotations = map[string]string{}
 	}
+	if options.Finalizers == nil {
+		options.Finalizers = []string{}
+	}
 
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        options.Name,
 			Labels:      options.Labels,
 			Annotations: options.Annotations,
+			Finalizers:  options.Finalizers,
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,

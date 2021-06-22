@@ -31,6 +31,17 @@ func UnionStringMaps(maps ...map[string]string) map[string]string {
 	return result
 }
 
+func StringSliceWithout(vals []string, remove string) []string {
+	without := []string{}
+	for _, val := range vals {
+		if val == remove {
+			continue
+		}
+		without = append(without, val)
+	}
+	return without
+}
+
 // IntersectStringSlice takes the intersection of all string slices
 func IntersectStringSlice(slices ...[]string) []string {
 	// count occurrences

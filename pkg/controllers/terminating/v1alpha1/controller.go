@@ -19,7 +19,9 @@ import (
 	"fmt"
 	"time"
 
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -63,18 +65,29 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 	}
 }
 
-// Reconcile executes a reallocation control loop for the resource
+// Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	// 1. Cordon terminable nodes
-	if err := c.terminator.cordonNodes(ctx); err != nil {
-		return reconcile.Result{}, fmt.Errorf("cordoning terminable nodes, %w", err)
+	node := object.(*v1.Node)
+	// 1. Check if node is terminable
+	if node.DeletionTimestamp == nil || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
+		return reconcile.Result{}, nil
 	}
-
-	// 2. Drain and delete nodes
-	if err := c.terminator.terminateNodes(ctx); err != nil {
-		return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
+	// 2. Cordon node
+	if err := c.terminator.cordonNode(ctx, node); err != nil {
+		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
-	return reconcile.Result{}, nil
+	// 3. Drain node
+	drained, err := c.terminator.drainNode(ctx, node)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
+	}
+	// 4. If fully drained, terminate the node
+	if drained {
+		if err := c.terminator.terminateNode(ctx, node); err != nil {
+			return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
+		}
+	}
+	return reconcile.Result{Requeue: !drained}, nil
 }
 
 func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {

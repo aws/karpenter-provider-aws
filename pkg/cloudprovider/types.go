@@ -33,8 +33,8 @@ type CloudProvider interface {
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// Validate is a hook for additional constraint validation logic specific to the cloud provider
 	Validate(context.Context, *v1alpha1.Constraints) *apis.FieldError
-	// Terminate nodes in cloudprovider
-	Terminate(context.Context, []*v1.Node) error
+	// Terminate node in cloudprovider
+	Terminate(context.Context, *v1.Node) error
 }
 
 // Packing is a binpacking solution of equivalently schedulable pods to a set of
