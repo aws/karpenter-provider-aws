@@ -113,7 +113,7 @@ spec:
               cpu: 1
 EOF
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=karpenter -ojson | jq -r ".items[0].metadata.name")
+kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -ojson | jq -r ".items[0].metadata.name")
 ```
 
 ### Cleanup
