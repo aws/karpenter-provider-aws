@@ -52,6 +52,10 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisio
 	if tagKey := constraints.GetSubnetTagKey(); tagKey != nil {
 		subnets = filter(byTagKey(*tagKey), subnets)
 	}
+	// 4. Filter by zones if constrained
+	if len(constraints.Zones) != 0 {
+		subnets = filter(byZones(constraints.Zones), subnets)
+	}
 	return subnets, nil
 }
 
@@ -96,6 +100,17 @@ func byTagKey(tagKey string) func(*ec2.Subnet) bool {
 	return func(subnet *ec2.Subnet) bool {
 		for _, tag := range subnet.Tags {
 			if aws.StringValue(tag.Key) == tagKey {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func byZones(zones []string) func(*ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool {
+		for _, zone := range zones {
+			if aws.StringValue(subnet.AvailabilityZone) == zone {
 				return true
 			}
 		}
