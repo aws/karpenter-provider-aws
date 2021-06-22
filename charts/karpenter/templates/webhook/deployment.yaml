@@ -61,10 +61,25 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.webhook.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- if .Values.webhook.affinity }}
+          {{- toYaml .Values.webhook.affinity | nindent 8 }}
+        {{- else }}
+        nodeAffinity: 
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: provisioning.karpenter.sh/name
+                operator: DoesNotExist
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+        {{- end }}
       {{- with .Values.webhook.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
