@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -eu -o pipefail
 
@@ -7,14 +7,17 @@ trap "rm -rf $TEMP_DIR" EXIT
 
 main() {
     tools
-    kubebuilder
+    if ! command -v kubebuilder &>/dev/null; then
+        install_kubebuilder
+    fi
 }
 
 tools() {
-    cd tools; GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
+    cd tools
+    GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
 }
 
-kubebuilder() {
+install_kubebuilder() {
     os=$(go env GOOS)
     arch=$(go env GOARCH)
     curl -L "https://go.kubebuilder.io/dl/2.3.1/${os}/${arch}" | tar -xz -C $TEMP_DIR

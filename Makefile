@@ -73,7 +73,7 @@ publish: ## Generate release manifests and publish a versioned container image.
 helm:  ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 
-docs: ## Generate Docs
+docs: toolchain ## Generate Docs
 	gen-crd-api-reference-docs \
 		-api-dir ./pkg/apis/provisioning/v1alpha1 \
 		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
