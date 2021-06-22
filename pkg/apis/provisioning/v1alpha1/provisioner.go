@@ -100,9 +100,9 @@ var (
 	OperatingSystemLabelKey = "kubernetes.io/os"
 
 	// Reserved labels
-	ProvisionerNameLabelKey      = SchemeGroupVersion.Group + "/name"
-	ProvisionerNamespaceLabelKey = SchemeGroupVersion.Group + "/namespace"
-	ProvisionerUnderutilizedKey  = SchemeGroupVersion.Group + "/underutilized"
+	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/name"
+	ProvisionerNamespaceLabelKey     = SchemeGroupVersion.Group + "/namespace"
+	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
 
 	// Reserved annotations
 	ProvisionerTTLKey = SchemeGroupVersion.Group + "/ttl"

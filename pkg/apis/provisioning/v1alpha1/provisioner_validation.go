@@ -30,7 +30,7 @@ var (
 		OperatingSystemLabelKey,
 		ProvisionerNameLabelKey,
 		ProvisionerNamespaceLabelKey,
-		ProvisionerUnderutilizedKey,
+		ProvisionerUnderutilizedLabelKey,
 		ProvisionerTTLKey,
 		ZoneLabelKey,
 		InstanceTypeLabelKey,

@@ -77,7 +77,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		persisted := node.DeepCopy()
 		node.Labels = functional.UnionStringMaps(
 			node.Labels,
-			map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"},
+			map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"},
 		)
 		node.Annotations = functional.UnionStringMaps(
 			node.Annotations,
@@ -94,7 +94,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 // clearUnderutilized removes the TTL on underutilized nodes if there is sufficient resource usage
 func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing labeled underutilized nodes, %w", err)
 	}
@@ -108,7 +108,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 
 		if !utilsnode.IsUnderutilized(node, pods) {
 			persisted := node.DeepCopy()
-			delete(node.Labels, v1alpha1.ProvisionerUnderutilizedKey)
+			delete(node.Labels, v1alpha1.ProvisionerUnderutilizedLabelKey)
 			delete(node.Annotations, v1alpha1.ProvisionerTTLKey)
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				zap.S().Debugf("Could not remove underutilized labels on node %s, %w", node.Name, err)
@@ -123,7 +123,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 // terminateExpired checks if a node is past its ttl and marks it
 func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedKey: "true"})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}

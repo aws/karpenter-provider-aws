@@ -80,7 +80,7 @@ var _ = Describe("Validation", func() {
 				OperatingSystemLabelKey,
 				ProvisionerNameLabelKey,
 				ProvisionerNamespaceLabelKey,
-				ProvisionerUnderutilizedKey,
+				ProvisionerUnderutilizedLabelKey,
 				ZoneLabelKey,
 				InstanceTypeLabelKey,
 			} {
