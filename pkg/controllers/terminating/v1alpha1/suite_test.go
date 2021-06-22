@@ -15,6 +15,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"testing"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
@@ -54,7 +55,9 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reallocation", func() {
+	var ctx context.Context
 	BeforeEach(func() {
+		ctx = context.Background()
 	})
 
 	AfterEach(func() {
@@ -71,7 +74,8 @@ var _ = Describe("Reallocation", func() {
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectDeletedNode(env.Client, node)
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			ExpectNotFound(env.Client, node)
 		})
 	})
 })
