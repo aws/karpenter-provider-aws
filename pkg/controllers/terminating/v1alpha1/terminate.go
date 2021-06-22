@@ -40,6 +40,9 @@ type Terminator struct {
 
 // cordonNode cordons a node
 func (t *Terminator) cordonNode(ctx context.Context, node *v1.Node) error {
+	if node.Spec.Unschedulable {
+		return nil
+	}
 	persisted := node.DeepCopy()
 	node.Spec.Unschedulable = true
 	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
@@ -82,7 +85,7 @@ func (t *Terminator) terminateNode(ctx context.Context, node *v1.Node) error {
 	zap.S().Infof("Terminated instance %s", node.Name)
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
-	node.Finalizers = functional.StringsWithout(node.Finalizers, provisioning.KarpenterFinalizer)
+	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.KarpenterFinalizer)
 	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}

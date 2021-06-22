@@ -26,6 +26,7 @@ import (
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type InstanceProvider struct {
@@ -113,13 +114,11 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
-	_, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{id},
-	})
-	if err != nil {
+	}); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
 	}
-
 	return nil
 }
 

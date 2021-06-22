@@ -65,7 +65,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 	}
 }
 
-// Reconcile executes a reallocation control loop for the resource
+// Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	node := object.(*v1.Node)
 	// 1. Check if node is terminable

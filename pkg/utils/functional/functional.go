@@ -31,14 +31,15 @@ func UnionStringMaps(maps ...map[string]string) map[string]string {
 	return result
 }
 
-func StringsWithout(vals []string, remove string) []string {
-	for index, val := range vals {
+func StringSliceWithout(vals []string, remove string) []string {
+	without := []string{}
+	for _, val := range vals {
 		if val == remove {
-			vals[index] = vals[len(vals)-1]
-			return vals[:len(vals)-1]
+			continue
 		}
+		without = append(without, val)
 	}
-	return vals
+	return without
 }
 
 // IntersectStringSlice takes the intersection of all string slices
