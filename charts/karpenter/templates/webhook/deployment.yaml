@@ -69,8 +69,6 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: provisioning.karpenter.sh/name
-                operator: DoesNotExist
               - key: kubernetes.io/arch
                 operator: In
                 values:
