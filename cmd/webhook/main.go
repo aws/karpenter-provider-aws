@@ -39,7 +39,7 @@ var (
 )
 
 type Options struct {
-	Port            int
+	Port int
 }
 
 func main() {

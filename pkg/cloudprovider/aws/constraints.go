@@ -101,7 +101,7 @@ func (c *Constraints) GetSubnetTagKey() *string {
 	return aws.String(subnetTag)
 }
 
-func (c *Constraints) Validate(ctx context.Context)  (errs *apis.FieldError) {
+func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		c.validateAllowedLabels(ctx),
 		c.validateCapacityType(ctx),

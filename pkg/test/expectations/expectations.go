@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -93,7 +94,7 @@ func ExpectEventuallyReconciled(c client.Client, provisioner *v1alpha1.Provision
 	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
 	Eventually(func() bool {
 		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
-		return !provisioner.StatusConditions().GetCondition(v1alpha1.Active).IsUnknown()
+		return !provisioner.StatusConditions().GetCondition(conditions.Active).IsUnknown()
 	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 		return fmt.Sprintf("resources active condition was never updated\n%s", log.Pretty(provisioner))
 	})

@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/ptr"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -71,8 +70,7 @@ var _ = Describe("Reallocation", func() {
 				Namespace: "default",
 			},
 			Spec: v1alpha1.ProvisionerSpec{
-				Cluster:    &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-				TTLSeconds: ptr.Int32(300),
+				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			},
 		}
 		ctx = context.Background()
@@ -83,8 +81,7 @@ var _ = Describe("Reallocation", func() {
 	})
 
 	Context("Reconciliation", func() {
-		It("should label nodes as underutilized", func() {
-
+		It("should label nodes as underutilized and add TTL", func() {
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,

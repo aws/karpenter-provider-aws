@@ -74,7 +74,7 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 				v1.ResourceMemory: resource.MustParse("384Gi"),
 			},
 			NodeInfo: v1.NodeSystemInfo{
-				Architecture: aws.StringValue(instance.Architecture),
+				Architecture:    aws.StringValue(instance.Architecture),
 				OperatingSystem: v1alpha1.OperatingSystemLinux,
 			},
 		},
