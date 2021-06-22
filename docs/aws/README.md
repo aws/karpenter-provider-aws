@@ -1,4 +1,3 @@
-
 # AWS
 This guide will provide a complete Karpenter installation for AWS. These steps are opinionated and may need to be adapted for your use case.
 ## Environment
@@ -36,9 +35,11 @@ eksctl utils associate-iam-oidc-provider \
 --approve
 
 # Creates IAM resources used by Karpenter
+LATEST_KARPENTER_VERSION=$(curl \
+  https://api.github.com/repos/awslabs/karpenter/releases/latest | jq -r '.tag_name')
 TEMPOUT=$(mktemp)
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/v0.2.4/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
-| aws cloudformation deploy \
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENTER_VERSION}"/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
+&& aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
   --capabilities CAPABILITY_NAMED_IAM \
