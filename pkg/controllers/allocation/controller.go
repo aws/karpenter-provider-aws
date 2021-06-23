@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
@@ -41,7 +41,7 @@ type Controller struct {
 
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
-	return &v1alpha1.Provisioner{}
+	return &v1alpha2.Provisioner{}
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -65,7 +65,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	provisioner := object.(*v1alpha1.Provisioner)
+	provisioner := object.(*v1alpha2.Provisioner)
 	// 1. Filter pods
 	pods, err := c.filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {

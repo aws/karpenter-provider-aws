@@ -12,20 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"context"
-
-	"knative.dev/pkg/ptr"
 )
 
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-	p.Spec.SetDefaults(ctx)
-}
+// SetDefaults for the provisioner
+func (p *Provisioner) SetDefaults(ctx context.Context) {}
 
-func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {
-	if s.TTLSeconds == nil {
-		s.TTLSeconds = ptr.Int32(300)
-	}
-}
+// SetDefaults for the provisioner, cascading to all subspecs
+func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}

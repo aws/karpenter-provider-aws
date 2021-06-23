@@ -20,7 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,13 +36,13 @@ type Constraints struct {
 // Group separates pods into a set of equivalent scheduling groups. All pods in
 // each group can be deployed together on the same node, or separately on
 // multiple nodes. These groups map to scheduling properties like taints/labels.
-func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha1.Provisioner, pods []*v1.Pod) ([]*packing.Constraints, error) {
+func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha2.Provisioner, pods []*v1.Pod) ([]*packing.Constraints, error) {
 	// Groups uniqueness is tracked by hash(Constraints)
 	groups := map[uint64]*packing.Constraints{}
 	for _, pod := range pods {
 		constraints := provisioner.Spec.Constraints.
-			WithLabel(v1alpha1.ProvisionerNameLabelKey, provisioner.GetName()).
-			WithLabel(v1alpha1.ProvisionerNamespaceLabelKey, provisioner.GetNamespace()).
+			WithLabel(v1alpha2.ProvisionerNameLabelKey, provisioner.GetName()).
+			WithLabel(v1alpha2.ProvisionerNamespaceLabelKey, provisioner.GetNamespace()).
 			WithOverrides(pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {

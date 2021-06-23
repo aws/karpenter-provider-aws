@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 )
 
 // EC2Behavior must be reset between tests otherwise tests will
@@ -220,7 +220,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
 				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{v1alpha1.ArchitectureArm64}),
+					SupportedArchitectures: aws.StringSlice([]string{v1alpha2.ArchitectureArm64}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
 					DefaultVCpus: aws.Int64(2),
