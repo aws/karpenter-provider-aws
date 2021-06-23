@@ -32,7 +32,7 @@ Note: If you have a cluster with version 1.18 or below you can skip this step.
 More [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ```bash
-export SUBNET_IDS=$(aws cloudformation describe-stacks \
+SUBNET_IDS=$(aws cloudformation describe-stacks \
     --stack-name eksctl-${CLUSTER_NAME}-cluster \
     --query 'Stacks[].Outputs[?OutputKey==`SubnetsPrivate`].OutputValue' \
     --output text)
@@ -49,18 +49,17 @@ For production use, please review and restrict these permissions for your use ca
 Note: For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
 
 ```bash
-export OIDC_PROVIDER=$(aws eks describe-cluster \
+OIDC_PROVIDER=$(aws eks describe-cluster \
     --name ${CLUSTER_NAME} \
     --query 'cluster.identity.oidc.issuer' \
-    --output text \
-    | cut -d'/' -f3-)
+    --output text)
 
 # Creates IAM resources used by Karpenter
 aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=${OIDC_PROVIDER}
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=${OIDC_PROVIDER/https:\/\//}
 
 # Adds the karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<-EOM
