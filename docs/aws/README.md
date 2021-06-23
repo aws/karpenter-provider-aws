@@ -53,7 +53,7 @@ export OIDC_PROVIDER=$(aws eks describe-cluster \
     --name ${CLUSTER_NAME} \
     --query 'cluster.identity.oidc.issuer' \
     --output text \
-    | sed 's,https://,,')
+    | cut -d'/' -f3-)
 
 # Creates IAM resources used by Karpenter
 aws cloudformation deploy \
