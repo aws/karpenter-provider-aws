@@ -58,7 +58,7 @@ export OIDC_PROVIDER=$(aws eks describe-cluster \
 # Creates IAM resources used by Karpenter
 aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
-  --template-file  $(git rev-parse --show-toplevel)/docs/aws/karpenter.cloudformation.yaml \
+  --template-file ./docs/aws/karpenter.cloudformation.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=${OIDC_PROVIDER}
 
