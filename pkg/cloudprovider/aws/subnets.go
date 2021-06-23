@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
@@ -46,15 +47,15 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisio
 	}
 	// 2. Filter by subnet name if constrained
 	if name := constraints.GetSubnetName(); name != nil {
-		subnets = filter(byName(aws.StringValue(name)), subnets)
+		subnets = filterSubnets(subnets, withSubnetTags(predicates.HasNameTag(*name)))
 	}
 	// 3. Filter by subnet tag key if constrained
 	if tagKey := constraints.GetSubnetTagKey(); tagKey != nil {
-		subnets = filter(byTagKey(*tagKey), subnets)
+		subnets = filterSubnets(subnets, withSubnetTags(predicates.HasTagKey(*tagKey)))
 	}
 	// 4. Filter by zones if constrained
 	if len(constraints.Zones) != 0 {
-		subnets = filter(byZones(constraints.Zones), subnets)
+		subnets = filterSubnets(subnets, withSubnetZone(predicates.WithinStrings(constraints.Zones)))
 	}
 	return subnets, nil
 }
@@ -70,13 +71,12 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha1.P
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
-	zap.S().Debugf("Successfully discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
 	s.cache.Set(provisioner.Spec.Cluster.Name, output.Subnets, CacheTTL)
+	zap.S().Debugf("Successfully discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
 	return output.Subnets, nil
 }
 
-func filter(predicate func(*ec2.Subnet) bool, subnets []*ec2.Subnet) []*ec2.Subnet {
-	result := []*ec2.Subnet{}
+func filterSubnets(subnets []*ec2.Subnet, predicate func(subnet *ec2.Subnet) bool) (result []*ec2.Subnet) {
 	for _, subnet := range subnets {
 		if predicate(subnet) {
 			result = append(result, subnet)
@@ -85,35 +85,10 @@ func filter(predicate func(*ec2.Subnet) bool, subnets []*ec2.Subnet) []*ec2.Subn
 	return result
 }
 
-func byName(name string) func(*ec2.Subnet) bool {
-	return func(subnet *ec2.Subnet) bool {
-		for _, tag := range subnet.Tags {
-			if aws.StringValue(tag.Key) == "Name" {
-				return aws.StringValue(tag.Value) == name
-			}
-		}
-		return false
-	}
+func withSubnetTags(predicate func([]*ec2.Tag) bool) func(subnet *ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool { return predicate(subnet.Tags) }
 }
 
-func byTagKey(tagKey string) func(*ec2.Subnet) bool {
-	return func(subnet *ec2.Subnet) bool {
-		for _, tag := range subnet.Tags {
-			if aws.StringValue(tag.Key) == tagKey {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-func byZones(zones []string) func(*ec2.Subnet) bool {
-	return func(subnet *ec2.Subnet) bool {
-		for _, zone := range zones {
-			if aws.StringValue(subnet.AvailabilityZone) == zone {
-				return true
-			}
-		}
-		return false
-	}
+func withSubnetZone(predicate func(string) bool) func(subnet *ec2.Subnet) bool {
+	return func(subnet *ec2.Subnet) bool { return predicate(aws.StringValue(subnet.AvailabilityZone)) }
 }

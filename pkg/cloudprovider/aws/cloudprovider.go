@@ -28,7 +28,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
@@ -76,13 +75,11 @@ func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 	ec2api := ec2.New(sess)
 	return &CloudProvider{
 		nodeAPI: &NodeFactory{ec2api: ec2api},
-		launchTemplateProvider: &LaunchTemplateProvider{
-			ec2api:                ec2api,
-			cache:                 cache.New(CacheTTL, CacheCleanupInterval),
-			securityGroupProvider: NewSecurityGroupProvider(ec2api),
-			ssm:                   ssm.New(sess),
-			clientSet:             options.ClientSet,
-		},
+		launchTemplateProvider: NewLaunchTemplateProvider(
+			ec2api,
+			NewAMIProvider(ssm.New(sess), options.ClientSet),
+			NewSecurityGroupProvider(ec2api),
+		),
 		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
 		instanceProvider:     &InstanceProvider{ec2api: ec2api},

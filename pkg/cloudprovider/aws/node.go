@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +53,12 @@ func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.
 	nodes := map[string]*v1.Node{}
 	for _, reservation := range reservations {
 		for _, instance := range reservation.Instances {
+			zap.S().Debugf("Successfully launched instance: %s, type: %s, zone: %s, hostname: %s",
+				*instance.InstanceId,
+				*instance.InstanceType,
+				*instance.Placement.AvailabilityZone,
+				*instance.PrivateDnsName,
+			)
 			nodes[*instance.InstanceId] = n.nodeFrom(instance)
 		}
 	}
