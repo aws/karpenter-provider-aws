@@ -41,10 +41,10 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 1. Read Spec
 	resource := c.For()
 	if err := c.Get(ctx, req.NamespacedName, resource); err != nil {
-		if errors.IsNotFound(err) || errors.IsGone(err) {
+		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{Requeue: true}, err
+		return reconcile.Result{}, err
 	}
 	// 2. Copy object for merge patch base
 	persisted := resource.DeepCopyObject()
@@ -57,8 +57,7 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
 		apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor).MarkTrue(conditions.Active)
 	}
-
-	// 4. Reconcile
+	// 5. Reconcile
 	result, err := c.Controller.Reconcile(ctx, resource)
 	if err != nil {
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s",

@@ -108,7 +108,7 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}
 
-	// 4. Bind pods to nodes
+	// 5. Bind pods to nodes
 	for _, packedNode := range packedNodes {
 		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
 		if err := c.binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {

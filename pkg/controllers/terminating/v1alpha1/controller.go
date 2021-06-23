@@ -67,7 +67,6 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 }
 
 // Reconcile executes a termination control loop for the resource
-<<<<<<< HEAD
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	node := object.(*v1.Node)
 	// 1. Check if node is terminable
@@ -75,17 +74,17 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, nil
 	}
 	// 2. Cordon node
-	if err := c.terminator.cordonNode(ctx, node); err != nil {
+	if err := c.terminator.cordon(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
 	// 3. Drain node
-	drained, err := c.terminator.drainNode(ctx, node)
+	drained, err := c.terminator.drain(ctx, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
 	// 4. If fully drained, terminate the node
 	if drained {
-		if err := c.terminator.terminateNode(ctx, node); err != nil {
+		if err := c.terminator.terminate(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
 		}
 	}
@@ -101,17 +100,9 @@ func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.Wat
 				DeleteFunc: func(e event.DeleteEvent) bool { return false }, //no-op
 				UpdateFunc: func(e event.UpdateEvent) bool {
 					node := e.ObjectNew.(*v1.Node)
-					labels := node.GetLabels()
-					// Don't watch nodes not created by provisioners
-					if _, ok := labels[provisioning.ProvisionerNameLabelKey]; !ok {
-						return false
-					}
-					if _, ok := labels[provisioning.ProvisionerNamespaceLabelKey]; !ok {
-						return false
-					}
-					if phase, ok := labels[provisioning.ProvisionerPhaseLabel]; ok {
-						return phase != provisioning.ProvisionerUnderutilizedPhase &&
-							e.ObjectOld.GetResourceVersion() != e.ObjectNew.GetResourceVersion()
+					// Duplicated here to reduce the amount of reconcile calls
+					if node.DeletionTimestamp == nil || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
+						return e.ObjectOld.GetResourceVersion() != e.ObjectNew.GetResourceVersion()
 					}
 					return false
 				},

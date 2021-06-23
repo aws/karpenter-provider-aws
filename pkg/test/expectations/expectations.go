@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"github.com/awslabs/karpenter/pkg/utils/log"
@@ -83,15 +81,6 @@ func ExpectDeletedNode(c client.Client, n *v1.Node) {
 	n.Finalizers = []string{}
 	Expect(c.Patch(context.Background(), n, client.MergeFrom(persisted))).To(Succeed())
 	ExpectDeleted(c, n)
-}
-
-func ExpectEventuallyDeleted(c client.Client, object client.Object) {
-	Eventually(func() bool {
-		updated := &v1.Node{}
-		return errors.IsNotFound(c.Get(context.Background(), client.ObjectKey{Name: object.GetName(), Namespace: object.GetNamespace()}, updated))
-	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-		return fmt.Sprintf("expected %s/%s to be deleted, but it still exists", object.GetName(), object.GetNamespace())
-	})
 }
 
 func ExpectDeleted(c client.Client, objects ...client.Object) {
