@@ -28,7 +28,7 @@ eksctl create cluster \
 
 Tag the cluster subnets with the required tags for Karpenter auto discovery.
 
-Note: If you already have a cluster with version 1.19 or below you can skip this step.
+Note: If you have a cluster with version 1.18 or below you can skip this step.
 More [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ```bash
@@ -42,18 +42,11 @@ aws ec2 create-tags \
     --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
 ```
 
-For existing clusters you may need to add an OIDC provider for the cluster.
-We already added one with the `eksctl create cluster` command but it is safe to run again.
-
-```bash
-eksctl utils associate-iam-oidc-provider \
---cluster ${CLUSTER_NAME} \
---approve
-```
-
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
 We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions.
 For production use, please review and restrict these permissions for your use case.
+
+Note: For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
 
 ```bash
 export OIDC_PROVIDER=$(aws eks describe-cluster \
