@@ -79,7 +79,7 @@ EOM
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
 helm repo update
 # For additional values, see https://github.com/awslabs/karpenter/blob/main/charts/karpenter/values.yaml
-helm upgrade --install karpenter charts/karpenter --create-namespace --namespace karpenter \
+helm upgrade --install karpenter karpenter/karpenter --create-namespace --namespace karpenter \
   --set serviceAccount.annotations.'eks\.amazonaws\.com/role-arn'=arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole-${CLUSTER_NAME}
 ```
 
