@@ -9,7 +9,6 @@ CLOUD_PROVIDER=aws
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=$USER-karpenter-demo
 AWS_DEFAULT_REGION=us-west-2
-export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
@@ -102,8 +101,8 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data")
-    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint")
+    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data" --output json)
+    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
 EOF
 kubectl get provisioner default -oyaml
 ```
@@ -146,11 +145,9 @@ aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
     | grep -i karpenter \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
-unset AWS_DEFAULT_OUTPUT
 ```
 
 If you created a cluster during this process you also will need to delete the cluster.
 ```bash
 eksctl delete cluster --name ${CLUSTER_NAME}
 ```
-
