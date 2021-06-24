@@ -119,12 +119,18 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha1.
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
+	// 1. Read from cache
+	if launchTemplate, ok := p.cache.Get(name); ok {
+		return launchTemplate.(*ec2.LaunchTemplate), nil
+	}
+	// 2. Attempt to find an existing LT.
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
-	var launchTemplate *ec2.LaunchTemplate
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
+		// 3. Create LT if one doesn't exist
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
@@ -134,9 +140,10 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	} else if len(output.LaunchTemplates) != 1 {
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
-		zap.S().Debugf("Successfully discovered launch template %s", name)
+		zap.S().Debugf("Discovered launch template %s", name)
 		launchTemplate = output.LaunchTemplates[0]
 	}
+	// 4. Populate cache
 	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }

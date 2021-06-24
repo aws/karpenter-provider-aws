@@ -17,7 +17,7 @@ func HasNameTag(name string) func([]*ec2.Tag) bool {
 	}
 }
 
-// HasNameTag returns a func that returns true if tag exists with tagKey
+// HasTagKey returns a func that returns true if tag exists with tagKey
 func HasTagKey(tagKey string) func([]*ec2.Tag) bool {
 	return func(tags []*ec2.Tag) bool {
 		for _, tag := range tags {
