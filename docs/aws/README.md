@@ -1,38 +1,57 @@
 # AWS
-This guide will provide a complete Karpenter installation for AWS. These steps are opinionated and may need to be adapted for your use case.
+
+This guide will provide a complete Karpenter installation for AWS.
+These steps are opinionated and may need to be adapted for your use case.
+
 ## Environment
 ```bash
 CLOUD_PROVIDER=aws
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 CLUSTER_NAME=$USER-karpenter-demo
 AWS_DEFAULT_REGION=us-west-2
-export AWS_DEFAULT_OUTPUT=json
 ```
 
 ### Create a Cluster
-Note: If you already have a cluster with version 1.19 or above, you may need to manually tag your subnets for Karpenter to work [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
-If your cluster version is 1.18 or below, you can skip this step.
+Create an EKS cluster
 ```bash
 eksctl create cluster \
 --name ${CLUSTER_NAME} \
---version 1.18 \
---region ${AWS_DEFAULT_REGION} \
 --node-type m5.large \
 --nodes 1 \
 --nodes-min 1 \
 --nodes-max 10 \
---managed
+--managed \
+--with-oidc
+```
+
+Tag the cluster subnets with the required tags for Karpenter auto discovery.
+
+Note: If you have a cluster with version 1.18 or below you can skip this step.
+More [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
+
+```bash
+SUBNET_IDS=$(aws cloudformation describe-stacks \
+    --stack-name eksctl-${CLUSTER_NAME}-cluster \
+    --query 'Stacks[].Outputs[?OutputKey==`SubnetsPrivate`].OutputValue' \
+    --output text)
+
+aws ec2 create-tags \
+    --resources $(echo $SUBNET_IDS | tr ',' '\n') \
+    --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
 ```
 
 ### Setup IRSA, Karpenter Controller Role, and Karpenter Node Role
-We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions. For production use, please review and restrict these permissions for your use case.
+We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions.
+For production use, please review and restrict these permissions for your use case.
+
+Note: For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
+
 ```bash
-# Enables IRSA for your cluster. This command is idempotent, but only needs to be executed once per cluster.
-eksctl utils associate-iam-oidc-provider \
---region ${AWS_DEFAULT_REGION} \
---cluster ${CLUSTER_NAME} \
---approve
+OIDC_PROVIDER=$(aws eks describe-cluster \
+    --name ${CLUSTER_NAME} \
+    --query 'cluster.identity.oidc.issuer' \
+    --output text)
 
 # Creates IAM resources used by Karpenter
 LATEST_KARPENTER_VERSION=$(curl \
@@ -43,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENT
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=$(aws eks describe-cluster --name ${CLUSTER_NAME} | jq -r ".cluster.identity.oidc.issuer" | cut -c9-)
+  --parameter-overrides ClusterName=${CLUSTER_NAME} OpenIDConnectIdentityProvider=${OIDC_PROVIDER/https:\/\//}
 
 # Adds the karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<-EOM
@@ -62,14 +81,17 @@ EOM
 ### Install Karpenter
 ```bash
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
+helm repo update
 # For additional values, see https://github.com/awslabs/karpenter/blob/main/charts/karpenter/values.yaml
-helm upgrade --install karpenter charts/karpenter --create-namespace --namespace karpenter \
+helm upgrade --install karpenter karpenter/karpenter --create-namespace --namespace karpenter \
   --set serviceAccount.annotations.'eks\.amazonaws\.com/role-arn'=arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterControllerRole-${CLUSTER_NAME}
 ```
 
 ### (Optional) Enable Verbose Logging
 ```bash
-kubectl patch deployment karpenter-controller -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
+kubectl patch deployment karpenter-controller \
+    -n karpenter --type='json' \
+    -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
 ```
 
 ### Create a Provisioner
@@ -83,8 +105,8 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.certificateAuthority.data")
-    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} | jq ".cluster.endpoint")
+    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data" --output json)
+    endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
 EOF
 kubectl get provisioner default -oyaml
 ```
@@ -116,13 +138,20 @@ spec:
               cpu: 1
 EOF
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l control-plane=karpenter -ojson | jq -r ".items[0].metadata.name")
+kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
 ```
 
 ### Cleanup
 ```bash
 helm delete karpenter -n karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
-aws ec2 describe-launch-templates | jq -r ".LaunchTemplates[].LaunchTemplateName" | grep Karpenter | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
-unset AWS_DEFAULT_OUTPUT
+aws ec2 describe-launch-templates \
+    | jq -r ".LaunchTemplates[].LaunchTemplateName" \
+    | grep -i karpenter \
+    | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
+```
+
+If you created a cluster during this process you also will need to delete the cluster.
+```bash
+eksctl delete cluster --name ${CLUSTER_NAME}
 ```
