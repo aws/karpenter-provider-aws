@@ -64,7 +64,7 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 		InstanceId:     aws.String(randomdata.SillyName()),
 		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
 		PrivateDnsName: aws.String(fmt.Sprintf("test-instance-%d.example.com", len(e.Instances))),
-		InstanceType: input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+		InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 	}
 	e.Instances = append(e.Instances, instance)
 	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil

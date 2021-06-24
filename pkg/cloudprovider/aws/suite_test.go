@@ -522,7 +522,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should not schedule a pod with an invalid security group", func() {
 				pod := AttemptProvisioning(env.Client, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "Invalid"}}),
 				)
 				// Assertions
 				Expect(pod.Spec.NodeName).To(BeEmpty())
