@@ -57,6 +57,10 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisio
 	if len(constraints.Zones) != 0 {
 		subnets = filterSubnets(subnets, withSubnetZone(predicates.WithinStrings(constraints.Zones)))
 	}
+	// 4. Fail if no subnets found
+	if len(subnets) == 0 {
+		return nil, fmt.Errorf("no subnets exist given constraints")
+	}
 	return subnets, nil
 }
 
