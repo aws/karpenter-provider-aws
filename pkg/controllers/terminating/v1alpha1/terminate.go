@@ -38,8 +38,8 @@ type Terminator struct {
 	coreV1Client  corev1.CoreV1Interface
 }
 
-// cordonNode cordons a node
-func (t *Terminator) cordonNode(ctx context.Context, node *v1.Node) error {
+// cordon cordons a node
+func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	if node.Spec.Unschedulable {
 		return nil
 	}
@@ -52,8 +52,8 @@ func (t *Terminator) cordonNode(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// drainNode evicts pods from the node and returns true when fully drained
-func (t *Terminator) drainNode(ctx context.Context, node *v1.Node) (bool, error) {
+// drain evicts pods from the node and returns true when fully drained
+func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// 1. Get pods on node
 	pods, err := t.getPods(ctx, node)
 	if err != nil {
@@ -76,8 +76,8 @@ func (t *Terminator) drainNode(ctx context.Context, node *v1.Node) (bool, error)
 	return empty, nil
 }
 
-// terminateNode terminates the node then removes the finalizer to delete the node
-func (t *Terminator) terminateNode(ctx context.Context, node *v1.Node) error {
+// terminate terminates the node then removes the finalizer to delete the node
+func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	// 1. Terminate instance associated with node
 	if err := t.cloudProvider.Terminate(ctx, node); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
@@ -89,7 +89,6 @@ func (t *Terminator) terminateNode(ctx context.Context, node *v1.Node) error {
 	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}
-	zap.S().Debugf("Deleted node %s", node.Name)
 	return nil
 }
 

@@ -17,7 +17,6 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -25,12 +24,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -42,15 +37,6 @@ type Controller struct {
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
 	return &v1.Node{}
-}
-
-// Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []client.Object {
-	return nil
-}
-
-func (c *Controller) Interval() time.Duration {
-	return 5 * time.Second
 }
 
 func (c *Controller) Name() string {
@@ -73,25 +59,19 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, nil
 	}
 	// 2. Cordon node
-	if err := c.terminator.cordonNode(ctx, node); err != nil {
+	if err := c.terminator.cordon(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
 	// 3. Drain node
-	drained, err := c.terminator.drainNode(ctx, node)
+	drained, err := c.terminator.drain(ctx, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
 	// 4. If fully drained, terminate the node
 	if drained {
-		if err := c.terminator.terminateNode(ctx, node); err != nil {
+		if err := c.terminator.terminate(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
 		}
 	}
 	return reconcile.Result{Requeue: !drained}, nil
-}
-
-func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return &source.Kind{Type: &v1.Node{}},
-		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

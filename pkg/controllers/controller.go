@@ -19,15 +19,12 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
-
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/apis"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // GenericController implements controllerruntime.Reconciler and runs a
@@ -53,28 +50,26 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	if _, ok := resource.(apis.Defaultable); ok {
 		resource.(apis.Defaultable).SetDefaults(ctx)
 	}
-	// 4. Set to true to remove race condition where multiple controllers set the status of the same object
-	// TODO: remove status conditions on provisioners
-	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
-		apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor).MarkTrue(conditions.Active)
+	// 4. Reconcile
+	result, err := c.Controller.Reconcile(ctx, resource)
+	if err != nil {
+		zap.S().Errorf("Controller failed to reconcile kind %s, %s", resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 	}
-	// 5. Reconcile
-	if _, err := c.Controller.Reconcile(ctx, resource); err != nil {
-		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
-			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		return reconcile.Result{Requeue: true}, nil
+	// 5. Set status based on results of reconcile
+	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
+		m := apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor)
+		if err != nil {
+			m.MarkFalse(conditions.Active, err.Error(), "")
+		} else {
+			m.MarkTrue(conditions.Active)
+		}
 	}
 	// 6. Update Status using a merge patch
-	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+	// If the controller is reconciling nodes, don't patch
+	if _, ok := resource.(*v1.Node); !ok {
+		if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
+			return result, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+		}
 	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
-}
-
-// WatchDescription returns the necessary information to create a watch
-//   a. source: the resource that is being watched
-//   b. eventHandler: which controller objects to be reconciled
-//   c. predicates: which events can be filtered out before processed
-func (c *GenericController) Watches(ctx context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return c.Controller.Watches(ctx)
+	return result, err
 }
