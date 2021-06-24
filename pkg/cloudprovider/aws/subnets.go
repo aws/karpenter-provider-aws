@@ -72,7 +72,7 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha1.P
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
 	s.cache.Set(provisioner.Spec.Cluster.Name, output.Subnets, CacheTTL)
-	zap.S().Debugf("Successfully discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
+	zap.S().Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
 	return output.Subnets, nil
 }
 

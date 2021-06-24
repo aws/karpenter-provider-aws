@@ -42,7 +42,7 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.cache.Set(name, ami, CacheTTL)
-	zap.S().Debugf("Successfully discovered ami %s for query %s", ami, name)
+	zap.S().Debugf("Discovered ami %s for query %s", ami, name)
 	return ami, nil
 }
 

@@ -75,7 +75,7 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterNa
 		return nil, fmt.Errorf("describing security groups with tag key %s, %w", fmt.Sprintf(ClusterTagKeyFormat, clusterName), err)
 	}
 	s.cache.Set(clusterName, output.SecurityGroups, CacheTTL)
-	zap.S().Debugf("Successfully discovered %d security groups for cluster %s", len(output.SecurityGroups), clusterName)
+	zap.S().Debugf("Discovered %d security groups for cluster %s", len(output.SecurityGroups), clusterName)
 	return output.SecurityGroups, nil
 }
 

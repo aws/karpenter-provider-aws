@@ -53,7 +53,7 @@ func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.
 	nodes := map[string]*v1.Node{}
 	for _, reservation := range reservations {
 		for _, instance := range reservation.Instances {
-			zap.S().Debugf("Successfully launched instance: %s, type: %s, zone: %s, hostname: %s",
+			zap.S().Debugf("Launched instance: %s, type: %s, zone: %s, hostname: %s",
 				*instance.InstanceId,
 				*instance.InstanceType,
 				*instance.Placement.AvailabilityZone,

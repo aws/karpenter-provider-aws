@@ -55,7 +55,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.Instanc
 			return nil, err
 		}
 		p.cache.SetDefault(allInstanceTypesKey, instanceTypes)
-		zap.S().Debugf("Successfully discovered %d EC2 instance types", len(instanceTypes))
+		zap.S().Debugf("Discovered %d EC2 instance types", len(instanceTypes))
 	}
 	return instanceTypes, nil
 }
