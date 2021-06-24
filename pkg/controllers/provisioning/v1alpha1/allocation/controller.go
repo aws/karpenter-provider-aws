@@ -25,14 +25,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -47,11 +42,6 @@ type Controller struct {
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
 	return &v1alpha1.Provisioner{}
-}
-
-// Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []client.Object {
-	return nil
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -116,10 +106,4 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		}
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
-}
-
-func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return &source.Kind{Type: &v1.Pod{}},
-		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

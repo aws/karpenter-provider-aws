@@ -25,13 +25,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -43,11 +38,6 @@ type Controller struct {
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
 	return &v1.Node{}
-}
-
-// Owns returns the resources owned by this controller's resource.
-func (c *Controller) Owns() []client.Object {
-	return nil
 }
 
 func (c *Controller) Interval() time.Duration {
@@ -89,24 +79,4 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		}
 	}
 	return reconcile.Result{Requeue: !drained}, nil
-}
-
-func (c *Controller) Watches() (source.Source, handler.EventHandler, builder.WatchesOption) {
-	return &source.Kind{Type: &v1.Node{}},
-		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(
-			predicate.Funcs{
-				CreateFunc: func(e event.CreateEvent) bool { return false }, //no-op
-				DeleteFunc: func(e event.DeleteEvent) bool { return false }, //no-op
-				UpdateFunc: func(e event.UpdateEvent) bool {
-					node := e.ObjectNew.(*v1.Node)
-					// Duplicated here to reduce the amount of reconcile calls
-					if node.DeletionTimestamp == nil || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
-						return e.ObjectOld.GetResourceVersion() != e.ObjectNew.GetResourceVersion()
-					}
-					return false
-				},
-				GenericFunc: func(e event.GenericEvent) bool { return false }, //no-op
-			},
-		)
 }

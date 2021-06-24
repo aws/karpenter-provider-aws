@@ -66,7 +66,6 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 		controlledObject := c.For()
 		builder := controllerruntime.NewControllerManagedBy(m).
 			For(controlledObject).
-			Watches(c.Watches()).
 			WithOptions(controller.Options{
 				RateLimiter: workqueue.NewMaxOfRateLimiter(
 					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
@@ -76,9 +75,6 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 			})
 		if namedController, ok := c.(NamedController); ok {
 			builder.Named(namedController.Name())
-		}
-		for _, resource := range c.Owns() {
-			builder = builder.Owns(resource)
 		}
 		if err := builder.Complete(&GenericController{Controller: c, Client: m.GetClient()}); err != nil {
 			panic(fmt.Sprintf("Failed to register controller to manager for %s", controlledObject))
