@@ -91,7 +91,6 @@ rules:
   resources:
   - nodes
   - pods
-  - nodes/status
   verbs:
   - get
   - list

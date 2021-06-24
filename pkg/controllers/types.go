@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -29,10 +28,6 @@ type Controller interface {
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
 	Reconcile(context.Context, client.Object) (reconcile.Result, error)
-	// Interval returns an interval that the controller should wait before
-	// executing another reconciliation loop. If set to zero, will only execute
-	// on watch events or the global resync interval.
-	Interval() time.Duration
 	// For returns a default instantiation of the resource and is injected by
 	// data from the API Server at the start of the reconciliation loop.
 	For() client.Object

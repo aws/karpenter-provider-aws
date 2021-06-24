@@ -17,7 +17,6 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -38,10 +37,6 @@ type Controller struct {
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
 	return &v1.Node{}
-}
-
-func (c *Controller) Interval() time.Duration {
-	return 5 * time.Second
 }
 
 func (c *Controller) Name() string {

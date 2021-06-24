@@ -20,6 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,8 +53,7 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	// 4. Reconcile
 	result, err := c.Controller.Reconcile(ctx, resource)
 	if err != nil {
-		zap.S().Errorf("Controller failed to reconcile kind %s, %s",
-			resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
+		zap.S().Errorf("Controller failed to reconcile kind %s, %s", resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
 	}
 	// 5. Set status based on results of reconcile
 	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
@@ -65,8 +65,11 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 	// 6. Update Status using a merge patch
-	if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
-		return result, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+	// If the controller is reconciling nodes, don't patch
+	if _, ok := resource.(*v1.Node); !ok {
+		if err := c.Status().Patch(ctx, resource, client.MergeFrom(persisted)); err != nil {
+			return result, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
+		}
 	}
-	return result, nil
+	return result, err
 }
