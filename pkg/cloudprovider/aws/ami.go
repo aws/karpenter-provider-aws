@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const kubernetesVersionCacheKey = "kubernetesVersion"
+
 type AMIProvider struct {
 	cache     *cache.Cache
 	ssm       ssmiface.SSMAPI
@@ -47,9 +49,15 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string
 }
 
 func (p *AMIProvider) kubeServerVersion() (string, error) {
-	version, err := p.clientSet.Discovery().ServerVersion()
+	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
+		return version.(string), nil
+	}
+	serverVersion, err := p.clientSet.Discovery().ServerVersion()
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), nil
+	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
+	p.cache.Set(kubernetesVersionCacheKey, version, CacheTTL)
+	zap.S().Debugf("Discovered kubernetes version %s", version)
+	return version, nil
 }
