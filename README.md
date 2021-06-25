@@ -25,8 +25,15 @@ Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.c
 <img src="docs/images/karpenter-overview.jpg" width="50%" height="50%">
 
 ## Installation
+
 Follow the setup recommendations of your cloud provider.
 - [AWS](docs/aws)
+
+> ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
+> - Check the [release notes](https://github.com/awslabs/karpenter/releases)
+> - Uninstall Karpenter
+> - Remove all nodes launched by karpenter
+> - Reinstall Karpenter
 
 ## Docs
 - [API](docs/README.md)
@@ -39,7 +46,7 @@ Follow the setup recommendations of your cloud provider.
 
 ## Talks
 - [Karpenter @ Container Day, May 2021](https://www.twitch.tv/videos/1010593737?t=141m50s)
-- [Groupless Autoscaling with Karpenter @ Kubecon, May 2021](https://www.youtube.com/watch?v=43g8uPohTgc) 
+- [Groupless Autoscaling with Karpenter @ Kubecon, May 2021](https://www.youtube.com/watch?v=43g8uPohTgc)
 
 ## License
 This project is licensed under the Apache-2.0 License.
