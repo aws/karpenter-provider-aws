@@ -44,22 +44,22 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
-	for _, pod := range pods.Items {
+	for _, p := range pods.Items {
 		if err := functional.ValidateAll(
-			func() error { return f.isUnschedulable(&pod) },
-			func() error { return f.matchesProvisioner(&pod, provisioner) },
-			func() error { return f.hasSupportedSchedulingConstraints(&pod) },
-			func() error { return f.toleratesTaints(&pod, provisioner) },
-			func() error { return f.withValidConstraints(ctx, &pod, provisioner) },
+			func() error { return f.isUnschedulable(&p) },
+			func() error { return f.matchesProvisioner(&p, provisioner) },
+			func() error { return f.hasSupportedSchedulingConstraints(&p) },
+			func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints) },
+			func() error { return f.withValidConstraints(ctx, &p, provisioner) },
 		); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
-				pod.Name, pod.Namespace,
+				p.Name, p.Namespace,
 				provisioner.Name, provisioner.Namespace,
 				err.Error(),
 			)
 			continue
 		}
-		provisionable = append(provisionable, ptr.Pod(pod))
+		provisionable = append(provisionable, ptr.Pod(p))
 	}
 	return provisionable, nil
 }
@@ -105,7 +105,7 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha2.Provision
 func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha2.Provisioner) error {
 	var err error
 	for _, taint := range provisioner.Spec.Taints {
-		if !pod.ToleratesTaint(&p.Spec, taint) {
+		if err := pod.ToleratesTaints(&p.Spec, taint); err != nil {
 			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}

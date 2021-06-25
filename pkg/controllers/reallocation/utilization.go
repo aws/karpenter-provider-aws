@@ -32,24 +32,6 @@ type Utilization struct {
 	kubeClient client.Client
 }
 
-func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
-	// 1. Set TTL on TTLable Nodes
-	if err := u.markUnderutilized(ctx, provisioner); err != nil {
-		return fmt.Errorf("adding ttl and underutilized label, %w", err)
-	}
-
-	// 2. Remove TTL from Utilized Nodes
-	if err := u.clearUnderutilized(ctx, provisioner); err != nil {
-		return fmt.Errorf("removing ttl from node, %w", err)
-	}
-
-	// 3. Mark any Node past TTL as expired
-	if err := u.terminateExpired(ctx, provisioner); err != nil {
-		return fmt.Errorf("marking nodes terminable, %w", err)
-	}
-	return nil
-}
-
 // markUnderutilized adds a TTL to underutilized nodes
 func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
 	ttlable := []*v1.Node{}
