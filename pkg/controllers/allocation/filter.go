@@ -22,7 +22,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -100,16 +99,6 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha2.Provision
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s/%s", name, namespace)
-}
-
-func (f *Filter) toleratesTaints(p *v1.Pod, provisioner *v1alpha2.Provisioner) error {
-	var err error
-	for _, taint := range provisioner.Spec.Taints {
-		if err := pod.ToleratesTaints(&p.Spec, taint); err != nil {
-			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
-		}
-	}
-	return err
 }
 
 func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha2.Provisioner) error {
