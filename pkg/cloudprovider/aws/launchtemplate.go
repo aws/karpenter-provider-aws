@@ -19,47 +19,49 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s/%s/%s-%s"
+	launchTemplateNameFormat = "Karpenter-%s-%s"
 	bottlerocketUserData     = `
 [settings.kubernetes]
 api-server = "{{.Cluster.Endpoint}}"
 cluster-certificate = "{{.Cluster.CABundle}}"
 cluster-name = "{{.Cluster.Name}}"
-{{if .Labels }}[settings.kubernetes.node-labels]{{ end }}
-{{ range $Key, $Value := .Labels }}"{{ $Key }}" = "{{ $Value }}"
+{{if .Constraints.Labels }}[settings.kubernetes.node-labels]{{ end }}
+{{ range $Key, $Value := .Constraints.Labels }}"{{ $Key }}" = "{{ $Value }}"
 {{ end }}
-{{if .Taints }}[settings.kubernetes.node-taints]{{ end }}
-{{ range $Taint := .Taints }}"{{ $Taint.Key }}" = "{{ $Taint.Value}}:{{ $Taint.Effect }}"
+{{if .Constraints.Taints }}[settings.kubernetes.node-taints]{{ end }}
+{{ range $Taint := .Constraints.Taints }}"{{ $Taint.Key }}" = "{{ $Taint.Value}}:{{ $Taint.Effect }}"
 {{ end }}
 `
 )
 
 type LaunchTemplateProvider struct {
 	ec2api                ec2iface.EC2API
-	cache                 *cache.Cache
+	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
-	ssm                   ssmiface.SSMAPI
-	clientSet             *kubernetes.Clientset
+	cache                 *cache.Cache
+}
+
+func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
+	return &LaunchTemplateProvider{
+		ec2api:                ec2api,
+		amiProvider:           amiProvider,
+		securityGroupProvider: securityGroupProvider,
+		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
+	}
 }
 
 func launchTemplateName(options *launchTemplateOptions) string {
@@ -67,91 +69,87 @@ func launchTemplateName(options *launchTemplateOptions) string {
 	if err != nil {
 		zap.S().Panicf("hashing launch template, %w", err)
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, options.Cluster.Name, options.Provisioner.Name, options.Provisioner.Namespace, fmt.Sprint(hash))
+	return fmt.Sprintf(launchTemplateNameFormat, options.Cluster.Name, fmt.Sprint(hash))
 }
 
 // launchTemplateOptions is hashed and results in the creation of a real EC2
 // LaunchTemplate. Do not change this struct without thinking through the impact
 // to the number of LaunchTemplates that will result from this change.
 type launchTemplateOptions struct {
-	Provisioner  types.NamespacedName
-	Cluster      v1alpha1.ClusterSpec
-	Architecture string
-	Labels       map[string]string
-	Taints       []v1.Taint
+	// Edge-triggered fields that will only change on kube events.
+	Cluster  v1alpha1.ClusterSpec
+	UserData string
+	// Level-triggered fields that may change out of sync.
+	SecurityGroups []string
+	AMIID          string
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisioner, constraints *Constraints) (*LaunchTemplate, error) {
-	// If the customer specified a launch template then just use it
+	// 1. If the customer specified a launch template then just use it
 	if result := constraints.GetLaunchTemplate(); result != nil {
 		return result, nil
 	}
 
-	options := launchTemplateOptions{
-		Provisioner:  types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace},
-		Cluster:      *provisioner.Spec.Cluster,
-		Architecture: KubeToAWSArchitectures[*constraints.Architecture],
-		Labels:       constraints.Labels,
-		Taints:       constraints.Taints,
-	}
-	// See if we have a cached copy of the default one first, to avoid
-	// making an API call to EC2
-	key, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
-	if err != nil {
-		return nil, fmt.Errorf("hashing launch template, %w", err)
-	}
-
-	result := &LaunchTemplate{Version: aws.String(DefaultLaunchTemplateVersion)}
-	if cached, ok := p.cache.Get(fmt.Sprint(key)); ok {
-		result.Id = cached.(*ec2.LaunchTemplate).LaunchTemplateId
-		return result, nil
-	}
-
-	// Call EC2 to get launch template, creating if necessary
-	launchTemplate, err := p.getLaunchTemplate(ctx, &options)
+	// 2. Get constrained AMI ID
+	amiID, err := p.amiProvider.Get(ctx, constraints)
 	if err != nil {
 		return nil, err
 	}
-	result.Id = launchTemplate.LaunchTemplateId
-	p.cache.Set(fmt.Sprint(key), launchTemplate, CacheTTL)
-	return result, nil
+
+	// 3. Get constrained security groups
+	securityGroups, err := p.getSecurityGroupIds(ctx, provisioner, constraints)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Ensure the launch template exists, or create it
+	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
+		Cluster:        *provisioner.Spec.Cluster,
+		UserData:       p.getUserData(provisioner, constraints),
+		AMIID:          amiID,
+		SecurityGroups: securityGroups,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &LaunchTemplate{
+		Id:      aws.StringValue(launchTemplate.LaunchTemplateId),
+		Version: fmt.Sprint(DefaultLaunchTemplateVersion),
+	}, nil
 }
 
-// TODO, reconcile launch template if not equal to desired launch template (AMI upgrade, role changed, etc)
-func (p *LaunchTemplateProvider) getLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	describelaunchTemplateOutput, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{aws.String(launchTemplateName(options))},
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	var launchTemplate *ec2.LaunchTemplate
+	name := launchTemplateName(options)
+	// 1. Read from cache
+	if launchTemplate, ok := p.cache.Get(name); ok {
+		return launchTemplate.(*ec2.LaunchTemplate), nil
+	}
+	// 2. Attempt to find an existing LT.
+	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-		return p.createLaunchTemplate(ctx, options)
-	}
-	if err != nil {
+		// 3. Create LT if one doesn't exist
+		launchTemplate, err = p.createLaunchTemplate(ctx, options)
+		if err != nil {
+			return nil, fmt.Errorf("creating launch template, %w", err)
+		}
+	} else if err != nil {
 		return nil, fmt.Errorf("describing launch templates, %w", err)
+	} else if len(output.LaunchTemplates) != 1 {
+		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
+	} else {
+		zap.S().Debugf("Discovered launch template %s", name)
+		launchTemplate = output.LaunchTemplates[0]
 	}
-	if length := len(describelaunchTemplateOutput.LaunchTemplates); length > 1 {
-		return nil, fmt.Errorf("expected to find one launch template, but found %d", length)
-	}
-	launchTemplate := describelaunchTemplateOutput.LaunchTemplates[0]
-	zap.S().Debugf("Successfully discovered launch template %s for %s/%s", *launchTemplate.LaunchTemplateName, options.Provisioner.Name, options.Provisioner.Namespace)
+	// 4. Populate cache
+	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }
 
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	securityGroupIds, err := p.getSecurityGroupIds(ctx, options.Cluster.Name)
-	if err != nil {
-		return nil, fmt.Errorf("getting security groups, %w", err)
-	}
-	amiID, err := p.getAMIID(ctx, options.Architecture)
-	if err != nil {
-		return nil, fmt.Errorf("getting AMI ID, %w", err)
-	}
-	zap.S().Debugf("Successfully discovered AMI ID %s for architecture %s", *amiID, options.Architecture)
-	userData, err := p.getUserData(options)
-	if err != nil {
-		return nil, fmt.Errorf("getting user data, %w", err)
-	}
-
-	output, err := p.ec2api.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
+	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
@@ -170,57 +168,38 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 					},
 				},
 			}},
-			SecurityGroupIds: securityGroupIds,
-			UserData:         userData,
-			ImageId:          amiID,
+			SecurityGroupIds: aws.StringSlice(options.SecurityGroups),
+			UserData:         aws.String(options.UserData),
+			ImageId:          aws.String(options.AMIID),
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("creating launch template, %w", err)
+		return nil, err
 	}
-	zap.S().Debugf("Successfully created default launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
+	zap.S().Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, clusterName string) ([]*string, error) {
-	securityGroupIds := []*string{}
-	securityGroups, err := p.securityGroupProvider.Get(ctx, clusterName)
+func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha1.Provisioner, constraints *Constraints) ([]string, error) {
+	securityGroupIds := []string{}
+	securityGroups, err := p.securityGroupProvider.Get(ctx, provisioner, constraints)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting security group ids, %w", err)
 	}
 	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, securityGroup.GroupId)
+		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
 	}
 	return securityGroupIds, nil
 }
 
-func (p *LaunchTemplateProvider) getAMIID(ctx context.Context, arch string) (*string, error) {
-	version, err := p.kubeServerVersion()
-	if err != nil {
-		return nil, fmt.Errorf("kube server version, %w", err)
-	}
-	paramOutput, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("getting ssm parameter, %w", err)
-	}
-	return paramOutput.Parameter.Value, nil
-}
-
-func (p *LaunchTemplateProvider) getUserData(options *launchTemplateOptions) (*string, error) {
+func (p *LaunchTemplateProvider) getUserData(provisioner *v1alpha1.Provisioner, constraints *Constraints) string {
 	t := template.Must(template.New("userData").Parse(bottlerocketUserData))
 	var userData bytes.Buffer
-	if err := t.Execute(&userData, options); err != nil {
-		return nil, err
+	if err := t.Execute(&userData, struct {
+		Constraints *Constraints
+		Cluster     v1alpha1.ClusterSpec
+	}{constraints, *provisioner.Spec.Cluster}); err != nil {
+		panic(fmt.Sprintf("Parsing user data from %v, %v, %s", provisioner, constraints, err.Error()))
 	}
-	return aws.String(base64.StdEncoding.EncodeToString(userData.Bytes())), nil
-}
-
-func (p *LaunchTemplateProvider) kubeServerVersion() (string, error) {
-	version, err := p.clientSet.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s.%s", version.Major, strings.TrimSuffix(version.Minor, "+")), nil
+	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }

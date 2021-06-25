@@ -28,15 +28,19 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
 
 const (
-	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup resources.
-	CacheTTL = 5 * time.Minute
+	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
+	// resources. This value represents the maximum eventual consistency between
+	// AWS actual state and the controller's ability to provision those
+	// resources. Cache hits enable faster provisioning and reduced API load on
+	// AWS APIs, which can have a serious import on performance and scalability.
+	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
+	CacheTTL = 60 * time.Second
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CacheCleanupInterval = 10 * time.Minute
 	// ClusterTagKeyFormat is set on all Kubernetes owned resources.
@@ -76,13 +80,11 @@ func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 	ec2api := ec2.New(sess)
 	return &CloudProvider{
 		nodeAPI: &NodeFactory{ec2api: ec2api},
-		launchTemplateProvider: &LaunchTemplateProvider{
-			ec2api:                ec2api,
-			cache:                 cache.New(CacheTTL, CacheCleanupInterval),
-			securityGroupProvider: NewSecurityGroupProvider(ec2api),
-			ssm:                   ssm.New(sess),
-			clientSet:             options.ClientSet,
-		},
+		launchTemplateProvider: NewLaunchTemplateProvider(
+			ec2api,
+			NewAMIProvider(ssm.New(sess), options.ClientSet),
+			NewSecurityGroupProvider(ec2api),
+		),
 		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
 		instanceProvider:     &InstanceProvider{ec2api: ec2api},

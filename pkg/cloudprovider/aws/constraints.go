@@ -38,12 +38,16 @@ var (
 	LaunchTemplateVersionLabel = AWSLabelPrefix + "launch-template-version"
 	SubnetNameLabel            = AWSLabelPrefix + "subnet-name"
 	SubnetTagKeyLabel          = AWSLabelPrefix + "subnet-tag-key"
+	SecurityGroupNameLabel     = AWSLabelPrefix + "security-group-name"
+	SecurityGroupTagKeyLabel   = AWSLabelPrefix + "security-group-tag-key"
 	AllowedLabels              = []string{
 		CapacityTypeLabel,
 		LaunchTemplateIdLabel,
 		LaunchTemplateVersionLabel,
 		SubnetNameLabel,
 		SubnetTagKeyLabel,
+		SecurityGroupNameLabel,
+		SecurityGroupTagKeyLabel,
 	}
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                   v1alpha1.ArchitectureAmd64,
@@ -66,8 +70,8 @@ func (c *Constraints) GetCapacityType() string {
 }
 
 type LaunchTemplate struct {
-	Id      *string
-	Version *string
+	Id      string
+	Version string
 }
 
 func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
@@ -80,25 +84,41 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 		version = DefaultLaunchTemplateVersion
 	}
 	return &LaunchTemplate{
-		Id:      &id,
-		Version: &version,
+		Id:      id,
+		Version: version,
 	}
 }
 
 func (c *Constraints) GetSubnetName() *string {
-	subnetName, ok := c.Labels[SubnetNameLabel]
+	name, ok := c.Labels[SubnetNameLabel]
 	if !ok {
 		return nil
 	}
-	return aws.String(subnetName)
+	return aws.String(name)
 }
 
 func (c *Constraints) GetSubnetTagKey() *string {
-	subnetTag, ok := c.Labels[SubnetTagKeyLabel]
+	tag, ok := c.Labels[SubnetTagKeyLabel]
 	if !ok {
 		return nil
 	}
-	return aws.String(subnetTag)
+	return aws.String(tag)
+}
+
+func (c *Constraints) GetSecurityGroupName() *string {
+	name, ok := c.Labels[SecurityGroupNameLabel]
+	if !ok {
+		return nil
+	}
+	return aws.String(name)
+}
+
+func (c *Constraints) GetSecurityGroupTagKey() *string {
+	tag, ok := c.Labels[SecurityGroupTagKeyLabel]
+	if !ok {
+		return nil
+	}
+	return aws.String(tag)
 }
 
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {

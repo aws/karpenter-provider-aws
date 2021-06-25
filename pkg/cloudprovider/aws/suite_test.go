@@ -45,26 +45,22 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "CloudProvider/AWS")
 }
 
-var subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 var launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-var instanceProfileCache = cache.New(CacheTTL, CacheCleanupInterval)
-var securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 var fakeEC2API *fake.EC2API
 var env = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Manager.GetConfig())
 	fakeEC2API = &fake.EC2API{}
 	cloudProvider := &CloudProvider{
-		nodeAPI: &NodeFactory{ec2api: fakeEC2API},
+		nodeAPI: &NodeFactory{fakeEC2API},
 		launchTemplateProvider: &LaunchTemplateProvider{
-			ec2api:                fakeEC2API,
-			cache:                 launchTemplateCache,
-			securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
-			ssm:                   &fake.SSMAPI{},
-			clientSet:             clientSet,
+			fakeEC2API,
+			NewAMIProvider(&fake.SSMAPI{}, clientSet),
+			NewSecurityGroupProvider(fakeEC2API),
+			cache.New(CacheTTL, CacheCleanupInterval),
 		},
 		subnetProvider:       NewSubnetProvider(fakeEC2API),
 		instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
-		instanceProvider:     &InstanceProvider{ec2api: fakeEC2API},
+		instanceProvider:     &InstanceProvider{fakeEC2API},
 	}
 	registry.RegisterOrDie(cloudProvider)
 	e.Manager.RegisterControllers(
@@ -108,14 +104,7 @@ var _ = Describe("Allocation", func() {
 	AfterEach(func() {
 		fakeEC2API.Reset()
 		ExpectCleanedUp(env.Client)
-		for _, cache := range []*cache.Cache{
-			subnetCache,
-			launchTemplateCache,
-			instanceProfileCache,
-			securityGroupCache,
-		} {
-			cache.Flush()
-		}
+		launchTemplateCache.Flush()
 	})
 
 	Context("Reconciliation", func() {
@@ -457,6 +446,83 @@ var _ = Describe("Allocation", func() {
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
 				pod := AttemptProvisioning(env.Client, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
+				)
+				// Assertions
+				Expect(pod.Spec.NodeName).To(BeEmpty())
+			})
+		})
+		Context("Security Groups", func() {
+			It("should default to the clusters security groups", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-security-group-1"),
+					aws.String("test-security-group-2"),
+					aws.String("test-security-group-3"),
+				))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+			})
+			It("should default to a provisioner's specified security groups name", func() {
+				// Setup
+				provisioner.Spec.Labels = map[string]string{SecurityGroupNameLabel: "test-security-group-2"}
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-security-group-2"),
+				))
+				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, provisioner.Spec.Labels[SecurityGroupNameLabel]))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+			})
+			It("should default to a provisioner's specified security groups tag key", func() {
+				provisioner.Spec.Labels = map[string]string{SecurityGroupTagKeyLabel: "TestTag"}
+				pod := AttemptProvisioning(env.Client, provisioner, test.PendingPod())
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-security-group-3"),
+				))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, provisioner.Spec.Labels[SecurityGroupTagKeyLabel]))
+			})
+			It("should allow a pod to override the security groups name", func() {
+				// Setup
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupNameLabel: "test-security-group-2"}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-security-group-2"),
+				))
+				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, pod.Spec.NodeSelector[SecurityGroupNameLabel]))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+			})
+			It("should allow a pod to override the security groups tags", func() {
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "TestTag"}}),
+				)
+				// Assertions
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-security-group-3"),
+				))
+				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, pod.Spec.NodeSelector[SecurityGroupTagKeyLabel]))
+			})
+			It("should not schedule a pod with an invalid security group", func() {
+				pod := AttemptProvisioning(env.Client, provisioner,
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "Invalid"}}),
 				)
 				// Assertions
 				Expect(pod.Spec.NodeName).To(BeEmpty())

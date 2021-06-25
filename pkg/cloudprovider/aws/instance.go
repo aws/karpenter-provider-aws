@@ -87,8 +87,8 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateId: launchTemplate.Id,
-				Version:          launchTemplate.Version,
+				LaunchTemplateId: aws.String(launchTemplate.Id),
+				Version:          aws.String(launchTemplate.Version),
 			},
 			Overrides: overrides,
 		}},
@@ -102,7 +102,6 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	if count := len(createFleetOutput.Instances[0].InstanceIds); count != 1 {
 		return nil, fmt.Errorf("expected 1 instance ids, but got %d due to errors %v", count, createFleetOutput.Errors)
 	}
-	// TODO aggregate errors
 	if count := len(createFleetOutput.Errors); count > 0 {
 		zap.S().Warnf("CreateFleet encountered %d errors, but still launched instances, %v", count, createFleetOutput.Errors)
 	}

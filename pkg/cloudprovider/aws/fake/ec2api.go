@@ -20,6 +20,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -29,7 +30,6 @@ import (
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	CreateFleetOutput                   *ec2.CreateFleetOutput
 	DescribeInstancesOutput             *ec2.DescribeInstancesOutput
 	DescribeLaunchTemplatesOutput       *ec2.DescribeLaunchTemplatesOutput
 	DescribeSubnetsOutput               *ec2.DescribeSubnetsOutput
@@ -37,9 +37,10 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         *ec2.DescribeInstanceTypesOutput
 	DescribeInstanceTypeOfferingsOutput *ec2.DescribeInstanceTypeOfferingsOutput
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
-	WantErr                             error
-	CalledWithCreateFleetInput          []ec2.CreateFleetInput
+	CalledWithCreateFleetInput          []*ec2.CreateFleetInput
+	CalledWithCreateLaunchTemplateInput []*ec2.CreateLaunchTemplateInput
 	Instances                           []*ec2.Instance
+	LaunchTemplates                     []*ec2.LaunchTemplate
 }
 
 type EC2API struct {
@@ -54,13 +55,7 @@ func (e *EC2API) Reset() {
 }
 
 func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFleetInput, options ...request.Option) (*ec2.CreateFleetOutput, error) {
-	e.CalledWithCreateFleetInput = append(e.CalledWithCreateFleetInput, *input)
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
-	if e.CreateFleetOutput != nil {
-		return e.CreateFleetOutput, nil
-	}
+	e.CalledWithCreateFleetInput = append(e.CalledWithCreateFleetInput, input)
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId == nil &&
 		input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template id or name")
@@ -69,15 +64,20 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 		InstanceId:     aws.String(randomdata.SillyName()),
 		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
 		PrivateDnsName: aws.String(fmt.Sprintf("test-instance-%d.example.com", len(e.Instances))),
+		InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 	}
 	e.Instances = append(e.Instances, instance)
 	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil
 }
 
+func (e *EC2API) CreateLaunchTemplateWithContext(ctx context.Context, input *ec2.CreateLaunchTemplateInput, options ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
+	e.CalledWithCreateLaunchTemplateInput = append(e.CalledWithCreateLaunchTemplateInput, input)
+	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName, LaunchTemplateId: aws.String("test-launch-template-id")}
+	e.LaunchTemplates = append(e.LaunchTemplates, launchTemplate)
+	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
+}
+
 func (e *EC2API) DescribeInstancesWithContext(context.Context, *ec2.DescribeInstancesInput, ...request.Option) (*ec2.DescribeInstancesOutput, error) {
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
 	if e.DescribeInstancesOutput != nil {
 		return e.DescribeInstancesOutput, nil
 	}
@@ -86,23 +86,25 @@ func (e *EC2API) DescribeInstancesWithContext(context.Context, *ec2.DescribeInst
 	}, nil
 }
 
-func (e *EC2API) DescribeLaunchTemplatesWithContext(context.Context, *ec2.DescribeLaunchTemplatesInput, ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
+func (e *EC2API) DescribeLaunchTemplatesWithContext(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, options ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	if e.DescribeLaunchTemplatesOutput != nil {
 		return e.DescribeLaunchTemplatesOutput, nil
 	}
-	return &ec2.DescribeLaunchTemplatesOutput{LaunchTemplates: []*ec2.LaunchTemplate{{
-		LaunchTemplateName: aws.String("test-launch-template-name"),
-		LaunchTemplateId:   aws.String("test-launch-template-id"),
-	}}}, nil
+	output := &ec2.DescribeLaunchTemplatesOutput{}
+	for _, wanted := range input.LaunchTemplateNames {
+		for _, launchTemplate := range e.LaunchTemplates {
+			if launchTemplate.LaunchTemplateName == wanted {
+				output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
+			}
+		}
+	}
+	if len(output.LaunchTemplates) == 0 {
+		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
+	}
+	return output, nil
 }
 
 func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnetsInput, ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
 	if e.DescribeSubnetsOutput != nil {
 		return e.DescribeSubnetsOutput, nil
 	}
@@ -117,19 +119,17 @@ func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnet
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.DescribeSecurityGroupsInput, ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
 	if e.DescribeSecurityGroupsOutput != nil {
 		return e.DescribeSecurityGroupsOutput, nil
 	}
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{{GroupId: aws.String("test-group")}}}, nil
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{
+		{GroupId: aws.String("test-security-group-1"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-1")}}},
+		{GroupId: aws.String("test-security-group-2"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-2")}}},
+		{GroupId: aws.String("test-security-group-3"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-3")}, {Key: aws.String("TestTag")}}},
+	}}, nil
 }
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
-	if e.WantErr != nil {
-		return nil, e.WantErr
-	}
 	if e.DescribeAvailabilityZonesOutput != nil {
 		return e.DescribeAvailabilityZonesOutput, nil
 	}
@@ -141,9 +141,6 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 }
 
 func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, opts ...request.Option) error {
-	if e.WantErr != nil {
-		return e.WantErr
-	}
 	if e.DescribeInstanceTypesOutput != nil {
 		fn(e.DescribeInstanceTypesOutput, false)
 		return nil
@@ -267,9 +264,6 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 }
 
 func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, opts ...request.Option) error {
-	if e.WantErr != nil {
-		return e.WantErr
-	}
 	if e.DescribeInstanceTypeOfferingsOutput != nil {
 		fn(e.DescribeInstanceTypeOfferingsOutput, false)
 		return nil
