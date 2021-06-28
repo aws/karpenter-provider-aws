@@ -3,7 +3,7 @@
 This guide will provide a complete Karpenter installation for AWS.
 These steps are opinionated and may need to be adapted for your use case.
 
->Note: This guide should take less than 1 hour to complete and should cost less than $.25
+> This guide should take less than 1 hour to complete and should cost less than $.25
 
 ## Environment
 ```bash
@@ -17,11 +17,8 @@ LATEST_KARPENTER_VERSION=$(curl -fsSL \
 
 ### Create a Cluster
 
-The example EKS configuration uses [AWS Fargate](https://aws.amazon.com/fargate/) to run the required Karpenter components, but it is not a requirement if you have your own clusters.
-All EC2 instances added to this cluster will be controlled by Karpenter autoscaling.
-
->Note: It is not recommended to run Karpenter in a cluster also using the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler).
-You _can_ use Karpenter on clusters that use the [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) and/or [Vertical Pod Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler).
+Karpenter can run anywhere, including on self-managed node groups, [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
+This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter autoscaling.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
@@ -31,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENT
 
 Tag the cluster subnets with the required tags for Karpenter auto discovery.
 
->Note: If you are using a cluster with version 1.18 or below you can skip this step.
+> If you are using a cluster with version 1.18 or below you can skip this step.
 More [detailed here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ```bash
@@ -49,7 +46,7 @@ aws ec2 create-tags \
 We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions.
 For production use, please review and restrict these permissions for your use case.
 
->Note: For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
+> For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
 
 ```bash
 # Creates IAM resources used by Karpenter
@@ -75,7 +72,7 @@ eksctl create iamidentitymapping \
 Use [`helm`](https://helm.sh/) to deploy Karpenter to the cluster.
 For additional values, see [the helm chart values](https://github.com/awslabs/karpenter/blob/main/charts/karpenter/values.yaml)
 
->Note: We created a Kubernetes service account with our cluster so we don't need the helm chart to do that.
+> We created a Kubernetes service account with our cluster so we don't need the helm chart to do that.
 
 ```bash
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
@@ -155,7 +152,7 @@ kubectl delete node $NODE_NAME
 ```
 
 ### Cleanup
->Note: to avoid additional costs make sure you delete all ec2 instances before deleting the other cluster resources.
+> to avoid additional costs make sure you delete all ec2 instances before deleting the other cluster resources.
 ```bash
 helm delete karpenter -n karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
