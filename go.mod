@@ -12,11 +12,11 @@ require (
 	github.com/onsi/gomega v1.10.3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.uber.org/multierr v1.6.0
-	go.uber.org/zap v1.16.0
-	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
-	k8s.io/api v0.19.7
-	k8s.io/apimachinery v0.19.7
-	k8s.io/client-go v0.19.7
-	knative.dev/pkg v0.0.0-20210331065221-952fdd90dbb0
+	go.uber.org/zap v1.17.0
+	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
+	k8s.io/api v0.20.7
+	k8s.io/apimachinery v0.20.7
+	k8s.io/client-go v0.20.7
+	knative.dev/pkg v0.0.0-20210628225612-51cfaabbcdf6
 	sigs.k8s.io/controller-runtime v0.7.0-alpha.3
 )
