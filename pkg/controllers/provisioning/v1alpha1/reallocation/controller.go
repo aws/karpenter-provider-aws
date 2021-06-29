@@ -12,17 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package termination
+package reallocation
 
 import (
 	"context"
 	"fmt"
+	"time"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 
-	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,48 +29,47 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	terminator    *Terminator
+	utilization   *Utilization
 	cloudProvider cloudprovider.CloudProvider
 }
 
 // For returns the resource this controller is for.
 func (c *Controller) For() client.Object {
-	return &v1.Node{}
+	return &v1alpha1.Provisioner{}
+}
+
+func (c *Controller) Interval() time.Duration {
+	return 5 * time.Second
 }
 
 func (c *Controller) Name() string {
-	return "terminator"
+	return "provisioner/reallocator"
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client},
+		utilization:   &Utilization{kubeClient: kubeClient},
 		cloudProvider: cloudProvider,
 	}
 }
 
-// Reconcile executes a termination control loop for the resource
+// Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	node := object.(*v1.Node)
-	// 1. Check if node is terminable
-	if node.DeletionTimestamp == nil || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
-		return reconcile.Result{}, nil
+	provisioner := object.(*v1alpha1.Provisioner)
+	// 1. Set TTL on TTLable Nodes
+	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
-	// 2. Cordon node
-	if err := c.terminator.cordon(ctx, node); err != nil {
-		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
+
+	// 2. Remove TTL from Utilized Nodes
+	if err := c.utilization.clearUnderutilized(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("removing ttl from node, %w", err)
 	}
-	// 3. Drain node
-	drained, err := c.terminator.drain(ctx, node)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
+
+	// 3. Delete any node past its TTL
+	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
-	// 4. If fully drained, terminate the node
-	if drained {
-		if err := c.terminator.terminate(ctx, node); err != nil {
-			return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
-		}
-	}
-	return reconcile.Result{Requeue: !drained}, nil
+	return reconcile.Result{RequeueAfter: c.Interval()}, nil
 }

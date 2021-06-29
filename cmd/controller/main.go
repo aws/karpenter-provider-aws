@@ -22,9 +22,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation"
-	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
-	"github.com/awslabs/karpenter/pkg/controllers/termination"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation"
+	termination "github.com/awslabs/karpenter/pkg/controllers/terminating/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 
 	"go.uber.org/zap/zapcore"

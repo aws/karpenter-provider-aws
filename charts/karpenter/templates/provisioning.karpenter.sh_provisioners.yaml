@@ -16,7 +16,7 @@ spec:
     singular: provisioner
   scope: Namespaced
   versions:
-  - name: v1alpha2
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Provisioner is the Schema for the Provisioners API
@@ -36,7 +36,7 @@ spec:
                 description: Architecture constrains the underlying node architecture
                 type: string
               cluster:
-                description: Cluster that launched nodes connect to.
+                description: ClusterSpec configures the cluster that the provisioner operates against. If not specified, it will default to using the controller's kube-config.
                 properties:
                   caBundle:
                     description: CABundle is required for nodes to verify API Server certificates.
@@ -88,13 +88,9 @@ spec:
                   - key
                   type: object
                 type: array
-              ttlSecondsAfterEmpty:
-                description: "TTLSecondsAfterEmpty is the number of seconds the controller will wait before attempting to terminate a node, measured from when the node is detected to be empty. A Node is considered to be empty when it does not have pods scheduled to it, excluding daemonsets. \n Termination due to underutilization is disabled if this field is not set."
-                format: int64
-                type: integer
-              ttlSecondsUntilExpired:
-                description: "TTLSecondsUntilExpired is the number of seconds the controller will wait before terminating a node, measured from when the node is created. This is useful to implement features like eventually consistent node upgrade, memory leak protection, and disruption testing. \n Termination due to expiration is disabled if this field is not set."
-                format: int64
+              ttlSeconds:
+                description: TTLSeconds determines how long to wait before attempting to terminate a node.
+                format: int32
                 type: integer
               zones:
                 description: Zones constrains where nodes will be launched by the Provisioner. If unspecified, defaults to all zones in the region. Cannot be specified if label "topology.kubernetes.io/zone" is specified.

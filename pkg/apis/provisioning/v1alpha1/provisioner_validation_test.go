@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1alpha1
 
 import (
 	"context"
@@ -44,7 +44,7 @@ var _ = Describe("Validation", func() {
 				Namespace: "default",
 			},
 			Spec: ProvisionerSpec{
-				Cluster: &Cluster{
+				Cluster: &ClusterSpec{
 					Name:     "test-cluster",
 					Endpoint: "https://test-cluster",
 					CABundle: "dGVzdC1jbHVzdGVyCg==",
@@ -54,7 +54,7 @@ var _ = Describe("Validation", func() {
 	})
 
 	It("should fail for empty cluster specification", func() {
-		for _, cluster := range []*Cluster{
+		for _, cluster := range []*ClusterSpec{
 			nil,
 			{Endpoint: "https://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			{Name: "test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},

@@ -63,11 +63,6 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	# CRDs don't currently jive with VolatileTime, which has an Any type.
 	perl -pi -e 's/Any/string/g' charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml
 	hack/boilerplate.sh
-	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/provisioning/v1alpha2 \
-		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
-		-out-file docs/README.md \
-		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/template
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
@@ -78,7 +73,14 @@ publish: ## Generate release manifests and publish a versioned container image.
 helm:  ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 
+docs: ## Generate Docs
+	gen-crd-api-reference-docs \
+		-api-dir ./pkg/apis/provisioning/v1alpha1 \
+		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
+		-out-file docs/README.md \
+		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/template
+
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm toolchain licenses
+.PHONY: help dev ci release test battletest verify codegen apply delete publish helm docs toolchain licenses

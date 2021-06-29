@@ -39,10 +39,3 @@ func PodListToSlice(pods *v1.PodList) []*v1.Pod {
 	}
 	return podPointers
 }
-
-func Int64Value(ptr *int64) int64 {
-	if ptr == nil {
-		return 0
-	}
-	return *ptr
-}

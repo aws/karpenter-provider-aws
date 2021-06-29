@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/project"
@@ -51,11 +51,11 @@ const (
 
 var (
 	SupportedOperatingSystems = []string{
-		v1alpha2.OperatingSystemLinux,
+		v1alpha1.OperatingSystemLinux,
 	}
 	SupportedArchitectures = []string{
-		v1alpha2.ArchitectureAmd64,
-		v1alpha2.ArchitectureArm64,
+		v1alpha1.ArchitectureAmd64,
+		v1alpha1.ArchitectureArm64,
 	}
 )
 
@@ -108,7 +108,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a set of nodes given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha2.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	instanceIDs := []*string{}
 	instancePackings := map[string]*cloudprovider.Packing{}
 	for _, packing := range packings {
@@ -161,7 +161,7 @@ func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate cloud provider specific components of the cluster spec
-func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha2.Constraints) (errs *apis.FieldError) {
+func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha1.Constraints) (errs *apis.FieldError) {
 	awsConstraints := Constraints{*constraints}
 	return awsConstraints.Validate(ctx)
 }

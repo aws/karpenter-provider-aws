@@ -16,7 +16,7 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/webhook/resourcesemantics"
@@ -25,12 +25,12 @@ import (
 var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
-		v1alpha2.SchemeBuilder.AddToScheme,
+		v1alpha1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
 	// Resources
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha2.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha2.Provisioner{},
+		v1alpha1.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha1.Provisioner{},
 	}
 )

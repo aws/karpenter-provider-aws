@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
@@ -63,16 +63,16 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Allocation", func() {
-	var provisioner *v1alpha2.Provisioner
+	var provisioner *v1alpha1.Provisioner
 	var ctx context.Context
 	BeforeEach(func() {
-		provisioner = &v1alpha2.Provisioner{
+		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      strings.ToLower(randomdata.SillyName()),
 				Namespace: "default",
 			},
-			Spec: v1alpha2.ProvisionerSpec{
-				Cluster: &v1alpha2.Cluster{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+			Spec: v1alpha1.ProvisionerSpec{
+				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 			},
 		}
 		ctx = context.Background()
@@ -103,7 +103,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-1"}
 				pod := AttemptProvisioning(env.Client, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ZoneLabelKey: "test-zone-2"}}),
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-2"}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
@@ -132,32 +132,32 @@ var _ = Describe("Allocation", func() {
 				test.PendingPod(),
 				// Constrained by provisioner
 				test.PendingPod(test.PodOptions{
-					NodeSelector: map[string]string{v1alpha2.ProvisionerNameLabelKey: provisioner.Name, v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace},
+					NodeSelector: map[string]string{v1alpha1.ProvisionerNameLabelKey: provisioner.Name, v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace},
 				}),
 			}
 			schedulable := []client.Object{
 				// Constrained by zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ZoneLabelKey: "test-zone-1"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "test-zone-1"}}),
 				// Constrained by instanceType
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.InstanceTypeLabelKey: "default-instance-type"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "default-instance-type"}}),
 				// Constrained by architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ArchitectureLabelKey: "arm64"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "arm64"}}),
 				// Constrained by operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.OperatingSystemLabelKey: "windows"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "windows"}}),
 				// Constrained by arbitrary label
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ProvisionerNameLabelKey: "unknown", v1alpha2.ProvisionerNamespaceLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ProvisionerNameLabelKey: "unknown", v1alpha1.ProvisionerNamespaceLabelKey: "unknown"}}),
 				// Ignored, invalid zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ZoneLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ZoneLabelKey: "unknown"}}),
 				// Ignored, invalid instance type
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.InstanceTypeLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.InstanceTypeLabelKey: "unknown"}}),
 				// Ignored, invalid architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ArchitectureLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.ArchitectureLabelKey: "unknown"}}),
 				// Ignored, invalid operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.OperatingSystemLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.OperatingSystemLabelKey: "unknown"}}),
 			}
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, coschedulable...)
