@@ -86,7 +86,7 @@ Alice wants to run weekly machine learning jobs using GPUs on her team’s clust
 
 She creates three Karpenter resources and applies them with kubectl apply:
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: MetricsProducer
 metadata:
   name: ml-training-queue
@@ -100,7 +100,7 @@ spec:
 Her “ml-training-queue” configures Karpenter to periodically monitor queue metrics, such as the length of her AWS SQS Queue. The monitoring process has a Prometheus metrics endpoint at /metrics that returns the a set of metrics about the queue, including queue length. Alice has a Prometheus Server installed in her cluster, which dynamically discovers and periodically scrapes the queue length from the metrics producer and stores it in a timeseries database. Alice queries this data manually using karpenter:metrics_producer:queue-length{name="ml-training-queue", namespace="alice"} to make sure that everything is working smoothly.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: ScalableNodeGroup
 metadata:
   name: ml-training-capacity
@@ -111,14 +111,14 @@ spec:
 
 ---
 
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: HorizontalAutoscaler
 metadata:
   name: ml-training-capacity-autoscaler
   namespace: alice
 spec:
   scaleTargetRef:
-    apiVersion: karpenter.sh/v1alpha1
+    apiVersion: karpenter.sh/v1alpha2
     kind: ScalableNodeGroup
     name: ml-training-capacity
   metrics:
@@ -139,7 +139,7 @@ Bob is a coworker of Alice and their teams share the same cluster. His team host
 
 He creates two Karpenter resources and applies them with kubectl apply:
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: ScalableNodeGroup
 metadata:
   name: bobs-microservices
@@ -149,14 +149,14 @@ spec:
 
 ---
 
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: HorizontalAutoscaler
 metadata:
   name: bobs-microservices-autoscaler
   namespace: bob
 spec:
   scaleTargetRef:
-    apiVersion: karpenter.sh/v1alpha1
+    apiVersion: karpenter.sh/v1alpha2
     kind: ScalableNodeGroup
     name: bobs-capacity
   metrics:
@@ -261,7 +261,7 @@ Many metrics (e.g. node capacity utilization) are implicit to the cluster and ca
 
 We expect this definition to evolve over time (see: Metrics Producer Implementations).
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: MetricsProducer
 metadata:
   name: foo-queue-length
@@ -277,13 +277,13 @@ As discussed above, we will align as much as possible with the HPA API. An expli
 
 We expect this definition to evolve over time and intend to eventually upstream it into the core autoscaling API group.
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: HorizontalAutoscaler
 metadata:
   name: my-capacity
 spec:
   scaleTargetRef:
-    apiVersion: karpenter.sh/v1alpha1
+    apiVersion: karpenter.sh/v1alpha2
     kind: ScalableNodeGroup
     name: my-capacity
   minReplicas: 1
@@ -304,7 +304,7 @@ The decision to use the HPA’s scaleTargetRef concept creates two requirements 
 The Horizontal Autoscaler API is flexible to any and all of these options. However, many Kubernetes users don’t rely on one of these mechanisms for node group management, instead relying on cloud provider specific abstractions (e.g. ASG). Therefore, we will introduce a resource that can be optionally targeted by HorizontalAutoscaler’s scaleTargetRef for users who don’t have a KRM node group concept. This is a stop gap until other node group representations become more widespread. This object will follow a cloud provider model to provide implementations for different cloud provider solutions such as EKS Managed Node Groups, EC2 Auto Scaling Groups, and others. The only field supported by this resource is replicas, leaving management responsibilities like upgrade up to some other controller.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: ScalableNodeGroup
 metadata:
   name: default-capacity
@@ -346,7 +346,7 @@ Scheduled capacity is another approach. Many use cases have oscillating traffic 
 This signal can be used in combination with other metrics in cases where demand is unexpected. For example, if scheduled capacity recommends that scale down should occur on a Friday afternoon, but due to a traffic spike a capacity reservation disagrees, the replica count will remain high.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: MetricsProducer
 metadata:
   name: foo-queue
@@ -369,7 +369,7 @@ prometheus:
 Pending pods operates across multiple node groups. When a pod becomes unschedulable, the algorithm attempts to find a node group which if scaled up, would cause the pod to be scheduled. The MetricsProducer emits a signal per node group that corresponds to whether or not a scale up should occur. The MetricsProducer doesn’t necessarily apply to all node groups in the cluster. This allows some capacity to be scaled using pending pods and others to rely on different metrics producers, which is common for large and diverse clusters.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: MetricsProducer
 metadata:
   name:
@@ -396,7 +396,7 @@ The second approach is to drive both pods and nodes using the same queue metric.
 Queue-based node autoscaling and pending pods are both viable approaches with different trade offs. Pending pods is aligned with Kubernetes bin-packing principles, and yields increased capacity utilization for clusters that host diverse workloads and are overprovisioned. In this case, new pods will first schedule into existing capacity before forcing node group scale up via a pending pod autoscaler. However, if users are looking for a simple batch processing workflow of scaleup → do work → scale down, the bin-packing benefits must be weighed against pending pods’ complexity, scalability, and scheduling latency tradeoffs.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha2
 kind: MetricsProducer
 metadata:
   name: foo-queue

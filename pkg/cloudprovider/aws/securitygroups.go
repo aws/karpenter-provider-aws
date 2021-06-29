@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -39,7 +39,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (s *SecurityGroupProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisioner, constraints *Constraints) ([]*ec2.SecurityGroup, error) {
+func (s *SecurityGroupProvider) Get(ctx context.Context, provisioner *v1alpha2.Provisioner, constraints *Constraints) ([]*ec2.SecurityGroup, error) {
 	// 1. Get Security Groups
 	securityGroups, err := s.getSecurityGroups(ctx, provisioner.Spec.Cluster.Name)
 	if err != nil {
