@@ -49,7 +49,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 			func() error { return f.isUnschedulable(&p) },
 			func() error { return f.matchesProvisioner(&p, provisioner) },
 			func() error { return f.hasSupportedSchedulingConstraints(&p) },
-			func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints) },
+			func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
 			func() error { return f.withValidConstraints(ctx, &p, provisioner) },
 		); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",

@@ -94,11 +94,10 @@ var _ = Describe("Termination", func() {
 			})
 			ExpectCreatedWithStatus(env.Client, node)
 			ExpectCreatedWithStatus(env.Client, pod)
-
-			newPods := &v1.PodList{}
+			pods := &v1.PodList{}
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
-			Expect(env.Client.List(ctx, newPods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
-			Expect(newPods.Items).To(HaveLen(1))
+			Expect(env.Client.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
+			Expect(pods.Items).To(HaveLen(1))
 			ExpectNotFound(env.Client, node)
 		})
 	})

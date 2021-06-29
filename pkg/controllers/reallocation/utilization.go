@@ -111,6 +111,7 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 	}
 
 	// 2. Delete node if past TTL
+	// This will kick off work for the termination controller to gracefully shut down the node.
 	for _, node := range nodes {
 		if utilsnode.IsPastTTL(node) {
 			if err := u.kubeClient.Delete(ctx, node); err != nil {

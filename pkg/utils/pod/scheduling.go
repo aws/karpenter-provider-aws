@@ -45,21 +45,24 @@ func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
 	return true
 }
 
-// ToleratesAllTaints returns an error if the pod does not tolerate the taints
+// ToleratesTaints returns an error if the pod does not tolerate the taints
 // https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
 func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) error {
 	var err error
 	for _, taint := range taints {
-		taintValid := false
-		for _, toleration := range spec.Tolerations {
-			if toleration.ToleratesTaint(&taint) {
-				taintValid = true
-				continue
-			}
-		}
-		if !taintValid {
+		if !Tolerates(spec.Tolerations, taint) {
 			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
 	return err
+}
+
+// Tolerates returns true if one of the tolerations tolerate the taint
+func Tolerates(tolerations []v1.Toleration, taint v1.Taint) bool {
+	for _, t := range tolerations {
+		if t.ToleratesTaint(&taint) {
+			return true
+		}
+	}
+	return false
 }
