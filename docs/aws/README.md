@@ -3,7 +3,7 @@
 This guide will provide a complete Karpenter installation for AWS.
 These steps are opinionated and may need to be adapted for your use case.
 
-> This guide should take less than 1 hour to complete and should cost less than $.25
+> This guide should take less than 1 hour to complete and cost less than $.25
 
 ## Environment
 ```bash
@@ -18,7 +18,7 @@ KARPENTER_VERSION=$(curl -fsSL \
 ### Create a Cluster
 
 Karpenter can run anywhere, including on self-managed node groups, [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
-This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter autoscaling.
+This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
@@ -46,7 +46,7 @@ aws ec2 create-tags \
 We recommend using [CloudFormation](https://aws.amazon.com/cloudformation/) and [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) (IRSA) to manage these permissions.
 For production use, please review and restrict these permissions for your use case.
 
-> For IRSA to work your [cluster needs an OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
+> For IRSA to work your cluster needs an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html)
 
 ```bash
 # Creates IAM resources used by Karpenter
@@ -147,12 +147,14 @@ kubectl scale deployment inflate --replicas 0
 ```
 
 Or you can manually delete the node with
+
+> Karpenter automatically adds a node finalizer to properly cordon and drain nodes before they are terminated.
 ```bash
 kubectl delete node $NODE_NAME
 ```
 
 ### Cleanup
-> to avoid additional costs make sure you delete all ec2 instances before deleting the other cluster resources.
+> To avoid additional costs make sure you delete all ec2 instances before deleting the other cluster resources.
 ```bash
 helm delete karpenter -n karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}

@@ -37,5 +37,7 @@ iam:
 fargateProfiles:
   - name: karpenter
     selectors:
-      - namespace: kube-system
       - namespace: karpenter
+  - name: kube-system
+    selectors:
+      - namespace: kube-system
