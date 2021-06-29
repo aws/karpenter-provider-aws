@@ -46,11 +46,10 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
 	controller = NewController(
-		e.Manager.GetClient(),
-		corev1.NewForConfigOrDie(e.Manager.GetConfig()),
+		e.Client,
+		corev1.NewForConfigOrDie(e.Config),
 		cloudProvider,
 	)
-	e.Manager.RegisterControllers(controller)
 })
 
 var _ = BeforeSuite(func() {
@@ -79,7 +78,7 @@ var _ = Describe("Reallocation", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Manager.GetClient())
+		ExpectCleanedUp(env.Client)
 	})
 
 	Context("Reconciliation", func() {
@@ -91,9 +90,7 @@ var _ = Describe("Reallocation", func() {
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
-
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
+			ExpectReconcileSucceeded(controller, provisioner)
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
@@ -111,18 +108,14 @@ var _ = Describe("Reallocation", func() {
 					v1alpha2.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
-			pod := test.Pod(test.PodOptions{
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreatedWithStatus(env.Client, test.Pod(test.PodOptions{
 				Name:       strings.ToLower(randomdata.SillyName()),
 				Namespace:  provisioner.Namespace,
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
-			})
-
-			ExpectCreatedWithStatus(env.Client, node)
-			ExpectCreatedWithStatus(env.Client, pod)
-
-			ExpectCreated(env.Client, provisioner)
-			ExpectEventuallyReconciled(env.Client, provisioner)
+			}))
+			ExpectReconcileSucceeded(controller, provisioner)
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())

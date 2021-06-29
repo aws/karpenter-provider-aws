@@ -18,11 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -50,15 +48,6 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 	result, err := c.Controller.Reconcile(ctx, resource)
 	if err != nil {
 		zap.S().Errorf("Controller failed to reconcile kind %s, %s", resource.GetObjectKind().GroupVersionKind().Kind, err.Error())
-	}
-	// 4. Set status based on results of reconcile
-	if conditionsAccessor, ok := resource.(apis.ConditionsAccessor); ok {
-		m := apis.NewLivingConditionSet(conditions.Active).Manage(conditionsAccessor)
-		if err != nil {
-			m.MarkFalse(conditions.Active, err.Error(), "")
-		} else {
-			m.MarkTrue(conditions.Active)
-		}
 	}
 	// 5. Update Status using a merge patch
 	// If the controller is reconciling nodes, don't patch

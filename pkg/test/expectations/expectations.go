@@ -20,8 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
-	"github.com/awslabs/karpenter/pkg/utils/conditions"
-	"github.com/awslabs/karpenter/pkg/utils/log"
+	"github.com/awslabs/karpenter/pkg/controllers"
 
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -74,40 +73,16 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectDeletedNode(c client.Client, n *v1.Node) {
-	persisted := n.DeepCopy()
-	n.Finalizers = []string{}
-	Expect(c.Patch(context.Background(), n, client.MergeFrom(persisted))).To(Succeed())
-	ExpectDeleted(c, n)
-}
-
 func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
+		persisted := object.DeepCopyObject()
+		object.SetFinalizers([]string{})
+		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted))).To(Succeed())
 		Expect(c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
 	}
 	for _, object := range objects {
 		ExpectNotFound(c, object)
 	}
-}
-
-func ExpectEventuallyHappy(c client.Client, provisioner *v1alpha2.Provisioner) {
-	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
-	Eventually(func() bool {
-		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
-		return provisioner.StatusConditions().IsHappy()
-	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-		return fmt.Sprintf("resource never became happy\n%s", log.Pretty(provisioner))
-	})
-}
-
-func ExpectEventuallyReconciled(c client.Client, provisioner *v1alpha2.Provisioner) {
-	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
-	Eventually(func() bool {
-		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
-		return !provisioner.StatusConditions().GetCondition(conditions.Active).IsUnknown()
-	}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-		return fmt.Sprintf("resources active condition was never updated\n%s", log.Pretty(provisioner))
-	})
 }
 
 func ExpectCleanedUp(c client.Client) {
@@ -120,7 +95,7 @@ func ExpectCleanedUp(c client.Client) {
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
 	for _, node := range nodes.Items {
-		ExpectDeletedNode(c, &node)
+		ExpectDeleted(c, &node)
 	}
 	provisioners := v1alpha2.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
@@ -129,9 +104,36 @@ func ExpectCleanedUp(c client.Client) {
 	}
 }
 
-func AttemptProvisioning(c client.Client, provisioner *v1alpha2.Provisioner, pod *v1.Pod) *v1.Pod {
-	ExpectCreatedWithStatus(c, pod)
-	ExpectCreated(c, provisioner)
-	ExpectEventuallyReconciled(c, provisioner)
-	return ExpectPodExists(c, pod.GetName(), pod.GetNamespace())
+func ExpectProvisioningSucceeded(c client.Client, controller controllers.Controller, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+	for _, pod := range pods {
+		ExpectCreatedWithStatus(c, pod)
+	}
+	ExpectReconcileSucceeded(controller, provisioner)
+	result := []*v1.Pod{}
+	for _, pod := range pods {
+		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
+	}
+	return result
+}
+
+func ExpectProvisioningFailed(c client.Client, controller controllers.Controller, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+	for _, pod := range pods {
+		ExpectCreatedWithStatus(c, pod)
+	}
+	ExpectReconcileFailed(controller, provisioner)
+	result := []*v1.Pod{}
+	for _, pod := range pods {
+		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
+	}
+	return result
+}
+
+func ExpectReconcileFailed(controller controllers.Controller, object client.Object) {
+	_, err := controller.Reconcile(context.Background(), object)
+	Expect(err).To(HaveOccurred())
+}
+
+func ExpectReconcileSucceeded(controller controllers.Controller, object client.Object) {
+	_, err := controller.Reconcile(context.Background(), object)
+	Expect(err).ToNot(HaveOccurred())
 }

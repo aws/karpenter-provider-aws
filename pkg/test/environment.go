@@ -17,16 +17,26 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = apis.AddToScheme(scheme)
+}
 
 /*
 Environment is for e2e local testing. It stands up an API Server, ETCD,
@@ -45,8 +55,7 @@ AfterSuite(func() { env.Stop() })
 */
 type Environment struct {
 	envtest.Environment
-	Manager controllers.Manager
-	Client  client.Client
+	Client client.Client
 
 	options []EnvironmentOption
 	ctx     context.Context
@@ -75,36 +84,20 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 
 func (e *Environment) Start() (err error) {
 	// Environment
-	if _, err := e.Environment.Start(); err != nil {
+	if _, err = e.Environment.Start(); err != nil {
 		return fmt.Errorf("starting environment, %w", err)
 	}
 
-	// Manager
-	e.Manager = controllers.NewManagerOrDie(e.Config, controllerruntime.Options{
-		MetricsBindAddress: "0", // Skip the metrics server to avoid port conflicts for parallel testing
-	})
-
 	// Client
-	kubeClient, err := client.New(e.Manager.GetConfig(), client.Options{
-		Scheme: e.Manager.GetScheme(),
-		Mapper: e.Manager.GetRESTMapper(),
-	})
+	e.Client, err = client.New(e.Config, client.Options{Scheme: scheme})
 	if err != nil {
 		return err
 	}
-	e.Client = kubeClient
 
 	// options
 	for _, option := range e.options {
 		option(e)
 	}
-
-	// Start manager
-	go func() {
-		if err := e.Manager.Start(e.ctx); err != nil {
-			zap.S().Panic(err)
-		}
-	}()
 	return nil
 }
 
