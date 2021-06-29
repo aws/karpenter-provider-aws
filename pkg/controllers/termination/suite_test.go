@@ -72,7 +72,7 @@ var _ = Describe("Termination", func() {
 			ExpectCreated(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
@@ -112,6 +112,7 @@ var _ = Describe("Termination", func() {
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
+<<<<<<< HEAD
 			ExpectReconcileSucceeded(controller, node)
 
 			// Expect node to exist, but be cordoned
@@ -139,6 +140,12 @@ var _ = Describe("Termination", func() {
 			// Terminate Node
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(controller, node)
+=======
+			ExpectControllerSucceeded(controller, node)
+			pods := &v1.PodList{}
+			Expect(env.Client.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
+			Expect(pods.Items).To(HaveLen(1))
+>>>>>>> Implemented support for TTLSecondsUntilExpired
 			ExpectNotFound(env.Client, node)
 		})
 	})

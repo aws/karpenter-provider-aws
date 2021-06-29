@@ -31,8 +31,8 @@ func IsReadyAndSchedulable(node v1.Node) bool {
 	return false
 }
 
-func IsPastTTL(node *v1.Node) bool {
-	ttl, ok := node.Annotations[v1alpha2.ProvisionerTTLKey]
+func IsPastEmptyTTL(node *v1.Node) bool {
+	ttl, ok := node.Annotations[v1alpha2.ProvisionerTTLAfterEmptyKey]
 	if !ok {
 		return false
 	}
@@ -43,8 +43,8 @@ func IsPastTTL(node *v1.Node) bool {
 	return time.Now().After(ttlTime)
 }
 
-// IsUnderutilized returns if the node has 0 non-daemonset pods
-func IsUnderutilized(node *v1.Node, pods []*v1.Pod) bool {
+// IsEmpty returns if the node has 0 non-daemonset pods
+func IsEmpty(node *v1.Node, pods []*v1.Pod) bool {
 	for _, p := range pods {
 		if pod.HasFailed(p) {
 			continue

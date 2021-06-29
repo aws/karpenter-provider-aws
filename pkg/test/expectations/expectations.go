@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -108,7 +109,7 @@ func ExpectProvisioningSucceeded(c client.Client, controller controllers.Control
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectReconcileSucceeded(controller, provisioner)
+	ExpectControllerSucceeded(controller, provisioner)
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -120,7 +121,7 @@ func ExpectProvisioningFailed(c client.Client, controller controllers.Controller
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectReconcileFailed(controller, provisioner)
+	ExpectControllerFailed(controller, provisioner)
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -128,12 +129,24 @@ func ExpectProvisioningFailed(c client.Client, controller controllers.Controller
 	return result
 }
 
-func ExpectReconcileFailed(controller controllers.Controller, object client.Object) {
+// ExpectControllerFailed should be deprecated in favor of ExpectReconcileFailed (TODO, once we move off of generic controller)
+func ExpectControllerFailed(controller controllers.Controller, object client.Object) {
 	_, err := controller.Reconcile(context.Background(), object)
 	Expect(err).To(HaveOccurred())
 }
 
-func ExpectReconcileSucceeded(controller controllers.Controller, object client.Object) {
+// ExpectControllerSucceeded should be deprecated in favor of ExpectReconcileSucceeded (TODO, once we move off of generic controller)
+func ExpectControllerSucceeded(controller controllers.Controller, object client.Object) {
 	_, err := controller.Reconcile(context.Background(), object)
+	Expect(err).ToNot(HaveOccurred())
+}
+
+func ExpectReconcileFailed(reconciler reconcile.Reconciler, key client.ObjectKey) {
+	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{NamespacedName: key})
+	Expect(err).To(HaveOccurred())
+}
+
+func ExpectReconcileSucceeded(reconciler reconcile.Reconciler, key client.ObjectKey) {
+	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())
 }

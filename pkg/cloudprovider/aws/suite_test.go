@@ -138,7 +138,7 @@ var _ = Describe("Allocation", func() {
 					},
 				})
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectReconcileSucceeded(controller, provisioner)
+				ExpectControllerSucceeded(controller, provisioner)
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
@@ -187,7 +187,7 @@ var _ = Describe("Allocation", func() {
 					},
 				})
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectReconcileSucceeded(controller, provisioner)
+				ExpectControllerSucceeded(controller, provisioner)
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())

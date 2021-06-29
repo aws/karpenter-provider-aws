@@ -31,7 +31,7 @@ var (
 		ProvisionerNameLabelKey,
 		ProvisionerNamespaceLabelKey,
 		ProvisionerUnderutilizedLabelKey,
-		ProvisionerTTLKey,
+		ProvisionerTTLAfterEmptyKey,
 		ZoneLabelKey,
 		InstanceTypeLabelKey,
 	}

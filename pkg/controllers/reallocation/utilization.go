@@ -47,8 +47,8 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		if err != nil {
 			return fmt.Errorf("getting pods for node %s, %w", node.Name, err)
 		}
-		if utilsnode.IsUnderutilized(node, pods) {
-			if _, ok := node.Annotations[v1alpha2.ProvisionerTTLKey]; !ok {
+		if utilsnode.IsEmpty(node, pods) {
+			if _, ok := node.Annotations[v1alpha2.ProvisionerTTLAfterEmptyKey]; !ok {
 				ttlable = append(ttlable, node)
 			}
 		}
@@ -63,7 +63,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		)
 		node.Annotations = functional.UnionStringMaps(
 			node.Annotations,
-			map[string]string{v1alpha2.ProvisionerTTLKey: time.Now().Add(time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second).Format(time.RFC3339)},
+			map[string]string{v1alpha2.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second).Format(time.RFC3339)},
 		)
 		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
@@ -88,12 +88,12 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 			return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 		}
 
-		if !utilsnode.IsUnderutilized(node, pods) {
+		if !utilsnode.IsEmpty(node, pods) {
 			persisted := node.DeepCopy()
 			delete(node.Labels, v1alpha2.ProvisionerUnderutilizedLabelKey)
-			delete(node.Annotations, v1alpha2.ProvisionerTTLKey)
+			delete(node.Annotations, v1alpha2.ProvisionerTTLAfterEmptyKey)
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
-				zap.S().Debugf("Could not remove underutilized labels on node %s, %w", node.Name, err)
+				return fmt.Errorf("removing underutilized label on %s, %w", node.Name, err)
 			} else {
 				zap.S().Debugf("Removed TTL from node %s", node.Name)
 			}
@@ -110,10 +110,10 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
 
-	// 2. Delete node if past TTL
-	// This will kick off work for the termination controller to gracefully shut down the node.
+	// 2. Trigger termination workflow if past TTLAfterEmpty
 	for _, node := range nodes {
-		if utilsnode.IsPastTTL(node) {
+		if utilsnode.IsPastEmptyTTL(node) {
+			zap.S().Infof("Triggering termination for empty node %s", node.Name)
 			if err := u.kubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}

@@ -83,29 +83,29 @@ var _ = Describe("Reallocation", func() {
 
 	Context("Reconciliation", func() {
 		It("should label nodes as underutilized and add TTL", func() {
-			node := test.NodeWith(test.NodeOptions{
+			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
 					v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectReconcileSucceeded(controller, provisioner)
+			ExpectControllerSucceeded(controller, provisioner)
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).To(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).To(HaveKey(v1alpha2.ProvisionerTTLKey))
+			Expect(updatedNode.Annotations).To(HaveKey(v1alpha2.ProvisionerTTLAfterEmptyKey))
 		})
 		It("should remove labels from utilized nodes", func() {
-			node := test.NodeWith(test.NodeOptions{
+			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{
 					v1alpha2.ProvisionerNameLabelKey:          provisioner.Name,
 					v1alpha2.ProvisionerNamespaceLabelKey:     provisioner.Namespace,
 					v1alpha2.ProvisionerUnderutilizedLabelKey: "true",
 				},
 				Annotations: map[string]string{
-					v1alpha2.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
+					v1alpha2.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
@@ -115,12 +115,12 @@ var _ = Describe("Reallocation", func() {
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
-			ExpectReconcileSucceeded(controller, provisioner)
+			ExpectControllerSucceeded(controller, provisioner)
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha2.ProvisionerTTLKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha2.ProvisionerTTLAfterEmptyKey))
 		})
 	})
 })
