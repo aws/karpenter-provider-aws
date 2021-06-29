@@ -108,7 +108,7 @@ spec:
               conditions:
                 description: Conditions is the set of conditions required for this provisioner to scale its target, and indicates whether or not those conditions are met.
                 items:
-                  description: 'Conditions defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
+                  description: 'Condition defines a readiness condition for a Knative resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the last time the condition transitioned from one status to another. We use VolatileTime in place of metav1.Time to exclude this from creating equality.Semantic differences (all other things held constant).

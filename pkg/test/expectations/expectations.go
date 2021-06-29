@@ -61,18 +61,16 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 
 func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		nn := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
 		Expect(c.Create(context.Background(), object)).To(Succeed())
-		Eventually(func() error {
-			return c.Get(context.Background(), nn, object)
-		}, APIServerPropagationTime, RequestInterval).Should(Succeed())
 	}
 }
 
 func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
+		// Preserve a copy of the status, which is overriden by create
+		status := object.DeepCopyObject().(client.Object)
 		ExpectCreated(c, object)
-		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
+		Expect(c.Status().Update(context.Background(), status)).To(Succeed())
 	}
 }
 
