@@ -82,10 +82,10 @@ var _ = Describe("Termination", func() {
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
 			node := test.NodeWith(test.NodeOptions{
-				Finalizers: []string{v1alpha1.KarpenterFinalizer},
+				Finalizers: []string{v1alpha2.KarpenterFinalizer},
 				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:      "default",
-					v1alpha1.ProvisionerNamespaceLabelKey: "default",
+					v1alpha2.ProvisionerNameLabelKey:      "default",
+					v1alpha2.ProvisionerNamespaceLabelKey: "default",
 				},
 			})
 			pod := test.Pod(test.PodOptions{
