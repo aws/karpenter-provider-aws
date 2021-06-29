@@ -10,7 +10,7 @@ These steps are opinionated and may need to be adapted for your use case.
 export CLUSTER_NAME=$USER-karpenter-demo
 export AWS_DEFAULT_REGION=us-west-2
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-LATEST_KARPENTER_VERSION=$(curl -fsSL \
+KARPENTER_VERSION=$(curl -fsSL \
   https://api.github.com/repos/awslabs/karpenter/releases/latest \
   | jq -r '.tag_name')
 ```
@@ -21,7 +21,7 @@ Karpenter can run anywhere, including on self-managed node groups, [managed node
 This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter autoscaling.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
   | envsubst \
   | eksctl create cluster -f -
 ```
@@ -51,7 +51,7 @@ For production use, please review and restrict these permissions for your use ca
 ```bash
 # Creates IAM resources used by Karpenter
 TEMPOUT=$(mktemp)
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${LATEST_KARPENTER_VERSION}"/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
