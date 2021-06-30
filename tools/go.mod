@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/ahmetb/gen-crd-api-reference-docs v0.3.0
 	github.com/fzipp/gocyclo v0.3.1
-	github.com/golangci/golangci-lint v1.41.1
+	github.com/golangci/golangci-lint v1.31.0
 	github.com/google/ko v0.8.3
 	github.com/mikefarah/yq/v4 v4.6.1
 	github.com/mitchellh/golicense v0.2.0
