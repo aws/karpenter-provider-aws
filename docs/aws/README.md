@@ -97,7 +97,6 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  ttlSeconds: 30
   cluster:
     name: ${CLUSTER_NAME}
     caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data" --output json)
