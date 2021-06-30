@@ -4,7 +4,7 @@ package tools
 
 import (
 	_ "github.com/ahmetb/gen-crd-api-reference-docs"
-	_ "github.com/fzipp/gocyclo"
+	_ "github.com/fzipp/gocyclo/cmd/gocyclo"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/google/ko"
 	_ "github.com/mikefarah/yq/v4"
