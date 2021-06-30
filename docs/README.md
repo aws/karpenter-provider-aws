@@ -1,23 +1,23 @@
 <p>Packages:</p>
 <ul>
 <li>
-<a href="#provisioning.karpenter.sh%2fv1alpha1">provisioning.karpenter.sh/v1alpha1</a>
+<a href="#provisioning.karpenter.sh%2fv1alpha2">provisioning.karpenter.sh/v1alpha2</a>
 </li>
 </ul>
-<h2 id="provisioning.karpenter.sh/v1alpha1">provisioning.karpenter.sh/v1alpha1</h2>
+<h2 id="provisioning.karpenter.sh/v1alpha2">provisioning.karpenter.sh/v1alpha2</h2>
 <p>
-<p>Package v1alpha1 contains API Schema definitions for the v1alpha1 API group</p>
+<p>Package v1alpha2 contains API Schema definitions for the v1alpha2 API group</p>
 </p>
 Resource Types:
 <ul></ul>
-<h3 id="provisioning.karpenter.sh/v1alpha1.ClusterSpec">ClusterSpec
+<h3 id="provisioning.karpenter.sh/v1alpha2.Cluster">Cluster
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
-<p>ClusterSpec configures the cluster that the provisioner operates against. If
+<p>Cluster configures the cluster that the provisioner operates against. If
 not specified, it will default to using the controller&rsquo;s kube-config.</p>
 </p>
 <table>
@@ -63,11 +63,11 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha1.Constraints">Constraints
+<h3 id="provisioning.karpenter.sh/v1alpha2.Constraints">Constraints
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
 <p>Constraints are applied to all nodes created by the provisioner. They can be
@@ -165,7 +165,7 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha1.Provisioner">Provisioner
+<h3 id="provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner
 </h3>
 <p>
 <p>Provisioner is the Schema for the Provisioners API</p>
@@ -196,7 +196,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ProvisionerSpec">
+<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">
 ProvisionerSpec
 </a>
 </em>
@@ -209,20 +209,21 @@ ProvisionerSpec
 <td>
 <code>cluster</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ClusterSpec">
-ClusterSpec
+<a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
+Cluster
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p>Cluster that launched nodes connect to.</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>Constraints</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Constraints">
+<a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
 Constraints
 </a>
 </em>
@@ -231,19 +232,40 @@ Constraints
 <p>
 (Members of <code>Constraints</code> are embedded into this type.)
 </p>
-<p>Constraints applied to nodes created by the provisioner</p>
+<em>(Optional)</em>
+<p>Constraints are applied to all nodes launched by this provisioner.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>ttlSeconds</code></br>
+<code>ttlSecondsAfterEmpty</code></br>
 <em>
-int32
+int64
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TTLSeconds determines how long to wait before attempting to terminate a node.</p>
+<p>TTLSecondsAfterEmpty is the number of seconds the controller will wait
+before attempting to terminate a node, measured from when the node is
+detected to be empty. A Node is considered to be empty when it does not
+have pods scheduled to it, excluding daemonsets.</p>
+<p>Termination due to underutilization is disabled if this field is not set.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ttlSecondsUntilExpired</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TTLSecondsUntilExpired is the number of seconds the controller will wait
+before terminating a node, measured from when the node is created. This
+is useful to implement features like eventually consistent node upgrade,
+memory leak protection, and disruption testing.</p>
+<p>Termination due to expiration is disabled if this field is not set.</p>
 </td>
 </tr>
 </table>
@@ -253,7 +275,7 @@ int32
 <td>
 <code>status</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ProvisionerStatus">
+<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerStatus">
 ProvisionerStatus
 </a>
 </em>
@@ -263,11 +285,11 @@ ProvisionerStatus
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha1.ProvisionerSpec">ProvisionerSpec
+<h3 id="provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Provisioner">Provisioner</a>)
+<a href="#provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -293,20 +315,21 @@ pod.spec.nodeSelector[&ldquo;provisioning.karpenter.sh/name&rdquo;]=$PROVISIONER
 <td>
 <code>cluster</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.ClusterSpec">
-ClusterSpec
+<a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
+Cluster
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p>Cluster that launched nodes connect to.</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>Constraints</code></br>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Constraints">
+<a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
 Constraints
 </a>
 </em>
@@ -315,28 +338,49 @@ Constraints
 <p>
 (Members of <code>Constraints</code> are embedded into this type.)
 </p>
-<p>Constraints applied to nodes created by the provisioner</p>
+<em>(Optional)</em>
+<p>Constraints are applied to all nodes launched by this provisioner.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>ttlSeconds</code></br>
+<code>ttlSecondsAfterEmpty</code></br>
 <em>
-int32
+int64
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TTLSeconds determines how long to wait before attempting to terminate a node.</p>
+<p>TTLSecondsAfterEmpty is the number of seconds the controller will wait
+before attempting to terminate a node, measured from when the node is
+detected to be empty. A Node is considered to be empty when it does not
+have pods scheduled to it, excluding daemonsets.</p>
+<p>Termination due to underutilization is disabled if this field is not set.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ttlSecondsUntilExpired</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TTLSecondsUntilExpired is the number of seconds the controller will wait
+before terminating a node, measured from when the node is created. This
+is useful to implement features like eventually consistent node upgrade,
+memory leak protection, and disruption testing.</p>
+<p>Termination due to expiration is disabled if this field is not set.</p>
 </td>
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha1.ProvisionerStatus">ProvisionerStatus
+<h3 id="provisioning.karpenter.sh/v1alpha2.ProvisionerStatus">ProvisionerStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha1.Provisioner">Provisioner</a>)
+<a href="#provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerStatus defines the observed state of Provisioner</p>
@@ -380,5 +424,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>08b78c7</code>.
+on git commit <code>36276c4</code>.
 </em></p>

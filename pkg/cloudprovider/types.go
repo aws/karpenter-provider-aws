@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -27,12 +27,12 @@ import (
 // CloudProvider holds contains the methods necessary in a cloud provider
 type CloudProvider interface {
 	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, *v1alpha1.Provisioner, []*Packing) ([]*PackedNode, error)
+	Create(context.Context, *v1alpha2.Provisioner, []*Packing) ([]*PackedNode, error)
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// Validate is a hook for additional constraint validation logic specific to the cloud provider
-	Validate(context.Context, *v1alpha1.Constraints) *apis.FieldError
+	Validate(context.Context, *v1alpha2.Constraints) *apis.FieldError
 	// Terminate node in cloudprovider
 	Terminate(context.Context, *v1.Node) error
 }
@@ -43,7 +43,7 @@ type CloudProvider interface {
 type Packing struct {
 	Pods                []*v1.Pod
 	InstanceTypeOptions []InstanceType
-	Constraints         *v1alpha1.Constraints
+	Constraints         *v1alpha2.Constraints
 }
 
 // PackedNode is a node object and the pods that should be bound to it. It is
