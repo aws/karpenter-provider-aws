@@ -11,7 +11,9 @@ main() {
 }
 
 tools() {
-    cd tools; GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
+    cd tools
+    go mod tidy
+    GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
 }
 
 kubebuilder() {
