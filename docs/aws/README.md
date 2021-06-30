@@ -21,6 +21,7 @@ Karpenter can run anywhere, including on self-managed node groups, [managed node
 This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter.
 
 ```bash
+# If the following URL gives a 404, use https://raw.githubusercontent.com/awslabs/karpenter/main/docs/aws/eks-config.yaml
 curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
   | envsubst \
   | eksctl create cluster -f -
