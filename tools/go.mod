@@ -11,5 +11,4 @@ require (
 	github.com/mitchellh/golicense v0.2.0
 	github.com/onsi/ginkgo v1.16.1
 	sigs.k8s.io/controller-tools v0.4.0
-	sigs.k8s.io/kubebuilder v1.0.9-0.20200321200244-8b53abeb4280
 )
