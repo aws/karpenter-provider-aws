@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1alpha1
 
 import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -31,33 +31,18 @@ import (
 // different defaults and can be specifically targeted by pods using
 // pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
 type ProvisionerSpec struct {
-	// Cluster that launched nodes connect to.
 	// +optional
-	Cluster *Cluster `json:"cluster,omitempty"`
-	// Constraints are applied to all nodes launched by this provisioner.
-	// +optional
+	Cluster *ClusterSpec `json:"cluster,omitempty"`
+	// Constraints applied to nodes created by the provisioner
 	Constraints `json:",inline"`
-	// TTLSecondsAfterEmpty is the number of seconds the controller will wait
-	// before attempting to terminate a node, measured from when the node is
-	// detected to be empty. A Node is considered to be empty when it does not
-	// have pods scheduled to it, excluding daemonsets.
-	//
-	// Termination due to underutilization is disabled if this field is not set.
+	// TTLSeconds determines how long to wait before attempting to terminate a node.
 	// +optional
-	TTLSecondsAfterEmpty *int64 `json:"ttlSecondsAfterEmpty,omitempty"`
-	// TTLSecondsUntilExpired is the number of seconds the controller will wait
-	// before terminating a node, measured from when the node is created. This
-	// is useful to implement features like eventually consistent node upgrade,
-	// memory leak protection, and disruption testing.
-	//
-	// Termination due to expiration is disabled if this field is not set.
-	// +optional
-	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
+	TTLSeconds *int32 `json:"ttlSeconds,omitempty"`
 }
 
-// Cluster configures the cluster that the provisioner operates against. If
+// ClusterSpec configures the cluster that the provisioner operates against. If
 // not specified, it will default to using the controller's kube-config.
-type Cluster struct {
+type ClusterSpec struct {
 	// Name is required to detect implementing cloud provider resources.
 	// +required
 	Name string `json:"name"`

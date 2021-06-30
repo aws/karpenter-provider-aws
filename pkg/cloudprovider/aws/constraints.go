@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
 )
@@ -50,15 +50,15 @@ var (
 		SecurityGroupTagKeyLabel,
 	}
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                   v1alpha2.ArchitectureAmd64,
-		v1alpha2.ArchitectureArm64: v1alpha2.ArchitectureArm64,
+		"x86_64":                   v1alpha1.ArchitectureAmd64,
+		v1alpha1.ArchitectureArm64: v1alpha1.ArchitectureArm64,
 	}
 	KubeToAWSArchitectures = functional.InvertStringMap(AWSToKubeArchitectures)
 )
 
 // Constraints are AWS specific constraints
 type Constraints struct {
-	v1alpha2.Constraints
+	v1alpha1.Constraints
 }
 
 func (c *Constraints) GetCapacityType() string {

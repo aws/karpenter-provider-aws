@@ -19,15 +19,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
@@ -82,17 +82,17 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Allocation", func() {
 	var ctx context.Context
-	var provisioner *v1alpha2.Provisioner
+	var provisioner *v1alpha1.Provisioner
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		provisioner = &v1alpha2.Provisioner{
+		provisioner = &v1alpha1.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      strings.ToLower(randomdata.SillyName()),
 				Namespace: "default",
 			},
-			Spec: v1alpha2.ProvisionerSpec{
-				Cluster: &v1alpha2.Cluster{
+			Spec: v1alpha1.ProvisionerSpec{
+				Cluster: &v1alpha1.ClusterSpec{
 					Name:     "test-cluster",
 					Endpoint: "https://test-cluster",
 					CABundle: "dGVzdC1jbHVzdGVyCg==",
@@ -530,9 +530,9 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Validation", func() {
-		Context("Cluster", func() {
+		Context("ClusterSpec", func() {
 			It("should fail if fields are empty", func() {
-				for _, cluster := range []*v1alpha2.Cluster{
+				for _, cluster := range []*v1alpha1.ClusterSpec{
 					nil,
 					{Endpoint: "https://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
 					{Name: "test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
@@ -627,11 +627,11 @@ var _ = Describe("Allocation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support AMD", func() {
-				provisioner.Spec.Architecture = ptr.String(v1alpha2.ArchitectureAmd64)
+				provisioner.Spec.Architecture = ptr.String(v1alpha1.ArchitectureAmd64)
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should support ARM", func() {
-				provisioner.Spec.Architecture = ptr.String(v1alpha2.ArchitectureArm64)
+				provisioner.Spec.Architecture = ptr.String(v1alpha1.ArchitectureArm64)
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
@@ -644,7 +644,7 @@ var _ = Describe("Allocation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support linux", func() {
-				provisioner.Spec.OperatingSystem = ptr.String(v1alpha2.OperatingSystemLinux)
+				provisioner.Spec.OperatingSystem = ptr.String(v1alpha1.OperatingSystemLinux)
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})

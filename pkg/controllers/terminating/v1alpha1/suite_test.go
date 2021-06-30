@@ -12,13 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package termination
+package v1alpha1
 
 import (
 	"context"
 	"testing"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
@@ -68,10 +68,10 @@ var _ = Describe("Termination", func() {
 	Context("Reconciliation", func() {
 		It("should terminate deleted nodes", func() {
 			node := test.NodeWith(test.NodeOptions{
-				Finalizers: []string{v1alpha2.KarpenterFinalizer},
+				Finalizers: []string{v1alpha1.KarpenterFinalizer},
 				Labels: map[string]string{
-					v1alpha2.ProvisionerNameLabelKey:      "default",
-					v1alpha2.ProvisionerNamespaceLabelKey: "default",
+					v1alpha1.ProvisionerNameLabelKey:      "default",
+					v1alpha1.ProvisionerNamespaceLabelKey: "default",
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)

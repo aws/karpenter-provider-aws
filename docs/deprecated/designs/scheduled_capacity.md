@@ -83,7 +83,7 @@ This configuration is scaling up for 9-5 on weekdays (red), scaling down a littl
 down almost fully for the weekends (blue).
 ![](../images/scheduled-capacity-example-schedule-graphic.png)
 ```yaml
-apiVersion: autoscaling.karpenter.sh/v1alpha2
+apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
   name: scheduling
@@ -184,7 +184,7 @@ at more complex levels of planning. We want to keep the tool intuitive, precise,
 understand their workloads can easily schedule them.
 
 ```yaml
-apiVersion: autoscaling.karpenter.sh/v1alpha2
+apiVersion: autoscaling.karpenter.sh/v1alpha1
 kind: MetricsProducer
 metadata:
   name: FakeScheduling

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1alpha1
 
 import (
 	"context"
@@ -73,17 +73,17 @@ func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Cluster) validate() (errs *apis.FieldError) {
-	if c == nil {
+func (s *ClusterSpec) validate() (errs *apis.FieldError) {
+	if s == nil {
 		return errs.Also(apis.ErrMissingField())
 	}
-	if len(c.Name) == 0 {
+	if len(s.Name) == 0 {
 		errs = errs.Also(apis.ErrMissingField("name"))
 	}
-	if len(c.Endpoint) == 0 {
+	if len(s.Endpoint) == 0 {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
 	}
-	if len(c.CABundle) == 0 {
+	if len(s.CABundle) == 0 {
 		errs = errs.Also(apis.ErrMissingField("caBundle"))
 	}
 	return errs

@@ -3,24 +3,14 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  # Provisioned nodes connect to this cluster
+  # Provisioned nodes will be configured to connect to this cluster
   cluster:
     name: "${CLUSTER_NAME}"
     caBundle: "${CLUSTER_CA_BUNDLE}"
     endpoint: "${CLUSTER_ENDPOINT}"
-
-  # If nil, the feature is disabled, nodes will never expire
-  ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
-
-  # If nil, the feature is disabled, nodes will never scale down due to low utilization
-  ttlSecondsAfterEmpty: 30
-
-  # Provisioned nodes will have these taints
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
-
-  # Provisioned nodes will have these labels
   labels:
     ##### AWS Specific #####
     # Constrain node launch template, default="bottlerocket"

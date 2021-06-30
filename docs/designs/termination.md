@@ -78,7 +78,7 @@ type NodeDisruptionBudget struct {
 
 ```{yaml}
 # .yaml
-apiVersion: termination.karpenter.sh/v1alpha2
+apiVersion: termination.karpenter.sh/v1alpha1
 kind: NodeDisruptionBudget
 metadata:
   name: nodeBudget

@@ -9,7 +9,7 @@ Templates](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templa
 Presently, the provisioner has the following shape:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 metadata:
   name:
@@ -83,7 +83,7 @@ conflict with the architecture. For example, imagine a customer
 specified:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   architecture: arm64
@@ -140,7 +140,7 @@ Another solution would be to allow the user to specify architecture
 specific labels:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
@@ -156,7 +156,7 @@ spec:
 Or:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   # applied everywhere
@@ -173,7 +173,7 @@ Another possibility is to add another "path element" to the label name
 to make it architecture specific:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:
@@ -204,7 +204,7 @@ spec:
 If a provisioner is configured as follows:
 
 ```yaml
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: provisioning.karpenter.sh/v1alpha1
 kind: Provisioner
 spec:
   labels:

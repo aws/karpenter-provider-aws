@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -32,7 +32,7 @@ type Utilization struct {
 	kubeClient client.Client
 }
 
-func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
+func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Set TTL on TTLable Nodes
 	if err := u.markUnderutilized(ctx, provisioner); err != nil {
 		return fmt.Errorf("adding ttl and underutilized label, %w", err)
@@ -51,7 +51,7 @@ func (u *Utilization) Reconcile(ctx context.Context, provisioner *v1alpha2.Provi
 }
 
 // markUnderutilized adds a TTL to underutilized nodes
-func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
+func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	ttlable := []*v1.Node{}
 	// 1. Get all provisioner nodes
 	nodes, err := u.getNodes(ctx, provisioner, map[string]string{})
@@ -66,7 +66,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 			return fmt.Errorf("getting pods for node %s, %w", node.Name, err)
 		}
 		if utilsnode.IsUnderutilized(node, pods) {
-			if _, ok := node.Annotations[v1alpha2.ProvisionerTTLKey]; !ok {
+			if _, ok := node.Annotations[v1alpha1.ProvisionerTTLKey]; !ok {
 				ttlable = append(ttlable, node)
 			}
 		}
@@ -77,11 +77,11 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		persisted := node.DeepCopy()
 		node.Labels = functional.UnionStringMaps(
 			node.Labels,
-			map[string]string{v1alpha2.ProvisionerUnderutilizedLabelKey: "true"},
+			map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"},
 		)
 		node.Annotations = functional.UnionStringMaps(
 			node.Annotations,
-			map[string]string{v1alpha2.ProvisionerTTLKey: time.Now().Add(time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second).Format(time.RFC3339)},
+			map[string]string{v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(*provisioner.Spec.TTLSeconds) * time.Second).Format(time.RFC3339)},
 		)
 		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
@@ -92,9 +92,9 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 }
 
 // clearUnderutilized removes the TTL on underutilized nodes if there is sufficient resource usage
-func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
+func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha2.ProvisionerUnderutilizedLabelKey: "true"})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing labeled underutilized nodes, %w", err)
 	}
@@ -108,8 +108,8 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 
 		if !utilsnode.IsUnderutilized(node, pods) {
 			persisted := node.DeepCopy()
-			delete(node.Labels, v1alpha2.ProvisionerUnderutilizedLabelKey)
-			delete(node.Annotations, v1alpha2.ProvisionerTTLKey)
+			delete(node.Labels, v1alpha1.ProvisionerUnderutilizedLabelKey)
+			delete(node.Annotations, v1alpha1.ProvisionerTTLKey)
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				zap.S().Debugf("Could not remove underutilized labels on node %s, %w", node.Name, err)
 			} else {
@@ -121,9 +121,9 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 }
 
 // terminateExpired checks if a node is past its ttl and marks it
-func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha2.Provisioner) error {
+func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha1.Provisioner) error {
 	// 1. Get underutilized nodes
-	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha2.ProvisionerUnderutilizedLabelKey: "true"})
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{v1alpha1.ProvisionerUnderutilizedLabelKey: "true"})
 	if err != nil {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
@@ -140,11 +140,11 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 }
 
 // getNodes returns a list of nodes with the provisioner's labels and given labels
-func (u *Utilization) getNodes(ctx context.Context, provisioner *v1alpha2.Provisioner, additionalLabels map[string]string) ([]*v1.Node, error) {
+func (u *Utilization) getNodes(ctx context.Context, provisioner *v1alpha1.Provisioner, additionalLabels map[string]string) ([]*v1.Node, error) {
 	nodes := &v1.NodeList{}
 	if err := u.kubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
-		v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
-		v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+		v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
+		v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 	}, additionalLabels))); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
 	}
