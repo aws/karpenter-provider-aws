@@ -36,7 +36,7 @@ verify: ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod download
 	go vet ./...
 	go fmt ./...
-	golangci-lint run --timeout 5m # TODO Remove this timeout
+	golangci-lint run --timeout 5m
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	go build $(GOFLAGS) -o karpenter cmd/controller/main.go

@@ -46,7 +46,7 @@ func main() {
 	flag.IntVar(&options.Port, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.Parse()
 
-	config := sharedmain.ParseAndGetConfigOrDie()
+	config := injection.ParseAndGetRESTConfigOrDie()
 
 	// Register the cloud provider to attach vendor specific validation logic.
 	registry.NewCloudProvider(cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})

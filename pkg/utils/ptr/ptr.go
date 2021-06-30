@@ -14,7 +14,9 @@ limitations under the License.
 
 package ptr
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+)
 
 func Pod(pod v1.Pod) *v1.Pod {
 	return &pod
