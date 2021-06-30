@@ -70,7 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	// 4. If fully drained, terminate the node
 	if drained {
 		if err := c.terminator.terminate(ctx, node); err != nil {
-			return reconcile.Result{}, fmt.Errorf("terminating nodes, %w", err)
+			return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 		}
 	}
 	return reconcile.Result{Requeue: !drained}, nil

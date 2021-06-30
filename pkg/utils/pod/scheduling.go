@@ -15,6 +15,9 @@ limitations under the License.
 package pod
 
 import (
+	"fmt"
+
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -31,7 +34,7 @@ func FailedToSchedule(pod *v1.Pod) bool {
 // IsSchedulable returns true if the pod can schedule to the node
 func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
 	// Tolerate Taints
-	if !ToleratesAllTaints(pod, node.Spec.Taints) {
+	if err := ToleratesTaints(pod, node.Spec.Taints...); err != nil {
 		return false
 	}
 	// Match Node Selector labels
@@ -42,31 +45,22 @@ func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
 	return true
 }
 
-// ToleratesAllTaints returns true if the pod tolerates all taints
-func ToleratesAllTaints(pod *v1.PodSpec, taints []v1.Taint) bool {
+// ToleratesTaints returns an error if the pod does not tolerate the taints
+// https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
+func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) (err error) {
 	for _, taint := range taints {
-		if !ToleratesTaint(pod, taint) {
-			return false
+		if !Tolerates(spec.Tolerations, taint) {
+			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	return true
+	return err
 }
 
-// ToleratesTaint returns true if the pod tolerates the taint
-// https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
-func ToleratesTaint(pod *v1.PodSpec, taint v1.Taint) bool {
-	// Soft constraints are consider to be always tolerated.
-	if taint.Effect == v1.TaintEffectPreferNoSchedule {
-		return true
-	}
-	for _, toleration := range pod.Tolerations {
-		if toleration.Key == taint.Key {
-			if toleration.Operator == v1.TolerationOpExists {
-				return true
-			}
-			if toleration.Operator == v1.TolerationOpEqual && toleration.Value == taint.Value {
-				return true
-			}
+// Tolerates returns true if one of the tolerations tolerate the taint
+func Tolerates(tolerations []v1.Toleration, taint v1.Taint) bool {
+	for _, t := range tolerations {
+		if t.ToleratesTaint(&taint) {
+			return true
 		}
 	}
 	return false

@@ -22,11 +22,13 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
+	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestAPIs(t *testing.T) {
@@ -76,6 +78,27 @@ var _ = Describe("Termination", func() {
 			})
 			ExpectCreatedWithStatus(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			ExpectNotFound(env.Client, node)
+		})
+		It("should not evict pods that tolerate unschedulable taint", func() {
+			node := test.NodeWith(test.NodeOptions{
+				Finalizers: []string{v1alpha2.KarpenterFinalizer},
+				Labels: map[string]string{
+					v1alpha2.ProvisionerNameLabelKey:      "default",
+					v1alpha2.ProvisionerNamespaceLabelKey: "default",
+				},
+			})
+			pod := test.Pod(test.PodOptions{
+				NodeName:    node.Name,
+				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
+			})
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreatedWithStatus(env.Client, pod)
+
+			pods := &v1.PodList{}
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			Expect(env.Client.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
+			Expect(pods.Items).To(HaveLen(1))
 			ExpectNotFound(env.Client, node)
 		})
 	})

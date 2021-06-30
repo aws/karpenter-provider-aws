@@ -40,9 +40,11 @@ type Terminator struct {
 
 // cordon cordons a node
 func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
+	// 1. Check if node is already cordoned
 	if node.Spec.Unschedulable {
 		return nil
 	}
+	// 2. Cordon node
 	persisted := node.DeepCopy()
 	node.Spec.Unschedulable = true
 	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
@@ -52,28 +54,33 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// drain evicts pods from the node and returns true when fully drained
+// drain evicts pods from the node and returns true when all pods are evicted
 func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// 1. Get pods on node
 	pods, err := t.getPods(ctx, node)
 	if err != nil {
 		return false, fmt.Errorf("listing pods for node %s, %w", node.Name, err)
 	}
-	// 2. Evict pods on node
-	empty := true
-	for _, p := range pods {
-		if !pod.IsOwnedByDaemonSet(p) {
-			empty = false
-			if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: p.Name,
-				},
-			}); err != nil {
-				zap.S().Debugf("Continuing after failing to evict pods from node %s, %s", node.Name, err.Error())
-			}
+	// 2. Separate pods as non-critical and critical
+	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
+	nonCritical := []*v1.Pod{}
+	critical := []*v1.Pod{}
+	for _, pod := range pods {
+		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
+			critical = append(critical, pod)
+		} else {
+			nonCritical = append(nonCritical, pod)
 		}
 	}
-	return empty, nil
+	// 3. Evict non-critical pods
+	if !t.evictPods(ctx, nonCritical) {
+		return false, nil
+	}
+	// 4. Evict critical pods once all non-critical pods are evicted
+	if !t.evictPods(ctx, critical) {
+		return false, nil
+	}
+	return true, nil
 }
 
 // terminate terminates the node then removes the finalizer to delete the node
@@ -92,7 +99,23 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// getPods returns a list of pods scheduled to a node
+// evictPods returns true if there are no evictable pods
+func (t *Terminator) evictPods(ctx context.Context, pods []*v1.Pod) bool {
+	empty := true
+	for _, p := range pods {
+		// If a pod tolerates the unschedulable taint, don't evict it as it could reschedule back onto the node
+		if err := pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}); err != nil {
+			if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{ObjectMeta: metav1.ObjectMeta{Name: p.Name}}); err != nil {
+				// If an eviction fails, we need to eventually try again
+				zap.S().Debugf("Continuing after failing to evict pod %s from node %s, %s", p.Name, p.Spec.NodeName, err.Error())
+				empty = false
+			}
+		}
+	}
+	return empty
+}
+
+// getPods returns a list of pods scheduled to a node based on some filters
 func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	pods := &v1.PodList{}
 	if err := t.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
