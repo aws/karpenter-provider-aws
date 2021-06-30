@@ -10,5 +10,5 @@ require (
 	github.com/mikefarah/yq/v4 v4.6.1
 	github.com/mitchellh/golicense v0.2.0
 	github.com/onsi/ginkgo v1.16.4
-	sigs.k8s.io/controller-tools v0.4.0
+	sigs.k8s.io/controller-tools v0.4.1
 )
