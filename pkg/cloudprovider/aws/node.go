@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -82,7 +82,7 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 			},
 			NodeInfo: v1.NodeSystemInfo{
 				Architecture:    aws.StringValue(instance.Architecture),
-				OperatingSystem: v1alpha1.OperatingSystemLinux,
+				OperatingSystem: v1alpha2.OperatingSystemLinux,
 			},
 		},
 	}

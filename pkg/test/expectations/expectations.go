@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/utils/conditions"
 	"github.com/awslabs/karpenter/pkg/utils/log"
 
@@ -92,7 +92,7 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectEventuallyHappy(c client.Client, provisioner *v1alpha1.Provisioner) {
+func ExpectEventuallyHappy(c client.Client, provisioner *v1alpha2.Provisioner) {
 	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
 	Eventually(func() bool {
 		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
@@ -102,7 +102,7 @@ func ExpectEventuallyHappy(c client.Client, provisioner *v1alpha1.Provisioner) {
 	})
 }
 
-func ExpectEventuallyReconciled(c client.Client, provisioner *v1alpha1.Provisioner) {
+func ExpectEventuallyReconciled(c client.Client, provisioner *v1alpha2.Provisioner) {
 	nn := types.NamespacedName{Name: provisioner.GetName(), Namespace: provisioner.GetNamespace()}
 	Eventually(func() bool {
 		Expect(c.Get(context.Background(), nn, provisioner)).To(Succeed())
@@ -124,14 +124,14 @@ func ExpectCleanedUp(c client.Client) {
 	for _, node := range nodes.Items {
 		ExpectDeletedNode(c, &node)
 	}
-	provisioners := v1alpha1.ProvisionerList{}
+	provisioners := v1alpha2.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
 	for _, provisioner := range provisioners.Items {
 		ExpectDeleted(c, &provisioner)
 	}
 }
 
-func AttemptProvisioning(c client.Client, provisioner *v1alpha1.Provisioner, pod *v1.Pod) *v1.Pod {
+func AttemptProvisioning(c client.Client, provisioner *v1alpha2.Provisioner, pod *v1.Pod) *v1.Pod {
 	ExpectCreatedWithStatus(c, pod)
 	ExpectCreated(c, provisioner)
 	ExpectEventuallyReconciled(c, provisioner)

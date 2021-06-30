@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -39,7 +39,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisioner, constraints *Constraints) ([]*ec2.Subnet, error) {
+func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha2.Provisioner, constraints *Constraints) ([]*ec2.Subnet, error) {
 	// 1. Get all viable subnets for this provisioner
 	subnets, err := s.getSubnets(ctx, provisioner)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha1.Provisio
 	return subnets, nil
 }
 
-func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha1.Provisioner) ([]*ec2.Subnet, error) {
+func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha2.Provisioner) ([]*ec2.Subnet, error) {
 	if subnets, ok := s.cache.Get(provisioner.Spec.Cluster.Name); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}

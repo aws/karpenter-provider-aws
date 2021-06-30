@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 
@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha1.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha2.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	packedNodes := []*cloudprovider.PackedNode{}
 	for _, packing := range packings {
 		name := strings.ToLower(randomdata.SillyName())
@@ -102,7 +102,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	}, nil
 }
 
-func (c *CloudProvider) Validate(context.Context, *v1alpha1.Constraints) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha2.Constraints) *apis.FieldError {
 	return nil
 }
 

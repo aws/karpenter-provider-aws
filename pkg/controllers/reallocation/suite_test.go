@@ -21,13 +21,14 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -61,16 +62,17 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reallocation", func() {
-	var provisioner *v1alpha1.Provisioner
+	var provisioner *v1alpha2.Provisioner
 	var ctx context.Context
 
 	BeforeEach(func() {
-		provisioner = &v1alpha1.Provisioner{
+		provisioner = &v1alpha2.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()),
 				Namespace: "default",
 			},
-			Spec: v1alpha1.ProvisionerSpec{
-				Cluster: &v1alpha1.ClusterSpec{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+			Spec: v1alpha2.ProvisionerSpec{
+				Cluster:              &v1alpha2.Cluster{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				TTLSecondsAfterEmpty: ptr.Int64(300),
 			},
 		}
 		ctx = context.Background()
@@ -84,8 +86,8 @@ var _ = Describe("Reallocation", func() {
 		It("should label nodes as underutilized and add TTL", func() {
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:      provisioner.Name,
-					v1alpha1.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+					v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
+					v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 				},
 			})
 			ExpectCreatedWithStatus(env.Client, node)
@@ -95,18 +97,18 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).To(HaveKey(v1alpha1.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).To(HaveKey(v1alpha1.ProvisionerTTLKey))
+			Expect(updatedNode.Labels).To(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).To(HaveKey(v1alpha2.ProvisionerTTLKey))
 		})
 		It("should remove labels from utilized nodes", func() {
 			node := test.NodeWith(test.NodeOptions{
 				Labels: map[string]string{
-					v1alpha1.ProvisionerNameLabelKey:          provisioner.Name,
-					v1alpha1.ProvisionerNamespaceLabelKey:     provisioner.Namespace,
-					v1alpha1.ProvisionerUnderutilizedLabelKey: "true",
+					v1alpha2.ProvisionerNameLabelKey:          provisioner.Name,
+					v1alpha2.ProvisionerNamespaceLabelKey:     provisioner.Namespace,
+					v1alpha2.ProvisionerUnderutilizedLabelKey: "true",
 				},
 				Annotations: map[string]string{
-					v1alpha1.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
+					v1alpha2.ProvisionerTTLKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
 			pod := test.Pod(test.PodOptions{
@@ -124,8 +126,8 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha1.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha1.ProvisionerTTLKey))
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha2.ProvisionerTTLKey))
 		})
 	})
 })
