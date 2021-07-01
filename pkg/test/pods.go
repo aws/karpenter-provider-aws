@@ -35,6 +35,7 @@ type PodOptions struct {
 	NodeSelector         map[string]string
 	Tolerations          []v1.Toleration
 	Conditions           []v1.PodCondition
+	Annotations          map[string]string
 }
 
 // Pod creates a test pod with defaults that can be overriden by PodOptions.
@@ -60,6 +61,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Name:            options.Name,
 			Namespace:       options.Namespace,
 			OwnerReferences: options.OwnerReferences,
+			Annotations:     options.Annotations,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: options.NodeSelector,

@@ -22,13 +22,12 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
-	v1 "k8s.io/api/core/v1"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func TestAPIs(t *testing.T) {
@@ -57,9 +56,11 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Termination", func() {
 	var ctx context.Context
+	var node *v1.Node
 
 	BeforeEach(func() {
 		ctx = context.Background()
+		node = test.NodeWith(test.NodeOptions{Finalizers: []string{v1alpha2.KarpenterFinalizer}})
 	})
 
 	AfterEach(func() {
@@ -68,13 +69,6 @@ var _ = Describe("Termination", func() {
 
 	Context("Reconciliation", func() {
 		It("should terminate deleted nodes", func() {
-			node := test.NodeWith(test.NodeOptions{
-				Finalizers: []string{v1alpha2.KarpenterFinalizer},
-				Labels: map[string]string{
-					v1alpha2.ProvisionerNameLabelKey:      "default",
-					v1alpha2.ProvisionerNamespaceLabelKey: "default",
-				},
-			})
 			ExpectCreated(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -82,25 +76,69 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
-			node := test.NodeWith(test.NodeOptions{
-				Finalizers: []string{v1alpha2.KarpenterFinalizer},
-				Labels: map[string]string{
-					v1alpha2.ProvisionerNameLabelKey:      "default",
-					v1alpha2.ProvisionerNamespaceLabelKey: "default",
-				},
-			})
-			ExpectCreated(env.Client, node)
-			ExpectCreated(env.Client, test.Pod(test.PodOptions{
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podSkip := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
 				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
-			}))
+			})
+			ExpectCreated(env.Client, node, podEvict, podSkip)
+
+			// Trigger Termination Controller
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
+
+			// Expect podToEvict to be evicting, and delete it
+			podEvict = ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
+			Expect(podEvict.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeFalse())
+			ExpectDeleted(env.Client, podEvict)
+			// Expect podToSkip to not be evicting
+			podSkip = ExpectPodExists(env.Client, podSkip.Name, podSkip.Namespace)
+			Expect(podSkip.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeTrue())
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
+			ExpectNotFound(env.Client, node)
+		})
+		It("should not terminate nodes that have a do-not-evict pod", func() {
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName:    node.Name,
+				Annotations: map[string]string{v1alpha2.KarpenterDoNotEvictPodAnnotation: "true"},
+			})
+
+			ExpectCreated(env.Client, node, podEvict, podNoEvict)
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(controller, node)
-			pods := &v1.PodList{}
-			Expect(env.Client.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
-			Expect(pods.Items).To(HaveLen(1))
+
+			// Expect node to exist, but be cordoned
+			node = ExpectNodeExists(env.Client, node.Name)
+			Expect(node.Spec.Unschedulable).To(Equal(true))
+
+			// Expect pods to not be evicting
+			podEvict = ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
+			Expect(podEvict.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeTrue())
+			podNoEvict = ExpectPodExists(env.Client, podNoEvict.Name, podNoEvict.Namespace)
+			Expect(podNoEvict.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeTrue())
+
+			// Delete do-not-evict pod
+			ExpectDeleted(env.Client, podNoEvict)
+
+			// Reconcile node to evict pod
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
+			pod := ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
+			Expect(pod.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeFalse())
+
+			// Delete pod to simulate successful eviction
+			ExpectDeleted(env.Client, pod)
+
+			// Terminate Node
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 	})
