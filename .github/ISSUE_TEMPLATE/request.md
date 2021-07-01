@@ -1,7 +1,7 @@
 ---
 name: Request
 about: Suggest an idea for the roadmap! The team will review
-title: "[Request]: Describe Request Here"
+title: "Describe Request Here"
 labels: Request
 assignees: ''
 
