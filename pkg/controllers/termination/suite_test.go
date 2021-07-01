@@ -41,11 +41,10 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
 	controller = NewController(
-		e.Manager.GetClient(),
-		corev1.NewForConfigOrDie(e.Manager.GetConfig()),
+		e.Client,
+		corev1.NewForConfigOrDie(e.Config),
 		cloudProvider,
 	)
-	e.Manager.RegisterControllers(controller)
 })
 
 var _ = BeforeSuite(func() {
@@ -64,7 +63,7 @@ var _ = Describe("Termination", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Manager.GetClient())
+		ExpectCleanedUp(env.Client)
 	})
 
 	Context("Reconciliation", func() {
@@ -76,8 +75,10 @@ var _ = Describe("Termination", func() {
 					v1alpha2.ProvisionerNamespaceLabelKey: "default",
 				},
 			})
-			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreated(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
@@ -88,15 +89,16 @@ var _ = Describe("Termination", func() {
 					v1alpha2.ProvisionerNamespaceLabelKey: "default",
 				},
 			})
-			pod := test.Pod(test.PodOptions{
+			ExpectCreated(env.Client, node)
+			ExpectCreated(env.Client, test.Pod(test.PodOptions{
 				NodeName:    node.Name,
 				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
-			})
-			ExpectCreatedWithStatus(env.Client, node)
-			ExpectCreatedWithStatus(env.Client, pod)
+			}))
 
-			pods := &v1.PodList{}
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(controller, node)
+			pods := &v1.PodList{}
 			Expect(env.Client.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name})).To(Succeed())
 			Expect(pods.Items).To(HaveLen(1))
 			ExpectNotFound(env.Client, node)

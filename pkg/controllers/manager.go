@@ -19,12 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis"
-
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -34,22 +30,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
-
-func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = apis.AddToScheme(scheme)
-}
-
 type GenericControllerManager struct {
 	manager.Manager
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
 func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
-	options.Scheme = scheme
 	manager, err := controllerruntime.NewManager(config, options)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create controller manager, %s", err.Error()))
