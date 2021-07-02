@@ -76,7 +76,6 @@ func main() {
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
 	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
 
-
 	if err := expiration.NewController(manager.GetClient()).Register(manager); err != nil {
 		panic(err)
 	}
