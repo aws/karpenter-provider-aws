@@ -55,7 +55,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
 	node := object.(*v1.Node)
 	// 1. Check if node is terminable
-	if node.DeletionTimestamp == nil || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
+	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
 		return reconcile.Result{}, nil
 	}
 	// 2. Cordon node

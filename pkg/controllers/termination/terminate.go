@@ -65,11 +65,19 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	nonCritical := []*v1.Pod{}
 	critical := []*v1.Pod{}
-	for _, pod := range pods {
-		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
-			critical = append(critical, pod)
+	for _, p := range pods {
+		if val := p.Annotations[provisioning.KarpenterDoNotEvictPodAnnotation]; val == "true" {
+			zap.S().Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
+			return false, nil
+		}
+		// If a pod tolerates the unschedulable taint, don't evict it as it could reschedule back onto the node
+		if err := pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}); err == nil {
+			continue
+		}
+		if p.Spec.PriorityClassName == "system-cluster-critical" || p.Spec.PriorityClassName == "system-node-critical" {
+			critical = append(critical, p)
 		} else {
-			nonCritical = append(nonCritical, pod)
+			nonCritical = append(nonCritical, p)
 		}
 	}
 	// 3. Evict non-critical pods
@@ -101,18 +109,13 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 
 // evictPods returns true if there are no evictable pods
 func (t *Terminator) evictPods(ctx context.Context, pods []*v1.Pod) bool {
-	empty := true
 	for _, p := range pods {
-		// If a pod tolerates the unschedulable taint, don't evict it as it could reschedule back onto the node
-		if err := pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}); err != nil {
-			if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{ObjectMeta: metav1.ObjectMeta{Name: p.Name}}); err != nil {
-				// If an eviction fails, we need to eventually try again
-				zap.S().Debugf("Continuing after failing to evict pod %s from node %s, %s", p.Name, p.Spec.NodeName, err.Error())
-				empty = false
-			}
+		if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{ObjectMeta: metav1.ObjectMeta{Name: p.Name, Namespace: p.Namespace}}); err != nil {
+			// If an eviction fails, we need to eventually try again
+			zap.S().Debugf("Continuing after failing to evict pod %s from node %s, %s", p.Name, p.Spec.NodeName, err.Error())
 		}
 	}
-	return empty
+	return len(pods) == 0
 }
 
 // getPods returns a list of pods scheduled to a node based on some filters
