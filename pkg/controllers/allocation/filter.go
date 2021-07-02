@@ -44,13 +44,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
-		if err := functional.ValidateAll(
-			func() error { return f.isUnschedulable(&p) },
-			func() error { return f.matchesProvisioner(&p, provisioner) },
-			func() error { return f.hasSupportedSchedulingConstraints(&p) },
-			func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
-			func() error { return f.withValidConstraints(ctx, &p, provisioner) },
-		); err != nil {
+		if err := f.isProvisionable(ctx, &p, provisioner); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				p.Name, p.Namespace,
 				provisioner.Name, provisioner.Namespace,
@@ -61,6 +55,35 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 		provisionable = append(provisionable, ptr.Pod(p))
 	}
 	return provisionable, nil
+}
+
+// GetProvisionerFor retrieves the provisioner responsible for the pod
+func (f *Filter) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
+	provisionerKey := client.ObjectKey{
+		Namespace: "default",
+		Name:      "default",
+	}
+	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
+		provisionerKey.Name = name
+	}
+	if namespace, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]; ok {
+		provisionerKey.Namespace = namespace
+	}
+	provisioner := &v1alpha2.Provisioner{}
+	if err := f.kubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
+		return nil, err
+	}
+	return provisioner, nil
+}
+
+func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha2.Provisioner) error {
+	return functional.ValidateAll(
+		func() error { return f.isUnschedulable(p) },
+		func() error { return f.matchesProvisioner(p, provisioner) },
+		func() error { return f.hasSupportedSchedulingConstraints(p) },
+		func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
+		func() error { return f.withValidConstraints(ctx, p, provisioner) },
+	)
 }
 
 func (f *Filter) isUnschedulable(p *v1.Pod) error {

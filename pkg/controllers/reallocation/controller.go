@@ -22,9 +22,14 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 
+	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller for the resource
@@ -40,6 +45,11 @@ func (c *Controller) For() client.Object {
 
 func (c *Controller) Interval() time.Duration {
 	return 5 * time.Second
+}
+
+// ConcurrentReconciles controls the number of concurrent reconciles that can occur
+func (c *Controller) ConcurrentReconciles() int {
+	return 1
 }
 
 func (c *Controller) Name() string {
@@ -76,4 +86,14 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
 	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+}
+
+// Watches returns the necessary information to create a watch
+//   a. source: the resource that is being watched
+//   b. eventHandler: which controller objects to be reconciled
+//   c. predicates: which events can be filtered out before processed
+func (c *Controller) Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return &source.Kind{Type: &v1.Pod{}},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return false }))
 }

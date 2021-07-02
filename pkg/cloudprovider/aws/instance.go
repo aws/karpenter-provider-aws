@@ -103,7 +103,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		return nil, fmt.Errorf("expected 1 instance ids, but got %d due to errors %v", count, createFleetOutput.Errors)
 	}
 	if count := len(createFleetOutput.Errors); count > 0 {
-		zap.S().Warnf("CreateFleet encountered %d errors, but still launched instances, %v", count, createFleetOutput.Errors)
+		zap.S().Debugf("CreateFleet encountered %d errors, but still launched instances, %v", count, createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }

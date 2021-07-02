@@ -52,12 +52,14 @@ func (m *GenericControllerManager) RegisterControllers(controllers ...Controller
 		controlledObject := c.For()
 		builder := controllerruntime.NewControllerManagedBy(m).
 			For(controlledObject).
+			Watches(c.Watches(context.Background())).
 			WithOptions(controller.Options{
 				RateLimiter: workqueue.NewMaxOfRateLimiter(
 					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
 					// 10 qps, 100 bucket size
 					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
 				),
+				MaxConcurrentReconciles: c.ConcurrentReconciles(),
 			})
 		if namedController, ok := c.(NamedController); ok {
 			builder.Named(namedController.Name())

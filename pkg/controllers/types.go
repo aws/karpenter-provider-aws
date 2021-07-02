@@ -17,9 +17,12 @@ package controllers
 import (
 	"context"
 
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -31,6 +34,13 @@ type Controller interface {
 	// For returns a default instantiation of the resource and is injected by
 	// data from the API Server at the start of the reconciliation loop.
 	For() client.Object
+	// Watches returns the necessary information to create a watch
+	//   a. Source: the resource that is being watched
+	//   b. EventHandler: which controller objects to be reconciled
+	//   c. WatchesOption: which events can be filtered out before processed
+	Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption)
+	// ConcurrentReconciles controls the number of concurrent reconciles that can occur
+	ConcurrentReconciles() int
 }
 
 // NamedController allows controllers to optionally implement a Name() function which will be used instead of the

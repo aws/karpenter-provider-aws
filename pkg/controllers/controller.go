@@ -21,8 +21,11 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // GenericController implements controllerruntime.Reconciler and runs a
@@ -57,4 +60,17 @@ func (c *GenericController) Reconcile(ctx context.Context, req reconcile.Request
 		}
 	}
 	return result, err
+}
+
+// Watches returns the necessary information to create a watch
+//   a. source: the resource that is being watched
+//   b. eventHandler: which controller objects to be reconciled
+//   c. predicates: which events can be filtered out before processed
+func (c *GenericController) Watches(ctx context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return c.Controller.Watches(ctx)
+}
+
+// ConcurrentReconciles controls the number of concurrent reconciles that can occur
+func (c *GenericController) ConcurrentReconciles() int {
+	return c.Controller.ConcurrentReconciles()
 }

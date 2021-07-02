@@ -23,17 +23,31 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
+	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	MaxBatchWindow   = 10 * time.Second
+	BatchIdleTimeout = 2 * time.Second
 )
 
 // Controller for the resource
 type Controller struct {
 	filter        *Filter
 	binder        *Binder
+	batcher       *Batcher
 	constraints   *Constraints
 	packer        packing.Packer
 	cloudProvider cloudprovider.CloudProvider
@@ -48,6 +62,11 @@ func (c *Controller) Interval() time.Duration {
 	return 5 * time.Second
 }
 
+// ConcurrentReconciles controls the number of concurrent reconciles that can occur
+func (c *Controller) ConcurrentReconciles() int {
+	return 4
+}
+
 func (c *Controller) Name() string {
 	return "provisioner/allocator"
 }
@@ -57,6 +76,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 	return &Controller{
 		filter:        &Filter{kubeClient: kubeClient},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
+		batcher:       NewBatcher(MaxBatchWindow, BatchIdleTimeout),
 		constraints:   &Constraints{kubeClient: kubeClient},
 		packer:        packing.NewPacker(),
 		cloudProvider: cloudProvider,
@@ -75,13 +95,15 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 		return reconcile.Result{}, fmt.Errorf("setting dynamic default values, %w", err)
 	}
 
+	c.batcher.Wait(persistedProvisioner.UID)
+
 	// 2. Filter pods
 	pods, err := c.filter.GetProvisionablePods(ctx, &provisionerWithDefaults)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
 	if len(pods) == 0 {
-		return reconcile.Result{RequeueAfter: c.Interval()}, nil
+		return reconcile.Result{}, nil
 	}
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
@@ -115,5 +137,50 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
 		}
 	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+	return reconcile.Result{}, nil
+}
+
+// Watches returns the necessary information to create a watch
+//   a. source: the resource that is being watched
+//   b. eventHandler: which controller objects to be reconciled
+//   c. predicates: which events can be filtered out before processed
+func (c *Controller) Watches(ctx context.Context) (source.Source, handler.EventHandler, builder.WatchesOption) {
+	return &source.Kind{Type: &v1.Pod{}},
+		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(
+			func(obj client.Object) []reconcile.Request {
+				pod := obj.(*v1.Pod)
+				if pod.Spec.NodeName != "" || podutils.IsOwnedByDaemonSet(pod) {
+					return nil
+				}
+				provisioner, err := c.filter.GetProvisionerFor(ctx, pod)
+				if err != nil {
+					zap.S().Errorf("Retrieving provisioner, %s", err.Error())
+					return nil
+				}
+				c.batcher.Add(fmt.Sprintf("%s/%s", provisioner.Name, provisioner.Namespace))
+				requests := []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Name:      provisioner.Name,
+						Namespace: provisioner.Namespace,
+					}}}
+				return requests
+			},
+		)),
+		builder.WithPredicates(
+			predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool {
+					return false
+				},
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					return false
+				},
+				UpdateFunc: func(e event.UpdateEvent) bool {
+					provisioner, err := c.filter.GetProvisionerFor(ctx, e.ObjectNew.(*v1.Pod))
+					if err != nil {
+						return false
+					}
+					err = c.filter.isProvisionable(ctx, e.ObjectNew.(*v1.Pod), provisioner)
+					return err == nil
+				},
+			})
 }
