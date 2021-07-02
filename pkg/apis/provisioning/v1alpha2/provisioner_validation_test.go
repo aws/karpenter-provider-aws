@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"knative.dev/pkg/ptr"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -97,6 +98,29 @@ var _ = Describe("Validation", func() {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
+		})
+	})
+	Context("Taints", func() {
+		It("should succeed for valid taints", func() {
+			provisioner.Spec.Taints = []v1.Taint{
+				{Key: "a", Value: "b", Effect: v1.TaintEffectNoExecute},
+				{Key: "c", Value: "d", Effect: v1.TaintEffectNoSchedule},
+				{Key: "e", Value: "f", Effect: v1.TaintEffectPreferNoSchedule},
+				{Key: "key-only", Effect: v1.TaintEffectNoExecute},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail for invalid taint keys", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "???"}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for invalid taint effects", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Key: "invalid-effect", Effect: "???"}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for missing taint key effects", func() {
+			provisioner.Spec.Taints = []v1.Taint{{Effect: v1.TaintEffectPreferNoSchedule}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
 	Context("Zones", func() {
