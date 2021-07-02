@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
 )
@@ -53,6 +54,8 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 
 func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
+		s.validateTTLSecondsUntilExpired(),
+		s.validateTTLSecondsAfterEmpty(),
 		s.Cluster.validate().ViaField("cluster"),
 		// This validation is on the ProvisionerSpec despite the fact that
 		// labels are a property of Constraints. This is necessary because
@@ -62,6 +65,19 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
+}
+
+func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldError) {
+	if ptr.Int64Value(s.TTLSecondsUntilExpired) < 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsUntilExpired"))
+	}
+	return errs
+}
+func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError) {
+	if ptr.Int64Value(s.TTLSecondsAfterEmpty) < 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsAfterEmpty"))
+	}
+	return errs
 }
 
 func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {

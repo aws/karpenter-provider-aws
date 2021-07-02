@@ -53,6 +53,16 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
+	It("should fail on negative expiry ttl", func() {
+		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(-1)
+		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+
+	It("should fail on negative empty ttl", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
+		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+
 	It("should fail for empty cluster specification", func() {
 		for _, cluster := range []*Cluster{
 			nil,

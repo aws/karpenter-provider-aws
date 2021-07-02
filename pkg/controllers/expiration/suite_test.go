@@ -63,14 +63,27 @@ var _ = Describe("Reconciliation", func() {
 	AfterEach(func() {
 		ExpectCleanedUp(env.Client)
 	})
+	It("should ignore nodes without TTLSecondsUntilExpired", func() {
+		node := test.Node(test.NodeOptions{
+			Labels: map[string]string{
+				v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
+				v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+			},
+		})
+		provisioner.Spec.TTLSecondsUntilExpired = nil
+		ExpectCreated(env.Client, provisioner, node)
+		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
+		node = ExpectNodeExists(env.Client, node.Name)
+		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
+	})
 	It("should ignore nodes without a provisioner", func() {
 		node := test.Node(test.NodeOptions{})
 		ExpectCreated(env.Client, provisioner, node)
 		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 		node = ExpectNodeExists(env.Client, node.Name)
-		Expect(node.DeletionTimestamp).To(BeNil())
+		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 	})
 	It("should not terminate nodes before expiry", func() {
 		node := test.Node(test.NodeOptions{
@@ -83,7 +96,7 @@ var _ = Describe("Reconciliation", func() {
 		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 		node = ExpectNodeExists(env.Client, node.Name)
-		Expect(node.DeletionTimestamp).To(BeNil())
+		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 	})
 	It("should terminate nodes after expiry", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(0)

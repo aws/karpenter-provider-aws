@@ -57,7 +57,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	// 2. Ignore if node is already deleting
-	if node.DeletionTimestamp != nil {
+	if !node.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
 	// 3. Ignore if provisioner doesn't exist
