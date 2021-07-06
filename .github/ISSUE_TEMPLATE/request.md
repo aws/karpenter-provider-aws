@@ -1,8 +1,8 @@
 ---
 name: Request
-about: Suggest an idea for the roadmap! The team will review
-title: "Describe Request Here"
-labels: Request
+about: Suggest an idea for the roadmap!
+title: ''
+labels: feature
 assignees: ''
 
 ---
