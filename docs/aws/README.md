@@ -1,16 +1,16 @@
 # Getting Started with Karpenter on AWS
 
-Karpenter automatically provisions new nodes in response to unscheduleable pods. Karpenter does this by observing events within the kubernetes cluster, and then sending commands to the underlying cloud platform. 
+Karpenter automatically provisions new nodes in response to unschedulable  pods. Karpenter does this by observing events within the kubernetes cluster, and then sending commands to the underlying cloud platform. 
 
 In this example, the cluster is running on Amazon Web Services (AWS) Elastic Kubernetes Service (EKS). Karpenter is designed to be cloud platform independent, but currently only supports AWS. Contributions are welcomed. 
 
-This guide should take less than 1 hour to complate, and cost less than $0.25. Follow the clean-up instructions to reduce any charges.
+This guide should take less than 1 hour to complete, and cost less than $0.25. Follow the clean-up instructions to reduce any charges.
 
 # Install
 
 Karpenter is installed in clusters with a simple helm chart.
 
-Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA permits Karpenter (within the cluster) to make privlidged requests to AWS (as the cloud platform). 
+Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA permits Karpenter (within the cluster) to make privileged requests to AWS (as the cloud platform). 
 
 ## Required Utilities
 
@@ -20,7 +20,7 @@ Install these tools before proceeding:
 2. `kubectl` - [the kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 
-Login to the AWS CLI with a user that has sufficent privlidges to create a cluster. 
+Login to the AWS CLI with a user that has sufficient privileges to create a cluster. 
 
 ## Environment Variables
 
@@ -39,7 +39,7 @@ KARPENTER_VERSION=$(curl -fsSL \
 
 Create a cluster with `eksctl`. The below configuration file specifies a basic cluster (name, region), an IAM role for karpenter to use, and two fargate profiles. 
 
-The two fargate profiles host `kube-system` and the karpenter service itself. This permits karpenter to manage all nodes, without a circular depenency. 
+The two fargate profiles host `kube-system` and the karpenter service itself. This permits karpenter to manage all nodes, without a circular dependency. 
 
 Karpenter will provision traditional instances on EC2. 
 
@@ -66,7 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERS
   --parameter-overrides ClusterName=${CLUSTER_NAME}
 ```
 
-Second, create the mapping between kubernetes resoruces and the new IAM role. 
+Second, create the mapping between kubernetes resources and the new IAM role. 
 
 ```bash
 # Add the karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
