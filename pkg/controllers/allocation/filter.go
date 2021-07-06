@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -59,10 +60,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 
 // GetProvisionerFor retrieves the provisioner responsible for the pod
 func (f *Filter) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
-	provisionerKey := client.ObjectKey{
-		Namespace: "default",
-		Name:      "default",
-	}
+	provisionerKey := client.ObjectKey{Namespace: "default", Name: "default"}
 	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
 		provisionerKey.Name = name
 	}
@@ -71,6 +69,9 @@ func (f *Filter) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Pr
 	}
 	provisioner := &v1alpha2.Provisioner{}
 	if err := f.kubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
+		if errors.IsNotFound(err) && provisionerKey.Name == "default" {
+			return nil, fmt.Errorf("finding the default provisioner for pod without a provisioner override, %w", err)
+		}
 		return nil, err
 	}
 	return provisioner, nil

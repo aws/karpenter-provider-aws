@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -101,9 +100,6 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	}
 	if count := len(createFleetOutput.Instances[0].InstanceIds); count != 1 {
 		return nil, fmt.Errorf("expected 1 instance ids, but got %d due to errors %v", count, createFleetOutput.Errors)
-	}
-	if count := len(createFleetOutput.Errors); count > 0 {
-		zap.S().Debugf("CreateFleet encountered %d errors, but still launched instances, %v", count, createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }

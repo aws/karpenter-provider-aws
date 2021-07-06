@@ -23,7 +23,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
-	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -31,7 +30,6 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -149,12 +147,13 @@ func (c *Controller) Watches(ctx context.Context) (source.Source, handler.EventH
 		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(
 			func(obj client.Object) []reconcile.Request {
 				pod := obj.(*v1.Pod)
-				if pod.Spec.NodeName != "" || podutils.IsOwnedByDaemonSet(pod) {
-					return nil
-				}
 				provisioner, err := c.filter.GetProvisionerFor(ctx, pod)
 				if err != nil {
 					zap.S().Errorf("Retrieving provisioner, %s", err.Error())
+					return nil
+				}
+				err = c.filter.isProvisionable(ctx, pod, provisioner)
+				if err != nil {
 					return nil
 				}
 				c.batcher.Add(fmt.Sprintf("%s/%s", provisioner.Name, provisioner.Namespace))
@@ -166,21 +165,5 @@ func (c *Controller) Watches(ctx context.Context) (source.Source, handler.EventH
 				return requests
 			},
 		)),
-		builder.WithPredicates(
-			predicate.Funcs{
-				CreateFunc: func(e event.CreateEvent) bool {
-					return false
-				},
-				DeleteFunc: func(e event.DeleteEvent) bool {
-					return false
-				},
-				UpdateFunc: func(e event.UpdateEvent) bool {
-					provisioner, err := c.filter.GetProvisionerFor(ctx, e.ObjectNew.(*v1.Pod))
-					if err != nil {
-						return false
-					}
-					err = c.filter.isProvisionable(ctx, e.ObjectNew.(*v1.Pod), provisioner)
-					return err == nil
-				},
-			})
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return true }))
 }
