@@ -37,7 +37,7 @@ type Batcher struct {
 	batches *cache.Cache
 }
 
-// NewBatchManager creates a new batch manager to start multiple batch windows
+// NewBatcher creates a new batch manager to start multiple batch windows
 func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher {
 	batchCache := cache.New(BatchCacheTTL, BatchCacheCleanupInterval)
 	batchCache.OnEvicted(func(key string, val interface{}) {
@@ -55,7 +55,12 @@ func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher
 func (m *Batcher) Add(key string) {
 	batch, ok := m.batches.Get(key)
 	if !ok {
-		batch = NewBatch(m)
+		batch = &Batch{
+			Batcher: m,
+			start:   make(chan bool, 1),
+			updates: make(chan bool, 1),
+			end:     make(chan bool, 1),
+		}
 		m.batches.SetDefault(key, batch)
 	}
 	// Updates expiration
@@ -63,13 +68,13 @@ func (m *Batcher) Add(key string) {
 	batch.(*Batch).Add()
 }
 
-// Wait blocks until a specific batching window completes based on the batching key
-func (m *Batcher) Wait(key string) {
+// Complete blocks until a specific batching window ends based on the batching key
+func (m *Batcher) Complete(key string) {
 	batch, ok := m.batches.Get(key)
 	if !ok {
 		return
 	}
-	batch.(*Batch).Wait()
+	batch.(*Batch).Complete()
 }
 
 // Batch implements a single batching window based on a max timeout and a progress period
@@ -83,16 +88,6 @@ type Batch struct {
 
 	sync.Mutex
 	*Batcher
-}
-
-// NewBatcher creates a batcher to aggregate pods into groups
-func NewBatch(batcher *Batcher) *Batch {
-	return &Batch{
-		Batcher: batcher,
-		start:   make(chan bool, 1),
-		updates: make(chan bool, 1),
-		end:     make(chan bool, 1),
-	}
 }
 
 // Add starts a batching window or adds to an existing in-progress window
@@ -110,10 +105,10 @@ func (b *Batch) Add() {
 	}
 }
 
-// Wait blocks until a batching window completes
-// If the batch is empty, it will block until something is added or the window completes
-func (b *Batch) Wait() {
-	// block until window end signal received from window monitor
+// Complete blocks until a batching window ends
+// If the batch is empty, it will block until something is added or the window times out
+func (b *Batch) Complete() {
+	// block until window end signal is received from the window monitor
 	<-b.end
 }
 
