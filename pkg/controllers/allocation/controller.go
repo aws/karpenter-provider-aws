@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,13 +130,16 @@ func (c *Controller) Reconcile(ctx context.Context, object client.Object) (recon
 	}
 
 	// 6. Bind pods to nodes
+	var errs error
 	for _, packedNode := range packedNodes {
 		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
 		if err := c.binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
 			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
+			errs = multierr.Append(errs, err)
 		}
 	}
-	return reconcile.Result{}, nil
+
+	return reconcile.Result{}, errs
 }
 
 // Watches returns the necessary information to create a watch
@@ -156,13 +160,8 @@ func (c *Controller) Watches(ctx context.Context) (source.Source, handler.EventH
 				if err != nil {
 					return nil
 				}
-				c.batcher.Add(fmt.Sprintf("%s/%s", provisioner.Name, provisioner.Namespace))
-				requests := []reconcile.Request{{
-					NamespacedName: types.NamespacedName{
-						Name:      provisioner.Name,
-						Namespace: provisioner.Namespace,
-					}}}
-				return requests
+				c.batcher.Add(provisioner)
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}}}
 			},
 		)),
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool { return true }))

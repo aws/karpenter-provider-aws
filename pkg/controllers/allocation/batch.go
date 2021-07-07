@@ -15,10 +15,12 @@ limitations under the License.
 package allocation
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/patrickmn/go-cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -39,21 +41,22 @@ type Batcher struct {
 
 // NewBatcher creates a new batch manager to start multiple batch windows
 func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher {
-	batchCache := cache.New(BatchCacheTTL, BatchCacheCleanupInterval)
-	batchCache.OnEvicted(func(key string, val interface{}) {
+	batches := cache.New(BatchCacheTTL, BatchCacheCleanupInterval)
+	batches.OnEvicted(func(key string, val interface{}) {
 		batch := val.(*Batch)
 		batch.close()
 	})
 	return &Batcher{
 		MaxBatchPeriod: maxBatchPeriod,
 		IdlePeriod:     idlePeriod,
-		batches:        batchCache,
+		batches:        batches,
 	}
 }
 
-// Add starts a batching window or updates an existing one based on a batching key
-func (m *Batcher) Add(key string) {
-	batch, ok := m.batches.Get(key)
+// Add starts a batching window or updates an existing one based on an object
+// Add is safe to be called concurrently for the same object and different objects
+func (m *Batcher) Add(obj client.Object) {
+	batch, ok := m.batches.Get(m.keyFrom(obj))
 	if !ok {
 		batch = &Batch{
 			Batcher: m,
@@ -61,20 +64,25 @@ func (m *Batcher) Add(key string) {
 			updates: make(chan bool, 1),
 			end:     make(chan bool, 1),
 		}
-		m.batches.SetDefault(key, batch)
+		m.batches.SetDefault(m.keyFrom(obj), batch)
 	}
 	// Updates expiration
-	m.batches.SetDefault(key, batch)
+	m.batches.SetDefault(m.keyFrom(obj), batch)
 	batch.(*Batch).Add()
 }
 
-// Complete blocks until a specific batching window ends based on the batching key
-func (m *Batcher) Complete(key string) {
-	batch, ok := m.batches.Get(key)
+// Wait blocks until a specific batching window ends based on the batching object
+// Wait should not be called concurrently for the same object, but it can be called concurrently by different objects
+func (m *Batcher) Wait(obj client.Object) {
+	batch, ok := m.batches.Get(m.keyFrom(obj))
 	if !ok {
 		return
 	}
-	batch.(*Batch).Complete()
+	batch.(*Batch).Wait()
+}
+
+func (m *Batcher) keyFrom(obj client.Object) string {
+	return fmt.Sprintf("%s/%s", obj.GetName(), obj.GetNamespace())
 }
 
 // Batch implements a single batching window based on a max timeout and a progress period
@@ -91,6 +99,7 @@ type Batch struct {
 }
 
 // Add starts a batching window or adds to an existing in-progress window
+// Add is safe to be called concurrently
 func (b *Batch) Add() {
 	b.Lock()
 	defer b.Unlock()
@@ -105,14 +114,15 @@ func (b *Batch) Add() {
 	}
 }
 
-// Complete blocks until a batching window ends
+// Wait blocks until a batching window ends
 // If the batch is empty, it will block until something is added or the window times out
-func (b *Batch) Complete() {
+// Wait should not be called concurrently
+func (b *Batch) Wait() {
 	// block until window end signal is received from the window monitor
 	<-b.end
 }
 
-// monitor kicks off a batch window and updates a bool when the window completes
+// monitor kicks off a batch window and updates a bool when the window Waits
 func (b *Batch) monitor() {
 	b.waitForWindowEnd()
 	b.Lock()

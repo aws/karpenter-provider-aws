@@ -69,8 +69,9 @@ func (f *Filter) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Pr
 	}
 	provisioner := &v1alpha2.Provisioner{}
 	if err := f.kubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
-		if errors.IsNotFound(err) && provisionerKey.Name == "default" {
-			return nil, fmt.Errorf("finding the default provisioner for pod without a provisioner override, %w", err)
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("provisioner %s/%s does not exist, please specify a provisioner override or create the default provisioner",
+				provisionerKey.Name, provisionerKey.Namespace)
 		}
 		return nil, err
 	}
