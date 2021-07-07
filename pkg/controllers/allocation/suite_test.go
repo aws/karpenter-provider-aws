@@ -156,7 +156,7 @@ var _ = Describe("Allocation", func() {
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, coschedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectReconcileSucceeded(controller, provisioner)
+			ExpectControllerSucceeded(controller, provisioner)
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -203,7 +203,7 @@ var _ = Describe("Allocation", func() {
 			}
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectReconcileSucceeded(controller, provisioner)
+			ExpectControllerSucceeded(controller, provisioner)
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -264,7 +264,7 @@ var _ = Describe("Allocation", func() {
 			}
 			ExpectCreatedWithStatus(env.Client, daemonsets...)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
-			ExpectReconcileSucceeded(controller, provisioner)
+			ExpectControllerSucceeded(controller, provisioner)
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())

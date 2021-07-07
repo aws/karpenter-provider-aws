@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -122,10 +123,10 @@ func (*packer) podsMatch(first, second []*v1.Pod) bool {
 	}
 	podSeen := map[string]int{}
 	for _, pod := range first {
-		podSeen[apiobject.NamespacedName(pod).String()]++
+		podSeen[client.ObjectKeyFromObject(pod).String()]++
 	}
 	for _, pod := range second {
-		podSeen[apiobject.NamespacedName(pod).String()]--
+		podSeen[client.ObjectKeyFromObject(pod).String()]--
 	}
 	for _, value := range podSeen {
 		if value != 0 {

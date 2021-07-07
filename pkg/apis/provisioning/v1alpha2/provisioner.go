@@ -120,8 +120,8 @@ var (
 	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
 
 	// Reserved annotations
-	ProvisionerTTLKey                = SchemeGroupVersion.Group + "/ttl"
 	KarpenterDoNotEvictPodAnnotation = "karpenter.sh/do-not-evict"
+	ProvisionerTTLAfterEmptyKey      = SchemeGroupVersion.Group + "/ttl-after-empty"
 
 	// Use ProvisionerSpec instead
 	ZoneLabelKey         = "topology.kubernetes.io/zone"

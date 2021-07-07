@@ -15,9 +15,11 @@ limitations under the License.
 package test
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +34,13 @@ type NodeOptions struct {
 	Finalizers    []string
 }
 
-func NodeWith(options NodeOptions) *v1.Node {
+func Node(overrides ...NodeOptions) *v1.Node {
+	options := NodeOptions{}
+	for _, opts := range overrides {
+		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge node options: %s", err.Error()))
+		}
+	}
 	if options.Name == "" {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
@@ -48,7 +56,6 @@ func NodeWith(options NodeOptions) *v1.Node {
 	if options.Finalizers == nil {
 		options.Finalizers = []string{}
 	}
-
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        options.Name,

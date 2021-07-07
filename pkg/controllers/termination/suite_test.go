@@ -60,7 +60,7 @@ var _ = Describe("Termination", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		node = test.NodeWith(test.NodeOptions{Finalizers: []string{v1alpha2.KarpenterFinalizer}})
+		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha2.KarpenterFinalizer}})
 	})
 
 	AfterEach(func() {
@@ -72,7 +72,7 @@ var _ = Describe("Termination", func() {
 			ExpectCreated(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
@@ -86,7 +86,7 @@ var _ = Describe("Termination", func() {
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 
 			// Expect podToEvict to be evicting, and delete it
 			podEvict = ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
@@ -98,7 +98,7 @@ var _ = Describe("Termination", func() {
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not terminate nodes that have a do-not-evict pod", func() {
@@ -112,7 +112,7 @@ var _ = Describe("Termination", func() {
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 
 			// Expect node to exist, but be cordoned
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -129,7 +129,7 @@ var _ = Describe("Termination", func() {
 
 			// Reconcile node to evict pod
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 			pod := ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
 			Expect(pod.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeFalse())
 
@@ -138,7 +138,7 @@ var _ = Describe("Termination", func() {
 
 			// Terminate Node
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectReconcileSucceeded(controller, node)
+			ExpectControllerSucceeded(controller, node)
 			ExpectNotFound(env.Client, node)
 		})
 	})

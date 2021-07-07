@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/expiration"
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/utils/log"
@@ -74,6 +75,10 @@ func main() {
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
 	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
+
+	if err := expiration.NewController(manager.GetClient()).Register(manager); err != nil {
+		panic(err)
+	}
 
 	if err := manager.RegisterControllers(
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
