@@ -20,6 +20,8 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
 )
@@ -113,6 +115,7 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	errs = errs.Also(
 		c.validateLabels(),
+		c.validateTaints(),
 		c.validateArchitecture(),
 		c.validateOperatingSystem(),
 		c.validateZones(),
@@ -131,6 +134,31 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		}
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(value+", "+err, "labels"))
+		}
+	}
+	return errs
+}
+
+func (c *Constraints) validateTaints() (errs *apis.FieldError) {
+	for i, taint := range c.Taints {
+		// Validate Key
+		if len(taint.Key) == 0 {
+			errs = errs.Also(apis.ErrInvalidArrayValue(errs, "taints", i))
+		}
+		for _, err := range validation.IsQualifiedName(taint.Key) {
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+		}
+		// Validate Value
+		if len(taint.Value) != 0 {
+			for _, err := range validation.IsQualifiedName(taint.Value) {
+				errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+			}
+		}
+		// Validate effect
+		switch taint.Effect {
+		case v1.TaintEffectNoSchedule, v1.TaintEffectPreferNoSchedule, v1.TaintEffectNoExecute, "":
+		default:
+			errs = errs.Also(apis.ErrInvalidArrayValue(taint.Effect, "effect", i))
 		}
 	}
 	return errs
