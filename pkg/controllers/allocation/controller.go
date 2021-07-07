@@ -160,6 +160,7 @@ func (c *Controller) Watches(ctx context.Context) (source.Source, handler.EventH
 				if err != nil {
 					return nil
 				}
+				c.batcher.Start(ctx)
 				c.batcher.Add(provisioner)
 				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}}}
 			},

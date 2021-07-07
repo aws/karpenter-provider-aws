@@ -15,19 +15,14 @@ limitations under the License.
 package allocation
 
 import (
+	"context"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/patrickmn/go-cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	BatchCacheTTL             = 1 * time.Hour
-	BatchCacheCleanupInterval = 2 * time.Hour
-)
-
+// Batcher is a batch manager for multiple objects
 type Batcher struct {
 	// MaxBatchPeriod is the maximum amount of time to batch incoming pods before flushing
 	MaxBatchPeriod time.Duration
@@ -36,125 +31,119 @@ type Batcher struct {
 	IdlePeriod time.Duration
 
 	// batches keeps a mapping of a key (like a provisioner name and namespace) to a specific Batch
-	batches *cache.Cache
+	batches map[string]*Window
+	// updates is a stream of obj keys that can start or provide a progress signal to an object's batch window
+	updates chan string
+	// isMonitorRunning indicates if the monitor go routine has been started
+	isMonitorRunning bool
+}
+
+// Window is an individual batch window
+type Window struct {
+	lastUpdated time.Time
+	started     time.Time
+	closed      chan bool
 }
 
 // NewBatcher creates a new batch manager to start multiple batch windows
 func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher {
-	batches := cache.New(BatchCacheTTL, BatchCacheCleanupInterval)
-	batches.OnEvicted(func(key string, val interface{}) {
-		batch := val.(*Batch)
-		batch.close()
-	})
 	return &Batcher{
 		MaxBatchPeriod: maxBatchPeriod,
 		IdlePeriod:     idlePeriod,
-		batches:        batches,
+		batches:        map[string]*Window{},
+		updates:        make(chan string, 1000),
 	}
 }
 
-// Add starts a batching window or updates an existing one based on an object
-// Add is safe to be called concurrently for the same object and different objects
-func (m *Batcher) Add(obj client.Object) {
-	batch, ok := m.batches.Get(m.keyFrom(obj))
-	if !ok {
-		batch = &Batch{
-			Batcher: m,
-			start:   make(chan bool, 1),
-			updates: make(chan bool, 1),
-			end:     make(chan bool, 1),
-		}
-		m.batches.SetDefault(m.keyFrom(obj), batch)
+// Start should be called before Add or Wait
+// It is not safe to call Start concurrently
+// but Start can be called synchronously multiple times w/ no effect
+func (b *Batcher) Start(ctx context.Context) {
+	if !b.isMonitorRunning {
+		go b.monitor(ctx)
+		b.isMonitorRunning = true
 	}
-	// Updates expiration
-	m.batches.SetDefault(m.keyFrom(obj), batch)
-	batch.(*Batch).Add()
-}
-
-// Wait blocks until a specific batching window ends based on the batching object
-// Wait should not be called concurrently for the same object, but it can be called concurrently by different objects
-func (m *Batcher) Wait(obj client.Object) {
-	batch, ok := m.batches.Get(m.keyFrom(obj))
-	if !ok {
-		return
-	}
-	batch.(*Batch).Wait()
-}
-
-func (m *Batcher) keyFrom(obj client.Object) string {
-	return fmt.Sprintf("%s/%s", obj.GetName(), obj.GetNamespace())
-}
-
-// Batch implements a single batching window based on a max timeout and a progress period
-type Batch struct {
-	// start is a channel to coordinate window starts
-	start chan bool
-	// updates is a channel to communicate progress in filling a batch window
-	updates chan bool
-	// end is a channel to signal a window close
-	end chan bool
-
-	sync.Mutex
-	*Batcher
 }
 
 // Add starts a batching window or adds to an existing in-progress window
 // Add is safe to be called concurrently
-func (b *Batch) Add() {
-	b.Lock()
-	defer b.Unlock()
+func (b *Batcher) Add(obj metav1.Object) {
 	select {
-	// Start a window when the channel is not blocked
-	case b.start <- true:
-		go b.monitor()
-	// If the channel is blocked, then it's already processing a window, so send an update signal
-	case b.updates <- true:
-	// If both are blocked, then no need to start or send an update signal
+	case b.updates <- b.keyFrom(obj):
+	// Do not block if the channel is full
 	default:
 	}
 }
 
 // Wait blocks until a batching window ends
 // If the batch is empty, it will block until something is added or the window times out
-// Wait should not be called concurrently
-func (b *Batch) Wait() {
-	// block until window end signal is received from the window monitor
-	<-b.end
+// Wait should not be called concurrently for the same object but can be called concurrently for different objects
+func (b *Batcher) Wait(obj metav1.Object) {
+	batch, ok := b.batches[b.keyFrom(obj)]
+	if !ok {
+		return
+	}
+	<-batch.closed
 }
 
-// monitor kicks off a batch window and updates a bool when the window Waits
-func (b *Batch) monitor() {
-	b.waitForWindowEnd()
-	b.Lock()
-	defer b.Unlock()
-	b.end <- true
-	// release start window
-	<-b.start
+// Remove will cause the batch window for the passed in obj to stop being monitored
+// Remove should only be called if there are no Add calls or Wait calls happening concurrently
+// After a Remove call for an object, a subsequent Add for the same object will recreate the window
+func (b *Batcher) Remove(obj metav1.Object) {
+	delete(b.batches, b.keyFrom(obj))
 }
 
-// waitForWindowEnd will block until MaxBatchPeriod or the IdlePeriod is reached between Add operations
-func (b *Batch) waitForWindowEnd() {
-	ticker := time.NewTicker(b.IdlePeriod)
-	timer := time.NewTimer(b.MaxBatchPeriod)
+// monitor is a synchronous loop that controls the window start, update, and end
+// monitor should be executed in one go routine and will handle all object batch windows
+func (b *Batcher) monitor(ctx context.Context) {
+	defer func() { b.isMonitorRunning = false }()
+	ticker := time.NewTicker(time.Second * 1)
 	for {
 		select {
-		// any progress resets the ticker
-		case <-b.updates:
-			ticker.Reset(b.IdlePeriod)
-		// if ticker goes off, then end window early since no progress is being made
+		// Wake and check all batches for timed out windows
 		case <-ticker.C:
-			return
-		// block until MaxBatchPeriod timer goes off
-		case <-timer.C:
+			for _, batch := range b.batches {
+				b.checkForWindowEndAndNotify(batch)
+			}
+		// Start a new window or update progress on a window
+		case key := <-b.updates:
+			b.startOrUpdateWindow(key)
+		// Stop monitor routine on shutdown
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// close will close all channels. If channels are in use, then this could panic.
-// close should only be called by the batcher
-func (b *Batch) close() {
-	close(b.start)
-	close(b.updates)
-	close(b.end)
+// checkForWindowEndAndNotify checks if a window has timed out due to inactivity (IdlePeriod) or has reached the MaxBatchPeriod.
+// If the batch window has ended, then the batch closed channel will be notified and the window will be reset
+func (b *Batcher) checkForWindowEndAndNotify(window *Window) {
+	if window.started.IsZero() {
+		return
+	}
+	if time.Since(window.lastUpdated) >= b.IdlePeriod || time.Since(window.started) >= b.MaxBatchPeriod {
+		select {
+		case window.closed <- true:
+			window.started = time.Time{}
+		default:
+		}
+	}
+}
+
+// startOrUpdateWindow starts a new window for the object key if one does not already exist
+// if a window already exists for the object key, then the lastUpdate time is set
+func (b *Batcher) startOrUpdateWindow(key string) {
+	if window, ok := b.batches[key]; ok {
+		window.lastUpdated = time.Now()
+		if window.started.IsZero() {
+			window.started = time.Now()
+		}
+	} else {
+		b.batches[key] = &Window{lastUpdated: time.Now(), started: time.Now(), closed: make(chan bool, 1)}
+	}
+}
+
+// keyFrom takes an object and outputs a unique key
+func (b *Batcher) keyFrom(obj metav1.Object) string {
+	return fmt.Sprintf("%s/%s", obj.GetName(), obj.GetNamespace())
 }
