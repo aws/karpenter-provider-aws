@@ -23,11 +23,12 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -48,7 +49,7 @@ func TestAPIs(t *testing.T) {
 
 var launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 var fakeEC2API *fake.EC2API
-var controller controllers.Controller
+var controller reconcile.Reconciler
 
 var env = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Config)
@@ -138,7 +139,7 @@ var _ = Describe("Allocation", func() {
 					},
 				})
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectControllerSucceeded(controller, provisioner)
+				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
@@ -187,7 +188,7 @@ var _ = Describe("Allocation", func() {
 					},
 				})
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectControllerSucceeded(controller, provisioner)
+				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())

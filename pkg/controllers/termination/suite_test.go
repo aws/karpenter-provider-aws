@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package termination
+package termination_test
 
 import (
 	"context"
@@ -21,7 +21,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
+	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/test"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -35,11 +37,11 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Termination")
 }
 
-var controller *Controller
+var controller *termination.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	controller = NewController(
+	controller = termination.NewController(
 		e.Client,
 		corev1.NewForConfigOrDie(e.Config),
 		cloudProvider,
@@ -72,7 +74,7 @@ var _ = Describe("Termination", func() {
 			ExpectCreated(env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not evict pods that tolerate unschedulable taint", func() {
@@ -86,7 +88,7 @@ var _ = Describe("Termination", func() {
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect podToEvict to be evicting, and delete it
 			podEvict = ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
@@ -98,7 +100,7 @@ var _ = Describe("Termination", func() {
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
 		It("should not terminate nodes that have a do-not-evict pod", func() {
@@ -112,7 +114,7 @@ var _ = Describe("Termination", func() {
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect node to exist, but be cordoned
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -129,7 +131,7 @@ var _ = Describe("Termination", func() {
 
 			// Reconcile node to evict pod
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 			pod := ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
 			Expect(pod.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeFalse())
 
@@ -138,7 +140,7 @@ var _ = Describe("Termination", func() {
 
 			// Terminate Node
 			node = ExpectNodeExists(env.Client, node.Name)
-			ExpectControllerSucceeded(controller, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
 	})

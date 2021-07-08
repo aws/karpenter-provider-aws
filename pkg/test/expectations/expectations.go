@@ -105,11 +105,11 @@ func ExpectCleanedUp(c client.Client) {
 	}
 }
 
-func ExpectProvisioningSucceeded(c client.Client, controller controllers.Controller, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectControllerSucceeded(controller, provisioner)
+	ExpectReconcileSucceeded(reconciler, client.ObjectKeyFromObject(provisioner))
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -117,11 +117,11 @@ func ExpectProvisioningSucceeded(c client.Client, controller controllers.Control
 	return result
 }
 
-func ExpectProvisioningFailed(c client.Client, controller controllers.Controller, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectControllerFailed(controller, provisioner)
+	ExpectReconcileFailed(reconciler, client.ObjectKeyFromObject(provisioner))
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -130,14 +130,14 @@ func ExpectProvisioningFailed(c client.Client, controller controllers.Controller
 }
 
 // ExpectControllerFailed should be deprecated in favor of ExpectReconcileFailed (TODO, once we move off of generic controller)
-func ExpectControllerFailed(controller controllers.Controller, object client.Object) {
-	_, err := controller.Reconcile(context.Background(), object)
+func ExpectControllerFailed(controller controllers.Controller, req reconcile.Request) {
+	_, err := controller.Reconcile(context.Background(), req)
 	Expect(err).To(HaveOccurred())
 }
 
 // ExpectControllerSucceeded should be deprecated in favor of ExpectReconcileSucceeded (TODO, once we move off of generic controller)
-func ExpectControllerSucceeded(controller controllers.Controller, object client.Object) {
-	_, err := controller.Reconcile(context.Background(), object)
+func ExpectControllerSucceeded(controller controllers.Controller, req reconcile.Request) {
+	_, err := controller.Reconcile(context.Background(), req)
 	Expect(err).ToNot(HaveOccurred())
 }
 

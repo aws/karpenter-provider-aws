@@ -75,16 +75,15 @@ func main() {
 
 	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
 	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
-
-	if err := expiration.NewController(manager.GetClient()).Register(manager); err != nil {
-		panic(err)
-	}
-
-	if err := manager.RegisterControllers(
+	ctx := controllerruntime.SetupSignalHandler()
+	manager.RegisterControllers(ctx,
+		expiration.NewController(manager.GetClient()),
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-	).Start(controllerruntime.SetupSignalHandler()); err != nil {
-		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
+	)
+
+	if err := manager.Start(ctx); err != nil {
+		panic(err)
 	}
 }

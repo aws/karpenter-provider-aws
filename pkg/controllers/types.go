@@ -17,12 +17,8 @@ package controllers
 import (
 	"context"
 
-	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Controller is an interface implemented by Karpenter custom resources.
@@ -30,29 +26,13 @@ type Controller interface {
 	// Reconcile hands a hydrated kubernetes resource to the controller for
 	// reconciliation. Any changes made to the resource's status are persisted
 	// after Reconcile returns, even if it returns an error.
-	Reconcile(context.Context, client.Object) (reconcile.Result, error)
-	// For returns a default instantiation of the resource and is injected by
-	// data from the API Server at the start of the reconciliation loop.
-	For() client.Object
-	// Watches returns the necessary information to create a watch
-	//   a. Source: the resource that is being watched
-	//   b. EventHandler: which controller objects to be reconciled
-	//   c. WatchesOption: which events can be filtered out before processed
-	Watches(context.Context) (source.Source, handler.EventHandler, builder.WatchesOption)
-	// ConcurrentReconciles controls the number of concurrent reconciles that can occur
-	ConcurrentReconciles() int
-}
-
-// NamedController allows controllers to optionally implement a Name() function which will be used instead of the
-// reconciled resource's name. This is useful when writing multiple controllers for a single resource type.
-type NamedController interface {
-	Controller
-	// Name returns the name of the controller
-	Name() string
+	Reconcile(context.Context, reconcile.Request) (reconcile.Result, error)
+	// Register will register the controller with the manager
+	Register(context.Context, manager.Manager) error
 }
 
 // Manager manages a set of controllers and webhooks.
 type Manager interface {
 	manager.Manager
-	RegisterControllers(controllers ...Controller) Manager
+	RegisterControllers(context.Context, ...Controller) Manager
 }

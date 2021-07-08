@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allocation
+package allocation_test
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/test"
 	"knative.dev/pkg/ptr"
 
@@ -44,11 +45,11 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Provisioner/Allocator")
 }
 
-var controller *Controller
+var controller *allocation.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	controller = NewController(
+	controller = allocation.NewController(
 		e.Client,
 		corev1.NewForConfigOrDie(e.Config),
 		cloudProvider,
@@ -87,6 +88,7 @@ var _ = Describe("Allocation", func() {
 		Context("Zones", func() {
 			It("should default to a cluster zone", func() {
 				// Setup
+				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -158,7 +160,7 @@ var _ = Describe("Allocation", func() {
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, coschedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectControllerSucceeded(controller, provisioner)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -205,7 +207,7 @@ var _ = Describe("Allocation", func() {
 			}
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectControllerSucceeded(controller, provisioner)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -266,7 +268,7 @@ var _ = Describe("Allocation", func() {
 			}
 			ExpectCreatedWithStatus(env.Client, daemonsets...)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
-			ExpectControllerSucceeded(controller, provisioner)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())

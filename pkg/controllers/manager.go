@@ -17,15 +17,11 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -47,25 +43,10 @@ func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Man
 }
 
 // RegisterControllers registers a set of controllers to the controller manager
-func (m *GenericControllerManager) RegisterControllers(controllers ...Controller) Manager {
+func (m *GenericControllerManager) RegisterControllers(ctx context.Context, controllers ...Controller) Manager {
 	for _, c := range controllers {
-		controlledObject := c.For()
-		builder := controllerruntime.NewControllerManagedBy(m).
-			For(controlledObject).
-			Watches(c.Watches(context.Background())).
-			WithOptions(controller.Options{
-				RateLimiter: workqueue.NewMaxOfRateLimiter(
-					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
-					// 10 qps, 100 bucket size
-					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-				),
-				MaxConcurrentReconciles: c.ConcurrentReconciles(),
-			})
-		if namedController, ok := c.(NamedController); ok {
-			builder.Named(namedController.Name())
-		}
-		if err := builder.Complete(&GenericController{Controller: c, Client: m.GetClient()}); err != nil {
-			panic(fmt.Sprintf("Failed to register controller to manager for %s", controlledObject))
+		if err := c.Register(ctx, m); err != nil {
+			panic(err)
 		}
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {

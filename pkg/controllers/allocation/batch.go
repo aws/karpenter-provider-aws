@@ -34,6 +34,8 @@ type Batcher struct {
 	windows map[string]*Window
 	// updates is a stream of obj keys that can start or provide a progress signal to an object's batch window
 	updates chan string
+	// removals is a stream of obj keys that correspond to a window that should be removed
+	removals chan string
 	// isMonitorRunning indicates if the monitor go routine has been started
 	isMonitorRunning bool
 }
@@ -52,6 +54,7 @@ func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher
 		IdlePeriod:     idlePeriod,
 		windows:        map[string]*Window{},
 		updates:        make(chan string, 1000),
+		removals:       make(chan string, 100),
 	}
 }
 
@@ -108,6 +111,9 @@ func (b *Batcher) monitor(ctx context.Context) {
 		// Start a new window or update progress on a window
 		case key := <-b.updates:
 			b.startOrUpdateWindow(key)
+		// Remove a window by key
+		case key := <-b.removals:
+			delete(b.windows, key)
 		// Stop monitor routine on shutdown
 		case <-ctx.Done():
 			return
