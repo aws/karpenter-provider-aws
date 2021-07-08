@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerruntimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -87,7 +87,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Named("Reallocation").
 		For(&v1alpha2.Provisioner{}).
 		WithOptions(
-			controllerruntimecontroller.Options{
+			controller.Options{
 				RateLimiter: workqueue.NewMaxOfRateLimiter(
 					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
 					// 10 qps, 100 bucket size
