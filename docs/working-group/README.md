@@ -10,6 +10,55 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (07/08/21)
+## Attendees
+- Prateek Gogia
+- Brandon Wagner
+- Jacob Gabrielson
+- Alex Kestner
+- Brian Hammons
+- Matt Morley
+- Pavan
+- Elmiko
+- Guy Templeton
+
+Announcements:
+- Provisioner CRDs need to be updated with the newer version release
+- v0.3 will be going out this month, blog and videos coming shortly
+
+Notes:
+- [El] Plug Karpenter to cluster API (it supports 10-12 platform)
+    - CAPI can have an abstracted object which can help auto-scale
+    - [JG] How can we move forward with this, document?
+- [El] Still need to figure which project should own it CAPI, autoscaler, karpenter?
+- [BW] Nodes provisioned by Karpenter can expire (merged), and batching pods is in progress
+- [Pavan] Using fake low-priority pods to pre-provision nodes, does Karpenter support something like this?
+    - [BW] This approach still works in karpenter, but we are trying to improve the latency for node provisioning
+    - [Pavan] <1 minute is desired
+    - [JG] We can optimize further the time to bring up the nodes and kubelet/images
+    - Warm pools is hard to configure/predict and customers hate to pay for it.
+- [El] Can karpenter support overhead provisioning when calculating the minimum size nodes, add some head room and provision a slightly bigger node?
+    - [BW] Feel free to open an issue to track this.
+    - [BW] We need a defrag controller before something like this.
+- [El] Bringing up nodes in other cloud providers might be slow as compared to AWS so we might need a solution for over-provisioning.
+- [AK] It will be good to have this tracked in the repo under feature requests.
+- [BW] Switching provisioner from single namespace to namespaced provisioner
+    - If a pod comes in multiple provisioners can handle it today
+    - Global provisioner for handling non-overwritten pods
+    - Pods can now be tied to a specific namespace provisioner
+    - [El] When you have a management cluster managing other Kubernetes clusters, it can get tricky
+    - [BH] Its a challenging problem in multi-tenancy and federation system.
+- [BW] Pod batching, improves how we are doing node allocation.
+    - Now we are batching with IdleTimeOut and maxTimeOut intervals
+    - Do we want this to be configurable on the provisioner?
+    - [El] Good knob to have but might not expose it until someone really needs it.
+- [JG] Using own launchtemplate, $default causes label issues
+    - Thinking of removing the id in favor of name and getting rid of version field for now and keeping it to default.
+    - [El] Can this be an annotations instead of a label?
+    - [BW] Can Karpenter role nodes if LT version is updated?
+    - [JG] This might be a bigger issue as Karpenter doesn't know about this version change
+- Capacity reservations support for Karpenter
+
 # Meeting notes (06/10/21)
 
 ## Attendees
