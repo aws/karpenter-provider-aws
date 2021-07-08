@@ -93,7 +93,11 @@ func (b *Batcher) Wait(obj metav1.Object) {
 // Remove should only be called if there are no Add calls or Wait calls happening concurrently
 // After a Remove call for an object, a subsequent Add for the same object will recreate the window
 func (b *Batcher) Remove(obj metav1.Object) {
-	delete(b.windows, b.keyFrom(obj))
+	select {
+	case b.removals <- b.keyFrom(obj):
+	// Do not block if the channel is full
+	default:
+	}
 }
 
 // monitor is a synchronous loop that controls the window start, update, and end
