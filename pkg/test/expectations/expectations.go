@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
-	"github.com/awslabs/karpenter/pkg/controllers"
 
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -127,18 +126,6 @@ func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, 
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
 	}
 	return result
-}
-
-// ExpectControllerFailed should be deprecated in favor of ExpectReconcileFailed (TODO, once we move off of generic controller)
-func ExpectControllerFailed(controller controllers.Controller, req reconcile.Request) {
-	_, err := controller.Reconcile(context.Background(), req)
-	Expect(err).To(HaveOccurred())
-}
-
-// ExpectControllerSucceeded should be deprecated in favor of ExpectReconcileSucceeded (TODO, once we move off of generic controller)
-func ExpectControllerSucceeded(controller controllers.Controller, req reconcile.Request) {
-	_, err := controller.Reconcile(context.Background(), req)
-	Expect(err).ToNot(HaveOccurred())
 }
 
 func ExpectReconcileFailed(reconciler reconcile.Reconciler, key client.ObjectKey) {
