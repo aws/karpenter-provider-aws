@@ -45,6 +45,7 @@ var (
 	SupportedZones            = []string{}
 	SupportedInstanceTypes    = []string{}
 	ConstraintsValidationHook func(ctx context.Context, constraints *Constraints) *apis.FieldError
+	SpecValidationHook        func(ctx context.Context, constraints *ProvisionerSpec) *apis.FieldError
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -55,7 +56,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 }
 
 func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) {
-	return errs.Also(
+	errs = errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
 		s.Cluster.validate().ViaField("cluster"),
@@ -67,6 +68,11 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
+	if SpecValidationHook != nil {
+		// Call cloud provider specific spec validation logic.
+		errs = errs.Also(SpecValidationHook(ctx, s))
+	}
+	return errs
 }
 
 func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldError) {
@@ -95,14 +101,8 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 	if c == nil {
 		return errs.Also(apis.ErrMissingField())
 	}
-	if len(c.Name) == 0 {
-		errs = errs.Also(apis.ErrMissingField("name"))
-	}
 	if len(c.Endpoint) == 0 {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
-	}
-	if len(c.CABundle) == 0 {
-		errs = errs.Also(apis.ErrMissingField("caBundle"))
 	}
 	return errs
 }

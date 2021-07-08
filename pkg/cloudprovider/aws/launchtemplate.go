@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/mitchellh/hashstructure/v2"
+	"knative.dev/pkg/ptr"
 
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -37,8 +38,8 @@ const (
 	bottlerocketUserData     = `
 [settings.kubernetes]
 api-server = "{{.Cluster.Endpoint}}"
-cluster-certificate = "{{.Cluster.CABundle}}"
-cluster-name = "{{.Cluster.Name}}"
+{{if .Cluster.CABundle}}{{if len .Cluster.CABundle}}cluster-certificate = "{{.Cluster.CABundle}}"{{end}}{{end}}
+cluster-name = "{{if .Cluster.Name}}{{.Cluster.Name}}{{end}}"
 {{if .Constraints.Labels }}[settings.kubernetes.node-labels]{{ end }}
 {{ range $Key, $Value := .Constraints.Labels }}"{{ $Key }}" = "{{ $Value }}"
 {{ end }}
@@ -69,7 +70,7 @@ func launchTemplateName(options *launchTemplateOptions) string {
 	if err != nil {
 		zap.S().Panicf("hashing launch template, %w", err)
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, options.Cluster.Name, fmt.Sprint(hash))
+	return fmt.Sprintf(launchTemplateNameFormat, ptr.StringValue(options.Cluster.Name), fmt.Sprint(hash))
 }
 
 // launchTemplateOptions is hashed and results in the creation of a real EC2
@@ -104,7 +105,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha2.
 
 	// 4. Ensure the launch template exists, or create it
 	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-		Cluster:        *provisioner.Spec.Cluster,
+		Cluster:        provisioner.Spec.Cluster,
 		UserData:       p.getUserData(provisioner, constraints),
 		AMIID:          amiID,
 		SecurityGroups: securityGroups,
@@ -153,17 +154,17 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", options.Cluster.Name)),
+				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", ptr.StringValue(options.Cluster.Name))),
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
 				Tags: []*ec2.Tag{
 					{
-						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, options.Cluster.Name)),
+						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, ptr.StringValue(options.Cluster.Name))),
 						Value: aws.String("owned"),
 					},
 					{
-						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, options.Cluster.Name)),
+						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, ptr.StringValue(options.Cluster.Name))),
 						Value: aws.String("owned"),
 					},
 				},
@@ -198,7 +199,7 @@ func (p *LaunchTemplateProvider) getUserData(provisioner *v1alpha2.Provisioner, 
 	if err := t.Execute(&userData, struct {
 		Constraints *Constraints
 		Cluster     v1alpha2.Cluster
-	}{constraints, *provisioner.Spec.Cluster}); err != nil {
+	}{constraints, provisioner.Spec.Cluster}); err != nil {
 		panic(fmt.Sprintf("Parsing user data from %v, %v, %s", provisioner, constraints, err.Error()))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes())

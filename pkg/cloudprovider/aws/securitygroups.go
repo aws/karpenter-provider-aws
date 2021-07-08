@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"knative.dev/pkg/ptr"
 )
 
 type SecurityGroupProvider struct {
@@ -41,7 +42,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 
 func (s *SecurityGroupProvider) Get(ctx context.Context, provisioner *v1alpha2.Provisioner, constraints *Constraints) ([]*ec2.SecurityGroup, error) {
 	// 1. Get Security Groups
-	securityGroups, err := s.getSecurityGroups(ctx, provisioner.Spec.Cluster.Name)
+	securityGroups, err := s.getSecurityGroups(ctx, ptr.StringValue(provisioner.Spec.Cluster.Name))
 	if err != nil {
 		return nil, err
 	}

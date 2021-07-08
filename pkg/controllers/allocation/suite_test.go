@@ -24,6 +24,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/test"
+	"knative.dev/pkg/ptr"
+
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -71,7 +73,7 @@ var _ = Describe("Allocation", func() {
 				Namespace: "default",
 			},
 			Spec: v1alpha2.ProvisionerSpec{
-				Cluster: &v1alpha2.Cluster{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				Cluster: v1alpha2.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 			},
 		}
 		ctx = context.Background()

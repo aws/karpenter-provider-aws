@@ -161,7 +161,15 @@ func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate cloud provider specific components of the cluster spec
-func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha2.Constraints) (errs *apis.FieldError) {
+func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1alpha2.Constraints) (errs *apis.FieldError) {
 	awsConstraints := Constraints{*constraints}
 	return awsConstraints.Validate(ctx)
+}
+
+// Validate cloud provider specific components of the cluster spec.
+func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha2.ProvisionerSpec) (errs *apis.FieldError) {
+	if spec.Cluster.Name == nil || len(*spec.Cluster.Name) == 0 {
+		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
+	}
+	return errs
 }
