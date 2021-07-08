@@ -82,6 +82,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+<<<<<<< HEAD
 	// 2. Hydrate provisioner with (dynamic) default values, which must not
 	//    be persisted into the original CRD as they might change with each reconciliation
 	//    loop iteration.
@@ -90,6 +91,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("setting dynamic default values, %w", err)
 	}
 
+=======
+>>>>>>> f397139 (fix tests)
 	// 2. Wait on a pod batch
 	c.batcher.Wait(provisioner)
 
@@ -135,7 +138,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			errs = multierr.Append(errs, err)
 		}
 	}
-
 	return reconcile.Result{}, errs
 }
 

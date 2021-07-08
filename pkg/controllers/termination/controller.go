@@ -61,7 +61,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return reconcile.Result{}, err
 	}
-	persistedNode := node.DeepCopyObject()
 
 	// 2. Check if node is terminable
 	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
@@ -81,10 +80,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err := c.terminator.terminate(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 		}
-	}
-	// 6. Patch Node Status
-	if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(persistedNode), nil); err != nil {
-		return reconcile.Result{RequeueAfter: 5 * time.Second}, fmt.Errorf("Failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 	return reconcile.Result{Requeue: !drained}, nil
 }

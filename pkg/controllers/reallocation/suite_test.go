@@ -90,6 +90,7 @@ var _ = Describe("Reallocation", func() {
 					v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
 				},
 			})
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, node)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 
@@ -109,6 +110,7 @@ var _ = Describe("Reallocation", func() {
 					v1alpha2.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, node)
 			ExpectCreatedWithStatus(env.Client, test.Pod(test.PodOptions{
 				Name:       strings.ToLower(randomdata.SillyName()),

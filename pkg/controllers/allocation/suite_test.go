@@ -88,6 +88,7 @@ var _ = Describe("Allocation", func() {
 		Context("Zones", func() {
 			It("should default to a cluster zone", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
@@ -97,6 +98,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to a provisioner's zone", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-2"}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -105,6 +107,7 @@ var _ = Describe("Allocation", func() {
 			It("should allow a pod to override the zone", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-1"}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.ZoneLabelKey: "test-zone-2"}}),
 				)
@@ -114,6 +117,7 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		It("should provision nodes for unconstrained pods", func() {
+			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 				test.PendingPod(), test.PendingPod(),
 			)
@@ -157,6 +161,7 @@ var _ = Describe("Allocation", func() {
 				// Ignored, invalid operating system
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha2.OperatingSystemLabelKey: "unknown"}}),
 			}
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, coschedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
@@ -205,6 +210,7 @@ var _ = Describe("Allocation", func() {
 					Tolerations: []v1.Toleration{{Key: "invalid", Value: "test-value", Operator: v1.TolerationOpEqual}},
 				}),
 			}
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
@@ -222,6 +228,7 @@ var _ = Describe("Allocation", func() {
 			}
 		})
 		It("should provision nodes for accelerators", func() {
+			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 				test.PendingPod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
@@ -266,6 +273,7 @@ var _ = Describe("Allocation", func() {
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
 			}
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, daemonsets...)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
