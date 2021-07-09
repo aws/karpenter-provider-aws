@@ -41,11 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-const (
-	MaxBatchWindow   = 10 * time.Second
-	BatchIdleTimeout = 2 * time.Second
-)
-
 // Controller for the resource
 type Controller struct {
 	filter        *Filter
@@ -58,7 +53,8 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider,
+	MaxBatchWindow time.Duration, BatchIdleTimeout time.Duration) *Controller {
 	return &Controller{
 		filter:        &Filter{kubeClient: kubeClient},
 		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},

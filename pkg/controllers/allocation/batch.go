@@ -62,7 +62,6 @@ func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher
 		MaxBatchPeriod: maxBatchPeriod,
 		IdlePeriod:     idlePeriod,
 		windows:        map[string]*window{},
-		ops:            make(chan *batchOp, 1000),
 	}
 }
 
@@ -71,6 +70,7 @@ func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher
 // but Start can be called synchronously multiple times w/ no effect
 func (b *Batcher) Start(ctx context.Context) {
 	if !b.isMonitorRunning {
+		b.ops = make(chan *batchOp, 1000)
 		go b.monitor(ctx)
 		b.isMonitorRunning = true
 	}

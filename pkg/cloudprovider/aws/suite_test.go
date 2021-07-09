@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
@@ -67,7 +68,7 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		instanceProvider:     &InstanceProvider{fakeEC2API},
 	}
 	registry.RegisterOrDie(cloudProvider)
-	controller = allocation.NewController(e.Client, clientSet.CoreV1(), cloudProvider)
+	controller = allocation.NewController(e.Client, clientSet.CoreV1(), cloudProvider, 1*time.Millisecond, 1*time.Millisecond)
 })
 
 var _ = BeforeSuite(func() {
