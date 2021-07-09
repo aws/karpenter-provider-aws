@@ -1,8 +1,8 @@
 # Getting Started with Karpenter on AWS
 
-Karpenter automatically provisions new nodes in response to unschedulable  pods. Karpenter does this by observing events within the kubernetes cluster, and then sending commands to the underlying cloud platform. 
+Karpenter automatically provisions new nodes in response to unschedulable  pods. Karpenter does this by observing events within the kubernetes cluster, and then sending commands to the underlying cloud provider. 
 
-In this example, the cluster is running on Amazon Web Services (AWS) Elastic Kubernetes Service (EKS). Karpenter is designed to be cloud platform independent, but currently only supports AWS. Contributions are welcomed. 
+In this example, the cluster is running on Amazon Web Services (AWS) Elastic Kubernetes Service (EKS). Karpenter is designed to be cloud provider agnostic, but currently only supports AWS. Contributions are welcomed. 
 
 This guide should take less than 1 hour to complete, and cost less than $0.25. Follow the clean-up instructions to reduce any charges.
 
@@ -10,7 +10,7 @@ This guide should take less than 1 hour to complete, and cost less than $0.25. F
 
 Karpenter is installed in clusters with a simple helm chart.
 
-Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA permits Karpenter (within the cluster) to make privileged requests to AWS (as the cloud platform). 
+Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA permits Karpenter (within the cluster) to make privileged requests to AWS (as the cloud provider). 
 
 ## Required Utilities
 
@@ -43,8 +43,6 @@ The two fargate profiles host `kube-system` and the karpenter service itself. Th
 
 Karpenter will provision traditional instances on EC2. 
 
-[[expandable file view]]
-
 Additionally, the configuration file sets up an [OIDC provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens), necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way of communicating with identity providers. 
 
 ## Setup Authentication from Kubernetes to AWS (IRSA)
@@ -52,8 +50,6 @@ Additionally, the configuration file sets up an [OIDC provider](https://kubernet
 IAM Roles for Service Accounts (IRSA) maps kubernetes resources to roles (permission sets) on AWS. 
 
 First, define a role using the template below. It provides full access to EC2, and limited access to other services such as EKS and Elastic Container Registry (ECR).
-
-[[expandable units]]
 
 ```bash
 # Creates IAM resources used by Karpenter
@@ -92,8 +88,6 @@ helm repo update
 helm upgrade --install karpenter karpenter/karpenter \
   --namespace karpenter --set serviceAccount.create=false
 ```
-
-- logging
 
 ## Provisioner
 
