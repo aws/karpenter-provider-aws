@@ -72,15 +72,10 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	persistedProvisioner := object.(*v1alpha2.Provisioner)
+	persistedProvisioner := &v1alpha2.Provisioner{}
 	// 1. Fetch Provisioner
-<<<<<<< HEAD
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
-=======
-	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
->>>>>>> 1cf709d (address pr comments)
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
 		if errors.IsNotFound(err) {
-			c.batcher.Remove(persistedProvisioner)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -94,11 +89,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("setting dynamic default values, %w", err)
 	}
 
-	// 2. Wait on a pod batch
-	c.Batcher.Wait(provisioner)
+	// 3. Wait on a pod batch
+	c.Batcher.Wait(&provisionerWithDefaults)
 
-	// 3. Filter pods
-	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
+	// 4. Filter pods
+	pods, err := c.Filter.GetProvisionablePods(ctx, &provisionerWithDefaults)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
@@ -107,13 +102,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
-	// 4. Group by constraints
-	constraintGroups, err := c.constraints.Group(ctx, &provisionerWithDefaults, pods)
+	// 5. Group by constraints
+	constraintGroups, err := c.Constraints.Group(ctx, &provisionerWithDefaults, pods)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
 	}
 
-	// 5. Binpack each group
+	// 6. Binpack each group
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
 		instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
@@ -123,14 +118,14 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
 
-	// 6. Create packedNodes for packings and also copy all Status changes made by the
+	// 7. Create packedNodes for packings and also copy all Status changes made by the
 	//    cloud provider to the original provisioner instance.
-	packedNodes, err := c.cloudProvider.Create(ctx, &provisionerWithDefaults, packings)
+	packedNodes, err := c.CloudProvider.Create(ctx, &provisionerWithDefaults, packings)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}
 
-	// 7. Bind pods to nodes
+	// 8. Bind pods to nodes
 	var errs error
 	for _, packedNode := range packedNodes {
 		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
