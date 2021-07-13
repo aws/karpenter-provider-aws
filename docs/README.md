@@ -30,35 +30,40 @@ not specified, it will default to using the controller&rsquo;s kube-config.</p>
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name is required to detect implementing cloud provider resources.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>caBundle</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>CABundle is required for nodes to verify API Server certificates.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>endpoint</code></br>
+<code>endpoint</code><br/>
 <em>
 string
 </em>
 </td>
 <td>
 <p>Endpoint is required for nodes to connect to the API Server.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>caBundle</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CABundle used by nodes to verify API Server certificates. If omitted (nil),
+it will be dynamically loaded at runtime from the in-cluster configuration
+file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
+An empty value (&ldquo;&rdquo;) can be used to signal that no CABundle should be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Name may be required to detect implementing cloud provider resources.</p>
 </td>
 </tr>
 </tbody>
@@ -83,9 +88,9 @@ overriden by NodeSelectors at the pod level.</p>
 <tbody>
 <tr>
 <td>
-<code>taints</code></br>
+<code>taints</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#taint-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#taint-v1-core">
 []Kubernetes core/v1.Taint
 </a>
 </em>
@@ -99,7 +104,7 @@ have matching tolerations.</p>
 </tr>
 <tr>
 <td>
-<code>labels</code></br>
+<code>labels</code><br/>
 <em>
 map[string]string
 </em>
@@ -113,7 +118,7 @@ behavior. Additional labels may be supported by your cloudprovider.</p>
 </tr>
 <tr>
 <td>
-<code>zones</code></br>
+<code>zones</code><br/>
 <em>
 []string
 </em>
@@ -127,7 +132,7 @@ label &ldquo;topology.kubernetes.io/zone&rdquo; is specified.</p>
 </tr>
 <tr>
 <td>
-<code>instanceTypes</code></br>
+<code>instanceTypes</code><br/>
 <em>
 []string
 </em>
@@ -141,7 +146,7 @@ Cannot be specified if label &ldquo;node.kubernetes.io/instance-type&rdquo; is s
 </tr>
 <tr>
 <td>
-<code>architecture</code></br>
+<code>architecture</code><br/>
 <em>
 string
 </em>
@@ -153,7 +158,7 @@ string
 </tr>
 <tr>
 <td>
-<code>operatingSystem</code></br>
+<code>operatingSystem</code><br/>
 <em>
 string
 </em>
@@ -180,9 +185,9 @@ string
 <tbody>
 <tr>
 <td>
-<code>metadata</code></br>
+<code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -194,7 +199,7 @@ Refer to the Kubernetes API documentation for the fields of the
 </tr>
 <tr>
 <td>
-<code>spec</code></br>
+<code>spec</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">
 ProvisionerSpec
@@ -207,7 +212,7 @@ ProvisionerSpec
 <table>
 <tr>
 <td>
-<code>cluster</code></br>
+<code>cluster</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
 Cluster
@@ -215,13 +220,12 @@ Cluster
 </em>
 </td>
 <td>
-<em>(Optional)</em>
 <p>Cluster that launched nodes connect to.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>Constraints</code></br>
+<code>Constraints</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
 Constraints
@@ -238,7 +242,7 @@ Constraints
 </tr>
 <tr>
 <td>
-<code>ttlSecondsAfterEmpty</code></br>
+<code>ttlSecondsAfterEmpty</code><br/>
 <em>
 int64
 </em>
@@ -254,7 +258,7 @@ have pods scheduled to it, excluding daemonsets.</p>
 </tr>
 <tr>
 <td>
-<code>ttlSecondsUntilExpired</code></br>
+<code>ttlSecondsUntilExpired</code><br/>
 <em>
 int64
 </em>
@@ -273,7 +277,7 @@ memory leak protection, and disruption testing.</p>
 </tr>
 <tr>
 <td>
-<code>status</code></br>
+<code>status</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerStatus">
 ProvisionerStatus
@@ -313,7 +317,7 @@ pod.spec.nodeSelector[&ldquo;provisioning.karpenter.sh/name&rdquo;]=$PROVISIONER
 <tbody>
 <tr>
 <td>
-<code>cluster</code></br>
+<code>cluster</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
 Cluster
@@ -321,13 +325,12 @@ Cluster
 </em>
 </td>
 <td>
-<em>(Optional)</em>
 <p>Cluster that launched nodes connect to.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>Constraints</code></br>
+<code>Constraints</code><br/>
 <em>
 <a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
 Constraints
@@ -344,7 +347,7 @@ Constraints
 </tr>
 <tr>
 <td>
-<code>ttlSecondsAfterEmpty</code></br>
+<code>ttlSecondsAfterEmpty</code><br/>
 <em>
 int64
 </em>
@@ -360,7 +363,7 @@ have pods scheduled to it, excluding daemonsets.</p>
 </tr>
 <tr>
 <td>
-<code>ttlSecondsUntilExpired</code></br>
+<code>ttlSecondsUntilExpired</code><br/>
 <em>
 int64
 </em>
@@ -395,7 +398,7 @@ memory leak protection, and disruption testing.</p>
 <tbody>
 <tr>
 <td>
-<code>lastScaleTime</code></br>
+<code>lastScaleTime</code><br/>
 <em>
 knative.dev/pkg/apis.VolatileTime
 </em>
@@ -408,7 +411,7 @@ of nodes</p>
 </tr>
 <tr>
 <td>
-<code>conditions</code></br>
+<code>conditions</code><br/>
 <em>
 knative.dev/pkg/apis.Conditions
 </em>
@@ -424,5 +427,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>4358efa</code>.
+on git commit <code>b4e9691</code>.
 </em></p>

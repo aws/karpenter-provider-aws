@@ -32,8 +32,7 @@ import (
 // pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
 type ProvisionerSpec struct {
 	// Cluster that launched nodes connect to.
-	// +optional
-	Cluster *Cluster `json:"cluster,omitempty"`
+	Cluster Cluster `json:"cluster"`
 	// Constraints are applied to all nodes launched by this provisioner.
 	// +optional
 	Constraints `json:",inline"`
@@ -58,15 +57,18 @@ type ProvisionerSpec struct {
 // Cluster configures the cluster that the provisioner operates against. If
 // not specified, it will default to using the controller's kube-config.
 type Cluster struct {
-	// Name is required to detect implementing cloud provider resources.
-	// +required
-	Name string `json:"name"`
-	// CABundle is required for nodes to verify API Server certificates.
-	// +required
-	CABundle string `json:"caBundle"`
 	// Endpoint is required for nodes to connect to the API Server.
 	// +required
 	Endpoint string `json:"endpoint"`
+	// CABundle used by nodes to verify API Server certificates. If omitted (nil),
+	// it will be dynamically loaded at runtime from the in-cluster configuration
+	// file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
+	// An empty value ("") can be used to signal that no CABundle should be used.
+	// +optional
+	CABundle *string `json:"caBundle,omitempty"`
+	// Name may be required to detect implementing cloud provider resources.
+	// +optional
+	Name *string `json:"name,omitempty"`
 }
 
 // Constraints are applied to all nodes created by the provisioner. They can be

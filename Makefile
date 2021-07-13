@@ -65,9 +65,9 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	hack/boilerplate.sh
 	gen-crd-api-reference-docs \
 		-api-dir ./pkg/apis/provisioning/v1alpha2 \
-		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/example-config.json \
+		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/example-config.json \
 		-out-file docs/README.md \
-		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.2.0/template
+		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/template
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)

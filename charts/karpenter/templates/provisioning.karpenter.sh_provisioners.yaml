@@ -52,21 +52,22 @@ spec:
                 description: Cluster that launched nodes connect to.
                 properties:
                   caBundle:
-                    description: CABundle is required for nodes to verify API Server
-                      certificates.
+                    description: CABundle used by nodes to verify API Server certificates.
+                      If omitted (nil), it will be dynamically loaded at runtime from
+                      the in-cluster configuration file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
+                      An empty value ("") can be used to signal that no CABundle should
+                      be used.
                     type: string
                   endpoint:
                     description: Endpoint is required for nodes to connect to the
                       API Server.
                     type: string
                   name:
-                    description: Name is required to detect implementing cloud provider
-                      resources.
+                    description: Name may be required to detect implementing cloud
+                      provider resources.
                     type: string
                 required:
-                - caBundle
                 - endpoint
-                - name
                 type: object
               instanceTypes:
                 description: InstanceTypes constrains which instances types will be
@@ -142,6 +143,8 @@ spec:
                 items:
                   type: string
                 type: array
+            required:
+            - cluster
             type: object
           status:
             description: ProvisionerStatus defines the observed state of Provisioner

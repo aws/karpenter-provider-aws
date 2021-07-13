@@ -45,10 +45,10 @@ var _ = Describe("Validation", func() {
 				Namespace: "default",
 			},
 			Spec: ProvisionerSpec{
-				Cluster: &Cluster{
-					Name:     "test-cluster",
+				Cluster: Cluster{
+					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
-					CABundle: "dGVzdC1jbHVzdGVyCg==",
+					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
 		}
@@ -65,11 +65,11 @@ var _ = Describe("Validation", func() {
 	})
 
 	It("should fail for empty cluster specification", func() {
-		for _, cluster := range []*Cluster{
-			nil,
-			{Endpoint: "https://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-			{Name: "test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-			{Name: "test-cluster", Endpoint: "https://test-cluster"},
+		for _, cluster := range []Cluster{
+			{},
+			{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+			{Name: ptr.String("test-cluster")},
+			{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 		} {
 			provisioner.Spec.Cluster = cluster
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())

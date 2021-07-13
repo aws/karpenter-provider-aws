@@ -89,10 +89,10 @@ var _ = Describe("Allocation", func() {
 				Namespace: "default",
 			},
 			Spec: v1alpha2.ProvisionerSpec{
-				Cluster: &v1alpha2.Cluster{
-					Name:     "test-cluster",
+				Cluster: v1alpha2.Cluster{
+					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
-					CABundle: "dGVzdC1jbHVzdGVyCg==",
+					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
 		}
@@ -527,11 +527,11 @@ var _ = Describe("Allocation", func() {
 	Context("Validation", func() {
 		Context("Cluster", func() {
 			It("should fail if fields are empty", func() {
-				for _, cluster := range []*v1alpha2.Cluster{
-					nil,
-					{Endpoint: "https://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-					{Name: "test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
-					{Name: "test-cluster", Endpoint: "https://test-cluster"},
+				for _, cluster := range []v1alpha2.Cluster{
+					{Endpoint: "https://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+					{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+					{Name: ptr.String("test-cluster")},
 				} {
 					provisioner.Spec.Cluster = cluster
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())

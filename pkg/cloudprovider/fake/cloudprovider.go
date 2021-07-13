@@ -102,7 +102,11 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	}, nil
 }
 
-func (c *CloudProvider) Validate(context.Context, *v1alpha2.Constraints) *apis.FieldError {
+func (c *CloudProvider) ValidateSpec(context.Context, *v1alpha2.ProvisionerSpec) *apis.FieldError {
+	return nil
+}
+
+func (c *CloudProvider) ValidateConstraints(context.Context, *v1alpha2.Constraints) *apis.FieldError {
 	return nil
 }
 

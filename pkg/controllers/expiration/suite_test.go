@@ -54,7 +54,7 @@ var _ = Describe("Reconciliation", func() {
 		provisioner = &v1alpha2.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: "default"},
 			Spec: v1alpha2.ProvisionerSpec{
-				Cluster:                &v1alpha2.Cluster{Name: "test-cluster", Endpoint: "http://test-cluster", CABundle: "dGVzdC1jbHVzdGVyCg=="},
+				Cluster:                v1alpha2.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 				TTLSecondsUntilExpired: ptr.Int64(30),
 			},
 		}

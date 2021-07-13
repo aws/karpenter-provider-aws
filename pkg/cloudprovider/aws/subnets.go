@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"knative.dev/pkg/ptr"
 )
 
 type SubnetProvider struct {
@@ -65,18 +66,19 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha2.Provisio
 }
 
 func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha2.Provisioner) ([]*ec2.Subnet, error) {
-	if subnets, ok := s.cache.Get(provisioner.Spec.Cluster.Name); ok {
+	clusterName := ptr.StringValue(provisioner.Spec.Cluster.Name)
+	if subnets, ok := s.cache.Get(clusterName); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}
 	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: []*ec2.Filter{{
 		Name:   aws.String("tag-key"), // Subnets must be tagged for the cluster
-		Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, provisioner.Spec.Cluster.Name))},
+		Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
 	}}})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
-	s.cache.Set(provisioner.Spec.Cluster.Name, output.Subnets, CacheTTL)
-	zap.S().Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), provisioner.Spec.Cluster.Name)
+	s.cache.Set(clusterName, output.Subnets, CacheTTL)
+	zap.S().Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), clusterName)
 	return output.Subnets, nil
 }
 

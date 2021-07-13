@@ -62,5 +62,6 @@ func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 	for operatingSystem := range operatingSystems {
 		v1alpha2.SupportedOperatingSystems = append(v1alpha2.SupportedOperatingSystems, operatingSystem)
 	}
-	v1alpha2.ConstraintsValidationHook = cloudProvider.Validate
+	v1alpha2.ConstraintsValidationHook = cloudProvider.ValidateConstraints
+	v1alpha2.SpecValidationHook = cloudProvider.ValidateSpec
 }

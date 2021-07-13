@@ -31,8 +31,15 @@ type CloudProvider interface {
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
-	// Validate is a hook for additional constraint validation logic specific to the cloud provider
-	Validate(context.Context, *v1alpha2.Constraints) *apis.FieldError
+	// ValidateSpec is a hook for additional spec validation logic specific to the cloud provider.
+	// Note, implementations should not validate constraints resp. call `ValidateConstraints`
+	// from whithin this method as constraints are validated separately.
+	ValidateSpec(context.Context, *v1alpha2.ProvisionerSpec) *apis.FieldError
+	// ValidateConstraints is a hook for additional constraint validation logic specific to the cloud provider.
+	// This method is not only called during Provisioner CRD validation, it is also used at provisioning time
+	// to ensure that pods are provisionable for the specified provisioner. For that reasons constraint
+	// validation has its own valdiation method and is not conducted as part of `ValidateSpec(...)`.
+	ValidateConstraints(context.Context, *v1alpha2.Constraints) *apis.FieldError
 	// Terminate node in cloudprovider
 	Terminate(context.Context, *v1.Node) error
 }
