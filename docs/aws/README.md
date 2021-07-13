@@ -60,7 +60,7 @@ or [AWS Fargate](https://aws.amazon.com/fargate/).
 Karpenter will provision traditional instances on EC2. 
 
 Additionally, the configuration file sets up an [OIDC
-provider](https://Kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
+provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
 necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way
 of communicating with identity providers. 
 
