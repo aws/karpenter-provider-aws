@@ -17,7 +17,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -36,11 +35,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
-)
-
-const (
-	maxBatchWindow   = 10 * time.Second
-	batchIdleTimeout = 2 * time.Second
 )
 
 var (
@@ -85,7 +79,7 @@ func main() {
 
 	if err := manager.RegisterControllers(ctx,
 		expiration.NewController(manager.GetClient()),
-		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider, maxBatchWindow, batchIdleTimeout),
+		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 	).Start(ctx); err != nil {

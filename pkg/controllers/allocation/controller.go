@@ -41,28 +41,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	maxBatchWindow   = 10 * time.Second
+	batchIdleTimeout = 2 * time.Second
+)
+
 // Controller for the resource
 type Controller struct {
-	filter        *Filter
-	binder        *Binder
-	batcher       *Batcher
-	constraints   *Constraints
-	packer        packing.Packer
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
+	Batcher       *Batcher
+	Filter        *Filter
+	Binder        *Binder
+	Constraints   *Constraints
+	Packer        packing.Packer
+	CloudProvider cloudprovider.CloudProvider
+	KubeClient    client.Client
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider,
-	MaxBatchWindow time.Duration, BatchIdleTimeout time.Duration) *Controller {
+func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		filter:        &Filter{kubeClient: kubeClient},
-		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
-		batcher:       NewBatcher(MaxBatchWindow, BatchIdleTimeout),
-		constraints:   &Constraints{kubeClient: kubeClient},
-		packer:        packing.NewPacker(),
-		cloudProvider: cloudProvider,
-		kubeClient:    kubeClient,
+		Filter:        &Filter{KubeClient: kubeClient},
+		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
+		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
+		Constraints:   &Constraints{KubeClient: kubeClient},
+		Packer:        packing.NewPacker(),
+		CloudProvider: cloudProvider,
+		KubeClient:    kubeClient,
 	}
 }
 
@@ -70,7 +74,11 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	persistedProvisioner := object.(*v1alpha2.Provisioner)
 	// 1. Fetch Provisioner
+<<<<<<< HEAD
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
+=======
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+>>>>>>> 1cf709d (address pr comments)
 		if errors.IsNotFound(err) {
 			c.batcher.Remove(persistedProvisioner)
 			return reconcile.Result{}, nil
@@ -87,10 +95,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Wait on a pod batch
-	c.batcher.Wait(provisioner)
+	c.Batcher.Wait(provisioner)
 
 	// 3. Filter pods
-	pods, err := c.filter.GetProvisionablePods(ctx, provisioner)
+	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
@@ -108,11 +116,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 5. Binpack each group
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
-		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx)
+		instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 		}
-		packings = append(packings, c.packer.Pack(ctx, constraintGroup, instanceTypes)...)
+		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
 
 	// 6. Create packedNodes for packings and also copy all Status changes made by the
@@ -126,8 +134,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var errs error
 	for _, packedNode := range packedNodes {
 		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
-		if err := c.binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
-			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
+		if err := c.Binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
 			errs = multierr.Append(errs, err)
 		}
 	}
@@ -137,15 +144,15 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Request) {
 	pod := o.(*v1.Pod)
 	ctx := context.Background()
-	provisioner, err := c.filter.GetProvisionerFor(ctx, pod)
+	provisioner, err := c.GetProvisionerFor(ctx, pod)
 	if err != nil {
 		zap.S().Errorf("Retrieving provisioner, %s", err.Error())
 		return nil
 	}
-	if err = c.filter.isProvisionable(ctx, pod, provisioner); err != nil {
+	if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
 		return nil
 	}
-	c.batcher.Add(provisioner)
+	c.Batcher.Add(provisioner)
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}}}
 }
 
@@ -155,7 +162,6 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		Named("Allocation").
 		For(&v1alpha2.Provisioner{}).
 		Watches(
-			// Reconcile all pods related to a provisioner when it changes.
 			&source.Kind{Type: &v1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
 		).
@@ -170,6 +176,25 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			},
 		).
 		Complete(c)
-	c.batcher.Start(ctx)
+	c.Batcher.Start(ctx)
 	return err
+}
+
+// GetProvisionerFor retrieves the provisioner responsible for the pod
+func (c *Controller) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
+	provisionerKey := client.ObjectKey{Namespace: "default", Name: "default"}
+	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
+		provisionerKey.Name = name
+	}
+	if namespace, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]; ok {
+		provisionerKey.Namespace = namespace
+	}
+	provisioner := &v1alpha2.Provisioner{}
+	if err := c.KubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha2.ProvisionerNameLabelKey)
+		}
+		return nil, err
+	}
+	return provisioner, nil
 }

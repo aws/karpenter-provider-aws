@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	"knative.dev/pkg/ptr"
 
@@ -50,13 +51,15 @@ var controller *allocation.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	controller = allocation.NewController(
-		e.Client,
-		corev1.NewForConfigOrDie(e.Config),
-		cloudProvider,
-		1*time.Millisecond,
-		1*time.Millisecond,
-	)
+	controller = &allocation.Controller{
+		Filter:        &allocation.Filter{KubeClient: e.Client},
+		Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
+		Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+		Constraints:   &allocation.Constraints{KubeClient: e.Client},
+		Packer:        packing.NewPacker(),
+		CloudProvider: cloudProvider,
+		KubeClient:    e.Client,
+	}
 })
 
 var _ = BeforeSuite(func() {

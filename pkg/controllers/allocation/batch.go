@@ -16,10 +16,10 @@ package allocation
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -29,14 +29,14 @@ const (
 
 // Batcher is a batch manager for multiple objects
 type Batcher struct {
-	// MaxBatchPeriod is the maximum amount of time to batch incoming pods before flushing
-	MaxBatchPeriod time.Duration
+	// MaxPeriod is the maximum amount of time to batch incoming pods before flushing
+	MaxPeriod time.Duration
 	// IdlePeriod is the amount of time to wait to flush a batch when there are no incoming pods but the batch is not empty
 	// It should be a smaller duration than MaxBatchPeriod
 	IdlePeriod time.Duration
 
 	// windows keeps a mapping of a key (like a provisioner name and namespace) to a specific object's batch window
-	windows map[string]*window
+	windows map[types.UID]*window
 	// ops is a stream of add and wait operations on a batch window
 	ops chan *batchOp
 	// isMonitorRunning indicates if the monitor go routine has been started
@@ -45,7 +45,7 @@ type Batcher struct {
 
 type batchOp struct {
 	kind    string
-	key     string
+	key     types.UID
 	waitEnd chan bool
 }
 
@@ -57,11 +57,11 @@ type window struct {
 }
 
 // NewBatcher creates a new batch manager to start multiple batch windows
-func NewBatcher(maxBatchPeriod time.Duration, idlePeriod time.Duration) *Batcher {
+func NewBatcher(maxPeriod time.Duration, idlePeriod time.Duration) *Batcher {
 	return &Batcher{
-		MaxBatchPeriod: maxBatchPeriod,
-		IdlePeriod:     idlePeriod,
-		windows:        map[string]*window{},
+		MaxPeriod:  maxPeriod,
+		IdlePeriod: idlePeriod,
+		windows:    map[types.UID]*window{},
 	}
 }
 
@@ -80,7 +80,7 @@ func (b *Batcher) Start(ctx context.Context) {
 // Add is safe to be called concurrently
 func (b *Batcher) Add(obj metav1.Object) {
 	select {
-	case b.ops <- &batchOp{kind: opAdd, key: b.keyFrom(obj)}:
+	case b.ops <- &batchOp{kind: opAdd, key: obj.GetUID()}:
 	// Do not block if the channel is full
 	default:
 	}
@@ -89,8 +89,8 @@ func (b *Batcher) Add(obj metav1.Object) {
 // Wait blocks until a batching window ends
 // If the batch is empty, it will block until something is added or the window times out
 func (b *Batcher) Wait(obj metav1.Object) {
-	waitBatchOp := &batchOp{kind: opWait, key: b.keyFrom(obj), waitEnd: make(chan bool, 1)}
-	timeout := time.NewTimer(b.MaxBatchPeriod)
+	waitBatchOp := &batchOp{kind: opWait, key: obj.GetUID(), waitEnd: make(chan bool, 1)}
+	timeout := time.NewTimer(b.MaxPeriod)
 	select {
 	case b.ops <- waitBatchOp:
 		<-waitBatchOp.waitEnd
@@ -137,15 +137,15 @@ func (b *Batcher) monitor(ctx context.Context) {
 
 // checkForWindowEndAndNotify checks if a window has timed out due to inactivity (IdlePeriod) or has reached the MaxBatchPeriod.
 // If the batch window has ended, then the batch closed channel will be notified and the window will be removed
-func (b *Batcher) checkForWindowEndAndNotify(key string, window *window) {
-	if time.Since(window.lastUpdated) < b.IdlePeriod && time.Since(window.started) < b.MaxBatchPeriod {
+func (b *Batcher) checkForWindowEndAndNotify(key types.UID, window *window) {
+	if time.Since(window.lastUpdated) < b.IdlePeriod && time.Since(window.started) < b.MaxPeriod {
 		return
 	}
 	b.endWindow(key, window)
 }
 
 // endWindow signals the end of a window to all wait consumers and deletes the window
-func (b *Batcher) endWindow(key string, window *window) {
+func (b *Batcher) endWindow(key types.UID, window *window) {
 	for _, end := range window.closed {
 		select {
 		case end <- true:
@@ -158,7 +158,7 @@ func (b *Batcher) endWindow(key string, window *window) {
 
 // startOrUpdateWindow starts a new window for the object key if one does not already exist
 // if a window already exists for the object key, then the lastUpdate time is set
-func (b *Batcher) startOrUpdateWindow(key string) *window {
+func (b *Batcher) startOrUpdateWindow(key types.UID) *window {
 	batchWindow, ok := b.windows[key]
 	if !ok {
 		batchWindow = &window{lastUpdated: time.Now(), started: time.Now()}
@@ -170,9 +170,4 @@ func (b *Batcher) startOrUpdateWindow(key string) *window {
 		batchWindow.started = time.Now()
 	}
 	return batchWindow
-}
-
-// keyFrom takes an object and outputs a unique key
-func (b *Batcher) keyFrom(obj metav1.Object) string {
-	return fmt.Sprintf("%s/%s", obj.GetName(), obj.GetNamespace())
 }

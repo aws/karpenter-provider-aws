@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -68,7 +69,15 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		instanceProvider:     &InstanceProvider{fakeEC2API},
 	}
 	registry.RegisterOrDie(cloudProvider)
-	controller = allocation.NewController(e.Client, clientSet.CoreV1(), cloudProvider, 1*time.Millisecond, 1*time.Millisecond)
+	controller = &allocation.Controller{
+		Filter:        &allocation.Filter{KubeClient: e.Client},
+		Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
+		Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+		Constraints:   &allocation.Constraints{KubeClient: e.Client},
+		Packer:        packing.NewPacker(),
+		CloudProvider: cloudProvider,
+		KubeClient:    e.Client,
+	}
 })
 
 var _ = BeforeSuite(func() {

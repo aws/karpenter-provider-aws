@@ -24,18 +24,17 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Filter struct {
-	kubeClient client.Client
+	KubeClient client.Client
 }
 
 func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2.Provisioner) ([]*v1.Pod, error) {
 	// 1. List Pods that aren't scheduled
 	pods := &v1.PodList{}
-	if err := f.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
+	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing unscheduled pods, %w", err)
 	}
 	if len(pods.Items) == 0 {
@@ -56,26 +55,6 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 		provisionable = append(provisionable, ptr.Pod(p))
 	}
 	return provisionable, nil
-}
-
-// GetProvisionerFor retrieves the provisioner responsible for the pod
-func (f *Filter) GetProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
-	provisionerKey := client.ObjectKey{Namespace: "default", Name: "default"}
-	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
-		provisionerKey.Name = name
-	}
-	if namespace, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]; ok {
-		provisionerKey.Namespace = namespace
-	}
-	provisioner := &v1alpha2.Provisioner{}
-	if err := f.kubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("provisioner %s/%s does not exist, please specify a provisioner override or create the default provisioner",
-				provisionerKey.Name, provisionerKey.Namespace)
-		}
-		return nil, err
-	}
-	return provisioner, nil
 }
 
 func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha2.Provisioner) error {

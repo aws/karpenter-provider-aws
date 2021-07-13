@@ -28,8 +28,8 @@ import (
 )
 
 type Binder struct {
-	kubeClient   client.Client
-	coreV1Client corev1.CoreV1Interface
+	KubeClient   client.Client
+	CoreV1Client corev1.CoreV1Interface
 }
 
 func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
@@ -52,7 +52,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
 	// before the node is fully Ready.
-	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+	if _, err := b.CoreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
@@ -69,7 +69,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 
 func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
 	// TODO, Stop using deprecated v1.Binding
-	if err := b.coreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
+	if err := b.CoreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
 		TypeMeta:   pod.TypeMeta,
 		ObjectMeta: pod.ObjectMeta,
 		Target:     v1.ObjectReference{Name: node.Name},
