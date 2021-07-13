@@ -1,7 +1,7 @@
 # Getting Started with Karpenter on AWS
 
 Karpenter automatically provisions new nodes in response to unschedulable
-pods. Karpenter does this by observing events within the kubernetes cluster,
+pods. Karpenter does this by observing events within the Kubernetes cluster,
 and then sending commands to the underlying cloud provider. 
 
 In this example, the cluster is running on Amazon Web Services (AWS) Elastic
@@ -60,13 +60,13 @@ or [AWS Fargate](https://aws.amazon.com/fargate/).
 Karpenter will provision traditional instances on EC2. 
 
 Additionally, the configuration file sets up an [OIDC
-provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
+provider](https://Kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
 necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way
 of communicating with identity providers. 
 
 ## Setup Authentication from Kubernetes to AWS (IRSA)
 
-IAM Roles for Service Accounts (IRSA) maps kubernetes resources to roles
+IAM Roles for Service Accounts (IRSA) maps Kubernetes resources to roles
 (permission sets) on AWS. 
 
 First, define a role using the template below. It provides full access to EC2,
@@ -84,7 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERS
   --parameter-overrides ClusterName=${CLUSTER_NAME}
 ```
 
-Second, create the mapping between kubernetes resources and the new IAM role. 
+Second, create the mapping between Kubernetes resources and the new IAM role. 
 
 ```bash
 # Add the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
@@ -102,7 +102,7 @@ Now, Karpenter can send requests for new EC2 instances to AWS.
 
 Use helm to deploy Karpenter to the cluster. 
 
-We created a kubernetes service account when we created the cluster using
+We created a Kubernetes service account when we created the cluster using
 eksctl. Thus, we don't need the helm chart to do that.
 
 ```bash
