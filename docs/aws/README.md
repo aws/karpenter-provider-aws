@@ -1,16 +1,23 @@
 # Getting Started with Karpenter on AWS
 
-Karpenter automatically provisions new nodes in response to unschedulable  pods. Karpenter does this by observing events within the kubernetes cluster, and then sending commands to the underlying cloud provider. 
+Karpenter automatically provisions new nodes in response to unschedulable
+pods. Karpenter does this by observing events within the kubernetes cluster,
+and then sending commands to the underlying cloud provider. 
 
-In this example, the cluster is running on Amazon Web Services (AWS) Elastic Kubernetes Service (EKS). Karpenter is designed to be cloud provider agnostic, but currently only supports AWS. Contributions are welcomed. 
+In this example, the cluster is running on Amazon Web Services (AWS) Elastic
+Kubernetes Service (EKS). Karpenter is designed to be cloud provider agnostic,
+but currently only supports AWS. Contributions are welcomed. 
 
-This guide should take less than 1 hour to complete, and cost less than $0.25. Follow the clean-up instructions to reduce any charges.
+This guide should take less than 1 hour to complete, and cost less than $0.25.
+Follow the clean-up instructions to reduce any charges.
 
 # Install
 
-Karpenter is installed in clusters with a simple helm chart.
+Karpenter is installed in clusters with a helm chart.
 
-Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA permits Karpenter (within the cluster) to make privileged requests to AWS (as the cloud provider). 
+Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
+permits Karpenter (within the cluster) to make privileged requests to AWS (as
+the cloud provider). 
 
 ## Required Utilities
 
@@ -20,11 +27,13 @@ Install these tools before proceeding:
 2. `kubectl` - [the kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 
-Login to the AWS CLI with a user that has sufficient privileges to create a cluster. 
+Login to the AWS CLI with a user that has sufficient privileges to create a
+cluster. 
 
 ## Environment Variables
 
-After setting up the tools, set the following environment variables to store commonly used values. 
+After setting up the tools, set the following environment variables to store
+commonly used values. 
 
 ```bash
 export CLUSTER_NAME=$USER-karpenter-demo
@@ -37,19 +46,32 @@ KARPENTER_VERSION=$(curl -fsSL \
 
 ## Create a Cluster
 
-Create a cluster with `eksctl`. The below configuration file specifies a basic cluster (name, region), an IAM role for karpenter to use, and two fargate profiles. 
+Create a cluster with `eksctl`. The below configuration file specifies a basic
+cluster (name, region), an IAM role for Karpenter to use, and two fargate
+profiles. 
 
-The two fargate profiles host `kube-system` and the karpenter service itself. This permits karpenter to manage all nodes, without a circular dependency. 
+The two fargate profiles host `kube-system` and the Karpenter service itself.
+This permits Karpenter to manage all EC2 instances. 
+
+Karpenter itself can run anywhere, including on self-managed node groups,
+[managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), 
+or [AWS Fargate](https://aws.amazon.com/fargate/).
 
 Karpenter will provision traditional instances on EC2. 
 
-Additionally, the configuration file sets up an [OIDC provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens), necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way of communicating with identity providers. 
+Additionally, the configuration file sets up an [OIDC
+provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
+necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way
+of communicating with identity providers. 
 
 ## Setup Authentication from Kubernetes to AWS (IRSA)
 
-IAM Roles for Service Accounts (IRSA) maps kubernetes resources to roles (permission sets) on AWS. 
+IAM Roles for Service Accounts (IRSA) maps kubernetes resources to roles
+(permission sets) on AWS. 
 
-First, define a role using the template below. It provides full access to EC2, and limited access to other services such as EKS and Elastic Container Registry (ECR).
+First, define a role using the template below. It provides full access to EC2,
+and limited access to other services such as EKS and Elastic Container Registry
+(ECR).
 
 ```bash
 # Creates IAM resources used by Karpenter
@@ -65,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERS
 Second, create the mapping between kubernetes resources and the new IAM role. 
 
 ```bash
-# Add the karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
+# Add the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 eksctl create iamidentitymapping \
   --username system:node:{{EC2PrivateDNSName}} \
   --cluster  ${CLUSTER_NAME} \
@@ -80,7 +102,8 @@ Now, Karpenter can send requests for new EC2 instances to AWS.
 
 Use helm to deploy Karpenter to the cluster. 
 
-We created a kubernetes service account when we created the cluster using eksctl. Thus, we don't need the helm chart to do that.
+We created a kubernetes service account when we created the cluster using
+eksctl. Thus, we don't need the helm chart to do that.
 
 ```bash
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
@@ -91,11 +114,17 @@ helm upgrade --install karpenter karpenter/karpenter \
 
 ## Provisioner
 
-A single karpenter provisioner is capable of handling many different pod shapes. In other words, karpenter eliminates the need to manage many different node groups. Karpenter makes scheduling and provisioning decisions based on pod attributes such as labels and affinity. 
+A single Karpenter provisioner is capable of handling many different pod
+shapes. In other words, Karpenter eliminates the need to manage many different
+node groups. Karpenter makes scheduling and provisioning decisions based on pod
+attributes such as labels and affinity. 
 
-Create a simple default provisioner using the command below. This provisioner provides instances with the default certificate bundle, and the control plane endpoint url. 
+Create a simple default provisioner using the command below. This provisioner
+provides instances with the default certificate bundle, and the control plane
+endpoint url. 
 
-Importantly, the `ttlSecondsAfterEmpty` value configures karpenter to deprovision empty nodes. 
+Importantly, the `ttlSecondsAfterEmpty` value configures Karpenter to
+deprovision empty nodes. 
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -115,11 +144,12 @@ kubectl get provisioner default -o yaml
 
 # First Use
 
-Karpenter is now active and ready to begin provisioning nodes. Create a workload (e.g., deployment) to see karpenter provision some nodes. 
+Karpenter is now active and ready to begin provisioning nodes. Create a
+workload (e.g., deployment) to see Karpenter provision some nodes. 
 
 ## Create Workload
 
-This deployment is based on the pause image and initially has zero replicas. 
+This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas. 
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -147,25 +177,36 @@ EOF
 ```
 ## Automatic Node Provisioning 
 
-Scale the previous deployment to 5 replicas, and begin watching the karpenter pod for log events. 
+Scale the previous deployment to 5 replicas, and begin watching the Karpenter
+pod for log events. 
 
 ```bash
 kubectl scale deployment inflate --replicas 5
 kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
 ```
 
-## Automatic Node Deprovisioning
+## Automatic Node Deprovisioning (timeout)
 
-Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`), karpenter should deprovision the now empty nodes. 
+Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
+Karpenter should deprovision the now empty nodes. 
 
 ```bash
 kubectl delete deployment inflate
 kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
 ```
 
+## Manual Node Deprovisioning
+
+If you delete a node with kubectl, Karpenter deprovisions the corresponding instance.
+
+```bash
+kubectl delete node $NODE_NAME
+```
+
 # Cleanup
 
-It's important to both delete the cluster instances and the cluster control plane. AWS charges for both. 
+It's important to both delete the cluster instances and the cluster control
+plane. AWS charges for both. 
 
 Delete cluster workloads and instances: 
 
