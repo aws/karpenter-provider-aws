@@ -32,7 +32,7 @@ type Batcher struct {
 	// MaxPeriod is the maximum amount of time to batch incoming pods before flushing
 	MaxPeriod time.Duration
 	// IdlePeriod is the amount of time to wait to flush a batch when there are no incoming pods but the batch is not empty
-	// It should be a smaller duration than MaxBatchPeriod
+	// It should be a smaller duration than MaxPeriod
 	IdlePeriod time.Duration
 
 	// windows keeps a mapping of a key (like a provisioner name and namespace) to a specific object's batch window
@@ -94,7 +94,7 @@ func (b *Batcher) Wait(obj metav1.Object) {
 	select {
 	case b.ops <- waitBatchOp:
 		<-waitBatchOp.waitEnd
-	// if the ops channel is full (should be very rare), allow wait to block until the MaxBatchPeriod
+	// if the ops channel is full (should be very rare), allow wait to block until the MaxPeriod
 	case <-timeout.C:
 	}
 }
