@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/controllers/expiration"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
@@ -49,13 +49,13 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reconciliation", func() {
-	var provisioner *v1alpha2.Provisioner
+	var provisioner *v1alpha3.Provisioner
 
 	BeforeEach(func() {
-		provisioner = &v1alpha2.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()), Namespace: "default"},
-			Spec: v1alpha2.ProvisionerSpec{
-				Cluster:                v1alpha2.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+		provisioner = &v1alpha3.Provisioner{
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+			Spec: v1alpha3.ProvisionerSpec{
+				Cluster:                v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 				TTLSecondsUntilExpired: ptr.Int64(30),
 			},
 		}
@@ -67,8 +67,7 @@ var _ = Describe("Reconciliation", func() {
 	It("should ignore nodes without TTLSecondsUntilExpired", func() {
 		node := test.Node(test.NodeOptions{
 			Labels: map[string]string{
-				v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
-				v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+				v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
 			},
 		})
 		provisioner.Spec.TTLSecondsUntilExpired = nil
@@ -89,8 +88,7 @@ var _ = Describe("Reconciliation", func() {
 	It("should not terminate nodes before expiry", func() {
 		node := test.Node(test.NodeOptions{
 			Labels: map[string]string{
-				v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
-				v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+				v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
 			},
 		})
 		ExpectCreated(env.Client, provisioner, node)
@@ -103,8 +101,7 @@ var _ = Describe("Reconciliation", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(0)
 		node := test.Node(test.NodeOptions{
 			Labels: map[string]string{
-				v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
-				v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+				v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
 			},
 		})
 		ExpectCreated(env.Client, provisioner, node)

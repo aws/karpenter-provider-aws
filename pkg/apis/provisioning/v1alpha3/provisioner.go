@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1alpha3
 
 import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -118,7 +118,6 @@ var (
 
 	// Reserved labels
 	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/name"
-	ProvisionerNamespaceLabelKey     = SchemeGroupVersion.Group + "/namespace"
 	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
 
 	// Reserved annotations
@@ -136,6 +135,7 @@ const (
 
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:path=provisioners,scope=Cluster
 // +kubebuilder:subresource:status
 type Provisioner struct {
 	metav1.TypeMeta   `json:",inline"`

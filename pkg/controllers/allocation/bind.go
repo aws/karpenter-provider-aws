@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,7 +34,7 @@ type Binder struct {
 
 func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
-	node.Finalizers = append(node.Finalizers, v1alpha2.KarpenterFinalizer)
+	node.Finalizers = append(node.Finalizers, v1alpha3.KarpenterFinalizer)
 	// 2. Mark NodeReady=Unknown
 	// Unfortunately, this detail is necessary to prevent kube-scheduler from
 	// scheduling pods to nodes before they're created. Node Lifecycle

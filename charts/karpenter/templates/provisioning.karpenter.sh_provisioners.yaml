@@ -14,9 +14,9 @@ spec:
     listKind: ProvisionerList
     plural: provisioners
     singular: provisioner
-  scope: Namespaced
+  scope: Cluster
   versions:
-  - name: v1alpha2
+  - name: v1alpha3
     schema:
       openAPIV3Schema:
         description: Provisioner is the Schema for the Provisioners API

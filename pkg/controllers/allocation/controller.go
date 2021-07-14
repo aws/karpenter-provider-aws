@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
@@ -129,7 +129,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	err := controllerruntime.
 		NewControllerManagedBy(m).
 		Named("Allocation").
-		For(&v1alpha2.Provisioner{}).
+		For(&v1alpha3.Provisioner{}).
 		Watches(
 			&source.Kind{Type: &v1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
@@ -151,8 +151,8 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 
 // retrieveProvisionerFrom fetches the provisioner and returns a raw provisioner that was persisted in the api server
 // and a provisioner w/ default runtime values added that should not be persisted
-func (c *Controller) retrieveProvisionerFrom(ctx context.Context, req reconcile.Request) (*v1alpha2.Provisioner, *v1alpha2.Provisioner, error) {
-	persistedProvisioner := &v1alpha2.Provisioner{}
+func (c *Controller) retrieveProvisionerFrom(ctx context.Context, req reconcile.Request) (*v1alpha3.Provisioner, *v1alpha3.Provisioner, error) {
+	persistedProvisioner := &v1alpha3.Provisioner{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil, nil
@@ -183,22 +183,19 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 		return nil
 	}
 	c.Batcher.Add(provisioner)
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}}}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
 }
 
 // getProvisionerFor retrieves the provisioner responsible for the pod
-func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
-	provisionerKey := client.ObjectKey{Namespace: "default", Name: "default"}
-	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
+func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha3.Provisioner, error) {
+	provisionerKey := client.ObjectKey{Name: "default"}
+	if name, ok := p.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
 		provisionerKey.Name = name
 	}
-	if namespace, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]; ok {
-		provisionerKey.Namespace = namespace
-	}
-	provisioner := &v1alpha2.Provisioner{}
+	provisioner := &v1alpha3.Provisioner{}
 	if err := c.KubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha2.ProvisionerNameLabelKey)
+			return nil, fmt.Errorf("create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha3.ProvisionerNameLabelKey)
 		}
 		return nil, err
 	}

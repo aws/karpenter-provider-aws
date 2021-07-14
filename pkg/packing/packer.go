@@ -19,7 +19,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -37,7 +37,7 @@ var (
 // Constraints for an efficient binpacking solution of pods onto nodes, given
 // overhead and node constraints.
 type Constraints struct {
-	*v1alpha2.Constraints
+	*v1alpha3.Constraints
 	// Pods is a list of equivalently schedulable pods to be binpacked.
 	Pods []*v1.Pod
 	// Daemons resources per node.

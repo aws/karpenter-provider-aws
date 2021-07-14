@@ -64,7 +64,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	perl -pi -e 's/Any/string/g' charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml
 	hack/boilerplate.sh
 	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/provisioning/v1alpha2 \
+		-api-dir ./pkg/apis/provisioning/v1alpha3 \
 		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/example-config.json \
 		-out-file API.md \
 		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/template

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -97,14 +97,14 @@ func ExpectCleanedUp(c client.Client) {
 	for _, node := range nodes.Items {
 		ExpectDeleted(c, &node)
 	}
-	provisioners := v1alpha2.ProvisionerList{}
+	provisioners := v1alpha3.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
 	for _, provisioner := range provisioners.Items {
 		ExpectDeleted(c, &provisioner)
 	}
 }
 
-func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
@@ -116,7 +116,7 @@ func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconcile
 	return result
 }
 
-func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha2.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}

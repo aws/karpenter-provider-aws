@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/mitchellh/hashstructure/v2"
 	"knative.dev/pkg/ptr"
 
@@ -78,14 +78,14 @@ func launchTemplateName(options *launchTemplateOptions) string {
 // to the number of LaunchTemplates that will result from this change.
 type launchTemplateOptions struct {
 	// Edge-triggered fields that will only change on kube events.
-	Cluster  v1alpha2.Cluster
+	Cluster  v1alpha3.Cluster
 	UserData string
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups []string
 	AMIID          string
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha2.Provisioner, constraints *Constraints) (*LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (*LaunchTemplate, error) {
 	// 1. If the customer specified a launch template then just use it
 	if result := constraints.GetLaunchTemplate(); result != nil {
 		return result, nil
@@ -181,7 +181,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha2.Provisioner, constraints *Constraints) ([]string, error) {
+func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]string, error) {
 	securityGroupIds := []string{}
 	securityGroups, err := p.securityGroupProvider.Get(ctx, provisioner, constraints)
 	if err != nil {
@@ -193,12 +193,12 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provis
 	return securityGroupIds, nil
 }
 
-func (p *LaunchTemplateProvider) getUserData(provisioner *v1alpha2.Provisioner, constraints *Constraints) string {
+func (p *LaunchTemplateProvider) getUserData(provisioner *v1alpha3.Provisioner, constraints *Constraints) string {
 	t := template.Must(template.New("userData").Parse(bottlerocketUserData))
 	var userData bytes.Buffer
 	if err := t.Execute(&userData, struct {
 		Constraints *Constraints
-		Cluster     v1alpha2.Cluster
+		Cluster     v1alpha3.Cluster
 	}{constraints, provisioner.Spec.Cluster}); err != nil {
 		panic(fmt.Sprintf("Parsing user data from %v, %v, %s", provisioner, constraints, err.Error()))
 	}

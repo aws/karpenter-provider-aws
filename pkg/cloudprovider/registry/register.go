@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
@@ -42,7 +42,7 @@ func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
 	}
 	for _, instanceType := range instanceTypes {
-		v1alpha2.SupportedInstanceTypes = append(v1alpha2.SupportedInstanceTypes, instanceType.Name())
+		v1alpha3.SupportedInstanceTypes = append(v1alpha3.SupportedInstanceTypes, instanceType.Name())
 		for _, zone := range instanceType.Zones() {
 			zones[zone] = true
 		}
@@ -54,14 +54,14 @@ func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 		}
 	}
 	for zone := range zones {
-		v1alpha2.SupportedZones = append(v1alpha2.SupportedZones, zone)
+		v1alpha3.SupportedZones = append(v1alpha3.SupportedZones, zone)
 	}
 	for architecture := range architectures {
-		v1alpha2.SupportedArchitectures = append(v1alpha2.SupportedArchitectures, architecture)
+		v1alpha3.SupportedArchitectures = append(v1alpha3.SupportedArchitectures, architecture)
 	}
 	for operatingSystem := range operatingSystems {
-		v1alpha2.SupportedOperatingSystems = append(v1alpha2.SupportedOperatingSystems, operatingSystem)
+		v1alpha3.SupportedOperatingSystems = append(v1alpha3.SupportedOperatingSystems, operatingSystem)
 	}
-	v1alpha2.ConstraintsValidationHook = cloudProvider.ValidateConstraints
-	v1alpha2.SpecValidationHook = cloudProvider.ValidateSpec
+	v1alpha3.ConstraintsValidationHook = cloudProvider.ValidateConstraints
+	v1alpha3.SpecValidationHook = cloudProvider.ValidateSpec
 }

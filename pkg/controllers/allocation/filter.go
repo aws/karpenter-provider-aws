@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -31,7 +31,7 @@ type Filter struct {
 	KubeClient client.Client
 }
 
-func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2.Provisioner) ([]*v1.Pod, error) {
+func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3.Provisioner) ([]*v1.Pod, error) {
 	// 1. List Pods that aren't scheduled
 	pods := &v1.PodList{}
 	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
@@ -57,7 +57,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha2.Provisioner) error {
+func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha3.Provisioner) error {
 	return functional.ValidateAll(
 		func() error { return f.isUnschedulable(p) },
 		func() error { return f.matchesProvisioner(p, provisioner) },
@@ -87,25 +87,21 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 	return nil
 }
 
-func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha2.Provisioner) error {
+func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
 	if pod.Spec.NodeSelector == nil {
 		return nil
 	}
-	name, ok := pod.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]
+	name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]
 	if !ok {
 		return nil
 	}
-	namespace, ok := pod.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]
-	if !ok {
+	if name == provisioner.Name {
 		return nil
 	}
-	if name == provisioner.Name && namespace == provisioner.Namespace {
-		return nil
-	}
-	return fmt.Errorf("matched another provisioner, %s/%s", name, namespace)
+	return fmt.Errorf("matched another provisioner, %s", name)
 }
 
-func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha2.Provisioner) error {
+func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
 	if err := provisioner.Spec.Constraints.WithOverrides(pod).Validate(ctx); err != nil {
 		return fmt.Errorf("invalid constraints, %w", err)
 	}

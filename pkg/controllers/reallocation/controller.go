@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"golang.org/x/time/rate"
 
@@ -52,7 +52,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Retrieve provisioner from reconcile request
-	provisioner := &v1alpha2.Provisioner{}
+	provisioner := &v1alpha3.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -85,7 +85,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("Reallocation").
-		For(&v1alpha2.Provisioner{}).
+		For(&v1alpha3.Provisioner{}).
 		WithOptions(
 			controller.Options{
 				RateLimiter: workqueue.NewMaxOfRateLimiter(

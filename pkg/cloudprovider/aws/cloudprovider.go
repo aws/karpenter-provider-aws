@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/project"
@@ -51,11 +51,11 @@ const (
 
 var (
 	SupportedOperatingSystems = []string{
-		v1alpha2.OperatingSystemLinux,
+		v1alpha3.OperatingSystemLinux,
 	}
 	SupportedArchitectures = []string{
-		v1alpha2.ArchitectureAmd64,
-		v1alpha2.ArchitectureArm64,
+		v1alpha3.ArchitectureAmd64,
+		v1alpha3.ArchitectureArm64,
 	}
 )
 
@@ -108,7 +108,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a set of nodes given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha2.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
 	instanceIDs := []*string{}
 	instancePackings := map[string]*cloudprovider.Packing{}
 	for _, packing := range packings {
@@ -161,13 +161,13 @@ func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate cloud provider specific components of the cluster spec
-func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1alpha2.Constraints) (errs *apis.FieldError) {
+func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1alpha3.Constraints) (errs *apis.FieldError) {
 	awsConstraints := Constraints{*constraints}
 	return awsConstraints.Validate(ctx)
 }
 
 // Validate cloud provider specific components of the cluster spec.
-func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha2.ProvisionerSpec) (errs *apis.FieldError) {
+func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha3.ProvisionerSpec) (errs *apis.FieldError) {
 	if spec.Cluster.Name == nil || len(*spec.Cluster.Name) == 0 {
 		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
 	}
