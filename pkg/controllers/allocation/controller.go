@@ -23,97 +23,184 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
+	"golang.org/x/time/rate"
 
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	maxBatchWindow   = 10 * time.Second
+	batchIdleTimeout = 2 * time.Second
 )
 
 // Controller for the resource
 type Controller struct {
-	filter        *Filter
-	binder        *Binder
-	constraints   *Constraints
-	packer        packing.Packer
-	cloudProvider cloudprovider.CloudProvider
-}
-
-// For returns the resource this controller is for.
-func (c *Controller) For() client.Object {
-	return &v1alpha2.Provisioner{}
-}
-
-func (c *Controller) Interval() time.Duration {
-	return 5 * time.Second
-}
-
-func (c *Controller) Name() string {
-	return "provisioner/allocator"
+	Batcher       *Batcher
+	Filter        *Filter
+	Binder        *Binder
+	Constraints   *Constraints
+	Packer        packing.Packer
+	CloudProvider cloudprovider.CloudProvider
+	KubeClient    client.Client
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		filter:        &Filter{kubeClient: kubeClient},
-		binder:        &Binder{kubeClient: kubeClient, coreV1Client: coreV1Client},
-		constraints:   &Constraints{kubeClient: kubeClient},
-		packer:        packing.NewPacker(),
-		cloudProvider: cloudProvider,
+		Filter:        &Filter{KubeClient: kubeClient},
+		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
+		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
+		Constraints:   &Constraints{KubeClient: kubeClient},
+		Packer:        packing.NewPacker(),
+		CloudProvider: cloudProvider,
+		KubeClient:    kubeClient,
 	}
 }
 
 // Reconcile executes an allocation control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	persistedProvisioner := object.(*v1alpha2.Provisioner)
-
-	// 1. Hydrate provisioner with (dynamic) default values, which must not
-	//    be persisted into the original CRD as they might change with each reconciliation
-	//    loop iteration.
-	provisionerWithDefaults, err := persistedProvisioner.WithDynamicDefaults()
+func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	// 1. Fetch provisioner
+	persistedProvisioner, provisionerWithDefaults, err := c.retrieveProvisionerFrom(ctx, req)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("setting dynamic default values, %w", err)
+		return reconcile.Result{}, err
 	}
 
-	// 2. Filter pods
-	pods, err := c.filter.GetProvisionablePods(ctx, &provisionerWithDefaults)
+	// 2. Wait on a pod batch
+	c.Batcher.Wait(provisionerWithDefaults)
+
+	// 3. Filter pods
+	pods, err := c.Filter.GetProvisionablePods(ctx, provisionerWithDefaults)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
 	if len(pods) == 0 {
-		return reconcile.Result{RequeueAfter: c.Interval()}, nil
+		return reconcile.Result{}, nil
 	}
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
-	// 3. Group by constraints
-	constraintGroups, err := c.constraints.Group(ctx, &provisionerWithDefaults, pods)
+	// 4. Group by constraints
+	constraintGroups, err := c.Constraints.Group(ctx, provisionerWithDefaults, pods)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
 	}
 
-	// 4. Binpack each group
+	// 5. Binpack each group
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
-		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx)
+		instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 		}
-		packings = append(packings, c.packer.Pack(ctx, constraintGroup, instanceTypes)...)
+		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
 
-	// 5. Create packedNodes for packings and also copy all Status changes made by the
+	// 6. Create packedNodes for packings and also copy all Status changes made by the
 	//    cloud provider to the original provisioner instance.
-	packedNodes, err := c.cloudProvider.Create(ctx, &provisionerWithDefaults, packings)
+	packedNodes, err := c.CloudProvider.Create(ctx, persistedProvisioner, packings)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}
 
-	// 6. Bind pods to nodes
+	// 7. Bind pods to nodes
+	var errs error
 	for _, packedNode := range packedNodes {
 		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
-		if err := c.binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
-			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
+		if err := c.Binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
+			errs = multierr.Append(errs, err)
 		}
 	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+	return reconcile.Result{}, errs
+}
+
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+	err := controllerruntime.
+		NewControllerManagedBy(m).
+		Named("Allocation").
+		For(&v1alpha2.Provisioner{}).
+		Watches(
+			&source.Kind{Type: &v1.Pod{}},
+			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
+		).
+		WithOptions(
+			controller.Options{
+				RateLimiter: workqueue.NewMaxOfRateLimiter(
+					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
+					// 10 qps, 100 bucket size
+					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+				),
+				MaxConcurrentReconciles: 4,
+			},
+		).
+		Complete(c)
+	c.Batcher.Start(ctx)
+	return err
+}
+
+// retrieveProvisionerFrom fetches the provisioner and returns a raw provisioner that was persisted in the api server
+// and a provisioner w/ default runtime values added that should not be persisted
+func (c *Controller) retrieveProvisionerFrom(ctx context.Context, req reconcile.Request) (*v1alpha2.Provisioner, *v1alpha2.Provisioner, error) {
+	persistedProvisioner := &v1alpha2.Provisioner{}
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+
+	// Hydrate provisioner with (dynamic) default values, which must not
+	//    be persisted into the original CRD as they might change with each reconciliation
+	//    loop iteration.
+	provisionerWithDefaults, err := persistedProvisioner.WithDynamicDefaults()
+	if err != nil {
+		return persistedProvisioner, &provisionerWithDefaults, fmt.Errorf("setting dynamic default values, %w", err)
+	}
+	return persistedProvisioner, &provisionerWithDefaults, nil
+}
+
+// podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
+func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Request) {
+	pod := o.(*v1.Pod)
+	ctx := context.Background()
+	provisioner, err := c.getProvisionerFor(ctx, pod)
+	if err != nil {
+		zap.S().Errorf("Retrieving provisioner, %s", err.Error())
+		return nil
+	}
+	if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
+		return nil
+	}
+	c.Batcher.Add(provisioner)
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}}}
+}
+
+// getProvisionerFor retrieves the provisioner responsible for the pod
+func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha2.Provisioner, error) {
+	provisionerKey := client.ObjectKey{Namespace: "default", Name: "default"}
+	if name, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNameLabelKey]; ok {
+		provisionerKey.Name = name
+	}
+	if namespace, ok := p.Spec.NodeSelector[v1alpha2.ProvisionerNamespaceLabelKey]; ok {
+		provisionerKey.Namespace = namespace
+	}
+	provisioner := &v1alpha2.Provisioner{}
+	if err := c.KubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha2.ProvisionerNameLabelKey)
+		}
+		return nil, err
+	}
+	return provisioner, nil
 }

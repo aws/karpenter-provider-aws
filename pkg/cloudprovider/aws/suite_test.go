@@ -18,16 +18,19 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -48,7 +51,7 @@ func TestAPIs(t *testing.T) {
 
 var launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 var fakeEC2API *fake.EC2API
-var controller controllers.Controller
+var controller reconcile.Reconciler
 
 var env = test.NewEnvironment(func(e *test.Environment) {
 	clientSet := kubernetes.NewForConfigOrDie(e.Config)
@@ -66,7 +69,15 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		instanceProvider:     &InstanceProvider{fakeEC2API},
 	}
 	registry.RegisterOrDie(cloudProvider)
-	controller = allocation.NewController(e.Client, clientSet.CoreV1(), cloudProvider)
+	controller = &allocation.Controller{
+		Filter:        &allocation.Filter{KubeClient: e.Client},
+		Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
+		Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+		Constraints:   &allocation.Constraints{KubeClient: e.Client},
+		Packer:        packing.NewPacker(),
+		CloudProvider: cloudProvider,
+		KubeClient:    e.Client,
+	}
 })
 
 var _ = BeforeSuite(func() {
@@ -107,6 +118,7 @@ var _ = Describe("Allocation", func() {
 	Context("Reconciliation", func() {
 		Context("Reserved Labels", func() {
 			It("should not schedule a pod with cloud provider reserved labels", func() {
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{AWSLabelPrefix + "unknown": randomdata.SillyName()}}),
 				)
@@ -137,8 +149,9 @@ var _ = Describe("Allocation", func() {
 						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
 					},
 				})
+				ExpectCreated(env.Client, provisioner)
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectControllerSucceeded(controller, provisioner)
+				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
@@ -186,8 +199,9 @@ var _ = Describe("Allocation", func() {
 						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
 					},
 				})
+				ExpectCreated(env.Client, provisioner)
 				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectControllerSucceeded(controller, provisioner)
+				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 				// Assertions
 				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
 				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
@@ -217,6 +231,7 @@ var _ = Describe("Allocation", func() {
 		Context("CapacityType", func() {
 			It("should default to on demand", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -228,6 +243,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to a provisioner's specified capacity type", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{CapacityTypeLabel: CapacityTypeSpot}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -238,6 +254,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should allow a pod to override the capacity type", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{CapacityTypeLabel: CapacityTypeSpot}}),
 				)
@@ -250,6 +267,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should not schedule a pod with an invalid capacityType", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{CapacityTypeLabel: "unknown"}}),
 				)
@@ -260,6 +278,7 @@ var _ = Describe("Allocation", func() {
 		Context("LaunchTemplates", func() {
 			It("should default to a generated launch template", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -277,6 +296,7 @@ var _ = Describe("Allocation", func() {
 					LaunchTemplateIdLabel:      randomdata.SillyName(),
 					LaunchTemplateVersionLabel: randomdata.SillyName(),
 				}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -291,6 +311,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to a provisioner's launch template and the default launch template version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -308,6 +329,7 @@ var _ = Describe("Allocation", func() {
 					LaunchTemplateIdLabel:      randomdata.SillyName(),
 					LaunchTemplateVersionLabel: randomdata.SillyName(),
 				}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{
 						LaunchTemplateIdLabel:      randomdata.SillyName(),
@@ -327,6 +349,7 @@ var _ = Describe("Allocation", func() {
 			It("should allow a pod to override the launch template id and use the default launch template version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
 				)
@@ -346,6 +369,7 @@ var _ = Describe("Allocation", func() {
 					LaunchTemplateIdLabel:      randomdata.SillyName(),
 					LaunchTemplateVersionLabel: randomdata.SillyName(),
 				}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
 				)
@@ -364,6 +388,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to the clusters subnets", func() {
 				// Setup
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -381,6 +406,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{SubnetNameLabel: "test-subnet-2"}
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -395,6 +421,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to a provisioner's specified subnet tag key", func() {
 				provisioner.Spec.Labels = map[string]string{SubnetTagKeyLabel: "TestTag"}
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -409,6 +436,7 @@ var _ = Describe("Allocation", func() {
 			It("should allow a pod to override the subnet name", func() {
 				// Setup
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetNameLabel: "test-subnet-2"}}),
 				)
@@ -424,6 +452,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should allow a pod to override the subnet tags", func() {
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "TestTag"}}),
 				)
@@ -439,6 +468,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should not schedule a pod with an invalid subnet", func() {
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningFailed(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
 				)
@@ -449,6 +479,7 @@ var _ = Describe("Allocation", func() {
 		Context("Security Groups", func() {
 			It("should default to the clusters security groups", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -464,6 +495,7 @@ var _ = Describe("Allocation", func() {
 			It("should default to a provisioner's specified security groups name", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{SecurityGroupNameLabel: "test-security-group-2"}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -476,6 +508,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should default to a provisioner's specified security groups tag key", func() {
 				provisioner.Spec.Labels = map[string]string{SecurityGroupTagKeyLabel: "TestTag"}
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -488,6 +521,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should allow a pod to override the security groups name", func() {
 				// Setup
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupNameLabel: "test-security-group-2"}}),
 				)
@@ -501,6 +535,7 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
 			})
 			It("should allow a pod to override the security groups tags", func() {
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "TestTag"}}),
 				)
@@ -516,6 +551,7 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, pods[0].Spec.NodeSelector[SecurityGroupTagKeyLabel]))
 			})
 			It("should not schedule a pod with an invalid security group", func() {
+				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningFailed(env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "Invalid"}}),
 				)

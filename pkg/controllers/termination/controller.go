@@ -17,14 +17,21 @@ package termination
 import (
 	"context"
 	"fmt"
+	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"golang.org/x/time/rate"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -32,15 +39,7 @@ import (
 type Controller struct {
 	terminator    *Terminator
 	cloudProvider cloudprovider.CloudProvider
-}
-
-// For returns the resource this controller is for.
-func (c *Controller) For() client.Object {
-	return &v1.Node{}
-}
-
-func (c *Controller) Name() string {
-	return "terminator"
+	kubeClient    client.Client
 }
 
 // NewController constructs a controller instance
@@ -48,30 +47,57 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 	return &Controller{
 		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client},
 		cloudProvider: cloudProvider,
+		kubeClient:    kubeClient,
 	}
 }
 
 // Reconcile executes a termination control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	node := object.(*v1.Node)
-	// 1. Check if node is terminable
+func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	// 1. Retrieve node from reconcile request
+	node := &v1.Node{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, err
+	}
+
+	// 2. Check if node is terminable
 	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	// 2. Cordon node
+	// 3. Cordon node
 	if err := c.terminator.cordon(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
-	// 3. Drain node
+	// 4. Drain node
 	drained, err := c.terminator.drain(ctx, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
-	// 4. If fully drained, terminate the node
+	// 5. If fully drained, terminate the node
 	if drained {
 		if err := c.terminator.terminate(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 		}
 	}
 	return reconcile.Result{Requeue: !drained}, nil
+}
+
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.
+		NewControllerManagedBy(m).
+		Named("Termination").
+		For(&v1.Node{}).
+		WithOptions(
+			controller.Options{
+				RateLimiter: workqueue.NewMaxOfRateLimiter(
+					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
+					// 10 qps, 100 bucket size
+					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+				),
+				MaxConcurrentReconciles: 1,
+			},
+		).
+		Complete(c)
 }

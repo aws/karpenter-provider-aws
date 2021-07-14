@@ -28,13 +28,13 @@ import (
 )
 
 type Filter struct {
-	kubeClient client.Client
+	KubeClient client.Client
 }
 
 func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2.Provisioner) ([]*v1.Pod, error) {
 	// 1. List Pods that aren't scheduled
 	pods := &v1.PodList{}
-	if err := f.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
+	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing unscheduled pods, %w", err)
 	}
 	if len(pods.Items) == 0 {
@@ -44,13 +44,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
-		if err := functional.ValidateAll(
-			func() error { return f.isUnschedulable(&p) },
-			func() error { return f.matchesProvisioner(&p, provisioner) },
-			func() error { return f.hasSupportedSchedulingConstraints(&p) },
-			func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
-			func() error { return f.withValidConstraints(ctx, &p, provisioner) },
-		); err != nil {
+		if err := f.isProvisionable(ctx, &p, provisioner); err != nil {
 			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				p.Name, p.Namespace,
 				provisioner.Name, provisioner.Namespace,
@@ -61,6 +55,16 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha2
 		provisionable = append(provisionable, ptr.Pod(p))
 	}
 	return provisionable, nil
+}
+
+func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha2.Provisioner) error {
+	return functional.ValidateAll(
+		func() error { return f.isUnschedulable(p) },
+		func() error { return f.matchesProvisioner(p, provisioner) },
+		func() error { return f.hasSupportedSchedulingConstraints(p) },
+		func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
+		func() error { return f.withValidConstraints(ctx, p, provisioner) },
+	)
 }
 
 func (f *Filter) isUnschedulable(p *v1.Pod) error {

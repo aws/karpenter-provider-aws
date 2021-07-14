@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package expiration
+package expiration_test
 
 import (
 	"strings"
@@ -20,6 +20,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/controllers/expiration"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -34,9 +35,9 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Expiration")
 }
 
-var controller *Controller
+var controller *expiration.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
-	controller = NewController(e.Client)
+	controller = expiration.NewController(e.Client)
 })
 
 var _ = BeforeSuite(func() {

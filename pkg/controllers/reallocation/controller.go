@@ -21,9 +21,15 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"golang.org/x/time/rate"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -31,19 +37,7 @@ import (
 type Controller struct {
 	utilization   *Utilization
 	cloudProvider cloudprovider.CloudProvider
-}
-
-// For returns the resource this controller is for.
-func (c *Controller) For() client.Object {
-	return &v1alpha2.Provisioner{}
-}
-
-func (c *Controller) Interval() time.Duration {
-	return 5 * time.Second
-}
-
-func (c *Controller) Name() string {
-	return "provisioner/reallocator"
+	kubeClient    client.Client
 }
 
 // NewController constructs a controller instance
@@ -51,29 +45,56 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 	return &Controller{
 		utilization:   &Utilization{kubeClient: kubeClient},
 		cloudProvider: cloudProvider,
+		kubeClient:    kubeClient,
 	}
 }
 
 // Reconcile executes a reallocation control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, object client.Object) (reconcile.Result, error) {
-	provisioner := object.(*v1alpha2.Provisioner)
+func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	// 1. Retrieve provisioner from reconcile request
+	provisioner := &v1alpha2.Provisioner{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, err
+	}
+
 	// Skip reconciliation if utilization ttl is not defined.
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	// 1. Set TTL on TTLable Nodes
+	// 2. Set TTL on TTLable Nodes
 	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
 
-	// 2. Remove TTL from Utilized Nodes
+	// 3. Remove TTL from Utilized Nodes
 	if err := c.utilization.clearUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("removing ttl from node, %w", err)
 	}
 
-	// 3. Delete any node past its TTL
+	// 4. Delete any node past its TTL
 	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
-	return reconcile.Result{RequeueAfter: c.Interval()}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.
+		NewControllerManagedBy(m).
+		Named("Reallocation").
+		For(&v1alpha2.Provisioner{}).
+		WithOptions(
+			controller.Options{
+				RateLimiter: workqueue.NewMaxOfRateLimiter(
+					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
+					// 10 qps, 100 bucket size
+					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+				),
+				MaxConcurrentReconciles: 1,
+			},
+		).
+		Complete(c)
 }

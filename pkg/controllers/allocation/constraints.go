@@ -30,7 +30,7 @@ import (
 )
 
 type Constraints struct {
-	kubeClient client.Client
+	KubeClient client.Client
 }
 
 // Group separates pods into a set of equivalent scheduling groups. All pods in
@@ -79,7 +79,7 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha2.Provision
 func (c *Constraints) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
-	if err := c.kubeClient.List(ctx, daemonSetList); err != nil {
+	if err := c.KubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
 

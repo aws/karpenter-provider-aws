@@ -109,7 +109,7 @@ func (c *Controller) provisionerToNodes(o client.Object) (requests []reconcile.R
 	return requests
 }
 
-func (c *Controller) Register(m manager.Manager) error {
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("Expiration").
