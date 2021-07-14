@@ -1,0 +1,4 @@
+baseURL = "http://awslabs.github.com/karpenter/docs"
+languageCode = "en-us"
+title = "Karpenter"
+theme = "docsy"
