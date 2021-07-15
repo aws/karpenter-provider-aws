@@ -15,6 +15,7 @@ defaultContentLanguageInSubdir = false
 enableMissingTranslationPlaceholders = true
 
 # Localizations
+languageCode = "en-us"
 [languages]
 [languages.en]
 title = "Karpenter"
@@ -23,6 +24,19 @@ languageName = "English"
 # Weight used for sorting.
 weight = 1
 
+# Syntax Highlighting config
+pygmentsCodeFences = true
+pygmentsUseClasses = false
+# Use the new Chroma Go highlighter in Hugo.
+pygmentsUseClassic = false
+#pygmentsOptions = "linenos=table"
+# See https://help.farbox.com/pygments.html
+pygmentsStyle = "tango"
+
+# Configure how URLs look like per section.
+[permalinks]
+blog = "/:section/:year/:month/:day/:slug/"
+
 ## Configuration for BlackFriday markdown parser: https://github.com/russross/blackfriday
 [blackfriday]
 plainIDAnchors = true
@@ -30,16 +44,43 @@ hrefTargetBlank = true
 angledQuotes = false
 latexDashes = true
 
+# Markup configuration
+[markup]
+[markup.goldmark]
+[markup.goldmark.renderer]
+unsafe = true
+[markup.highlight]
+# See a complete list of available styles at https://xyproto.github.io/splash/docs/all.html
+style = "tango"
+# Uncomment if you want your chosen highlight style used for code blocks without a specified language
+# guessSyntax = "true"
+
 # Image processing configuration.
 [imaging]
 resampleFilter = "CatmullRom"
 quality = 75
 anchor = "smart"
 
+## Site Params
 [params]
 copyright = "Amazon.com, Inc. or its affiliates."
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
 github_repo = "https://github.com/awslabs/karpenter"
+# Specify a value here if your content directory is not in your repo's root directory
+github_subdir = "website"
+
+# Version configuration
+# Menu title if your navbar has a versions selector to access old versions of your site.
+# This menu appears only if you have at least one [params.versions] set.
+version_menu = "Releases"
+# Flag used in the "version-banner" partial to decide whether to display a
+# banner on every page indicating that this is an archived version of the docs.
+# Set this flag to "true" if you want to display the banner.
+archived_version = false
+# The version number for the version of the docs represented in this doc set.
+# Used in the "version-banner" partial to display a version number for the
+# current doc set.
+version = "0.2"
 
 # User interface configuration
 [params.ui]
@@ -48,7 +89,7 @@ sidebar_menu_compact = false
 #  Set to true to disable breadcrumb navigation.
 breadcrumb_disable = false
 #  Set to true to hide the sidebar search box (the top nav search box will still be displayed if search is enabled)
-sidebar_search_disable = true
+sidebar_search_disable = false
 #  Set to false if you don't want to display a logo (/assets/icons/logo.svg) in the top nav bar
 navbar_logo = false
 # Set to true to disable the About link in the site footer
