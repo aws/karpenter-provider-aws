@@ -1,13 +1,13 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Documentation</title>
-    <link>http://awslabs.github.com/karpenter/docs/docs/</link>
+    <link>/docs/</link>
     <description>Recent content in Documentation on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 05 Jan 2017 00:00:00 +0000</lastBuildDate>
     
-	  <atom:link href="http://awslabs.github.com/karpenter/docs/docs/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="/docs/index.xml" rel="self" type="application/rss+xml" />
     
     
       
@@ -17,10 +17,10 @@
     
     <item>
       <title>Docs: Amazon Web Services (AWS)</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</link>
+      <link>/docs/cloud-providers/aws/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</guid>
+      <guid>/docs/cloud-providers/aws/</guid>
       <description>
         
         
@@ -32,10 +32,10 @@
     
     <item>
       <title>Docs: Getting Started with Karpenter on AWS</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/getting-started/</link>
+      <link>/docs/getting-started/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/getting-started/</guid>
+      <guid>/docs/getting-started/</guid>
       <description>
         
         
@@ -196,10 +196,10 @@ aws ec2 describe-launch-templates &lt;span style=&#34;color:#4e9a06&#34;&gt;\
     
     <item>
       <title>Docs: Deployment Guide</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/deployment-guide/</link>
+      <link>/docs/deployment-guide/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/deployment-guide/</guid>
+      <guid>/docs/deployment-guide/</guid>
       <description>
         
         
@@ -209,10 +209,10 @@ aws ec2 describe-launch-templates &lt;span style=&#34;color:#4e9a06&#34;&gt;\
     
     <item>
       <title>Docs: Intro to Karpenter Concepts</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/concepts/</link>
+      <link>/docs/concepts/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/concepts/</guid>
+      <guid>/docs/concepts/</guid>
       <description>
         
         
@@ -245,10 +245,10 @@ Third, consider any taints and labels you want provisioned nodes to have. Some l
     
     <item>
       <title>Docs: Examples</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/examples/</link>
+      <link>/docs/examples/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/examples/</guid>
+      <guid>/docs/examples/</guid>
       <description>
         
         
@@ -264,10 +264,10 @@ Third, consider any taints and labels you want provisioned nodes to have. Some l
     
     <item>
       <title>Docs: Provisioner CRD</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/</link>
+      <link>/docs/reference/parameter-reference/</link>
       <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/</guid>
+      <guid>/docs/reference/parameter-reference/</guid>
       <description>
         
         

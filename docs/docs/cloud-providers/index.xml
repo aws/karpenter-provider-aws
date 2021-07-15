@@ -1,12 +1,12 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Cloud Providers</title>
-    <link>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/</link>
+    <link>/docs/cloud-providers/</link>
     <description>Recent content in Cloud Providers on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     
-	  <atom:link href="http://awslabs.github.com/karpenter/docs/docs/cloud-providers/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="/docs/cloud-providers/index.xml" rel="self" type="application/rss+xml" />
     
     
       
@@ -16,10 +16,10 @@
     
     <item>
       <title>Docs: Amazon Web Services (AWS)</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</link>
+      <link>/docs/cloud-providers/aws/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</guid>
+      <guid>/docs/cloud-providers/aws/</guid>
       <description>
         
         

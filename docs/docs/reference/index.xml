@@ -1,13 +1,13 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Reference</title>
-    <link>http://awslabs.github.com/karpenter/docs/docs/reference/</link>
+    <link>/docs/reference/</link>
     <description>Recent content in Reference on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 05 Jan 2017 00:00:00 +0000</lastBuildDate>
     
-	  <atom:link href="http://awslabs.github.com/karpenter/docs/docs/reference/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="/docs/reference/index.xml" rel="self" type="application/rss+xml" />
     
     
       
@@ -17,10 +17,10 @@
     
     <item>
       <title>Docs: Provisioner CRD</title>
-      <link>http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/</link>
+      <link>/docs/reference/parameter-reference/</link>
       <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
       
-      <guid>http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/</guid>
+      <guid>/docs/reference/parameter-reference/</guid>
       <description>
         
         
