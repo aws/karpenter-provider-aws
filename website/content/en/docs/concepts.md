@@ -15,33 +15,26 @@ Karpenter balances responding rapidly to un-schedulable pods and making efficien
 
 Activating Karpenter on your cluster is a combination of a helm chart, and configuring the cloud platform to accept provisioning requests from Karpenter. On AWS, IAM roles for Service Accounts (IRSA) is used. The Kubernetes control plane in EKS oversees cluster-space [[is that a term?]] Karpenter requests being securely elevated and passed on to the cloud platform. 
 
-## Architecture
-
 ## Provisioner CRD
 
 The primary kubernetes API object kind is “provisioner”. Notably, one provisioner can handle multiple node profiles (graphics enabled, compute optimized, memory optimized, etc). Karpenter is group-less, and eliminates management of multiple node groups with fixed instance specs. In short, the Karpenter provisioner object is focused on podspecs. This simplifies cluster management, and reduces the complexity of implementing Karpenter. 
 
-[[more specific architecture]]
-
 Provisioner is the primary Custom Resource Definition (CRD) for Karpenter, and you need at least one. 
 
-First, define the cluster nodes should connect to. This should be done using variables, as shown. 
+The provisioner CRD includes...
+
+### Deprovisioning 
 
 Second, define termination and downscaling values. Setting a value for `ttlSecondsUntilExpired` enables node expiration. The value is the number of seconds after node creation until nodes are viewed as expired by Karpenter. Note, with this value set, all nodes will eventually expire. Expired nodes are drained and replaced. The replacement nodes will have the latest updates, and may be more efficiently sized. Setting a value for `ttlSecondsAfterEmpty` enables deprovisioning empty nodes (no pods besides daemon sets). This only happens if a node becomes empty, and stays empty for the set number of seconds. 
 Third, consider any taints and labels you want provisioned nodes to have. Some labels impact the behavior of AWS, such as setting the launch template ID or opting in to spot pricing. 
 
-[[walk through API of provisioner]]
+### Well Known Labels
 
-## Automatic Provisioning
+## Provisioning Walkthrough
+- how much talk about cloud provider?
 
-## Automatic Deprovisioning 
+### How instance types are selected (currently)
 
-## TTL Values
+## Deprovisioning Walkthrough
 
-## Terminator?
-
-## Well Known Labels
-[[what happens when schedule load, provisioner actives]]
-[[terminator api?]]
-[[what it do in the cluster]]
-[[what it do with other parties]]
+[[what is terminator?]]
