@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.84.1" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+
+
+<link rel="shortcut icon" href="/karpenter/docs/favicons/favicon.ico" >
+<link rel="apple-touch-icon" href="/karpenter/docs/favicons/apple-touch-icon-180x180.png" sizes="180x180">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/favicon-16x16.png" sizes="16x16">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-36x36.png" sizes="36x36">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-48x48.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-72x72.png" sizes="72x72">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-96x96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-144x144.png" sizes="144x144">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-192x192.png" sizes="192x192">
+
+<title>Intro to Karpenter Concepts | Karpenter</title>
+<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Intro to Karpenter Concepts" />
+<meta property="og:description" content="Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.
+Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API)." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://awslabs.github.com/karpenter/docs/docs/concepts/" /><meta property="article:section" content="docs" />
+
+<meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="Intro to Karpenter Concepts">
+<meta itemprop="description" content="Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.
+Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API).">
+
+<meta itemprop="wordCount" content="450">
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Intro to Karpenter Concepts"/>
+<meta name="twitter:description" content="Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.
+Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API)."/>
+
+
+
+
+<link rel="preload" href="/karpenter/docs/scss/main.min.c7864c5e11ce29b0d7fb95d2fbbc92f0cd7d92caacfebfa74a46b09df7d22072.css" as="style">
+<link href="/karpenter/docs/scss/main.min.c7864c5e11ce29b0d7fb95d2fbbc92f0cd7d92caacfebfa74a46b09df7d22072.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand navbar-dark flex-column flex-md-row td-navbar">
+        <a class="navbar-brand" href="/karpenter/docs/">
+		<span class="navbar-logo"></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<div class="td-navbar-nav-scroll ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav mt-2 mt-lg-0">
+			
+			
+			<li class="nav-item mr-4 mb-2 mb-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/karpenter/docs/docs/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-4 mb-2 mb-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link active" href="/karpenter/docs/docs/" ><span class="active">Documentation</span></a>
+			</li>
+			
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+<input type="search" class="form-control td-search-input" placeholder="&#xf002; Search this site…" aria-label="Search this site…" autocomplete="off">
+
+</div>
+</nav>
+
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+
+
+
+
+  
+
+
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  
+  <form class="td-sidebar__search d-flex align-items-center">
+    
+<input type="search" class="form-control td-search-input" placeholder="&#xf002; Search this site…" aria-label="Search this site…" autocomplete="off">
+
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  
+  <nav class="collapse td-sidebar-nav" id="td-section-nav">
+    
+    
+    
+    
+    
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-karpenterdocsdocs-li">
+    
+      <a href="/karpenter/docs/docs/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-karpenterdocsdocs"><span class="">Documentation</span></a>
+    
+    
+      
+      <ul class="ul-1">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsgetting-started-li">
+    
+      <a href="/karpenter/docs/docs/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsgetting-started"><span class="">Getting Started</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsdeployment-guide-li">
+    
+      <a href="/karpenter/docs/docs/deployment-guide/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsdeployment-guide"><span class="">Deployment Guide</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-karpenterdocsdocsconcepts-li">
+    
+      <a href="/karpenter/docs/docs/concepts/" title="Intro to Karpenter Concepts" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsconcepts"><span class="td-sidebar-nav-active-item">Concepts</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-karpenterdocsdocscloud-providers-li">
+    
+      <a href="/karpenter/docs/docs/cloud-providers/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-karpenterdocsdocscloud-providers"><span class="">Cloud Providers</span></a>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocscloud-providersaws-li">
+    
+      <a href="/karpenter/docs/docs/cloud-providers/aws/" title="Amazon Web Services (AWS)" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocscloud-providersaws"><span class="">AWS</span></a>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsexamples-li">
+    
+      <a href="/karpenter/docs/docs/examples/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsexamples"><span class="">Examples</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-karpenterdocsdocsreference-li">
+    
+      <a href="/karpenter/docs/docs/reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-karpenterdocsdocsreference"><span class="">Reference</span></a>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsreferenceparameter-reference-li">
+    
+      <a href="/karpenter/docs/docs/reference/parameter-reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsreferenceparameter-reference"><span class="">Provisioner CRD</span></a>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+    </ul>
+  </nav>
+</div>
+
+
+
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+  
+  
+  
+  
+  
+  
+  <div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+  
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    
+
+    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/concepts.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/concepts.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/google/docsy-example/issues/new?title=Intro%20to%20Karpenter%20Concepts" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    
+      
+      <a href="https://github.com/google/docsy/issues/new" target="_blank"><i class="fas fa-tasks fa-fw"></i> Create project issue</a>
+    
+
+  
+  
+  </div>
+
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#provisioner-crd">Provisioner CRD</a></li>
+    <li><a href="#automatic-provisioning">Automatic Provisioning</a></li>
+    <li><a href="#automatic-deprovisioning">Automatic Deprovisioning</a></li>
+    <li><a href="#ttl-values">TTL Values</a></li>
+    <li><a href="#terminator">Terminator?</a></li>
+    <li><a href="#well-known-labels">Well Known Labels</a></li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+
+
+
+  
+  
+
+	
+		
+
+
+
+  
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="http://awslabs.github.com/karpenter/docs/docs/">Documentation</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="http://awslabs.github.com/karpenter/docs/docs/concepts/">Concepts</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>Intro to Karpenter Concepts</h1>
+	
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+			
+		
+		
+	</header>    
+	<p>Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.</p>
+<p>Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API).</p>
+<p>[[detail on spot and platform availability — or this too platform specific?]]</p>
+<p>Karpenter balances responding rapidly to un-schedulable pods and making efficient provisioning decision. Karpenter is substantially faster than the cluster autoscaler, while additionally considering podspec labels and cloud provider availability zones. Specifically, the commonly used kubernetes properties such as labels, taints, affinity (node, pod), and anti-affinity are supported.</p>
+<p>Activating Karpenter on your cluster is a combination of a helm chart, and configuring the cloud platform to accept provisioning requests from Karpenter. On AWS, IAM roles for Service Accounts (IRSA) is used. The Kubernetes control plane in EKS oversees cluster-space [[is that a term?]] Karpenter requests being securely elevated and passed on to the cloud platform.</p>
+<h2 id="architecture">Architecture</h2>
+<h2 id="provisioner-crd">Provisioner CRD</h2>
+<p>The primary kubernetes API object kind is “provisioner”. Notably, one provisioner can handle multiple node profiles (graphics enabled, compute optimized, memory optimized, etc). Karpenter is group-less, and eliminates management of multiple node groups with fixed instance specs. In short, the Karpenter provisioner object is focused on podspecs. This simplifies cluster management, and reduces the complexity of implementing Karpenter.</p>
+<p>[[more specific architecture]]</p>
+<p>Provisioner is the primary Custom Resource Definition (CRD) for Karpenter, and you need at least one.</p>
+<p>First, define the cluster nodes should connect to. This should be done using variables, as shown.</p>
+<p>Second, define termination and downscaling values. Setting a value for <code>ttlSecondsUntilExpired</code> enables node expiration. The value is the number of seconds after node creation until nodes are viewed as expired by Karpenter. Note, with this value set, all nodes will eventually expire. Expired nodes are drained and replaced. The replacement nodes will have the latest updates, and may be more efficiently sized. Setting a value for <code>ttlSecondsAfterEmpty</code> enables deprovisioning empty nodes (no pods besides daemon sets). This only happens if a node becomes empty, and stays empty for the set number of seconds.
+Third, consider any taints and labels you want provisioned nodes to have. Some labels impact the behavior of AWS, such as setting the launch template ID or opting in to spot pricing.</p>
+<p>[[walk through API of provisioner]]</p>
+<h2 id="automatic-provisioning">Automatic Provisioning</h2>
+<h2 id="automatic-deprovisioning">Automatic Deprovisioning</h2>
+<h2 id="ttl-values">TTL Values</h2>
+<h2 id="terminator">Terminator?</h2>
+<h2 id="well-known-labels">Well Known Labels</h2>
+<p>[[what happens when schedule load, provisioner actives]]
+[[terminator api?]]
+[[what it do in the cluster]]
+[[what it do with other parties]]</p>
+
+	
+	
+	<div class="text-muted mt-5 pt-3 border-top">
+
+</div>
+
+</div>
+
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2021 Amazon All Rights Reserved</small>
+        
+	
+		
+	
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+<script src="/karpenter/docs/js/main.min.492c73c720d423f271eac0a3a1ae34fdf851cafa1da7a788bc330115ad5d51c4.js" integrity="sha256-SSxzxyDUI/Jx6sCjoa40/fhRyvodp6eIvDMBFa1dUcQ=" crossorigin="anonymous"></script>
+
+
+
+
+  </body>
+</html>

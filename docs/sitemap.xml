@@ -2,10 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>http://awslabs.github.com/karpenter/docs/categories/</loc>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/getting-started/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/deployment-guide/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/</loc>
+    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/concepts/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/examples/</loc>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/reference/</loc>
+    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>http://awslabs.github.com/karpenter/docs/</loc>
+    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>http://awslabs.github.com/karpenter/docs/tags/</loc>
+    <loc>http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/</loc>
+    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>http://awslabs.github.com/karpenter/docs/search/</loc>
   </url>
 </urlset>

@@ -1,0 +1,33 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Karpenter – Cloud Providers</title>
+    <link>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/</link>
+    <description>Recent content in Cloud Providers on Karpenter</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    
+	  <atom:link href="http://awslabs.github.com/karpenter/docs/docs/cloud-providers/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Docs: Amazon Web Services (AWS)</title>
+      <link>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>http://awslabs.github.com/karpenter/docs/docs/cloud-providers/aws/</guid>
+      <description>
+        
+        
+        &lt;h2 id=&#34;well-known-labels-on-aws&#34;&gt;Well Known Labels on AWS&lt;/h2&gt;
+&lt;h2 id=&#34;how-we-work-with-ec2&#34;&gt;How we work with EC2&lt;/h2&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

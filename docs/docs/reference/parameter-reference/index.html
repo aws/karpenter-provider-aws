@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.84.1" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+
+
+<link rel="shortcut icon" href="/karpenter/docs/favicons/favicon.ico" >
+<link rel="apple-touch-icon" href="/karpenter/docs/favicons/apple-touch-icon-180x180.png" sizes="180x180">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/favicon-16x16.png" sizes="16x16">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-36x36.png" sizes="36x36">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-48x48.png" sizes="48x48">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-72x72.png" sizes="72x72">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-96x96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-144x144.png" sizes="144x144">
+<link rel="icon" type="image/png" href="/karpenter/docs/favicons/android-192x192.png" sizes="192x192">
+
+<title>Provisioner CRD | Karpenter</title>
+<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Provisioner CRD" />
+<meta property="og:description" content="A short lead description about this content page. It can be **bold** or _italic_ and can be split over multiple paragraphs.
+" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/" /><meta property="article:section" content="docs" />
+<meta property="article:published_time" content="2017-01-05T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-01-05T00:00:00&#43;00:00" /><meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="Provisioner CRD">
+<meta itemprop="description" content="A short lead description about this content page. It can be **bold** or _italic_ and can be split over multiple paragraphs.
+"><meta itemprop="datePublished" content="2017-01-05T00:00:00&#43;00:00" />
+<meta itemprop="dateModified" content="2017-01-05T00:00:00&#43;00:00" />
+<meta itemprop="wordCount" content="1091">
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Provisioner CRD"/>
+<meta name="twitter:description" content="A short lead description about this content page. It can be **bold** or _italic_ and can be split over multiple paragraphs.
+"/>
+
+
+
+
+<link rel="preload" href="/karpenter/docs/scss/main.min.c7864c5e11ce29b0d7fb95d2fbbc92f0cd7d92caacfebfa74a46b09df7d22072.css" as="style">
+<link href="/karpenter/docs/scss/main.min.c7864c5e11ce29b0d7fb95d2fbbc92f0cd7d92caacfebfa74a46b09df7d22072.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand navbar-dark flex-column flex-md-row td-navbar">
+        <a class="navbar-brand" href="/karpenter/docs/">
+		<span class="navbar-logo"></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<div class="td-navbar-nav-scroll ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav mt-2 mt-lg-0">
+			
+			
+			<li class="nav-item mr-4 mb-2 mb-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/karpenter/docs/docs/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-4 mb-2 mb-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link active" href="/karpenter/docs/docs/" ><span class="active">Documentation</span></a>
+			</li>
+			
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+<input type="search" class="form-control td-search-input" placeholder="&#xf002; Search this site…" aria-label="Search this site…" autocomplete="off">
+
+</div>
+</nav>
+
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+
+
+
+
+  
+
+
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  
+  <form class="td-sidebar__search d-flex align-items-center">
+    
+<input type="search" class="form-control td-search-input" placeholder="&#xf002; Search this site…" aria-label="Search this site…" autocomplete="off">
+
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  
+  <nav class="collapse td-sidebar-nav" id="td-section-nav">
+    
+    
+    
+    
+    
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-karpenterdocsdocs-li">
+    
+      <a href="/karpenter/docs/docs/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-karpenterdocsdocs"><span class="">Documentation</span></a>
+    
+    
+      
+      <ul class="ul-1">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsgetting-started-li">
+    
+      <a href="/karpenter/docs/docs/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsgetting-started"><span class="">Getting Started</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsdeployment-guide-li">
+    
+      <a href="/karpenter/docs/docs/deployment-guide/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsdeployment-guide"><span class="">Deployment Guide</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsconcepts-li">
+    
+      <a href="/karpenter/docs/docs/concepts/" title="Intro to Karpenter Concepts" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsconcepts"><span class="">Concepts</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-karpenterdocsdocscloud-providers-li">
+    
+      <a href="/karpenter/docs/docs/cloud-providers/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-karpenterdocsdocscloud-providers"><span class="">Cloud Providers</span></a>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocscloud-providersaws-li">
+    
+      <a href="/karpenter/docs/docs/cloud-providers/aws/" title="Amazon Web Services (AWS)" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocscloud-providersaws"><span class="">AWS</span></a>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-karpenterdocsdocsexamples-li">
+    
+      <a href="/karpenter/docs/docs/examples/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsexamples"><span class="">Examples</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-karpenterdocsdocsreference-li">
+    
+      <a href="/karpenter/docs/docs/reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-karpenterdocsdocsreference"><span class="">Reference</span></a>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-karpenterdocsdocsreferenceparameter-reference-li">
+    
+      <a href="/karpenter/docs/docs/reference/parameter-reference/" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-karpenterdocsdocsreferenceparameter-reference"><span class="td-sidebar-nav-active-item">Provisioner CRD</span></a>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+    </ul>
+  </nav>
+</div>
+
+
+
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+  
+  
+  
+  
+  
+  
+  <div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+  
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    
+
+    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/Reference/parameter-reference.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/Reference/parameter-reference.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/google/docsy-example/issues/new?title=Provisioner%20CRD" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    
+      
+      <a href="https://github.com/google/docsy/issues/new" target="_blank"><i class="fas fa-tasks fa-fw"></i> Create project issue</a>
+    
+
+  
+  
+  </div>
+
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#first-header-2">First Header 2</a></li>
+    <li><a href="#second-header-2">Second Header 2</a>
+      <ul>
+        <li><a href="#header-3">Header 3</a></li>
+      </ul>
+    </li>
+    <li><a href="#components">Components</a>
+      <ul>
+        <li><a href="#alerts">Alerts</a></li>
+      </ul>
+    </li>
+    <li><a href="#another-heading">Another Heading</a></li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+
+
+
+  
+  
+
+	
+		
+
+
+
+  
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="http://awslabs.github.com/karpenter/docs/docs/">Documentation</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="http://awslabs.github.com/karpenter/docs/docs/reference/">Reference</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="http://awslabs.github.com/karpenter/docs/docs/reference/parameter-reference/">Provisioner CRD</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>Provisioner CRD</h1>
+	<div class="lead">A short lead description about this content page. It can be <strong>bold</strong> or <em>italic</em> and can be split over multiple paragraphs.</div>
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+			
+		
+		
+	</header>    
+	
+
+<div class="pageinfo pageinfo-primary">
+<p>This is a placeholder page. Replace it with your own content.</p>
+
+</div>
+
+<p>Text can be <strong>bold</strong>, <em>italic</em>, or <del>strikethrough</del>. <a href="https://gohugo.io">Links</a> should be blue with no underlines (unless hovered over).</p>
+<p>There should be whitespace between paragraphs. Vape migas chillwave sriracha poutine try-hard distillery. Tattooed shabby chic small batch, pabst art party heirloom letterpress air plant pop-up. Sustainable chia skateboard art party banjo cardigan normcore affogato vexillologist quinoa meggings man bun master cleanse shoreditch readymade. Yuccie prism four dollar toast tbh cardigan iPhone, tumblr listicle live-edge VHS. Pug lyft normcore hot chicken biodiesel, actually keffiyeh thundercats photo booth pour-over twee fam food truck microdosing banh mi. Vice activated charcoal raclette unicorn live-edge post-ironic. Heirloom vexillologist coloring book, beard deep v letterpress echo park humblebrag tilde.</p>
+<p>90&rsquo;s four loko seitan photo booth gochujang freegan tumeric listicle fam ugh humblebrag. Bespoke leggings gastropub, biodiesel brunch pug fashion axe meh swag art party neutra deep v chia. Enamel pin fanny pack knausgaard tofu, artisan cronut hammock meditation occupy master cleanse chartreuse lumbersexual. Kombucha kogi viral truffaut synth distillery single-origin coffee ugh slow-carb marfa selfies. Pitchfork schlitz semiotics fanny pack, ugh artisan vegan vaporware hexagon. Polaroid fixie post-ironic venmo wolf ramps <strong>kale chips</strong>.</p>
+<blockquote>
+<p>There should be no margin above this first sentence.</p>
+<p>Blockquotes should be a lighter gray with a border along the left side in the secondary color.</p>
+<p>There should be no margin below this final sentence.</p>
+</blockquote>
+<h2 id="first-header-2">First Header 2</h2>
+<p>This is a normal paragraph following a header. Knausgaard kale chips snackwave microdosing cronut copper mug swag synth bitters letterpress glossier <strong>craft beer</strong>. Mumblecore bushwick authentic gochujang vegan chambray meditation jean shorts irony. Viral farm-to-table kale chips, pork belly palo santo distillery activated charcoal aesthetic jianbing air plant woke lomo VHS organic. Tattooed locavore succulents heirloom, small batch sriracha echo park DIY af. Shaman you probably haven&rsquo;t heard of them copper mug, crucifix green juice vape <em>single-origin coffee</em> brunch actually. Mustache etsy vexillologist raclette authentic fam. Tousled beard humblebrag asymmetrical. I love turkey, I love my job, I love my friends, I love Chardonnay!</p>
+<p>Deae legum paulatimque terra, non vos mutata tacet: dic. Vocant docuique me plumas fila quin afuerunt copia haec o neque.</p>
+<p>On big screens, paragraphs and headings should not take up the full container width, but we want tables, code blocks and similar to take the full width.</p>
+<p>Scenester tumeric pickled, authentic crucifix post-ironic fam freegan VHS pork belly 8-bit yuccie PBR&amp;B. <strong>I love this life we live in</strong>.</p>
+<h2 id="second-header-2">Second Header 2</h2>
+<blockquote>
+<p>This is a blockquote following a header. Bacon ipsum dolor sit amet t-bone doner shank drumstick, pork belly porchetta chuck sausage brisket ham hock rump pig. Chuck kielbasa leberkas, pork bresaola ham hock filet mignon cow shoulder short ribs biltong.</p>
+</blockquote>
+<h3 id="header-3">Header 3</h3>
+<pre><code>This is a code block following a header.
+</code></pre><p>Next level leggings before they sold out, PBR&amp;B church-key shaman echo park. Kale chips occupy godard whatever pop-up freegan pork belly selfies. Gastropub Belinda subway tile woke post-ironic seitan. Shabby chic man bun semiotics vape, chia messenger bag plaid cardigan.</p>
+<h4 id="header-4">Header 4</h4>
+<ul>
+<li>This is an unordered list following a header.</li>
+<li>This is an unordered list following a header.</li>
+<li>This is an unordered list following a header.</li>
+</ul>
+<h5 id="header-5">Header 5</h5>
+<ol>
+<li>This is an ordered list following a header.</li>
+<li>This is an ordered list following a header.</li>
+<li>This is an ordered list following a header.</li>
+</ol>
+<h6 id="header-6">Header 6</h6>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Follows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A table</td>
+<td>A header</td>
+</tr>
+<tr>
+<td>A table</td>
+<td>A header</td>
+</tr>
+<tr>
+<td>A table</td>
+<td>A header</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>There&rsquo;s a horizontal rule above and below this.</p>
+<hr>
+<p>Here is an unordered list:</p>
+<ul>
+<li>Liverpool F.C.</li>
+<li>Chelsea F.C.</li>
+<li>Manchester United F.C.</li>
+</ul>
+<p>And an ordered list:</p>
+<ol>
+<li>Michael Brecker</li>
+<li>Seamus Blake</li>
+<li>Branford Marsalis</li>
+</ol>
+<p>And an unordered task list:</p>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> Create a Hugo theme</li>
+<li><input checked="" disabled="" type="checkbox"> Add task lists to it</li>
+<li><input disabled="" type="checkbox"> Take a vacation</li>
+</ul>
+<p>And a &ldquo;mixed&rdquo; task list:</p>
+<ul>
+<li><input disabled="" type="checkbox"> Pack bags</li>
+<li>?</li>
+<li><input disabled="" type="checkbox"> Travel!</li>
+</ul>
+<p>And a nested list:</p>
+<ul>
+<li>Jackson 5
+<ul>
+<li>Michael</li>
+<li>Tito</li>
+<li>Jackie</li>
+<li>Marlon</li>
+<li>Jermaine</li>
+</ul>
+</li>
+<li>TMNT
+<ul>
+<li>Leonardo</li>
+<li>Michelangelo</li>
+<li>Donatello</li>
+<li>Raphael</li>
+</ul>
+</li>
+</ul>
+<p>Definition lists can be used with Markdown syntax. Definition headers are bold.</p>
+<dl>
+<dt>Name</dt>
+<dd>Godzilla</dd>
+<dt>Born</dt>
+<dd>1952</dd>
+<dt>Birthplace</dt>
+<dd>Japan</dd>
+<dt>Color</dt>
+<dd>Green</dd>
+</dl>
+<hr>
+<p>Tables should have bold headings and alternating shaded rows.</p>
+<table>
+<thead>
+<tr>
+<th>Artist</th>
+<th>Album</th>
+<th>Year</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Michael Jackson</td>
+<td>Thriller</td>
+<td>1982</td>
+</tr>
+<tr>
+<td>Prince</td>
+<td>Purple Rain</td>
+<td>1984</td>
+</tr>
+<tr>
+<td>Beastie Boys</td>
+<td>License to Ill</td>
+<td>1986</td>
+</tr>
+</tbody>
+</table>
+<p>If a table is too wide, it should scroll horizontally.</p>
+<table>
+<thead>
+<tr>
+<th>Artist</th>
+<th>Album</th>
+<th>Year</th>
+<th>Label</th>
+<th>Awards</th>
+<th>Songs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Michael Jackson</td>
+<td>Thriller</td>
+<td>1982</td>
+<td>Epic Records</td>
+<td>Grammy Award for Album of the Year, American Music Award for Favorite Pop/Rock Album, American Music Award for Favorite Soul/R&amp;B Album, Brit Award for Best Selling Album, Grammy Award for Best Engineered Album, Non-Classical</td>
+<td>Wanna Be Startin' Somethin', Baby Be Mine, The Girl Is Mine, Thriller, Beat It, Billie Jean, Human Nature, P.Y.T. (Pretty Young Thing), The Lady in My Life</td>
+</tr>
+<tr>
+<td>Prince</td>
+<td>Purple Rain</td>
+<td>1984</td>
+<td>Warner Brothers Records</td>
+<td>Grammy Award for Best Score Soundtrack for Visual Media, American Music Award for Favorite Pop/Rock Album, American Music Award for Favorite Soul/R&amp;B Album, Brit Award for Best Soundtrack/Cast Recording, Grammy Award for Best Rock Performance by a Duo or Group with Vocal</td>
+<td>Let&rsquo;s Go Crazy, Take Me With U, The Beautiful Ones, Computer Blue, Darling Nikki, When Doves Cry, I Would Die 4 U, Baby I&rsquo;m a Star, Purple Rain</td>
+</tr>
+<tr>
+<td>Beastie Boys</td>
+<td>License to Ill</td>
+<td>1986</td>
+<td>Mercury Records</td>
+<td>noawardsbutthistablecelliswide</td>
+<td>Rhymin &amp; Stealin, The New Style, She&rsquo;s Crafty, Posse in Effect, Slow Ride, Girls, (You Gotta) Fight for Your Right, No Sleep Till Brooklyn, Paul Revere, Hold It Now, Hit It, Brass Monkey, Slow and Low, Time to Get Ill</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>Code snippets like <code>var foo = &quot;bar&quot;;</code> can be shown inline.</p>
+<p>Also, <code>this should vertically align</code> <del><code>with this</code></del> <del>and this</del>.</p>
+<p>Code can also be shown in a block element.</p>
+<pre><code>foo := &quot;bar&quot;;
+bar := &quot;foo&quot;;
+</code></pre><p>Code can also use syntax highlighting.</p>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000">main</span><span style="color:#000;font-weight:bold">()</span> <span style="color:#000;font-weight:bold">{</span>
+  <span style="color:#000">input</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#4e9a06">`var foo = &#34;bar&#34;;`</span>
+
+  <span style="color:#000">lexer</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">lexers</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Get</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#34;javascript&#34;</span><span style="color:#000;font-weight:bold">)</span>
+  <span style="color:#000">iterator</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">_</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">lexer</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Tokenise</span><span style="color:#000;font-weight:bold">(</span><span style="color:#204a87;font-weight:bold">nil</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">input</span><span style="color:#000;font-weight:bold">)</span>
+  <span style="color:#000">style</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">styles</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Get</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#34;github&#34;</span><span style="color:#000;font-weight:bold">)</span>
+  <span style="color:#000">formatter</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">html</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">New</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">html</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">WithLineNumbers</span><span style="color:#000;font-weight:bold">())</span>
+
+  <span style="color:#204a87;font-weight:bold">var</span> <span style="color:#000">buff</span> <span style="color:#000">bytes</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Buffer</span>
+  <span style="color:#000">formatter</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Format</span><span style="color:#000;font-weight:bold">(</span><span style="color:#ce5c00;font-weight:bold">&amp;</span><span style="color:#000">buff</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">style</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">iterator</span><span style="color:#000;font-weight:bold">)</span>
+
+  <span style="color:#000">fmt</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Println</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">buff</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">String</span><span style="color:#000;font-weight:bold">())</span>
+<span style="color:#000;font-weight:bold">}</span>
+</code></pre></div><pre><code>Long, single-line code blocks should not wrap. They should horizontally scroll if they are too long. This line should be long enough to demonstrate this.
+</code></pre><p>Inline code inside table cells should still be distinguishable.</p>
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Javascript</td>
+<td><code>var foo = &quot;bar&quot;;</code></td>
+</tr>
+<tr>
+<td>Ruby</td>
+<td><code>foo = &quot;bar&quot;{</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>Small images should be shown at their actual size.</p>
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg/240px-Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg" alt=""></p>
+<p>Large images should always scale down and fit in the content container.</p>
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg/1024px-Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg" alt=""></p>
+<p><em>The photo above of the Spruce Picea abies shoot with foliage buds: Bjørn Erik Pedersen, CC-BY-SA.</em></p>
+<h2 id="components">Components</h2>
+<h3 id="alerts">Alerts</h3>
+<p>
+
+<div class="alert alert-primary" role="alert">
+
+
+    This is an alert.
+
+</div>
+
+
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Note</h4>
+
+    This is an alert with a title.
+
+</div>
+
+
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Note</h4>
+
+    This is an alert with a title and <strong>Markdown</strong>.
+
+</div>
+
+
+
+<div class="alert alert-success" role="alert">
+
+
+    This is a successful alert.
+
+</div>
+
+
+
+<div class="alert alert-warning" role="alert">
+
+
+    This is a warning.
+
+</div>
+
+
+
+<div class="alert alert-warning" role="alert">
+<h4 class="alert-heading">Warning</h4>
+
+    This is a warning with a title.
+
+</div>
+</p>
+<h2 id="another-heading">Another Heading</h2>
+
+	
+	
+	<div class="text-muted mt-5 pt-3 border-top">
+
+</div>
+
+</div>
+
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2021 Amazon All Rights Reserved</small>
+        
+	
+		
+	
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+<script src="/karpenter/docs/js/main.min.492c73c720d423f271eac0a3a1ae34fdf851cafa1da7a788bc330115ad5d51c4.js" integrity="sha256-SSxzxyDUI/Jx6sCjoa40/fhRyvodp6eIvDMBFa1dUcQ=" crossorigin="anonymous"></script>
+
+
+
+
+  </body>
+</html>
