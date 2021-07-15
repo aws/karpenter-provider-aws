@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
@@ -62,16 +62,14 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Reallocation", func() {
-	var provisioner *v1alpha2.Provisioner
+	var provisioner *v1alpha3.Provisioner
 	var ctx context.Context
 
 	BeforeEach(func() {
-		provisioner = &v1alpha2.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName()),
-				Namespace: "default",
-			},
-			Spec: v1alpha2.ProvisionerSpec{
-				Cluster:              v1alpha2.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+		provisioner = &v1alpha3.Provisioner{
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+			Spec: v1alpha3.ProvisionerSpec{
+				Cluster:              v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 				TTLSecondsAfterEmpty: ptr.Int64(300),
 			},
 		}
@@ -86,8 +84,7 @@ var _ = Describe("Reallocation", func() {
 		It("should label nodes as underutilized and add TTL", func() {
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{
-					v1alpha2.ProvisionerNameLabelKey:      provisioner.Name,
-					v1alpha2.ProvisionerNamespaceLabelKey: provisioner.Namespace,
+					v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
 				},
 			})
 			ExpectCreated(env.Client, provisioner)
@@ -96,18 +93,17 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).To(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).To(HaveKey(v1alpha2.ProvisionerTTLAfterEmptyKey))
+			Expect(updatedNode.Labels).To(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).To(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
 		})
 		It("should remove labels from utilized nodes", func() {
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{
-					v1alpha2.ProvisionerNameLabelKey:          provisioner.Name,
-					v1alpha2.ProvisionerNamespaceLabelKey:     provisioner.Namespace,
-					v1alpha2.ProvisionerUnderutilizedLabelKey: "true",
+					v1alpha3.ProvisionerNameLabelKey:          provisioner.Name,
+					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",
 				},
 				Annotations: map[string]string{
-					v1alpha2.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
+					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
 				},
 			})
 			ExpectCreated(env.Client, provisioner)
@@ -122,8 +118,8 @@ var _ = Describe("Reallocation", func() {
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
-			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha2.ProvisionerUnderutilizedLabelKey))
-			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha2.ProvisionerTTLAfterEmptyKey))
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
 		})
 	})
 })

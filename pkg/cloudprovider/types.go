@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -27,19 +27,19 @@ import (
 // CloudProvider holds contains the methods necessary in a cloud provider
 type CloudProvider interface {
 	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, *v1alpha2.Provisioner, []*Packing) ([]*PackedNode, error)
+	Create(context.Context, *v1alpha3.Provisioner, []*Packing) ([]*PackedNode, error)
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// ValidateSpec is a hook for additional spec validation logic specific to the cloud provider.
 	// Note, implementations should not validate constraints resp. call `ValidateConstraints`
 	// from whithin this method as constraints are validated separately.
-	ValidateSpec(context.Context, *v1alpha2.ProvisionerSpec) *apis.FieldError
+	ValidateSpec(context.Context, *v1alpha3.ProvisionerSpec) *apis.FieldError
 	// ValidateConstraints is a hook for additional constraint validation logic specific to the cloud provider.
 	// This method is not only called during Provisioner CRD validation, it is also used at provisioning time
 	// to ensure that pods are provisionable for the specified provisioner. For that reasons constraint
 	// validation has its own valdiation method and is not conducted as part of `ValidateSpec(...)`.
-	ValidateConstraints(context.Context, *v1alpha2.Constraints) *apis.FieldError
+	ValidateConstraints(context.Context, *v1alpha3.Constraints) *apis.FieldError
 	// Terminate node in cloudprovider
 	Terminate(context.Context, *v1.Node) error
 }
@@ -50,7 +50,7 @@ type CloudProvider interface {
 type Packing struct {
 	Pods                []*v1.Pod
 	InstanceTypeOptions []InstanceType
-	Constraints         *v1alpha2.Constraints
+	Constraints         *v1alpha3.Constraints
 }
 
 // PackedNode is a node object and the pods that should be bound to it. It is

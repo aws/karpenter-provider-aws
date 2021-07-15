@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1alpha3
 
 import (
 	"context"
@@ -41,8 +41,7 @@ var _ = Describe("Validation", func() {
 		ctx = context.Background()
 		provisioner = &Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      strings.ToLower(randomdata.SillyName()),
-				Namespace: "default",
+				Name: strings.ToLower(randomdata.SillyName()),
 			},
 			Spec: ProvisionerSpec{
 				Cluster: Cluster{
@@ -90,7 +89,6 @@ var _ = Describe("Validation", func() {
 				ArchitectureLabelKey,
 				OperatingSystemLabelKey,
 				ProvisionerNameLabelKey,
-				ProvisionerNamespaceLabelKey,
 				ProvisionerUnderutilizedLabelKey,
 				ZoneLabelKey,
 				InstanceTypeLabelKey,

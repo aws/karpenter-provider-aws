@@ -61,10 +61,10 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/templates
 	# CRDs don't currently jive with VolatileTime, which has an Any type.
-	perl -pi -e 's/Any/string/g' charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml
+	perl -pi -e 's/Any/string/g' charts/karpenter/templates/karpenter.sh_provisioners.yaml
 	hack/boilerplate.sh
 	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/provisioning/v1alpha2 \
+		-api-dir ./pkg/apis/provisioning/v1alpha3 \
 		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/example-config.json \
 		-out-file API.md \
 		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/template

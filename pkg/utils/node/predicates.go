@@ -17,7 +17,7 @@ package node
 import (
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	v1 "k8s.io/api/core/v1"
 )
@@ -32,7 +32,7 @@ func IsReadyAndSchedulable(node v1.Node) bool {
 }
 
 func IsPastEmptyTTL(node *v1.Node) bool {
-	ttl, ok := node.Annotations[v1alpha2.ProvisionerTTLAfterEmptyKey]
+	ttl, ok := node.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]
 	if !ok {
 		return false
 	}

@@ -12,12 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha2 contains API Schema definitions for the v1alpha2 API group
+// Package v1alpha3 contains API Schema definitions for the v1alpha3 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=provisioning.karpenter.sh
-package v1alpha2
+// +groupName=karpenter.sh
+package v1alpha3
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,7 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-var SchemeGroupVersion = schema.GroupVersion{Group: "provisioning.karpenter.sh", Version: "v1alpha2"}
+var SchemeGroupVersion = schema.GroupVersion{Group: "karpenter.sh", Version: "v1alpha3"}
 var SchemeBuilder = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&Provisioner{},

@@ -13,9 +13,9 @@ webhooks:
   name: defaulting.webhook.provisioners.karpenter.sh
   rules:
   - apiGroups:
-    - provisioning.karpenter.sh
+    - karpenter.sh
     apiVersions:
-    - v1alpha2
+    - v1alpha3
     resources:
     - provisioners
       provisioners/status
@@ -40,9 +40,9 @@ webhooks:
   name: validation.webhook.provisioners.karpenter.sh
   rules:
   - apiGroups:
-    - provisioning.karpenter.sh
+    - karpenter.sh
     apiVersions:
-    - v1alpha2
+    - v1alpha3
     resources:
     - provisioners
       provisioners/status

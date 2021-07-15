@@ -1,20 +1,20 @@
 <p>Packages:</p>
 <ul>
 <li>
-<a href="#provisioning.karpenter.sh%2fv1alpha2">provisioning.karpenter.sh/v1alpha2</a>
+<a href="#karpenter.sh%2fv1alpha3">karpenter.sh/v1alpha3</a>
 </li>
 </ul>
-<h2 id="provisioning.karpenter.sh/v1alpha2">provisioning.karpenter.sh/v1alpha2</h2>
+<h2 id="karpenter.sh/v1alpha3">karpenter.sh/v1alpha3</h2>
 <p>
-<p>Package v1alpha2 contains API Schema definitions for the v1alpha2 API group</p>
+<p>Package v1alpha3 contains API Schema definitions for the v1alpha3 API group</p>
 </p>
 Resource Types:
 <ul></ul>
-<h3 id="provisioning.karpenter.sh/v1alpha2.Cluster">Cluster
+<h3 id="karpenter.sh/v1alpha3.Cluster">Cluster
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
 <p>Cluster configures the cluster that the provisioner operates against. If
@@ -68,11 +68,11 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha2.Constraints">Constraints
+<h3 id="karpenter.sh/v1alpha3.Constraints">Constraints
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
 <p>Constraints are applied to all nodes created by the provisioner. They can be
@@ -170,7 +170,7 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner
+<h3 id="karpenter.sh/v1alpha3.Provisioner">Provisioner
 </h3>
 <p>
 <p>Provisioner is the Schema for the Provisioners API</p>
@@ -201,7 +201,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">
+<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">
 ProvisionerSpec
 </a>
 </em>
@@ -214,7 +214,7 @@ ProvisionerSpec
 <td>
 <code>cluster</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
+<a href="#karpenter.sh/v1alpha3.Cluster">
 Cluster
 </a>
 </em>
@@ -227,7 +227,7 @@ Cluster
 <td>
 <code>Constraints</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
+<a href="#karpenter.sh/v1alpha3.Constraints">
 Constraints
 </a>
 </em>
@@ -279,7 +279,7 @@ memory leak protection, and disruption testing.</p>
 <td>
 <code>status</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.ProvisionerStatus">
+<a href="#karpenter.sh/v1alpha3.ProvisionerStatus">
 ProvisionerStatus
 </a>
 </em>
@@ -289,11 +289,11 @@ ProvisionerStatus
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha2.ProvisionerSpec">ProvisionerSpec
+<h3 id="karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -305,7 +305,7 @@ capacity within a single cluster and in most cases, only one should be
 necessary. For advanced use cases like workload separation and sharding, it&rsquo;s
 possible to define multiple provisioners. These provisioners may have
 different defaults and can be specifically targeted by pods using
-pod.spec.nodeSelector[&ldquo;provisioning.karpenter.sh/name&rdquo;]=$PROVISIONER_NAME.</p>
+pod.spec.nodeSelector[&ldquo;karpenter.sh/provisioner-name&rdquo;]=$PROVISIONER_NAME.</p>
 </p>
 <table>
 <thead>
@@ -319,7 +319,7 @@ pod.spec.nodeSelector[&ldquo;provisioning.karpenter.sh/name&rdquo;]=$PROVISIONER
 <td>
 <code>cluster</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Cluster">
+<a href="#karpenter.sh/v1alpha3.Cluster">
 Cluster
 </a>
 </em>
@@ -332,7 +332,7 @@ Cluster
 <td>
 <code>Constraints</code><br/>
 <em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Constraints">
+<a href="#karpenter.sh/v1alpha3.Constraints">
 Constraints
 </a>
 </em>
@@ -379,11 +379,11 @@ memory leak protection, and disruption testing.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="provisioning.karpenter.sh/v1alpha2.ProvisionerStatus">ProvisionerStatus
+<h3 id="karpenter.sh/v1alpha3.ProvisionerStatus">ProvisionerStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#provisioning.karpenter.sh/v1alpha2.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerStatus defines the observed state of Provisioner</p>
@@ -427,5 +427,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>5e4fe45</code>.
+on git commit <code>f37f9ba</code>.
 </em></p>

@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
@@ -62,7 +62,7 @@ var _ = Describe("Termination", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha2.KarpenterFinalizer}})
+		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha3.KarpenterFinalizer}})
 	})
 
 	AfterEach(func() {
@@ -107,7 +107,7 @@ var _ = Describe("Termination", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
-				Annotations: map[string]string{v1alpha2.KarpenterDoNotEvictPodAnnotation: "true"},
+				Annotations: map[string]string{v1alpha3.KarpenterDoNotEvictPodAnnotation: "true"},
 			})
 
 			ExpectCreated(env.Client, node, podEvict, podNoEvict)

@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"

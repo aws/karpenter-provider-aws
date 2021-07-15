@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha2"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,16 +61,12 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 3. Ignore if provisioner doesn't exist
-	name, ok := node.Labels[v1alpha2.ProvisionerNameLabelKey]
+	name, ok := node.Labels[v1alpha3.ProvisionerNameLabelKey]
 	if !ok {
 		return reconcile.Result{}, nil
 	}
-	namespace, ok := node.Labels[v1alpha2.ProvisionerNamespaceLabelKey]
-	if !ok {
-		return reconcile.Result{}, nil
-	}
-	provisioner := &v1alpha2.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, provisioner); err != nil {
+	provisioner := &v1alpha3.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name}, provisioner); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -98,8 +94,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) provisionerToNodes(o client.Object) (requests []reconcile.Request) {
 	nodes := &v1.NodeList{}
 	if err := c.kubeClient.List(context.Background(), nodes, client.MatchingLabels(map[string]string{
-		v1alpha2.ProvisionerNameLabelKey:      o.GetName(),
-		v1alpha2.ProvisionerNamespaceLabelKey: o.GetNamespace(),
+		v1alpha3.ProvisionerNameLabelKey: o.GetName(),
 	})); err != nil {
 		zap.S().Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
 	}
@@ -116,7 +111,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		For(&v1.Node{}).
 		Watches(
 			// Reconcile all nodes related to a provisioner when it changes.
-			&source.Kind{Type: &v1alpha2.Provisioner{}},
+			&source.Kind{Type: &v1alpha3.Provisioner{}},
 			handler.EnqueueRequestsFromMapFunc(c.provisionerToNodes),
 		).
 		Complete(c)
