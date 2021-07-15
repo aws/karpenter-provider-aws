@@ -73,7 +73,7 @@ func NewEnvironment(options ...EnvironmentOption) *Environment {
 	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
 	return &Environment{
 		Environment: envtest.Environment{
-			CRDDirectoryPaths: []string{project.RelativeToRoot("charts/karpenter/templates/provisioning.karpenter.sh_provisioners.yaml")},
+			CRDDirectoryPaths: []string{project.RelativeToRoot("charts/karpenter/templates/karpenter.sh_provisioners.yaml")},
 		},
 		ctx:     ctx,
 		stop:    stop,

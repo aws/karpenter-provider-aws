@@ -64,7 +64,7 @@ metadata:
   name: karpenter-controller
 rules:
 - apiGroups:
-  - provisioning.karpenter.sh
+  - karpenter.sh
   resources:
   - provisioners
   - provisioners/status

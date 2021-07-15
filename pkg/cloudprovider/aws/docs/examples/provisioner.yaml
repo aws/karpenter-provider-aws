@@ -1,4 +1,4 @@
-apiVersion: provisioning.karpenter.sh/v1alpha3
+apiVersion: karpenter.sh/v1alpha3
 kind: Provisioner
 metadata:
   name: default

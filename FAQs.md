@@ -20,7 +20,7 @@ Yes. Support for specific custom resources can be implemented by your cloud prov
 ### Does Karpenter support daemonsets?
 Yes. Provisioners factor in daemonset overhead into all allocation and reallocation calculations. They also respect daemonset scheduling constraints, such as Nvidia’s GPU Driver Installer.
 ### Does Karpenter support multiple scheduling defaults?
-Provisioners are heterogeneous, which means that the nodes they manage are spread across multiple availability zones, instance types, and capacity types. This flexibility reduces the need for a large number of groups. However, customers may find multiple groups to be useful for more advanced use cases. For example, customers can create multiple groups, and then use the node selector `provisioning.karpenter.sh/name` to target specific groups. This enables advanced use cases like resource isolation and sharding.
+Provisioners are heterogeneous, which means that the nodes they manage are spread across multiple availability zones, instance types, and capacity types. This flexibility reduces the need for a large number of groups. However, customers may find multiple groups to be useful for more advanced use cases. For example, customers can create multiple groups, and then use the node selector `karpenter.sh/provisioner-name` to target specific groups. This enables advanced use cases like resource isolation and sharding.
 ### What if my pod is schedulable for multiple Provisioners?
 It's possible that an unconstrained pods could flexibly schedule in multiple groups. In this case, Provisioners will race to create a scheduling lease for the pod before launching new nodes, which avoids unnecessary scale out.
 ## Reallocation

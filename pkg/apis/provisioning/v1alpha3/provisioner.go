@@ -29,7 +29,7 @@ import (
 // necessary. For advanced use cases like workload separation and sharding, it's
 // possible to define multiple provisioners. These provisioners may have
 // different defaults and can be specifically targeted by pods using
-// pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
+// pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
 type ProvisionerSpec struct {
 	// Cluster that launched nodes connect to.
 	Cluster Cluster `json:"cluster"`
@@ -117,20 +117,19 @@ var (
 	OperatingSystemLabelKey = "kubernetes.io/os"
 
 	// Reserved labels
-	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/name"
+	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/provisioner-name"
 	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
 
 	// Reserved annotations
-	KarpenterDoNotEvictPodAnnotation = "karpenter.sh/do-not-evict"
+	KarpenterDoNotEvictPodAnnotation = SchemeGroupVersion.Group + "/do-not-evict"
 	ProvisionerTTLAfterEmptyKey      = SchemeGroupVersion.Group + "/ttl-after-empty"
 
 	// Use ProvisionerSpec instead
 	ZoneLabelKey         = "topology.kubernetes.io/zone"
 	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
-)
 
-const (
-	KarpenterFinalizer = "karpenter.sh/termination"
+	// Finalizers
+	KarpenterFinalizer = SchemeGroupVersion.Group + "/termination"
 )
 
 // Provisioner is the Schema for the Provisioners API

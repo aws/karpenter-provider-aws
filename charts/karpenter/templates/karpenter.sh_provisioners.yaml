@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: provisioners.provisioning.karpenter.sh
+  name: provisioners.karpenter.sh
 spec:
-  group: provisioning.karpenter.sh
+  group: karpenter.sh
   names:
     kind: Provisioner
     listKind: ProvisionerList
@@ -43,7 +43,7 @@ spec:
               be necessary. For advanced use cases like workload separation and sharding,
               it's possible to define multiple provisioners. These provisioners may
               have different defaults and can be specifically targeted by pods using
-              pod.spec.nodeSelector["provisioning.karpenter.sh/name"]=$PROVISIONER_NAME.
+              pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
             properties:
               architecture:
                 description: Architecture constrains the underlying node architecture
