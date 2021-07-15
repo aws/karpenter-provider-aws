@@ -17,11 +17,13 @@ package termination
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	set "github.com/deckarep/golang-set"
 	"golang.org/x/time/rate"
 
 	v1 "k8s.io/api/core/v1"
@@ -37,17 +39,31 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	terminator    *Terminator
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
+	terminator *Terminator
+	kubeClient client.Client
+}
+
+// For returns the resource this controller is for.
+func (c *Controller) For() client.Object {
+	return &v1.Node{}
+}
+
+func (c *Controller) Name() string {
+	return "terminator"
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client},
-		cloudProvider: cloudProvider,
-		kubeClient:    kubeClient,
+		kubeClient: kubeClient,
+		terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
+			evictionQueue: EvictionQueue{
+				Queue:        workqueue.NewDelayingQueue(),
+				RateLimiter:  workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
+				coreV1Client: coreV1Client,
+				enqueued:     set.NewSet(),
+				once:         sync.Once{},
+			}},
 	}
 }
 
@@ -75,13 +91,14 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
-	// 5. If fully drained, terminate the node
-	if drained {
-		if err := c.terminator.terminate(ctx, node); err != nil {
-			return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
-		}
+	if !drained {
+		return reconcile.Result{}, nil
 	}
-	return reconcile.Result{Requeue: !drained}, nil
+	// 4. If fully drained, terminate the node
+	if err := c.terminator.terminate(ctx, node); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

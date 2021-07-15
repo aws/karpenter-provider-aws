@@ -26,8 +26,6 @@ import (
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,6 +34,7 @@ type Terminator struct {
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
 	coreV1Client  corev1.CoreV1Interface
+	evictionQueue EvictionQueue
 }
 
 // cordon cordons a node
@@ -61,18 +60,20 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("listing pods for node %s, %w", node.Name, err)
 	}
-	// 2. Separate pods as non-critical and critical
+
+	// 2. Filter pods that will tolerate unschedulable and aren't already being evicted
+	pods = filterPods(pods, func(p *v1.Pod) bool {
+		return pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) != nil || !p.DeletionTimestamp.IsZero()
+	})
+	// 3. Separate pods as non-critical and critical
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	nonCritical := []*v1.Pod{}
 	critical := []*v1.Pod{}
+
 	for _, p := range pods {
 		if val := p.Annotations[provisioning.KarpenterDoNotEvictPodAnnotation]; val == "true" {
 			zap.S().Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
 			return false, nil
-		}
-		// If a pod tolerates the unschedulable taint, don't evict it as it could reschedule back onto the node
-		if err := pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}); err == nil {
-			continue
 		}
 		if p.Spec.PriorityClassName == "system-cluster-critical" || p.Spec.PriorityClassName == "system-node-critical" {
 			critical = append(critical, p)
@@ -81,11 +82,13 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		}
 	}
 	// 3. Evict non-critical pods
-	if !t.evictPods(ctx, nonCritical) {
+	if len(nonCritical) != 0 {
+		t.evictionQueue.Add(nonCritical)
 		return false, nil
 	}
 	// 4. Evict critical pods once all non-critical pods are evicted
-	if !t.evictPods(ctx, critical) {
+	if len(critical) != 0 {
+		t.evictionQueue.Add(critical)
 		return false, nil
 	}
 	return true, nil
@@ -106,16 +109,13 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	}
 	return nil
 }
-
-// evictPods returns true if there are no evictable pods
-func (t *Terminator) evictPods(ctx context.Context, pods []*v1.Pod) bool {
-	for _, p := range pods {
-		if err := t.coreV1Client.Pods(p.Namespace).Evict(ctx, &v1beta1.Eviction{ObjectMeta: metav1.ObjectMeta{Name: p.Name, Namespace: p.Namespace}}); err != nil {
-			// If an eviction fails, we need to eventually try again
-			zap.S().Debugf("Continuing after failing to evict pod %s from node %s, %s", p.Name, p.Spec.NodeName, err.Error())
+func filterPods(pods []*v1.Pod, predicate func(pod *v1.Pod) bool) (result []*v1.Pod) {
+	for _, pod := range pods {
+		if predicate(pod) {
+			result = append(result, pod)
 		}
 	}
-	return len(pods) == 0
+	return result
 }
 
 // getPods returns a list of pods scheduled to a node based on some filters
