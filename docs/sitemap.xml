@@ -6,24 +6,27 @@
   </url><url>
     <loc>/docs/getting-started/</loc>
   </url><url>
-    <loc>/docs/deployment-guide/</loc>
-  </url><url>
     <loc>/docs/</loc>
     <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>/docs/concepts/</loc>
   </url><url>
-    <loc>/docs/cloud-providers/</loc>
+    <loc>/docs/faq/</loc>
+  </url><url>
+    <loc>/docs/prov-crd/</loc>
+    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>/docs/deployment-guide/</loc>
   </url><url>
     <loc>/docs/examples/</loc>
   </url><url>
+    <loc>/docs/cloud-providers/</loc>
+  </url><url>
     <loc>/docs/reference/</loc>
-    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>/docs/dev-guide/</loc>
   </url><url>
     <loc>/</loc>
-    <lastmod>2017-01-05T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>/docs/reference/parameter-reference/</loc>
     <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>/search/</loc>

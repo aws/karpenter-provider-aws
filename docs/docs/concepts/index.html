@@ -30,7 +30,7 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
 <meta itemprop="description" content="Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.
 Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API).">
 
-<meta itemprop="wordCount" content="450">
+<meta itemprop="wordCount" content="421">
 <meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Intro to Karpenter Concepts"/>
 <meta name="twitter:description" content="Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.
@@ -73,7 +73,7 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
 				
 				
 				
-				<a class="nav-link" href="/docs/getting-started/" ><span>Getting Started</span></a>
+				<a class="nav-link" href="/docs/getting-started/" ><span>Getting Started Guide</span></a>
 			</li>
 			
 			<li class="nav-item mr-4 mb-2 mb-lg-0">
@@ -174,7 +174,88 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
   
   <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsgetting-started-li">
     
-      <a href="/docs/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsgetting-started"><span class="">Getting Started</span></a>
+      <a href="/docs/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsgetting-started"><span class="">Getting Started Guide</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docsconcepts-li">
+    
+      <a href="/docs/concepts/" title="Intro to Karpenter Concepts" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-docsconcepts"><span class="td-sidebar-nav-active-item">Concepts</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsfaq-li">
+    
+      <a href="/docs/faq/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsfaq"><span class="">FAQs</span></a>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsprov-crd-li">
+    
+      <a href="/docs/prov-crd/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsprov-crd"><span class="">Provisioner CRD</span></a>
     
     
   </li>
@@ -226,9 +307,9 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docsconcepts-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsexamples-li">
     
-      <a href="/docs/concepts/" title="Intro to Karpenter Concepts" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-docsconcepts"><span class="td-sidebar-nav-active-item">Concepts</span></a>
+      <a href="/docs/examples/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-docsexamples"><span class="">Examples</span></a>
     
     
   </li>
@@ -312,9 +393,9 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsexamples-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsreference-li">
     
-      <a href="/docs/examples/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsexamples"><span class="">Examples</span></a>
+      <a href="/docs/reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-docsreference"><span class="">API Reference</span></a>
     
     
   </li>
@@ -339,42 +420,10 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-docsreference-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsdev-guide-li">
     
-      <a href="/docs/reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-docsreference"><span class="">Reference</span></a>
+      <a href="/docs/dev-guide/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsdev-guide"><span class="">Development Guide</span></a>
     
-    
-      
-      <ul class="ul-2 foldable">
-        
-          
-            
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsreferenceparameter-reference-li">
-    
-      <a href="/docs/reference/parameter-reference/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsreferenceparameter-reference"><span class="">Provisioner CRD</span></a>
-    
-    
-  </li>
-
-          
-        
-      </ul>
     
   </li>
 
@@ -431,13 +480,18 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
 
 <div class="td-toc"><nav id="TableOfContents">
   <ul>
-    <li><a href="#architecture">Architecture</a></li>
-    <li><a href="#provisioner-crd">Provisioner CRD</a></li>
-    <li><a href="#automatic-provisioning">Automatic Provisioning</a></li>
-    <li><a href="#automatic-deprovisioning">Automatic Deprovisioning</a></li>
-    <li><a href="#ttl-values">TTL Values</a></li>
-    <li><a href="#terminator">Terminator?</a></li>
-    <li><a href="#well-known-labels">Well Known Labels</a></li>
+    <li><a href="#provisioner-crd">Provisioner CRD</a>
+      <ul>
+        <li><a href="#deprovisioning">Deprovisioning</a></li>
+        <li><a href="#well-known-labels">Well Known Labels</a></li>
+      </ul>
+    </li>
+    <li><a href="#provisioning-walkthrough">Provisioning Walkthrough</a>
+      <ul>
+        <li><a href="#how-instance-types-are-selected-currently">How instance types are selected (currently)</a></li>
+      </ul>
+    </li>
+    <li><a href="#deprovisioning-walkthrough">Deprovisioning Walkthrough</a></li>
   </ul>
 </nav></div>
 
@@ -516,24 +570,21 @@ Karpenter activates when pending pods are unable to be fit onto existing nodes. 
 <p>[[detail on spot and platform availability — or this too platform specific?]]</p>
 <p>Karpenter balances responding rapidly to un-schedulable pods and making efficient provisioning decision. Karpenter is substantially faster than the cluster autoscaler, while additionally considering podspec labels and cloud provider availability zones. Specifically, the commonly used kubernetes properties such as labels, taints, affinity (node, pod), and anti-affinity are supported.</p>
 <p>Activating Karpenter on your cluster is a combination of a helm chart, and configuring the cloud platform to accept provisioning requests from Karpenter. On AWS, IAM roles for Service Accounts (IRSA) is used. The Kubernetes control plane in EKS oversees cluster-space [[is that a term?]] Karpenter requests being securely elevated and passed on to the cloud platform.</p>
-<h2 id="architecture">Architecture</h2>
 <h2 id="provisioner-crd">Provisioner CRD</h2>
 <p>The primary kubernetes API object kind is “provisioner”. Notably, one provisioner can handle multiple node profiles (graphics enabled, compute optimized, memory optimized, etc). Karpenter is group-less, and eliminates management of multiple node groups with fixed instance specs. In short, the Karpenter provisioner object is focused on podspecs. This simplifies cluster management, and reduces the complexity of implementing Karpenter.</p>
-<p>[[more specific architecture]]</p>
 <p>Provisioner is the primary Custom Resource Definition (CRD) for Karpenter, and you need at least one.</p>
-<p>First, define the cluster nodes should connect to. This should be done using variables, as shown.</p>
+<p>The provisioner CRD includes&hellip;</p>
+<h3 id="deprovisioning">Deprovisioning</h3>
 <p>Second, define termination and downscaling values. Setting a value for <code>ttlSecondsUntilExpired</code> enables node expiration. The value is the number of seconds after node creation until nodes are viewed as expired by Karpenter. Note, with this value set, all nodes will eventually expire. Expired nodes are drained and replaced. The replacement nodes will have the latest updates, and may be more efficiently sized. Setting a value for <code>ttlSecondsAfterEmpty</code> enables deprovisioning empty nodes (no pods besides daemon sets). This only happens if a node becomes empty, and stays empty for the set number of seconds.
 Third, consider any taints and labels you want provisioned nodes to have. Some labels impact the behavior of AWS, such as setting the launch template ID or opting in to spot pricing.</p>
-<p>[[walk through API of provisioner]]</p>
-<h2 id="automatic-provisioning">Automatic Provisioning</h2>
-<h2 id="automatic-deprovisioning">Automatic Deprovisioning</h2>
-<h2 id="ttl-values">TTL Values</h2>
-<h2 id="terminator">Terminator?</h2>
-<h2 id="well-known-labels">Well Known Labels</h2>
-<p>[[what happens when schedule load, provisioner actives]]
-[[terminator api?]]
-[[what it do in the cluster]]
-[[what it do with other parties]]</p>
+<h3 id="well-known-labels">Well Known Labels</h3>
+<h2 id="provisioning-walkthrough">Provisioning Walkthrough</h2>
+<ul>
+<li>how much talk about cloud provider?</li>
+</ul>
+<h3 id="how-instance-types-are-selected-currently">How instance types are selected (currently)</h3>
+<h2 id="deprovisioning-walkthrough">Deprovisioning Walkthrough</h2>
+<p>[[what is terminator?]]</p>
 
 	
 	

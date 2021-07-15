@@ -1,7 +1,7 @@
 ---
 title: "Provisioner CRD"
 linkTitle: "Provisioner CRD"
-weight: 25
+weight: 40
 date: 2017-01-05
 ---
 

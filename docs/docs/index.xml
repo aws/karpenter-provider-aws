@@ -25,6 +25,29 @@
         
         
         &lt;h2 id=&#34;well-known-labels-on-aws&#34;&gt;Well Known Labels on AWS&lt;/h2&gt;
+&lt;h3 id=&#34;topologykubernetesioregion&#34;&gt;topology.kubernetes.io/region&lt;/h3&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;topology.kubernetes.io/region=us-east-1&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;See &lt;a href=&#34;#topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/h3&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;topology.kubernetes.io/zone=us-east-1c&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Used on: Node, PersistentVolume&lt;/p&gt;
+&lt;p&gt;On Node: The &lt;code&gt;kubelet&lt;/code&gt; or the external &lt;code&gt;cloud-controller-manager&lt;/code&gt; populates this with the information as provided by the &lt;code&gt;cloudprovider&lt;/code&gt;.  This will be set only if you are using a &lt;code&gt;cloudprovider&lt;/code&gt;. However, you should consider setting this on nodes if it makes sense in your topology.&lt;/p&gt;
+&lt;p&gt;On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on &lt;code&gt;PersistentVolumes&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;A zone represents a logical failure domain.  It is common for Kubernetes clusters to span multiple zones for increased availability.  While the exact definition of a zone is left to infrastructure implementations, common properties of a zone include very low network latency within a zone, no-cost network traffic within a zone, and failure independence from other zones.  For example, nodes within a zone might share a network switch, but nodes in different zones should not.&lt;/p&gt;
+&lt;p&gt;A region represents a larger domain, made up of one or more zones.  It is uncommon for Kubernetes clusters to span multiple regions,  While the exact definition of a zone or region is left to infrastructure implementations, common properties of a region include higher network latency between them than within them, non-zero cost for network traffic between them, and failure independence from other zones or regions.  For example, nodes within a region might share power infrastructure (e.g. a UPS or generator), but nodes in different regions typically would not.&lt;/p&gt;
+&lt;p&gt;Kubernetes makes a few assumptions about the structure of zones and regions:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;regions and zones are hierarchical: zones are strict subsets of regions and no zone can be in 2 regions&lt;/li&gt;
+&lt;li&gt;zone names are unique across regions; for example region &amp;ldquo;africa-east-1&amp;rdquo; might be comprised of zones &amp;ldquo;africa-east-1a&amp;rdquo; and &amp;ldquo;africa-east-1b&amp;rdquo;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;It should be safe to assume that topology labels do not change.  Even though labels are strictly mutable, consumers of them can assume that a given node is not going to be moved between zones without being destroyed and recreated.&lt;/p&gt;
+&lt;p&gt;Kubernetes can use this information in various ways.  For example, the scheduler automatically tries to spread the Pods in a ReplicaSet across nodes in a single-zone cluster (to reduce the impact of node failures, see &lt;a href=&#34;#kubernetesiohostname&#34;&gt;kubernetes.io/hostname&lt;/a&gt;). With multiple-zone clusters, this spreading behavior also applies to zones (to reduce the impact of zone failures). This is achieved via &lt;em&gt;SelectorSpreadPriority&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;SelectorSpreadPriority&lt;/em&gt; is a best effort placement. If the zones in your cluster are heterogeneous (for example: different numbers of nodes, different types of nodes, or different pod resource requirements), this placement might prevent equal spreading of your Pods across zones. If desired, you can use homogenous zones (same number and types of nodes) to reduce the probability of unequal spreading.&lt;/p&gt;
+&lt;p&gt;The scheduler (through the &lt;em&gt;VolumeZonePredicate&lt;/em&gt; predicate) also will ensure that Pods, that claim a given volume, are only placed into the same zone as that volume. Volumes cannot be attached across zones.&lt;/p&gt;
+&lt;p&gt;If &lt;code&gt;PersistentVolumeLabel&lt;/code&gt; does not support automatic labeling of your PersistentVolumes, you should consider
+adding the labels manually (or adding support for &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;). With &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;, the scheduler prevents Pods from mounting volumes in a different zone. If your infrastructure doesn&amp;rsquo;t have this constraint, you don&amp;rsquo;t need to add the zone labels to the volumes at all.&lt;/p&gt;
 &lt;h2 id=&#34;how-we-work-with-ec2&#34;&gt;How we work with EC2&lt;/h2&gt;
 
       </description>
@@ -195,19 +218,6 @@ aws ec2 describe-launch-templates &lt;span style=&#34;color:#4e9a06&#34;&gt;\
     </item>
     
     <item>
-      <title>Docs: Deployment Guide</title>
-      <link>/docs/deployment-guide/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/docs/deployment-guide/</guid>
-      <description>
-        
-        
-        
-      </description>
-    </item>
-    
-    <item>
       <title>Docs: Intro to Karpenter Concepts</title>
       <link>/docs/concepts/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -221,347 +231,228 @@ aws ec2 describe-launch-templates &lt;span style=&#34;color:#4e9a06&#34;&gt;\
 &lt;p&gt;[[detail on spot and platform availability — or this too platform specific?]]&lt;/p&gt;
 &lt;p&gt;Karpenter balances responding rapidly to un-schedulable pods and making efficient provisioning decision. Karpenter is substantially faster than the cluster autoscaler, while additionally considering podspec labels and cloud provider availability zones. Specifically, the commonly used kubernetes properties such as labels, taints, affinity (node, pod), and anti-affinity are supported.&lt;/p&gt;
 &lt;p&gt;Activating Karpenter on your cluster is a combination of a helm chart, and configuring the cloud platform to accept provisioning requests from Karpenter. On AWS, IAM roles for Service Accounts (IRSA) is used. The Kubernetes control plane in EKS oversees cluster-space [[is that a term?]] Karpenter requests being securely elevated and passed on to the cloud platform.&lt;/p&gt;
-&lt;h2 id=&#34;architecture&#34;&gt;Architecture&lt;/h2&gt;
 &lt;h2 id=&#34;provisioner-crd&#34;&gt;Provisioner CRD&lt;/h2&gt;
 &lt;p&gt;The primary kubernetes API object kind is “provisioner”. Notably, one provisioner can handle multiple node profiles (graphics enabled, compute optimized, memory optimized, etc). Karpenter is group-less, and eliminates management of multiple node groups with fixed instance specs. In short, the Karpenter provisioner object is focused on podspecs. This simplifies cluster management, and reduces the complexity of implementing Karpenter.&lt;/p&gt;
-&lt;p&gt;[[more specific architecture]]&lt;/p&gt;
 &lt;p&gt;Provisioner is the primary Custom Resource Definition (CRD) for Karpenter, and you need at least one.&lt;/p&gt;
-&lt;p&gt;First, define the cluster nodes should connect to. This should be done using variables, as shown.&lt;/p&gt;
+&lt;p&gt;The provisioner CRD includes&amp;hellip;&lt;/p&gt;
+&lt;h3 id=&#34;deprovisioning&#34;&gt;Deprovisioning&lt;/h3&gt;
 &lt;p&gt;Second, define termination and downscaling values. Setting a value for &lt;code&gt;ttlSecondsUntilExpired&lt;/code&gt; enables node expiration. The value is the number of seconds after node creation until nodes are viewed as expired by Karpenter. Note, with this value set, all nodes will eventually expire. Expired nodes are drained and replaced. The replacement nodes will have the latest updates, and may be more efficiently sized. Setting a value for &lt;code&gt;ttlSecondsAfterEmpty&lt;/code&gt; enables deprovisioning empty nodes (no pods besides daemon sets). This only happens if a node becomes empty, and stays empty for the set number of seconds.
 Third, consider any taints and labels you want provisioned nodes to have. Some labels impact the behavior of AWS, such as setting the launch template ID or opting in to spot pricing.&lt;/p&gt;
-&lt;p&gt;[[walk through API of provisioner]]&lt;/p&gt;
-&lt;h2 id=&#34;automatic-provisioning&#34;&gt;Automatic Provisioning&lt;/h2&gt;
-&lt;h2 id=&#34;automatic-deprovisioning&#34;&gt;Automatic Deprovisioning&lt;/h2&gt;
-&lt;h2 id=&#34;ttl-values&#34;&gt;TTL Values&lt;/h2&gt;
-&lt;h2 id=&#34;terminator&#34;&gt;Terminator?&lt;/h2&gt;
-&lt;h2 id=&#34;well-known-labels&#34;&gt;Well Known Labels&lt;/h2&gt;
-&lt;p&gt;[[what happens when schedule load, provisioner actives]]
-[[terminator api?]]
-[[what it do in the cluster]]
-[[what it do with other parties]]&lt;/p&gt;
+&lt;h3 id=&#34;well-known-labels&#34;&gt;Well Known Labels&lt;/h3&gt;
+&lt;h2 id=&#34;provisioning-walkthrough&#34;&gt;Provisioning Walkthrough&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;how much talk about cloud provider?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;how-instance-types-are-selected-currently&#34;&gt;How instance types are selected (currently)&lt;/h3&gt;
+&lt;h2 id=&#34;deprovisioning-walkthrough&#34;&gt;Deprovisioning Walkthrough&lt;/h2&gt;
+&lt;p&gt;[[what is terminator?]]&lt;/p&gt;
 
       </description>
     </item>
     
     <item>
-      <title>Docs: Examples</title>
-      <link>/docs/examples/</link>
+      <title>Docs: FAQs</title>
+      <link>/docs/faq/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/examples/</guid>
+      <guid>/docs/faq/</guid>
       <description>
         
         
-        &lt;ul&gt;
-&lt;li&gt;helm chart&lt;/li&gt;
-&lt;li&gt;service account&lt;/li&gt;
-&lt;li&gt;IRSA&lt;/li&gt;
-&lt;li&gt;IAM roles?&lt;/li&gt;
-&lt;/ul&gt;
+        &lt;h2 id=&#34;general&#34;&gt;General&lt;/h2&gt;
+&lt;h3 id=&#34;how-does-a-provisioner-decide-to-manage-a-particular-node&#34;&gt;How does a Provisioner decide to manage a particular node?&lt;/h3&gt;
+&lt;p&gt;Each node will have a set of predetermined Karpenter labels. Provisioners will use &lt;code&gt;name&lt;/code&gt; and &lt;code&gt;namespace&lt;/code&gt; labels to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in. e.g. a provisioner will only consider a node for termination if its phase label says &amp;ldquo;underutilized&amp;rdquo;.&lt;/p&gt;
+&lt;h2 id=&#34;allocation&#34;&gt;Allocation&lt;/h2&gt;
+&lt;h3 id=&#34;how-should-i-define-scheduling-constraints&#34;&gt;How should I define scheduling constraints?&lt;/h3&gt;
+&lt;p&gt;Karpenter takes a layered approach to scheduling constraints. Each Cloud Provider has its own set of global defaults, which are overriden by defaults specified in the Provisioner, which are overridden by Pod scheduling constraints. This model requires minimal configuration for most use cases, and supports diverse workloads using a single Provisioner.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-replace-the-kube-scheduler&#34;&gt;Does Karpenter replace the Kube Scheduler?&lt;/h3&gt;
+&lt;p&gt;No. Provisioners work in tandem with the Kube Scheduler. When capacity is unconstrained, the Kube Scheduler will schedule pods as usual. It may schedule pods to nodes managed by Provisioners or other types of capacity in the cluster. Provisioners only attempt to schedule pods when &lt;code&gt;type=PodScheduled,reason=Unschedulable&lt;/code&gt;. In this case, they will make a provisioning decision, launch new capacity, and bind pods to the provisioned nodes. Provisioners do not wait for the Kube Scheduler to make a scheduling decision in this case, as the decision is already made by nature of making a provisioning decision. It&amp;rsquo;s possible that a node from another management solution could create a race between the kube scheduler and Karpenter. In this case, the first binding call will win. If Karpenter loses this race, the node will eventually be cleaned up.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-node-selectors&#34;&gt;Does Karpenter support node selectors?&lt;/h3&gt;
+&lt;p&gt;Yes. Node selectors are an opt-in mechanism which allows customers to specify the nodes to which a pod can schedule. Provisioners recognize well known node selectors on incoming pods and use them to constrain the nodes they generate. For example, well known selectors like &lt;code&gt;node.kubernetes.io/instance-type&lt;/code&gt;, &lt;code&gt;topology.kubernetes.io/zone&lt;/code&gt;, &lt;code&gt;kubernetes.io/os&lt;/code&gt;, &lt;code&gt;kubernetes.io/arch&lt;/code&gt; are supported, and will ensure that provisioned nodes are constrained accordingly. Additionally, customers may specify arbitrary labels, which will be automatically applied to every node launched by the Provisioner.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-taints&#34;&gt;Does Karpenter support taints?&lt;/h3&gt;
+&lt;p&gt;Yes. Taints are an opt-out mechanism which allows customers to specify the nodes to which a pod cannot schedule. Unlike labels, Provisioners do not automatically taint nodes in response to pod tolerations, since pod tolerations do not require that corresponding taints exist. However, similar to labels, customers may specify taints for their Provisioner, which will automatically be applied to every node in the group. This means that if a Provisioner is configured with taints, any incoming pods will not be provisioned unless they tolerate the taints.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-topology-spread-constraints&#34;&gt;Does Karpenter support topology spread constraints?&lt;/h3&gt;
+&lt;p&gt;Yes. Provisioners respect &lt;code&gt;pod.spec.topologySpreadConstraints&lt;/code&gt;. Allocating pods with these constraints may yield highly fragmented nodes, due to their strict nature and complexity of “online binpacking” algorithms. However, the reallocation pass is able to produce much more efficient packings using “offline binpacking” techniques.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-affinity&#34;&gt;Does Karpenter support affinity?&lt;/h3&gt;
+&lt;p&gt;No. Karpenter intentionally does not support affinity due the to &lt;a href=&#34;https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity&#34;&gt;scalability limitations&lt;/a&gt; outlined by SIG Scalability. Instead, we recommend using node selectors or taints instead of node affinity and pod topology spread instead of pod affinity. Do you have a use case for affinity that we&amp;rsquo;re missing? We&amp;rsquo;re excited to hear about it in our &lt;a href=&#34;working-group/README.md&#34;&gt;Working Group&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-custom-resource-like-accelerators-or-hpc&#34;&gt;Does Karpenter support custom resource like accelerators or HPC?&lt;/h3&gt;
+&lt;p&gt;Yes. Support for specific custom resources can be implemented by your cloud provider.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-daemonsets&#34;&gt;Does Karpenter support daemonsets?&lt;/h3&gt;
+&lt;p&gt;Yes. Provisioners factor in daemonset overhead into all allocation and reallocation calculations. They also respect daemonset scheduling constraints, such as Nvidia’s GPU Driver Installer.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-multiple-scheduling-defaults&#34;&gt;Does Karpenter support multiple scheduling defaults?&lt;/h3&gt;
+&lt;p&gt;Provisioners are heterogeneous, which means that the nodes they manage are spread across multiple availability zones, instance types, and capacity types. This flexibility reduces the need for a large number of groups. However, customers may find multiple groups to be useful for more advanced use cases. For example, customers can create multiple groups, and then use the node selector &lt;code&gt;karpenter.sh/provisioner-name&lt;/code&gt; to target specific groups. This enables advanced use cases like resource isolation and sharding.&lt;/p&gt;
+&lt;h3 id=&#34;what-if-my-pod-is-schedulable-for-multiple-provisioners&#34;&gt;What if my pod is schedulable for multiple Provisioners?&lt;/h3&gt;
+&lt;p&gt;It&amp;rsquo;s possible that an unconstrained pods could flexibly schedule in multiple groups. In this case, Provisioners will race to create a scheduling lease for the pod before launching new nodes, which avoids unnecessary scale out.&lt;/p&gt;
+&lt;h2 id=&#34;reallocation&#34;&gt;Reallocation&lt;/h2&gt;
+&lt;h3 id=&#34;how-does-karpenter-decide-which-nodes-it-can-terminate&#34;&gt;How does Karpenter decide which nodes it can terminate?&lt;/h3&gt;
+&lt;p&gt;A provisioner will only take action on nodes that it manages. This means that a node will only be considered for termination if it is labeled underutilized by the provisioner that manages it.&lt;/p&gt;
+&lt;h3 id=&#34;how-do-i-know-if-a-node-is-underutilized&#34;&gt;How do I know if a node is underutilized?&lt;/h3&gt;
+&lt;p&gt;Nodes are labeled underutilized if they have 0 non-daemonset pods scheduled. We plan to include more use cases in the future. A node needs to be underutilized for a period of time before being considered for termination.&lt;/p&gt;
+&lt;h3 id=&#34;how-does-karpenter-terminate-nodes&#34;&gt;How does Karpenter terminate nodes?&lt;/h3&gt;
+&lt;p&gt;Karpenter annotates nodes that are underutilized with a time to live (TTL). If the node remains underutilized after the TTL expires, Karpenter then &lt;a href=&#34;https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration&#34;&gt;cordons&lt;/a&gt; the node and uses the &lt;a href=&#34;https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/#eviction-api&#34;&gt;Kubernetes Eviction API&lt;/a&gt; to evict all non-daemonset pods. Once the node is empty, the node is terminated.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-pod-disruption-budgets&#34;&gt;Does Karpenter support Pod Disruption Budgets?&lt;/h3&gt;
+&lt;p&gt;Yes. The Kubernetes Eviction API will not delete pods that violate a &lt;a href=&#34;https://kubernetes.io/docs/tasks/run-application/configure-pdb/&#34;&gt;Pod Disruption Budget (PDB)&lt;/a&gt;. It also disallows eviction of any pod covered by multiple PDBs, so most users will want to avoid overlapping selectors. See &lt;a href=&#34;https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets&#34;&gt;this&lt;/a&gt; for more.&lt;/p&gt;
+&lt;h3 id=&#34;does-karpenter-support-scale-to-zero&#34;&gt;Does Karpenter support scale to zero?&lt;/h3&gt;
+&lt;p&gt;Yes. Provisioners start at zero and launch or terminate nodes as necessary. We recommend that customers maintain a small amount of static capacity to bootstrap system controllers or run Karpenter outside of their cluster.&lt;/p&gt;
+&lt;h2 id=&#34;compatibility&#34;&gt;Compatibility&lt;/h2&gt;
+&lt;h3 id=&#34;which-kubernetes-versions-does-karpenter-support&#34;&gt;Which Kubernetes versions does Karpenter support?&lt;/h3&gt;
+&lt;p&gt;Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with all Kubernetes versions greater than v1.16. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.&lt;/p&gt;
+&lt;h3 id=&#34;can-i-use-karpenter-alongside-another-node-management-solution&#34;&gt;Can I use Karpenter alongside another node management solution?&lt;/h3&gt;
+&lt;p&gt;Provisioners are designed to work alongside static capacity management solutions like EKS Managed Node Groups and EC2 Auto Scaling Groups. Some customers may choose to (1) manage the entirety of their capacity using Provisioner, others may prefer (2) a mixed model with both dynamic and statically managed capacity, some may prefer (3) a fully static approach. We anticipate that most customers will fall into bucket (2) in the short term, and (1) in the long term.&lt;/p&gt;
+&lt;h3 id=&#34;can-i-use-karpenter-with-the-kubernetes-cluster-autoscaler&#34;&gt;Can I use Karpenter with the Kubernetes Cluster Autoscaler?&lt;/h3&gt;
+&lt;p&gt;Yes, with side effects. Karpenter is a Cluster Autoscaler replacement. Both systems scale up nodes in response to pending pods. If configured together, both systems will race to launch new instances for incoming pods. Since Provisioners make binding decisions, they will typically win the scheduling race. In this case, the Cluster Autoscaler will eventually scale down the unnecessary capacity. If the Cluster Autoscaler is configured with Node Groups that have constraints that aren’t supported by any Provisioner, its behavior will continue unimpeded.&lt;/p&gt;
 
       </description>
     </item>
     
     <item>
       <title>Docs: Provisioner CRD</title>
-      <link>/docs/reference/parameter-reference/</link>
+      <link>/docs/prov-crd/</link>
       <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
       
-      <guid>/docs/reference/parameter-reference/</guid>
+      <guid>/docs/prov-crd/</guid>
+      <description>
+        
+        
+        &lt;h2 id=&#34;example-resource&#34;&gt;example resource&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Provisioned nodes connect to this cluster&lt;/span&gt;
+  cluster:
+    name: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;${&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;CLUSTER_NAME&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;}&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;
+    caBundle: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;${&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;CLUSTER_CA_BUNDLE&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;}&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;
+    endpoint: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;${&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;CLUSTER_ENDPOINT&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;}&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;&lt;/span&gt;
+
+  &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# If nil, the feature is disabled, nodes will never expire&lt;/span&gt;
+  ttlSecondsUntilExpired: &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;2592000&lt;/span&gt; &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# 30 Days = 60 * 60 * 24 * 30 Seconds;&lt;/span&gt;
+
+  &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# If nil, the feature is disabled, nodes will never scale down due to low utilization&lt;/span&gt;
+  ttlSecondsAfterEmpty: &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;30&lt;/span&gt;
+
+  &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Provisioned nodes will have these taints&lt;/span&gt;
+  taints:
+    - key: example.com/special-taint
+      effect: NoSchedule
+
+  &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Provisioned nodes will have these labels&lt;/span&gt;
+  labels:
+    &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;##### AWS Specific #####&lt;/span&gt;
+    &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Constrain node launch template, default=&amp;#34;bottlerocket&amp;#34;&lt;/span&gt;
+    node.k8s.aws/launch-template-id: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;bottlerocket-qwertyuiop&amp;#34;&lt;/span&gt;
+    &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Constrain node launch template, default=&amp;#34;$LATEST&amp;#34;&lt;/span&gt;
+    node.k8s.aws/launch-template-version: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;my-special-version&amp;#34;&lt;/span&gt;
+    &lt;span style=&#34;color:#8f5902;font-style:italic&#34;&gt;# Constrain node capacity type, default=&amp;#34;on-demand&amp;#34;&lt;/span&gt;
+    node.k8s.aws/capacity-type: &lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;spot&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Docs: Deployment Guide</title>
+      <link>/docs/deployment-guide/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/docs/deployment-guide/</guid>
       <description>
         
         
         
-
-&lt;div class=&#34;pageinfo pageinfo-primary&#34;&gt;
-&lt;p&gt;This is a placeholder page. Replace it with your own content.&lt;/p&gt;
-
-&lt;/div&gt;
-
-&lt;p&gt;Text can be &lt;strong&gt;bold&lt;/strong&gt;, &lt;em&gt;italic&lt;/em&gt;, or &lt;del&gt;strikethrough&lt;/del&gt;. &lt;a href=&#34;https://gohugo.io&#34;&gt;Links&lt;/a&gt; should be blue with no underlines (unless hovered over).&lt;/p&gt;
-&lt;p&gt;There should be whitespace between paragraphs. Vape migas chillwave sriracha poutine try-hard distillery. Tattooed shabby chic small batch, pabst art party heirloom letterpress air plant pop-up. Sustainable chia skateboard art party banjo cardigan normcore affogato vexillologist quinoa meggings man bun master cleanse shoreditch readymade. Yuccie prism four dollar toast tbh cardigan iPhone, tumblr listicle live-edge VHS. Pug lyft normcore hot chicken biodiesel, actually keffiyeh thundercats photo booth pour-over twee fam food truck microdosing banh mi. Vice activated charcoal raclette unicorn live-edge post-ironic. Heirloom vexillologist coloring book, beard deep v letterpress echo park humblebrag tilde.&lt;/p&gt;
-&lt;p&gt;90&amp;rsquo;s four loko seitan photo booth gochujang freegan tumeric listicle fam ugh humblebrag. Bespoke leggings gastropub, biodiesel brunch pug fashion axe meh swag art party neutra deep v chia. Enamel pin fanny pack knausgaard tofu, artisan cronut hammock meditation occupy master cleanse chartreuse lumbersexual. Kombucha kogi viral truffaut synth distillery single-origin coffee ugh slow-carb marfa selfies. Pitchfork schlitz semiotics fanny pack, ugh artisan vegan vaporware hexagon. Polaroid fixie post-ironic venmo wolf ramps &lt;strong&gt;kale chips&lt;/strong&gt;.&lt;/p&gt;
-&lt;blockquote&gt;
-&lt;p&gt;There should be no margin above this first sentence.&lt;/p&gt;
-&lt;p&gt;Blockquotes should be a lighter gray with a border along the left side in the secondary color.&lt;/p&gt;
-&lt;p&gt;There should be no margin below this final sentence.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h2 id=&#34;first-header-2&#34;&gt;First Header 2&lt;/h2&gt;
-&lt;p&gt;This is a normal paragraph following a header. Knausgaard kale chips snackwave microdosing cronut copper mug swag synth bitters letterpress glossier &lt;strong&gt;craft beer&lt;/strong&gt;. Mumblecore bushwick authentic gochujang vegan chambray meditation jean shorts irony. Viral farm-to-table kale chips, pork belly palo santo distillery activated charcoal aesthetic jianbing air plant woke lomo VHS organic. Tattooed locavore succulents heirloom, small batch sriracha echo park DIY af. Shaman you probably haven&amp;rsquo;t heard of them copper mug, crucifix green juice vape &lt;em&gt;single-origin coffee&lt;/em&gt; brunch actually. Mustache etsy vexillologist raclette authentic fam. Tousled beard humblebrag asymmetrical. I love turkey, I love my job, I love my friends, I love Chardonnay!&lt;/p&gt;
-&lt;p&gt;Deae legum paulatimque terra, non vos mutata tacet: dic. Vocant docuique me plumas fila quin afuerunt copia haec o neque.&lt;/p&gt;
-&lt;p&gt;On big screens, paragraphs and headings should not take up the full container width, but we want tables, code blocks and similar to take the full width.&lt;/p&gt;
-&lt;p&gt;Scenester tumeric pickled, authentic crucifix post-ironic fam freegan VHS pork belly 8-bit yuccie PBR&amp;amp;B. &lt;strong&gt;I love this life we live in&lt;/strong&gt;.&lt;/p&gt;
-&lt;h2 id=&#34;second-header-2&#34;&gt;Second Header 2&lt;/h2&gt;
-&lt;blockquote&gt;
-&lt;p&gt;This is a blockquote following a header. Bacon ipsum dolor sit amet t-bone doner shank drumstick, pork belly porchetta chuck sausage brisket ham hock rump pig. Chuck kielbasa leberkas, pork bresaola ham hock filet mignon cow shoulder short ribs biltong.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h3 id=&#34;header-3&#34;&gt;Header 3&lt;/h3&gt;
-&lt;pre&gt;&lt;code&gt;This is a code block following a header.
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Next level leggings before they sold out, PBR&amp;amp;B church-key shaman echo park. Kale chips occupy godard whatever pop-up freegan pork belly selfies. Gastropub Belinda subway tile woke post-ironic seitan. Shabby chic man bun semiotics vape, chia messenger bag plaid cardigan.&lt;/p&gt;
-&lt;h4 id=&#34;header-4&#34;&gt;Header 4&lt;/h4&gt;
-&lt;ul&gt;
-&lt;li&gt;This is an unordered list following a header.&lt;/li&gt;
-&lt;li&gt;This is an unordered list following a header.&lt;/li&gt;
-&lt;li&gt;This is an unordered list following a header.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h5 id=&#34;header-5&#34;&gt;Header 5&lt;/h5&gt;
-&lt;ol&gt;
-&lt;li&gt;This is an ordered list following a header.&lt;/li&gt;
-&lt;li&gt;This is an ordered list following a header.&lt;/li&gt;
-&lt;li&gt;This is an ordered list following a header.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h6 id=&#34;header-6&#34;&gt;Header 6&lt;/h6&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Docs: Development Guide</title>
+      <link>/docs/dev-guide/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/docs/dev-guide/</guid>
+      <description>
+        
+        
+        &lt;h2 id=&#34;dependencies&#34;&gt;Dependencies&lt;/h2&gt;
+&lt;p&gt;The following tools are required for doing development on Karpenter.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
-&lt;th&gt;What&lt;/th&gt;
-&lt;th&gt;Follows&lt;/th&gt;
+&lt;th&gt;Package&lt;/th&gt;
+&lt;th&gt;Version&lt;/th&gt;
+&lt;th&gt;Install&lt;/th&gt;
 &lt;/tr&gt;
 &lt;/thead&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
-&lt;td&gt;A table&lt;/td&gt;
-&lt;td&gt;A header&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://golang.org/dl/&#34;&gt;go&lt;/a&gt;&lt;/td&gt;
+&lt;td&gt;v1.15.3+&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;brew install go&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;A table&lt;/td&gt;
-&lt;td&gt;A header&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://kubernetes.io/docs/tasks/tools/install-kubectl/&#34;&gt;kubectl&lt;/a&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;brew install kubectl&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;A table&lt;/td&gt;
-&lt;td&gt;A header&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://helm.sh/docs/intro/install/&#34;&gt;helm&lt;/a&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;brew install helm&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Other tools&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;make toolchain&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;hr&gt;
-&lt;p&gt;There&amp;rsquo;s a horizontal rule above and below this.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;Here is an unordered list:&lt;/p&gt;
+&lt;h2 id=&#34;developing&#34;&gt;Developing&lt;/h2&gt;
+&lt;h3 id=&#34;setup--teardown&#34;&gt;Setup / Teardown&lt;/h3&gt;
+&lt;p&gt;Based on which environment you are running a Kubernetes cluster, follow the &lt;a href=&#34;#environment-specific-setup&#34;&gt;Environment specific setup&lt;/a&gt; for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;make codegen # Create auto-generated YAML files.
+make apply # Install Karpenter
+make delete # Uninstall Karpenter
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&#34;developer-loop&#34;&gt;Developer Loop&lt;/h3&gt;
 &lt;ul&gt;
-&lt;li&gt;Liverpool F.C.&lt;/li&gt;
-&lt;li&gt;Chelsea F.C.&lt;/li&gt;
-&lt;li&gt;Manchester United F.C.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;And an ordered list:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;Michael Brecker&lt;/li&gt;
-&lt;li&gt;Seamus Blake&lt;/li&gt;
-&lt;li&gt;Branford Marsalis&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;And an unordered task list:&lt;/p&gt;
+&lt;li&gt;Make sure dependencies are installed
 &lt;ul&gt;
-&lt;li&gt;&lt;input checked=&#34;&#34; disabled=&#34;&#34; type=&#34;checkbox&#34;&gt; Create a Hugo theme&lt;/li&gt;
-&lt;li&gt;&lt;input checked=&#34;&#34; disabled=&#34;&#34; type=&#34;checkbox&#34;&gt; Add task lists to it&lt;/li&gt;
-&lt;li&gt;&lt;input disabled=&#34;&#34; type=&#34;checkbox&#34;&gt; Take a vacation&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;And a &amp;ldquo;mixed&amp;rdquo; task list:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;input disabled=&#34;&#34; type=&#34;checkbox&#34;&gt; Pack bags&lt;/li&gt;
-&lt;li&gt;?&lt;/li&gt;
-&lt;li&gt;&lt;input disabled=&#34;&#34; type=&#34;checkbox&#34;&gt; Travel!&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;And a nested list:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Jackson 5
-&lt;ul&gt;
-&lt;li&gt;Michael&lt;/li&gt;
-&lt;li&gt;Tito&lt;/li&gt;
-&lt;li&gt;Jackie&lt;/li&gt;
-&lt;li&gt;Marlon&lt;/li&gt;
-&lt;li&gt;Jermaine&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;make codegen&lt;/code&gt; to make sure yaml manifests are generated&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;make toolchain&lt;/code&gt; to install cli tools for building and testing the project&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
-&lt;li&gt;TMNT
+&lt;li&gt;You will need a personal development image repository (e.g. ECR)
 &lt;ul&gt;
-&lt;li&gt;Leonardo&lt;/li&gt;
-&lt;li&gt;Michelangelo&lt;/li&gt;
-&lt;li&gt;Donatello&lt;/li&gt;
-&lt;li&gt;Raphael&lt;/li&gt;
+&lt;li&gt;Make sure you have valid credentials to your development repository.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;$KO_DOCKER_REPO&lt;/code&gt; must point to your development repository&lt;/li&gt;
+&lt;li&gt;Your cluster must have permissions to read from the repository&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
+&lt;li&gt;If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned &lt;a href=&#34;docs/aws/README.md&#34;&gt;here&lt;/a&gt;. This is a temporary problem with our subnet discovery system, and is being tracked &lt;a href=&#34;https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904&#34;&gt;here&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Definition lists can be used with Markdown syntax. Definition headers are bold.&lt;/p&gt;
-&lt;dl&gt;
-&lt;dt&gt;Name&lt;/dt&gt;
-&lt;dd&gt;Godzilla&lt;/dd&gt;
-&lt;dt&gt;Born&lt;/dt&gt;
-&lt;dd&gt;1952&lt;/dd&gt;
-&lt;dt&gt;Birthplace&lt;/dt&gt;
-&lt;dd&gt;Japan&lt;/dd&gt;
-&lt;dt&gt;Color&lt;/dt&gt;
-&lt;dd&gt;Green&lt;/dd&gt;
-&lt;/dl&gt;
-&lt;hr&gt;
-&lt;p&gt;Tables should have bold headings and alternating shaded rows.&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Artist&lt;/th&gt;
-&lt;th&gt;Album&lt;/th&gt;
-&lt;th&gt;Year&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;Michael Jackson&lt;/td&gt;
-&lt;td&gt;Thriller&lt;/td&gt;
-&lt;td&gt;1982&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Prince&lt;/td&gt;
-&lt;td&gt;Purple Rain&lt;/td&gt;
-&lt;td&gt;1984&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Beastie Boys&lt;/td&gt;
-&lt;td&gt;License to Ill&lt;/td&gt;
-&lt;td&gt;1986&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;p&gt;If a table is too wide, it should scroll horizontally.&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Artist&lt;/th&gt;
-&lt;th&gt;Album&lt;/th&gt;
-&lt;th&gt;Year&lt;/th&gt;
-&lt;th&gt;Label&lt;/th&gt;
-&lt;th&gt;Awards&lt;/th&gt;
-&lt;th&gt;Songs&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;Michael Jackson&lt;/td&gt;
-&lt;td&gt;Thriller&lt;/td&gt;
-&lt;td&gt;1982&lt;/td&gt;
-&lt;td&gt;Epic Records&lt;/td&gt;
-&lt;td&gt;Grammy Award for Album of the Year, American Music Award for Favorite Pop/Rock Album, American Music Award for Favorite Soul/R&amp;amp;B Album, Brit Award for Best Selling Album, Grammy Award for Best Engineered Album, Non-Classical&lt;/td&gt;
-&lt;td&gt;Wanna Be Startin&#39; Somethin&#39;, Baby Be Mine, The Girl Is Mine, Thriller, Beat It, Billie Jean, Human Nature, P.Y.T. (Pretty Young Thing), The Lady in My Life&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Prince&lt;/td&gt;
-&lt;td&gt;Purple Rain&lt;/td&gt;
-&lt;td&gt;1984&lt;/td&gt;
-&lt;td&gt;Warner Brothers Records&lt;/td&gt;
-&lt;td&gt;Grammy Award for Best Score Soundtrack for Visual Media, American Music Award for Favorite Pop/Rock Album, American Music Award for Favorite Soul/R&amp;amp;B Album, Brit Award for Best Soundtrack/Cast Recording, Grammy Award for Best Rock Performance by a Duo or Group with Vocal&lt;/td&gt;
-&lt;td&gt;Let&amp;rsquo;s Go Crazy, Take Me With U, The Beautiful Ones, Computer Blue, Darling Nikki, When Doves Cry, I Would Die 4 U, Baby I&amp;rsquo;m a Star, Purple Rain&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Beastie Boys&lt;/td&gt;
-&lt;td&gt;License to Ill&lt;/td&gt;
-&lt;td&gt;1986&lt;/td&gt;
-&lt;td&gt;Mercury Records&lt;/td&gt;
-&lt;td&gt;noawardsbutthistablecelliswide&lt;/td&gt;
-&lt;td&gt;Rhymin &amp;amp; Stealin, The New Style, She&amp;rsquo;s Crafty, Posse in Effect, Slow Ride, Girls, (You Gotta) Fight for Your Right, No Sleep Till Brooklyn, Paul Revere, Hold It Now, Hit It, Brass Monkey, Slow and Low, Time to Get Ill&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;hr&gt;
-&lt;p&gt;Code snippets like &lt;code&gt;var foo = &amp;quot;bar&amp;quot;;&lt;/code&gt; can be shown inline.&lt;/p&gt;
-&lt;p&gt;Also, &lt;code&gt;this should vertically align&lt;/code&gt; &lt;del&gt;&lt;code&gt;with this&lt;/code&gt;&lt;/del&gt; &lt;del&gt;and this&lt;/del&gt;.&lt;/p&gt;
-&lt;p&gt;Code can also be shown in a block element.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;foo := &amp;quot;bar&amp;quot;;
-bar := &amp;quot;foo&amp;quot;;
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Code can also use syntax highlighting.&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;func&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;main&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;()&lt;/span&gt; &lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;{&lt;/span&gt;
-  &lt;span style=&#34;color:#000&#34;&gt;input&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:=&lt;/span&gt; &lt;span style=&#34;color:#4e9a06&#34;&gt;`var foo = &amp;#34;bar&amp;#34;;`&lt;/span&gt;
-
-  &lt;span style=&#34;color:#000&#34;&gt;lexer&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;lexers&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Get&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;javascript&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
-  &lt;span style=&#34;color:#000&#34;&gt;iterator&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;_&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;lexer&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Tokenise&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;nil&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;input&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
-  &lt;span style=&#34;color:#000&#34;&gt;style&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;styles&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Get&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#34;github&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
-  &lt;span style=&#34;color:#000&#34;&gt;formatter&lt;/span&gt; &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;:=&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;html&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;New&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;html&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;WithLineNumbers&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;())&lt;/span&gt;
-
-  &lt;span style=&#34;color:#204a87;font-weight:bold&#34;&gt;var&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;buff&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;bytes&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Buffer&lt;/span&gt;
-  &lt;span style=&#34;color:#000&#34;&gt;formatter&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Format&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;buff&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;style&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;,&lt;/span&gt; &lt;span style=&#34;color:#000&#34;&gt;iterator&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;)&lt;/span&gt;
-
-  &lt;span style=&#34;color:#000&#34;&gt;fmt&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;Println&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;(&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;buff&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;.&lt;/span&gt;&lt;span style=&#34;color:#000&#34;&gt;String&lt;/span&gt;&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;())&lt;/span&gt;
-&lt;span style=&#34;color:#000;font-weight:bold&#34;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;Long, single-line code blocks should not wrap. They should horizontally scroll if they are too long. This line should be long enough to demonstrate this.
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Inline code inside table cells should still be distinguishable.&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Language&lt;/th&gt;
-&lt;th&gt;Code&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;Javascript&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;var foo = &amp;quot;bar&amp;quot;;&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Ruby&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;foo = &amp;quot;bar&amp;quot;{&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;hr&gt;
-&lt;p&gt;Small images should be shown at their actual size.&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg/240px-Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
-&lt;p&gt;Large images should always scale down and fit in the content container.&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg/1024px-Picea_abies_shoot_with_buds%2C_Sogndal%2C_Norway.jpg&#34; alt=&#34;&#34;&gt;&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;The photo above of the Spruce Picea abies shoot with foliage buds: Bjørn Erik Pedersen, CC-BY-SA.&lt;/em&gt;&lt;/p&gt;
-&lt;h2 id=&#34;components&#34;&gt;Components&lt;/h2&gt;
-&lt;h3 id=&#34;alerts&#34;&gt;Alerts&lt;/h3&gt;
-&lt;p&gt;
-
-&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
-
-
-    This is an alert.
-
-&lt;/div&gt;
-
-
-
-&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
-&lt;h4 class=&#34;alert-heading&#34;&gt;Note&lt;/h4&gt;
-
-    This is an alert with a title.
-
-&lt;/div&gt;
-
-
-
-&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
-&lt;h4 class=&#34;alert-heading&#34;&gt;Note&lt;/h4&gt;
-
-    This is an alert with a title and &lt;strong&gt;Markdown&lt;/strong&gt;.
-
-&lt;/div&gt;
-
-
-
-&lt;div class=&#34;alert alert-success&#34; role=&#34;alert&#34;&gt;
-
-
-    This is a successful alert.
-
-&lt;/div&gt;
-
-
-
-&lt;div class=&#34;alert alert-warning&#34; role=&#34;alert&#34;&gt;
-
-
-    This is a warning.
-
-&lt;/div&gt;
-
-
-
-&lt;div class=&#34;alert alert-warning&#34; role=&#34;alert&#34;&gt;
-&lt;h4 class=&#34;alert-heading&#34;&gt;Warning&lt;/h4&gt;
-
-    This is a warning with a title.
-
-&lt;/div&gt;
-&lt;/p&gt;
-&lt;h2 id=&#34;another-heading&#34;&gt;Another Heading&lt;/h2&gt;
-
+&lt;h3 id=&#34;build-and-deploy&#34;&gt;Build and Deploy&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;make dev                                  # build and test code
+make apply                                # deploy local changes to cluster
+CLOUD_PROVIDER=&amp;lt;YOUR_PROVIDER&amp;gt; make apply # deploy for your cloud provider
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&#34;testing&#34;&gt;Testing&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;make test       # E2e correctness tests
+make battletest # More rigorous tests run in CI environment
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&#34;verbose-logging&#34;&gt;Verbose Logging&lt;/h3&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;kubectl patch deployment karpenter -n karpenter --type&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;json&amp;#39;&lt;/span&gt; -p&lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#4e9a06&#34;&gt;&amp;#39;[{&amp;#34;op&amp;#34;: &amp;#34;replace&amp;#34;, &amp;#34;path&amp;#34;: &amp;#34;/spec/template/spec/containers/0/args&amp;#34;, &amp;#34;value&amp;#34;: [&amp;#34;--verbose&amp;#34;]}]&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;debugging-metrics&#34;&gt;Debugging Metrics&lt;/h3&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;open http://localhost:8080/metrics &lt;span style=&#34;color:#ce5c00;font-weight:bold&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; kubectl port-forward service/karpenter-metrics -n karpenter &lt;span style=&#34;color:#0000cf;font-weight:bold&#34;&gt;8080&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;environment-specific-setup&#34;&gt;Environment specific setup&lt;/h2&gt;
+&lt;h3 id=&#34;aws&#34;&gt;AWS&lt;/h3&gt;
+&lt;p&gt;Set the CLOUD_PROVIDER environment variable to build cloud provider specific packages of Karpenter.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;export CLOUD_PROVIDER=aws
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
+You can use the following command to provision an ECR repository.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;aws ecr create-repository \
+    --repository-name karpenter/controller \
+    --image-scanning-configuration scanOnPush=true \
+    --region ${AWS_DEFAULT_REGION}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;export KO_DOCKER_REPO=&amp;quot;${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter&amp;quot;
+aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
+&lt;/code&gt;&lt;/pre&gt;
       </description>
     </item>
     

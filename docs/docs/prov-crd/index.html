@@ -3,8 +3,7 @@
   <head>
     <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta name="generator" content="Hugo 0.84.1" /><link rel="alternate" type="application/rss&#43;xml" href="/docs/examples/index.xml">
-<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+<meta name="generator" content="Hugo 0.84.1" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
 
 
 <link rel="shortcut icon" href="/favicons/favicon.ico" >
@@ -18,16 +17,21 @@
 <link rel="icon" type="image/png" href="/favicons/android-144x144.png" sizes="144x144">
 <link rel="icon" type="image/png" href="/favicons/android-192x192.png" sizes="192x192">
 
-<title>Examples | Karpenter</title>
-<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Examples" />
-<meta property="og:description" content="Docs for karpenter" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="/docs/examples/" /><meta property="og:site_name" content="Karpenter" />
+<title>Provisioner CRD | Karpenter</title>
+<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Provisioner CRD" />
+<meta property="og:description" content="example resource apiVersion: provisioning.karpenter.sh/v1alpha1 kind: Provisioner metadata: name: default spec: # Provisioned nodes connect to this cluster cluster: name: &#34;${CLUSTER_NAME}&#34; caBundle: &#34;${CLUSTER_CA_BUNDLE}&#34; endpoint: &#34;${CLUSTER_ENDPOINT}&#34; # If nil, the feature is disabled, nodes will never expire ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds; # If nil, the feature is disabled, nodes will never scale down due to low utilization ttlSecondsAfterEmpty: 30 # Provisioned nodes will have these taints taints: - key: example." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/docs/prov-crd/" /><meta property="article:section" content="docs" />
+<meta property="article:published_time" content="2017-01-05T00:00:00&#43;00:00" />
+<meta property="article:modified_time" content="2017-01-05T00:00:00&#43;00:00" /><meta property="og:site_name" content="Karpenter" />
 
-<meta itemprop="name" content="Examples">
-<meta itemprop="description" content="Docs for karpenter"><meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Examples"/>
-<meta name="twitter:description" content="Docs for karpenter"/>
+<meta itemprop="name" content="Provisioner CRD">
+<meta itemprop="description" content="example resource apiVersion: provisioning.karpenter.sh/v1alpha1 kind: Provisioner metadata: name: default spec: # Provisioned nodes connect to this cluster cluster: name: &#34;${CLUSTER_NAME}&#34; caBundle: &#34;${CLUSTER_CA_BUNDLE}&#34; endpoint: &#34;${CLUSTER_ENDPOINT}&#34; # If nil, the feature is disabled, nodes will never expire ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds; # If nil, the feature is disabled, nodes will never scale down due to low utilization ttlSecondsAfterEmpty: 30 # Provisioned nodes will have these taints taints: - key: example."><meta itemprop="datePublished" content="2017-01-05T00:00:00&#43;00:00" />
+<meta itemprop="dateModified" content="2017-01-05T00:00:00&#43;00:00" />
+<meta itemprop="wordCount" content="116">
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Provisioner CRD"/>
+<meta name="twitter:description" content="example resource apiVersion: provisioning.karpenter.sh/v1alpha1 kind: Provisioner metadata: name: default spec: # Provisioned nodes connect to this cluster cluster: name: &#34;${CLUSTER_NAME}&#34; caBundle: &#34;${CLUSTER_CA_BUNDLE}&#34; endpoint: &#34;${CLUSTER_ENDPOINT}&#34; # If nil, the feature is disabled, nodes will never expire ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds; # If nil, the feature is disabled, nodes will never scale down due to low utilization ttlSecondsAfterEmpty: 30 # Provisioned nodes will have these taints taints: - key: example."/>
 
 
 
@@ -46,7 +50,7 @@
 
 
   </head>
-  <body class="td-section">
+  <body class="td-page">
     <header>
       
 <nav class="js-navbar-scroll navbar navbar-expand navbar-dark flex-column flex-md-row td-navbar">
@@ -246,9 +250,9 @@
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsprov-crd-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docsprov-crd-li">
     
-      <a href="/docs/prov-crd/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsprov-crd"><span class="">Provisioner CRD</span></a>
+      <a href="/docs/prov-crd/" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-docsprov-crd"><span class="td-sidebar-nav-active-item">Provisioner CRD</span></a>
     
     
   </li>
@@ -300,9 +304,9 @@
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docsexamples-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsexamples-li">
     
-      <a href="/docs/examples/" class="align-left pl-0 active td-sidebar-link td-sidebar-link__section" id="m-docsexamples"><span class="td-sidebar-nav-active-item">Examples</span></a>
+      <a href="/docs/examples/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-docsexamples"><span class="">Examples</span></a>
     
     
   </li>
@@ -455,9 +459,9 @@
     
     
 
-    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/examples/_index.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
-    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/examples/_index.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
-    <a href="https://github.com/google/docsy-example/issues/new?title=Examples" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/prov-crd.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/prov-crd.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/google/docsy-example/issues/new?title=Provisioner%20CRD" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
     
       
       <a href="https://github.com/google/docsy/issues/new" target="_blank"><i class="fas fa-tasks fa-fw"></i> Create project issue</a>
@@ -516,7 +520,7 @@
 
 
 <li class="breadcrumb-item active" aria-current="page">
-	<a href="/docs/examples/">Examples</a>
+	<a href="/docs/prov-crd/">Provisioner CRD</a>
 </li>
 
 	</ol>
@@ -524,8 +528,8 @@
 
             
 <div class="td-content">
-	<h1>Examples</h1>
-  
+	<h1>Provisioner CRD</h1>
+	
 	<header class="article-meta">
 		
 		
@@ -540,24 +544,40 @@
 			
 		
 		
-	</header>
-	<ul>
-<li>helm chart</li>
-<li>service account</li>
-<li>IRSA</li>
-<li>IAM roles?</li>
-</ul>
+	</header>    
+	<h2 id="example-resource">example resource</h2>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">apiVersion: provisioning.karpenter.sh/v1alpha1
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  <span style="color:#8f5902;font-style:italic"># Provisioned nodes connect to this cluster</span>
+  cluster:
+    name: <span style="color:#4e9a06">&#34;</span><span style="color:#4e9a06">${</span><span style="color:#000">CLUSTER_NAME</span><span style="color:#4e9a06">}</span><span style="color:#4e9a06">&#34;</span>
+    caBundle: <span style="color:#4e9a06">&#34;</span><span style="color:#4e9a06">${</span><span style="color:#000">CLUSTER_CA_BUNDLE</span><span style="color:#4e9a06">}</span><span style="color:#4e9a06">&#34;</span>
+    endpoint: <span style="color:#4e9a06">&#34;</span><span style="color:#4e9a06">${</span><span style="color:#000">CLUSTER_ENDPOINT</span><span style="color:#4e9a06">}</span><span style="color:#4e9a06">&#34;</span>
 
-        <div class="section-index">
-    
-    
-    
-    
-    
-    
-    
-</div>
+  <span style="color:#8f5902;font-style:italic"># If nil, the feature is disabled, nodes will never expire</span>
+  ttlSecondsUntilExpired: <span style="color:#0000cf;font-weight:bold">2592000</span> <span style="color:#8f5902;font-style:italic"># 30 Days = 60 * 60 * 24 * 30 Seconds;</span>
 
+  <span style="color:#8f5902;font-style:italic"># If nil, the feature is disabled, nodes will never scale down due to low utilization</span>
+  ttlSecondsAfterEmpty: <span style="color:#0000cf;font-weight:bold">30</span>
+
+  <span style="color:#8f5902;font-style:italic"># Provisioned nodes will have these taints</span>
+  taints:
+    - key: example.com/special-taint
+      effect: NoSchedule
+
+  <span style="color:#8f5902;font-style:italic"># Provisioned nodes will have these labels</span>
+  labels:
+    <span style="color:#8f5902;font-style:italic">##### AWS Specific #####</span>
+    <span style="color:#8f5902;font-style:italic"># Constrain node launch template, default=&#34;bottlerocket&#34;</span>
+    node.k8s.aws/launch-template-id: <span style="color:#4e9a06">&#34;bottlerocket-qwertyuiop&#34;</span>
+    <span style="color:#8f5902;font-style:italic"># Constrain node launch template, default=&#34;$LATEST&#34;</span>
+    node.k8s.aws/launch-template-version: <span style="color:#4e9a06">&#34;my-special-version&#34;</span>
+    <span style="color:#8f5902;font-style:italic"># Constrain node capacity type, default=&#34;on-demand&#34;</span>
+    node.k8s.aws/capacity-type: <span style="color:#4e9a06">&#34;spot&#34;</span>
+</code></pre></div>
 	
 	
 	<div class="text-muted mt-5 pt-3 border-top">
@@ -565,6 +585,7 @@
 </div>
 
 </div>
+
 
           </main>
         </div>

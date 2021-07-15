@@ -17,42 +17,24 @@
 <link rel="icon" type="image/png" href="/favicons/android-144x144.png" sizes="144x144">
 <link rel="icon" type="image/png" href="/favicons/android-192x192.png" sizes="192x192">
 
-<title>Amazon Web Services (AWS) | Karpenter</title>
-<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Amazon Web Services (AWS)" />
-<meta property="og:description" content="Well Known Labels on AWS topology.kubernetes.io/region Example:
-topology.kubernetes.io/region=us-east-1
-See topology.kubernetes.io/zone.
-topology.kubernetes.io/zone Example:
-topology.kubernetes.io/zone=us-east-1c
-Used on: Node, PersistentVolume
-On Node: The kubelet or the external cloud-controller-manager populates this with the information as provided by the cloudprovider. This will be set only if you are using a cloudprovider. However, you should consider setting this on nodes if it makes sense in your topology.
-On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on PersistentVolumes." />
+<title>Development Guide | Karpenter</title>
+<meta name="description" content="Docs for karpenter"><meta property="og:title" content="Development Guide" />
+<meta property="og:description" content="Dependencies The following tools are required for doing development on Karpenter.
+   Package Version Install     go v1.15.3&#43; brew install go   kubectl  brew install kubectl   helm  brew install helm   Other tools  make toolchain    Developing Setup / Teardown Based on which environment you are running a Kubernetes cluster, follow the Environment specific setup for setting up your environment before you continue." />
 <meta property="og:type" content="article" />
-<meta property="og:url" content="/docs/cloud-providers/aws/" /><meta property="article:section" content="docs" />
+<meta property="og:url" content="/docs/dev-guide/" /><meta property="article:section" content="docs" />
 
 <meta property="og:site_name" content="Karpenter" />
 
-<meta itemprop="name" content="Amazon Web Services (AWS)">
-<meta itemprop="description" content="Well Known Labels on AWS topology.kubernetes.io/region Example:
-topology.kubernetes.io/region=us-east-1
-See topology.kubernetes.io/zone.
-topology.kubernetes.io/zone Example:
-topology.kubernetes.io/zone=us-east-1c
-Used on: Node, PersistentVolume
-On Node: The kubelet or the external cloud-controller-manager populates this with the information as provided by the cloudprovider. This will be set only if you are using a cloudprovider. However, you should consider setting this on nodes if it makes sense in your topology.
-On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on PersistentVolumes.">
+<meta itemprop="name" content="Development Guide">
+<meta itemprop="description" content="Dependencies The following tools are required for doing development on Karpenter.
+   Package Version Install     go v1.15.3&#43; brew install go   kubectl  brew install kubectl   helm  brew install helm   Other tools  make toolchain    Developing Setup / Teardown Based on which environment you are running a Kubernetes cluster, follow the Environment specific setup for setting up your environment before you continue.">
 
-<meta itemprop="wordCount" content="537">
+<meta itemprop="wordCount" content="358">
 <meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Amazon Web Services (AWS)"/>
-<meta name="twitter:description" content="Well Known Labels on AWS topology.kubernetes.io/region Example:
-topology.kubernetes.io/region=us-east-1
-See topology.kubernetes.io/zone.
-topology.kubernetes.io/zone Example:
-topology.kubernetes.io/zone=us-east-1c
-Used on: Node, PersistentVolume
-On Node: The kubelet or the external cloud-controller-manager populates this with the information as provided by the cloudprovider. This will be set only if you are using a cloudprovider. However, you should consider setting this on nodes if it makes sense in your topology.
-On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on PersistentVolumes."/>
+<meta name="twitter:title" content="Development Guide"/>
+<meta name="twitter:description" content="Dependencies The following tools are required for doing development on Karpenter.
+   Package Version Install     go v1.15.3&#43; brew install go   kubectl  brew install kubectl   helm  brew install helm   Other tools  make toolchain    Developing Setup / Teardown Based on which environment you are running a Kubernetes cluster, follow the Environment specific setup for setting up your environment before you continue."/>
 
 
 
@@ -352,7 +334,7 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-docscloud-providers-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-docscloud-providers-li">
     
       <a href="/docs/cloud-providers/" class="align-left pl-0 td-sidebar-link td-sidebar-link__section" id="m-docscloud-providers"><span class="">Cloud Providers</span></a>
     
@@ -378,9 +360,9 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docscloud-providersaws-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docscloud-providersaws-li">
     
-      <a href="/docs/cloud-providers/aws/" title="Amazon Web Services (AWS)" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-docscloud-providersaws"><span class="td-sidebar-nav-active-item">AWS</span></a>
+      <a href="/docs/cloud-providers/aws/" title="Amazon Web Services (AWS)" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docscloud-providersaws"><span class="">AWS</span></a>
     
     
   </li>
@@ -438,9 +420,9 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
   
   
   
-  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-docsdev-guide-li">
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-docsdev-guide-li">
     
-      <a href="/docs/dev-guide/" class="align-left pl-0 td-sidebar-link td-sidebar-link__page" id="m-docsdev-guide"><span class="">Development Guide</span></a>
+      <a href="/docs/dev-guide/" class="align-left pl-0 active td-sidebar-link td-sidebar-link__page" id="m-docsdev-guide"><span class="td-sidebar-nav-active-item">Development Guide</span></a>
     
     
   </li>
@@ -480,9 +462,9 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
     
     
 
-    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/Cloud%20Providers/AWS.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
-    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/Cloud%20Providers/AWS.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
-    <a href="https://github.com/google/docsy-example/issues/new?title=Amazon%20Web%20Services%20%28AWS%29" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    <a href="https://github.com/google/docsy-example/edit/main/website/content/en/docs/dev-guide.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/google/docsy-example/new/main/website/content/en/docs/dev-guide.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/google/docsy-example/issues/new?title=Development%20Guide" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
     
       
       <a href="https://github.com/google/docsy/issues/new" target="_blank"><i class="fas fa-tasks fa-fw"></i> Create project issue</a>
@@ -498,13 +480,22 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
 
 <div class="td-toc"><nav id="TableOfContents">
   <ul>
-    <li><a href="#well-known-labels-on-aws">Well Known Labels on AWS</a>
+    <li><a href="#dependencies">Dependencies</a></li>
+    <li><a href="#developing">Developing</a>
       <ul>
-        <li><a href="#topologykubernetesioregion">topology.kubernetes.io/region</a></li>
-        <li><a href="#topologykubernetesiozone">topology.kubernetes.io/zone</a></li>
+        <li><a href="#setup--teardown">Setup / Teardown</a></li>
+        <li><a href="#developer-loop">Developer Loop</a></li>
+        <li><a href="#build-and-deploy">Build and Deploy</a></li>
+        <li><a href="#testing">Testing</a></li>
+        <li><a href="#verbose-logging">Verbose Logging</a></li>
+        <li><a href="#debugging-metrics">Debugging Metrics</a></li>
       </ul>
     </li>
-    <li><a href="#how-we-work-with-ec2">How we work with EC2</a></li>
+    <li><a href="#environment-specific-setup">Environment specific setup</a>
+      <ul>
+        <li><a href="#aws">AWS</a></li>
+      </ul>
+    </li>
   </ul>
 </nav></div>
 
@@ -545,9 +536,6 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
 
 
 
-
-
-
 <li class="breadcrumb-item" >
 	<a href="/docs/">Documentation</a>
 </li>
@@ -555,15 +543,8 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
 
 
 
-<li class="breadcrumb-item" >
-	<a href="/docs/cloud-providers/">Cloud Providers</a>
-</li>
-
-
-
-
 <li class="breadcrumb-item active" aria-current="page">
-	<a href="/docs/cloud-providers/aws/">AWS</a>
+	<a href="/docs/dev-guide/">Development Guide</a>
 </li>
 
 	</ol>
@@ -571,7 +552,7 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
 
             
 <div class="td-content">
-	<h1>Amazon Web Services (AWS)</h1>
+	<h1>Development Guide</h1>
 	
 	<header class="article-meta">
 		
@@ -588,32 +569,87 @@ On PersistentVolume: topology-aware volume provisioners will automatically set n
 		
 		
 	</header>    
-	<h2 id="well-known-labels-on-aws">Well Known Labels on AWS</h2>
-<h3 id="topologykubernetesioregion">topology.kubernetes.io/region</h3>
-<p>Example:</p>
-<p><code>topology.kubernetes.io/region=us-east-1</code></p>
-<p>See <a href="#topologykubernetesiozone">topology.kubernetes.io/zone</a>.</p>
-<h3 id="topologykubernetesiozone">topology.kubernetes.io/zone</h3>
-<p>Example:</p>
-<p><code>topology.kubernetes.io/zone=us-east-1c</code></p>
-<p>Used on: Node, PersistentVolume</p>
-<p>On Node: The <code>kubelet</code> or the external <code>cloud-controller-manager</code> populates this with the information as provided by the <code>cloudprovider</code>.  This will be set only if you are using a <code>cloudprovider</code>. However, you should consider setting this on nodes if it makes sense in your topology.</p>
-<p>On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on <code>PersistentVolumes</code>.</p>
-<p>A zone represents a logical failure domain.  It is common for Kubernetes clusters to span multiple zones for increased availability.  While the exact definition of a zone is left to infrastructure implementations, common properties of a zone include very low network latency within a zone, no-cost network traffic within a zone, and failure independence from other zones.  For example, nodes within a zone might share a network switch, but nodes in different zones should not.</p>
-<p>A region represents a larger domain, made up of one or more zones.  It is uncommon for Kubernetes clusters to span multiple regions,  While the exact definition of a zone or region is left to infrastructure implementations, common properties of a region include higher network latency between them than within them, non-zero cost for network traffic between them, and failure independence from other zones or regions.  For example, nodes within a region might share power infrastructure (e.g. a UPS or generator), but nodes in different regions typically would not.</p>
-<p>Kubernetes makes a few assumptions about the structure of zones and regions:</p>
-<ol>
-<li>regions and zones are hierarchical: zones are strict subsets of regions and no zone can be in 2 regions</li>
-<li>zone names are unique across regions; for example region &ldquo;africa-east-1&rdquo; might be comprised of zones &ldquo;africa-east-1a&rdquo; and &ldquo;africa-east-1b&rdquo;</li>
-</ol>
-<p>It should be safe to assume that topology labels do not change.  Even though labels are strictly mutable, consumers of them can assume that a given node is not going to be moved between zones without being destroyed and recreated.</p>
-<p>Kubernetes can use this information in various ways.  For example, the scheduler automatically tries to spread the Pods in a ReplicaSet across nodes in a single-zone cluster (to reduce the impact of node failures, see <a href="#kubernetesiohostname">kubernetes.io/hostname</a>). With multiple-zone clusters, this spreading behavior also applies to zones (to reduce the impact of zone failures). This is achieved via <em>SelectorSpreadPriority</em>.</p>
-<p><em>SelectorSpreadPriority</em> is a best effort placement. If the zones in your cluster are heterogeneous (for example: different numbers of nodes, different types of nodes, or different pod resource requirements), this placement might prevent equal spreading of your Pods across zones. If desired, you can use homogenous zones (same number and types of nodes) to reduce the probability of unequal spreading.</p>
-<p>The scheduler (through the <em>VolumeZonePredicate</em> predicate) also will ensure that Pods, that claim a given volume, are only placed into the same zone as that volume. Volumes cannot be attached across zones.</p>
-<p>If <code>PersistentVolumeLabel</code> does not support automatic labeling of your PersistentVolumes, you should consider
-adding the labels manually (or adding support for <code>PersistentVolumeLabel</code>). With <code>PersistentVolumeLabel</code>, the scheduler prevents Pods from mounting volumes in a different zone. If your infrastructure doesn&rsquo;t have this constraint, you don&rsquo;t need to add the zone labels to the volumes at all.</p>
-<h2 id="how-we-work-with-ec2">How we work with EC2</h2>
-
+	<h2 id="dependencies">Dependencies</h2>
+<p>The following tools are required for doing development on Karpenter.</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Version</th>
+<th>Install</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://golang.org/dl/">go</a></td>
+<td>v1.15.3+</td>
+<td><code>brew install go</code></td>
+</tr>
+<tr>
+<td><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></td>
+<td></td>
+<td><code>brew install kubectl</code></td>
+</tr>
+<tr>
+<td><a href="https://helm.sh/docs/intro/install/">helm</a></td>
+<td></td>
+<td><code>brew install helm</code></td>
+</tr>
+<tr>
+<td>Other tools</td>
+<td></td>
+<td><code>make toolchain</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="developing">Developing</h2>
+<h3 id="setup--teardown">Setup / Teardown</h3>
+<p>Based on which environment you are running a Kubernetes cluster, follow the <a href="#environment-specific-setup">Environment specific setup</a> for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.</p>
+<pre><code>make codegen # Create auto-generated YAML files.
+make apply # Install Karpenter
+make delete # Uninstall Karpenter
+</code></pre><h3 id="developer-loop">Developer Loop</h3>
+<ul>
+<li>Make sure dependencies are installed
+<ul>
+<li>Run <code>make codegen</code> to make sure yaml manifests are generated</li>
+<li>Run <code>make toolchain</code> to install cli tools for building and testing the project</li>
+</ul>
+</li>
+<li>You will need a personal development image repository (e.g. ECR)
+<ul>
+<li>Make sure you have valid credentials to your development repository.</li>
+<li><code>$KO_DOCKER_REPO</code> must point to your development repository</li>
+<li>Your cluster must have permissions to read from the repository</li>
+</ul>
+</li>
+<li>If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned <a href="docs/aws/README.md">here</a>. This is a temporary problem with our subnet discovery system, and is being tracked <a href="https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904">here</a>.</li>
+</ul>
+<h3 id="build-and-deploy">Build and Deploy</h3>
+<pre><code>make dev                                  # build and test code
+make apply                                # deploy local changes to cluster
+CLOUD_PROVIDER=&lt;YOUR_PROVIDER&gt; make apply # deploy for your cloud provider
+</code></pre><h3 id="testing">Testing</h3>
+<pre><code>make test       # E2e correctness tests
+make battletest # More rigorous tests run in CI environment
+</code></pre><h3 id="verbose-logging">Verbose Logging</h3>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl patch deployment karpenter -n karpenter --type<span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#39;json&#39;</span> -p<span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#39;[{&#34;op&#34;: &#34;replace&#34;, &#34;path&#34;: &#34;/spec/template/spec/containers/0/args&#34;, &#34;value&#34;: [&#34;--verbose&#34;]}]&#39;</span>
+</code></pre></div><h3 id="debugging-metrics">Debugging Metrics</h3>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">open http://localhost:8080/metrics <span style="color:#ce5c00;font-weight:bold">&amp;&amp;</span> kubectl port-forward service/karpenter-metrics -n karpenter <span style="color:#0000cf;font-weight:bold">8080</span>
+</code></pre></div><h2 id="environment-specific-setup">Environment specific setup</h2>
+<h3 id="aws">AWS</h3>
+<p>Set the CLOUD_PROVIDER environment variable to build cloud provider specific packages of Karpenter.</p>
+<pre><code>export CLOUD_PROVIDER=aws
+</code></pre><p>For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
+You can use the following command to provision an ECR repository.</p>
+<pre><code>aws ecr create-repository \
+    --repository-name karpenter/controller \
+    --image-scanning-configuration scanOnPush=true \
+    --region ${AWS_DEFAULT_REGION}
+</code></pre><p>Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.</p>
+<pre><code>export KO_DOCKER_REPO=&quot;${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter&quot;
+aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin $KO_DOCKER_REPO
+</code></pre>
 	
 	
 	<div class="text-muted mt-5 pt-3 border-top">

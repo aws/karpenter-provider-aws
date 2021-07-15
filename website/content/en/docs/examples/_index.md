@@ -1,7 +1,7 @@
 ---
 title: "Examples"
 linkTitle: "Examples"
-weight: 40
+weight: 60
 ---
 
 - helm chart

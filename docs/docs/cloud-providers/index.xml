@@ -24,6 +24,29 @@
         
         
         &lt;h2 id=&#34;well-known-labels-on-aws&#34;&gt;Well Known Labels on AWS&lt;/h2&gt;
+&lt;h3 id=&#34;topologykubernetesioregion&#34;&gt;topology.kubernetes.io/region&lt;/h3&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;topology.kubernetes.io/region=us-east-1&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;See &lt;a href=&#34;#topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/h3&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;topology.kubernetes.io/zone=us-east-1c&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Used on: Node, PersistentVolume&lt;/p&gt;
+&lt;p&gt;On Node: The &lt;code&gt;kubelet&lt;/code&gt; or the external &lt;code&gt;cloud-controller-manager&lt;/code&gt; populates this with the information as provided by the &lt;code&gt;cloudprovider&lt;/code&gt;.  This will be set only if you are using a &lt;code&gt;cloudprovider&lt;/code&gt;. However, you should consider setting this on nodes if it makes sense in your topology.&lt;/p&gt;
+&lt;p&gt;On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on &lt;code&gt;PersistentVolumes&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;A zone represents a logical failure domain.  It is common for Kubernetes clusters to span multiple zones for increased availability.  While the exact definition of a zone is left to infrastructure implementations, common properties of a zone include very low network latency within a zone, no-cost network traffic within a zone, and failure independence from other zones.  For example, nodes within a zone might share a network switch, but nodes in different zones should not.&lt;/p&gt;
+&lt;p&gt;A region represents a larger domain, made up of one or more zones.  It is uncommon for Kubernetes clusters to span multiple regions,  While the exact definition of a zone or region is left to infrastructure implementations, common properties of a region include higher network latency between them than within them, non-zero cost for network traffic between them, and failure independence from other zones or regions.  For example, nodes within a region might share power infrastructure (e.g. a UPS or generator), but nodes in different regions typically would not.&lt;/p&gt;
+&lt;p&gt;Kubernetes makes a few assumptions about the structure of zones and regions:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;regions and zones are hierarchical: zones are strict subsets of regions and no zone can be in 2 regions&lt;/li&gt;
+&lt;li&gt;zone names are unique across regions; for example region &amp;ldquo;africa-east-1&amp;rdquo; might be comprised of zones &amp;ldquo;africa-east-1a&amp;rdquo; and &amp;ldquo;africa-east-1b&amp;rdquo;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;It should be safe to assume that topology labels do not change.  Even though labels are strictly mutable, consumers of them can assume that a given node is not going to be moved between zones without being destroyed and recreated.&lt;/p&gt;
+&lt;p&gt;Kubernetes can use this information in various ways.  For example, the scheduler automatically tries to spread the Pods in a ReplicaSet across nodes in a single-zone cluster (to reduce the impact of node failures, see &lt;a href=&#34;#kubernetesiohostname&#34;&gt;kubernetes.io/hostname&lt;/a&gt;). With multiple-zone clusters, this spreading behavior also applies to zones (to reduce the impact of zone failures). This is achieved via &lt;em&gt;SelectorSpreadPriority&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;SelectorSpreadPriority&lt;/em&gt; is a best effort placement. If the zones in your cluster are heterogeneous (for example: different numbers of nodes, different types of nodes, or different pod resource requirements), this placement might prevent equal spreading of your Pods across zones. If desired, you can use homogenous zones (same number and types of nodes) to reduce the probability of unequal spreading.&lt;/p&gt;
+&lt;p&gt;The scheduler (through the &lt;em&gt;VolumeZonePredicate&lt;/em&gt; predicate) also will ensure that Pods, that claim a given volume, are only placed into the same zone as that volume. Volumes cannot be attached across zones.&lt;/p&gt;
+&lt;p&gt;If &lt;code&gt;PersistentVolumeLabel&lt;/code&gt; does not support automatic labeling of your PersistentVolumes, you should consider
+adding the labels manually (or adding support for &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;). With &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;, the scheduler prevents Pods from mounting volumes in a different zone. If your infrastructure doesn&amp;rsquo;t have this constraint, you don&amp;rsquo;t need to add the zone labels to the volumes at all.&lt;/p&gt;
 &lt;h2 id=&#34;how-we-work-with-ec2&#34;&gt;How we work with EC2&lt;/h2&gt;
 
       </description>

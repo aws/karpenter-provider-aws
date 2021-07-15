@@ -1,7 +1,7 @@
 ---
 title: "FAQs"
 linkTitle: "FAQs"
-weight: 11
+weight: 30
 ---
 
 ## General
