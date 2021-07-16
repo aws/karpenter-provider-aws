@@ -80,7 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.Batcher.Wait(&v1alpha3.Provisioner{})
-			zap.S().Errorf("Provisioner \"%s\" not found. Create the 'default' provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
+			zap.S().Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
