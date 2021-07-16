@@ -17,6 +17,7 @@ package termination_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
@@ -30,6 +31,7 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
 )
 
 func TestAPIs(t *testing.T) {
@@ -41,11 +43,9 @@ var controller *termination.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	controller = termination.NewController(
-		e.Client,
-		corev1.NewForConfigOrDie(e.Config),
-		cloudProvider,
-	)
+	coreV1Client := corev1.NewForConfigOrDie(e.Config)
+	controller = termination.NewControllerWithCustomQueue(e.Client, coreV1Client, cloudProvider,
+		workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(1*time.Microsecond, 10*time.Microsecond)))
 })
 
 var _ = BeforeSuite(func() {
@@ -89,6 +89,8 @@ var _ = Describe("Termination", func() {
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+			// Sleep for one second to simulate queue processing work
+			time.Sleep(1 * time.Second)
 
 			// Expect podToEvict to be evicting, and delete it
 			podEvict = ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
@@ -132,6 +134,8 @@ var _ = Describe("Termination", func() {
 			// Reconcile node to evict pod
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+			// Sleep for one second to simulate queue processing work
+			time.Sleep(1 * time.Second)
 			pod := ExpectPodExists(env.Client, podEvict.Name, podEvict.Namespace)
 			Expect(pod.GetObjectMeta().GetDeletionTimestamp().IsZero()).To(BeFalse())
 

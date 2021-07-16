@@ -39,8 +39,8 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	terminator *Terminator
-	kubeClient client.Client
+	Terminator *Terminator
+	KubeClient client.Client
 }
 
 // For returns the resource this controller is for.
@@ -55,11 +55,24 @@ func (c *Controller) Name() string {
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		kubeClient: kubeClient,
-		terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
+		KubeClient: kubeClient,
+		Terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
 			evictionQueue: EvictionQueue{
-				Queue:        workqueue.NewDelayingQueue(),
-				RateLimiter:  workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
+				queue:        workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second)),
+				coreV1Client: coreV1Client,
+				enqueued:     set.NewSet(),
+				once:         sync.Once{},
+			}},
+	}
+}
+
+func NewControllerWithCustomQueue(kubeClient client.Client, coreV1Client corev1.CoreV1Interface,
+	cloudProvider cloudprovider.CloudProvider, rateLimitingQueue workqueue.RateLimitingInterface) *Controller {
+	return &Controller{
+		KubeClient: kubeClient,
+		Terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
+			evictionQueue: EvictionQueue{
+				queue:        rateLimitingQueue,
 				coreV1Client: coreV1Client,
 				enqueued:     set.NewSet(),
 				once:         sync.Once{},
@@ -71,7 +84,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -83,19 +96,19 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 3. Cordon node
-	if err := c.terminator.cordon(ctx, node); err != nil {
+	if err := c.Terminator.cordon(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
 	// 4. Drain node
-	drained, err := c.terminator.drain(ctx, node)
+	drained, err := c.Terminator.drain(ctx, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
 	if !drained {
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: true}, nil
 	}
 	// 4. If fully drained, terminate the node
-	if err := c.terminator.terminate(ctx, node); err != nil {
+	if err := c.Terminator.terminate(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 	}
 	return reconcile.Result{}, nil
