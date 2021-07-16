@@ -22,7 +22,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
-	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"golang.org/x/time/rate"
 
 	"go.uber.org/multierr"
@@ -105,32 +104,40 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
 	}
 
+	// 5. Get Instance Types Options
+	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
+	}
+
 	// 5. Binpack each group
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
-		instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
-		}
 		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
 
-	// 6. Create packedNodes for packings and also copy all Status changes made by the
-	//    cloud provider to the original provisioner instance.
-	packedNodes, err := c.CloudProvider.Create(ctx, provisioner, packings)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
-	}
-
-	// 7. Bind pods to nodes
+	// 6. Create capacity
 	var errs error
-	for _, packedNode := range packedNodes {
-		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
-		if err := c.Binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
+	for _, packing := range packings {
+		if err := c.create(ctx, provisioner, packing); err != nil {
 			errs = multierr.Append(errs, err)
 		}
 	}
 	return reconcile.Result{}, errs
+}
+
+func (c *Controller) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) error {
+	node, err := c.CloudProvider.Create(ctx, provisioner, packing)
+	if err != nil {
+		return fmt.Errorf("creating capacity, %w", err)
+	}
+	node.Labels = packing.Constraints.Labels
+	node.Spec.Taints = packing.Constraints.Taints
+	zap.S().Infof("Binding %d pod(s) to node %s", len(packing.Pods), node.Name)
+	if err := c.Binder.Bind(ctx, node, packing.Pods); err != nil {
+		return fmt.Errorf("creating capacity, %w", err)
+	}
+	return nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

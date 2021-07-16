@@ -89,7 +89,7 @@ kubectl patch deployment karpenter-controller \
 ```
 
 ### Create a Provisioner
-Create a default Provisioner that launches nodes configured with cluster name, endpoint, and caBundle.
+Create a default Provisioner that launches nodes configured with cluster name and endpoint.
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: karpenter.sh/v1alpha3
@@ -99,7 +99,6 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data" --output json)
     endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
   ttlSecondsAfterEmpty: 30
 EOF

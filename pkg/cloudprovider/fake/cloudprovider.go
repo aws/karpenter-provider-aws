@@ -32,46 +32,40 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
-	packedNodes := []*cloudprovider.PackedNode{}
-	for _, packing := range packings {
-		name := strings.ToLower(randomdata.SillyName())
-		// Pick first instance type option
-		instance := packing.InstanceTypeOptions[0]
-		// Pick first zone
-		zones := instance.Zones()
-		if len(packing.Constraints.Zones) != 0 {
-			zones = functional.IntersectStringSlice(packing.Constraints.Zones, instance.Zones())
-		}
-		zone := zones[0]
-
-		// Create instance
-		packedNodes = append(packedNodes, &cloudprovider.PackedNode{
-			Node: &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   name,
-					Labels: packing.Constraints.Labels,
-				},
-				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-					Taints:     packing.Constraints.Taints,
-				},
-				Status: v1.NodeStatus{
-					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    instance.Architectures()[0],
-						OperatingSystem: instance.OperatingSystems()[0],
-					},
-					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *instance.Pods(),
-						v1.ResourceCPU:    *instance.CPU(),
-						v1.ResourceMemory: *instance.Memory(),
-					},
-				},
-			},
-			Pods: packing.Pods,
-		})
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) (*v1.Node, error) {
+	// packedNodes := []*cloudprovider.PackedNode{}
+	name := strings.ToLower(randomdata.SillyName())
+	// Pick first instance type option
+	instance := packing.InstanceTypeOptions[0]
+	// Pick first zone
+	zones := instance.Zones()
+	if len(packing.Constraints.Zones) != 0 {
+		zones = functional.IntersectStringSlice(packing.Constraints.Zones, instance.Zones())
 	}
-	return packedNodes, nil
+	zone := zones[0]
+
+	// Create instance
+	return &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: packing.Constraints.Labels,
+		},
+		Spec: v1.NodeSpec{
+			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+			Taints:     packing.Constraints.Taints,
+		},
+		Status: v1.NodeStatus{
+			NodeInfo: v1.NodeSystemInfo{
+				Architecture:    instance.Architectures()[0],
+				OperatingSystem: instance.OperatingSystems()[0],
+			},
+			Allocatable: v1.ResourceList{
+				v1.ResourcePods:   *instance.Pods(),
+				v1.ResourceCPU:    *instance.CPU(),
+				v1.ResourceMemory: *instance.Memory(),
+			},
+		},
+	}, nil
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

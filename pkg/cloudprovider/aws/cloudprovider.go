@@ -107,49 +107,25 @@ func withUserAgent(sess *session.Session) *session.Session {
 	return sess
 }
 
-// Create a set of nodes given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
-	instanceIDs := []*string{}
-	instancePackings := map[string]*cloudprovider.Packing{}
-	for _, packing := range packings {
-		constraints := Constraints{*packing.Constraints}
-		// 1. Get Subnets and constrain by zones
-		subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
-		if err != nil {
-			return nil, fmt.Errorf("getting zonal subnets, %w", err)
-		}
-		// 2. Get Launch Template
-		launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
-		if err != nil {
-			return nil, fmt.Errorf("getting launch template, %w", err)
-		}
-		// 3. Create instance
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
-		if err != nil {
-			zap.S().Errorf("Continuing after failing to launch instances, %s", err.Error())
-			continue
-		}
-		instancePackings[*instanceID] = packing
-		instanceIDs = append(instanceIDs, instanceID)
-	}
-
-	// 4. Convert to Nodes
-	nodes, err := c.nodeAPI.For(ctx, instanceIDs)
+// Create a node given the constraints.
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) (*v1.Node, error) {
+	constraints := Constraints{*packing.Constraints}
+	// 1. Get Subnets and constrain by zones
+	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return nil, fmt.Errorf("determining nodes, %w", err)
+		return nil, fmt.Errorf("getting zonal subnets, %w", err)
 	}
-	// 5. Convert to PackedNodes, TODO: move this logic into NodeAPI
-	packedNodes := []*cloudprovider.PackedNode{}
-	for instanceID, node := range nodes {
-		packing := instancePackings[instanceID]
-		node.Labels = packing.Constraints.Labels
-		node.Spec.Taints = packing.Constraints.Taints
-		packedNodes = append(packedNodes, &cloudprovider.PackedNode{
-			Node: node,
-			Pods: packing.Pods,
-		})
+	// 2. Get Launch Template
+	launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
+	if err != nil {
+		return nil, fmt.Errorf("getting launch template, %w", err)
 	}
-	return packedNodes, nil
+	// 3. Create instance
+	instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
+	if err != nil {
+		return nil, fmt.Errorf("failed to launch instances, %w", err)
+	}
+	return c.nodeAPI.For(ctx, instanceID)
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

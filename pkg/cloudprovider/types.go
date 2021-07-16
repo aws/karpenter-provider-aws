@@ -27,7 +27,7 @@ import (
 // CloudProvider holds contains the methods necessary in a cloud provider
 type CloudProvider interface {
 	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, *v1alpha3.Provisioner, []*Packing) ([]*PackedNode, error)
+	Create(context.Context, *v1alpha3.Provisioner, *Packing) (*v1.Node, error)
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)

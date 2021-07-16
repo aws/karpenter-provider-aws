@@ -34,38 +34,27 @@ type NodeFactory struct {
 }
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
-func (n *NodeFactory) For(ctx context.Context, instanceIDs []*string) (map[string]*v1.Node, error) {
-	// EC2 will return all instances if unspecified, so we must short circuit
-	if len(instanceIDs) == 0 {
-		return nil, nil
-	}
-	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: instanceIDs})
-	if err == nil {
-		return n.nodesFrom(describeInstancesOutput.Reservations), nil
-	}
+func (n *NodeFactory) For(ctx context.Context, instanceId *string) (*v1.Node, error) {
+	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{instanceId}})
 	if aerr, ok := err.(awserr.Error); ok {
 		return nil, aerr
 	}
-	return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
-}
-
-func (n *NodeFactory) nodesFrom(reservations []*ec2.Reservation) map[string]*v1.Node {
-	nodes := map[string]*v1.Node{}
-	for _, reservation := range reservations {
-		for _, instance := range reservation.Instances {
-			zap.S().Debugf("Launched instance: %s, type: %s, zone: %s, hostname: %s",
-				*instance.InstanceId,
-				*instance.InstanceType,
-				*instance.Placement.AvailabilityZone,
-				*instance.PrivateDnsName,
-			)
-			nodes[*instance.InstanceId] = n.nodeFrom(instance)
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
-	return nodes
-}
-
-func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
+	if len(describeInstancesOutput.Reservations) != 1 {
+		return nil, fmt.Errorf("expected a single instance reservation, got %d", len(describeInstancesOutput.Reservations))
+	}
+	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
+		return nil, fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
+	}
+	instance := describeInstancesOutput.Reservations[0].Instances[0]
+	zap.S().Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
+		*instance.InstanceId,
+		*instance.InstanceType,
+		*instance.Placement.AvailabilityZone,
+		*instance.PrivateDnsName,
+	)
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: *instance.PrivateDnsName,
@@ -85,5 +74,5 @@ func (n *NodeFactory) nodeFrom(instance *ec2.Instance) *v1.Node {
 				OperatingSystem: v1alpha3.OperatingSystemLinux,
 			},
 		},
-	}
+	}, nil
 }

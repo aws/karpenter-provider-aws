@@ -80,7 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
 	if time.Now().After(expirationTime) {
-		zap.S().Infof("Triggering termination after %s (+%s) for expired node %s", expirationTTL, time.Since(expirationTime), node.Name)
+		zap.S().Infof("Triggering termination for expired node %s after %s (+%s)", node.Name, expirationTTL, time.Since(expirationTime))
 		if err := c.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("expiring node %s, %w", node.Name, err)
 		}

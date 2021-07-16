@@ -39,7 +39,7 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
 	CalledWithCreateFleetInput          []*ec2.CreateFleetInput
 	CalledWithCreateLaunchTemplateInput []*ec2.CreateLaunchTemplateInput
-	Instances                           []*ec2.Instance
+	CreatedInstance                     *ec2.Instance
 	LaunchTemplates                     []*ec2.LaunchTemplate
 }
 
@@ -63,10 +63,10 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 	instance := &ec2.Instance{
 		InstanceId:     aws.String(randomdata.SillyName()),
 		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
-		PrivateDnsName: aws.String(fmt.Sprintf("test-instance-%d.example.com", len(e.Instances))),
+		PrivateDnsName: aws.String(randomdata.IpV4Address()),
 		InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 	}
-	e.Instances = append(e.Instances, instance)
+	e.CreatedInstance = instance
 	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil
 }
 
@@ -82,7 +82,7 @@ func (e *EC2API) DescribeInstancesWithContext(context.Context, *ec2.DescribeInst
 		return e.DescribeInstancesOutput, nil
 	}
 	return &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: e.Instances}},
+		Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{e.CreatedInstance}}},
 	}, nil
 }
 
