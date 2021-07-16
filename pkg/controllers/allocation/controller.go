@@ -33,10 +33,13 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -75,6 +78,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 1. Fetch provisioner
 	persistedProvisioner, provisionerWithDefaults, err := c.retrieveProvisionerFrom(ctx, req)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			c.Batcher.Wait(&v1alpha3.Provisioner{})
+			zap.S().Errorf("No provisioner found. Create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha3.ProvisionerNameLabelKey)
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, err
 	}
 
@@ -133,6 +141,20 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		Watches(
 			&source.Kind{Type: &v1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
+			// Only process pod update events
+			builder.WithPredicates(
+				predicate.Funcs{
+					CreateFunc: func(_ event.CreateEvent) bool {
+						return false
+					},
+					DeleteFunc: func(_ event.DeleteEvent) bool {
+						return false
+					},
+					GenericFunc: func(_ event.GenericEvent) bool {
+						return false
+					},
+				},
+			),
 		).
 		WithOptions(
 			controller.Options{
@@ -154,9 +176,6 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 func (c *Controller) retrieveProvisionerFrom(ctx context.Context, req reconcile.Request) (*v1alpha3.Provisioner, *v1alpha3.Provisioner, error) {
 	persistedProvisioner := &v1alpha3.Provisioner{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil, nil
-		}
 		return nil, nil, err
 	}
 
@@ -176,7 +195,12 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 	ctx := context.Background()
 	provisioner, err := c.getProvisionerFor(ctx, pod)
 	if err != nil {
-		zap.S().Errorf("Retrieving provisioner, %s", err.Error())
+		if errors.IsNotFound(err) {
+			// Queue and batch a reconcile request for a non-existent, empty provisioner
+			// This will reduce the number of repeated error messages about a provisioner not existing
+			c.Batcher.Add(&v1alpha3.Provisioner{})
+			return []reconcile.Request{{NamespacedName: types.NamespacedName{}}}
+		}
 		return nil
 	}
 	if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
@@ -188,15 +212,15 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 
 // getProvisionerFor retrieves the provisioner responsible for the pod
 func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha3.Provisioner, error) {
-	provisionerKey := client.ObjectKey{Name: "default"}
+	if err := c.Filter.isUnschedulable(p); err != nil {
+		return nil, fmt.Errorf("pod is not eligible to be associated with a provisioner")
+	}
+	provisionerKey := v1alpha3.DefaultProvisioner
 	if name, ok := p.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
 		provisionerKey.Name = name
 	}
 	provisioner := &v1alpha3.Provisioner{}
 	if err := c.KubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha3.ProvisionerNameLabelKey)
-		}
 		return nil, err
 	}
 	return provisioner, nil
