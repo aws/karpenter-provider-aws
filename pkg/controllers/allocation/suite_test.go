@@ -16,11 +16,9 @@ package allocation_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
@@ -76,8 +74,7 @@ var _ = Describe("Allocation", func() {
 	BeforeEach(func() {
 		provisioner = &v1alpha3.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      strings.ToLower(randomdata.SillyName()),
-				Namespace: "default",
+				Name: v1alpha3.DefaultProvisioner.Name,
 			},
 			Spec: v1alpha3.ProvisionerSpec{
 				Cluster: v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
@@ -135,15 +132,9 @@ var _ = Describe("Allocation", func() {
 			}
 		})
 		It("should provision nodes for pods with supported node selectors", func() {
-			coschedulable := []client.Object{
-				// Unconstrained
-				test.PendingPod(),
-				// Constrained by provisioner
-				test.PendingPod(test.PodOptions{
-					NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
-				}),
-			}
 			schedulable := []client.Object{
+				// Constrained by provisioner
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name}}),
 				// Constrained by zone
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ZoneLabelKey: "test-zone-1"}}),
 				// Constrained by instanceType
@@ -169,14 +160,13 @@ var _ = Describe("Allocation", func() {
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
-			ExpectCreatedWithStatus(env.Client, coschedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
-			for _, pod := range append(schedulable, coschedulable...) {
+			for _, pod := range schedulable {
 				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				node := ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 				for key, value := range scheduled.Spec.NodeSelector {

@@ -89,10 +89,10 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 
 func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
 	name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]
-	if ok && name == provisioner.Name {
+	if ok && provisioner.Name == name {
 		return nil
 	}
-	if !ok && v1alpha3.DefaultProvisioner.Name == provisioner.Name {
+	if !ok && provisioner.Name == v1alpha3.DefaultProvisioner.Name {
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s", name)

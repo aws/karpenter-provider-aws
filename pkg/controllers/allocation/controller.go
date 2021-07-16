@@ -80,7 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.Batcher.Wait(&v1alpha3.Provisioner{})
-			zap.S().Errorf("No provisioner found. Create a default provisioner, or specify an alternative using the nodeSelector %s", v1alpha3.ProvisionerNameLabelKey)
+			zap.S().Errorf("Provisioner \"%s\" not found. Create the 'default' provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -144,15 +144,9 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			// Only process pod update events
 			builder.WithPredicates(
 				predicate.Funcs{
-					CreateFunc: func(_ event.CreateEvent) bool {
-						return false
-					},
-					DeleteFunc: func(_ event.DeleteEvent) bool {
-						return false
-					},
-					GenericFunc: func(_ event.GenericEvent) bool {
-						return false
-					},
+					CreateFunc:  func(_ event.CreateEvent) bool { return false },
+					DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
+					GenericFunc: func(_ event.GenericEvent) bool { return false },
 				},
 			),
 		).
@@ -199,7 +193,11 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 			// Queue and batch a reconcile request for a non-existent, empty provisioner
 			// This will reduce the number of repeated error messages about a provisioner not existing
 			c.Batcher.Add(&v1alpha3.Provisioner{})
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{}}}
+			notFoundProvisioner := v1alpha3.DefaultProvisioner.Name
+			if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
+				notFoundProvisioner = name
+			}
+			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: notFoundProvisioner}}}
 		}
 		return nil
 	}
@@ -213,7 +211,7 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 // getProvisionerFor retrieves the provisioner responsible for the pod
 func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha3.Provisioner, error) {
 	if err := c.Filter.isUnschedulable(p); err != nil {
-		return nil, fmt.Errorf("pod is not eligible to be associated with a provisioner")
+		return nil, err
 	}
 	provisionerKey := v1alpha3.DefaultProvisioner
 	if name, ok := p.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
