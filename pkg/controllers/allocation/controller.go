@@ -22,7 +22,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
-	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"golang.org/x/time/rate"
 
 	"go.uber.org/multierr"
@@ -117,7 +116,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 7. Bind pods to nodes
 	var errs error
 	for _, packedNode := range packedNodes {
-		zap.S().Infof("Binding pods %v to node %s", apiobject.PodNamespacedNames(packedNode.Pods), packedNode.Node.Name)
+		zap.S().Infof("Binding %d pod(s) to node %s", len(packedNode.Pods), packedNode.Node.Name)
 		if err := c.Binder.Bind(ctx, packedNode.Node, packedNode.Pods); err != nil {
 			errs = multierr.Append(errs, err)
 		}
