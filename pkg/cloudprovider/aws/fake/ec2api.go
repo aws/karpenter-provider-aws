@@ -26,6 +26,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
+	set "github.com/deckarep/golang-set"
 )
 
 // EC2Behavior must be reset between tests otherwise tests will
@@ -38,10 +40,10 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         *ec2.DescribeInstanceTypesOutput
 	DescribeInstanceTypeOfferingsOutput *ec2.DescribeInstanceTypeOfferingsOutput
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
-	CalledWithCreateFleetInput          []*ec2.CreateFleetInput
-	CalledWithCreateLaunchTemplateInput []*ec2.CreateLaunchTemplateInput
+	CalledWithCreateFleetInput          set.Set //[]*ec2.CreateFleetInput
+	CalledWithCreateLaunchTemplateInput set.Set // []*ec2.CreateLaunchTemplateInput
 	Instances                           sync.Map
-	LaunchTemplates                     []*ec2.LaunchTemplate
+	LaunchTemplates                     sync.Map //[]*ec2.LaunchTemplate
 }
 
 type EC2API struct {
@@ -52,11 +54,14 @@ type EC2API struct {
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
-	e.EC2Behavior = EC2Behavior{}
+	e.EC2Behavior = EC2Behavior{
+		CalledWithCreateFleetInput:          set.NewSet(),
+		CalledWithCreateLaunchTemplateInput: set.NewSet(),
+	}
 }
 
 func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFleetInput, options ...request.Option) (*ec2.CreateFleetOutput, error) {
-	e.CalledWithCreateFleetInput = append(e.CalledWithCreateFleetInput, input)
+	e.CalledWithCreateFleetInput.Add(input)
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId == nil &&
 		input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template id or name")
@@ -72,9 +77,9 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(ctx context.Context, input *ec2.CreateLaunchTemplateInput, options ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
-	e.CalledWithCreateLaunchTemplateInput = append(e.CalledWithCreateLaunchTemplateInput, input)
+	e.CalledWithCreateLaunchTemplateInput.Add(input)
 	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName, LaunchTemplateId: aws.String("test-launch-template-id")}
-	e.LaunchTemplates = append(e.LaunchTemplates, launchTemplate)
+	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
@@ -93,13 +98,13 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(ctx context.Context, input *
 		return e.DescribeLaunchTemplatesOutput, nil
 	}
 	output := &ec2.DescribeLaunchTemplatesOutput{}
-	for _, wanted := range input.LaunchTemplateNames {
-		for _, launchTemplate := range e.LaunchTemplates {
-			if launchTemplate.LaunchTemplateName == wanted {
-				output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
-			}
+	e.LaunchTemplates.Range(func(key, value interface{}) bool {
+		launchTemplate := value.(*ec2.LaunchTemplate)
+		if functional.ContainsString(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) {
+			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
-	}
+		return true
+	})
 	if len(output.LaunchTemplates) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
 	}
@@ -312,3 +317,13 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Conte
 	}, false)
 	return nil
 }
+
+// func (e *EC2API) ExpectCalledWithFleetLaunchTemplateOverridesRequest(overrides ...*ec2.FleetLaunchTemplateOverridesRequest) {
+// 	results := []*ec2.FleetLaunchTemplateOverridesRequest{}
+// 	e.calledWithCreateFleetInput.Range(func(key, value interface{}) bool {
+// 		for _, lt := range value.(*ec2.CreateFleetInput).LaunchTemplateConfigs {
+// 			results = append(results, lt.Overrides...)
+// 		}
+// 		return true
+// 	})
+// }

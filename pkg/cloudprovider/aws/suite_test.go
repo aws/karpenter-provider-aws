@@ -105,9 +105,6 @@ var _ = Describe("Allocation", func() {
 				},
 			},
 		}
-	})
-
-	AfterEach(func() {
 		fakeEC2API.Reset()
 		ExpectCleanedUp(env.Client)
 		launchTemplateCache.Flush()
@@ -158,22 +155,17 @@ var _ = Describe("Allocation", func() {
 				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
 				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
 				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-					ContainElements(
-						&ec2.FleetLaunchTemplateOverridesRequest{
-							InstanceType: aws.String("p3.8xlarge"),
-							SubnetId:     aws.String("test-subnet-1"),
-						},
-					),
-				)
-				Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
-					ContainElements(
-						&ec2.FleetLaunchTemplateOverridesRequest{
-							InstanceType: aws.String("p3.8xlarge"),
-							SubnetId:     aws.String("test-subnet-1"),
-						},
-					),
-				)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(2))
+				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
+				for i := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
+					overrides = append(overrides, i.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
+				}
+				Expect(overrides).To(ContainElement(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("p3.8xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				))
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
 				// Setup
@@ -208,22 +200,17 @@ var _ = Describe("Allocation", func() {
 				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
 				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
 				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(
-					ContainElements(
-						&ec2.FleetLaunchTemplateOverridesRequest{
-							InstanceType: aws.String("inf1.6xlarge"),
-							SubnetId:     aws.String("test-subnet-1"),
-						},
-					),
-				)
-				Expect(fakeEC2API.CalledWithCreateFleetInput[1].LaunchTemplateConfigs[0].Overrides).To(
-					ContainElements(
-						&ec2.FleetLaunchTemplateOverridesRequest{
-							InstanceType: aws.String("inf1.6xlarge"),
-							SubnetId:     aws.String("test-subnet-1"),
-						},
-					),
-				)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(2))
+				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
+				for input := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
+					overrides = append(overrides, input.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
+				}
+				Expect(overrides).To(ContainElement(
+					&ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String("inf1.6xlarge"),
+						SubnetId:     aws.String("test-subnet-1"),
+					},
+				))
 			})
 		})
 		Context("CapacityType", func() {
@@ -233,10 +220,12 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeOnDemand))
 				Expect(node.Labels).ToNot(HaveKey(CapacityTypeLabel))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(CapacityTypeOnDemand))
+
 			})
 			It("should default to a provisioner's specified capacity type", func() {
 				// Setup
@@ -245,10 +234,11 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeSpot))
 				Expect(node.Labels).To(HaveKeyWithValue(CapacityTypeLabel, CapacityTypeSpot))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(CapacityTypeSpot))
 			})
 			It("should allow a pod to override the capacity type", func() {
 				// Setup
@@ -258,10 +248,11 @@ var _ = Describe("Allocation", func() {
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(aws.StringValue(fakeEC2API.CalledWithCreateFleetInput[0].TargetCapacitySpecification.DefaultTargetCapacityType)).To(Equal(CapacityTypeSpot))
 				Expect(node.Labels).To(HaveKeyWithValue(CapacityTypeLabel, CapacityTypeSpot))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(CapacityTypeSpot))
 			})
 			It("should not schedule a pod with an invalid capacityType", func() {
 				// Setup
@@ -280,13 +271,14 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal("test-launch-template-id"))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
 				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateIdLabel))
 				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal("test-launch-template-id"))
+				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should default to a provisioner's launch template id and version", func() {
 				// Setup
@@ -298,13 +290,15 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.Version).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+
 			})
 			It("should default to a provisioner's launch template and the default launch template version", func() {
 				// Setup
@@ -313,13 +307,14 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
 				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should allow a pod to override the launch template id and version", func() {
 				// Setup
@@ -336,13 +331,14 @@ var _ = Describe("Allocation", func() {
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateVersionLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, pods[0].Spec.NodeSelector[LaunchTemplateVersionLabel]))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.Version).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateVersionLabel]))
 			})
 			It("should allow a pod to override the launch template id and use the default launch template version", func() {
 				// Setup
@@ -353,13 +349,14 @@ var _ = Describe("Allocation", func() {
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(DefaultLaunchTemplateVersion))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
 				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateVersionLabel))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should allow a pod to override the launch template id and use the provisioner's launch template version", func() {
 				// Setup
@@ -373,13 +370,14 @@ var _ = Describe("Allocation", func() {
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(aws.StringValue(launchTemplate.LaunchTemplateId)).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
-				Expect(aws.StringValue(launchTemplate.Version)).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
 				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateVersionLabel, provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.Version).To(Equal(provisioner.Spec.Labels[LaunchTemplateVersionLabel]))
 			})
 		})
 		Context("Subnets", func() {
@@ -390,164 +388,172 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(input.LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
 					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large")},
 					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
 					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
 				))
-				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
-				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
 			})
-			It("should default to a provisioner's specified subnet name", func() {
-				// Setup
-				provisioner.Spec.Labels = map[string]string{SubnetNameLabel: "test-subnet-2"}
-				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
-				))
-				Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, provisioner.Spec.Labels[SubnetNameLabel]))
-				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
+				It("should default to a provisioner's specified subnet name", func() {
+					// Setup
+					provisioner.Spec.Labels = map[string]string{SubnetNameLabel: "test-subnet-2"}
+					provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, provisioner.Spec.Labels[SubnetNameLabel]))
+					Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
+					Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+					Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+					Expect(input.LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+						&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
+					))
+				})
+				It("should default to a provisioner's specified subnet tag key", func() {
+					provisioner.Spec.Labels = map[string]string{SubnetTagKeyLabel: "TestTag"}
+					provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+					Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, provisioner.Spec.Labels[SubnetTagKeyLabel]))
+					Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+					Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+					Expect(input.LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+						&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+					))
+				})
+				It("should allow a pod to override the subnet name", func() {
+					// Setup
+					provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+						test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetNameLabel: "test-subnet-2"}}),
+					)
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
+					Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, pods[0].Spec.NodeSelector[SubnetNameLabel]))
+					Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+					Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+					Expect(input.LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+						&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
+					))
+				})
+				It("should allow a pod to override the subnet tags", func() {
+					provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+						test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "TestTag"}}),
+					)
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
+					Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, pods[0].Spec.NodeSelector[SubnetTagKeyLabel]))
+					Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+					Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+					Expect(input.LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
+						&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+					))
+				})
+				It("should not schedule a pod with an invalid subnet", func() {
+					provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningFailed(env.Client, controller, provisioner,
+						test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
+					)
+					// Assertions
+					Expect(pods[0].Spec.NodeName).To(BeEmpty())
+				})
 			})
-			It("should default to a provisioner's specified subnet tag key", func() {
-				provisioner.Spec.Labels = map[string]string{SubnetTagKeyLabel: "TestTag"}
-				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
-				))
-				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
-				Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, provisioner.Spec.Labels[SubnetTagKeyLabel]))
-			})
-			It("should allow a pod to override the subnet name", func() {
-				// Setup
-				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetNameLabel: "test-subnet-2"}}),
-				)
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
-				))
-				Expect(node.Labels).To(HaveKeyWithValue(SubnetNameLabel, pods[0].Spec.NodeSelector[SubnetNameLabel]))
-				Expect(node.Labels).ToNot(HaveKey(SubnetTagKeyLabel))
-			})
-			It("should allow a pod to override the subnet tags", func() {
-				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "TestTag"}}),
-				)
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs[0].Overrides).To(ConsistOf(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
-				))
-				Expect(node.Labels).ToNot(HaveKey(SubnetNameLabel))
-				Expect(node.Labels).To(HaveKeyWithValue(SubnetTagKeyLabel, pods[0].Spec.NodeSelector[SubnetTagKeyLabel]))
-			})
-			It("should not schedule a pod with an invalid subnet", func() {
-				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningFailed(env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
-				)
-				// Assertions
-				Expect(pods[0].Spec.NodeName).To(BeEmpty())
-			})
-		})
-		Context("Security Groups", func() {
-			It("should default to the clusters security groups", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-1"),
-					aws.String("test-security-group-2"),
-					aws.String("test-security-group-3"),
-				))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
-			})
-			It("should default to a provisioner's specified security groups name", func() {
-				// Setup
-				provisioner.Spec.Labels = map[string]string{SecurityGroupNameLabel: "test-security-group-2"}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-2"),
-				))
-				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, provisioner.Spec.Labels[SecurityGroupNameLabel]))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
-			})
-			It("should default to a provisioner's specified security groups tag key", func() {
-				provisioner.Spec.Labels = map[string]string{SecurityGroupTagKeyLabel: "TestTag"}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-3"),
-				))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
-				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, provisioner.Spec.Labels[SecurityGroupTagKeyLabel]))
-			})
-			It("should allow a pod to override the security groups name", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupNameLabel: "test-security-group-2"}}),
-				)
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-2"),
-				))
-				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, pods[0].Spec.NodeSelector[SecurityGroupNameLabel]))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
-			})
-			It("should allow a pod to override the security groups tags", func() {
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "TestTag"}}),
-				)
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateFleetInput[0].LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput).To(HaveLen(1))
-				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput[0].LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-3"),
-				))
-				Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
-				Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, pods[0].Spec.NodeSelector[SecurityGroupTagKeyLabel]))
-			})
+			Context("Security Groups", func() {
+				It("should default to the clusters security groups", func() {
+					// Setup
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+						aws.String("test-security-group-1"),
+						aws.String("test-security-group-2"),
+						aws.String("test-security-group-3"),
+					))
+				})
+				It("should default to a provisioner's specified security groups name", func() {
+					// Setup
+					provisioner.Spec.Labels = map[string]string{SecurityGroupNameLabel: "test-security-group-2"}
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, provisioner.Spec.Labels[SecurityGroupNameLabel]))
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+						aws.String("test-security-group-2"),
+					))
+				})
+				It("should default to a provisioner's specified security groups tag key", func() {
+					provisioner.Spec.Labels = map[string]string{SecurityGroupTagKeyLabel: "TestTag"}
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+					Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, provisioner.Spec.Labels[SecurityGroupTagKeyLabel]))
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+						aws.String("test-security-group-3"),
+					))
+				})
+				It("should allow a pod to override the security groups name", func() {
+					// Setup
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+						test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupNameLabel: "test-security-group-2"}}),
+					)
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupNameLabel, pods[0].Spec.NodeSelector[SecurityGroupNameLabel]))
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupTagKeyLabel))
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+						aws.String("test-security-group-2"),
+					))
+				})
+				It("should allow a pod to override the security groups tags", func() {
+					ExpectCreated(env.Client, provisioner)
+					pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+						test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "TestTag"}}),
+					)
+					// Assertions
+					node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+					Expect(node.Labels).ToNot(HaveKey(SecurityGroupNameLabel))
+					Expect(node.Labels).To(HaveKeyWithValue(SecurityGroupTagKeyLabel, pods[0].Spec.NodeSelector[SecurityGroupTagKeyLabel]))
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+						aws.String("test-security-group-3"),
+					))
+				})
 			It("should not schedule a pod with an invalid security group", func() {
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningFailed(env.Client, controller, provisioner,
