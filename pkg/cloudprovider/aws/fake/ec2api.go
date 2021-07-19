@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -39,7 +40,7 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
 	CalledWithCreateFleetInput          []*ec2.CreateFleetInput
 	CalledWithCreateLaunchTemplateInput []*ec2.CreateLaunchTemplateInput
-	Instances                           map[string]*ec2.Instance
+	Instances                           sync.Map
 	LaunchTemplates                     []*ec2.LaunchTemplate
 }
 
@@ -66,10 +67,7 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 		PrivateDnsName: aws.String(randomdata.IpV4Address()),
 		InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 	}
-	if e.Instances == nil  {
-		e.Instances = map[string]*ec2.Instance{}
-	}
-	e.Instances[*instance.InstanceId] = instance
+	e.Instances.Store(*instance.InstanceId, instance)
 	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil
 }
 
@@ -84,8 +82,9 @@ func (e *EC2API) DescribeInstancesWithContext(ctx context.Context, input *ec2.De
 	if e.DescribeInstancesOutput != nil {
 		return e.DescribeInstancesOutput, nil
 	}
+	instance, _ := e.Instances.Load(*input.InstanceIds[0])
 	return &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{e.Instances[*input.InstanceIds[0]]}}},
+		Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance.(*ec2.Instance)}}},
 	}, nil
 }
 
