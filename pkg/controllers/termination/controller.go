@@ -17,13 +17,11 @@ package termination
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	set "github.com/deckarep/golang-set"
 	"golang.org/x/time/rate"
 
 	v1 "k8s.io/api/core/v1"
@@ -56,27 +54,8 @@ func (c *Controller) Name() string {
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		KubeClient: kubeClient,
-		Terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
-			evictionQueue: EvictionQueue{
-				queue:        workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second)),
-				coreV1Client: coreV1Client,
-				enqueued:     set.NewSet(),
-				once:         sync.Once{},
-			}},
-	}
-}
-
-func NewControllerWithCustomQueue(kubeClient client.Client, coreV1Client corev1.CoreV1Interface,
-	cloudProvider cloudprovider.CloudProvider, rateLimitingQueue workqueue.RateLimitingInterface) *Controller {
-	return &Controller{
-		KubeClient: kubeClient,
-		Terminator: &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client,
-			evictionQueue: EvictionQueue{
-				queue:        rateLimitingQueue,
-				coreV1Client: coreV1Client,
-				enqueued:     set.NewSet(),
-				once:         sync.Once{},
-			}},
+		Terminator: NewTerminator(kubeClient, coreV1Client, cloudProvider,
+			workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay))),
 	}
 }
 
@@ -107,7 +86,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !drained {
 		return reconcile.Result{Requeue: true}, nil
 	}
-	// 4. If fully drained, terminate the node
+	// 5. If fully drained, terminate the node
 	if err := c.Terminator.terminate(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
 	}

@@ -43,9 +43,11 @@ var controller *termination.Controller
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	coreV1Client := corev1.NewForConfigOrDie(e.Config)
-	controller = termination.NewControllerWithCustomQueue(e.Client, coreV1Client, cloudProvider,
-		workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(1*time.Microsecond, 10*time.Microsecond)))
+	controller = &termination.Controller{
+		KubeClient: e.Client,
+		Terminator: termination.NewTerminator(e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider,
+			workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(1*time.Microsecond, 10*time.Microsecond))),
+	}
 })
 
 var _ = BeforeSuite(func() {

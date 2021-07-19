@@ -17,6 +17,7 @@ package termination
 import (
 	"context"
 	"fmt"
+	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -24,17 +25,38 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 
+	set "github.com/deckarep/golang-set"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	evictionQueueMaxDelay  = 10 * time.Second
+	evictionQueueBaseDelay = 100 * time.Millisecond
 )
 
 type Terminator struct {
 	kubeClient    client.Client
-	cloudProvider cloudprovider.CloudProvider
 	coreV1Client  corev1.CoreV1Interface
+	cloudProvider cloudprovider.CloudProvider
 	evictionQueue EvictionQueue
+}
+
+func NewTerminator(kubeClient client.Client, coreV1Client corev1.CoreV1Interface,
+	cloudProvider cloudprovider.CloudProvider, rateLimitingInterface workqueue.RateLimitingInterface) *Terminator {
+	return &Terminator{
+		kubeClient:    kubeClient,
+		coreV1Client:  coreV1Client,
+		cloudProvider: cloudProvider,
+		evictionQueue: EvictionQueue{
+			queue:        rateLimitingInterface,
+			coreV1Client: coreV1Client,
+			enqueued:     set.NewSet(),
+		},
+	}
 }
 
 // cordon cordons a node

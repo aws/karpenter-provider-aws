@@ -23,14 +23,13 @@ type EvictionQueue struct {
 	once     sync.Once
 }
 
-// Evict adds a pod to the EvictionQueue
+// Add adds pods to the EvictionQueue
 func (e *EvictionQueue) Add(pods []*v1.Pod) {
 	// Start processing eviction queue if it hasn't started already
 	e.once.Do(func() { go e.run() })
 
 	for _, pod := range pods {
-		nn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
-		if !e.enqueued.Contains(nn) {
+		if nn := (types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}); !e.enqueued.Contains(nn) {
 			e.enqueued.Add(nn)
 			e.queue.Add(nn)
 		}
@@ -42,42 +41,38 @@ func (e *EvictionQueue) run() {
 		// Get pod from queue. This waits until queue is non-empty.
 		item, shutdown := e.queue.Get()
 		if shutdown {
-			zap.S().Infof("Shutdown queue is broken")
+			break
 		}
-		// Panic if not a NamespacedName
 		nn := item.(types.NamespacedName)
 		// Evict pod
-		evicted := e.evict(nn)
-		e.queue.Done(nn)
-		if evicted {
-			zap.S().Debugf("Successfully evicted pod %s", nn.String())
+		if e.evict(nn) {
+			zap.S().Debugf("Evicted pod %s", nn.String())
 			e.queue.Forget(nn)
 			e.enqueued.Remove(nn)
+			e.queue.Done(nn)
 			continue
 		}
+		e.queue.Done(nn)
 		// Requeue pod if eviction failed
 		e.queue.AddRateLimited(nn)
 	}
+	zap.S().Errorf("EvictionQueue is broken and has shutdown.")
 }
 
-// returns true if successful eviction call, error is returned if not eviction-related error
+// evict returns true if successful eviction call, error is returned if not eviction-related error
 func (e *EvictionQueue) evict(nn types.NamespacedName) bool {
 	err := e.coreV1Client.Pods(nn.Namespace).Evict(context.Background(), &v1beta1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{Name: nn.Name, Namespace: nn.Namespace},
 	})
-	// 500
-	if errors.IsInternalError(err) {
-		zap.S().Debugf("Failed to evict pod %s due to PDB misconfiguration error. Backing off then trying again.", nn.String())
+	if errors.IsInternalError(err) { // 500
+		zap.S().Debugf("Failed to evict pod %s due to PDB misconfiguration error.", nn.String())
 		return false
 	}
-	// 429
-	if errors.IsTooManyRequests(err) {
-		zap.S().Debugf("Failed to evict pod %s due to PDB violation. Backing off then trying again.", nn.String())
+	if errors.IsTooManyRequests(err) { // 429
+		zap.S().Debugf("Failed to evict pod %s due to PDB violation.", nn.String())
 		return false
 	}
-	// 404
-	if errors.IsNotFound(err) {
-		zap.S().Debugf("Continuing after failing to evict pod %s since it was not found.", nn.String())
+	if errors.IsNotFound(err) { // 404
 		return true
 	}
 	if err != nil {
