@@ -117,13 +117,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 6. Create capacity
-	var errs error
-	for _, packing := range packings {
-		if err := c.create(ctx, provisioner, packing); err != nil {
-			errs = multierr.Append(errs, err)
-		}
-	}
-	return reconcile.Result{}, errs
+	errs := make([]error, len(packings))
+	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
+		errs[index] = c.create(ctx, provisioner, packings[index])
+	})
+	return reconcile.Result{}, multierr.Combine(errs...)
 }
 
 func (c *Controller) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) error {

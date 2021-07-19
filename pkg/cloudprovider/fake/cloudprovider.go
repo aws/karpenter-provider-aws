@@ -33,7 +33,6 @@ import (
 type CloudProvider struct{}
 
 func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) (*v1.Node, error) {
-	// packedNodes := []*cloudprovider.PackedNode{}
 	name := strings.ToLower(randomdata.SillyName())
 	// Pick first instance type option
 	instance := packing.InstanceTypeOptions[0]

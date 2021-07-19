@@ -48,7 +48,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceId *string) (*v1.Node, er
 	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
 	}
-	instance := describeInstancesOutput.Reservations[0].Instances[0]
+	instance := *describeInstancesOutput.Reservations[0].Instances[0]
 	zap.S().Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
 		*instance.InstanceId,
 		*instance.InstanceType,
