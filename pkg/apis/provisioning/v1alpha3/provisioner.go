@@ -18,6 +18,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -130,6 +131,9 @@ var (
 
 	// Finalizers
 	KarpenterFinalizer = SchemeGroupVersion.Group + "/termination"
+
+	// Default provisioner
+	DefaultProvisioner = types.NamespacedName{Name: "default"}
 )
 
 // Provisioner is the Schema for the Provisioners API

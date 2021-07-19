@@ -16,7 +16,6 @@ package aws
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -62,7 +61,7 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 			fakeEC2API,
 			NewAMIProvider(&fake.SSMAPI{}, clientSet),
 			NewSecurityGroupProvider(fakeEC2API),
-			cache.New(CacheTTL, CacheCleanupInterval),
+			launchTemplateCache,
 		},
 		subnetProvider:       NewSubnetProvider(fakeEC2API),
 		instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
@@ -96,8 +95,7 @@ var _ = Describe("Allocation", func() {
 		ctx = context.Background()
 		provisioner = &v1alpha3.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      strings.ToLower(randomdata.SillyName()),
-				Namespace: "default",
+				Name: v1alpha3.DefaultProvisioner.Name,
 			},
 			Spec: v1alpha3.ProvisionerSpec{
 				Cluster: v1alpha3.Cluster{

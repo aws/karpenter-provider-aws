@@ -67,7 +67,7 @@ var _ = Describe("Reallocation", func() {
 
 	BeforeEach(func() {
 		provisioner = &v1alpha3.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+			ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name},
 			Spec: v1alpha3.ProvisionerSpec{
 				Cluster:              v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 				TTLSecondsAfterEmpty: ptr.Int64(300),
