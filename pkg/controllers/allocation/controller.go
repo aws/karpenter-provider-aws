@@ -76,7 +76,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Fetch provisioner
-	provisioner, err := c.provisionerFor(ctx, req)
+	provisioner, err := c.provisionerFor(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.Batcher.Wait(&v1alpha3.Provisioner{})
@@ -166,9 +166,9 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 }
 
 // provisionerFor fetches the provisioner and returns a provisioner w/ default runtime values
-func (c *Controller) provisionerFor(ctx context.Context, req reconcile.Request) (*v1alpha3.Provisioner, error) {
+func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedName) (*v1alpha3.Provisioner, error) {
 	provisioner := &v1alpha3.Provisioner{}
-	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+	if err := c.KubeClient.Get(ctx, name, provisioner); err != nil {
 		return nil, err
 	}
 
@@ -186,7 +186,14 @@ func (c *Controller) provisionerFor(ctx context.Context, req reconcile.Request) 
 func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Request) {
 	pod := o.(*v1.Pod)
 	ctx := context.Background()
-	provisioner, err := c.getProvisionerFor(ctx, pod)
+	if err := c.Filter.isUnschedulable(pod); err != nil {
+		return nil
+	}
+	provisionerKey := v1alpha3.DefaultProvisioner
+	if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
+		provisionerKey.Name = name
+	}
+	provisioner, err := c.provisionerFor(ctx, provisionerKey)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Queue and batch a reconcile request for a non-existent, empty provisioner
@@ -205,20 +212,4 @@ func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Req
 	}
 	c.Batcher.Add(provisioner)
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
-}
-
-// getProvisionerFor retrieves the provisioner responsible for the pod
-func (c *Controller) getProvisionerFor(ctx context.Context, p *v1.Pod) (*v1alpha3.Provisioner, error) {
-	if err := c.Filter.isUnschedulable(p); err != nil {
-		return nil, err
-	}
-	provisionerKey := v1alpha3.DefaultProvisioner
-	if name, ok := p.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
-		provisionerKey.Name = name
-	}
-	provisioner := &v1alpha3.Provisioner{}
-	if err := c.KubeClient.Get(ctx, provisionerKey, provisioner); err != nil {
-		return nil, err
-	}
-	return provisioner, nil
 }
