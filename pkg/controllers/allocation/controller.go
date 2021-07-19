@@ -76,7 +76,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Fetch provisioner
-	persistedProvisioner, provisionerWithDefaults, err := c.retrieveProvisionerFrom(ctx, req)
+	provisioner, err := c.provisionerFor(ctx, req)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.Batcher.Wait(&v1alpha3.Provisioner{})
@@ -87,10 +87,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Wait on a pod batch
-	c.Batcher.Wait(provisionerWithDefaults)
+	c.Batcher.Wait(provisioner)
 
 	// 3. Filter pods
-	pods, err := c.Filter.GetProvisionablePods(ctx, provisionerWithDefaults)
+	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
@@ -100,7 +100,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	zap.S().Infof("Found %d provisionable pods", len(pods))
 
 	// 4. Group by constraints
-	constraintGroups, err := c.Constraints.Group(ctx, provisionerWithDefaults, pods)
+	constraintGroups, err := c.Constraints.Group(ctx, provisioner, pods)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
 	}
@@ -117,7 +117,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// 6. Create packedNodes for packings and also copy all Status changes made by the
 	//    cloud provider to the original provisioner instance.
-	packedNodes, err := c.CloudProvider.Create(ctx, persistedProvisioner, packings)
+	packedNodes, err := c.CloudProvider.Create(ctx, provisioner, packings)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("creating capacity, %w", err)
 	}
@@ -165,22 +165,21 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return err
 }
 
-// retrieveProvisionerFrom fetches the provisioner and returns a raw provisioner that was persisted in the api server
-// and a provisioner w/ default runtime values added that should not be persisted
-func (c *Controller) retrieveProvisionerFrom(ctx context.Context, req reconcile.Request) (*v1alpha3.Provisioner, *v1alpha3.Provisioner, error) {
-	persistedProvisioner := &v1alpha3.Provisioner{}
-	if err := c.KubeClient.Get(ctx, req.NamespacedName, persistedProvisioner); err != nil {
-		return nil, nil, err
+// provisionerFor fetches the provisioner and returns a provisioner w/ default runtime values
+func (c *Controller) provisionerFor(ctx context.Context, req reconcile.Request) (*v1alpha3.Provisioner, error) {
+	provisioner := &v1alpha3.Provisioner{}
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+		return nil, err
 	}
 
 	// Hydrate provisioner with (dynamic) default values, which must not
 	//    be persisted into the original CRD as they might change with each reconciliation
 	//    loop iteration.
-	provisionerWithDefaults, err := persistedProvisioner.WithDynamicDefaults()
+	provisionerWithDefaults, err := provisioner.WithDynamicDefaults()
 	if err != nil {
-		return persistedProvisioner, &provisionerWithDefaults, fmt.Errorf("setting dynamic default values, %w", err)
+		return &provisionerWithDefaults, fmt.Errorf("setting dynamic default values, %w", err)
 	}
-	return persistedProvisioner, &provisionerWithDefaults, nil
+	return &provisionerWithDefaults, nil
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
