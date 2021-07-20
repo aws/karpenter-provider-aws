@@ -24,7 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
-	"go.uber.org/zap"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 )
 
@@ -76,7 +76,7 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterNa
 		return nil, fmt.Errorf("describing security groups with tag key %s, %w", fmt.Sprintf(ClusterTagKeyFormat, clusterName), err)
 	}
 	s.cache.Set(clusterName, output.SecurityGroups, CacheTTL)
-	zap.S().Debugf("Discovered %d security groups for cluster %s", len(output.SecurityGroups), clusterName)
+	logging.FromContext(ctx).Debugf("Discovered %d security groups for cluster %s", len(output.SecurityGroups), clusterName)
 	return output.SecurityGroups, nil
 }
 

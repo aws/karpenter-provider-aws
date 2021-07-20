@@ -23,9 +23,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -70,15 +70,16 @@ func (p *packer) Pack(ctx context.Context, constraints *Constraints, instances [
 	var packing *cloudprovider.Packing
 	remainingPods := constraints.Pods
 	for len(remainingPods) > 0 {
-		packing, remainingPods = p.packWithLargestPod(remainingPods, constraints, instances)
+
+		packing, remainingPods = p.packWithLargestPod(ctx, remainingPods, constraints, instances)
 		// checked all instance types and found no packing option
 		if len(packing.Pods) == 0 {
-			zap.S().Warnf("Failed to compute packing for pod(s) %v with instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), instanceTypeNames(instances))
+			logging.FromContext(ctx).Errorf("Failed to compute packing for pod(s) %v with instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), instanceTypeNames(instances))
 			remainingPods = remainingPods[1:]
 			continue
 		}
 		packings = append(packings, packing)
-		zap.S().Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
+		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }
@@ -86,11 +87,11 @@ func (p *packer) Pack(ctx context.Context, constraints *Constraints, instances [
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(unpackedPods []*v1.Pod, constraints *Constraints, instances []cloudprovider.InstanceType) (*cloudprovider.Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod, constraints *Constraints, instances []cloudprovider.InstanceType) (*cloudprovider.Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
-	for _, packable := range PackablesFor(instances, constraints) {
+	for _, packable := range PackablesFor(ctx, instances, constraints) {
 		// check how many pods we can fit with the available capacity
 		result := packable.Pack(unpackedPods)
 		if len(result.packed) == 0 {

@@ -24,7 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
-	"go.uber.org/zap"
+	"knative.dev/pkg/logging"
 )
 
 const (
@@ -55,7 +55,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.Instanc
 			return nil, err
 		}
 		p.cache.SetDefault(allInstanceTypesKey, instanceTypes)
-		zap.S().Debugf("Discovered %d EC2 instance types", len(instanceTypes))
+		logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
 	}
 	return instanceTypes, nil
 }

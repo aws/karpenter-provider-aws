@@ -20,10 +20,10 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -48,6 +48,7 @@ func NewController(kubeClient client.Client) *Controller {
 
 // Reconcile executes an expiration control loop for a node
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Expiration"))
 	// 1. Get node
 	node := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
@@ -80,7 +81,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
 	if time.Now().After(expirationTime) {
-		zap.S().Infof("Triggering termination for expired node %s after %s (+%s)", node.Name, expirationTTL, time.Since(expirationTime))
+		logging.FromContext(ctx).Infof("Triggering termination for expired node %s after %s (+%s)", node.Name, expirationTTL, time.Since(expirationTime))
 		if err := c.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("expiring node %s, %w", node.Name, err)
 		}
@@ -91,12 +92,12 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: time.Until(expirationTime)}, nil
 }
 
-func (c *Controller) provisionerToNodes(o client.Object) (requests []reconcile.Request) {
+func (c *Controller) provisionerToNodes(ctx context.Context, o client.Object) (requests []reconcile.Request) {
 	nodes := &v1.NodeList{}
-	if err := c.kubeClient.List(context.Background(), nodes, client.MatchingLabels(map[string]string{
+	if err := c.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{
 		v1alpha3.ProvisionerNameLabelKey: o.GetName(),
 	})); err != nil {
-		zap.S().Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
 	}
 	for _, node := range nodes.Items {
 		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: node.Name}})
@@ -104,7 +105,7 @@ func (c *Controller) provisionerToNodes(o client.Object) (requests []reconcile.R
 	return requests
 }
 
-func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("Expiration").
@@ -112,7 +113,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Watches(
 			// Reconcile all nodes related to a provisioner when it changes.
 			&source.Kind{Type: &v1alpha3.Provisioner{}},
-			handler.EnqueueRequestsFromMapFunc(c.provisionerToNodes),
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) { return c.provisionerToNodes(ctx, o) }),
 		).
 		Complete(c)
 }

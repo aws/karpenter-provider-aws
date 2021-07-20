@@ -110,11 +110,11 @@ func ExpectCleanedUp(c client.Client) {
 	}
 }
 
-func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningSucceeded(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectReconcileSucceeded(reconciler, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileSucceeded(ctx, reconciler, client.ObjectKeyFromObject(provisioner))
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -122,11 +122,11 @@ func ExpectProvisioningSucceeded(c client.Client, reconciler reconcile.Reconcile
 	return result
 }
 
-func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningFailed(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectReconcileFailed(reconciler, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileFailed(ctx, reconciler, client.ObjectKeyFromObject(provisioner))
 	result := []*v1.Pod{}
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
@@ -134,12 +134,12 @@ func ExpectProvisioningFailed(c client.Client, reconciler reconcile.Reconciler, 
 	return result
 }
 
-func ExpectReconcileFailed(reconciler reconcile.Reconciler, key client.ObjectKey) {
-	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{NamespacedName: key})
+func ExpectReconcileFailed(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) {
+	_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).To(HaveOccurred())
 }
 
-func ExpectReconcileSucceeded(reconciler reconcile.Reconciler, key client.ObjectKey) {
-	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{NamespacedName: key})
+func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) {
+	_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())
 }

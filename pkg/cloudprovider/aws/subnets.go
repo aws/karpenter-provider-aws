@@ -24,7 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
-	"go.uber.org/zap"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 )
 
@@ -78,7 +78,7 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha3.P
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
 	s.cache.Set(clusterName, output.Subnets, CacheTTL)
-	zap.S().Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), clusterName)
+	logging.FromContext(ctx).Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), clusterName)
 	return output.Subnets, nil
 }
 

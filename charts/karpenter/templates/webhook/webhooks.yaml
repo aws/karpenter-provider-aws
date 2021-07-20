@@ -50,3 +50,19 @@ webhooks:
     - CREATE
     - UPDATE
     - DELETE
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.config.karpenter.sh
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: karpenter-webhook
+      namespace: '{{ .Release.Namespace }}'
+  failurePolicy: Fail
+  sideEffects: None
+  name: validation.webhook.config.karpenter.sh
+  objectSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: karpenter

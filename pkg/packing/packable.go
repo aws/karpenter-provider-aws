@@ -15,14 +15,15 @@ limitations under the License.
 package packing
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"knative.dev/pkg/logging"
 )
 
 type Packable struct {
@@ -38,7 +39,7 @@ type Result struct {
 
 // PackablesFor creates viable packables for the provided constraints, excluding
 // those that can't fit resources or violate constraints.
-func PackablesFor(instanceTypes []cloudprovider.InstanceType, constraints *Constraints) []*Packable {
+func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceType, constraints *Constraints) []*Packable {
 	packables := []*Packable{}
 	for _, instanceType := range instanceTypes {
 		packable := PackableFor(instanceType)
@@ -56,12 +57,12 @@ func PackablesFor(instanceTypes []cloudprovider.InstanceType, constraints *Const
 		}
 		// 2. Calculate Kubelet Overhead
 		if ok := packable.reserve(instanceType.Overhead()); !ok {
-			zap.S().Debugf("Excluding instance type %s because there are not enough resources for kubelet and system overhead", packable.Name())
+			logging.FromContext(ctx).Debugf("Excluding instance type %s because there are not enough resources for kubelet and system overhead", packable.Name())
 			continue
 		}
 		// 3. Calculate Daemonset Overhead
 		if len(packable.Pack(constraints.Daemons).unpacked) > 0 {
-			zap.S().Debugf("Excluding instance type %s because there are not enough resources for daemons", packable.Name())
+			logging.FromContext(ctx).Debugf("Excluding instance type %s because there are not enough resources for daemons", packable.Name())
 			continue
 		}
 		packables = append(packables, packable)

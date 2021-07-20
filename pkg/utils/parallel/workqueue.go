@@ -24,7 +24,7 @@ import (
 // WorkQueue is a thread safe task runner
 type WorkQueue struct {
 	workqueue.RateLimitingInterface
-	once    sync.Once
+	once sync.Once
 }
 
 // NewWorkQueue instantiates a new WorkQueue

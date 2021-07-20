@@ -37,30 +37,34 @@ import (
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var ctx context.Context
+var controller *allocation.Controller
+var env *test.Environment
+
 func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Provisioner/Allocator")
 }
 
-var controller *allocation.Controller
-var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := &fake.CloudProvider{}
-	registry.RegisterOrDie(cloudProvider)
-	controller = &allocation.Controller{
-		Filter:        &allocation.Filter{KubeClient: e.Client},
-		Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
-		Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-		Constraints:   &allocation.Constraints{KubeClient: e.Client},
-		Packer:        packing.NewPacker(),
-		CloudProvider: cloudProvider,
-		KubeClient:    e.Client,
-	}
-})
-
 var _ = BeforeSuite(func() {
+	env = test.NewEnvironment(ctx, func(e *test.Environment) {
+		cloudProvider := &fake.CloudProvider{}
+		registry.RegisterOrDie(cloudProvider)
+		controller = &allocation.Controller{
+			Filter:        &allocation.Filter{KubeClient: e.Client},
+			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
+			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+			Constraints:   &allocation.Constraints{KubeClient: e.Client},
+			Packer:        packing.NewPacker(),
+			CloudProvider: cloudProvider,
+			KubeClient:    e.Client,
+		}
+	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -70,7 +74,6 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Allocation", func() {
 	var provisioner *v1alpha3.Provisioner
-	var ctx context.Context
 	BeforeEach(func() {
 		provisioner = &v1alpha3.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
@@ -80,7 +83,6 @@ var _ = Describe("Allocation", func() {
 				Cluster: v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 			},
 		}
-		ctx = context.Background()
 	})
 
 	AfterEach(func() {
@@ -92,8 +94,8 @@ var _ = Describe("Allocation", func() {
 			It("should default to a cluster zone", func() {
 				// Setup
 				ExpectCreated(env.Client, provisioner)
-				ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-1"))
@@ -102,7 +104,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-2"}
 				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner, test.PendingPod())
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-2"))
@@ -111,7 +113,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-1"}
 				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ZoneLabelKey: "test-zone-2"}}),
 				)
 				// Assertions
@@ -121,7 +123,7 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should provision nodes for unconstrained pods", func() {
 			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.PendingPod(), test.PendingPod(),
 			)
 			nodes := &v1.NodeList{}
@@ -161,7 +163,7 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -209,7 +211,7 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
 			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -225,7 +227,7 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(env.Client, controller, provisioner,
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.PendingPod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
 				}),
@@ -272,7 +274,7 @@ var _ = Describe("Allocation", func() {
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, daemonsets...)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())

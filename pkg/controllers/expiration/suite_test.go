@@ -15,6 +15,7 @@ limitations under the License.
 package expiration_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
@@ -24,21 +25,25 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var ctx context.Context
+var controller *expiration.Controller
+var env *test.Environment
+
 func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Expiration")
 }
 
-var controller *expiration.Controller
-var env = test.NewEnvironment(func(e *test.Environment) {
-	controller = expiration.NewController(e.Client)
-})
-
 var _ = BeforeSuite(func() {
+	env = test.NewEnvironment(ctx, func(e *test.Environment) {
+		controller = expiration.NewController(e.Client)
+	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -70,7 +75,7 @@ var _ = Describe("Reconciliation", func() {
 		})
 		provisioner.Spec.TTLSecondsUntilExpired = nil
 		ExpectCreated(env.Client, provisioner, node)
-		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 		node = ExpectNodeExists(env.Client, node.Name)
 		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
@@ -78,7 +83,7 @@ var _ = Describe("Reconciliation", func() {
 	It("should ignore nodes without a provisioner", func() {
 		node := test.Node(test.NodeOptions{})
 		ExpectCreated(env.Client, provisioner, node)
-		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 		node = ExpectNodeExists(env.Client, node.Name)
 		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
@@ -90,7 +95,7 @@ var _ = Describe("Reconciliation", func() {
 			},
 		})
 		ExpectCreated(env.Client, provisioner, node)
-		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 		node = ExpectNodeExists(env.Client, node.Name)
 		Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
@@ -103,7 +108,7 @@ var _ = Describe("Reconciliation", func() {
 			},
 		})
 		ExpectCreated(env.Client, provisioner, node)
-		ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 		ExpectNotFound(env.Client, node)
 	})

@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"golang.org/x/time/rate"
+	"knative.dev/pkg/logging"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -51,6 +52,8 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Reallocation"))
+
 	// 1. Retrieve provisioner from reconcile request
 	provisioner := &v1alpha3.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {

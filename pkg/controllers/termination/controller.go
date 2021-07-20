@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"golang.org/x/time/rate"
+	"knative.dev/pkg/logging"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,20 +43,22 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		KubeClient: kubeClient,
 		Terminator: &Terminator{
 			KubeClient:    kubeClient,
 			CoreV1Client:  coreV1Client,
 			CloudProvider: cloudProvider,
-			EvictionQueue: NewEvictionQueue(coreV1Client),
+			EvictionQueue: NewEvictionQueue(ctx, coreV1Client),
 		},
 	}
 }
 
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Termination"))
+
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {

@@ -44,7 +44,7 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 	zone := zones[0]
 
 	err := make(chan error)
-	go func () {
+	go func() {
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,

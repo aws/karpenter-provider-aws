@@ -31,14 +31,9 @@ metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
+- apiGroups: [""]
+  resources: ["configmaps", "namespaces"]
+  verbs: ["get", "list", "watch"]
 - apiGroups:
   - ""
   resources:

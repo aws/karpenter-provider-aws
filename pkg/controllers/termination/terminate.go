@@ -23,8 +23,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"knative.dev/pkg/logging"
 
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -50,7 +50,7 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("patching node %s, %w", node.Name, err)
 	}
-	zap.S().Infof("Cordoned node %s", node.Name)
+	logging.FromContext(ctx).Infof("Cordoned node %s", node.Name)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 
 	for _, p := range pods {
 		if val := p.Annotations[provisioning.KarpenterDoNotEvictPodAnnotation]; val == "true" {
-			zap.S().Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
+			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
 			return false, nil
 		}
 		if pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
@@ -104,7 +104,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	if err := t.CloudProvider.Terminate(ctx, node); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
-	zap.S().Infof("Terminated instance %s", node.Name)
+	logging.FromContext(ctx).Infof("Terminated instance %s", node.Name)
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.KarpenterFinalizer)

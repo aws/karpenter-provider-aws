@@ -22,7 +22,6 @@ The following tools are required for contributing to the Karpenter project.
 Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
 
 ```
-make codegen # Create auto-generated YAML files.
 make apply # Install Karpenter
 make delete # Uninstall Karpenter
 ```
@@ -52,7 +51,7 @@ make battletest # More rigorous tests run in CI environment
 
 ### Verbose Logging
 ```bash
-kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--verbose"]}]'
+kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
 ```
 
 ### Debugging Metrics

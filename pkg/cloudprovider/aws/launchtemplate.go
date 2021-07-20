@@ -27,10 +27,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/mitchellh/hashstructure/v2"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/patrickmn/go-cache"
-	"go.uber.org/zap"
 )
 
 const (
@@ -68,7 +68,7 @@ func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider,
 func launchTemplateName(options *launchTemplateOptions) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
-		zap.S().Panicf("hashing launch template, %w", err)
+		panic(fmt.Sprintf("hashing launch template, %s", err.Error()))
 	}
 	return fmt.Sprintf(launchTemplateNameFormat, ptr.StringValue(options.Cluster.Name), fmt.Sprint(hash))
 }
@@ -141,7 +141,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	} else if len(output.LaunchTemplates) != 1 {
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
-		zap.S().Debugf("Discovered launch template %s", name)
+		logging.FromContext(ctx).Debugf("Discovered launch template %s", name)
 		launchTemplate = output.LaunchTemplates[0]
 	}
 	// 4. Populate cache
@@ -181,7 +181,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	if err != nil {
 		return nil, err
 	}
-	zap.S().Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
+	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
 }
 
