@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
+	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +35,9 @@ import (
 )
 
 const (
+	// CreationQPS limits the number of
+	CreationQPS      = 5
+	CreationBurstQPS = 10
 	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
@@ -65,6 +69,7 @@ type CloudProvider struct {
 	subnetProvider         *SubnetProvider
 	instanceTypeProvider   *InstanceTypeProvider
 	instanceProvider       *InstanceProvider
+	creationQueue          *parallel.WorkQueue
 }
 
 func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
@@ -88,6 +93,7 @@ func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
 		instanceProvider:     &InstanceProvider{ec2api: ec2api},
+		creationQueue:       parallel.NewWorkQueue(CreationQPS, CreationBurstQPS),
 	}
 }
 
@@ -109,11 +115,9 @@ func withUserAgent(sess *session.Session) *session.Session {
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
-	err := make(chan error)
-	go func() {
-		err <- c.create(ctx, provisioner, packing, bind)
-	}()
-	return err
+	return c.creationQueue.Add(func() error {
+		return c.create(ctx, provisioner, packing, bind)
+	})
 }
 
 func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) error {

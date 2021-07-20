@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -66,6 +67,7 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		subnetProvider:       NewSubnetProvider(fakeEC2API),
 		instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
 		instanceProvider:     &InstanceProvider{fakeEC2API},
+		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurstQPS),
 	}
 	registry.RegisterOrDie(cloudProvider)
 	controller = &allocation.Controller{
