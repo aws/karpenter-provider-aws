@@ -110,32 +110,23 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 	}
 
-	// 5. Binpack each group
+	// 6. Binpack each group
 	packings := []*cloudprovider.Packing{}
 	for _, constraintGroup := range constraintGroups {
 		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
 	}
 
-	// 6. Create capacity
+	// 7. Create capacity
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
-		errs[index] = c.create(ctx, provisioner, packings[index])
+		packing := packings[index]
+		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
+			node.Labels = packing.Constraints.Labels
+			node.Spec.Taints = packing.Constraints.Taints
+			return c.Binder.Bind(ctx, node, packing.Pods)
+		})
 	})
 	return reconcile.Result{}, multierr.Combine(errs...)
-}
-
-func (c *Controller) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) error {
-	node, err := c.CloudProvider.Create(ctx, provisioner, packing)
-	if err != nil {
-		return fmt.Errorf("creating capacity, %w", err)
-	}
-	node.Labels = packing.Constraints.Labels
-	node.Spec.Taints = packing.Constraints.Taints
-	zap.S().Infof("Binding %d pod(s) to node %s", len(packing.Pods), node.Name)
-	if err := c.Binder.Bind(ctx, node, packing.Pods); err != nil {
-		return fmt.Errorf("creating capacity, %w", err)
-	}
-	return nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

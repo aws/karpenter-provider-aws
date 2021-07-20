@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) (*v1.Node, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
 	name := strings.ToLower(randomdata.SillyName())
 	// Pick first instance type option
 	instance := packing.InstanceTypeOptions[0]
@@ -43,28 +43,31 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 	}
 	zone := zones[0]
 
-	// Create instance
-	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: packing.Constraints.Labels,
-		},
-		Spec: v1.NodeSpec{
-			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-			Taints:     packing.Constraints.Taints,
-		},
-		Status: v1.NodeStatus{
-			NodeInfo: v1.NodeSystemInfo{
-				Architecture:    instance.Architectures()[0],
-				OperatingSystem: instance.OperatingSystems()[0],
+	err := make(chan error)
+	go func () {
+		err <- bind(&v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: packing.Constraints.Labels,
 			},
-			Allocatable: v1.ResourceList{
-				v1.ResourcePods:   *instance.Pods(),
-				v1.ResourceCPU:    *instance.CPU(),
-				v1.ResourceMemory: *instance.Memory(),
+			Spec: v1.NodeSpec{
+				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+				Taints:     packing.Constraints.Taints,
 			},
-		},
-	}, nil
+			Status: v1.NodeStatus{
+				NodeInfo: v1.NodeSystemInfo{
+					Architecture:    instance.Architectures()[0],
+					OperatingSystem: instance.OperatingSystems()[0],
+				},
+				Allocatable: v1.ResourceList{
+					v1.ResourcePods:   *instance.Pods(),
+					v1.ResourceCPU:    *instance.CPU(),
+					v1.ResourceMemory: *instance.Memory(),
+				},
+			},
+		})
+	}()
+	return err
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

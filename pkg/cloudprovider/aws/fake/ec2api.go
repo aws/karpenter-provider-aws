@@ -40,10 +40,10 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         *ec2.DescribeInstanceTypesOutput
 	DescribeInstanceTypeOfferingsOutput *ec2.DescribeInstanceTypeOfferingsOutput
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
-	CalledWithCreateFleetInput          set.Set //[]*ec2.CreateFleetInput
-	CalledWithCreateLaunchTemplateInput set.Set // []*ec2.CreateLaunchTemplateInput
+	CalledWithCreateFleetInput          set.Set
+	CalledWithCreateLaunchTemplateInput set.Set
 	Instances                           sync.Map
-	LaunchTemplates                     sync.Map //[]*ec2.LaunchTemplate
+	LaunchTemplates                     sync.Map
 }
 
 type EC2API struct {
@@ -317,13 +317,3 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Conte
 	}, false)
 	return nil
 }
-
-// func (e *EC2API) ExpectCalledWithFleetLaunchTemplateOverridesRequest(overrides ...*ec2.FleetLaunchTemplateOverridesRequest) {
-// 	results := []*ec2.FleetLaunchTemplateOverridesRequest{}
-// 	e.calledWithCreateFleetInput.Range(func(key, value interface{}) bool {
-// 		for _, lt := range value.(*ec2.CreateFleetInput).LaunchTemplateConfigs {
-// 			results = append(results, lt.Overrides...)
-// 		}
-// 		return true
-// 	})
-// }

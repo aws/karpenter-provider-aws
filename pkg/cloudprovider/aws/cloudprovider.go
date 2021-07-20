@@ -108,24 +108,36 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing) (*v1.Node, error) {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
+	err := make(chan error)
+	go func() {
+		err <- c.create(ctx, provisioner, packing, bind)
+	}()
+	return err
+}
+
+func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) error {
 	constraints := Constraints{*packing.Constraints}
 	// 1. Get Subnets and constrain by zones
 	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return nil, fmt.Errorf("getting zonal subnets, %w", err)
+		return fmt.Errorf("getting zonal subnets, %w", err)
 	}
 	// 2. Get Launch Template
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return nil, fmt.Errorf("getting launch template, %w", err)
+		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
 	instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
 	if err != nil {
-		return nil, fmt.Errorf("failed to launch instances, %w", err)
+		return fmt.Errorf("launching instances, %w", err)
 	}
-	return c.nodeAPI.For(ctx, instanceID)
+	node, err := c.nodeAPI.For(ctx, instanceID)
+	if err != nil {
+		return fmt.Errorf("constructing node, %w", err)
+	}
+	return bind(node)
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
