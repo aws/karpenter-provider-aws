@@ -3,6 +3,7 @@ package termination
 import (
 	"context"
 	"sync"
+	"time"
 
 	set "github.com/deckarep/golang-set"
 	"go.uber.org/zap"
@@ -15,12 +16,26 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type EvictionQueue struct {
-	queue        workqueue.RateLimitingInterface
-	coreV1Client corev1.CoreV1Interface
+const (
+	evictionQueueBaseDelay = 100 * time.Millisecond
+	evictionQueueMaxDelay  = 10 * time.Second
+)
 
-	enqueued set.Set
-	once     sync.Once
+type EvictionQueue struct {
+	workqueue.RateLimitingInterface
+	set.Set
+
+	coreV1Client corev1.CoreV1Interface
+	once         sync.Once
+}
+
+func NewEvictionQueue(coreV1Client corev1.CoreV1Interface) *EvictionQueue {
+	return &EvictionQueue{
+		RateLimitingInterface: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay)),
+		Set:                   set.NewSet(),
+
+		coreV1Client: coreV1Client,
+	}
 }
 
 // Add adds pods to the EvictionQueue
@@ -29,9 +44,9 @@ func (e *EvictionQueue) Add(pods []*v1.Pod) {
 	e.once.Do(func() { go e.run() })
 
 	for _, pod := range pods {
-		if nn := (types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}); !e.enqueued.Contains(nn) {
-			e.enqueued.Add(nn)
-			e.queue.Add(nn)
+		if nn := (types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}); !e.Set.Contains(nn) {
+			e.Set.Add(nn)
+			e.RateLimitingInterface.Add(nn)
 		}
 	}
 }
@@ -39,7 +54,7 @@ func (e *EvictionQueue) Add(pods []*v1.Pod) {
 func (e *EvictionQueue) run() {
 	for {
 		// Get pod from queue. This waits until queue is non-empty.
-		item, shutdown := e.queue.Get()
+		item, shutdown := e.RateLimitingInterface.Get()
 		if shutdown {
 			break
 		}
@@ -47,14 +62,14 @@ func (e *EvictionQueue) run() {
 		// Evict pod
 		if e.evict(nn) {
 			zap.S().Debugf("Evicted pod %s", nn.String())
-			e.queue.Forget(nn)
-			e.enqueued.Remove(nn)
-			e.queue.Done(nn)
+			e.RateLimitingInterface.Forget(nn)
+			e.Set.Remove(nn)
+			e.RateLimitingInterface.Done(nn)
 			continue
 		}
-		e.queue.Done(nn)
+		e.RateLimitingInterface.Done(nn)
 		// Requeue pod if eviction failed
-		e.queue.AddRateLimited(nn)
+		e.RateLimitingInterface.AddRateLimited(nn)
 	}
 	zap.S().Errorf("EvictionQueue is broken and has shutdown.")
 }

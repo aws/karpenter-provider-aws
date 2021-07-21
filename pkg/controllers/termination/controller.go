@@ -41,21 +41,16 @@ type Controller struct {
 	KubeClient client.Client
 }
 
-// For returns the resource this controller is for.
-func (c *Controller) For() client.Object {
-	return &v1.Node{}
-}
-
-func (c *Controller) Name() string {
-	return "terminator"
-}
-
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		KubeClient: kubeClient,
-		Terminator: NewTerminator(kubeClient, coreV1Client, cloudProvider,
-			workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay))),
+		Terminator: &Terminator{
+			KubeClient:    kubeClient,
+			CoreV1Client:  coreV1Client,
+			CloudProvider: cloudProvider,
+			EvictionQueue: NewEvictionQueue(coreV1Client),
+		},
 	}
 }
 

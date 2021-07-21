@@ -17,7 +17,6 @@ package termination
 import (
 	"context"
 	"fmt"
-	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -25,38 +24,17 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 
-	set "github.com/deckarep/golang-set"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	evictionQueueMaxDelay  = 10 * time.Second
-	evictionQueueBaseDelay = 100 * time.Millisecond
-)
-
 type Terminator struct {
-	kubeClient    client.Client
-	coreV1Client  corev1.CoreV1Interface
-	cloudProvider cloudprovider.CloudProvider
-	evictionQueue EvictionQueue
-}
-
-func NewTerminator(kubeClient client.Client, coreV1Client corev1.CoreV1Interface,
-	cloudProvider cloudprovider.CloudProvider, rateLimitingInterface workqueue.RateLimitingInterface) *Terminator {
-	return &Terminator{
-		kubeClient:    kubeClient,
-		coreV1Client:  coreV1Client,
-		cloudProvider: cloudProvider,
-		evictionQueue: EvictionQueue{
-			queue:        rateLimitingInterface,
-			coreV1Client: coreV1Client,
-			enqueued:     set.NewSet(),
-		},
-	}
+	EvictionQueue *EvictionQueue
+	KubeClient    client.Client
+	CoreV1Client  corev1.CoreV1Interface
+	CloudProvider cloudprovider.CloudProvider
 }
 
 // cordon cordons a node
@@ -68,7 +46,7 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	// 2. Cordon node
 	persisted := node.DeepCopy()
 	node.Spec.Unschedulable = true
-	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("patching node %s, %w", node.Name, err)
 	}
 	zap.S().Debugf("Cordoned node %s", node.Name)
@@ -108,12 +86,12 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	}
 	// 3. Evict non-critical pods
 	if len(nonCritical) != 0 {
-		t.evictionQueue.Add(nonCritical)
+		t.EvictionQueue.Add(nonCritical)
 		return false, nil
 	}
 	// 4. Evict critical pods once all non-critical pods are evicted
 	if len(critical) != 0 {
-		t.evictionQueue.Add(critical)
+		t.EvictionQueue.Add(critical)
 		return false, nil
 	}
 	return true, nil
@@ -122,14 +100,14 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 // terminate terminates the node then removes the finalizer to delete the node
 func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	// 1. Terminate instance associated with node
-	if err := t.cloudProvider.Terminate(ctx, node); err != nil {
+	if err := t.CloudProvider.Terminate(ctx, node); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	zap.S().Infof("Terminated instance %s", node.Name)
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.KarpenterFinalizer)
-	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}
 	return nil
@@ -138,7 +116,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 // getPods returns a list of pods scheduled to a node based on some filters
 func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	pods := &v1.PodList{}
-	if err := t.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+	if err := t.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return nil, fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 	}
 	return ptr.PodListToSlice(pods), nil
