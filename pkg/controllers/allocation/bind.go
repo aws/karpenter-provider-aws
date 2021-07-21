@@ -19,11 +19,13 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -59,12 +61,12 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	}
 
 	// 4. Bind pods
-	for _, pod := range pods {
-		if err := b.bind(ctx, node, pod); err != nil {
-			zap.S().Errorf("Continuing after failing to bind, %s", err.Error())
-		}
-	}
-	return nil
+	zap.S().Infof("Binding %d pod(s) to node %s", len(pods), node.Name)
+	errs := make([]error, len(pods))
+	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
+		errs[index] = b.bind(ctx, node, pods[index])
+	})
+	return multierr.Combine(errs...)
 }
 
 func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {

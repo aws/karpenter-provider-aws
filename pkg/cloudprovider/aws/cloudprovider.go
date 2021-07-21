@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
+	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +35,12 @@ import (
 )
 
 const (
+	// CreationQPS limits the number of requests per second to CreateFleet
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationQPS = 2
+	// CreationBurst limits the additional burst requests.
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationBurst = 100
 	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
@@ -65,6 +72,7 @@ type CloudProvider struct {
 	subnetProvider         *SubnetProvider
 	instanceTypeProvider   *InstanceTypeProvider
 	instanceProvider       *InstanceProvider
+	creationQueue          *parallel.WorkQueue
 }
 
 func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
@@ -88,6 +96,7 @@ func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
 		instanceProvider:     &InstanceProvider{ec2api: ec2api},
+		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
@@ -107,49 +116,35 @@ func withUserAgent(sess *session.Session) *session.Session {
 	return sess
 }
 
-// Create a set of nodes given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packings []*cloudprovider.Packing) ([]*cloudprovider.PackedNode, error) {
-	instanceIDs := []*string{}
-	instancePackings := map[string]*cloudprovider.Packing{}
-	for _, packing := range packings {
-		constraints := Constraints{*packing.Constraints}
-		// 1. Get Subnets and constrain by zones
-		subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
-		if err != nil {
-			return nil, fmt.Errorf("getting zonal subnets, %w", err)
-		}
-		// 2. Get Launch Template
-		launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
-		if err != nil {
-			return nil, fmt.Errorf("getting launch template, %w", err)
-		}
-		// 3. Create instance
-		instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
-		if err != nil {
-			zap.S().Errorf("Continuing after failing to launch instances, %s", err.Error())
-			continue
-		}
-		instancePackings[*instanceID] = packing
-		instanceIDs = append(instanceIDs, instanceID)
-	}
+// Create a node given the constraints.
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
+	return c.creationQueue.Add(func() error {
+		return c.create(ctx, provisioner, packing, bind)
+	})
+}
 
-	// 4. Convert to Nodes
-	nodes, err := c.nodeAPI.For(ctx, instanceIDs)
+func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) error {
+	constraints := Constraints{*packing.Constraints}
+	// 1. Get Subnets and constrain by zones
+	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return nil, fmt.Errorf("determining nodes, %w", err)
+		return fmt.Errorf("getting zonal subnets, %w", err)
 	}
-	// 5. Convert to PackedNodes, TODO: move this logic into NodeAPI
-	packedNodes := []*cloudprovider.PackedNode{}
-	for instanceID, node := range nodes {
-		packing := instancePackings[instanceID]
-		node.Labels = packing.Constraints.Labels
-		node.Spec.Taints = packing.Constraints.Taints
-		packedNodes = append(packedNodes, &cloudprovider.PackedNode{
-			Node: node,
-			Pods: packing.Pods,
-		})
+	// 2. Get Launch Template
+	launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
+	if err != nil {
+		return fmt.Errorf("getting launch template, %w", err)
 	}
-	return packedNodes, nil
+	// 3. Create instance
+	instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
+	if err != nil {
+		return fmt.Errorf("launching instances, %w", err)
+	}
+	node, err := c.nodeAPI.For(ctx, instanceID)
+	if err != nil {
+		return fmt.Errorf("constructing node, %w", err)
+	}
+	return bind(node)
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

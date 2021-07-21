@@ -68,7 +68,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
-		zap.S().Debugf("Added TTL and label to underutilized node %s", node.Name)
+		zap.S().Infof("Added TTL and label to underutilized node %s", node.Name)
 	}
 	return nil
 }
@@ -95,7 +95,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				return fmt.Errorf("removing underutilized label on %s, %w", node.Name, err)
 			} else {
-				zap.S().Debugf("Removed TTL from node %s", node.Name)
+				zap.S().Infof("Removed TTL from node %s", node.Name)
 			}
 		}
 	}

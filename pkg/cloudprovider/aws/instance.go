@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"go.uber.org/multierr"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -96,16 +97,16 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
 	if count := len(createFleetOutput.Instances); count != 1 {
-		return nil, fmt.Errorf("expected 1 instance, but got %d due to errors %v", count, createFleetOutput.Errors)
+		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	if count := len(createFleetOutput.Instances[0].InstanceIds); count != 1 {
-		return nil, fmt.Errorf("expected 1 instance ids, but got %d due to errors %v", count, createFleetOutput.Errors)
+		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	id, err := p.getInstanceID(node)
+	id, err := getInstanceID(node)
 	if err != nil {
 		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
 	}
@@ -117,10 +118,17 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) getInstanceID(node *v1.Node) (*string, error) {
+func getInstanceID(node *v1.Node) (*string, error) {
 	id := strings.Split(node.Spec.ProviderID, "/")
 	if len(id) < 5 {
 		return nil, fmt.Errorf("parsing instance id %s", node.Spec.ProviderID)
 	}
 	return aws.String(id[4]), nil
+}
+
+func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
+	for _, err := range errors {
+		errs = multierr.Append(errs, fmt.Errorf("%s", *err.ErrorCode))
+	}
+	return errs
 }

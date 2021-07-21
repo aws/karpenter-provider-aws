@@ -78,7 +78,7 @@ func (p *packer) Pack(ctx context.Context, constraints *Constraints, instances [
 			continue
 		}
 		packings = append(packings, packing)
-		zap.S().Debugf("Computed packing for pod(s) %v with instance type option(s) %s", apiobject.PodNamespacedNames(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
+		zap.S().Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }

@@ -24,10 +24,14 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-// CloudProvider holds contains the methods necessary in a cloud provider
+// CloudProvider interface is implemented by cloud providers to support provisioning.
 type CloudProvider interface {
-	// Create a set of nodes for each of the given constraints.
-	Create(context.Context, *v1alpha3.Provisioner, []*Packing) ([]*PackedNode, error)
+	// Create a set of nodes for each of the given constraints. This API uses a
+	// callback pattern to enable cloudproviders to batch capacity creation
+	// requests. The callback must be called with a theoretical node object that
+	// is fulfilled by the cloud providers capacity creation request. This API
+	// is called in parallel and then waits for all channels to return nil or error.
+	Create(context.Context, *v1alpha3.Provisioner, *Packing, func(*v1.Node) error) chan error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)

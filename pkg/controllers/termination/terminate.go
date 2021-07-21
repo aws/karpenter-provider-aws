@@ -50,7 +50,7 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	if err := t.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("patching node %s, %w", node.Name, err)
 	}
-	zap.S().Debugf("Cordoned node %s", node.Name)
+	zap.S().Infof("Cordoned node %s", node.Name)
 	return nil
 }
 
