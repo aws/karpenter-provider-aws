@@ -67,7 +67,7 @@ var env = test.NewEnvironment(func(e *test.Environment) {
 		subnetProvider:       NewSubnetProvider(fakeEC2API),
 		instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
 		instanceProvider:     &InstanceProvider{fakeEC2API},
-		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurstQPS),
+		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 	registry.RegisterOrDie(cloudProvider)
 	controller = &allocation.Controller{

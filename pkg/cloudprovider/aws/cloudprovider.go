@@ -35,9 +35,12 @@ import (
 )
 
 const (
-	// CreationQPS limits the number of
-	CreationQPS      = 5
-	CreationBurstQPS = 10
+	// CreationQPS limits the number of requests per second to CreateFleet
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationQPS = 2
+	// CreationBurst limits the additional burst requests.
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationBurst = 100
 	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
@@ -93,7 +96,7 @@ func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
 		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
 		instanceProvider:     &InstanceProvider{ec2api: ec2api},
-		creationQueue:       parallel.NewWorkQueue(CreationQPS, CreationBurstQPS),
+		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 

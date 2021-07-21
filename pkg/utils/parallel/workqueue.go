@@ -7,18 +7,20 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+// WorkQueue is a thread safe task runner
 type WorkQueue struct {
 	workqueue.RateLimitingInterface
 	once    sync.Once
 }
 
+// NewWorkQueue instantiates a new WorkQueue
 func NewWorkQueue(qps int, burst int) *WorkQueue {
 	return &WorkQueue{
 		RateLimitingInterface: workqueue.NewRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(qps), burst)}),
 	}
 }
 
-type Task struct {
+type task struct {
 	do   func() error
 	done chan error
 	err  error
@@ -28,7 +30,7 @@ type Task struct {
 func (c *WorkQueue) Add(do func() error) chan error {
 	c.once.Do(c.start)
 	done := make(chan error)
-	c.AddRateLimited(&Task{do: do, done: done})
+	c.AddRateLimited(&task{do: do, done: done})
 	return done
 }
 
@@ -39,12 +41,12 @@ func (c *WorkQueue) start() {
 			if shutdown {
 				break
 			}
-			task := item.(*Task)
+			t := item.(*task)
 			go func() {
-				task.err = task.do()
-				c.Forget(task)
-				c.Done(task)
-				task.done <- task.err
+				t.err = t.do()
+				c.Forget(t)
+				c.Done(t)
+				t.done <- t.err
 			}()
 		}
 	}()
