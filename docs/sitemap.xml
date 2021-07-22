@@ -2,33 +2,21 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/karpenter/docs/cloud-providers/aws/</loc>
+    <loc>karpenter/docs/getting-started/</loc>
   </url><url>
-    <loc>/karpenter/docs/getting-started/</loc>
-  </url><url>
-    <loc>/karpenter/docs/</loc>
+    <loc>karpenter/docs/</loc>
     <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/karpenter/docs/concepts/</loc>
+    <loc>karpenter/docs/faq/</loc>
   </url><url>
-    <loc>/karpenter/docs/faq/</loc>
-  </url><url>
-    <loc>/karpenter/docs/prov-crd/</loc>
+    <loc>karpenter/docs/prov-crd/</loc>
     <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/karpenter/docs/deployment-guide/</loc>
+    <loc>karpenter/docs/dev-guide/</loc>
   </url><url>
-    <loc>/karpenter/docs/examples/</loc>
-  </url><url>
-    <loc>/karpenter/docs/cloud-providers/</loc>
-  </url><url>
-    <loc>/karpenter/docs/reference/</loc>
-  </url><url>
-    <loc>/karpenter/docs/dev-guide/</loc>
-  </url><url>
-    <loc>/karpenter/</loc>
+    <loc>karpenter/</loc>
     <lastmod>2017-01-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>/karpenter/search/</loc>
+    <loc>karpenter/search/</loc>
   </url>
 </urlset>

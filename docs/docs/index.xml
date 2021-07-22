@@ -1,97 +1,26 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Documentation</title>
-    <link>/karpenter/docs/</link>
+    <link>karpenter/docs/</link>
     <description>Recent content in Documentation on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 05 Jan 2017 00:00:00 +0000</lastBuildDate>
     
-	  <atom:link href="/karpenter/docs/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="karpenter/docs/index.xml" rel="self" type="application/rss+xml" />
     
     
       
         
       
     
-    
-    <item>
-      <title>Docs: Amazon Web Services (AWS)</title>
-      <link>/karpenter/docs/cloud-providers/aws/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/karpenter/docs/cloud-providers/aws/</guid>
-      <description>
-        
-        
-        &lt;h2 id=&#34;well-known-labels-on-aws&#34;&gt;Well Known Labels on AWS&lt;/h2&gt;
-&lt;h3 id=&#34;topologykubernetesioregion&#34;&gt;topology.kubernetes.io/region&lt;/h3&gt;
-&lt;p&gt;Example:&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;topology.kubernetes.io/region=us-east-1&lt;/code&gt;&lt;/p&gt;
-&lt;p&gt;See &lt;a href=&#34;#topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/a&gt;.&lt;/p&gt;
-&lt;h3 id=&#34;topologykubernetesiozone&#34;&gt;topology.kubernetes.io/zone&lt;/h3&gt;
-&lt;p&gt;Example:&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;topology.kubernetes.io/zone=us-east-1c&lt;/code&gt;&lt;/p&gt;
-&lt;p&gt;Used on: Node, PersistentVolume&lt;/p&gt;
-&lt;p&gt;On Node: The &lt;code&gt;kubelet&lt;/code&gt; or the external &lt;code&gt;cloud-controller-manager&lt;/code&gt; populates this with the information as provided by the &lt;code&gt;cloudprovider&lt;/code&gt;.  This will be set only if you are using a &lt;code&gt;cloudprovider&lt;/code&gt;. However, you should consider setting this on nodes if it makes sense in your topology.&lt;/p&gt;
-&lt;p&gt;On PersistentVolume: topology-aware volume provisioners will automatically set node affinity constraints on &lt;code&gt;PersistentVolumes&lt;/code&gt;.&lt;/p&gt;
-&lt;p&gt;A zone represents a logical failure domain.  It is common for Kubernetes clusters to span multiple zones for increased availability.  While the exact definition of a zone is left to infrastructure implementations, common properties of a zone include very low network latency within a zone, no-cost network traffic within a zone, and failure independence from other zones.  For example, nodes within a zone might share a network switch, but nodes in different zones should not.&lt;/p&gt;
-&lt;p&gt;A region represents a larger domain, made up of one or more zones.  It is uncommon for Kubernetes clusters to span multiple regions,  While the exact definition of a zone or region is left to infrastructure implementations, common properties of a region include higher network latency between them than within them, non-zero cost for network traffic between them, and failure independence from other zones or regions.  For example, nodes within a region might share power infrastructure (e.g. a UPS or generator), but nodes in different regions typically would not.&lt;/p&gt;
-&lt;p&gt;Kubernetes makes a few assumptions about the structure of zones and regions:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;regions and zones are hierarchical: zones are strict subsets of regions and no zone can be in 2 regions&lt;/li&gt;
-&lt;li&gt;zone names are unique across regions; for example region &amp;ldquo;africa-east-1&amp;rdquo; might be comprised of zones &amp;ldquo;africa-east-1a&amp;rdquo; and &amp;ldquo;africa-east-1b&amp;rdquo;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;It should be safe to assume that topology labels do not change.  Even though labels are strictly mutable, consumers of them can assume that a given node is not going to be moved between zones without being destroyed and recreated.&lt;/p&gt;
-&lt;p&gt;Kubernetes can use this information in various ways.  For example, the scheduler automatically tries to spread the Pods in a ReplicaSet across nodes in a single-zone cluster (to reduce the impact of node failures, see &lt;a href=&#34;#kubernetesiohostname&#34;&gt;kubernetes.io/hostname&lt;/a&gt;). With multiple-zone clusters, this spreading behavior also applies to zones (to reduce the impact of zone failures). This is achieved via &lt;em&gt;SelectorSpreadPriority&lt;/em&gt;.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;SelectorSpreadPriority&lt;/em&gt; is a best effort placement. If the zones in your cluster are heterogeneous (for example: different numbers of nodes, different types of nodes, or different pod resource requirements), this placement might prevent equal spreading of your Pods across zones. If desired, you can use homogenous zones (same number and types of nodes) to reduce the probability of unequal spreading.&lt;/p&gt;
-&lt;p&gt;The scheduler (through the &lt;em&gt;VolumeZonePredicate&lt;/em&gt; predicate) also will ensure that Pods, that claim a given volume, are only placed into the same zone as that volume. Volumes cannot be attached across zones.&lt;/p&gt;
-&lt;p&gt;If &lt;code&gt;PersistentVolumeLabel&lt;/code&gt; does not support automatic labeling of your PersistentVolumes, you should consider
-adding the labels manually (or adding support for &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;). With &lt;code&gt;PersistentVolumeLabel&lt;/code&gt;, the scheduler prevents Pods from mounting volumes in a different zone. If your infrastructure doesn&amp;rsquo;t have this constraint, you don&amp;rsquo;t need to add the zone labels to the volumes at all.&lt;/p&gt;
-&lt;h2 id=&#34;how-we-work-with-ec2&#34;&gt;How we work with EC2&lt;/h2&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Docs: Intro to Karpenter Concepts</title>
-      <link>/karpenter/docs/concepts/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/karpenter/docs/concepts/</guid>
-      <description>
-        
-        
-        &lt;p&gt;Kubernetes is designed to schedule new pods onto existing nodes. However, when existing nodes get full, Kubernetes struggles with automatically provisioning new nodes from a cloud provider.&lt;/p&gt;
-&lt;p&gt;Karpenter activates when pending pods are unable to be fit onto existing nodes. Karpenter understands the instance types available from cloud providers, such as AWS. Karpenter’s provisioner intelligently selects new instances to start, using rich data from both podspecs and the cloud provider APIs (such as EC2’s flexible fleet API).&lt;/p&gt;
-&lt;p&gt;[[detail on spot and platform availability — or this too platform specific?]]&lt;/p&gt;
-&lt;p&gt;Karpenter balances responding rapidly to un-schedulable pods and making efficient provisioning decision. Karpenter is substantially faster than the cluster autoscaler, while additionally considering podspec labels and cloud provider availability zones. Specifically, the commonly used kubernetes properties such as labels, taints, affinity (node, pod), and anti-affinity are supported.&lt;/p&gt;
-&lt;p&gt;Activating Karpenter on your cluster is a combination of a helm chart, and configuring the cloud platform to accept provisioning requests from Karpenter. On AWS, IAM roles for Service Accounts (IRSA) is used. The Kubernetes control plane in EKS oversees cluster-space [[is that a term?]] Karpenter requests being securely elevated and passed on to the cloud platform.&lt;/p&gt;
-&lt;h2 id=&#34;provisioner-crd&#34;&gt;Provisioner CRD&lt;/h2&gt;
-&lt;p&gt;The primary kubernetes API object kind is “provisioner”. Notably, one provisioner can handle multiple node profiles (graphics enabled, compute optimized, memory optimized, etc). Karpenter is group-less, and eliminates management of multiple node groups with fixed instance specs. In short, the Karpenter provisioner object is focused on podspecs. This simplifies cluster management, and reduces the complexity of implementing Karpenter.&lt;/p&gt;
-&lt;p&gt;Provisioner is the primary Custom Resource Definition (CRD) for Karpenter, and you need at least one.&lt;/p&gt;
-&lt;p&gt;The provisioner CRD includes&amp;hellip;&lt;/p&gt;
-&lt;h3 id=&#34;deprovisioning&#34;&gt;Deprovisioning&lt;/h3&gt;
-&lt;p&gt;Second, define termination and downscaling values. Setting a value for &lt;code&gt;ttlSecondsUntilExpired&lt;/code&gt; enables node expiration. The value is the number of seconds after node creation until nodes are viewed as expired by Karpenter. Note, with this value set, all nodes will eventually expire. Expired nodes are drained and replaced. The replacement nodes will have the latest updates, and may be more efficiently sized. Setting a value for &lt;code&gt;ttlSecondsAfterEmpty&lt;/code&gt; enables deprovisioning empty nodes (no pods besides daemon sets). This only happens if a node becomes empty, and stays empty for the set number of seconds.
-Third, consider any taints and labels you want provisioned nodes to have. Some labels impact the behavior of AWS, such as setting the launch template ID or opting in to spot pricing.&lt;/p&gt;
-&lt;h3 id=&#34;well-known-labels&#34;&gt;Well Known Labels&lt;/h3&gt;
-&lt;h2 id=&#34;provisioning-walkthrough&#34;&gt;Provisioning Walkthrough&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;how much talk about cloud provider?&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h3 id=&#34;how-instance-types-are-selected-currently&#34;&gt;How instance types are selected (currently)&lt;/h3&gt;
-&lt;h2 id=&#34;deprovisioning-walkthrough&#34;&gt;Deprovisioning Walkthrough&lt;/h2&gt;
-&lt;p&gt;[[what is terminator?]]&lt;/p&gt;
-
-      </description>
-    </item>
     
     <item>
       <title>Docs: FAQs</title>
-      <link>/karpenter/docs/faq/</link>
+      <link>karpenter/docs/faq/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/karpenter/docs/faq/</guid>
+      <guid>karpenter/docs/faq/</guid>
       <description>
         
         
@@ -143,10 +72,10 @@ Third, consider any taints and labels you want provisioned nodes to have. Some l
     
     <item>
       <title>Docs: Provisioner CRD</title>
-      <link>/karpenter/docs/prov-crd/</link>
+      <link>karpenter/docs/prov-crd/</link>
       <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
       
-      <guid>/karpenter/docs/prov-crd/</guid>
+      <guid>karpenter/docs/prov-crd/</guid>
       <description>
         
         
@@ -187,24 +116,11 @@ spec:
     </item>
     
     <item>
-      <title>Docs: Deployment Guide</title>
-      <link>/karpenter/docs/deployment-guide/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/karpenter/docs/deployment-guide/</guid>
-      <description>
-        
-        
-        
-      </description>
-    </item>
-    
-    <item>
       <title>Docs: Development Guide</title>
-      <link>/karpenter/docs/dev-guide/</link>
+      <link>karpenter/docs/dev-guide/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/karpenter/docs/dev-guide/</guid>
+      <guid>karpenter/docs/dev-guide/</guid>
       <description>
         
         
