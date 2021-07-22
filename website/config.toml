@@ -1,4 +1,81 @@
-baseURL = "http://awslabs.github.com/karpenter/docs"
-languageCode = "en-us"
+baseURL = "/"
+
+# Hugo allows theme composition (and inheritance). The precedence is from left to right.
+theme = ["docsy"]
+
+# Build settings
+publishDir = "../docs"
+disableKinds = ["taxonomy", "taxonomyTerm"]
+
+# Language settings
+contentDir = "content/en"
+defaultContentLanguage = "en"
+defaultContentLanguageInSubdir = false
+# Useful when translating.
+enableMissingTranslationPlaceholders = true
+
+# Localizations
+[languages]
+[languages.en]
 title = "Karpenter"
-theme = "docsy"
+description = "Just-in-time Nodes for Any Kubernetes Cluster"
+languageName = "English"
+# Weight used for sorting.
+weight = 1
+
+## Configuration for BlackFriday markdown parser: https://github.com/russross/blackfriday
+[blackfriday]
+plainIDAnchors = true
+hrefTargetBlank = true
+angledQuotes = false
+latexDashes = true
+
+# Image processing configuration.
+[imaging]
+resampleFilter = "CatmullRom"
+quality = 75
+anchor = "smart"
+
+[params]
+copyright = "Amazon.com, Inc. or its affiliates."
+# Repository configuration (URLs for in-page links to opening issues and suggesting changes)
+github_repo = "https://github.com/awslabs/karpenter"
+
+# User interface configuration
+[params.ui]
+# Enable to show the side bar menu in its compact state.
+sidebar_menu_compact = false
+#  Set to true to disable breadcrumb navigation.
+breadcrumb_disable = false
+#  Set to true to hide the sidebar search box (the top nav search box will still be displayed if search is enabled)
+sidebar_search_disable = true
+#  Set to false if you don't want to display a logo (/assets/icons/logo.svg) in the top nav bar
+navbar_logo = false
+# Set to true to disable the About link in the site footer
+footer_about_disable = true
+
+[params.links]
+# End user relevant links. These will show up on left side of footer and in the community page if you have one.
+#[[params.links.user]]
+#  name = "Twitter"
+#  url = "https://example.org/twitter"
+#  icon = "fab fa-twitter"
+#  desc = "Follow us on Twitter to get the latest news!"
+# Developer relevant links. These will show up on right side of footer and in the community page if you have one.
+[[params.links.developer]]
+  name = "GitHub"
+  url = "https://github.com/awslabs/karpenter"
+  icon = "fab fa-github"
+  desc = "Development takes place here!"
+[[params.links.developer]]
+  name = "Slack"
+  url = "https://slack.k8s.io/"
+  icon = "fab fa-slack"
+  desc = "Chat with us on Slack in the #aws-provider channel"
+
+# Navigation menu
+[[menu.main]]
+name = "GitHub"
+weight = 99
+url = "https://github.com/awslabs/karpenter"
+pre = "<i class='fab fa-github'></i>"
