@@ -21,7 +21,7 @@ Karpenter can run anywhere, including on self-managed node groups, [managed node
 This demo will run Karpenter on Fargate, which means all EC2 instances added to this cluster will be controlled by Karpenter.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/eks-config.yaml \
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/pkg/cloudprovider/aws/docs/eks-config.yaml \
   | envsubst \
   | eksctl create cluster -f -
 ```
@@ -51,7 +51,7 @@ For production use, please review and restrict these permissions for your use ca
 ```bash
 # Creates IAM resources used by Karpenter
 TEMPOUT=$(mktemp)
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
+curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/pkg/cloudprovider/aws/docs/karpenter.cloudformation.yaml > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
