@@ -37,17 +37,20 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	terminator    *Terminator
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
+	Terminator *Terminator
+	KubeClient client.Client
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		terminator:    &Terminator{kubeClient: kubeClient, cloudProvider: cloudProvider, coreV1Client: coreV1Client},
-		cloudProvider: cloudProvider,
-		kubeClient:    kubeClient,
+		KubeClient: kubeClient,
+		Terminator: &Terminator{
+			KubeClient:    kubeClient,
+			CoreV1Client:  coreV1Client,
+			CloudProvider: cloudProvider,
+			EvictionQueue: NewEvictionQueue(coreV1Client),
+		},
 	}
 }
 
@@ -55,7 +58,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -67,21 +70,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 3. Cordon node
-	if err := c.terminator.cordon(ctx, node); err != nil {
+	if err := c.Terminator.cordon(ctx, node); err != nil {
 		return reconcile.Result{}, fmt.Errorf("cordoning node %s, %w", node.Name, err)
 	}
 	// 4. Drain node
-	drained, err := c.terminator.drain(ctx, node)
+	drained, err := c.Terminator.drain(ctx, node)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("draining node %s, %w", node.Name, err)
 	}
-	// 5. If fully drained, terminate the node
-	if drained {
-		if err := c.terminator.terminate(ctx, node); err != nil {
-			return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
-		}
+	if !drained {
+		return reconcile.Result{Requeue: true}, nil
 	}
-	return reconcile.Result{Requeue: !drained}, nil
+	// 5. If fully drained, terminate the node
+	if err := c.Terminator.terminate(ctx, node); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating node %s, %w", node.Name, err)
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

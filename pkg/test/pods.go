@@ -21,7 +21,9 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // PodOptions customizes a Pod.
@@ -36,6 +38,15 @@ type PodOptions struct {
 	Tolerations          []v1.Toleration
 	Conditions           []v1.PodCondition
 	Annotations          map[string]string
+	Labels               map[string]string
+}
+
+type PDBOptions struct {
+	Name              string
+	Namespace         string
+	MinAvailableNum   *int64
+	Labels            map[string]string
+	MaxUnavailableNum *int64
 }
 
 // Pod creates a test pod with defaults that can be overriden by PodOptions.
@@ -62,6 +73,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Namespace:       options.Namespace,
 			OwnerReferences: options.OwnerReferences,
 			Annotations:     options.Annotations,
+			Labels:          options.Labels,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: options.NodeSelector,
@@ -82,4 +94,39 @@ func PendingPod(options ...PodOptions) *v1.Pod {
 	return Pod(append(options, PodOptions{
 		Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 	})...)
+}
+
+func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
+	options := PDBOptions{}
+	for _, opts := range overrides {
+		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
+		}
+	}
+	if options.Name == "" {
+		options.Name = strings.ToLower(randomdata.SillyName())
+	}
+	if options.Namespace == "" {
+		options.Namespace = "default"
+	}
+	var minAvailable, maxUnavailable *intstr.IntOrString
+	if options.MinAvailableNum != nil {
+		minAvailable = intstr.ValueOrDefault(nil, intstr.FromInt(int(*options.MinAvailableNum)))
+	}
+	if options.MaxUnavailableNum != nil {
+		maxUnavailable = intstr.ValueOrDefault(nil, intstr.FromInt(int(*options.MaxUnavailableNum)))
+	}
+	return &v1beta1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      options.Name,
+			Namespace: options.Namespace,
+		},
+		Spec: v1beta1.PodDisruptionBudgetSpec{
+			MinAvailable: minAvailable,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: options.Labels,
+			},
+			MaxUnavailable: maxUnavailable,
+		},
+	}
 }

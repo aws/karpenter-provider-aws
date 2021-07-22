@@ -23,6 +23,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
@@ -87,6 +88,11 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 
 func ExpectCleanedUp(c client.Client) {
 	ctx := context.Background()
+	pdbs := v1beta1.PodDisruptionBudgetList{}
+	Expect(c.List(ctx, &pdbs)).To(Succeed())
+	for _, pdb := range pdbs.Items {
+		ExpectDeleted(c, &pdb)
+	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
 	for _, pod := range pods.Items {
