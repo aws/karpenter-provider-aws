@@ -1,13 +1,13 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Documentation</title>
-    <link>/docs/</link>
+    <link>/karpenter/docs/</link>
     <description>Recent content in Documentation on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 05 Jan 2017 00:00:00 +0000</lastBuildDate>
     
-	  <atom:link href="/docs/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="/karpenter/docs/index.xml" rel="self" type="application/rss+xml" />
     
     
       
@@ -17,10 +17,10 @@
     
     <item>
       <title>Docs: Amazon Web Services (AWS)</title>
-      <link>/docs/cloud-providers/aws/</link>
+      <link>/karpenter/docs/cloud-providers/aws/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/cloud-providers/aws/</guid>
+      <guid>/karpenter/docs/cloud-providers/aws/</guid>
       <description>
         
         
@@ -55,10 +55,10 @@ adding the labels manually (or adding support for &lt;code&gt;PersistentVolumeLa
     
     <item>
       <title>Docs: Intro to Karpenter Concepts</title>
-      <link>/docs/concepts/</link>
+      <link>/karpenter/docs/concepts/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/concepts/</guid>
+      <guid>/karpenter/docs/concepts/</guid>
       <description>
         
         
@@ -88,10 +88,10 @@ Third, consider any taints and labels you want provisioned nodes to have. Some l
     
     <item>
       <title>Docs: FAQs</title>
-      <link>/docs/faq/</link>
+      <link>/karpenter/docs/faq/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/faq/</guid>
+      <guid>/karpenter/docs/faq/</guid>
       <description>
         
         
@@ -143,10 +143,10 @@ Third, consider any taints and labels you want provisioned nodes to have. Some l
     
     <item>
       <title>Docs: Provisioner CRD</title>
-      <link>/docs/prov-crd/</link>
+      <link>/karpenter/docs/prov-crd/</link>
       <pubDate>Thu, 05 Jan 2017 00:00:00 +0000</pubDate>
       
-      <guid>/docs/prov-crd/</guid>
+      <guid>/karpenter/docs/prov-crd/</guid>
       <description>
         
         
@@ -188,10 +188,10 @@ spec:
     
     <item>
       <title>Docs: Deployment Guide</title>
-      <link>/docs/deployment-guide/</link>
+      <link>/karpenter/docs/deployment-guide/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/deployment-guide/</guid>
+      <guid>/karpenter/docs/deployment-guide/</guid>
       <description>
         
         
@@ -201,10 +201,10 @@ spec:
     
     <item>
       <title>Docs: Development Guide</title>
-      <link>/docs/dev-guide/</link>
+      <link>/karpenter/docs/dev-guide/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/docs/dev-guide/</guid>
+      <guid>/karpenter/docs/dev-guide/</guid>
       <description>
         
         
