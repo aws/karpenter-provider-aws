@@ -54,18 +54,21 @@ KARPENTER_VERSION=$(curl -fsSL \
 
 ### Create a Cluster
 
-Create a cluster with `eksctl`. The below configuration file specifies a basic
-cluster (name, region), an IAM role for Karpenter to use, and two fargate
+Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), an IAM role for Karpenter to use, and two fargate
 profiles. 
 
-The two fargate profiles host `kube-system` and the Karpenter service itself.
-This permits Karpenter to manage all EC2 instances. 
+```bash
+## This command won't work until a release after v0.2.8 is released
+curl -fsSL  https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/pkg/cloudprovider/aws/docs/eks-config.yaml \
+  | envsubst \
+  | eksctl create cluster -f -
+```
 
-Karpenter itself can run anywhere, including on self-managed node groups,
-[managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), 
-or [AWS Fargate](https://aws.amazon.com/fargate/).
+This guide uses a regular (un-managed) node group to host Karpenter.
 
-Karpenter will provision traditional instances on EC2. 
+Karpenter itself can run anywhere, including on self-managed node groups, [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
+
+Karpenter will provision new traditional instances on EC2. 
 
 Additionally, the configuration file sets up an [OIDC
 provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
