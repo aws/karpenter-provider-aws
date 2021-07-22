@@ -31,10 +31,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"knative.dev/pkg/ptr"
 )
 
 func TestAPIs(t *testing.T) {
@@ -48,12 +46,13 @@ var evictionQueue *termination.EvictionQueue
 var env = test.NewEnvironment(func(e *test.Environment) {
 	cloudProvider := &fake.CloudProvider{}
 	registry.RegisterOrDie(cloudProvider)
-	evictionQueue = termination.NewEvictionQueue(corev1.NewForConfigOrDie(e.Config))
+	coreV1Client := corev1.NewForConfigOrDie(e.Config)
+	evictionQueue = termination.NewEvictionQueue(coreV1Client)
 	controller = &termination.Controller{
 		KubeClient: e.Client,
 		Terminator: &termination.Terminator{
 			KubeClient:    e.Client,
-			CoreV1Client:  corev1.NewForConfigOrDie(e.Config),
+			CoreV1Client:  coreV1Client,
 			CloudProvider: cloudProvider,
 			EvictionQueue: evictionQueue,
 		},
@@ -103,7 +102,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect podEvict to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
+			ExpectEvicting(evictionQueue, podEvict)
 
 			// Expect node to exist, but be cordoned
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -132,7 +131,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect no pod to be enqueued for eviction
-			ExpectNotEnqueuedForEviction(evictionQueue, podEvict, podNoEvict)
+			ExpectNotEvicting(evictionQueue, podEvict, podNoEvict)
 
 			// Expect node to exist, but be cordoned
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -146,7 +145,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect podEvict to be enqueued for eviction then be successful
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
+			ExpectEvicting(evictionQueue, podEvict)
 			ExpectEvictingSucceeded(env.Client, podEvict)
 
 			// Delete pod to simulate successful eviction
@@ -160,11 +159,9 @@ var _ = Describe("Termination", func() {
 		It("should fail to evict pods that violate a PDB", func() {
 			key, value := randomdata.SillyName(), randomdata.SillyName()
 			pdb := test.PodDisruptionBudget(test.PDBOptions{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{key: value},
-				},
+				Labels: map[string]string{key: value},
 				// Don't let any pod evict
-				MinAvailable: intstr.ValueOrDefault(nil, intstr.FromInt(1)),
+				MinAvailableNum: ptr.Int64(1),
 			})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName: node.Name,
@@ -179,14 +176,14 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(node))
 
 			// Expect the pod to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, podNoEvict)
+			ExpectEvicting(evictionQueue, podNoEvict)
 
 			// Expect node to exist, but be cordoned
 			node = ExpectNodeExists(env.Client, node.Name)
 			Expect(node.Spec.Unschedulable).To(BeTrue())
 
 			// Expect podNoEvict to fail eviction due to PDB
-			ExpectEvictingFailed(evictionQueue, env.Client, podNoEvict)
+			ExpectEvictingFailed(env.Client, evictionQueue, podNoEvict)
 
 			// Delete pod to simulate successful eviction
 			ExpectDeleted(env.Client, podNoEvict)
@@ -199,15 +196,15 @@ var _ = Describe("Termination", func() {
 	})
 })
 
-func ExpectEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
+func ExpectEvicting(e *termination.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Expect(e.Contains(podToNN(pod))).To(BeTrue())
+		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeTrue())
 	}
 }
 
-func ExpectNotEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
+func ExpectNotEvicting(e *termination.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Expect(e.Contains(podToNN(pod))).To(BeFalse())
+		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeFalse())
 	}
 }
 
@@ -221,16 +218,12 @@ func ExpectEvictingSucceeded(c client.Client, pods ...*v1.Pod) {
 	}
 }
 
-func ExpectEvictingFailed(e *termination.EvictionQueue, c client.Client, pods ...*v1.Pod) {
+func ExpectEvictingFailed(c client.Client, e *termination.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
 		Eventually(func() bool {
-			return ExpectPodExists(c, pod.Name, pod.Namespace).GetDeletionTimestamp().IsZero() && e.NumRequeues(podToNN(pod)) > 0
+			return ExpectPodExists(c, pod.Name, pod.Namespace).GetDeletionTimestamp().IsZero() && e.NumRequeues(client.ObjectKeyFromObject(pod)) > 0
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 			return fmt.Sprintf("expected %s/%s to not be evicting, but it is", pod.Namespace, pod.Name)
 		})
 	}
-}
-
-func podToNN(pod *v1.Pod) types.NamespacedName {
-	return types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 }

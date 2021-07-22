@@ -26,6 +26,7 @@ import (
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -107,7 +108,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.KarpenterFinalizer)
-	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}
 	return nil
