@@ -433,8 +433,7 @@ commonly used values.</p>
 </span><span style="color:#4e9a06"></span>  https://api.github.com/repos/awslabs/karpenter/releases/latest <span style="color:#4e9a06">\
 </span><span style="color:#4e9a06"></span>  <span style="color:#000;font-weight:bold">|</span> jq -r <span style="color:#4e9a06">&#39;.tag_name&#39;</span><span style="color:#204a87;font-weight:bold">)</span>
 </code></pre></div><h3 id="create-a-cluster">Create a Cluster</h3>
-<p>Create a cluster with <code>eksctl</code>. The <a href="eks-config.yaml">example configuration</a> file specifies a basic cluster (name, region), an IAM role for Karpenter to use, and two fargate
-profiles.</p>
+<p>Create a cluster with <code>eksctl</code>. The <a href="eks-config.yaml">example configuration</a> file specifies a basic cluster (name, region), and an IAM role for Karpenter to use.</p>
 <div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash"><span style="color:#8f5902;font-style:italic">## This command won&#39;t work until a release after v0.2.8 is released</span>
 curl -fsSL  https://raw.githubusercontent.com/awslabs/karpenter/<span style="color:#4e9a06">&#34;</span><span style="color:#4e9a06">${</span><span style="color:#000">KARPENTER_VERSION</span><span style="color:#4e9a06">}</span><span style="color:#4e9a06">&#34;</span>/pkg/cloudprovider/aws/docs/eks-config.yaml <span style="color:#4e9a06">\
 </span><span style="color:#4e9a06"></span>  <span style="color:#000;font-weight:bold">|</span> envsubst <span style="color:#4e9a06">\

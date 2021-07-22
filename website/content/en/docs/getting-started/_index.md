@@ -54,8 +54,7 @@ KARPENTER_VERSION=$(curl -fsSL \
 
 ### Create a Cluster
 
-Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), an IAM role for Karpenter to use, and two fargate
-profiles. 
+Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use. 
 
 ```bash
 ## This command won't work until a release after v0.2.8 is released
