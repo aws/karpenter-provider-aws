@@ -62,6 +62,16 @@ kubectl patch deployment karpenter -n karpenter --type='json' -p='[{"op": "repla
 open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```
 
+### Marketing and Docs Website
+The Karpenter marketing and docs site uses [Hugo](https://gohugo.io/) and [npm](https://www.npmjs.com/) to generate HTML markup from Markdown content and configuration files in `/website`. Hugo makes use of [`git submodules`](https://git-scm.com/book/en/v2/Git-Tools-Submodules) to bring in theme assets and configruation. The Karpenter website uses the [Docsy theme](https://www.docsy.dev/). To serve this website locally, ensure you have `hugo` and `npm` installed, have initialized and updated your local repository's submodules with `git submodule update --init --recursive`, and then use the follow commands to bring up a local webserver:
+```bash
+cd website
+npm install
+hugo server -D 
+```
+
+_If you get `fatal error: pipe failed` running the local server on macOS, you may need to increase the maximum number of files that can be open at a time by following the instructions in [this GitHub issue comment](https://github.com/google/docsy-example/issues/89#issuecomment-758311888)._
+
 ## Environment specific setup
 
 ### AWS

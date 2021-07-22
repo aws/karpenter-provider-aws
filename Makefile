@@ -79,7 +79,7 @@ helm: ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 
 website: ## Generate Docs Website
-	cd website;npm install;hugo -d ../docs
+	cd website; npm install; git submodule update --init --recursive; hugo
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
