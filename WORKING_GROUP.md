@@ -10,6 +10,37 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (07/22/21)
+
+## Attendees
+- Prateek Gogia
+- Brandon Wagner
+- Alex Kestner
+- Ellis Tarn
+- Nick Tran
+- Geoffrey Cline
+- Elton Pinto
+- Shreyas Srinivasan
+- Zach Casper
+
+## Announcements:
+- v0.2.9 released yesterday
+- Bug bash on Friday 07/22
+
+## Notes:
+- [EL] We need a way to version Karpenter docs.
+- [BW] Planning to add name tags to EC2 instances created by Karpenter
+    - [AK] Let's include some reference to Karpenter and other necessary, have a short quip doc to go over this.
+- [EL] Node names are private DNS name for instances in EKS
+- [EL] We have version reference in repo in a bunch of places, gets tricky to change version in multiple places. Do we want to keep version in website only?
+    - [AK] We will have changes to the version, things are going to change, we should have a good way to point to the right docs for the version they are running.
+    - [EL] Who owns the docs for Karpenter for long term? We will need a long term for docs in Karpenter
+    - [AK] This should be technical doc writer and will evolve as we grow.
+    - [AK] Continue with existing process for now and we can revisit when we have major changes.
+    - [AK] Will open a PR for docs.
+- [AK] Crowd source additionally asked questions as part of the bug bash.
+- [AK/GC] Docs targeting for next Friday Concepts, provisioner CRD, well known labels, deployment guide, FAQs etc.
+
 # Meeting notes (07/08/21)
 ## Attendees
 - Prateek Gogia
