@@ -1,4 +1,4 @@
-baseURL = "/karpenter/"
+baseURL = "karpenter/"
 
 # Hugo allows theme composition (and inheritance). The precedence is from left to right.
 theme = ["docsy"]
