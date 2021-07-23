@@ -4,7 +4,7 @@
 [![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/awslabs/karpenter/blob/main/LICENSE)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/karpenter/issues)
 
-![](images/karpenter-banner.png)
+![](website/static/banner.png)
 
 Karpenter is a node lifecycle management solution. It observes incoming pods and launches the right instances for the situation. Instance selection decisions are intent based and driven by the specification of incoming pods, including resource requests and scheduling constraints.
 
@@ -21,8 +21,6 @@ Karpenter optimizes for scheduling latency and utilization efficiency using two 
 Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
 
 *Note: Reallocation is still in development. Check out the [FAQs](FAQs.md) and [Roadmap](ROADMAP.md) to learn more.*
-
-<img src="images/karpenter-overview.jpg" width="50%" height="50%">
 
 ## Installation
 
