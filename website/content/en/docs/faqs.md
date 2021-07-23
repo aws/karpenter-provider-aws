@@ -6,8 +6,13 @@ weight: 30
 
 ## General
 ### How does a Provisioner decide to manage a particular node?
+<<<<<<< HEAD:website/content/en/docs/faq.md
 Each node will have a set of predetermined Karpenter labels. Provisioners will use the `name` and `namespace` labels to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in, e.g. a Provisioner will only consider a node for termination if its phase label says `"underutilized"`.
 ## Provisioning
+=======
+Each node will have a set of predetermined Karpenter labels. Provisioners will use a `name` label to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in. e.g. a provisioner will only consider a node for termination if its phase label says "underutilized".
+## Allocation
+>>>>>>> eaa48cf (update filenames and get started guide):website/content/en/docs/faqs.md
 ### How should I define scheduling constraints?
 Karpenter takes a layered approach to scheduling constraints. Each Cloud Provider has its own set of global defaults, which are overriden by defaults specified in the Provisioner, which are overridden by Pod scheduling constraints. This model requires minimal configuration for most use cases, and supports diverse workloads using a single Provisioner.
 ### Does Karpenter replace the Kube Scheduler?

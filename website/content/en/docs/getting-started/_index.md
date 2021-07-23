@@ -57,7 +57,6 @@ KARPENTER_VERSION=$(curl -fsSL \
 Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use. 
 
 ```bash
-## This command won't work until a release after v0.2.8 is released
 curl -fsSL  https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/pkg/cloudprovider/aws/docs/eks-config.yaml \
   | envsubst \
   | eksctl create cluster -f -
@@ -134,7 +133,13 @@ provides instances with the default certificate bundle, and the control plane
 endpoint url. 
 
 Importantly, the `ttlSecondsAfterEmpty` value configures Karpenter to
-deprovision empty nodes. 
+deprovision empty nodes. This behavior can be disabled by leaving the value
+undefined. 
+
+Review the [provsioner CRD](prov-crd.md) for more information. For example, 
+`ttlSecondsUntilExpired` configures Karpenter to deprovision
+nodes when a maximum age is reached. 
+
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -207,7 +212,7 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=contro
 
 ### Manual Node Deprovisioning
 
-If you delete a node with kubectl, Karpenter deprovisions the corresponding instance.
+If you delete a node with kubectl, Karpenter terminates the corresponding instance.
 
 ```bash
 kubectl delete node $NODE_NAME
