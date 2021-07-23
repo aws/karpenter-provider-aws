@@ -10,11 +10,11 @@ menu:
 
 Karpenter automatically provisions new nodes in response to unschedulable
 pods. Karpenter does this by observing events within the Kubernetes cluster,
-and then sending commands to the underlying cloud provider. 
+and then sending commands to the underlying cloud provider.
 
 In this example, the cluster is running on Amazon Web Services (AWS) Elastic
 Kubernetes Service (EKS). Karpenter is designed to be cloud provider agnostic,
-but currently only supports AWS. Contributions are welcomed. 
+but currently only supports AWS. Contributions are welcomed.
 
 This guide should take less than 1 hour to complete, and cost less than $0.25.
 Follow the clean-up instructions to reduce any charges.
@@ -25,7 +25,7 @@ Karpenter is installed in clusters with a helm chart.
 
 Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
 permits Karpenter (within the cluster) to make privileged requests to AWS (as
-the cloud provider). 
+the cloud provider).
 
 ### Required Utilities
 
@@ -36,56 +36,47 @@ Install these tools before proceeding:
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 
 Login to the AWS CLI with a user that has sufficient privileges to create a
-cluster. 
+cluster.
 
 ### Environment Variables
 
 After setting up the tools, set the following environment variables to store
-commonly used values. 
+commonly used values.
 
 ```bash
 export CLUSTER_NAME=$USER-karpenter-demo
 export AWS_DEFAULT_REGION=us-west-2
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-KARPENTER_VERSION=$(curl -fsSL \
-  https://api.github.com/repos/awslabs/karpenter/releases/latest \
-  | jq -r '.tag_name')
 ```
 
 ### Create a Cluster
 
-Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use. 
+Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use.
 
 ```bash
-curl -fsSL  https://www.karpenter.sh/docs/getting-started/eks-config.yaml \
+curl -fsSL https://karpenter.sh/docs/getting-started/eksctl.yaml \
   | envsubst \
   | eksctl create cluster -f -
 ```
 
-This guide uses a regular (un-managed) node group to host Karpenter.
+This guide uses a self-managed node group to host Karpenter.
 
-Karpenter itself can run anywhere, including on self-managed node groups, [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
+Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
 
-Karpenter will provision new traditional instances on EC2. 
+Karpenter will provision EC2 instances in your account.
 
-Additionally, the configuration file sets up an [OIDC
-provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens),
-necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way
-of communicating with identity providers. 
+Additionally, the configuration file sets up [IAM Roles for Service Accounts](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) (IRSA), which grants Karpenter permissions like launching instances.
 
-### Setup Authentication from Kubernetes to AWS (IRSA)
+### Setup an IAM InstanceProfile for your Nodes
 
-IAM Roles for Service Accounts (IRSA) maps Kubernetes resources to roles
-(permission sets) on AWS. 
+Instances launched by Karpenter must run with an InstanceProfile that grants permissions necessary to run containers and configure networking. Karpenter discovers the InstanceProfile using the name `KarpenterNodeRole-${ClusterName}`.
 
-First, define a role using the template below. It provides full access to EC2,
-and limited access to other services such as EKS and Elastic Container Registry
-(ECR).
+First, create the IAM resources using AWS CloudFormation.
 
 ```bash
 # Creates IAM resources used by Karpenter
 TEMPOUT=$(mktemp)
-curl -fsSL https://www.karpenter.sh/docs/getting-started/karpenter.cloudformation.yaml > $TEMPOUT \
+curl -fsSL https://karpenter.sh/docs/getting-started/cloudformation.yaml > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
@@ -93,7 +84,7 @@ curl -fsSL https://www.karpenter.sh/docs/getting-started/karpenter.cloudformatio
   --parameter-overrides ClusterName=${CLUSTER_NAME}
 ```
 
-Second, create the mapping between Kubernetes resources and the new IAM role. 
+Second, grant access to instances using the profile to connect to the cluster.
 
 ```bash
 # Add the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
@@ -105,11 +96,11 @@ eksctl create iamidentitymapping \
   --group system:nodes
 ```
 
-Now, Karpenter can send requests for new EC2 instances to AWS and those instances can connect to your cluster. 
+Now, Karpenter can launch new EC2 instances and those instances can connect to your cluster.
 
 ### Install Karpenter Helm Chart
 
-Use helm to deploy Karpenter to the cluster. 
+Use helm to deploy Karpenter to the cluster.
 
 We created a Kubernetes service account when we created the cluster using
 eksctl. Thus, we don't need the helm chart to do that.
@@ -124,22 +115,19 @@ helm upgrade --install karpenter karpenter/karpenter \
 ### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
-shapes. In other words, Karpenter eliminates the need to manage many different
-node groups. Karpenter makes scheduling and provisioning decisions based on pod
-attributes such as labels and affinity. 
+shapes. Karpenter makes scheduling and provisioning decisions based on pod
+attributes such as labels and affinity. In other words, Karpenter eliminates
+the need to manage many different node groups.
 
-Create a simple default provisioner using the command below. This provisioner
-provides instances with the default certificate bundle, and the control plane
-endpoint url. 
+Create a default provisioner using the command below. This provisioner
+configures instances to connect to your cluster's endpoint and discovers
+resources like subnets and security groups using the cluster's name.
 
-Importantly, the `ttlSecondsAfterEmpty` value configures Karpenter to
-deprovision empty nodes. This behavior can be disabled by leaving the value
-undefined. 
+The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
+This behavior can be disabled by leaving the value undefined.
 
-Review the [provsioner CRD](/docs/provisioner-crd) for more information. For example, 
-`ttlSecondsUntilExpired` configures Karpenter to deprovision
-nodes when a maximum age is reached. 
-
+Review the [provsioner CRD](/docs/provisioner-crd) for more information. For example,
+`ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -153,17 +141,16 @@ spec:
     endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
   ttlSecondsAfterEmpty: 30
 EOF
-kubectl get provisioner default -o yaml
 ```
 
 ## First Use
 
-Karpenter is now active and ready to begin provisioning nodes. Create a
-workload (e.g., deployment) to see Karpenter provision some nodes. 
+Karpenter is now active and ready to begin provisioning nodes.
+Create some pods using a deployment, and watch Karpenter provision nodes in response.
 
-### Create Workload
+### Automatic Node Provisioning
 
-This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas. 
+This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -188,30 +175,27 @@ spec:
             requests:
               cpu: 1
 EOF
-```
-### Automatic Node Provisioning 
-
-Scale the previous deployment to 5 replicas, and begin watching the Karpenter
-pod for log events. 
-
-```bash
 kubectl scale deployment inflate --replicas 5
 kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
 ```
 
-### Automatic Node Deprovisioning (timeout)
+### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
-Karpenter should deprovision the now empty nodes. 
+Karpenter should terminate the now empty nodes.
 
 ```bash
 kubectl delete deployment inflate
 kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
 ```
 
-### Manual Node Deprovisioning
+### Manual Node Termination
 
-If you delete a node with kubectl, Karpenter terminates the corresponding instance. More specifically, Karpenter adds a node finalizer to properly cordon and drain nodes before they are terminated.
+If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
+and shutdown the corresponding instance. Under the hood, Karpenter adds a
+finalizer to the node object, which blocks deletion until all pods are
+drained and the instance is terminated. Keep in mind, this only works for
+nodes provisioned by Karpenter.
 
 ```bash
 kubectl delete node $NODE_NAME
@@ -219,22 +203,13 @@ kubectl delete node $NODE_NAME
 
 ## Cleanup
 
-It's important to both delete the cluster instances and the cluster control
-plane. AWS charges for both. 
-
-Delete cluster workloads and instances: 
+To avoid additional charges, remove the demo infrastructure from your AWS account.
 
 ```bash
-helm delete karpenter -n karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
     | grep -i Karpenter-${CLUSTER_NAME} \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
-```
-
-Delete the control plane: 
-
-```bash
 eksctl delete cluster --name ${CLUSTER_NAME}
 ```
