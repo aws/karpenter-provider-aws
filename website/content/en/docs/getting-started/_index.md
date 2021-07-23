@@ -73,7 +73,7 @@ provider](https://kubernetes.io/docs/reference/access-authn-authz/authentication
 necessary for IRSA (see below). Kubernetes supports OIDC as a standardized way
 of communicating with identity providers. 
 
-### Tag Subdomains
+### Tag Subnets
 
 Karpenter expects subnets to be tagged with the cluster name for autodiscovery.
 Retreive the subnet IDs and tag them with the cluster name.
