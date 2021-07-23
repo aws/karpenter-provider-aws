@@ -57,7 +57,7 @@ KARPENTER_VERSION=$(curl -fsSL \
 Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use. 
 
 ```bash
-curl -fsSL  https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/pkg/cloudprovider/aws/docs/eks-config.yaml \
+curl -fsSL  https://www.karpenter.sh/docs/getting-started/eks-config.yaml \
   | envsubst \
   | eksctl create cluster -f -
 ```
