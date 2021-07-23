@@ -72,7 +72,6 @@ Additionally, the configuration file sets up [IAM Roles for Service Accounts](ht
 Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
 Retreive the subnet IDs and tag them with the cluster name.
 
-The subnets should be automatically tagged.
 
 ```bash
 SUBNET_IDS=$(aws cloudformation describe-stacks \
