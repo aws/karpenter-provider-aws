@@ -85,7 +85,7 @@ and limited access to other services such as EKS and Elastic Container Registry
 ```bash
 # Creates IAM resources used by Karpenter
 TEMPOUT=$(mktemp)
-curl -fsSL https://raw.githubusercontent.com/awslabs/karpenter/"${KARPENTER_VERSION}"/docs/aws/karpenter.cloudformation.yaml > $TEMPOUT \
+curl -fsSL https://www.karpenter.sh/docs/getting-started/karpenter.cloudformation.yaml > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
