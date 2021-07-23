@@ -7,6 +7,13 @@ weight: 30
 ## General
 ### How does a Provisioner decide to manage a particular node?
 Each node will have a set of predetermined Karpenter labels. Provisioners will use the `name` and `namespace` labels to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in, e.g. a Provisioner will only consider a node for termination if its phase label says `"underutilized"`.
+## Compatibility
+### Which Kubernetes versions does Karpenter support?
+Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with all Kubernetes versions greater than v1.16. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
+### Can I use Karpenter alongside another node management solution?
+Provisioners are designed to work alongside static capacity management solutions like EKS Managed Node Groups and EC2 Auto Scaling Groups. Some customers may choose to (1) manage the entirety of their capacity using Provisioner, others may prefer (2) a mixed model with both dynamic and statically managed capacity, some may prefer (3) a fully static approach. We anticipate that most customers will fall into bucket (2) in the short term, and (1) in the long term.
+### Can I use Karpenter with the Kubernetes Cluster Autoscaler?
+Yes, with side effects. Karpenter is a Cluster Autoscaler replacement. Both systems scale up nodes in response to unschedulable pods. If configured together, both systems will race to launch new instances for these pods. Since Provisioners make binding decisions, Karpenter will typically win the scheduling race. In this case, the Cluster Autoscaler will eventually scale down the unnecessary capacity. If the Cluster Autoscaler is configured with Node Groups that have constraints that aren’t supported by any Provisioner, its behavior will continue unimpeded.
 ## Provisioning
 ### How should I define scheduling constraints?
 Karpenter takes a layered approach to scheduling constraints. Each Cloud Provider has its own set of global defaults, which are overriden by defaults specified in the Provisioner, which are overridden by Pod scheduling constraints. This model requires minimal configuration for most use cases, and supports diverse workloads using a single Provisioner.
@@ -39,10 +46,4 @@ Karpenter annotates nodes that are underutilized with a time to live (TTL). If t
 Yes. The Kubernetes Eviction API will not delete pods that violate a [Pod Disruption Budget (PDB)](https://kubernetes.io/docs/tasks/run-application/configure-pdb/). It also disallows eviction of any pod covered by multiple PDBs, so most users will want to avoid overlapping selectors. See [this](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets) for more.
 ### Does Karpenter support scale to zero?
 Yes. Provisioners start at zero and launch or terminate nodes as necessary. We recommend that customers maintain a small amount of static capacity to bootstrap system controllers or run Karpenter outside of their cluster.
-## Compatibility
-### Which Kubernetes versions does Karpenter support?
-Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with all Kubernetes versions greater than v1.16. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
-### Can I use Karpenter alongside another node management solution?
-Provisioners are designed to work alongside static capacity management solutions like EKS Managed Node Groups and EC2 Auto Scaling Groups. Some customers may choose to (1) manage the entirety of their capacity using Provisioner, others may prefer (2) a mixed model with both dynamic and statically managed capacity, some may prefer (3) a fully static approach. We anticipate that most customers will fall into bucket (2) in the short term, and (1) in the long term.
-### Can I use Karpenter with the Kubernetes Cluster Autoscaler?
-Yes, with side effects. Karpenter is a Cluster Autoscaler replacement. Both systems scale up nodes in response to unschedulable pods. If configured together, both systems will race to launch new instances for these pods. Since Provisioners make binding decisions, Karpenter will typically win the scheduling race. In this case, the Cluster Autoscaler will eventually scale down the unnecessary capacity. If the Cluster Autoscaler is configured with Node Groups that have constraints that aren’t supported by any Provisioner, its behavior will continue unimpeded.
+
