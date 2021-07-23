@@ -22,32 +22,44 @@ $enable-rounded: false;
 $enable-shadows: false;
 
 // Typography
+// Primary font
 $google_font_name: "Raleway";
 $google_font_family: "Raleway:300,300i,400,400i,700,700i";
 
+// Brand font
+$google_brand_font_name: "Poppins";
+$google_brand_font_family: "Poppins:400,400i,700,700i";
+$google_brand_web_font_path: "https://fonts.googleapis.com/css?family=#{$google_brand_font_family}&display=swap";
+@import url($google_brand_web_font_path);
 
 // Landing page styles
 // Navigation
-.navbar-dark .navbar-nav a.nav-link {
-  color: white;
-  font-weight: 400;
+.navbar-dark {
+  .navbar-brand {
+    font-family: $google_brand_font_name;
+  }
 
-  &:hover, &:active {
-    color: rgba(255, 255, 255, 0.8)
+  .navbar-nav a.nav-link {
+    color: white;
+    font-weight: 400;
+
+    &:hover,
+    &:active {
+      color: rgba(255, 255, 255, 0.8)
+    }
   }
 }
 
 // Hero
 .hero {
   .display-1 {
+    font-family: $google_brand_font_name;
     font-size: 6rem;
     font-weight: 700;
   }
 }
 
 // Features
-.features {
-  .h1 {
-    font-size: 8rem;
-  }
+.feature .h1 {
+  font-size: 8rem;
 }

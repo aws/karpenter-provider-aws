@@ -25,26 +25,27 @@ linkTitle = "Home"
 {{< /blocks/lead >}}
 
 {{< blocks/section color="info" >}}
-    {{< blocks/feature icon="fa-globe" title="Improve application availability" >}}
+    {{< blocks/feature title="Improve application availability" icon="fa-globe" feature_class="feature" >}}
       <p class="font-weight-light mt-5">Karpenter responds quickly, in seconds, to changes in application load, scheduling, and resource requirements, placing new workloads onto a variety of available compute resource capacity.</p>
     {{% /blocks/feature %}}
 
-    {{< blocks/feature icon="fa-dollar-sign" title="Lower cluster costs" >}}
+    {{< blocks/feature title="Lower cluster costs" icon="fa-dollar-sign" feature_class="feature" >}}
       <p class="font-weight-light mt-5">Karpenter looks for opportunities to remove under-utilized nodes, replace expensive nodes with cheaper alternatives, or combine pods from multiple smaller nodes onto larger, more efficient ones. It is fully compatible with preemptible compute resource types which offer deep savings.</p>
     {{% /blocks/feature %}}
 
-    {{< blocks/feature icon="fa-wrench" title="Minimize operational overhead" >}}
+    {{< blocks/feature title="Minimize operational overhead" icon="fa-wrench" feature_class="feature" >}}
       <p class="font-weight-light mt-5">Karpenter doesn't require configuring multiple, overlapping Kubernetes or cloud provider systems according to complex best practices. Works with many built-in Kubernetes scheduling constraints. Comes with a set of opinionated defaults in a single, declarative `Provisioner` resource which can easily be customized</p>
     {{% /blocks/feature %}}
 {{< /blocks/section >}}
 
-{{< blocks/section color="bg-light" type="section" >}}
-<h2 class="mx-auto font-weight-bolder">How It Works</h2>
-<!--<div class="row">-->
-<!--  <img class="col-8" src="images/karpenter-architecture.png">-->
+{{< blocks/section color="dark" type="section" >}}
+  <h1 class="mx-auto font-weight-bolder">How It Works</h1>
+  <img class="mx-auto mt-5 col-10" src="karpenter-overview.png">
   <p class="h3 mx-auto mt-5 col-8 font-weight-light">
-    Karpenter observes the aggregate resource requests of unscheduled pods and makes decisions to launch and terminate nodes to minimize scheduling latencies and infrastructure cost. Karpenter works with any Kubernetes cluster running in any environment including all major cloud providers and on-premises environments.
+    Karpenter observes the aggregate resource requests of unscheduled pods and makes decisions to launch and terminate nodes to minimize scheduling latencies and infrastructure cost.
   </p>
-<!--</div>-->
+  <p class="h3 mx-auto mt-3 col-8 font-weight-light">
+    Karpenter works with any Kubernetes cluster running in any environment including all major cloud providers and on-premises environments.
+  </p>
 {{< /blocks/section >}}
 
