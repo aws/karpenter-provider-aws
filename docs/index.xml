@@ -1,13 +1,12 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Karpenter – Karpenter</title>
-    <link>karpenter/</link>
+    <link>http://awslabs.github.com/karpenter/docs/</link>
     <description>Recent content on Karpenter</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 05 Jan 2017 00:00:00 +0000</lastBuildDate>
     
-	  <atom:link href="karpenter/index.xml" rel="self" type="application/rss+xml" />
+	  <atom:link href="http://awslabs.github.com/karpenter/docs/index.xml" rel="self" type="application/rss+xml" />
     
     
       
