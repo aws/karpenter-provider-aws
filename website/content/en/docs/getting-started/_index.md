@@ -78,7 +78,6 @@ of communicating with identity providers.
 Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
 Retreive the subnet IDs and tag them with the cluster name.
 
-Note: If you have a cluster with version 1.18 or below you can skip this step.
 The subnets should be automatically tagged.
 
 ```bash
@@ -86,7 +85,6 @@ SUBNET_IDS=$(aws cloudformation describe-stacks \
     --stack-name eksctl-${CLUSTER_NAME}-cluster \
     --query 'Stacks[].Outputs[?OutputKey==`SubnetsPrivate`].OutputValue' \
     --output text)
-
 aws ec2 create-tags \
     --resources $(echo $SUBNET_IDS | tr ',' '\n') \
     --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
