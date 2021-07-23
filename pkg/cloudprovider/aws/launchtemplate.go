@@ -160,6 +160,10 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
 				Tags: []*ec2.Tag{
 					{
+						Key:   aws.String("Name"),
+						Value: aws.String(fmt.Sprintf("Karpenter/%s", ptr.StringValue(options.Cluster.Name))),
+					},
+					{
 						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, ptr.StringValue(options.Cluster.Name))),
 						Value: aws.String("owned"),
 					},
