@@ -3,3 +3,51 @@
 Add styles or override variables from the theme here.
 
 */
+
+// Color palatte (AWS branding)
+//$primary: #00A0C8;
+$primary: #232F3E;
+$secondary: #1D8900;
+$success: #69AE35;
+$info: #007DBC;
+$warning: #FF9900;
+$danger: #FF5745;
+
+$dark: #232F3E;
+$body-bg: #edf2f5;
+
+// Global styles
+$enable-gradients: false;
+$enable-rounded: false;
+$enable-shadows: false;
+
+// Typography
+$google_font_name: "Raleway";
+$google_font_family: "Raleway:300,300i,400,400i,700,700i";
+
+
+// Landing page styles
+// Navigation
+.navbar-dark .navbar-nav a.nav-link {
+  color: white;
+  font-weight: 400;
+
+  &:hover, &:active {
+    color: rgba(255, 255, 255, 0.8)
+  }
+}
+
+// Hero
+.hero {
+  .display-1 {
+    font-size: 6rem;
+    font-weight: 700;
+  }
+}
+
+// Features
+.features {
+  .h1 {
+    font-size: 8rem;
+  }
+}
