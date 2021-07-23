@@ -6,7 +6,7 @@ weight: 80
 
 ## Dependencies
 
-The following tools are required for doing development on Karpenter.
+The following tools are required for contributing to the Karpenter project.
 
 | Package                                                            | Version  | Install                |
 | ------------------------------------------------------------------ | -------- | ---------------------- |
@@ -19,7 +19,7 @@ The following tools are required for doing development on Karpenter.
 
 ### Setup / Teardown
 
-Based on which environment you are running a Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) for setting up your environment before you continue. Once you have the environment specific settings, to install Karpenter in a Kubernetes cluster run the following commands.
+Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
 
 ```
 make codegen # Create auto-generated YAML files.
