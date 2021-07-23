@@ -63,24 +63,30 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// 2. Delete any node that has been unable to come up for 5 minutes.
+	if err := c.utilization.terminateFailedToBecomeReady(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating nodes that failed to become ready, %w", err)
+	}
+
 	// Skip reconciliation if utilization ttl is not defined.
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	// 2. Set TTL on TTLable Nodes
+	// 3. Set TTL on TTLable Nodes
 	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
 
-	// 3. Remove TTL from Utilized Nodes
+	// 4. Remove TTL from Utilized Nodes
 	if err := c.utilization.clearUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("removing ttl from node, %w", err)
 	}
 
-	// 4. Delete any node past its TTL
+	// 5. Delete any node past its TTL
 	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
+
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 

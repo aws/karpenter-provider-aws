@@ -18,17 +18,23 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"github.com/awslabs/karpenter/pkg/utils/pod"
 	v1 "k8s.io/api/core/v1"
 )
 
-func IsReadyAndSchedulable(node v1.Node) bool {
-	for _, condition := range node.Status.Conditions {
-		if condition.Type == v1.NodeReady {
-			return condition.Status == v1.ConditionTrue && !node.Spec.Unschedulable
-		}
+func IsReadyAndSchedulable(node *v1.Node) bool {
+	return getNodeCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue && !node.Spec.Unschedulable
+}
+
+func IsReady(node *v1.Node) bool {
+	return getNodeCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
+}
+
+func FailedToJoin(node *v1.Node, duration time.Duration) bool {
+	if time.Since(node.GetCreationTimestamp().Time) < duration {
+		return false
 	}
-	return false
+	condition := getNodeCondition(node.Status.Conditions, v1.NodeReady)
+	return condition.Status == v1.ConditionUnknown && condition.LastTransitionTime.IsZero() && condition.LastHeartbeatTime.IsZero()
 }
 
 func IsPastEmptyTTL(node *v1.Node) bool {
@@ -43,15 +49,11 @@ func IsPastEmptyTTL(node *v1.Node) bool {
 	return time.Now().After(ttlTime)
 }
 
-// IsEmpty returns if the node has 0 non-daemonset pods
-func IsEmpty(node *v1.Node, pods []*v1.Pod) bool {
-	for _, p := range pods {
-		if pod.HasFailed(p) {
-			continue
-		}
-		if !pod.IsOwnedByDaemonSet(p) {
-			return false
+func getNodeCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+	for _, condition := range conditions {
+		if condition.Type == match {
+			return condition
 		}
 	}
-	return true
+	return v1.NodeCondition{}
 }

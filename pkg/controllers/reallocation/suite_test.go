@@ -82,6 +82,34 @@ var _ = Describe("Reallocation", func() {
 	})
 
 	Context("Reconciliation", func() {
+		It("should not TTL nodes that have ready status unknown", func() {
+			node := test.Node(test.NodeOptions{
+				ReadyStatus: v1.ConditionUnknown,
+			})
+
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode := &v1.Node{}
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+		})
+		It("should not TTL nodes that have ready status unknown", func() {
+			node := test.Node(test.NodeOptions{
+				ReadyStatus: v1.ConditionFalse,
+			})
+
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode := &v1.Node{}
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+		})
 		It("should label nodes as underutilized and add TTL", func() {
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{

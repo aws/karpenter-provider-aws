@@ -45,6 +45,16 @@ func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
 	return true
 }
 
+// ContainsUnignoredPods returns true if the set of pods has a non-daemonset pod
+func ContainsUnignoredPods(pods []*v1.Pod) bool {
+	for _, p := range pods {
+		if HasFailed(p) || !IsOwnedByDaemonSet(p) {
+			return true
+		}
+	}
+	return false
+}
+
 // ToleratesTaints returns an error if the pod does not tolerate the taints
 // https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
 func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) (err error) {

@@ -22,11 +22,14 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const FailedToJoinTimeout = 5 * time.Minute
 
 type Utilization struct {
 	kubeClient client.Client
@@ -40,20 +43,21 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 	if err != nil {
 		return err
 	}
-
 	// 2. Get underutilized nodes
 	for _, node := range nodes {
+		if !utilsnode.IsReady(node) {
+			continue
+		}
 		pods, err := u.getPods(ctx, node)
 		if err != nil {
 			return fmt.Errorf("getting pods for node %s, %w", node.Name, err)
 		}
-		if utilsnode.IsEmpty(node, pods) {
+		if !pod.ContainsUnignoredPods(pods) {
 			if _, ok := node.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]; !ok {
 				ttlable = append(ttlable, node)
 			}
 		}
 	}
-
 	// 3. Set TTL for each underutilized node
 	for _, node := range ttlable {
 		persisted := node.DeepCopy()
@@ -80,15 +84,13 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 	if err != nil {
 		return fmt.Errorf("listing labeled underutilized nodes, %w", err)
 	}
-
 	// 2. Clear underutilized label if node is utilized
 	for _, node := range nodes {
 		pods, err := u.getPods(ctx, node)
 		if err != nil {
 			return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 		}
-
-		if !utilsnode.IsEmpty(node, pods) {
+		if pod.ContainsUnignoredPods(pods) {
 			persisted := node.DeepCopy()
 			delete(node.Labels, v1alpha3.ProvisionerUnderutilizedLabelKey)
 			delete(node.Annotations, v1alpha3.ProvisionerTTLAfterEmptyKey)
@@ -109,11 +111,27 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 	if err != nil {
 		return fmt.Errorf("listing underutilized nodes, %w", err)
 	}
-
 	// 2. Trigger termination workflow if past TTLAfterEmpty
 	for _, node := range nodes {
 		if utilsnode.IsPastEmptyTTL(node) {
 			logging.FromContext(ctx).Infof("Triggering termination for empty node %s", node.Name)
+			if err := u.kubeClient.Delete(ctx, node); err != nil {
+				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (u *Utilization) terminateFailedToBecomeReady(ctx context.Context, provisioner *v1alpha3.Provisioner) error {
+	// 1. Get nodes
+	nodes, err := u.getNodes(ctx, provisioner, map[string]string{})
+	if err != nil {
+		return fmt.Errorf("listing nodes, %w", err)
+	}
+	// 2. Trigger termination workflow if node has failed to become ready for 5 minutes
+	for _, node := range nodes {
+		if utilsnode.FailedToJoin(node, FailedToJoinTimeout) {
 			if err := u.kubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}
