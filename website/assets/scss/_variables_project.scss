@@ -6,8 +6,9 @@ Add styles or override variables from the theme here.
 
 // Color palatte (AWS branding)
 //$primary: #00A0C8;
-$primary: #232F3E;
-$secondary: #1D8900;
+//$primary: #232F3E;
+$primary: #5c62b0;
+$secondary: #8890e2;
 $success: #69AE35;
 $info: #007DBC;
 $warning: #FF9900;
@@ -41,7 +42,7 @@ $google_brand_web_font_path: "https://fonts.googleapis.com/css?family=#{$google_
 
   .navbar-nav a.nav-link {
     color: white;
-    font-weight: 400;
+    text-shadow: none;
 
     &:hover,
     &:active {
@@ -60,6 +61,13 @@ $google_brand_web_font_path: "https://fonts.googleapis.com/css?family=#{$google_
 }
 
 // Features
-.feature .h1 {
-  font-size: 8rem;
+.feature {
+  .h1 {
+    font-size: 8rem;
+  }
+
+  .h3 {
+    font-weight: bold;
+  }
 }
+
