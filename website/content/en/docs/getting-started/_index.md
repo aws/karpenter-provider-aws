@@ -67,6 +67,21 @@ Karpenter will provision EC2 instances in your account.
 
 Additionally, the configuration file sets up [IAM Roles for Service Accounts](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) (IRSA), which grants Karpenter permissions like launching instances.
 
+### Tag Subnets
+
+Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
+Retreive the subnet IDs and tag them with the cluster name.
+
+```bash
+SUBNET_IDS=$(aws cloudformation describe-stacks \
+    --stack-name eksctl-${CLUSTER_NAME}-cluster \
+    --query 'Stacks[].Outputs[?OutputKey==`SubnetsPrivate`].OutputValue' \
+    --output text)
+aws ec2 create-tags \
+    --resources $(echo $SUBNET_IDS | tr ',' '\n') \
+    --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
+```
+
 ### Setup an IAM InstanceProfile for your Nodes
 
 Instances launched by Karpenter must run with an InstanceProfile that grants permissions necessary to run containers and configure networking. Karpenter discovers the InstanceProfile using the name `KarpenterNodeRole-${ClusterName}`.
