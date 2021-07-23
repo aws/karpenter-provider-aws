@@ -105,7 +105,7 @@ eksctl create iamidentitymapping \
   --group system:nodes
 ```
 
-Now, Karpenter can send requests for new EC2 instances to AWS. 
+Now, Karpenter can send requests for new EC2 instances to AWS and those instances can connect to your cluster. 
 
 ### Install Karpenter Helm Chart
 
@@ -150,7 +150,6 @@ metadata:
 spec:
   cluster:
     name: ${CLUSTER_NAME}
-    caBundle: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.certificateAuthority.data" --output json)
     endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
   ttlSecondsAfterEmpty: 30
 EOF
@@ -212,7 +211,7 @@ kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=contro
 
 ### Manual Node Deprovisioning
 
-If you delete a node with kubectl, Karpenter terminates the corresponding instance.
+If you delete a node with kubectl, Karpenter terminates the corresponding instance. More specifically, Karpenter adds a node finalizer to properly cordon and drain nodes before they are terminated.
 
 ```bash
 kubectl delete node $NODE_NAME
