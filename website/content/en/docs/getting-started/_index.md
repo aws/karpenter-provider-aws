@@ -143,7 +143,7 @@ nodes when a maximum age is reached.
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: provisioning.karpenter.sh/v1alpha2
+apiVersion: karpenter.sh/v1alpha3
 kind: Provisioner
 metadata:
   name: default

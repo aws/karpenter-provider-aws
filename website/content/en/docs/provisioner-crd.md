@@ -8,7 +8,7 @@ date: 2017-01-05
 ## example resource
 
 ```bash
-apiVersion: provisioning.karpenter.sh/v1alpha1
+apiVersion: karpenter.sh/v1alpha3
 kind: Provisioner
 metadata:
   name: default
