@@ -1,10 +1,8 @@
-baseURL = "karpenter/"
-
 # Hugo allows theme composition (and inheritance). The precedence is from left to right.
 theme = ["docsy"]
 
 # Build settings
-publishDir = "../docs"
+baseURL = "/"
 disableKinds = ["taxonomy", "taxonomyTerm"]
 
 # Language settings
