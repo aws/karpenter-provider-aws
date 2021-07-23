@@ -20,7 +20,7 @@ The termination controller is responsible for gracefully terminating instances. 
 The current termination workflow finds nodes with the label `karpenter.sh/lifecycle-phase: terminable` then cordons, drains, and deletes them. This naively handles a few error cases, has no user safeguards, and makes no effort to rate limit. The new workflow will improve these but continue to monitor nodes with the same labels.
 
 The new termination process will begin with a node that receives a delete request. After Karpenter validates the request, a Karpenter mutating webhook will add the Karpenter [finalizer](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers) to the node. Then, we cordon and begin draining the node. After no pods remain, we terminate the instance in the cloud provider, then remove the Karpenter finalizer. This will result in the APIServer deleting the node object.
-![](../images/termination-state-machine.png)
+![](../website/static/termination-state-machine.png)
 ### Triggering Termination
 
 The current termination process acts on a reconcile loop. We will change the termination controller to watch nodes and manage the Karpenter [finalizer](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers), making it responsible for all node termination and pod eviction logic.
