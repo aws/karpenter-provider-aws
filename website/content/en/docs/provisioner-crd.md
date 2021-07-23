@@ -5,7 +5,7 @@ weight: 40
 date: 2017-01-05
 ---
 
-## example resource
+## Example Provisioner Resource
 
 ```bash
 apiVersion: karpenter.sh/v1alpha3
