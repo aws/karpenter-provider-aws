@@ -75,7 +75,7 @@ of communicating with identity providers.
 
 ### Tag Subnets
 
-Karpenter expects subnets to be tagged with the cluster name for autodiscovery.
+Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
 Retreive the subnet IDs and tag them with the cluster name.
 
 Note: If you have a cluster with version 1.18 or below you can skip this step.
