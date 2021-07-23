@@ -136,7 +136,7 @@ Importantly, the `ttlSecondsAfterEmpty` value configures Karpenter to
 deprovision empty nodes. This behavior can be disabled by leaving the value
 undefined. 
 
-Review the [provsioner CRD](prov-crd.md) for more information. For example, 
+Review the [provsioner CRD](/docs/provisioner-crd) for more information. For example, 
 `ttlSecondsUntilExpired` configures Karpenter to deprovision
 nodes when a maximum age is reached. 
 
