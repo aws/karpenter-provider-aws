@@ -108,8 +108,8 @@ eksctl. Thus, we don't need the helm chart to do that.
 ```bash
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
 helm repo update
-helm upgrade --install karpenter karpenter/karpenter \
-  --namespace karpenter --set serviceAccount.create=false
+helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
+  --create-namespace --set serviceAccount.create=false
 ```
 
 ### Provisioner
