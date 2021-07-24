@@ -21,6 +21,7 @@ $body-bg: #edf2f5;
 $enable-gradients: false;
 $enable-rounded: false;
 $enable-shadows: false;
+$enable-responsive-font-sizes: true;
 
 // Typography
 // Primary font
@@ -55,8 +56,11 @@ $google_brand_web_font_path: "https://fonts.googleapis.com/css?family=#{$google_
 .hero {
   .display-1 {
     font-family: $google_brand_font_name;
-    font-size: 6rem;
     font-weight: 700;
+    font-size: 3.5rem;
+    @media (min-width: 768px) {
+      font-size: 6rem;
+    }
   }
 }
 
