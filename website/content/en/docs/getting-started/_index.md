@@ -1,7 +1,7 @@
 
 ---
 title: "Getting Started with Karpenter on AWS"
-linkTitle: "Getting Started Guide"
+linkTitle: "Getting Started"
 weight: 10
 menu:
   main:
