@@ -54,6 +54,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 		}
 		provisionable = append(provisionable, ptr.Pod(p))
 	}
+	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(provisionable))
 	return provisionable, nil
 }
 
