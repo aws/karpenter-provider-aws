@@ -34,9 +34,9 @@ Follow the setup recommendations of your cloud provider.
 > - Reinstall Karpenter
 
 ## References
-- [Docs](https://awslabs.github.io/karpenter/docs)
+- [Docs](https://karpenter.sh/docs/)
 - [API](README.md)
-- [FAQs](FAQs.md)
+- [FAQs](https://karpenter.sh/docs/faqs/)
 - [Roadmap](ROADMAP.md)
 - [Working Group](WORKING_GROUP.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
