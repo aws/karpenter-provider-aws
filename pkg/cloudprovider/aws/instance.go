@@ -20,13 +20,17 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"go.uber.org/multierr"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+)
+
+const (
+	EC2InstanceIDNotFoundErrCode = "InvalidInstanceID.NotFound"
 )
 
 type InstanceProvider struct {
@@ -112,7 +116,10 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	}
 	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: []*string{id},
-	}); err != nil && !errors.IsNotFound(err) {
+	}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == EC2InstanceIDNotFoundErrCode {
+			return nil
+		}
 		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
 	}
 	return nil
