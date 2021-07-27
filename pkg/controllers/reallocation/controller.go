@@ -64,8 +64,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Delete any node that has been unable to come up for 5 minutes.
-	if err := c.utilization.terminateFailedToBecomeReady(ctx, provisioner); err != nil {
-		return reconcile.Result{}, fmt.Errorf("terminating nodes that failed to become ready, %w", err)
+	if err := c.utilization.terminateFailedToJoin(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating nodes that failed to join, %w", err)
 	}
 
 	// Skip reconciliation if utilization ttl is not defined.

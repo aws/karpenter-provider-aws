@@ -123,7 +123,7 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 	return nil
 }
 
-func (u *Utilization) terminateFailedToBecomeReady(ctx context.Context, provisioner *v1alpha3.Provisioner) error {
+func (u *Utilization) terminateFailedToJoin(ctx context.Context, provisioner *v1alpha3.Provisioner) error {
 	// 1. Get nodes
 	nodes, err := u.getNodes(ctx, provisioner, map[string]string{})
 	if err != nil {
