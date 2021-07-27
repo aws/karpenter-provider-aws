@@ -12,6 +12,9 @@ defaultContentLanguageInSubdir = false
 # Useful when translating.
 enableMissingTranslationPlaceholders = true
 
+[services.googleAnalytics]
+id = "G-NT6C9QZZQ0"
+
 # Localizations
 languageCode = "en-us"
 [languages]
