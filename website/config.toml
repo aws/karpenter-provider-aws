@@ -66,6 +66,8 @@ copyright = "Amazon.com, Inc. or its affiliates."
 github_repo = "https://github.com/awslabs/karpenter"
 # Specify a value here if your content directory is not in your repo's root directory
 github_subdir = "website"
+# Twitter card images (banner with logo)
+images = ["banner.png"]
 
 # Version configuration
 # Menu title if your navbar has a versions selector to access old versions of your site.
