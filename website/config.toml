@@ -83,6 +83,9 @@ archived_version = false
 # current doc set.
 version = "0.2"
 
+# Enable local search
+offlineSearch = true
+
 # User interface configuration
 [params.ui]
 # Enable to show the side bar menu in its compact state.
