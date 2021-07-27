@@ -51,7 +51,7 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 ### Create a Cluster
 
-Create a cluster with `eksctl`. The [example configuration](eks-config.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use.
+Create a cluster with `eksctl`. The [example configuration](eksctl.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use.
 
 ```bash
 curl -fsSL https://karpenter.sh/docs/getting-started/eksctl.yaml \
