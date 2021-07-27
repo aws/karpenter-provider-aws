@@ -22,8 +22,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 )
 
-func NewCloudProvider(options cloudprovider.Options) cloudprovider.CloudProvider {
-	cloudProvider := newCloudProvider(options)
+func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
+	cloudProvider := newCloudProvider(ctx, options)
 	RegisterOrDie(cloudProvider)
 	return cloudProvider
 }

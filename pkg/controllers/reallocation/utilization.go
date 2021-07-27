@@ -23,8 +23,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -68,7 +68,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
-		zap.S().Infof("Added TTL and label to underutilized node %s", node.Name)
+		logging.FromContext(ctx).Infof("Added TTL and label to underutilized node %s", node.Name)
 	}
 	return nil
 }
@@ -95,7 +95,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				return fmt.Errorf("removing underutilized label on %s, %w", node.Name, err)
 			} else {
-				zap.S().Infof("Removed TTL from node %s", node.Name)
+				logging.FromContext(ctx).Infof("Removed TTL from node %s", node.Name)
 			}
 		}
 	}
@@ -113,7 +113,7 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 	// 2. Trigger termination workflow if past TTLAfterEmpty
 	for _, node := range nodes {
 		if utilsnode.IsPastEmptyTTL(node) {
-			zap.S().Infof("Triggering termination for empty node %s", node.Name)
+			logging.FromContext(ctx).Infof("Triggering termination for empty node %s", node.Name)
 			if err := u.kubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}

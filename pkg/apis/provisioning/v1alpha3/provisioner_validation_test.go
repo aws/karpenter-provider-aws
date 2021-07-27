@@ -22,23 +22,25 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var ctx context.Context
+
 func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Validation")
 }
 
 var _ = Describe("Validation", func() {
-	var ctx context.Context
 	var provisioner *Provisioner
 
 	BeforeEach(func() {
-		ctx = context.Background()
 		provisioner = &Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: strings.ToLower(randomdata.SillyName()),

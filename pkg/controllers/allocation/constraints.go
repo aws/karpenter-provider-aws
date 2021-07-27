@@ -47,7 +47,6 @@ func (c *Constraints) Group(ctx context.Context, provisioner *v1alpha3.Provision
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
-
 		// Create new group if one doesn't exist
 		if _, ok := groups[key]; !ok {
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.

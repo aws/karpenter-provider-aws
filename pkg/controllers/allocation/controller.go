@@ -23,9 +23,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"golang.org/x/time/rate"
+	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -74,12 +74,14 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Allocation"))
+
 	// 1. Fetch provisioner
 	provisioner, err := c.provisionerFor(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.Batcher.Wait(&v1alpha3.Provisioner{})
-			zap.S().Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
+			logging.FromContext(ctx).Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -96,7 +98,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if len(pods) == 0 {
 		return reconcile.Result{}, nil
 	}
-	zap.S().Infof("Found %d provisionable pods", len(pods))
+	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(pods))
 
 	// 4. Group by constraints
 	constraintGroups, err := c.Constraints.Group(ctx, provisioner, pods)
@@ -171,11 +173,11 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 	// Hydrate provisioner with (dynamic) default values, which must not
 	//    be persisted into the original CRD as they might change with each reconciliation
 	//    loop iteration.
-	provisionerWithDefaults, err := provisioner.WithDynamicDefaults()
+	defaulted, err := provisioner.WithDynamicDefaults(ctx)
 	if err != nil {
-		return &provisionerWithDefaults, fmt.Errorf("setting dynamic default values, %w", err)
+		return &defaulted, fmt.Errorf("setting dynamic default values, %w", err)
 	}
-	return &provisionerWithDefaults, nil
+	return &defaulted, nil
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests

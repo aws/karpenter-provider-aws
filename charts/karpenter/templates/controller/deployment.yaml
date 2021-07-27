@@ -49,9 +49,13 @@ spec:
               path: /healthz
               port: 8081
           env:
-          {{- with .Values.controller.env }}
-          {{- toYaml . | nindent 10 }}
-          {{- end }}
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.controller.env }}
+            {{- toYaml . | nindent 10 }}
+            {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:
         fsGroup: 1000
@@ -63,7 +67,7 @@ spec:
         {{- if .Values.controller.affinity }}
           {{- toYaml .Values.controller.affinity | nindent 8 }}
         {{- else }}
-        nodeAffinity: 
+        nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:

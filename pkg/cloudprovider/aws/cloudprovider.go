@@ -29,9 +29,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
+	"knative.dev/pkg/logging"
 )
 
 const (
@@ -75,16 +75,16 @@ type CloudProvider struct {
 	creationQueue          *parallel.WorkQueue
 }
 
-func NewCloudProvider(options cloudprovider.Options) *CloudProvider {
+func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
 	sess := withUserAgent(session.Must(
 		session.NewSession(request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
 			utils.NewRetryer()))))
 	if *sess.Config.Region == "" {
-		zap.S().Debug("AWS region not configured, asking EC2 Instance Metadata Service")
+		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		*sess.Config.Region = getRegionFromIMDS(sess)
 	}
-	zap.S().Debugf("Using AWS region %s", *sess.Config.Region)
+	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
 	return &CloudProvider{
 		nodeAPI: &NodeFactory{ec2api: ec2api},
@@ -117,13 +117,13 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) chan error {
 	return c.creationQueue.Add(func() error {
-		return c.create(ctx, provisioner, packing, bind)
+		return c.create(ctx, provisioner, packing, callback)
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) error {
+func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) error {
 	constraints := Constraints{*packing.Constraints}
 	// 1. Get Subnets and constrain by zones
 	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
@@ -140,11 +140,12 @@ func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provis
 	if err != nil {
 		return fmt.Errorf("launching instances, %w", err)
 	}
+	// 4. Convert to node
 	node, err := c.nodeAPI.For(ctx, instanceID)
 	if err != nil {
 		return fmt.Errorf("constructing node, %w", err)
 	}
-	return bind(node)
+	return callback(node)
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

@@ -18,15 +18,11 @@ import (
 	"sync"
 
 	"github.com/awslabs/karpenter/pkg/apis"
-	"github.com/awslabs/karpenter/pkg/utils/log"
 	"github.com/awslabs/karpenter/pkg/utils/project"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var (
@@ -56,9 +52,9 @@ AfterSuite(func() { env.Stop() })
 type Environment struct {
 	envtest.Environment
 	Client client.Client
+	Ctx    context.Context
 
 	options []EnvironmentOption
-	ctx     context.Context
 	stop    context.CancelFunc
 	cleanup *sync.WaitGroup
 }
@@ -68,14 +64,13 @@ type Environment struct {
 // customizing Client, Scheme, or other variables.
 type EnvironmentOption func(env *Environment)
 
-func NewEnvironment(options ...EnvironmentOption) *Environment {
-	log.Setup(controllerruntimezap.UseDevMode(true), controllerruntimezap.ConsoleEncoder(), controllerruntimezap.StacktraceLevel(zapcore.DPanicLevel))
-	ctx, stop := context.WithCancel(controllerruntime.SetupSignalHandler())
+func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environment {
+	ctx, stop := context.WithCancel(ctx)
 	return &Environment{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("charts/karpenter/templates/karpenter.sh_provisioners.yaml")},
 		},
-		ctx:     ctx,
+		Ctx:     ctx,
 		stop:    stop,
 		options: options,
 		cleanup: &sync.WaitGroup{},

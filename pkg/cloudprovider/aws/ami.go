@@ -23,8 +23,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/patrickmn/go-cache"
-	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
+	"knative.dev/pkg/logging"
 )
 
 const kubernetesVersionCacheKey = "kubernetesVersion"
@@ -44,7 +44,7 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 }
 
 func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string, error) {
-	version, err := p.kubeServerVersion()
+	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
@@ -58,11 +58,11 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.cache.Set(name, ami, CacheTTL)
-	zap.S().Debugf("Discovered ami %s for query %s", ami, name)
+	logging.FromContext(ctx).Debugf("Discovered ami %s for query %s", ami, name)
 	return ami, nil
 }
 
-func (p *AMIProvider) kubeServerVersion() (string, error) {
+func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
@@ -72,6 +72,6 @@ func (p *AMIProvider) kubeServerVersion() (string, error) {
 	}
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.Set(kubernetesVersionCacheKey, version, CacheTTL)
-	zap.S().Debugf("Discovered kubernetes version %s", version)
+	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
 	return version, nil
 }

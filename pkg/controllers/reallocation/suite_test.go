@@ -34,26 +34,29 @@ import (
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var ctx context.Context
+var controller *reallocation.Controller
+var env *test.Environment
 func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Provisioner/Reallocator")
 }
 
-var controller *reallocation.Controller
-var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := &fake.CloudProvider{}
-	registry.RegisterOrDie(cloudProvider)
-	controller = reallocation.NewController(
-		e.Client,
-		corev1.NewForConfigOrDie(e.Config),
-		cloudProvider,
-	)
-})
-
 var _ = BeforeSuite(func() {
+	env = test.NewEnvironment(ctx, func(e *test.Environment) {
+		cloudProvider := &fake.CloudProvider{}
+		registry.RegisterOrDie(cloudProvider)
+		controller = reallocation.NewController(
+			e.Client,
+			corev1.NewForConfigOrDie(e.Config),
+			cloudProvider,
+		)
+	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
@@ -63,7 +66,6 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Reallocation", func() {
 	var provisioner *v1alpha3.Provisioner
-	var ctx context.Context
 
 	BeforeEach(func() {
 		provisioner = &v1alpha3.Provisioner{
@@ -73,7 +75,6 @@ var _ = Describe("Reallocation", func() {
 				TTLSecondsAfterEmpty: ptr.Int64(300),
 			},
 		}
-		ctx = context.Background()
 	})
 
 	AfterEach(func() {
@@ -89,7 +90,7 @@ var _ = Describe("Reallocation", func() {
 			})
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
@@ -114,7 +115,7 @@ var _ = Describe("Reallocation", func() {
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())

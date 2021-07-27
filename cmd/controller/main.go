@@ -15,6 +15,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -26,20 +27,25 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/expiration"
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
-	"github.com/awslabs/karpenter/pkg/utils/log"
-
-	"go.uber.org/zap/zapcore"
+	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
+	"knative.dev/pkg/configmap/informer"
+	"knative.dev/pkg/injection"
+	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/signals"
+	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	controllerruntimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var (
-	scheme  = runtime.NewScheme()
-	options = Options{}
+	scheme    = runtime.NewScheme()
+	options   = Options{}
+	component = "controller"
 )
 
 func init() {
@@ -49,40 +55,53 @@ func init() {
 
 // Options for running this binary
 type Options struct {
-	EnableVerboseLogging bool
-	MetricsPort          int
-	HealthProbePort      int
+	MetricsPort     int
+	HealthProbePort int
 }
 
 func main() {
-	flag.BoolVar(&options.EnableVerboseLogging, "verbose", false, "Enable verbose logging")
 	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
 	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
 	flag.Parse()
 
-	log.Setup(
-		controllerruntimezap.UseDevMode(options.EnableVerboseLogging),
-		controllerruntimezap.ConsoleEncoder(),
-		controllerruntimezap.StacktraceLevel(zapcore.DPanicLevel),
-	)
-	manager := controllers.NewManagerOrDie(controllerruntime.GetConfigOrDie(), controllerruntime.Options{
+	config := controllerruntime.GetConfigOrDie()
+	clientSet := kubernetes.NewForConfigOrDie(config)
+
+	// 1. Setup logger and watch for changes to log level
+	ctx := LoggingContextOrDie(config, clientSet)
+
+	// 2. Setup controller runtime controller
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
+	manager := controllers.NewManagerOrDie(config, controllerruntime.Options{
+		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
 		LeaderElectionID:       "karpenter-leader-election",
 		Scheme:                 scheme,
 		MetricsBindAddress:     fmt.Sprintf(":%d", options.MetricsPort),
 		HealthProbeBindAddress: fmt.Sprintf(":%d", options.HealthProbePort),
 	})
-
-	clientSet := kubernetes.NewForConfigOrDie(manager.GetConfig())
-	cloudProvider := registry.NewCloudProvider(cloudprovider.Options{ClientSet: clientSet})
-	ctx := controllerruntime.SetupSignalHandler()
-
 	if err := manager.RegisterControllers(ctx,
 		expiration.NewController(manager.GetClient()),
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		termination.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}
+}
+
+// LoggingContextOrDie injects a logger into the returned context. The logger is
+// configured by the ConfigMap `config-logging` and live updates the level.
+func LoggingContextOrDie(config *rest.Config, clientSet *kubernetes.Clientset) context.Context {
+	ctx, startinformers := injection.EnableInjectionOrDie(signals.NewContext(), config)
+	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, component)
+	ctx = logging.WithLogger(ctx, logger)
+	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})
+	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
+	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
+	if err := cmw.Start(ctx.Done()); err != nil {
+		logger.Fatalf("Failed to watch logging configuration, %s", err.Error())
+	}
+	startinformers()
+	return ctx
 }

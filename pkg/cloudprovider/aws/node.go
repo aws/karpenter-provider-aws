@@ -23,10 +23,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/logging"
 )
 
 type NodeFactory struct {
@@ -49,7 +49,7 @@ func (n *NodeFactory) For(ctx context.Context, instanceId *string) (*v1.Node, er
 		return nil, fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
 	}
 	instance := *describeInstancesOutput.Reservations[0].Instances[0]
-	zap.S().Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
+	logging.FromContext(ctx).Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
 		*instance.InstanceId,
 		*instance.InstanceType,
 		*instance.Placement.AvailabilityZone,

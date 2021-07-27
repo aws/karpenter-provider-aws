@@ -43,7 +43,6 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	kubectl create ns karpenter || true
 	helm template karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
@@ -52,7 +51,6 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm template karpenter charts/karpenter --namespace karpenter | kubectl delete -f -
-	kubectl delete ns karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \

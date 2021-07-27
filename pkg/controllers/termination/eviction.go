@@ -16,11 +16,9 @@ package termination
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	set "github.com/deckarep/golang-set"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -41,23 +40,21 @@ type EvictionQueue struct {
 	set.Set
 
 	coreV1Client corev1.CoreV1Interface
-	once         sync.Once
 }
 
-func NewEvictionQueue(coreV1Client corev1.CoreV1Interface) *EvictionQueue {
-	return &EvictionQueue{
+func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) *EvictionQueue {
+	queue := &EvictionQueue{
 		RateLimitingInterface: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay)),
 		Set:                   set.NewSet(),
 
 		coreV1Client: coreV1Client,
 	}
+	go queue.Start(ctx)
+	return queue
 }
 
 // Add adds pods to the EvictionQueue
 func (e *EvictionQueue) Add(pods []*v1.Pod) {
-	// Start processing eviction queue if it hasn't started already
-	e.once.Do(func() { go e.run() })
-
 	for _, pod := range pods {
 		if nn := client.ObjectKeyFromObject(pod); !e.Set.Contains(nn) {
 			e.Set.Add(nn)
@@ -66,7 +63,7 @@ func (e *EvictionQueue) Add(pods []*v1.Pod) {
 	}
 }
 
-func (e *EvictionQueue) run() {
+func (e *EvictionQueue) Start(ctx context.Context) {
 	for {
 		// Get pod from queue. This waits until queue is non-empty.
 		item, shutdown := e.RateLimitingInterface.Get()
@@ -75,8 +72,8 @@ func (e *EvictionQueue) run() {
 		}
 		nn := item.(types.NamespacedName)
 		// Evict pod
-		if e.evict(nn) {
-			zap.S().Debugf("Evicted pod %s", nn.String())
+		if e.evict(ctx, nn) {
+			logging.FromContext(ctx).Debugf("Evicted pod %s", nn.String())
 			e.RateLimitingInterface.Forget(nn)
 			e.Set.Remove(nn)
 			e.RateLimitingInterface.Done(nn)
@@ -86,20 +83,20 @@ func (e *EvictionQueue) run() {
 		// Requeue pod if eviction failed
 		e.RateLimitingInterface.AddRateLimited(nn)
 	}
-	zap.S().Errorf("EvictionQueue is broken and has shutdown.")
+	logging.FromContext(ctx).Errorf("EvictionQueue is broken and has shutdown.")
 }
 
 // evict returns true if successful eviction call, error is returned if not eviction-related error
-func (e *EvictionQueue) evict(nn types.NamespacedName) bool {
-	err := e.coreV1Client.Pods(nn.Namespace).Evict(context.Background(), &v1beta1.Eviction{
+func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool {
+	err := e.coreV1Client.Pods(nn.Namespace).Evict(ctx, &v1beta1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{Name: nn.Name, Namespace: nn.Namespace},
 	})
 	if errors.IsInternalError(err) { // 500
-		zap.S().Debugf("Failed to evict pod %s due to PDB misconfiguration error.", nn.String())
+		logging.FromContext(ctx).Debugf("Failed to evict pod %s due to PDB misconfiguration error.", nn.String())
 		return false
 	}
 	if errors.IsTooManyRequests(err) { // 429
-		zap.S().Debugf("Failed to evict pod %s due to PDB violation.", nn.String())
+		logging.FromContext(ctx).Debugf("Failed to evict pod %s due to PDB violation.", nn.String())
 		return false
 	}
 	if errors.IsNotFound(err) { // 404

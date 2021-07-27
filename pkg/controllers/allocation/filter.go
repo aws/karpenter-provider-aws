@@ -22,8 +22,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -45,7 +45,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
 		if err := f.isProvisionable(ctx, &p, provisioner); err != nil {
-			zap.S().Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
+			logging.FromContext(ctx).Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
 				p.Name, p.Namespace,
 				provisioner.Name, provisioner.Namespace,
 				err.Error(),
