@@ -96,7 +96,7 @@ var _ = Describe("Reallocation", func() {
 			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
 		})
-		It("should not TTL nodes that have ready status unknown", func() {
+		It("should not TTL nodes that have ready status false", func() {
 			node := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionFalse,
 			})

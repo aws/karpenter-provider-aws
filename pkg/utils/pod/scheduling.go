@@ -45,14 +45,17 @@ func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
 	return true
 }
 
-// ContainsUnignoredPods returns true if the set of pods has a non-daemonset pod
-func ContainsUnignoredPods(pods []*v1.Pod) bool {
+// IgnoredForUnderutilization returns true if the set of pods has no non-daemonset pods
+func IgnoredForUnderutilization(pods []*v1.Pod) bool {
 	for _, p := range pods {
-		if HasFailed(p) || !IsOwnedByDaemonSet(p) {
-			return true
+		if HasFailed(p) {
+			continue
+		}
+		if !IsOwnedByDaemonSet(p) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // ToleratesTaints returns an error if the pod does not tolerate the taints

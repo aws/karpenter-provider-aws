@@ -52,7 +52,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 		if err != nil {
 			return fmt.Errorf("getting pods for node %s, %w", node.Name, err)
 		}
-		if !pod.ContainsUnignoredPods(pods) {
+		if pod.IgnoredForUnderutilization(pods) {
 			if _, ok := node.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]; !ok {
 				ttlable = append(ttlable, node)
 			}
@@ -90,7 +90,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 		if err != nil {
 			return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 		}
-		if pod.ContainsUnignoredPods(pods) {
+		if !pod.IgnoredForUnderutilization(pods) {
 			persisted := node.DeepCopy()
 			delete(node.Labels, v1alpha3.ProvisionerUnderutilizedLabelKey)
 			delete(node.Annotations, v1alpha3.ProvisionerTTLAfterEmptyKey)
@@ -132,6 +132,7 @@ func (u *Utilization) terminateFailedToBecomeReady(ctx context.Context, provisio
 	// 2. Trigger termination workflow if node has failed to become ready for 5 minutes
 	for _, node := range nodes {
 		if utilsnode.FailedToJoin(node, FailedToJoinTimeout) {
+			logging.FromContext(ctx).Infof("Deleting node %s after it failed to join in 5 minutes", node.Name)
 			if err := u.kubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}
