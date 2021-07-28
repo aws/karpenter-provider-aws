@@ -4,7 +4,8 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-nodeGroups:
+  version: "1.20"
+managedNodeGroups:
   - instanceType: m5.large
     name: ${CLUSTER_NAME}-ng
     desiredCapacity: 1
