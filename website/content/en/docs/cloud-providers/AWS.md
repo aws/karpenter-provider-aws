@@ -43,7 +43,7 @@ spec:
     - m5.large
 ```
 
-*Override with pod.yaml*
+*Override with workload manifest (e.g., pod)*
 
 ```yaml
 spec:
@@ -57,7 +57,10 @@ spec:
 
 ### Launch Template
 
-Karpenter uses [AWS Bottlerocket](https://aws.amazon.com/bottlerocket/) by default. 
+Karpenter uses [AWS Bottlerocket OS](https://aws.amazon.com/bottlerocket/) by
+default. More specifically, Karpenter automatically creates a launch template
+with the name `Karpenter-<cluster name>-uuid` for each region where a node is
+provisioned.
 
 You can specify a different [launch
 template](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templates.html),
@@ -69,12 +72,6 @@ altogether.
 - value example: `bottlerocket` (default)
 - value list: `aws ec2 describe-launch-templates`
 
-**Template Version**
-- key: `node.k8s.aws/launch-template-version`
-- value example: `3`
-- default: `$LATEST`
-- value list: `aws ec2 describe-launch-templates`
-
 ### Capacity Type (e.g., spot)
 
 - key: `node.k8s.aws/capacity-type`
@@ -84,7 +81,7 @@ altogether.
 
 Karpenter supports specifying capacity type and defaults to on-demand.
 
-Specify this value on the provisioner to enable spot instance pricing. [Spot
+Specify this value on the provisioner to enable spot instances. [Spot
 instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not
 be used for critical workloads.
 
@@ -98,7 +95,7 @@ spec:
     node.k8s.aws/capacity-type: spot
 ```
 
-*Override with pod.yaml*
+*Override with workload manifest (e.g., pod)*
 
 ```yaml
 spec:
@@ -115,8 +112,7 @@ spec:
   - `amd64` (default)
   - `arm64`
 
-Karpenter supports `amd64` (e.g., intel) nodes, and `arm64` nodes. The default
-is `amd64`.
+Karpenter supports `amd64` nodes, and `arm64` nodes. 
 
 **Example**
 
@@ -128,7 +124,7 @@ spec:
     kubernetes.io/arch: arm64
 ```
 
-*Override with pod.yaml*
+*Override with workload manifest (e.g., pod)*
 
 ```yaml
 spec:
@@ -144,27 +140,27 @@ spec:
 - values
   - `linux` (default)
 
-At this time, Karpenter only supports linux nodes.
-
-### AWS Region
-
-`topology.kubernetes.io/region=us-east-1`
-
-- key: `topology.kubernetes.io/region`
-- value example: `us-east-1`
-- value list: [AWS regional endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html)
-
-Karpenter can be configured to create nodes in a particular region.
+At this time, Karpenter only supports Linux OS nodes.
 
 ### Availability Zones
 
 `topology.kubernetes.io/zone=us-east-1c`
 
 - key: `topology.kubernetes.io/zone`
-- value example: `us-east-1c`
+- value example: `us-east-1c` or `use1-az1`
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
-Karpenter can be configured to create nodes in a particular availability zone.
+Karpenter can be configured to create nodes in a particular zone. Karpenter
+supports (1) availability zone IDs, and (2) availability zone names. 
+
+Availability zone IDs, such as `use1-az1`, are consitent between AWS accounts.
+
+Availability zone names, such as `us-east-1c`, are randomly mapped to zone IDs
+on an account level. For example, the Availability Zone us-east-1a for your AWS
+account might not have the same location as us-east-1a for another AWS account. 
+
+[Learn more about Availablity Zone
+IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 ## Pod Labels
 
@@ -175,12 +171,14 @@ Accelerator (e.g., GPU) values include
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
 
-Karpenter supports GPUs. To specify a specific GPU type, use the instance type
-well known label selector (see above).
+Karpenter supports accelerators, such as GPUs. 
+
+To specify a specific GPU type, use the [instance type
+well known label selector](#instance-type-allowlist).
 
 However, a specific GPU requirement, including type, can be made on a pod spec.
 
-*Override with pod.yaml*
+*Override with workload manifest (e.g., pod)*
 
 ```yaml
 spec:
