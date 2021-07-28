@@ -26,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
@@ -76,10 +75,7 @@ type CloudProvider struct {
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
-	sess := withUserAgent(session.Must(
-		session.NewSession(request.WithRetryer(
-			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			utils.NewRetryer()))))
+	sess := withUserAgent(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		*sess.Config.Region = getRegionFromIMDS(sess)
