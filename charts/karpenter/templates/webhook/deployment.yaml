@@ -47,6 +47,9 @@ spec:
               scheme: HTTPS
               port: 8443
           env:
+            # https://github.com/awslabs/karpenter/issues/569
+            - name: KUBERNETES_MIN_VERSION
+              value: v1.16.0
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
