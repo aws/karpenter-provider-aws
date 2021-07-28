@@ -89,7 +89,6 @@ Instances launched by Karpenter must run with an InstanceProfile that grants per
 First, create the IAM resources using AWS CloudFormation.
 
 ```bash
-# Creates IAM resources used by Karpenter
 TEMPOUT=$(mktemp)
 curl -fsSL https://karpenter.sh/docs/getting-started/cloudformation.yaml > $TEMPOUT \
 && aws cloudformation deploy \
@@ -99,10 +98,9 @@ curl -fsSL https://karpenter.sh/docs/getting-started/cloudformation.yaml > $TEMP
   --parameter-overrides ClusterName=${CLUSTER_NAME}
 ```
 
-Second, grant access to instances using the profile to connect to the cluster.
+Second, grant access to instances using the profile to connect to the cluster. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 
 ```bash
-# Add the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 eksctl create iamidentitymapping \
   --username system:node:{{EC2PrivateDNSName}} \
   --cluster  ${CLUSTER_NAME} \
