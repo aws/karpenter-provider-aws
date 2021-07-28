@@ -22,10 +22,11 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
+	"github.com/awslabs/karpenter/pkg/utils/result"
+	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	"knative.dev/pkg/logging"
 
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -93,23 +94,21 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 3. Filter pods
 	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
+		return result.RetryIfError(ctx, fmt.Errorf("filtering pods, %w", err))
 	}
 	if len(pods) == 0 {
 		return reconcile.Result{}, nil
 	}
-	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(pods))
-
 	// 4. Group by constraints
 	constraintGroups, err := c.Constraints.Group(ctx, provisioner, pods)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("building constraint groups, %w", err)
+		return result.RetryIfError(ctx, fmt.Errorf("building constraint groups, %w", err))
 	}
 
 	// 5. Get Instance Types Options
 	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
 	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
+		return result.RetryIfError(ctx, fmt.Errorf("getting instance types, %w", err))
 	}
 
 	// 6. Binpack each group
@@ -128,7 +127,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return c.Binder.Bind(ctx, node, packing.Pods)
 		})
 	})
-	return reconcile.Result{}, multierr.Combine(errs...)
+	return result.RetryIfError(ctx, multierr.Combine(errs...))
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

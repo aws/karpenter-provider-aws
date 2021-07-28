@@ -476,7 +476,7 @@ var _ = Describe("Allocation", func() {
 			It("should not schedule a pod with an invalid subnet", func() {
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
 				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningFailed(ctx, env.Client, controller, provisioner,
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SubnetTagKeyLabel: "Invalid"}}),
 				)
 				// Assertions
@@ -562,7 +562,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should not schedule a pod with an invalid security group", func() {
 				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningFailed(ctx, env.Client, controller, provisioner,
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{SecurityGroupTagKeyLabel: "Invalid"}}),
 				)
 				// Assertions

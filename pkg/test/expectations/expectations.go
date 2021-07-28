@@ -122,23 +122,6 @@ func ExpectProvisioningSucceeded(ctx context.Context, c client.Client, reconcile
 	return result
 }
 
-func ExpectProvisioningFailed(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha3.Provisioner, pods ...*v1.Pod) []*v1.Pod {
-	for _, pod := range pods {
-		ExpectCreatedWithStatus(c, pod)
-	}
-	ExpectReconcileFailed(ctx, reconciler, client.ObjectKeyFromObject(provisioner))
-	result := []*v1.Pod{}
-	for _, pod := range pods {
-		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
-	}
-	return result
-}
-
-func ExpectReconcileFailed(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) {
-	_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-	Expect(err).To(HaveOccurred())
-}
-
 func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) {
 	_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())

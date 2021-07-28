@@ -24,9 +24,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"go.uber.org/multierr"
 
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -100,10 +101,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	if count := len(createFleetOutput.Instances); count != 1 {
-		return nil, combineFleetErrors(createFleetOutput.Errors)
-	}
-	if count := len(createFleetOutput.Instances[0].InstanceIds); count != 1 {
+	if len(createFleetOutput.Instances) != 1 || len(createFleetOutput.Instances[0].InstanceIds) != 1 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
@@ -134,8 +132,12 @@ func getInstanceID(node *v1.Node) (*string, error) {
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
+	unique := sets.NewString()
 	for _, err := range errors {
-		errs = multierr.Append(errs, fmt.Errorf("%s", *err.ErrorCode))
+		unique.Insert(aws.StringValue(err.ErrorCode))
 	}
-	return errs
+	for _, errorCode := range unique.List() {
+		errs = multierr.Append(errs, fmt.Errorf(errorCode))
+	}
+	return fmt.Errorf("with fleet error(s), %w", errs)
 }
