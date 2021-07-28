@@ -17,6 +17,9 @@ package aws
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/avast/retry-go"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -35,32 +38,21 @@ type NodeFactory struct {
 
 // For a given set of instanceIDs return a map of instanceID to Kubernetes node object.
 func (n *NodeFactory) For(ctx context.Context, instanceId *string) (*v1.Node, error) {
-	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{instanceId}})
-	if aerr, ok := err.(awserr.Error); ok {
-		return nil, aerr
+	instance := ec2.Instance{}
+	// EC2 is eventually consistent, so backoff-retry until we have the data we need.
+	if err := retry.Do(
+		func() (err error) { return n.getInstance(ctx, instanceId, &instance) },
+		retry.Delay(1 * time.Second),
+		retry.Attempts(3),
+	); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
-	}
-	if len(describeInstancesOutput.Reservations) != 1 {
-		return nil, fmt.Errorf("expected a single instance reservation, got %d", len(describeInstancesOutput.Reservations))
-	}
-	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return nil, fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
-	}
-	instance := *describeInstancesOutput.Reservations[0].Instances[0]
-	logging.FromContext(ctx).Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
-		*instance.InstanceId,
-		*instance.InstanceType,
-		*instance.Placement.AvailabilityZone,
-		*instance.PrivateDnsName,
-	)
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: *instance.PrivateDnsName,
+			Name: aws.StringValue(instance.PrivateDnsName),
 		},
 		Spec: v1.NodeSpec{
-			ProviderID: fmt.Sprintf("aws:///%s/%s", *instance.Placement.AvailabilityZone, *instance.InstanceId),
+			ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 		},
 		Status: v1.NodeStatus{
 			Allocatable: v1.ResourceList{
@@ -75,4 +67,31 @@ func (n *NodeFactory) For(ctx context.Context, instanceId *string) (*v1.Node, er
 			},
 		},
 	}, nil
+}
+
+func (n *NodeFactory) getInstance(ctx context.Context, instanceId *string, instance *ec2.Instance) error {
+	describeInstancesOutput, err := n.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{instanceId}})
+	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidInstanceID.NotFound" {
+		return aerr
+	}
+	if err != nil {
+		return fmt.Errorf("failed to describe ec2 instances, %w", err)
+	}
+	if len(describeInstancesOutput.Reservations) != 1 {
+		return fmt.Errorf("expected a single instance reservation, got %d", len(describeInstancesOutput.Reservations))
+	}
+	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
+		return fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
+	}
+	*instance = *describeInstancesOutput.Reservations[0].Instances[0]
+	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
+		return fmt.Errorf("expected PrivateDnsName to be set")
+	}
+	logging.FromContext(ctx).Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
+		aws.StringValue(instance.InstanceId),
+		aws.StringValue(instance.InstanceType),
+		aws.StringValue(instance.Placement.AvailabilityZone),
+		aws.StringValue(instance.PrivateDnsName),
+	)
+	return nil
 }
