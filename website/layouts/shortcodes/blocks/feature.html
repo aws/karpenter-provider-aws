@@ -1,7 +1,7 @@
 {{ $icon := .Get "icon" | default "fa-lightbulb" }}
 {{ $url_text := .Get "url_text" }}
 {{ $feature_class := .Get "feature_class" | default "" }}
-<div class="col-lg-4 mb-5 mb-lg-0 text-center {{ $feature_class }}">
+<div class="col-lg mb-5 mb-lg-0 text-center {{ $feature_class }}">
   <div class="mb-4 h1">
     <i class="{{ if not (or (hasPrefix $icon "fas ") (hasPrefix $icon "fab ")) }}fas {{ end }}{{ $icon }}"></i>
   </div>
