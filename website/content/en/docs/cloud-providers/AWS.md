@@ -151,17 +151,10 @@ At this time, Karpenter only supports Linux OS nodes.
 `topology.kubernetes.io/zone=us-east-1c`
 
 - key: `topology.kubernetes.io/zone`
-- value example: `us-east-1c` or `use1-az1`
+- value example: `us-east-1c`
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
-Karpenter can be configured to create nodes in a particular zone. Karpenter
-supports (1) availability zone IDs, and (2) availability zone names. 
-
-Availability zone IDs, such as `use1-az1`, are consistent between AWS accounts.
-
-Availability zone names, such as `us-east-1c`, are randomly mapped to zone IDs
-on an account level. For example, the Availability Zone us-east-1a for your AWS
-account might not have the same location as us-east-1a for another AWS account. 
+Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone us-east-1a for your AWS account might not have the same location as us-east-1a for another AWS account. 
 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
