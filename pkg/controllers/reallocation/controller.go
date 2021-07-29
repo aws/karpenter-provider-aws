@@ -24,7 +24,6 @@ import (
 	"golang.org/x/time/rate"
 	"knative.dev/pkg/logging"
 
-	"github.com/benbjohnson/clock"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -44,7 +43,7 @@ type Controller struct {
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		Utilization:   &Utilization{KubeClient: kubeClient, Clock: clock.New()},
+		Utilization:   &Utilization{KubeClient: kubeClient},
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
 	}
@@ -63,7 +62,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// 2. Delete any node that has been unable to come up for 5 minutes.
+	// 2. Delete any node that has been unable to join.
 	if err := c.Utilization.terminateFailedToJoin(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating nodes that failed to join, %w", err)
 	}

@@ -27,8 +27,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
 	"github.com/awslabs/karpenter/pkg/test"
 
+	"bou.ke/monkey"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	"github.com/benbjohnson/clock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -40,7 +40,6 @@ import (
 
 var ctx context.Context
 var controller *reallocation.Controller
-var mock *clock.Mock
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
@@ -53,11 +52,8 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(cloudProvider)
-		// Create a Mock Clock and set it to the current time
-		mock = clock.NewMock()
-		mock.Add(time.Duration(time.Now().Unix()) * time.Second)
 		controller = &reallocation.Controller{
-			Utilization:   &reallocation.Utilization{KubeClient: e.Client, Clock: mock},
+			Utilization:   &reallocation.Utilization{KubeClient: e.Client},
 			CloudProvider: cloudProvider,
 			KubeClient:    e.Client,
 		}
@@ -203,11 +199,13 @@ var _ = Describe("Reallocation", func() {
 			updatedNode = ExpectNodeExists(env.Client, node.Name)
 			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeTrue())
 
-			// Simulate 500 seconds passing and do another reconcile
-			mock.Add(500 * time.Second)
+			// Simulate time passing and a node failing to join
+			future := time.Now().Add(reallocation.FailedToJoinTimeout)
+			monkey.Patch(time.Now, func() time.Time {
+				return future
+			})
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect node deleting
 			updatedNode = ExpectNodeExists(env.Client, node.Name)
 			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeFalse())
 		})

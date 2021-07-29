@@ -25,8 +25,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 
-	"github.com/benbjohnson/clock"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,7 +33,6 @@ import (
 const FailedToJoinTimeout = 5 * time.Minute
 
 type Utilization struct {
-	Clock      clock.Clock
 	KubeClient client.Client
 }
 
@@ -120,7 +117,7 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 		if utilsnode.IsPastEmptyTTL(node) {
 			logging.FromContext(ctx).Infof("Triggering termination for empty node %s", node.Name)
 			if err := u.KubeClient.Delete(ctx, node); err != nil {
-				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
+				return fmt.Errorf("deleting node %s, %w", node.Name, err)
 			}
 		}
 	}
@@ -135,15 +132,10 @@ func (u *Utilization) terminateFailedToJoin(ctx context.Context, provisioner *v1
 	}
 	// 2. Trigger termination workflow if node has failed to become ready for 5 minutes
 	for _, node := range nodes {
-		pods, err := u.getPods(ctx, node)
-		if err != nil {
-			zap.S().Debugf("Continuing after failing to get pods for node %s", node.Name)
-		}
-		// If the node failed to join and all pods are terminating, delete the pod
-		if utilsnode.FailedToJoin(node, u.Clock, FailedToJoinTimeout) && pod.AreAllTerminating(pods) {
-			logging.FromContext(ctx).Infof("Deleting node %s after it failed to join in 5 minutes", node.Name)
+		if utilsnode.FailedToJoin(node, FailedToJoinTimeout) {
+			logging.FromContext(ctx).Infof("Triggering termination for node that failed to join %s", node.Name)
 			if err := u.KubeClient.Delete(ctx, node); err != nil {
-				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
+				return fmt.Errorf("deleting node %s, %w", node.Name, err)
 			}
 		}
 	}
