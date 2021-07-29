@@ -39,6 +39,7 @@ type PodOptions struct {
 	Conditions           []v1.PodCondition
 	Annotations          map[string]string
 	Labels               map[string]string
+	Finalizers           []string
 }
 
 type PDBOptions struct {
@@ -74,6 +75,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			OwnerReferences: options.OwnerReferences,
 			Annotations:     options.Annotations,
 			Labels:          options.Labels,
+			Finalizers:      options.Finalizers,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: options.NodeSelector,

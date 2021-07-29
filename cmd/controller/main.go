@@ -83,7 +83,7 @@ func main() {
 	if err := manager.RegisterControllers(ctx,
 		expiration.NewController(manager.GetClient()),
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		reallocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		reallocation.NewController(manager.GetClient(), cloudProvider),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))

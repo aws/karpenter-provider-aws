@@ -26,21 +26,22 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
 	"github.com/awslabs/karpenter/pkg/test"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/ptr"
 
+	"bou.ke/monkey"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var ctx context.Context
 var controller *reallocation.Controller
 var env *test.Environment
+
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -51,11 +52,11 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(cloudProvider)
-		controller = reallocation.NewController(
-			e.Client,
-			corev1.NewForConfigOrDie(e.Config),
-			cloudProvider,
-		)
+		controller = &reallocation.Controller{
+			Utilization:   &reallocation.Utilization{KubeClient: e.Client},
+			CloudProvider: cloudProvider,
+			KubeClient:    e.Client,
+		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -82,6 +83,34 @@ var _ = Describe("Reallocation", func() {
 	})
 
 	Context("Reconciliation", func() {
+		It("should not TTL nodes that have ready status unknown", func() {
+			node := test.Node(test.NodeOptions{
+				ReadyStatus: v1.ConditionUnknown,
+			})
+
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode := &v1.Node{}
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+		})
+		It("should not TTL nodes that have ready status false", func() {
+			node := test.Node(test.NodeOptions{
+				ReadyStatus: v1.ConditionFalse,
+			})
+
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode := &v1.Node{}
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
+			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+		})
 		It("should label nodes as underutilized and add TTL", func() {
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{
@@ -104,7 +133,7 @@ var _ = Describe("Reallocation", func() {
 					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",
 				},
 				Annotations: map[string]string{
-					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(100) * time.Second).Format(time.RFC3339),
+					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
 				},
 			})
 			ExpectCreated(env.Client, provisioner)
@@ -121,6 +150,64 @@ var _ = Describe("Reallocation", func() {
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
 			Expect(updatedNode.Labels).ToNot(HaveKey(v1alpha3.ProvisionerUnderutilizedLabelKey))
 			Expect(updatedNode.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+		})
+		It("should terminate underutilized nodes past their TTL", func() {
+			node := test.Node(test.NodeOptions{
+				Finalizers: []string{v1alpha3.KarpenterFinalizer},
+				Labels: map[string]string{
+					v1alpha3.ProvisionerNameLabelKey:          provisioner.Name,
+					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",
+				},
+				Annotations: map[string]string{
+					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
+				},
+			})
+			ExpectCreated(env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode := &v1.Node{}
+			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
+			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should only terminate nodes that failed to join with all pods terminating after 5 minutes", func() {
+			node := test.Node(test.NodeOptions{
+				Finalizers: []string{v1alpha3.KarpenterFinalizer},
+				Labels: map[string]string{
+					v1alpha3.ProvisionerNameLabelKey:          provisioner.Name,
+					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",
+				},
+				ReadyStatus: v1.ConditionUnknown,
+			})
+			pod := test.Pod(test.PodOptions{
+				Finalizers: []string{"fake.sh/finalizer"},
+				NodeName:   node.Name,
+			})
+			ExpectCreated(env.Client, provisioner, pod)
+			ExpectCreatedWithStatus(env.Client, node)
+
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			// Expect node not deleted
+			updatedNode := ExpectNodeExists(env.Client, node.Name)
+			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Set pod DeletionTimestamp and do another reconcile
+			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			// Expect node not deleted
+			updatedNode = ExpectNodeExists(env.Client, node.Name)
+			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing and a node failing to join
+			future := time.Now().Add(reallocation.FailedToJoinTimeout)
+			monkey.Patch(time.Now, func() time.Time {
+				return future
+			})
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			updatedNode = ExpectNodeExists(env.Client, node.Name)
+			Expect(updatedNode.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 	})
 })

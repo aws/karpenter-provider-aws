@@ -25,7 +25,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,17 +35,17 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	utilization   *Utilization
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
+	Utilization   *Utilization
+	CloudProvider cloudprovider.CloudProvider
+	KubeClient    client.Client
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		utilization:   &Utilization{kubeClient: kubeClient},
-		cloudProvider: cloudProvider,
-		kubeClient:    kubeClient,
+		Utilization:   &Utilization{KubeClient: kubeClient},
+		CloudProvider: cloudProvider,
+		KubeClient:    kubeClient,
 	}
 }
 
@@ -56,31 +55,38 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// 1. Retrieve provisioner from reconcile request
 	provisioner := &v1alpha3.Provisioner{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 
+	// 2. Delete any node that has been unable to join.
+	if err := c.Utilization.terminateFailedToJoin(ctx, provisioner); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating nodes that failed to join, %w", err)
+	}
+
 	// Skip reconciliation if utilization ttl is not defined.
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	// 2. Set TTL on TTLable Nodes
-	if err := c.utilization.markUnderutilized(ctx, provisioner); err != nil {
+
+	// 3. Set TTL on TTLable Nodes
+	if err := c.Utilization.markUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding ttl and underutilized label, %w", err)
 	}
 
-	// 3. Remove TTL from Utilized Nodes
-	if err := c.utilization.clearUnderutilized(ctx, provisioner); err != nil {
+	// 4. Remove TTL from Utilized Nodes
+	if err := c.Utilization.clearUnderutilized(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("removing ttl from node, %w", err)
 	}
 
-	// 4. Delete any node past its TTL
-	if err := c.utilization.terminateExpired(ctx, provisioner); err != nil {
+	// 5. Delete any node past its TTL
+	if err := c.Utilization.terminateExpired(ctx, provisioner); err != nil {
 		return reconcile.Result{}, fmt.Errorf("marking nodes terminable, %w", err)
 	}
+
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
