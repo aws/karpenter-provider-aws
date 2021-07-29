@@ -43,7 +43,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API) *InstanceTypeProvider {
 	}
 }
 
-// Get instance types that are available per availability zone
+// Get all instance types that are available per availability zone
 func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	var instanceTypes []cloudprovider.InstanceType
 	if cached, ok := p.cache.Get(allInstanceTypesKey); ok {

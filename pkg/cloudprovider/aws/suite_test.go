@@ -60,11 +60,10 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
+	instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
-
 		cloudProvider := &CloudProvider{
-			nodeAPI: &NodeFactory{fakeEC2API},
 			launchTemplateProvider: &LaunchTemplateProvider{
 				fakeEC2API,
 				NewAMIProvider(&fake.SSMAPI{}, clientSet),
@@ -72,8 +71,8 @@ var _ = BeforeSuite(func() {
 				launchTemplateCache,
 			},
 			subnetProvider:       NewSubnetProvider(fakeEC2API),
-			instanceTypeProvider: NewInstanceTypeProvider(fakeEC2API),
-			instanceProvider:     &InstanceProvider{fakeEC2API},
+			instanceTypeProvider: instanceTypeProvider,
+			instanceProvider:     &InstanceProvider{fakeEC2API, instanceTypeProvider},
 			creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
 		registry.RegisterOrDie(cloudProvider)
