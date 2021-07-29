@@ -119,7 +119,7 @@ func (u *Utilization) terminateExpired(ctx context.Context, provisioner *v1alpha
 	for _, node := range nodes {
 		if utilsnode.IsPastEmptyTTL(node) {
 			logging.FromContext(ctx).Infof("Triggering termination for empty node %s", node.Name)
-			if err := u.kubeClient.Delete(ctx, node); err != nil {
+			if err := u.KubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}
 		}

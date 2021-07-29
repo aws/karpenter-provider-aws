@@ -40,6 +40,7 @@ import (
 
 var ctx context.Context
 var controller *reallocation.Controller
+var mock *clock.Mock
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
@@ -48,30 +49,18 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Provisioner/Reallocator")
 }
 
-var controller *reallocation.Controller
-var mock *clock.Mock
-var env = test.NewEnvironment(func(e *test.Environment) {
-	cloudProvider := &fake.CloudProvider{}
-	registry.RegisterOrDie(cloudProvider)
-	// Create a Mock Clock and set it to the current time
-	mock = clock.NewMock()
-	mock.Add(time.Duration(time.Now().Unix()) * time.Second)
-	controller = &reallocation.Controller{
-		Utilization:   &reallocation.Utilization{KubeClient: e.Client, Clock: mock},
-		CloudProvider: cloudProvider,
-		KubeClient:    e.Client,
-	}
-})
-
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(cloudProvider)
-		controller = reallocation.NewController(
-			e.Client,
-			corev1.NewForConfigOrDie(e.Config),
-			cloudProvider,
-		)
+		// Create a Mock Clock and set it to the current time
+		mock = clock.NewMock()
+		mock.Add(time.Duration(time.Now().Unix()) * time.Second)
+		controller = &reallocation.Controller{
+			Utilization:   &reallocation.Utilization{KubeClient: e.Client, Clock: mock},
+			CloudProvider: cloudProvider,
+			KubeClient:    e.Client,
+		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -105,7 +94,7 @@ var _ = Describe("Reallocation", func() {
 
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
@@ -119,7 +108,7 @@ var _ = Describe("Reallocation", func() {
 
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, node)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
@@ -178,7 +167,7 @@ var _ = Describe("Reallocation", func() {
 				},
 			})
 			ExpectCreated(env.Client, provisioner, node)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			updatedNode := &v1.Node{}
 			Expect(env.Client.Get(ctx, client.ObjectKey{Name: node.Name}, updatedNode)).To(Succeed())
@@ -200,7 +189,7 @@ var _ = Describe("Reallocation", func() {
 			ExpectCreated(env.Client, provisioner, pod)
 			ExpectCreatedWithStatus(env.Client, node)
 
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			// Expect node not deleted
 			updatedNode := ExpectNodeExists(env.Client, node.Name)
@@ -208,7 +197,7 @@ var _ = Describe("Reallocation", func() {
 
 			// Set pod DeletionTimestamp and do another reconcile
 			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			// Expect node not deleted
 			updatedNode = ExpectNodeExists(env.Client, node.Name)
@@ -216,7 +205,7 @@ var _ = Describe("Reallocation", func() {
 
 			// Simulate 500 seconds passing and do another reconcile
 			mock.Add(500 * time.Second)
-			ExpectReconcileSucceeded(controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			// Expect node deleting
 			updatedNode = ExpectNodeExists(env.Client, node.Name)

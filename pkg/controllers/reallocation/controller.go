@@ -26,7 +26,6 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"k8s.io/apimachinery/pkg/api/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +42,7 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		Utilization:   &Utilization{KubeClient: kubeClient, Clock: clock.New()},
 		CloudProvider: cloudProvider,

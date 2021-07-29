@@ -40,6 +40,7 @@ var ctx context.Context
 var controller *termination.Controller
 var evictionQueue *termination.EvictionQueue
 var env *test.Environment
+
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
