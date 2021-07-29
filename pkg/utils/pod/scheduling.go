@@ -58,6 +58,16 @@ func IgnoredForUnderutilization(pods []*v1.Pod) bool {
 	return true
 }
 
+// AreAllTerminating returns true if the set of pods were all unable to join
+func AreAllTerminating(pods []*v1.Pod) bool {
+	for _, p := range pods {
+		if p.DeletionTimestamp.IsZero() && !IsOwnedByDaemonSet(p) {
+			return false
+		}
+	}
+	return true
+}
+
 // ToleratesTaints returns an error if the pod does not tolerate the taints
 // https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
 func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) (err error) {

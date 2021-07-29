@@ -24,6 +24,9 @@ import (
 	utilsnode "github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+
+	"github.com/benbjohnson/clock"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +35,8 @@ import (
 const FailedToJoinTimeout = 5 * time.Minute
 
 type Utilization struct {
-	kubeClient client.Client
+	Clock      clock.Clock
+	KubeClient client.Client
 }
 
 // markUnderutilized adds a TTL to underutilized nodes
@@ -69,7 +73,7 @@ func (u *Utilization) markUnderutilized(ctx context.Context, provisioner *v1alph
 			node.Annotations,
 			map[string]string{v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second).Format(time.RFC3339)},
 		)
-		if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+		if err := u.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 			return fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
 		logging.FromContext(ctx).Infof("Added TTL and label to underutilized node %s", node.Name)
@@ -94,7 +98,7 @@ func (u *Utilization) clearUnderutilized(ctx context.Context, provisioner *v1alp
 			persisted := node.DeepCopy()
 			delete(node.Labels, v1alpha3.ProvisionerUnderutilizedLabelKey)
 			delete(node.Annotations, v1alpha3.ProvisionerTTLAfterEmptyKey)
-			if err := u.kubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+			if err := u.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 				return fmt.Errorf("removing underutilized label on %s, %w", node.Name, err)
 			} else {
 				logging.FromContext(ctx).Infof("Removed TTL from node %s", node.Name)
@@ -131,9 +135,14 @@ func (u *Utilization) terminateFailedToJoin(ctx context.Context, provisioner *v1
 	}
 	// 2. Trigger termination workflow if node has failed to become ready for 5 minutes
 	for _, node := range nodes {
-		if utilsnode.FailedToJoin(node, FailedToJoinTimeout) {
+		pods, err := u.getPods(ctx, node)
+		if err != nil {
+			zap.S().Debugf("Continuing after failing to get pods for node %s", node.Name)
+		}
+		// If the node failed to join and all pods are terminating, delete the pod
+		if utilsnode.FailedToJoin(node, u.Clock, FailedToJoinTimeout) && pod.AreAllTerminating(pods) {
 			logging.FromContext(ctx).Infof("Deleting node %s after it failed to join in 5 minutes", node.Name)
-			if err := u.kubeClient.Delete(ctx, node); err != nil {
+			if err := u.KubeClient.Delete(ctx, node); err != nil {
 				return fmt.Errorf("sending delete for node %s, %w", node.Name, err)
 			}
 		}
@@ -144,7 +153,7 @@ func (u *Utilization) terminateFailedToJoin(ctx context.Context, provisioner *v1
 // getNodes returns a list of nodes with the provisioner's labels and given labels
 func (u *Utilization) getNodes(ctx context.Context, provisioner *v1alpha3.Provisioner, additionalLabels map[string]string) ([]*v1.Node, error) {
 	nodes := &v1.NodeList{}
-	if err := u.kubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
+	if err := u.KubeClient.List(ctx, nodes, client.MatchingLabels(functional.UnionStringMaps(map[string]string{
 		v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
 	}, additionalLabels))); err != nil {
 		return nil, fmt.Errorf("listing nodes, %w", err)
@@ -155,7 +164,7 @@ func (u *Utilization) getNodes(ctx context.Context, provisioner *v1alpha3.Provis
 // getPods returns a list of pods scheduled to a node
 func (u *Utilization) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	pods := &v1.PodList{}
-	if err := u.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+	if err := u.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return nil, fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 	}
 	return ptr.PodListToSlice(pods), nil

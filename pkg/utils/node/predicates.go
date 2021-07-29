@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/benbjohnson/clock"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -29,8 +30,8 @@ func IsReady(node *v1.Node) bool {
 	return getNodeCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
 }
 
-func FailedToJoin(node *v1.Node, duration time.Duration) bool {
-	if time.Since(node.GetCreationTimestamp().Time) < duration {
+func FailedToJoin(node *v1.Node, c clock.Clock, duration time.Duration) bool {
+	if c.Since(node.GetCreationTimestamp().Time) < duration {
 		return false
 	}
 	condition := getNodeCondition(node.Status.Conditions, v1.NodeReady)
