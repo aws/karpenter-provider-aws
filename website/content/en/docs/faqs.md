@@ -9,7 +9,7 @@ weight: 30
 Each node will have a set of predetermined Karpenter labels. Provisioners will use the `name` and `namespace` labels to distinguish between Provisioners. Furthermore, a Provisioner will only take action on a node based on the label that details what phase a node is in, e.g. a Provisioner will only consider a node for termination if its phase label says `"underutilized"`.
 ## Compatibility
 ### Which Kubernetes versions does Karpenter support?
-Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with all Kubernetes versions greater than v1.16. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
+Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with Kubernetes versions v1.19+. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
 ### Can I use Karpenter alongside another node management solution?
 Provisioners are designed to work alongside static capacity management solutions like EKS Managed Node Groups and EC2 Auto Scaling Groups. Some customers may choose to (1) manage the entirety of their capacity using Provisioner, others may prefer (2) a mixed model with both dynamic and statically managed capacity, some may prefer (3) a fully static approach. We anticipate that most customers will fall into bucket (2) in the short term, and (1) in the long term.
 ### Can I use Karpenter with the Kubernetes Cluster Autoscaler?
@@ -36,7 +36,7 @@ Provisioners are heterogeneous, which means that the nodes they manage are sprea
 ### What if my pod is schedulable for multiple Provisioners?
 It's possible that unconstrained pods could flexibly schedule in multiple groups. In this case, Provisioners will race to create a scheduling lease for the pod before launching new nodes, which avoids unnecessary scale out.
 ## Deprovisioning
-### How does Karpenter decide which nodes it can terminate? 
+### How does Karpenter decide which nodes it can terminate?
 A provisioner will only take action on nodes that it manages. This means that a node will only be considered for termination if it is labeled underutilized by the provisioner that manages it.
 ### How do I know if a node is underutilized?
 Nodes are labeled underutilized if they have 0 non-daemonset pods scheduled. We plan to include more use cases in the future. A node needs to be underutilized for a period of time before being considered for termination.
@@ -46,4 +46,3 @@ Karpenter annotates nodes that are underutilized with a time to live (TTL). If t
 Yes. The Kubernetes Eviction API will not delete pods that violate a [Pod Disruption Budget (PDB)](https://kubernetes.io/docs/tasks/run-application/configure-pdb/). It also disallows eviction of any pod covered by multiple PDBs, so most users will want to avoid overlapping selectors. See [this](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets) for more.
 ### Does Karpenter support scale to zero?
 Yes. Provisioners start at zero and launch or terminate nodes as necessary. We recommend that customers maintain a small amount of static capacity to bootstrap system controllers or run Karpenter outside of their cluster.
-

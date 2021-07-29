@@ -1,5 +1,7 @@
 name: CI
-on: [pull_request, workflow_dispatch]
+on:
+  pull_request:
+    paths: ["**/*.go", "**/go.mod", "Makefile"]
 jobs:
   build:
     runs-on: ubuntu-latest
