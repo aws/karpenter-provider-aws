@@ -34,7 +34,7 @@ make delete # Uninstall Karpenter
     * Make sure you have valid credentials to your development repository.
     * `$KO_DOCKER_REPO` must point to your development repository
     * Your cluster must have permissions to read from the repository
-* If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned [here](docs/aws/README.md). This is a temporary problem with our subnet discovery system, and is being tracked [here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
+* If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned [here]({{< ref "{{< ref "/docs/getting-started/_index.md#tag-subnets" >}}" >}}). This is a temporary problem with our subnet discovery system, and is being tracked [here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
 
 ### Build and Deploy
 ```
