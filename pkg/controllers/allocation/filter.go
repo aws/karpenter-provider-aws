@@ -45,10 +45,8 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
 		if err := f.isProvisionable(ctx, &p, provisioner); err != nil {
-			logging.FromContext(ctx).Debugf("Ignored pod %s/%s when allocating for provisioner %s/%s, %s",
-				p.Name, p.Namespace,
-				provisioner.Name, provisioner.Namespace,
-				err.Error(),
+			logging.FromContext(ctx).Debugf("Ignored pod %s/%s when allocating for provisioner %s, %s",
+				p.Name, p.Namespace, provisioner.Name, err.Error(),
 			)
 			continue
 		}

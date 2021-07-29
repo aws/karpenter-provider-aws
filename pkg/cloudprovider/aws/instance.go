@@ -134,7 +134,7 @@ func getInstanceID(node *v1.Node) (*string, error) {
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	unique := sets.NewString()
 	for _, err := range errors {
-		unique.Insert(aws.StringValue(err.ErrorCode))
+		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
 	for _, errorCode := range unique.List() {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
