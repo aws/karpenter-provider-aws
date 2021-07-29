@@ -1,6 +1,6 @@
 ---
-title: "Development Guide"
-linkTitle: "Development Guide"
+title: "Deployment Guide"
+linkTitle: "Deployment Guide"
 weight: 50
 ---
 
