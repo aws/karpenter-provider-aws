@@ -61,12 +61,13 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	}
 
 	// 4. Bind pods
-	logging.FromContext(ctx).Infof("Binding %d pod(s) to node %s", len(pods), node.Name)
 	errs := make([]error, len(pods))
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
 		errs[index] = b.bind(ctx, node, pods[index])
 	})
-	return multierr.Combine(errs...)
+	err := multierr.Combine(errs...)
+	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(err)), node.Name)
+	return err
 }
 
 func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {

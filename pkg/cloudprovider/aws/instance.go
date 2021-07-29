@@ -18,15 +18,20 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -35,19 +40,69 @@ const (
 )
 
 type InstanceProvider struct {
-	ec2api ec2iface.EC2API
+	ec2api               ec2iface.EC2API
+	instanceTypeProvider *InstanceTypeProvider
 }
 
 // Create an instance given the constraints.
-// instanceTypeOptions should be sorted by priority for spot capacity type.
-// If spot is not used, the instanceTypeOptions are not required to be sorted
+// instanceTypes should be sorted by priority for spot capacity type.
+// If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate *LaunchTemplate,
-	instanceTypeOptions []cloudprovider.InstanceType,
+	instanceTypes []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string,
-) (*string, error) {
+) (*v1.Node, error) {
+	// 1. Launch Instance
+	id, err := p.launchInstance(ctx, launchTemplate, instanceTypes, subnets, capacityType)
+	if err != nil {
+		return nil, err
+	}
+	// 2. Get Instance with backoff retry since EC2 is eventually consistent
+	instance := &ec2.Instance{}
+	if err := retry.Do(
+		func() (err error) { return p.getInstance(ctx, id, instance) },
+		retry.Delay(1*time.Second),
+		retry.Attempts(3),
+	); err != nil {
+		return nil, err
+	}
+	logging.FromContext(ctx).Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
+		aws.StringValue(instance.InstanceId),
+		aws.StringValue(instance.InstanceType),
+		aws.StringValue(instance.Placement.AvailabilityZone),
+		aws.StringValue(instance.PrivateDnsName),
+	)
+	// 3. Convert Instance to Node
+	node, err := p.instanceToNode(ctx, instance, instanceTypes)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
+	id, err := getInstanceID(node)
+	if err != nil {
+		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
+	}
+	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: []*string{id},
+	}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == EC2InstanceIDNotFoundErrCode {
+			return nil
+		}
+		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
+	}
+	return nil
+}
+
+func (p *InstanceProvider) launchInstance(ctx context.Context,
+	launchTemplate *LaunchTemplate,
+	instanceTypeOptions []cloudprovider.InstanceType,
+	subnets []*ec2.Subnet,
+	capacityType string) (*string, error) {
 	// 1. Construct override options.
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
@@ -107,20 +162,52 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	id, err := getInstanceID(node)
-	if err != nil {
-		return fmt.Errorf("getting instance ID for node %s, %w", node.Name, err)
+func (p *InstanceProvider) getInstance(ctx context.Context, id *string, instance *ec2.Instance) error {
+	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{id}})
+	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == EC2InstanceIDNotFoundErrCode {
+		return aerr
 	}
-	if _, err = p.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{id},
-	}); err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == EC2InstanceIDNotFoundErrCode {
-			return nil
-		}
-		return fmt.Errorf("terminating instance %s, %w", node.Name, err)
+	if err != nil {
+		return fmt.Errorf("failed to describe ec2 instances, %w", err)
+	}
+	if len(describeInstancesOutput.Reservations) != 1 {
+		return fmt.Errorf("expected a single instance reservation, got %d", len(describeInstancesOutput.Reservations))
+	}
+	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
+		return fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
+	}
+	*instance = *describeInstancesOutput.Reservations[0].Instances[0]
+	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
+		return fmt.Errorf("expected PrivateDnsName to be set")
 	}
 	return nil
+}
+
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+	for _, instanceType := range instanceTypes {
+		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+			return &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: aws.StringValue(instance.PrivateDnsName),
+				},
+				Spec: v1.NodeSpec{
+					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
+				},
+				Status: v1.NodeStatus{
+					Allocatable: v1.ResourceList{
+						v1.ResourcePods:   *instanceType.Pods(),
+						v1.ResourceCPU:    *instanceType.CPU(),
+						v1.ResourceMemory: *instanceType.Memory(),
+					},
+					NodeInfo: v1.NodeSystemInfo{
+						Architecture:    aws.StringValue(instance.Architecture),
+						OperatingSystem: v1alpha3.OperatingSystemLinux,
+					},
+				},
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("unrecognized instance type %s", aws.StringValue(instance.InstanceType))
 }
 
 func getInstanceID(node *v1.Node) (*string, error) {

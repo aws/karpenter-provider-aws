@@ -66,7 +66,6 @@ var (
 )
 
 type CloudProvider struct {
-	nodeAPI                *NodeFactory
 	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
 	instanceTypeProvider   *InstanceTypeProvider
@@ -82,16 +81,16 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
+	instanceTypeProvider := NewInstanceTypeProvider(ec2api)
 	return &CloudProvider{
-		nodeAPI: &NodeFactory{ec2api: ec2api},
 		launchTemplateProvider: NewLaunchTemplateProvider(
 			ec2api,
 			NewAMIProvider(ssm.New(sess), options.ClientSet),
 			NewSecurityGroupProvider(ec2api),
 		),
 		subnetProvider:       NewSubnetProvider(ec2api),
-		instanceTypeProvider: NewInstanceTypeProvider(ec2api),
-		instanceProvider:     &InstanceProvider{ec2api: ec2api},
+		instanceTypeProvider: instanceTypeProvider,
+		instanceProvider:     &InstanceProvider{ec2api, instanceTypeProvider},
 		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
@@ -132,14 +131,9 @@ func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provis
 		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
-	instanceID, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
+	node, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
 	if err != nil {
-		return fmt.Errorf("launching instances, %w", err)
-	}
-	// 4. Convert to node
-	node, err := c.nodeAPI.For(ctx, instanceID)
-	if err != nil {
-		return fmt.Errorf("constructing node, %w", err)
+		return fmt.Errorf("launching instance, %w", err)
 	}
 	return callback(node)
 }
