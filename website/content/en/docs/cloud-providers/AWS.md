@@ -23,15 +23,19 @@ Regarding AWS, 3 types of provisioning constraints are recognized:
 
 Karpenter supports specifying [AWS instance type](https://aws.amazon.com/ec2/instance-types/). 
 
-If one instance type is listed, Karpenter will always provision that type.
-
-If more than one type is listed, Karpenter will intelligently select the
-instance type to maximize node utilization.
-
 The default value includes all instance types with the exclusion of metal
 (non-virtualized),
 [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html),
-and GPU instances. View the full list with `aws ec2 describe-instance-types`.
+and GPU instances. 
+
+If necessary, Karpenter supports defining a limited list of instance types. 
+
+If one instance type is listed, Karpenter will always provision that type.
+
+If more than one type is listed, Karpenter will determine the
+instance type to minimize the number of new nodes.
+
+View the full list of instance types with `aws ec2 describe-instance-types`.
 
 **Example**
 
@@ -50,10 +54,10 @@ spec:
   template:
     spec:
       nodeSelector:
-        node.k8s.aws/instance-type: m5.large
+        node.kubernetes.io/instance-type: m5.large
 ```
 
-## Node Lables in Provisioner Spec
+## Node Labels in Provisioner Spec
 
 ### Launch Template
 
@@ -153,13 +157,13 @@ At this time, Karpenter only supports Linux OS nodes.
 Karpenter can be configured to create nodes in a particular zone. Karpenter
 supports (1) availability zone IDs, and (2) availability zone names. 
 
-Availability zone IDs, such as `use1-az1`, are consitent between AWS accounts.
+Availability zone IDs, such as `use1-az1`, are consistent between AWS accounts.
 
 Availability zone names, such as `us-east-1c`, are randomly mapped to zone IDs
 on an account level. For example, the Availability Zone us-east-1a for your AWS
 account might not have the same location as us-east-1a for another AWS account. 
 
-[Learn more about Availablity Zone
+[Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 ## Pod Labels
@@ -173,12 +177,13 @@ Accelerator (e.g., GPU) values include
 
 Karpenter supports accelerators, such as GPUs. 
 
-To specify a specific GPU type, use the [instance type
-well known label selector](#instance-type-allowlist).
+To enable instances with accelerators, use the [instance type
+well known label selector](#instance-type-allowlist). 
 
-However, a specific GPU requirement, including type, can be made on a pod spec.
+Additionally, include a resource requirement in the workload manifest. Thus,
+accelerator dependent pod will be scheduled onto the appropriate node. 
 
-*Override with workload manifest (e.g., pod)*
+*accelerator resource in workload manifest (e.g., pod)*
 
 ```yaml
 spec:
