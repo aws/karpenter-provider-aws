@@ -153,7 +153,7 @@ var _ = Describe("Reallocation", func() {
 		})
 		It("should terminate underutilized nodes past their TTL", func() {
 			node := test.Node(test.NodeOptions{
-				Finalizers: []string{v1alpha3.KarpenterFinalizer},
+				Finalizers: []string{v1alpha3.TerminationFinalizer},
 				Labels: map[string]string{
 					v1alpha3.ProvisionerNameLabelKey:          provisioner.Name,
 					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",
@@ -171,7 +171,7 @@ var _ = Describe("Reallocation", func() {
 		})
 		It("should only terminate nodes that failed to join with all pods terminating after 5 minutes", func() {
 			node := test.Node(test.NodeOptions{
-				Finalizers: []string{v1alpha3.KarpenterFinalizer},
+				Finalizers: []string{v1alpha3.TerminationFinalizer},
 				Labels: map[string]string{
 					v1alpha3.ProvisionerNameLabelKey:          provisioner.Name,
 					v1alpha3.ProvisionerUnderutilizedLabelKey: "true",

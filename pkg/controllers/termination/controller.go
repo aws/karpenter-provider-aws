@@ -69,7 +69,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Check if node is terminable
-	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.KarpenterFinalizer) {
+	if node.DeletionTimestamp.IsZero() || !functional.ContainsString(node.Finalizers, provisioning.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
 	// 3. Cordon node

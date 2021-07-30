@@ -30,6 +30,7 @@ type NodeOptions struct {
 	Annotations   map[string]string
 	ReadyStatus   v1.ConditionStatus
 	Unschedulable bool
+	Taints        []v1.Taint
 	Allocatable   v1.ResourceList
 	Finalizers    []string
 }
@@ -65,6 +66,7 @@ func Node(overrides ...NodeOptions) *v1.Node {
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
+			Taints: options.Taints,
 		},
 		Status: v1.NodeStatus{
 			Allocatable: options.Allocatable,

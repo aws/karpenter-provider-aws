@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -74,7 +75,12 @@ type CloudProvider struct {
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
-	sess := withUserAgent(session.Must(session.NewSession(&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint})))
+	sess := withUserAgent(session.Must(session.NewSession(
+		request.WithRetryer(
+			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
+			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
+		),
+	)))
 	if *sess.Config.Region == "" {
 		logging.FromContext(ctx).Debug("AWS region not configured, asking EC2 Instance Metadata Service")
 		*sess.Config.Region = getRegionFromIMDS(sess)
