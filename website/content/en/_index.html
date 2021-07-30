@@ -8,9 +8,6 @@ linkTitle = "Home"
   <h1 class="display-1 mt-5">Karpenter</h1>
   <h3 class="display-4 font-weight-light mt-5">Just-in-time Nodes for Any Kubernetes Cluster</h3>
   <div class="mt-5">
-    <a class="btn btn-lg btn-light col-sm-3 mb-3 mr-sm-3 learn-more" href="{{< relref "docs/" >}}">
-      Learn More
-    </a>
     <a class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="{{< relref "docs/getting-started" >}}">
       Get Started
     </a>
@@ -30,26 +27,36 @@ linkTitle = "Home"
 {{< blocks/section color="primary" >}}
     {{< blocks/feature title="Improve application availability" icon="fa-globe" feature_class="feature" >}}
       <p class="mt-3 font-weight-light h5">Karpenter responds quickly, in seconds, to changes in application load, scheduling, and resource requirements, placing new workloads onto a variety of available compute resource capacity.</p>
-    {{% /blocks/feature %}}
+    {{< /blocks/feature >}}
 
     {{< blocks/feature title="Minimize operational overhead" icon="fa-wrench" feature_class="feature" >}}
       <p class="mt-3 font-weight-light h5">Karpenter comes with a set of opinionated defaults in a single, declarative <code class="font-weight-bold">Provisioner</code> resource which can easily be customized. No additional configuration required!</p>
-    {{% /blocks/feature %}}
-
-<!--    {{< blocks/feature title="Lower cluster costs" icon="fa-dollar-sign" feature_class="feature" badge="Coming Soon!">}}-->
-<!--      <p class="mt-3 font-weight-ligth">Karpenter looks for opportunities to remove under-utilized nodes, replace expensive nodes with cheaper alternatives, or combine pods from multiple smaller nodes onto larger, more efficient ones. It is fully compatible with preemptible compute resource types which offer deep savings.</p>-->
-<!--    {{% /blocks/feature %}}-->
+    {{< /blocks/feature >}}
 {{< /blocks/section >}}
 
 {{< blocks/section color="dark" type="section" >}}
-  <h1 class="mx-auto display-1 font-weight-bolder">How It Works</h1>
-  <img class="mx-auto mt-5 col-sm-10 d-none d-md-block" src="karpenter-overview.png">
+  <h2 class="mx-auto display-2 font-weight-bolder">How It Works</h2>
+  <img class="mx-auto col-sm-10 d-none d-md-block" src="karpenter-overview.png">
   <div class="mx-auto col-sm-8 text-center">
     <p class="lead mt-5">
       Karpenter observes the aggregate resource requests of unscheduled pods and makes decisions to launch and terminate nodes to minimize scheduling latencies and infrastructure cost.
     </p>
-    <p class="lead mt-3">
-      Karpenter works with any Kubernetes cluster running in any environment including all major cloud providers and on-premises environments.
-    </p>
   </div>
 {{< /blocks/section >}}
+
+{{< blocks/lead color="grey-100" type="section" >}}
+  <h2 class="mx-auto mt-2 col-sm-9 font-weight-bolder">
+    Karpenter is Open Source Software
+  </h2>
+  <p class="mx-auto mt-5 col-sm-10 lead">
+    Karpenter is licensed under the permissive <a href="https://github.com/awslabs/karpenter/blob/main/LICENSE">Apache License 2.0</a>.
+    It is designed to work with any Kubernetes cluster running in any environment, including all major cloud providers and on-premises environments.
+  </p>
+  <p class="mx-auto mt-5 col-sm-10 lead">
+    Have an idea for a feature or found something that could work better?
+    Create a <a href="https://github.com/awslabs/karpenter/issues/new/choose">GitHub issue</a> and tell us about it.
+  </p>
+  <a class="btn btn-lg btn-dark col-sm-3 mt-3 mr-sm-3 font-weight-bold" href="https://github.com/awslabs/karpenter">
+    <i class="fab fa-github pr-3"></i> Get involved
+  </a>
+{{< /blocks/lead >}}
