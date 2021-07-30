@@ -117,6 +117,9 @@ var (
 	ArchitectureLabelKey    = "kubernetes.io/arch"
 	OperatingSystemLabelKey = "kubernetes.io/os"
 
+	// Reserved taints
+	NotReadyTaintKey = SchemeGroupVersion.Group + "/not-ready"
+
 	// Reserved labels
 	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/provisioner-name"
 	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
@@ -130,7 +133,7 @@ var (
 	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
 
 	// Finalizers
-	KarpenterFinalizer = SchemeGroupVersion.Group + "/termination"
+	TerminationFinalizer = SchemeGroupVersion.Group + "/termination"
 
 	// Default provisioner
 	DefaultProvisioner = types.NamespacedName{Name: "default"}

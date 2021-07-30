@@ -74,7 +74,7 @@ var _ = Describe("Termination", func() {
 	var node *v1.Node
 
 	BeforeEach(func() {
-		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha3.KarpenterFinalizer}})
+		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha3.TerminationFinalizer}})
 	})
 
 	AfterEach(func() {

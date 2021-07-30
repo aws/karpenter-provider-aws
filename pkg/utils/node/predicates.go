@@ -21,10 +21,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func IsReadyAndSchedulable(node *v1.Node) bool {
-	return IsReady(node) && !node.Spec.Unschedulable
-}
-
 func IsReady(node *v1.Node) bool {
 	return getNodeCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
 }

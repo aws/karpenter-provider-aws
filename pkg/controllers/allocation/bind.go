@@ -36,19 +36,20 @@ type Binder struct {
 
 func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
-	node.Finalizers = append(node.Finalizers, v1alpha3.KarpenterFinalizer)
-	// 2. Mark NodeReady=Unknown
-	// Unfortunately, this detail is necessary to prevent kube-scheduler from
-	// scheduling pods to nodes before they're created. Node Lifecycle
-	// Controller will attach a Effect=NoSchedule taint in response to this
-	// condition and remove the taint when NodeReady=True. This behavior is
-	// stable, but may not be guaranteed to be true in the indefinite future.
-	// The failure mode in this case will unnecessarily create additional nodes.
-	// https://github.com/kubernetes/kubernetes/blob/f5fb1c93dbaa512eb66090c5027435d3dee95ac7/pkg/controller/nodelifecycle/node_lifecycle_controller.go#L86
-	node.Status.Conditions = []v1.NodeCondition{{
-		Type:   v1.NodeReady,
-		Status: v1.ConditionUnknown,
-	}}
+	node.Finalizers = append(node.Finalizers, v1alpha3.TerminationFinalizer)
+	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
+	// from scheduling pods before we're able to bind them ourselves. The kube
+	// scheduler has an eventually consistent cache of nodes and pods, so it's
+	// possible for it to see a provisioned node before it sees the pods bound
+	// to it. This creates an edge case where other pending pods may be bound to
+	// the node by the kube scheduler, causing OutOfCPU errors when the
+	// binpacked pods race to bind to the same node. The system eventually
+	// heals, but causes delays from additional provisioning (thrash). This
+	// taint will be removed when the node is marked as ready.
+	node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
+		Key:    v1alpha3.NotReadyTaintKey,
+		Effect: v1.TaintEffectNoSchedule,
+	})
 	// 3. Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object

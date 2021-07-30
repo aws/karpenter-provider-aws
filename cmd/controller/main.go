@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/controllers/expiration"
+	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/reallocation"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/go-logr/zapr"
@@ -85,6 +86,7 @@ func main() {
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		reallocation.NewController(manager.GetClient(), cloudProvider),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		node.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}
