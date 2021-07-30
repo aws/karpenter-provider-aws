@@ -1,0 +1,23 @@
+{{ $icon := .Get "icon" | default "fa-lightbulb" }}
+{{ $url_text := .Get "url_text" }}
+{{ $feature_class := .Get "feature_class" | default "" }}
+<div class="col-lg mb-5 mb-lg-0 text-center {{ $feature_class }}">
+  <div class="mb-4 h1">
+    <i class="{{ if not (or (hasPrefix $icon "fas ") (hasPrefix $icon "fab ")) }}fas {{ end }}{{ $icon }}"></i>
+  </div>
+  <h4 class="h3">
+  {{ if eq .Page.File.Ext "md" }}
+  {{ .Get "title" | markdownify }}
+  {{ else }}
+  {{ .Get "title" | htmlUnescape | safeHTML }}
+  {{ end }}
+  </h4>
+  <p class="mb-0">
+  {{ if eq .Page.File.Ext "md" }}
+  {{ .Inner | markdownify }}
+  {{ else }}
+  {{ .Inner | htmlUnescape | safeHTML }}
+  {{ end }}
+  </p>
+  {{ with .Get "url" }}<p><a href="{{ . }}">{{ with $url_text }}{{ $url_text }}{{ else }}{{ T "ui_read_more" }}{{ end }} …</a></p>{{ end }}
+</div>
