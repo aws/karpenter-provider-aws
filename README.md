@@ -20,7 +20,7 @@ Karpenter optimizes for scheduling latency and utilization efficiency using two 
 
 Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
 
-*Note: Reallocation is still in development. Check out the [FAQs](FAQs.md) and [Roadmap](ROADMAP.md) to learn more.*
+Check out the [FAQs](FAQs.md) and [Roadmap](ROADMAP.md) to learn more.
 
 ## Installation
 
