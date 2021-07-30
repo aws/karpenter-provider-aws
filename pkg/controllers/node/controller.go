@@ -20,6 +20,8 @@ import (
 	"reflect"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/utils/result"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,7 +59,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return reconcile.Result{}, err
 	}
-	if len(stored.Labels[v1alpha3.ProvisionerNameLabelKey]) == 0 {
+	if _, ok := stored.Labels[v1alpha3.ProvisionerNameLabelKey]; !ok {
 		return reconcile.Result{}, nil
 	}
 
@@ -73,13 +75,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		errs = multierr.Append(errs, reconciler.Reconcile(node))
 	}
 
-	// 3. Patch any changes
+	// 3. Patch any changes, regardless of errors
 	if !reflect.DeepEqual(node, stored) {
 		if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, fmt.Errorf("patching node %s, %w", node.Name, err)
 		}
 	}
-	return reconcile.Result{}, nil
+	return result.RetryIfError(ctx, errs)
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

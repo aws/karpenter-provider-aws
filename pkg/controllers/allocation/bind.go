@@ -45,7 +45,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// the node by the kube scheduler, causing OutOfCPU errors when the
 	// binpacked pods race to bind to the same node. The system eventually
 	// heals, but causes delays from additional provisioning (thrash). This
-	// taint will be removed when the node is marked as ready.
+	// taint will be removed by the node controller when a node is marked ready.
 	node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
 		Key:    v1alpha3.NotReadyTaintKey,
 		Effect: v1.TaintEffectNoSchedule,

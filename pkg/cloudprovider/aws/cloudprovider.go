@@ -78,7 +78,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
-			client.DefaultRetryer{NumMaxRetries: 3},
+			client.DefaultRetryer{NumMaxRetries: client.DefaultRetryerMaxNumRetries},
 		),
 	)))
 	if *sess.Config.Region == "" {
