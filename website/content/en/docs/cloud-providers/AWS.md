@@ -7,30 +7,21 @@ weight: 10
 ## Control Provisioning with Labels
 
 The [Provisioner CRD]({{< ref "provisioner-crd.md" >}}) supports defining
-instance types, node labels, and node taints.
-
-For certain well-known labels (documented below), Karpenter will provision
+node properties like instance type and zone.For certain well-known labels (documented below), Karpenter will provision
 nodes accordingly. For example, in response to a label of
 `topology.kubernetes.io/zone=us-east-1c`, Karpenter will provision nodes in
 that availability zone.
 
-Regarding AWS, 3 types of provisioning constraints are recognized: 
-- [Instance Type](#instance-type-allowlist)
-- [Node Labels](#node-lables-in-provisioner-spec) (e.g., Architecture, Capacity Type)
-- [Pod Labels](#pod-labels) (e.g., GPU)
+### Instance Types
 
-## Instance Type Allowlist
-
-Karpenter supports specifying [AWS instance type](https://aws.amazon.com/ec2/instance-types/). 
+Karpenter supports specifying [AWS instance type](https://aws.amazon.com/ec2/instance-types/).
 
 The default value includes all instance types with the exclusion of metal
 (non-virtualized),
 [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html),
-and GPU instances. 
+and GPU instances.
 
-If necessary, Karpenter supports defining a limited list of instance types. 
-
-If one instance type is listed, Karpenter will always provision that type.
+If necessary, Karpenter supports defining a limited list of default instance types.
 
 If more than one type is listed, Karpenter will determine the
 instance type to minimize the number of new nodes.
@@ -57,26 +48,20 @@ spec:
         node.kubernetes.io/instance-type: m5.large
 ```
 
-## Node Labels in Provisioner Spec
+### Availability Zones
 
-### Launch Template
+`topology.kubernetes.io/zone=us-east-1c`
 
-Karpenter uses [AWS Bottlerocket OS](https://aws.amazon.com/bottlerocket/) by
-default. More specifically, Karpenter automatically creates a launch template
-with the name `Karpenter-<cluster name>-uuid` for each region where a node is
-provisioned.
+- key: `topology.kubernetes.io/zone`
+- value example: `us-east-1c`
+- value list: `aws ec2 describe-availability-zones --region <region-name>`
 
-You can specify a different [launch
-template](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-launch-templates.html),
-such as a customized version of Bottlerocket or a different platform
-altogether.
+Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone us-east-1a for your AWS account might not have the same location as us-east-1a for another AWS account.
 
-**Template ID**
-- key: `node.k8s.aws/launch-template-id`
-- value example: `bottlerocket` (default)
-- value list: `aws ec2 describe-launch-templates`
+[Learn more about Availability Zone
+IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
-### Capacity Type (e.g., spot)
+### Capacity Type
 
 - key: `node.k8s.aws/capacity-type`
 - values
@@ -95,7 +80,7 @@ be used for critical workloads.
 
 ```yaml
 spec:
-  labels: 
+  labels:
     node.k8s.aws/capacity-type: spot
 ```
 
@@ -109,14 +94,14 @@ spec:
         node.k8s.aws/capacity-type: spot
 ```
 
-### Architecture (e.g., ARM) 
+### Architecture
 
 - key: `kubernetes.io/arch`
 - values
   - `amd64` (default)
   - `arm64`
 
-Karpenter supports `amd64` nodes, and `arm64` nodes. 
+Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 **Example**
 
@@ -124,7 +109,7 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 ```yaml
 spec:
-  labels: 
+  labels:
     kubernetes.io/arch: arm64
 ```
 
@@ -138,7 +123,7 @@ spec:
         kubernetes.io/arch: amd64
 ```
 
-## Operating System
+### Operating System
 
 - key: `kubernetes.io/os`
 - values
@@ -146,35 +131,20 @@ spec:
 
 At this time, Karpenter only supports Linux OS nodes.
 
-### Availability Zones
-
-`topology.kubernetes.io/zone=us-east-1c`
-
-- key: `topology.kubernetes.io/zone`
-- value example: `us-east-1c`
-- value list: `aws ec2 describe-availability-zones --region <region-name>`
-
-Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone us-east-1a for your AWS account might not have the same location as us-east-1a for another AWS account. 
-
-[Learn more about Availability Zone
-IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
-
-## Pod Labels
-
-### Accelerators, GPU 
+### Accelerators, GPU
 
 Accelerator (e.g., GPU) values include
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
 
-Karpenter supports accelerators, such as GPUs. 
+Karpenter supports accelerators, such as GPUs.
 
 To enable instances with accelerators, use the [instance type
-well known label selector](#instance-type-allowlist). 
+well known label selector](#instance-types).
 
 Additionally, include a resource requirement in the workload manifest. Thus,
-accelerator dependent pod will be scheduled onto the appropriate node. 
+accelerator dependent pod will be scheduled onto the appropriate node.
 
 *accelerator resource in workload manifest (e.g., pod)*
 
