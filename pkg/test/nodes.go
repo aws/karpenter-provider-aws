@@ -66,7 +66,7 @@ func Node(overrides ...NodeOptions) *v1.Node {
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
-			Taints: options.Taints,
+			Taints:        options.Taints,
 		},
 		Status: v1.NodeStatus{
 			Allocatable: options.Allocatable,

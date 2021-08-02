@@ -85,7 +85,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			logging.FromContext(ctx).Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, err
+		return result.RetryIfError(ctx, err)
 	}
 
 	// 2. Wait on a pod batch

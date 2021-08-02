@@ -121,8 +121,7 @@ var (
 	NotReadyTaintKey = SchemeGroupVersion.Group + "/not-ready"
 
 	// Reserved labels
-	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/provisioner-name"
-	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
+	ProvisionerNameLabelKey = SchemeGroupVersion.Group + "/provisioner-name"
 
 	// Reserved annotations
 	KarpenterDoNotEvictPodAnnotation = SchemeGroupVersion.Group + "/do-not-evict"

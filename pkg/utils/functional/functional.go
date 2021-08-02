@@ -15,7 +15,10 @@ limitations under the License.
 package functional
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
+	"time"
 
 	"go.uber.org/multierr"
 )
@@ -108,4 +111,27 @@ func InvertStringMap(stringMap map[string]string) map[string]string {
 		inverted[v] = k
 	}
 	return inverted
+}
+
+// MaxDuration returns the largest duration
+func MaxDuration(durations ...time.Duration) time.Duration {
+	var max time.Duration
+	for _, duration := range durations {
+		if duration > max {
+			max = duration
+		}
+	}
+	return max
+}
+
+func JsonEquals(a, b interface{}) bool {
+	aJson, err := json.Marshal(a)
+	if err != nil {
+		panic(err)
+	}
+	bJson, err := json.Marshal(b)
+	if err != nil {
+		panic(err)
+	}
+	return reflect.DeepEqual(string(aJson), string(bJson))
 }
