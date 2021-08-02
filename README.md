@@ -25,7 +25,7 @@ Check out the [FAQs](FAQs.md) and [Roadmap](ROADMAP.md) to learn more.
 ## Installation
 
 Follow the setup recommendations of your cloud provider.
-- [AWS](pkg/cloudprovider/aws/docs)
+- [AWS](https://karpenter.sh/docs/cloud-providers/aws/)
 
 > ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
 > - Check the [release notes](https://github.com/awslabs/karpenter/releases)
