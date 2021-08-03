@@ -32,18 +32,16 @@ const (
 )
 
 var (
-	AWSLabelPrefix             = "node.k8s.aws/"
-	CapacityTypeLabel          = AWSLabelPrefix + "capacity-type"
-	LaunchTemplateIdLabel      = AWSLabelPrefix + "launch-template-id"
-	LaunchTemplateVersionLabel = AWSLabelPrefix + "launch-template-version"
-	SubnetNameLabel            = AWSLabelPrefix + "subnet-name"
-	SubnetTagKeyLabel          = AWSLabelPrefix + "subnet-tag-key"
-	SecurityGroupNameLabel     = AWSLabelPrefix + "security-group-name"
-	SecurityGroupTagKeyLabel   = AWSLabelPrefix + "security-group-tag-key"
-	AllowedLabels              = []string{
+	AWSLabelPrefix           = "node.k8s.aws/"
+	CapacityTypeLabel        = AWSLabelPrefix + "capacity-type"
+	LaunchTemplateIdLabel    = AWSLabelPrefix + "launch-template-id"
+	SubnetNameLabel          = AWSLabelPrefix + "subnet-name"
+	SubnetTagKeyLabel        = AWSLabelPrefix + "subnet-tag-key"
+	SecurityGroupNameLabel   = AWSLabelPrefix + "security-group-name"
+	SecurityGroupTagKeyLabel = AWSLabelPrefix + "security-group-tag-key"
+	AllowedLabels            = []string{
 		CapacityTypeLabel,
 		LaunchTemplateIdLabel,
-		LaunchTemplateVersionLabel,
 		SubnetNameLabel,
 		SubnetTagKeyLabel,
 		SecurityGroupNameLabel,
@@ -79,13 +77,9 @@ func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
 	if !ok {
 		return nil
 	}
-	version, ok := c.Labels[LaunchTemplateVersionLabel]
-	if !ok {
-		version = DefaultLaunchTemplateVersion
-	}
 	return &LaunchTemplate{
 		Id:      id,
-		Version: version,
+		Version: DefaultLaunchTemplateVersion,
 	}
 }
 
@@ -152,11 +146,7 @@ func (c *Constraints) validateCapacityType(ctx context.Context) (errs *apis.Fiel
 }
 
 func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
-	if _, versionExists := c.Labels[LaunchTemplateVersionLabel]; versionExists {
-		if _, bothExist := c.Labels[LaunchTemplateIdLabel]; !bothExist {
-			return errs.Also(apis.ErrMissingField(fmt.Sprintf("spec.labels[%s]", LaunchTemplateIdLabel)))
-		}
-	}
+	// nothing to validate at the moment
 	return errs
 }
 
