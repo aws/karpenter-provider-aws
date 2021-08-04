@@ -32,7 +32,7 @@ spec:
   # behavior. Additional labels may be supported by your cloudprovider.
   labels:
     # These are AWS-specific
-    kubernetes.amazonaws.com/launchTemplateId:
+    kubernetes.amazonaws.com/launchTemplateName:
     kubernetes.amazonaws.com/launchTemplateVersion:
     kubernetes.amazonaws.com/capacityType:
 ```
@@ -123,9 +123,16 @@ Furthermore, in keeping with Kubernetes
 we should use `node.k8s.aws/` as the prefix for any node labels we
 choose to use.
 
-Lastly, in keeping with another Kubernetes convention (such as
+In keeping with another Kubernetes convention (such as
 `kubernetes.io/service-name`), we should use `lower-case-with-hypens`,
 not `camelCase` for words following the `/`.
+
+Lastly, using launch template names, rather than ids, will be more
+familiar to Kubernetes users and should cut down on manual work and
+errors. Since the EC2 APIs that use launch templates can take either
+names or ids, it seems like names are an more useful choice. In the
+future we can consider adding id support as well, if there is demand
+for it.
 
 ## Architecture
 
@@ -146,9 +153,9 @@ spec:
   labels:
     # applied only to arm64
     arm64:
-      node.k8s.aws/launch-template-id: id-of-arm64-lt
+      node.k8s.aws/launch-template-name: name-of-arm64-lt
     x86_64:
-      node.k8s.aws/launch-template-id: id-of-x86_64-lt
+      node.k8s.aws/launch-template-name: name-of-x86_64-lt
     # applied everywhere
     other-label: other-value
 ```
@@ -164,7 +171,7 @@ spec:
      other-label: other-value
   # applied only to arm64
   arm64-labels:
-     node.k8s.aws/launch-template-id: id-of-arm64-based-lt
+     node.k8s.aws/launch-template-name: name-of-arm64-based-lt
   # applied only to x86_64
   x86_64-labels:
 ```
@@ -177,9 +184,9 @@ apiVersion: provisioning.karpenter.sh/v1alpha2
 kind: Provisioner
 spec:
   labels:
-      node.k8s.aws/launch-template-id/arm64: id-of-arm64-lt
+      node.k8s.aws/launch-template-name/arm64: name-of-arm64-lt
       # or?
-      node.k8s.aws/arm64/launch-template-id: id-of-arm64-lt
+      node.k8s.aws/arm64/launch-template-name: name-of-arm64-lt
 ```
 
 This might be very non-standard however and defy expectations. Also,
@@ -208,12 +215,12 @@ apiVersion: provisioning.karpenter.sh/v1alpha2
 kind: Provisioner
 spec:
   labels:
-      node.k8s.aws/launch-template-id: id-of-lt-with-x86_64-based-ami
+      node.k8s.aws/launch-template-name: name-of-lt-with-x86_64-based-ami
 ```
 
 Then it could ignore that pending pod since there is no way it could
 possibly work. Another possiblity is that it could ignore the launch
-template `node.k8s.aws/launch-template-id` for that pod and revert to
+template `node.k8s.aws/launch-template-name` for that pod and revert to
 the default dynamically-generated
 ([Bottlerocket](https://aws.amazon.com/bottlerocket/)) launch template
 that would work for that architecture.
@@ -224,11 +231,11 @@ that would work for that architecture.
 For now the recommendation is to support the following in provisioner
 `spec.labels`:
 
-- `node.k8s.aws/launch-template-id`: (optional) id of launch template
+- `node.k8s.aws/launch-template-name`: (optional) id of launch template
   and cannot be specified if `architecture`
 - `node.k8s.aws/launch-template-version`: version number or `$LATEST`
   (optional, default `$LATEST`) (cannot be specified unless
-  `node.k8s.aws/launch-template-id` is present
+  `node.k8s.aws/launch-template-name` is present
 - `node.k8s.aws/capacity-type`: listed here for completeness
 
 ### The Fine Print
@@ -254,7 +261,7 @@ metadata:
   name: podA
 spec:
   nodeSelector:
-    node.k8s.aws/launch-template-id=x
+    node.k8s.aws/launch-template-name=x
 ---
 apiVersion: v1
 kind: Pod
@@ -268,7 +275,7 @@ two instances would launch.
 
 #### Multiple Provisioners
 
-While specifying a `launch-template-id` on a provisioner will limit
+While specifying a `launch-template-name` on a provisioner will limit
 that provisioner to a single default launch template (pod specs can
 still override by specifying a launch template), it seems like the
 complexity of the other solutions that might allow multiple launch

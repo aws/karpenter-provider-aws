@@ -276,100 +276,98 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateIdLabel))
+				Expect(node.Labels).ToNot(HaveKey(LaunchTemplateNameLabel))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal("test-launch-template-id"))
 				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should default to a provisioner's launch template id and version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{
-					LaunchTemplateIdLabel: randomdata.SillyName(),
+					LaunchTemplateNameLabel: randomdata.SillyName(),
 				}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateNameLabel, provisioner.Spec.Labels[LaunchTemplateNameLabel]))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
-
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(provisioner.Spec.Labels[LaunchTemplateNameLabel]))
 			})
 			It("should default to a provisioner's launch template and the default launch template version", func() {
 				// Setup
-				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				provisioner.Spec.Labels = map[string]string{LaunchTemplateNameLabel: randomdata.SillyName()}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateNameLabel, provisioner.Spec.Labels[LaunchTemplateNameLabel]))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal(provisioner.Spec.Labels[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(provisioner.Spec.Labels[LaunchTemplateNameLabel]))
 				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should allow a pod to override the launch template id and version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{
-					LaunchTemplateIdLabel: randomdata.SillyName(),
+					LaunchTemplateNameLabel: randomdata.SillyName(),
 				}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{
-						LaunchTemplateIdLabel: randomdata.SillyName(),
+						LaunchTemplateNameLabel: randomdata.SillyName(),
 					}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateNameLabel, pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 			})
 			It("should allow a pod to override the launch template id and use the default launch template version", func() {
 				// Setup
-				provisioner.Spec.Labels = map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}
+				provisioner.Spec.Labels = map[string]string{LaunchTemplateNameLabel: randomdata.SillyName()}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateNameLabel: randomdata.SillyName()}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateNameLabel, pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
 			It("should allow a pod to override the launch template id and use the provisioner's launch template version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{
-					LaunchTemplateIdLabel: randomdata.SillyName(),
+					LaunchTemplateNameLabel: randomdata.SillyName(),
 				}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateIdLabel: randomdata.SillyName()}}),
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{LaunchTemplateNameLabel: randomdata.SillyName()}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateIdLabel, pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(node.Labels).To(HaveKeyWithValue(LaunchTemplateNameLabel, pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateId).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateIdLabel]))
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 			})
 		})
 		Context("Subnets", func() {
@@ -581,12 +579,12 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support launch templates", func() {
 				provisioner.Spec.Labels = map[string]string{
-					"node.k8s.aws/launch-template-id": "23",
+					"node.k8s.aws/launch-template-name": "23",
 				}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should allow launch template id to be specified alone", func() {
-				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-id": "23"}
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-name": "23"}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if only launch template version label present", func() {

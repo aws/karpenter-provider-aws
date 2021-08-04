@@ -147,8 +147,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateId: aws.String(launchTemplate.Id),
-				Version:          aws.String(launchTemplate.Version),
+				LaunchTemplateName: aws.String(launchTemplate.Name),
+				Version:            aws.String(launchTemplate.Version),
 			},
 			Overrides: overrides,
 		}},

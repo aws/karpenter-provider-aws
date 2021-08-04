@@ -34,14 +34,14 @@ const (
 var (
 	AWSLabelPrefix           = "node.k8s.aws/"
 	CapacityTypeLabel        = AWSLabelPrefix + "capacity-type"
-	LaunchTemplateIdLabel    = AWSLabelPrefix + "launch-template-id"
+	LaunchTemplateNameLabel  = AWSLabelPrefix + "launch-template-name"
 	SubnetNameLabel          = AWSLabelPrefix + "subnet-name"
 	SubnetTagKeyLabel        = AWSLabelPrefix + "subnet-tag-key"
 	SecurityGroupNameLabel   = AWSLabelPrefix + "security-group-name"
 	SecurityGroupTagKeyLabel = AWSLabelPrefix + "security-group-tag-key"
 	AllowedLabels            = []string{
 		CapacityTypeLabel,
-		LaunchTemplateIdLabel,
+		LaunchTemplateNameLabel,
 		SubnetNameLabel,
 		SubnetTagKeyLabel,
 		SecurityGroupNameLabel,
@@ -68,17 +68,17 @@ func (c *Constraints) GetCapacityType() string {
 }
 
 type LaunchTemplate struct {
-	Id      string
+	Name    string
 	Version string
 }
 
 func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
-	id, ok := c.Labels[LaunchTemplateIdLabel]
+	name, ok := c.Labels[LaunchTemplateNameLabel]
 	if !ok {
 		return nil
 	}
 	return &LaunchTemplate{
-		Id:      id,
+		Name:    name,
 		Version: DefaultLaunchTemplateVersion,
 	}
 }
