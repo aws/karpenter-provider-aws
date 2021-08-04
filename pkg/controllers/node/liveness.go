@@ -16,26 +16,32 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Finalizer is a subreconciler that ensures nodes have the termination
-// finalizer. This protects against instances that launch when Karpenter fails
-// to create the node object. In this case, the node will come online without
-// the termination finalizer. This controller will update the node accordingly.
-type Finalizer struct{}
+const LivenessTimeout = 5 * time.Minute
+
+// Liveness is a subreconciler that deletes nodes if its determined to be unrecoverable
+type Liveness struct {
+	kubeClient client.Client
+}
 
 // Reconcile reconciles the node
-func (r *Finalizer) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !n.DeletionTimestamp.IsZero() {
+func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
+	if !node.FailedToJoin(n, LivenessTimeout) {
 		return reconcile.Result{}, nil
 	}
-	if !functional.ContainsString(n.Finalizers, v1alpha3.TerminationFinalizer) {
-		n.Finalizers = append(n.Finalizers, v1alpha3.TerminationFinalizer)
+	logging.FromContext(ctx).Infof("Triggering termination for node that failed to join %s", n.Name)
+	if err := r.kubeClient.Delete(ctx, n); err != nil {
+		return reconcile.Result{}, fmt.Errorf("deleting node %s, %w", n.Name, err)
 	}
 	return reconcile.Result{}, nil
 }

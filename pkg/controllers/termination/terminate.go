@@ -68,7 +68,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	critical := []*v1.Pod{}
 
 	for _, p := range pods {
-		if val := p.Annotations[provisioning.KarpenterDoNotEvictPodAnnotation]; val == "true" {
+		if val := p.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
 			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
 			return false, nil
 		}

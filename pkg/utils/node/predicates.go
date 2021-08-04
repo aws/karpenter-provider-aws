@@ -17,7 +17,6 @@ package node
 import (
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -31,18 +30,6 @@ func FailedToJoin(node *v1.Node, gracePeriod time.Duration) bool {
 	}
 	condition := getNodeCondition(node.Status.Conditions, v1.NodeReady)
 	return condition.LastHeartbeatTime.IsZero()
-}
-
-func IsPastEmptyTTL(node *v1.Node) bool {
-	ttl, ok := node.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]
-	if !ok {
-		return false
-	}
-	ttlTime, err := time.Parse(time.RFC3339, ttl)
-	if err != nil {
-		return false
-	}
-	return time.Now().After(ttlTime)
 }
 
 func getNodeCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {

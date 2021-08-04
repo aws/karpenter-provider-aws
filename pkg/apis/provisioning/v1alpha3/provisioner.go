@@ -113,28 +113,20 @@ var (
 )
 
 var (
-	// Well known, supported labels
+	// Well known labels
 	ArchitectureLabelKey    = "kubernetes.io/arch"
 	OperatingSystemLabelKey = "kubernetes.io/os"
-
+	ZoneLabelKey            = "topology.kubernetes.io/zone"
+	InstanceTypeLabelKey    = "node.kubernetes.io/instance-type"
+	// Reserved labels
+	ProvisionerNameLabelKey = SchemeGroupVersion.Group + "/provisioner-name"
 	// Reserved taints
 	NotReadyTaintKey = SchemeGroupVersion.Group + "/not-ready"
-
-	// Reserved labels
-	ProvisionerNameLabelKey          = SchemeGroupVersion.Group + "/provisioner-name"
-	ProvisionerUnderutilizedLabelKey = SchemeGroupVersion.Group + "/underutilized"
-
 	// Reserved annotations
-	KarpenterDoNotEvictPodAnnotation = SchemeGroupVersion.Group + "/do-not-evict"
-	ProvisionerTTLAfterEmptyKey      = SchemeGroupVersion.Group + "/ttl-after-empty"
-
-	// Use ProvisionerSpec instead
-	ZoneLabelKey         = "topology.kubernetes.io/zone"
-	InstanceTypeLabelKey = "node.kubernetes.io/instance-type"
-
+	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
+	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
 	// Finalizers
 	TerminationFinalizer = SchemeGroupVersion.Group + "/termination"
-
 	// Default provisioner
 	DefaultProvisioner = types.NamespacedName{Name: "default"}
 )

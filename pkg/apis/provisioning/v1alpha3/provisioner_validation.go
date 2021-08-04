@@ -32,8 +32,7 @@ var (
 		ArchitectureLabelKey,
 		OperatingSystemLabelKey,
 		ProvisionerNameLabelKey,
-		ProvisionerUnderutilizedLabelKey,
-		ProvisionerTTLAfterEmptyKey,
+		EmptinessTimestampAnnotationKey,
 		ZoneLabelKey,
 		InstanceTypeLabelKey,
 	}
