@@ -122,7 +122,7 @@ var _ = Describe("Termination", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
-				Annotations: map[string]string{v1alpha3.KarpenterDoNotEvictPodAnnotation: "true"},
+				Annotations: map[string]string{v1alpha3.DoNotEvictPodAnnotationKey: "true"},
 			})
 
 			ExpectCreated(env.Client, node, podEvict, podNoEvict)

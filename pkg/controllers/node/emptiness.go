@@ -50,23 +50,28 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisi
 		return reconcile.Result{}, err
 	}
 	if !empty {
-		if _, ok := n.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]; ok {
-			delete(n.Annotations, v1alpha3.ProvisionerTTLAfterEmptyKey)
+		if _, ok := n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey]; ok {
+			delete(n.Annotations, v1alpha3.EmptinessTimestampAnnotationKey)
 			logging.FromContext(ctx).Infof("Removed emptiness TTL from node %s", n.Name)
 		}
 		return reconcile.Result{}, nil
 	}
 	// 3. Set TTL if not set
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
-	if _, ok := n.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey]; !ok {
-		ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
-		n.Annotations[v1alpha3.ProvisionerTTLAfterEmptyKey] = time.Now().Add(ttl).Format(time.RFC3339)
-		logging.FromContext(ctx).Infof("Added TTL (+%s) to empty node %s", ttl, n.Name)
+	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
+	emptinessTimestamp, ok := n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey]
+	if !ok {
+		n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
+		logging.FromContext(ctx).Infof("Added TTL to empty node %s", n.Name)
 		return reconcile.Result{RequeueAfter: ttl}, nil
 	}
 	// 4. Delete node if beyond TTL
-	if node.IsPastEmptyTTL(n) {
-		logging.FromContext(ctx).Infof("Triggering termination for empty node %s", n.Name)
+	emptinessTime, err := time.Parse(time.RFC3339, emptinessTimestamp)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("parsing emptiness timestamp, %s", emptinessTimestamp)
+	}
+	if time.Now().After(emptinessTime.Add(ttl)) {
+		logging.FromContext(ctx).Infof("Triggering termination after %s for empty node %s", ttl, n.Name)
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node %s, %w", n.Name, err)
 		}

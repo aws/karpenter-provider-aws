@@ -231,7 +231,7 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.EmptinessTimestampAnnotationKey))
 		})
 		It("should not TTL nodes that have ready status false", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
@@ -245,7 +245,7 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.EmptinessTimestampAnnotationKey))
 		})
 		It("should label nodes as underutilized and add TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
@@ -257,14 +257,14 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Annotations).To(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+			Expect(node.Annotations).To(HaveKey(v1alpha3.EmptinessTimestampAnnotationKey))
 		})
 		It("should remove labels from non-empty nodes", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
 				Annotations: map[string]string{
-					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
+					v1alpha3.EmptinessTimestampAnnotationKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
 				},
 			})
 			ExpectCreated(env.Client, provisioner)
@@ -278,7 +278,7 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.ProvisionerTTLAfterEmptyKey))
+			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.EmptinessTimestampAnnotationKey))
 		})
 		It("should terminate empty nodes past their TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
@@ -286,7 +286,7 @@ var _ = Describe("Controller", func() {
 				Finalizers: []string{v1alpha3.TerminationFinalizer},
 				Labels:     map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
 				Annotations: map[string]string{
-					v1alpha3.ProvisionerTTLAfterEmptyKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
+					v1alpha3.EmptinessTimestampAnnotationKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
 				},
 			})
 			ExpectCreated(env.Client, provisioner, node)

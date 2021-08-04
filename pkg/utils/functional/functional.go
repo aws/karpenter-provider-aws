@@ -15,8 +15,6 @@ limitations under the License.
 package functional
 
 import (
-	"encoding/json"
-	"reflect"
 	"strings"
 	"time"
 
@@ -122,16 +120,4 @@ func MaxDuration(durations ...time.Duration) time.Duration {
 		}
 	}
 	return max
-}
-
-func JsonEquals(a, b interface{}) bool {
-	aJson, err := json.Marshal(a)
-	if err != nil {
-		panic(err)
-	}
-	bJson, err := json.Marshal(b)
-	if err != nil {
-		panic(err)
-	}
-	return reflect.DeepEqual(string(aJson), string(bJson))
 }

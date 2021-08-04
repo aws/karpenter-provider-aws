@@ -34,7 +34,7 @@ type Expiration struct {
 
 // Reconcile reconciles the node
 func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, node *v1.Node) (reconcile.Result, error) {
-	// 1. Ignore if TTLSecondsUntilExpired isn't defined
+	// 1. Ignore node if not applicable
 	if provisioner.Spec.TTLSecondsUntilExpired == nil {
 		return reconcile.Result{}, nil
 	}
