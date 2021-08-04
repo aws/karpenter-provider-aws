@@ -32,7 +32,7 @@ spec:
   # behavior. Additional labels may be supported by your cloudprovider.
   labels:
     # These are AWS-specific
-    kubernetes.amazonaws.com/launchTemplateName:
+    kubernetes.amazonaws.com/launchTemplateId:
     kubernetes.amazonaws.com/launchTemplateVersion:
     kubernetes.amazonaws.com/capacityType:
 ```
