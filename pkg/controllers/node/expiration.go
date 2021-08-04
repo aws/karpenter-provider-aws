@@ -39,10 +39,9 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha3.Provis
 		return reconcile.Result{}, nil
 	}
 	// 2. Trigger termination workflow if expired
-	now := time.Now()
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
-	if now.After(expirationTime) {
+	if time.Now().After(expirationTime) {
 		logging.FromContext(ctx).Infof("Triggering termination for expired node %s after %s (+%s)", node.Name, expirationTTL, time.Since(expirationTime))
 		if err := r.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)

@@ -49,8 +49,10 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisi
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+
+	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey]
 	if !empty {
-		if _, ok := n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey]; ok {
+		if hasEmptinessTimestamp {
 			delete(n.Annotations, v1alpha3.EmptinessTimestampAnnotationKey)
 			logging.FromContext(ctx).Infof("Removed emptiness TTL from node %s", n.Name)
 		}
@@ -59,8 +61,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisi
 	// 3. Set TTL if not set
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
-	emptinessTimestamp, ok := n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey]
-	if !ok {
+	if !hasEmptinessTimestamp {
 		n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
 		logging.FromContext(ctx).Infof("Added TTL to empty node %s", n.Name)
 		return reconcile.Result{RequeueAfter: ttl}, nil
