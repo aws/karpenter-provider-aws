@@ -579,17 +579,13 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support launch templates", func() {
 				provisioner.Spec.Labels = map[string]string{
-					"node.k8s.aws/launch-template-name": "23",
+					"node.k8s.aws/launch-template-name": randomdata.SillyName(),
 				}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should allow launch template id to be specified alone", func() {
-				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-name": "23"}
+				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-name": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
-			It("should fail if only launch template version label present", func() {
-				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/launch-template-version": randomdata.SillyName()}
-				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support on demand capacity type", func() {
 				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/capacity-type": CapacityTypeOnDemand}
