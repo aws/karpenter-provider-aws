@@ -7,6 +7,7 @@ metadata:
   version: "1.20"
 managedNodeGroups:
   - instanceType: m5.large
+    amiFamily: Bottlerocket
     name: ${CLUSTER_NAME}-ng
     desiredCapacity: 1
     minSize: 1
