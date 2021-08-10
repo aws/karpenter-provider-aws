@@ -114,7 +114,7 @@ Now, Karpenter can launch new EC2 instances and those instances can connect to y
 Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 
 ```
-eksctl create iamserviceaccount
+eksctl create iamserviceaccount \
   --cluster $CLUSTER_NAME --name karpenter --namespace karpenter \
   --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/KarpenterControllerPolicy-$CLUSTER_NAME \
   --approve
