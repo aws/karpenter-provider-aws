@@ -39,7 +39,7 @@ Follow the setup recommendations of your cloud provider.
 - [FAQs](https://karpenter.sh/docs/faqs/)
 - [Roadmap](ROADMAP.md)
 - [Working Group](WORKING_GROUP.md)
-- [Developer Guide](DEVELOPER_GUIDE.md)
+- [Developer Guide](https://karpenter.sh/docs/development-guide/)
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks
