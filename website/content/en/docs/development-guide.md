@@ -75,6 +75,10 @@ aws ecr create-repository \
     --repository-name karpenter/controller \
     --image-scanning-configuration scanOnPush=true \
     --region ${AWS_DEFAULT_REGION}
+aws ecr create-repository \
+    --repository-name karpenter/webhook \
+    --image-scanning-configuration scanOnPush=true \
+    --region ${AWS_DEFAULT_REGION}
 ```
 
 Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.
