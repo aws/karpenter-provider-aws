@@ -15,24 +15,14 @@ limitations under the License.
 package node
 
 import (
-	"time"
-
 	v1 "k8s.io/api/core/v1"
 )
 
 func IsReady(node *v1.Node) bool {
-	return getNodeCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
+	return GetCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
 }
 
-func FailedToJoin(node *v1.Node, gracePeriod time.Duration) bool {
-	if time.Since(node.GetCreationTimestamp().Time) < gracePeriod {
-		return false
-	}
-	condition := getNodeCondition(node.Status.Conditions, v1.NodeReady)
-	return condition.LastHeartbeatTime.IsZero()
-}
-
-func getNodeCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+func GetCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
 	for _, condition := range conditions {
 		if condition.Type == match {
 			return condition

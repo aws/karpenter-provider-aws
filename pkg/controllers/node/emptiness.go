@@ -62,7 +62,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisi
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
 	if !hasEmptinessTimestamp {
-		n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
+		n.Annotations[v1alpha3.EmptinessTimestampAnnotationKey] = Now().Format(time.RFC3339)
 		logging.FromContext(ctx).Infof("Added TTL to empty node %s", n.Name)
 		return reconcile.Result{RequeueAfter: ttl}, nil
 	}
@@ -71,7 +71,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisi
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("parsing emptiness timestamp, %s", emptinessTimestamp)
 	}
-	if time.Now().After(emptinessTime.Add(ttl)) {
+	if Now().After(emptinessTime.Add(ttl)) {
 		logging.FromContext(ctx).Infof("Triggering termination after %s for empty node %s", ttl, n.Name)
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node %s, %w", n.Name, err)
