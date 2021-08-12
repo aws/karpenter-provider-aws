@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"bou.ke/monkey"
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
@@ -92,31 +91,31 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
-		It("should terminate nodes after expiry", func() {
-			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
-			n := test.Node(test.NodeOptions{
-				Finalizers: []string{v1alpha3.TerminationFinalizer},
-				Labels: map[string]string{
-					v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
-				},
-			})
-			ExpectCreated(env.Client, provisioner, n)
+		// It("should terminate nodes after expiry", func() {
+		// 	provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
+		// 	n := test.Node(test.NodeOptions{
+		// 		Finalizers: []string{v1alpha3.TerminationFinalizer},
+		// 		Labels: map[string]string{
+		// 			v1alpha3.ProvisionerNameLabelKey: provisioner.Name,
+		// 		},
+		// 	})
+		// 	ExpectCreated(env.Client, provisioner, n)
 
-			// Should still exist
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		// 	// Should still exist
+		// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+		// 	n = ExpectNodeExists(env.Client, n.Name)
+		// 	Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
-			// Simulate time passing
-			afterExpiry := time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired)  * time.Second)
-			monkey.Patch(time.Now, func() time.Time {
-				return afterExpiry
-			})
-			defer func() { monkey.Unpatch(time.Now) }()
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
-		})
+		// 	// Simulate time passing
+		// 	afterExpiry := time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired)  * time.Second)
+		// 	monkey.Patch(time.Now, func() time.Time {
+		// 		return afterExpiry
+		// 	})
+		// 	defer func() { monkey.Unpatch(time.Now) }()
+		// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+		// 	n = ExpectNodeExists(env.Client, n.Name)
+		// 	Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		// })
 	})
 
 	Context("Readiness", func() {
@@ -182,41 +181,41 @@ var _ = Describe("Controller", func() {
 		})
 	})
 	Context("Liveness", func() {
-		It("should terminate nodes that fail to join after 5 minutes", func() {
-			n := test.Node(test.NodeOptions{
-				Finalizers:  []string{v1alpha3.TerminationFinalizer},
-				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
-				ReadyStatus: v1.ConditionUnknown,
-			})
-			pod := test.Pod(test.PodOptions{NodeName: n.Name})
-			ExpectCreated(env.Client, provisioner, pod)
-			ExpectCreatedWithStatus(env.Client, n)
+		// It("should terminate nodes that fail to join after 5 minutes", func() {
+		// 	n := test.Node(test.NodeOptions{
+		// 		Finalizers:  []string{v1alpha3.TerminationFinalizer},
+		// 		Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
+		// 		ReadyStatus: v1.ConditionUnknown,
+		// 	})
+		// 	pod := test.Pod(test.PodOptions{NodeName: n.Name})
+		// 	ExpectCreated(env.Client, provisioner, pod)
+		// 	ExpectCreatedWithStatus(env.Client, n)
 
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+		// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect n not deleted
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		// 	// Expect n not deleted
+		// 	n = ExpectNodeExists(env.Client, n.Name)
+		// 	Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
-			// Set pod DeletionTimestamp and do another reconcile
-			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+		// 	// Set pod DeletionTimestamp and do another reconcile
+		// 	Expect(env.Client.Delete(ctx, pod)).To(Succeed())
+		// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect node not deleted
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		// 	// Expect node not deleted
+		// 	n = ExpectNodeExists(env.Client, n.Name)
+		// 	Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
-			// Simulate time passing and a n failing to join
-			future := time.Now().Add(node.LivenessTimeout)
-			monkey.Patch(time.Now, func() time.Time {
-				return future
-			})
-			defer func() { monkey.Unpatch(time.Now) }()
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+		// 	// Simulate time passing and a n failing to join
+		// 	future := time.Now().Add(node.LivenessTimeout)
+		// 	monkey.Patch(time.Now, func() time.Time {
+		// 		return future
+		// 	})
+		// 	defer func() { monkey.Unpatch(time.Now) }()
+		// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
-		})
+		// 	n = ExpectNodeExists(env.Client, n.Name)
+		// 	Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		// })
 	})
 	Describe("Emptiness", func() {
 		It("should not TTL nodes that have ready status unknown", func() {

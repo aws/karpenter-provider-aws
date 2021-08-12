@@ -3,7 +3,6 @@ module github.com/awslabs/karpenter
 go 1.16
 
 require (
-	bou.ke/monkey v1.0.2
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v2.7.0+incompatible
 	github.com/aws/aws-sdk-go v1.38.69
