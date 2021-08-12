@@ -66,6 +66,7 @@ var _ = Describe("Controller", func() {
 	})
 
 	AfterEach(func() {
+		node.Now = time.Now
 		ExpectCleanedUp(env.Client)
 	})
 
@@ -110,7 +111,6 @@ var _ = Describe("Controller", func() {
 			node.Now = func() time.Time {
 				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
 			}
-			defer func() { node.Now = time.Now }()
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
@@ -206,7 +206,6 @@ var _ = Describe("Controller", func() {
 
 			// Simulate time passing and a n failing to join
 			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
-			defer func() { node.Now = time.Now }()
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(env.Client, n.Name)
