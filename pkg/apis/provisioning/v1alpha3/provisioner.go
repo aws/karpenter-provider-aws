@@ -113,18 +113,26 @@ var (
 )
 
 var (
-	// Reserved labels
-	ProvisionerNameLabelKey = SchemeGroupVersion.Group + "/provisioner-name"
-	// Reserved taints
-	NotReadyTaintKey = SchemeGroupVersion.Group + "/not-ready"
-	// Reserved annotations
+	ProvisionerNameLabelKey         = SchemeGroupVersion.Group + "/provisioner-name"
+	NotReadyTaintKey                = SchemeGroupVersion.Group + "/not-ready"
 	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
 	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
-	// Finalizers
-	TerminationFinalizer = SchemeGroupVersion.Group + "/termination"
-	// Default provisioner
-	DefaultProvisioner = types.NamespacedName{Name: "default"}
+	TerminationFinalizer            = SchemeGroupVersion.Group + "/termination"
+	DefaultProvisioner              = types.NamespacedName{Name: "default"}
 )
+
+// RestrictedLabels prevent usage of specific labels.
+var RestrictedLabels = []string{
+	// Use strongly typed fields instead
+	v1.LabelArchStable,
+	v1.LabelOSStable,
+	v1.LabelTopologyZone,
+	v1.LabelInstanceTypeStable,
+	// Used internally by provisioning logic
+	ProvisionerNameLabelKey,
+	EmptinessTimestampAnnotationKey,
+	v1.LabelHostname,
+}
 
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true

@@ -80,8 +80,10 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 	if pod.Spec.Affinity != nil {
 		return fmt.Errorf("affinity is not supported")
 	}
-	if pod.Spec.TopologySpreadConstraints != nil {
-		return fmt.Errorf("topology spread constraints are not supported")
+	for _, constraint := range pod.Spec.TopologySpreadConstraints {
+		if supported := []string{v1.LabelHostname, v1.LabelTopologyZone}; !functional.ContainsString(supported, constraint.TopologyKey) {
+			return fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported)
+		}
 	}
 	return nil
 }

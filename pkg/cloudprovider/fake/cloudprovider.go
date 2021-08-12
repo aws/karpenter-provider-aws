@@ -70,6 +70,10 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 	return err
 }
 
+func (c *CloudProvider) GetZones(context context.Context, provisioner *v1alpha3.Provisioner) ([]string, error) {
+	return []string{"test-zone-1", "test-zone-2", "test-zone-3"}, nil
+}
+
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{

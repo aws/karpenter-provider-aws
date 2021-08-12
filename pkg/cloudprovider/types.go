@@ -35,6 +35,8 @@ type CloudProvider interface {
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
+	// GetZones returns the zones supported by the cloud provider and the specified provisioner
+	GetZones(context.Context, *v1alpha3.Provisioner) ([]string, error)
 	// ValidateSpec is a hook for additional spec validation logic specific to the cloud provider.
 	// Note, implementations should not validate constraints resp. call `ValidateConstraints`
 	// from whithin this method as constraints are validated separately.

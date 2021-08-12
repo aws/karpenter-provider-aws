@@ -21,6 +21,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
@@ -46,7 +47,7 @@ import (
 
 const (
 	maxBatchWindow   = 10 * time.Second
-	batchIdleTimeout = 2 * time.Second
+	batchIdleTimeout = 1 * time.Second
 )
 
 // Controller for the resource
@@ -54,7 +55,7 @@ type Controller struct {
 	Batcher       *Batcher
 	Filter        *Filter
 	Binder        *Binder
-	Constraints   *Constraints
+	Scheduler     *scheduling.Scheduler
 	Packer        packing.Packer
 	CloudProvider cloudprovider.CloudProvider
 	KubeClient    client.Client
@@ -66,7 +67,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		Filter:        &Filter{KubeClient: kubeClient},
 		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
-		Constraints:   &Constraints{KubeClient: kubeClient},
+		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
 		Packer:        packing.NewPacker(),
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
@@ -100,9 +101,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 4. Group by constraints
-	constraintGroups, err := c.Constraints.Group(ctx, provisioner, pods)
+	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
 	if err != nil {
-		return result.RetryIfError(ctx, fmt.Errorf("building constraint groups, %w", err))
+		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
 	}
 
 	// 5. Get Instance Types Options
@@ -113,8 +114,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// 6. Binpack each group
 	packings := []*cloudprovider.Packing{}
-	for _, constraintGroup := range constraintGroups {
-		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
+	for _, schedule := range schedules {
+		packings = append(packings, c.Packer.Pack(ctx, schedule, instanceTypes)...)
 	}
 
 	// 7. Create capacity

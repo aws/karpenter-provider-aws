@@ -55,9 +55,7 @@ var (
 )
 
 // Constraints are AWS specific constraints
-type Constraints struct {
-	v1alpha3.Constraints
-}
+type Constraints v1alpha3.Constraints
 
 func (c *Constraints) GetCapacityType() string {
 	capacityType, ok := c.Labels[CapacityTypeLabel]
@@ -127,7 +125,7 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 func (c *Constraints) validateAllowedLabels(ctx context.Context) (errs *apis.FieldError) {
 	for key := range c.Labels {
 		if strings.HasPrefix(key, AWSLabelPrefix) && !functional.ContainsString(AllowedLabels, key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "spec.labels"))
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
 		}
 	}
 	return errs
@@ -140,7 +138,7 @@ func (c *Constraints) validateCapacityType(ctx context.Context) (errs *apis.Fiel
 	}
 	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
 	if !functional.ContainsString(capacityTypes, capacityType) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("spec.labels[%s]", CapacityTypeLabel)))
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("labels[%s]", CapacityTypeLabel)))
 	}
 	return errs
 }
@@ -152,7 +150,7 @@ func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.Fi
 
 func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
 	if c.GetSubnetName() != nil && c.GetSubnetTagKey() != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(fmt.Sprintf("spec.labels[%s]", SubnetNameLabel), fmt.Sprintf("spec.labels[%s]", SubnetTagKeyLabel)))
+		errs = errs.Also(apis.ErrMultipleOneOf(fmt.Sprintf("labels[%s]", SubnetNameLabel), fmt.Sprintf("labels[%s]", SubnetTagKeyLabel)))
 	}
 	return errs
 }
