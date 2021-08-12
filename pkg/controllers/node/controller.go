@@ -38,6 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+// Now is a time.Now() that may be mocked by tests.
+var Now = time.Now
+
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{

@@ -36,7 +36,10 @@ type Liveness struct {
 
 // Reconcile reconciles the node
 func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !node.FailedToJoin(n, LivenessTimeout) {
+	if Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
+		return reconcile.Result{}, nil
+	}
+	if condition := node.GetCondition(n.Status.Conditions, v1.NodeReady); !condition.LastHeartbeatTime.IsZero() {
 		return reconcile.Result{}, nil
 	}
 	logging.FromContext(ctx).Infof("Triggering termination for node that failed to join %s", n.Name)
