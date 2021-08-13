@@ -187,21 +187,12 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
 			})
-			pod := test.Pod(test.PodOptions{NodeName: n.Name})
-			ExpectCreated(env.Client, provisioner, pod)
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, n)
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect n not deleted
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
-
-			// Delete pod and do another reconcile
-			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-
-			// Expect node not deleted
+			// Expect node not be deleted
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
@@ -217,22 +208,14 @@ var _ = Describe("Controller", func() {
 				Finalizers:  []string{v1alpha3.TerminationFinalizer},
 				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
 				ReadyStatus: v1.ConditionUnknown,
+				ReadyReason: "",
 			})
-			pod := test.Pod(test.PodOptions{NodeName: n.Name})
-			ExpectCreated(env.Client, provisioner, pod)
+			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, n)
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect n not deleted
-			n = ExpectNodeExists(env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
-
-			// Set pod DeletionTimestamp and do another reconcile
-			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-
-			// Expect node not deleted
+			// Expect node not be deleted
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
