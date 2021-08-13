@@ -77,6 +77,15 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
+	It("should fail for invalid cluster specification", func() {
+		for _, cluster := range []Cluster{
+			{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Endpoint: "elrond"},
+		} {
+			provisioner.Spec.Cluster = cluster
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		}
+	})
+
 	Context("Labels", func() {
 		It("should fail for invalid label keys", func() {
 			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}

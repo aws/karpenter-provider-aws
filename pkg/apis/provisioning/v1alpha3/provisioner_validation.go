@@ -17,6 +17,7 @@ package v1alpha3
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -101,6 +102,11 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 	}
 	if len(c.Endpoint) == 0 {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
+	} else {
+		endpoint, err := url.Parse(c.Endpoint)
+		if err != nil || !endpoint.IsAbs() {
+			errs = errs.Also(apis.ErrInvalidValue(c.Endpoint, "endpoint"))
+		}
 	}
 	return errs
 }
