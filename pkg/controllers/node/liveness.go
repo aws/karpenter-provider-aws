@@ -39,7 +39,8 @@ func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisio
 	if Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}
-	if condition := node.GetCondition(n.Status.Conditions, v1.NodeReady); !condition.LastHeartbeatTime.IsZero() {
+	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady);
+	if condition.Reason != "" && condition.Reason != "NodeStatusNeverUpdated" {
 		return reconcile.Result{}, nil
 	}
 	logging.FromContext(ctx).Infof("Triggering termination for node that failed to join %s", n.Name)

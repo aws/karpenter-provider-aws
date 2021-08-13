@@ -180,7 +180,39 @@ var _ = Describe("Controller", func() {
 		})
 	})
 	Context("Liveness", func() {
-		It("should terminate nodes that fail to join after 5 minutes", func() {
+		It("should terminate nodes if NodeStatusNeverUpdated after 5 minutes", func() {
+			n := test.Node(test.NodeOptions{
+				Finalizers:  []string{v1alpha3.TerminationFinalizer},
+				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
+				ReadyStatus: v1.ConditionUnknown,
+				ReadyReason: "NodeStatusNeverUpdated",
+			})
+			pod := test.Pod(test.PodOptions{NodeName: n.Name})
+			ExpectCreated(env.Client, provisioner, pod)
+			ExpectCreatedWithStatus(env.Client, n)
+
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			// Expect n not deleted
+			n = ExpectNodeExists(env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Delete pod and do another reconcile
+			Expect(env.Client.Delete(ctx, pod)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+			// Expect node not deleted
+			n = ExpectNodeExists(env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing and a n failing to join
+			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+
+			n = ExpectNodeExists(env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should terminate nodes if we never hear anything after 5 minutes", func() {
 			n := test.Node(test.NodeOptions{
 				Finalizers:  []string{v1alpha3.TerminationFinalizer},
 				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
