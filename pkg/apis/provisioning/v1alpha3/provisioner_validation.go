@@ -104,7 +104,9 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
 	} else {
 		endpoint, err := url.Parse(c.Endpoint)
-		if err != nil || !endpoint.IsAbs() {
+		// url.Parse() will accept a lot of input without error; make
+		// sure it's a real URL
+		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
 			errs = errs.Also(apis.ErrInvalidValue(c.Endpoint, "endpoint"))
 		}
 	}

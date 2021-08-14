@@ -38,19 +38,21 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = Describe("Validation", func() {
+	var cluster Cluster
 	var provisioner *Provisioner
 
 	BeforeEach(func() {
+		cluster = Cluster{
+			Name:     ptr.String("test-cluster"),
+			Endpoint: "https://test-cluster",
+			CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
+		}
 		provisioner = &Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: strings.ToLower(randomdata.SillyName()),
 			},
 			Spec: ProvisionerSpec{
-				Cluster: Cluster{
-					Name:     ptr.String("test-cluster"),
-					Endpoint: "https://test-cluster",
-					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
-				},
+				Cluster: cluster,
 			},
 		}
 	})
@@ -82,6 +84,24 @@ var _ = Describe("Validation", func() {
 			{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Endpoint: "elrond"},
 		} {
 			provisioner.Spec.Cluster = cluster
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		}
+	})
+
+	It("should fail for invalid endpoint", func() {
+		for _, endpoint := range []string{
+			"http",
+			"http:",
+			"http://",
+			"https",
+			"https:",
+			"https://",
+			"I am a meat popsicle",
+			"$(echo foo)",
+		} {
+			badCluster := cluster
+			badCluster.Endpoint = endpoint
+			provisioner.Spec.Cluster = badCluster
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		}
 	})

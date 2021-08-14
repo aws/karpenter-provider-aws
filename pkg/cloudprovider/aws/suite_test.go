@@ -567,6 +567,7 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
+
 		})
 		Context("Labels", func() {
 			It("should allow unrecognized labels", func() {
