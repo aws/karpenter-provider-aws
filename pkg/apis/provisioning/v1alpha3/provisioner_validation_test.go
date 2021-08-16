@@ -38,21 +38,19 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = Describe("Validation", func() {
-	var cluster Cluster
 	var provisioner *Provisioner
 
 	BeforeEach(func() {
-		cluster = Cluster{
-			Name:     ptr.String("test-cluster"),
-			Endpoint: "https://test-cluster",
-			CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
-		}
 		provisioner = &Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: strings.ToLower(randomdata.SillyName()),
 			},
 			Spec: ProvisionerSpec{
-				Cluster: cluster,
+				Cluster: Cluster{
+					Name:     ptr.String("test-cluster"),
+					Endpoint: "https://test-cluster",
+					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
+				},
 			},
 		}
 	})
@@ -90,9 +88,7 @@ var _ = Describe("Validation", func() {
 			"I am a meat popsicle",
 			"$(echo foo)",
 		} {
-			badCluster := cluster
-			badCluster.Endpoint = endpoint
-			provisioner.Spec.Cluster = badCluster
+			provisioner.Spec.Cluster.Endpoint = endpoint
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		}
 	})
