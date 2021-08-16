@@ -17,6 +17,7 @@ package v1alpha3
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -101,6 +102,13 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 	}
 	if len(c.Endpoint) == 0 {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
+	} else {
+		endpoint, err := url.Parse(c.Endpoint)
+		// url.Parse() will accept a lot of input without error; make
+		// sure it's a real URL
+		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not a valid URL", c.Endpoint), "endpoint"))
+		}
 	}
 	return errs
 }

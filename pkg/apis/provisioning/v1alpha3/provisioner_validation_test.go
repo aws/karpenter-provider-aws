@@ -77,6 +77,22 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
+	It("should fail for invalid endpoint", func() {
+		for _, endpoint := range []string{
+			"http",
+			"http:",
+			"http://",
+			"https",
+			"https:",
+			"https://",
+			"I am a meat popsicle",
+			"$(echo foo)",
+		} {
+			provisioner.Spec.Cluster.Endpoint = endpoint
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		}
+	})
+
 	Context("Labels", func() {
 		It("should fail for invalid label keys", func() {
 			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}
