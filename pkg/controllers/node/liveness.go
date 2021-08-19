@@ -40,6 +40,11 @@ func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisio
 		return reconcile.Result{}, nil
 	}
 	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady);
+	// If the reason is "", then the condition has never been set. We expect
+	// either the kubelet to set this reason, or the kcm's
+	// node-livecycle-controller to set the status to NodeStatusNeverUpdated if
+	// the kubelet cannot connect. Once the value is NodeStatusNeverUpdated and
+	// the node is beyond the liveness timeout, we will terminate the node.
 	if condition.Reason != "" && condition.Reason != "NodeStatusNeverUpdated" {
 		return reconcile.Result{}, nil
 	}

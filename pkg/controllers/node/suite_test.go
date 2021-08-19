@@ -215,7 +215,6 @@ var _ = Describe("Controller", func() {
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			// Expect node not be deleted
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
