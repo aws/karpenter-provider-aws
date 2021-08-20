@@ -113,11 +113,6 @@ var (
 )
 
 var (
-	// Well known labels
-	ArchitectureLabelKey    = "kubernetes.io/arch"
-	OperatingSystemLabelKey = "kubernetes.io/os"
-	ZoneLabelKey            = "topology.kubernetes.io/zone"
-	InstanceTypeLabelKey    = "node.kubernetes.io/instance-type"
 	// Reserved labels
 	ProvisionerNameLabelKey = SchemeGroupVersion.Group + "/provisioner-name"
 	// Reserved taints
@@ -169,7 +164,7 @@ func (c *Constraints) WithOverrides(pod *v1.Pod) *Constraints {
 
 func (c *Constraints) getZones(pod *v1.Pod) []string {
 	// Pod may override zone
-	if zone, ok := pod.Spec.NodeSelector[ZoneLabelKey]; ok {
+	if zone, ok := pod.Spec.NodeSelector[v1.LabelTopologyZone]; ok {
 		return []string{zone}
 	}
 	// Default to provisioner constraints
@@ -182,7 +177,7 @@ func (c *Constraints) getZones(pod *v1.Pod) []string {
 
 func (c *Constraints) getInstanceTypes(pod *v1.Pod) []string {
 	// Pod may override instance type
-	if instanceType, ok := pod.Spec.NodeSelector[InstanceTypeLabelKey]; ok {
+	if instanceType, ok := pod.Spec.NodeSelector[v1.LabelInstanceTypeStable]; ok {
 		return []string{instanceType}
 	}
 	// Default to provisioner constraints
@@ -195,7 +190,7 @@ func (c *Constraints) getInstanceTypes(pod *v1.Pod) []string {
 
 func (c *Constraints) getArchitecture(pod *v1.Pod) *string {
 	// Pod may override arch
-	if architecture, ok := pod.Spec.NodeSelector[ArchitectureLabelKey]; ok {
+	if architecture, ok := pod.Spec.NodeSelector[v1.LabelArchStable]; ok {
 		return &architecture
 	}
 	// Use constraints if defined
@@ -208,7 +203,7 @@ func (c *Constraints) getArchitecture(pod *v1.Pod) *string {
 
 func (c *Constraints) getOperatingSystem(pod *v1.Pod) *string {
 	// Pod may override os
-	if operatingSystem, ok := pod.Spec.NodeSelector[OperatingSystemLabelKey]; ok {
+	if operatingSystem, ok := pod.Spec.NodeSelector[v1.LabelOSStable]; ok {
 		return &operatingSystem
 	}
 	// Use constraints if defined
