@@ -39,7 +39,7 @@ func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisio
 	if Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}
-	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady);
+	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady)
 	// If the reason is "", then the condition has never been set. We expect
 	// either the kubelet to set this reason, or the kcm's
 	// node-livecycle-controller to set the status to NodeStatusNeverUpdated if

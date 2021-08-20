@@ -104,11 +104,11 @@ var _ = Describe("Validation", func() {
 		})
 		It("should fail for restricted labels", func() {
 			for _, label := range []string{
-				ArchitectureLabelKey,
-				OperatingSystemLabelKey,
+				v1.LabelArchStable,
+				v1.LabelOSStable,
 				ProvisionerNameLabelKey,
-				ZoneLabelKey,
-				InstanceTypeLabelKey,
+				v1.LabelTopologyZone,
+				v1.LabelInstanceTypeStable,
 			} {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())

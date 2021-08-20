@@ -30,12 +30,12 @@ import (
 var (
 	// RestrictedLabels prevent usage of specific labels. Instead, use top level provisioner fields (e.g. zone)
 	RestrictedLabels = []string{
-		ArchitectureLabelKey,
-		OperatingSystemLabelKey,
+		v1.LabelArchStable,
+		v1.LabelOSStable,
+		v1.LabelTopologyZone,
+		v1.LabelInstanceTypeStable,
 		ProvisionerNameLabelKey,
 		EmptinessTimestampAnnotationKey,
-		ZoneLabelKey,
-		InstanceTypeLabelKey,
 	}
 
 	// The following fields are injected by Cloud Providers
