@@ -114,7 +114,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha3.
 		return nil, err
 	}
 	return &LaunchTemplate{
-		Id:      aws.StringValue(launchTemplate.LaunchTemplateId),
+		Name:    aws.StringValue(launchTemplate.LaunchTemplateName),
 		Version: fmt.Sprint(DefaultLaunchTemplateVersion),
 	}, nil
 }

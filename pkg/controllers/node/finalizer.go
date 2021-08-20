@@ -15,24 +15,27 @@ limitations under the License.
 package node
 
 import (
+	"context"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Finalizer is a tiny reconciler that ensures nodes have the termination
+// Finalizer is a subreconciler that ensures nodes have the termination
 // finalizer. This protects against instances that launch when Karpenter fails
 // to create the node object. In this case, the node will come online without
 // the termination finalizer. This controller will update the node accordingly.
-type Finalizer struct {}
+type Finalizer struct{}
 
-// Reconcile adds the termination finalizer if the node is not deleting
-func (r *Finalizer) Reconcile(n *v1.Node) error {
+// Reconcile reconciles the node
+func (r *Finalizer) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !n.DeletionTimestamp.IsZero() {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	if !functional.ContainsString(n.Finalizers, v1alpha3.TerminationFinalizer) {
 		n.Finalizers = append(n.Finalizers, v1alpha3.TerminationFinalizer)
 	}
-	return nil
+	return reconcile.Result{}, nil
 }

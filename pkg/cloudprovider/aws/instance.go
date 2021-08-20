@@ -147,8 +147,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateId: aws.String(launchTemplate.Id),
-				Version:          aws.String(launchTemplate.Version),
+				LaunchTemplateName: aws.String(launchTemplate.Name),
+				Version:            aws.String(launchTemplate.Version),
 			},
 			Overrides: overrides,
 		}},
@@ -178,7 +178,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id *string, instance
 	}
 	*instance = *describeInstancesOutput.Reservations[0].Instances[0]
 	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
-		return fmt.Errorf("expected PrivateDnsName to be set")
+		return fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId))
 	}
 	return nil
 }

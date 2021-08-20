@@ -15,18 +15,21 @@ limitations under the License.
 package node
 
 import (
+	"context"
+
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Readiness is a tiny reconciler that removes the readiness taint when the node is ready
-type Readiness struct {}
+// Readiness is a subreconciler that removes the NotReady taint when the node is ready
+type Readiness struct{}
 
-// Reconcile removes the NotReady taint when the node is ready
-func (r *Readiness) Reconcile(n *v1.Node) error {
+// Reconcile reconciles the node
+func (r *Readiness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !node.IsReady(n) {
-		return nil
+		return reconcile.Result{}, nil
 	}
 	taints := []v1.Taint{}
 	for _, taint := range n.Spec.Taints {
@@ -35,5 +38,5 @@ func (r *Readiness) Reconcile(n *v1.Node) error {
 		}
 	}
 	n.Spec.Taints = taints
-	return nil
+	return reconcile.Result{}, nil
 }

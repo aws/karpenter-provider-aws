@@ -17,7 +17,7 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: codegen publish helm docs ## Run all steps in release workflow
+release: codegen publish helm ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r

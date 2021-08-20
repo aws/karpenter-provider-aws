@@ -1,7 +1,7 @@
 
 ---
 title: "Getting Started with Karpenter on AWS"
-linkTitle: "Getting Started Guide"
+linkTitle: "Getting Started"
 weight: 10
 menu:
   main:
@@ -32,8 +32,9 @@ the cloud provider).
 Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
-2. `kubectl` - [the kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 Login to the AWS CLI with a user that has sufficient privileges to create a
 cluster.
@@ -65,8 +66,6 @@ Karpenter itself can run anywhere, including on [self-managed node groups](https
 
 Karpenter will provision EC2 instances in your account.
 
-Additionally, the configuration file sets up [IAM Roles for Service Accounts](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) (IRSA), which grants Karpenter permissions like launching instances.
-
 ### Tag Subnets
 
 Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
@@ -82,7 +81,7 @@ aws ec2 create-tags \
     --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
 ```
 
-### Setup an IAM InstanceProfile for your Nodes
+### Create the KarpenterNode IAM Role
 
 Instances launched by Karpenter must run with an InstanceProfile that grants permissions necessary to run containers and configure networking. Karpenter discovers the InstanceProfile using the name `KarpenterNodeRole-${ClusterName}`.
 
@@ -111,6 +110,17 @@ eksctl create iamidentitymapping \
 
 Now, Karpenter can launch new EC2 instances and those instances can connect to your cluster.
 
+### Create the KarpenterController IAM Role
+
+Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
+
+```
+eksctl create iamserviceaccount \
+  --cluster $CLUSTER_NAME --name karpenter --namespace karpenter \
+  --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/KarpenterControllerPolicy-$CLUSTER_NAME \
+  --approve
+```
+
 ### Install Karpenter Helm Chart
 
 Use helm to deploy Karpenter to the cluster.
@@ -122,7 +132,7 @@ eksctl. Thus, we don't need the helm chart to do that.
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version 0.2.9
+  --create-namespace --set serviceAccount.create=false --version 0.3.0
 ```
 
 ### Provisioner
@@ -219,6 +229,8 @@ kubectl delete node $NODE_NAME
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
 ```bash
+helm uninstall karpenter --namespace karpenter
+eksctl delete iamserviceaccount --cluster ${CLUSTER_NAME} --name karpenter --namespace karpenter
 aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \

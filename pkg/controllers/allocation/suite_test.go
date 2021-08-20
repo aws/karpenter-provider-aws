@@ -114,7 +114,7 @@ var _ = Describe("Allocation", func() {
 				provisioner.Spec.Zones = []string{"test-zone-1"}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ZoneLabelKey: "test-zone-2"}}),
+					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -138,13 +138,13 @@ var _ = Describe("Allocation", func() {
 				// Constrained by provisioner
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name}}),
 				// Constrained by zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ZoneLabelKey: "test-zone-1"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}),
 				// Constrained by instanceType
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.InstanceTypeLabelKey: "default-instance-type"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"}}),
 				// Constrained by architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ArchitectureLabelKey: "arm64"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}),
 				// Constrained by operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.OperatingSystemLabelKey: "windows"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "windows"}}),
 				// Constrained by arbitrary label
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
@@ -152,13 +152,13 @@ var _ = Describe("Allocation", func() {
 				// Ignored, matches another provisioner
 				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: "unknown"}}),
 				// Ignored, invalid zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ZoneLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}),
 				// Ignored, invalid instance type
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.InstanceTypeLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
 				// Ignored, invalid architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ArchitectureLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
 				// Ignored, invalid operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.OperatingSystemLabelKey: "unknown"}}),
+				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)

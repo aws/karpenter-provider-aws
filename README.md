@@ -20,12 +20,12 @@ Karpenter optimizes for scheduling latency and utilization efficiency using two 
 
 Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
 
-Check out the [FAQs](FAQs.md) and [Roadmap](ROADMAP.md) to learn more.
+Check out the [FAQs](https://karpenter.sh/docs/faqs/) and [Roadmap](ROADMAP.md) to learn more.
 
 ## Installation
 
 Follow the setup recommendations of your cloud provider.
-- [AWS](pkg/cloudprovider/aws/docs)
+- [AWS](https://karpenter.sh/docs/cloud-providers/aws/)
 
 > ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
 > - Check the [release notes](https://github.com/awslabs/karpenter/releases)
@@ -39,7 +39,7 @@ Follow the setup recommendations of your cloud provider.
 - [FAQs](https://karpenter.sh/docs/faqs/)
 - [Roadmap](ROADMAP.md)
 - [Working Group](WORKING_GROUP.md)
-- [Developer Guide](DEVELOPER_GUIDE.md)
+- [Developer Guide](https://karpenter.sh/docs/development-guide/)
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks

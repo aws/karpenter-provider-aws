@@ -29,6 +29,8 @@ type NodeOptions struct {
 	Labels        map[string]string
 	Annotations   map[string]string
 	ReadyStatus   v1.ConditionStatus
+	ReadyReason   string
+	Conditions    []v1.NodeCondition
 	Unschedulable bool
 	Taints        []v1.Taint
 	Allocatable   v1.ResourceList
@@ -66,11 +68,11 @@ func Node(overrides ...NodeOptions) *v1.Node {
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
-			Taints: options.Taints,
+			Taints:        options.Taints,
 		},
 		Status: v1.NodeStatus{
 			Allocatable: options.Allocatable,
-			Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus}},
+			Conditions:  []v1.NodeCondition{{Type: v1.NodeReady, Status: options.ReadyStatus, Reason: options.ReadyReason}},
 		},
 	}
 }
