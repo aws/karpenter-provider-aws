@@ -121,10 +121,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
+		taints := make([]v1.Taint, 0)
+		taints = append(taints, packing.Constraints.Taints...)
+		taints = append(taints, packing.Constraints.ReadinessTaints...)
 		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
 			node.Labels = packing.Constraints.Labels
-			node.Spec.Taints = packing.Constraints.Taints
-			return c.Binder.Bind(ctx, node, packing.Pods)
+			node.Spec.Taints = taints
+			return c.Binder.Bind(ctx, node, packing)
 		})
 	})
 	return result.RetryIfError(ctx, multierr.Combine(errs...))

@@ -75,6 +75,14 @@ type Cluster struct {
 // Constraints are applied to all nodes created by the provisioner. They can be
 // overriden by NodeSelectors at the pod level.
 type Constraints struct {
+	// Readiness taints will be applied to every node launched by the Provisioner.
+	// Those taints will be ignored by the provisioner for scheduling purposes
+	// and it will provision nodes for pods that do not have matching tolerations.
+	// Readiness taints are useful for setups which have cluster add-ons such as CNI
+	// plugins, which use some specific taints on all new nodes to make sure Pods
+	// are only scheduled onto that nodes once the plugin has prepared them.
+	// +optional
+	ReadinessTaints []v1.Taint `json:"readinessTaints,omitempty"`
 	// Taints will be applied to every node launched by the Provisioner. If
 	// specified, the provisioner will not provision nodes for pods that do not
 	// have matching tolerations.
@@ -158,6 +166,7 @@ func (c *Constraints) WithLabel(key string, value string) *Constraints {
 
 func (c *Constraints) WithOverrides(pod *v1.Pod) *Constraints {
 	return &Constraints{
+		ReadinessTaints: c.ReadinessTaints,
 		Taints:          c.Taints,
 		Labels:          functional.UnionStringMaps(c.Labels, pod.Spec.NodeSelector),
 		Zones:           c.getZones(pod),

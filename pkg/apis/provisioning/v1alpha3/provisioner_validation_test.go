@@ -142,6 +142,33 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
+	Context("ReadinessTaints", func() {
+		It("should succeed for valid readinessTaints", func() {
+			provisioner.Spec.ReadinessTaints = []v1.Taint{
+				{Key: "a", Value: "b", Effect: v1.TaintEffectNoSchedule},
+				{Key: "c", Value: "d", Effect: v1.TaintEffectNoExecute},
+				{Key: "e", Value: "f", Effect: v1.TaintEffectPreferNoSchedule},
+				{Key: "key-only", Effect: v1.TaintEffectNoExecute},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail for invalid taint keys", func() {
+			provisioner.Spec.ReadinessTaints = []v1.Taint{{Key: "???"}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for missing taint key", func() {
+			provisioner.Spec.ReadinessTaints = []v1.Taint{{Effect: v1.TaintEffectNoSchedule}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for invalid taint value", func() {
+			provisioner.Spec.ReadinessTaints = []v1.Taint{{Key: "invalid-value", Effect: v1.TaintEffectNoSchedule, Value: "???"}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail for invalid taint effect", func() {
+			provisioner.Spec.ReadinessTaints = []v1.Taint{{Key: "invalid-effect", Effect: "???"}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+	})
 	Context("Zones", func() {
 		SupportedZones = append(SupportedZones, "test-zone-1")
 		It("should succeed if unspecified", func() {

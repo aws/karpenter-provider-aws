@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
   name: provisioners.karpenter.sh
 spec:
@@ -89,6 +89,39 @@ spec:
                 description: OperatingSystem constrains the underlying node operating
                   system
                 type: string
+              readinessTaints:
+                description: Readiness taints will be applied to every node launched
+                  by the Provisioner. Those taints will be ignored by the provisioner
+                  for scheduling purposes and it will provision nodes for pods that
+                  do not have matching tolerations. Readiness taints are useful for
+                  setups which have cluster add-ons such as CNI plugins, which use
+                  some specific taints on all new nodes to make sure Pods are only
+                  scheduled onto that nodes once the plugin has prepared them.
+                items:
+                  description: The node this Taint is attached to has the "effect"
+                    on any pod that does not tolerate the Taint.
+                  properties:
+                    effect:
+                      description: Required. The effect of the taint on pods that
+                        do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule
+                        and NoExecute.
+                      type: string
+                    key:
+                      description: Required. The taint key to be applied to a node.
+                      type: string
+                    timeAdded:
+                      description: TimeAdded represents the time at which the taint
+                        was added. It is only written for NoExecute taints.
+                      format: date-time
+                      type: string
+                    value:
+                      description: The taint value corresponding to the taint key.
+                      type: string
+                  required:
+                  - effect
+                  - key
+                  type: object
+                type: array
               taints:
                 description: Taints will be applied to every node launched by the
                   Provisioner. If specified, the provisioner will not provision nodes

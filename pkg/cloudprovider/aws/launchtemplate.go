@@ -43,8 +43,10 @@ cluster-name = "{{if .Cluster.Name}}{{.Cluster.Name}}{{end}}"
 {{if .Constraints.Labels }}[settings.kubernetes.node-labels]{{ end }}
 {{ range $Key, $Value := .Constraints.Labels }}"{{ $Key }}" = "{{ $Value }}"
 {{ end }}
-{{if .Constraints.Taints }}[settings.kubernetes.node-taints]{{ end }}
+{{if or (.Constraints.Taints) (.Constraints.ReadinessTaints) }}[settings.kubernetes.node-taints]{{ end }}
 {{ range $Taint := .Constraints.Taints }}"{{ $Taint.Key }}" = "{{ $Taint.Value}}:{{ $Taint.Effect }}"
+{{ end }}
+{{ range $Taint := .Constraints.ReadinessTaints }}"{{ $Taint.Key }}" = "{{ $Taint.Value}}:{{ $Taint.Effect }}"
 {{ end }}
 `
 )

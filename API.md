@@ -88,6 +88,25 @@ overriden by NodeSelectors at the pod level.</p>
 <tbody>
 <tr>
 <td>
+<code>readinessTaints</code><br/>
+<em>
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#taint-v1-core">
+[]Kubernetes core/v1.Taint
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Readiness taints will be applied to every node launched by the Provisioner.
+Those taints will be ignored by the provisioner for scheduling purposes
+and it will provision nodes for pods that do not have matching tolerations.
+Readiness taints are useful for setups which have cluster add-ons such as CNI
+plugins, which use some specific taints on all new nodes to make sure Pods
+are only scheduled onto that nodes once the plugin has prepared them.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>taints</code><br/>
 <em>
 <a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#taint-v1-core">
@@ -427,5 +446,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>7eab29b</code>.
+on git commit <code>cb274e9</code>.
 </em></p>

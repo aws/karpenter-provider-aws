@@ -17,12 +17,16 @@ package allocation
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -34,7 +38,9 @@ type Binder struct {
 	CoreV1Client corev1.CoreV1Interface
 }
 
-func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+func (b *Binder) Bind(ctx context.Context, node *v1.Node, packing *cloudprovider.Packing) error {
+	pods := packing.Pods
+	stored := node.DeepCopy()
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha3.TerminationFinalizer)
 	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
@@ -59,16 +65,96 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
+		// If the node object already exists, make sure finalizer and taint are in place.
+		if err := b.KubeClient.Patch(ctx, node, client.StrategicMergeFrom(stored)); err != nil {
+			return fmt.Errorf("patching node %s, %w", node.Name, err)
+		}
 	}
-
-	// 4. Bind pods
 	errs := make([]error, len(pods))
+	// 4. Wait for node readiness.
+	if len(packing.Constraints.ReadinessTaints) > 0 {
+		// 4.1. Partitiony pods into readiness tolerant and intolerant sets of pods
+		intolerantPods := make([]*v1.Pod, 0)
+		tolerantPods := make([]*v1.Pod, 0)
+		for _, p := range pods {
+			if pod.ToleratesTaints(&p.Spec, packing.Constraints.ReadinessTaints...) == nil {
+				tolerantPods = append(tolerantPods, p)
+			} else {
+				intolerantPods = append(intolerantPods, p)
+			}
+		}
+		/// 4.2. Bind all Pods which tolerate all readiness taints
+		workqueue.ParallelizeUntil(ctx, len(tolerantPods), len(tolerantPods), func(index int) {
+			errs[index] = b.bind(ctx, node, tolerantPods[index])
+		})
+		// 4.3. If there are readiness intolerant pods left, which do not tolerate all readiness taints,
+		// wait for all readiness taints to be removed from the node
+		pods = intolerantPods
+		if len(pods) > 0 {
+			var err error
+			node, err = b.waitForNodeReadiness(ctx, node, packing.Constraints.ReadinessTaints)
+			if err != nil {
+				errs = append(errs, err)
+				return multierr.Combine(errs...)
+			}
+		}
+	}
+	// 5. Bind pods
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
 		errs[index] = b.bind(ctx, node, pods[index])
 	})
 	err := multierr.Combine(errs...)
 	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(err)), node.Name)
 	return err
+}
+
+func (b *Binder) waitForNodeReadiness(ctx context.Context, node *v1.Node, readinessTaints []v1.Taint) (*v1.Node, error) {
+	//TODO do we need to set timeout here, or does the passed in ctx already have a timeout set?
+	//TODO if we set timeout here, what are reasonables values, or shall we make this configurable in the Provisioner spec?
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	nodeWatch, err := b.CoreV1Client.Nodes().Watch(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name)})
+	if err != nil {
+		return nil, fmt.Errorf("error watching node %s for readinessTaints removal, %w", node.Name, err)
+	}
+	defer nodeWatch.Stop()
+	for {
+		node, err = b.CoreV1Client.Nodes().Get(ctx, node.Name, metav1.GetOptions{})
+		if !errors.IsNotFound(err) {
+			return nil, fmt.Errorf("node %s was removed, %w", node.Name, err)
+		}
+		if !hasAnyTaint(node, readinessTaints) {
+			break
+		}
+		event := <-nodeWatch.ResultChan()
+		switch event.Type {
+		case watch.Deleted:
+			return nil, fmt.Errorf("node %s was removed, %w", node.Name, err)
+		case watch.Error:
+			err = ctx.Err()
+			if err != nil {
+				// deadline exceeded or context cancelled, so wait no longer for node readiness
+				return nil, fmt.Errorf("error watching node %s for readinessTaints removal, %w", node.Name, err)
+			}
+			logging.FromContext(ctx).Infof("watcher error while watching node %s for readinessTaints removal, %v", node.Name, event.Object)
+			nodeWatch, err = b.CoreV1Client.Nodes().Watch(ctx, metav1.ListOptions{FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name)})
+			if err != nil {
+				return nil, fmt.Errorf("error watching node %s for readinessTaints removal, %w", node.Name, err)
+			}
+		}
+	}
+	return node, nil
+}
+
+func hasAnyTaint(node *v1.Node, taints []v1.Taint) bool {
+	for _, nodeTaint := range node.Spec.Taints {
+		for _, readinessTaint := range taints {
+			if nodeTaint.Key == readinessTaint.Key && nodeTaint.Value == readinessTaint.Value && nodeTaint.Effect == readinessTaint.Effect {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {

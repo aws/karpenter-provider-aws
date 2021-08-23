@@ -45,6 +45,9 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 
 	err := make(chan error)
 	go func() {
+		taints := make([]v1.Taint, 0)
+		taints = append(taints, packing.Constraints.Taints...)
+		taints = append(taints, packing.Constraints.ReadinessTaints...)
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
@@ -52,7 +55,7 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 			},
 			Spec: v1.NodeSpec{
 				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-				Taints:     packing.Constraints.Taints,
+				Taints:     taints,
 			},
 			Status: v1.NodeStatus{
 				NodeInfo: v1.NodeSystemInfo{

@@ -122,6 +122,7 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	errs = errs.Also(
 		c.validateLabels(),
 		c.validateTaints(),
+		c.validateReadinessTaints(),
 		c.validateArchitecture(),
 		c.validateOperatingSystem(),
 		c.validateZones(),
@@ -146,18 +147,26 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 }
 
 func (c *Constraints) validateTaints() (errs *apis.FieldError) {
-	for i, taint := range c.Taints {
+	return c.validateTaintsImpl(c.Taints, "taints")
+}
+
+func (c *Constraints) validateReadinessTaints() (errs *apis.FieldError) {
+	return c.validateTaintsImpl(c.ReadinessTaints, "readinessTaints")
+}
+
+func (c *Constraints) validateTaintsImpl(taints []v1.Taint, propertyName string) (errs *apis.FieldError) {
+	for i, taint := range taints {
 		// Validate Key
 		if len(taint.Key) == 0 {
-			errs = errs.Also(apis.ErrInvalidArrayValue(errs, "taints", i))
+			errs = errs.Also(apis.ErrInvalidArrayValue(errs, propertyName, i))
 		}
 		for _, err := range validation.IsQualifiedName(taint.Key) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, propertyName, i))
 		}
 		// Validate Value
 		if len(taint.Value) != 0 {
 			for _, err := range validation.IsQualifiedName(taint.Value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+				errs = errs.Also(apis.ErrInvalidArrayValue(err, propertyName, i))
 			}
 		}
 		// Validate effect
