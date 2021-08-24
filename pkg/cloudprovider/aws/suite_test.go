@@ -16,6 +16,7 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,11 +29,14 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/filesys"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"io/fs"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -52,8 +56,29 @@ var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
 
+type singletonFS struct {
+	filename string
+	contents []byte
+}
+
+func (s *singletonFS) Open(name string) (fs.File, error) {
+	panic("not implemented")
+}
+
+func (s *singletonFS) ReadFile(name string) ([]byte, error) {
+	fmt.Println("ReadFile called")
+	if name == s.filename {
+		return s.contents, nil
+	}
+	return nil, fs.ErrNotExist
+}
+
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
+	ctx = context.WithValue(ctx, filesys.KarpenterFS, &singletonFS{
+		filename: v1alpha3.InClusterCABundlePath,
+		contents: []byte("dGVzdC1jbHVzdGVyCg=="),
+	})
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
 }
@@ -107,7 +132,6 @@ var _ = Describe("Allocation", func() {
 				Cluster: v1alpha3.Cluster{
 					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
-					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
 		}

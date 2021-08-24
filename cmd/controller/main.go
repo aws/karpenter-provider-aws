@@ -38,6 +38,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
+	"os"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
@@ -67,7 +68,7 @@ func main() {
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// 1. Setup logger and watch for changes to log level
-	ctx := LoggingContextOrDie(config, clientSet)
+	ctx := context.WithValue(LoggingContextOrDie(config, clientSet), "karpenter.sh/fs", os.DirFS("/"))
 
 	// 2. Setup controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
