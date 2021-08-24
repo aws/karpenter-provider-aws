@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/node"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -47,7 +48,7 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 	go func() {
 		taints := make([]v1.Taint, 0)
 		taints = append(taints, packing.Constraints.Taints...)
-		taints = append(taints, packing.Constraints.ReadinessTaints...)
+		taints = node.UniqueTaints(taints, packing.Constraints.ReadinessTaints...)
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,

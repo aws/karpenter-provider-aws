@@ -133,6 +133,7 @@ var (
 	// Reserved annotations
 	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
 	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
+	AsyncBindFailureAnnotationKey   = SchemeGroupVersion.Group + "/async-bind-failed-at"
 	// Finalizers
 	TerminationFinalizer = SchemeGroupVersion.Group + "/termination"
 	// Default provisioner

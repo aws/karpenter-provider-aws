@@ -39,24 +39,9 @@ type Binder struct {
 }
 
 func (b *Binder) Bind(ctx context.Context, node *v1.Node, packing *cloudprovider.Packing) error {
-	pods := packing.Pods
-	stored := node.DeepCopy()
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha3.TerminationFinalizer)
-	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-	// from scheduling pods before we're able to bind them ourselves. The kube
-	// scheduler has an eventually consistent cache of nodes and pods, so it's
-	// possible for it to see a provisioned node before it sees the pods bound
-	// to it. This creates an edge case where other pending pods may be bound to
-	// the node by the kube scheduler, causing OutOfCPU errors when the
-	// binpacked pods race to bind to the same node. The system eventually
-	// heals, but causes delays from additional provisioning (thrash). This
-	// taint will be removed by the node controller when a node is marked ready.
-	node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
-		Key:    v1alpha3.NotReadyTaintKey,
-		Effect: v1.TaintEffectNoSchedule,
-	})
-	// 3. Idempotently create a node. In rare cases, nodes can come online and
+	// 2. Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
@@ -65,47 +50,74 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, packing *cloudprovider
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
-		// If the node object already exists, make sure finalizer and taint are in place.
-		if err := b.KubeClient.Patch(ctx, node, client.StrategicMergeFrom(stored)); err != nil {
-			return fmt.Errorf("patching node %s, %w", node.Name, err)
+		// If the node object already exists, the finalizer controller will make sure
+		// the finalizer is in place, so we can ignore this case here.
+	}
+	// 3 Partition pods into readiness tolerant (immediately schedulable) and
+	// intolerant (not yet schedulable) sets of pods
+	intolerantPods := make([]*v1.Pod, 0)
+	tolerantPods := make([]*v1.Pod, 0)
+	for _, p := range packing.Pods {
+		if pod.ToleratesTaints(&p.Spec, packing.Constraints.ReadinessTaints...) == nil {
+			tolerantPods = append(tolerantPods, p)
+		} else {
+			intolerantPods = append(intolerantPods, p)
 		}
 	}
-	errs := make([]error, len(pods))
-	// 4. Wait for node readiness.
-	if len(packing.Constraints.ReadinessTaints) > 0 {
-		// 4.1. Partitiony pods into readiness tolerant and intolerant sets of pods
-		intolerantPods := make([]*v1.Pod, 0)
-		tolerantPods := make([]*v1.Pod, 0)
-		for _, p := range pods {
-			if pod.ToleratesTaints(&p.Spec, packing.Constraints.ReadinessTaints...) == nil {
-				tolerantPods = append(tolerantPods, p)
-			} else {
-				intolerantPods = append(intolerantPods, p)
-			}
-		}
-		/// 4.2. Bind all Pods which tolerate all readiness taints
-		workqueue.ParallelizeUntil(ctx, len(tolerantPods), len(tolerantPods), func(index int) {
-			errs[index] = b.bind(ctx, node, tolerantPods[index])
-		})
-		// 4.3. If there are readiness intolerant pods left, which do not tolerate all readiness taints,
-		// wait for all readiness taints to be removed from the node
-		pods = intolerantPods
-		if len(pods) > 0 {
-			var err error
-			node, err = b.waitForNodeReadiness(ctx, node, packing.Constraints.ReadinessTaints)
-			if err != nil {
-				errs = append(errs, err)
-				return multierr.Combine(errs...)
-			}
-		}
+	// 4. Asynchronously bind intolerant pods if there are any.
+	if len(intolerantPods) > 0 {
+		go b.asyncBind(ctx, node, packing.Constraints.ReadinessTaints, intolerantPods)
 	}
-	// 5. Bind pods
-	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
-		errs[index] = b.bind(ctx, node, pods[index])
+	// 5. Synchronously bind tolerant (immediate) pods
+	errs := make([]error, len(tolerantPods))
+	workqueue.ParallelizeUntil(ctx, len(tolerantPods), len(tolerantPods), func(index int) {
+		errs[index] = b.bind(ctx, node, tolerantPods[index])
 	})
 	err := multierr.Combine(errs...)
-	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(err)), node.Name)
+	logging.FromContext(ctx).Infof("Immediately bound %d out of %d pod(s) to node %s", len(tolerantPods)-len(multierr.Errors(err)), len(tolerantPods), node.Name)
 	return err
+}
+
+func (b *Binder) asyncBind(ctx context.Context, node *v1.Node, readinessTaints []v1.Taint, pods []*v1.Pod) {
+	logger := logging.FromContext(ctx)
+	logger.Infof("%d pods are not yet schedulable on node %s due to existing node readiness taints", len(pods), node.Name)
+	node, err := b.waitForNodeReadiness(ctx, node, readinessTaints)
+	if err != nil {
+		logger.Warnf("Asynchronous bind failed while waiting for node to become ready, %w", err)
+		b.triggerReconcileFor(ctx, pods...)
+		return
+	}
+	errs := make([]error, len(pods))
+	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
+		pod := pods[index]
+		err := b.bind(ctx, node, pod)
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				logger.Infof("failed to bind pod %s/%s to node %s, %w", pod.Namespace, pod.Name, node.Name, err)
+				b.triggerReconcileFor(ctx, pod)
+			} else {
+				logger.Debugf("failed to bind pod %s/%s to node %s, %w", pod.Namespace, pod.Name, node.Name, err)
+			}
+		}
+		errs[index] = err
+	})
+	err = multierr.Combine(errs...)
+	logger.Infof("Asynchronously bound %d out of %d pod(s) to node %s", len(pods)-len(multierr.Errors(err)), len(pods), node.Name)
+}
+
+func (b *Binder) triggerReconcileFor(ctx context.Context, pods ...*v1.Pod) {
+	logger := logging.FromContext(ctx)
+	for _, pod := range pods {
+		// Touch (update) pod to make sure it triggers another reconciliation for the corresponding
+		// provisioner.
+		stored := pod.DeepCopy()
+		// TODO what exactly shall we update status.Conditions or some metadata.annotation?
+		pod.ObjectMeta.Annotations[v1alpha3.AsyncBindFailureAnnotationKey] = time.Now().String()
+		err := b.KubeClient.Patch(ctx, pod, client.StrategicMergeFrom(stored), &client.PatchOptions{})
+		if err != nil {
+			logger.Warnf("failed to update status of pod %s/%s, %w", pod.Namespace, pod.Name, err)
+		}
+	}
 }
 
 func (b *Binder) waitForNodeReadiness(ctx context.Context, node *v1.Node, readinessTaints []v1.Taint) (*v1.Node, error) {
@@ -123,7 +135,7 @@ func (b *Binder) waitForNodeReadiness(ctx context.Context, node *v1.Node, readin
 		if !errors.IsNotFound(err) {
 			return nil, fmt.Errorf("node %s was removed, %w", node.Name, err)
 		}
-		if !hasAnyTaint(node, readinessTaints) {
+		if !hasAnyReadinessTaint(node, readinessTaints) {
 			break
 		}
 		event := <-nodeWatch.ResultChan()
@@ -146,9 +158,13 @@ func (b *Binder) waitForNodeReadiness(ctx context.Context, node *v1.Node, readin
 	return node, nil
 }
 
-func hasAnyTaint(node *v1.Node, taints []v1.Taint) bool {
+func hasAnyReadinessTaint(node *v1.Node, readinessTaints []v1.Taint) bool {
 	for _, nodeTaint := range node.Spec.Taints {
-		for _, readinessTaint := range taints {
+		// Ignore karpenters own readiness taint
+		if nodeTaint.Key == v1alpha3.NotReadyTaintKey {
+			continue
+		}
+		for _, readinessTaint := range readinessTaints {
 			if nodeTaint.Key == readinessTaint.Key && nodeTaint.Value == readinessTaint.Value && nodeTaint.Effect == readinessTaint.Effect {
 				return true
 			}

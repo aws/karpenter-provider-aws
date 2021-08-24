@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/packing"
+	"github.com/awslabs/karpenter/pkg/utils/node"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
@@ -124,6 +125,20 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		taints := make([]v1.Taint, 0)
 		taints = append(taints, packing.Constraints.Taints...)
 		taints = append(taints, packing.Constraints.ReadinessTaints...)
+		// Add karpenters own readiness readinessTaint to make sure it is set by the provisioner.
+		// We readinessTaint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
+		// from scheduling pods before we're able to bind them ourselves. The kube
+		// scheduler has an eventually consistent cache of nodes and pods, so it's
+		// possible for it to see a provisioned node before it sees the pods bound
+		// to it. This creates an edge case where other pending pods may be bound to
+		// the node by the kube scheduler, causing OutOfCPU errors when the
+		// binpacked pods race to bind to the same node. The system eventually
+		// heals, but causes delays from additional provisioning (thrash). This
+		// readinessTaint will be removed by the node controller when a node is marked ready.
+		taints = node.UniqueTaints(taints, v1.Taint{
+			Key:    v1alpha3.NotReadyTaintKey,
+			Effect: v1.TaintEffectNoSchedule,
+		})
 		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
 			node.Labels = packing.Constraints.Labels
 			node.Spec.Taints = taints

@@ -17,6 +17,7 @@ package pod
 import (
 	"fmt"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -58,6 +59,10 @@ func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) (err error) {
 
 // Tolerates returns true if one of the tolerations tolerate the taint
 func Tolerates(tolerations []v1.Toleration, taint v1.Taint) bool {
+	// Always tolerate karpenters own readiness taint.
+	if taint.Key == v1alpha3.NotReadyTaintKey {
+		return true
+	}
 	for _, t := range tolerations {
 		if t.ToleratesTaint(&taint) {
 			return true
