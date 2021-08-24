@@ -17,12 +17,11 @@ tools() {
 }
 
 kubebuilder() {
-    os=$(go env GOOS)
-    arch=$(go env GOARCH)
-    curl -L "https://go.kubebuilder.io/dl/2.3.1/${os}/${arch}" | tar -xz -C $TEMP_DIR
-    sudo mkdir -p /usr/local/kubebuilder/bin/
-    sudo mv $TEMP_DIR/kubebuilder_2.3.1_${os}_${arch}/bin/* /usr/local/kubebuilder/bin/
-    echo 'Add kubebuilder to your path `export PATH=$PATH:/usr/local/kubebuilder/bin/`'
+    KUBEBUILDER_ASSETS="/usr/local/kubebuilder"
+    sudo rm -rf $KUBEBUILDER_ASSETS
+    sudo mkdir -p $KUBEBUILDER_ASSETS
+    sudo mv "$(setup-envtest use -p path)" $KUBEBUILDER_ASSETS/bin
+    find $KUBEBUILDER_ASSETS
 }
 
 main "$@"
