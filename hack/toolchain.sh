@@ -2,9 +2,6 @@
 
 set -eu -o pipefail
 
-TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
-
 main() {
     tools
     kubebuilder
