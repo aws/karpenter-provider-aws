@@ -16,7 +16,6 @@ package aws
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -66,7 +65,6 @@ func (s *singletonFS) Open(name string) (fs.File, error) {
 }
 
 func (s *singletonFS) ReadFile(name string) ([]byte, error) {
-	fmt.Println("ReadFile called")
 	if name == s.filename {
 		return s.contents, nil
 	}

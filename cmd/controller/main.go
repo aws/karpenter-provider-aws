@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
+	"github.com/awslabs/karpenter/pkg/utils/filesys"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -38,7 +39,6 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
-	"os"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
@@ -68,7 +68,7 @@ func main() {
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// 1. Setup logger and watch for changes to log level
-	ctx := context.WithValue(LoggingContextOrDie(config, clientSet), "karpenter.sh/fs", os.DirFS("/"))
+	ctx := filesys.Inject(LoggingContextOrDie(config, clientSet))
 
 	// 2. Setup controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
