@@ -14,7 +14,6 @@ require (
 	github.com/onsi/gomega v1.13.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.uber.org/multierr v1.7.0
-	go.uber.org/zap v1.18.1 // indirect
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	k8s.io/api v0.20.7
 	k8s.io/apimachinery v0.20.7

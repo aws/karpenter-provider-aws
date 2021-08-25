@@ -43,11 +43,11 @@ type PodOptions struct {
 }
 
 type PDBOptions struct {
-	Name              string
-	Namespace         string
-	MinAvailableNum   *int64
-	Labels            map[string]string
-	MaxUnavailableNum *int64
+	Name           string
+	Namespace      string
+	Labels         map[string]string
+	MinAvailable   *intstr.IntOrString
+	MaxUnavailable *intstr.IntOrString
 }
 
 // Pod creates a test pod with defaults that can be overriden by PodOptions.
@@ -111,24 +111,17 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	if options.Namespace == "" {
 		options.Namespace = "default"
 	}
-	var minAvailable, maxUnavailable *intstr.IntOrString
-	if options.MinAvailableNum != nil {
-		minAvailable = intstr.ValueOrDefault(nil, intstr.FromInt(int(*options.MinAvailableNum)))
-	}
-	if options.MaxUnavailableNum != nil {
-		maxUnavailable = intstr.ValueOrDefault(nil, intstr.FromInt(int(*options.MaxUnavailableNum)))
-	}
 	return &v1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      options.Name,
 			Namespace: options.Namespace,
 		},
 		Spec: v1beta1.PodDisruptionBudgetSpec{
-			MinAvailable: minAvailable,
+			MinAvailable: options.MinAvailable,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: options.Labels,
 			},
-			MaxUnavailable: maxUnavailable,
+			MaxUnavailable: options.MaxUnavailable,
 		},
 	}
 }
