@@ -78,7 +78,7 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		persisted := object.DeepCopyObject()
 		object.SetFinalizers([]string{})
-		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
+		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted))).To(Succeed())
 		if err := c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			Expect(err).To(BeNil())
 		}

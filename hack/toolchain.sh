@@ -17,7 +17,7 @@ kubebuilder() {
     KUBEBUILDER_ASSETS="/usr/local/kubebuilder"
     sudo rm -rf $KUBEBUILDER_ASSETS
     sudo mkdir -p $KUBEBUILDER_ASSETS
-    sudo mv "$(setup-envtest use -p path)" $KUBEBUILDER_ASSETS/bin
+    sudo mv "$(setup-envtest use -p path 1.19.x)" $KUBEBUILDER_ASSETS/bin
     find $KUBEBUILDER_ASSETS
 }
 
