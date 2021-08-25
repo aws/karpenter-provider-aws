@@ -130,6 +130,7 @@ var _ = Describe("Allocation", func() {
 				Cluster: v1alpha3.Cluster{
 					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
+					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
 		}
@@ -579,11 +580,12 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Validation", func() {
 		Context("Cluster", func() {
-			It("should fail if fields are empty", func() {
+			It("should fail if aws required fields are empty", func() {
 				for _, cluster := range []v1alpha3.Cluster{
-					{Endpoint: "https://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
-					{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Endpoint: "https://test-cluster"},
+					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Name: ptr.String("test-cluster")},
+					{Endpoint: "https://test-cluster", Name: ptr.String("test-cluster")},
 					{Name: ptr.String("test-cluster")},
 				} {
 					provisioner.Spec.Cluster = cluster
