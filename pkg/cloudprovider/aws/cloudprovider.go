@@ -177,5 +177,8 @@ func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha3.Provisi
 	if spec.Cluster.Name == nil || len(*spec.Cluster.Name) == 0 {
 		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
 	}
+	if spec.Cluster.CABundle == nil || len(*spec.Cluster.CABundle) == 0 {
+		errs = errs.Also(apis.ErrMissingField("caBundle")).ViaField("cluster")
+	}
 	return errs
 }
