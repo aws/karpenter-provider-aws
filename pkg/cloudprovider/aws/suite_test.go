@@ -31,7 +31,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	"github.com/awslabs/karpenter/pkg/utils/filesys"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	. "github.com/onsi/ginkgo"
@@ -71,10 +70,6 @@ func (s *singletonFS) ReadFile(name string) ([]byte, error) {
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
-	ctx = context.WithValue(ctx, filesys.KarpenterFS, &singletonFS{
-		filename: v1alpha3.InClusterCABundlePath,
-		contents: []byte("dGVzdC1jbHVzdGVyCg=="),
-	})
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
 }
@@ -578,6 +573,12 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Validation", func() {
 		Context("Cluster", func() {
+
+			It("should default in missing fields", func() {
+				provisioner.Spec.Cluster.CABundle = nil
+				Expect(provisioner.Spec.Validate(ctx)).ToNot(Succeed())
+			})
+
 			It("should fail if aws required fields are empty", func() {
 				for _, cluster := range []v1alpha3.Cluster{
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
