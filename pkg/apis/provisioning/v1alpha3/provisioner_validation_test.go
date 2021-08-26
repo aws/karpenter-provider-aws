@@ -16,6 +16,7 @@ package v1alpha3
 
 import (
 	"context"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -36,6 +37,11 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Validation")
 }
+
+// ctx = context.WithValue(ctx, filesys.KarpenterFS, &singletonFS{
+// 	filename: v1alpha3.InClusterCABundlePath,
+// 	contents: []byte("dGVzdC1jbHVzdGVyCg=="),
+// })
 
 var _ = Describe("Validation", func() {
 	var provisioner *Provisioner
