@@ -16,7 +16,6 @@ package v1alpha3
 
 import (
 	"context"
-	"io/fs"
 	"strings"
 	"testing"
 
