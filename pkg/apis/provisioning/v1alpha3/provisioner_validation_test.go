@@ -37,11 +37,6 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Validation")
 }
 
-// ctx = context.WithValue(ctx, filesys.KarpenterFS, &singletonFS{
-// 	filename: v1alpha3.InClusterCABundlePath,
-// 	contents: []byte("dGVzdC1jbHVzdGVyCg=="),
-// })
-
 var _ = Describe("Validation", func() {
 	var provisioner *Provisioner
 
