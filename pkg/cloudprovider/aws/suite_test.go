@@ -573,12 +573,10 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Validation", func() {
 		Context("Cluster", func() {
-
 			It("should default in missing fields", func() {
 				provisioner.Spec.Cluster.CABundle = nil
-				Expect(provisioner.Spec.Validate(ctx)).ToNot(Succeed())
+				Expect(provisioner.Spec.Validate(ctx)).To(Succeed())
 			})
-
 			It("should fail if aws required fields are empty", func() {
 				for _, cluster := range []v1alpha3.Cluster{
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
