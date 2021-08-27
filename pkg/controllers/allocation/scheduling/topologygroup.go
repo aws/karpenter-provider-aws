@@ -42,7 +42,7 @@ func (t *TopologyGroup) Register(domains ...string) {
 	}
 }
 
-// Increment increments a domain if known
+// Increment increments the spread of a registered domain
 func (t *TopologyGroup) Increment(domain string) {
 	_, ok := t.spread[domain]
 	if ok {
@@ -50,8 +50,8 @@ func (t *TopologyGroup) Increment(domain string) {
 	}
 }
 
-// Spread chooses a domain that minimizes skew and increments its count
-func (t *TopologyGroup) Spread() string {
+// NextDomain chooses a domain that minimizes skew and increments its count
+func (t *TopologyGroup) NextDomain() string {
 	minDomain := ""
 	minCount := math.MaxInt64
 	for domain, count := range t.spread {

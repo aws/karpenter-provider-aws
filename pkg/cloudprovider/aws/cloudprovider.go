@@ -27,10 +27,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
 )
@@ -154,11 +154,11 @@ func (c *CloudProvider) GetZones(ctx context.Context, provisioner *v1alpha3.Prov
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
-	zones := sets.NewString()
+	zones := []string{}
 	for _, subnet := range subnets {
-		zones.Insert(aws.StringValue(subnet.AvailabilityZone))
+		zones = append(zones, aws.StringValue(subnet.AvailabilityZone))
 	}
-	return zones.List(), nil
+	return functional.UniqueStrings(zones), nil
 }
 
 func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {

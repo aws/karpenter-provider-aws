@@ -51,7 +51,7 @@ func (t *Topology) Inject(ctx context.Context, provisioner *v1alpha3.Provisioner
 		for _, pod := range topologyGroup.Pods {
 			pod.Spec.NodeSelector = functional.UnionStringMaps(
 				pod.Spec.NodeSelector,
-				map[string]string{topologyGroup.Constraint.TopologyKey: topologyGroup.Spread()},
+				map[string]string{topologyGroup.Constraint.TopologyKey: topologyGroup.NextDomain()},
 			)
 		}
 	}
@@ -106,7 +106,7 @@ func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *T
 }
 
 // computeZonalTopology for the topology group. Zones include viable zones for
-// the {cloudprovider, provisioner, pod }. If these zones change over time,
+// the { cloudprovider, provisioner, pod }. If these zones change over time,
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
@@ -146,7 +146,7 @@ func (t *Topology) countMatchingPods(ctx context.Context, topologyGroup *Topolog
 		}
 		domain, ok := node.Labels[topologyGroup.Constraint.TopologyKey]
 		if !ok {
-			continue // Don't include pods if node doesn't contain domain
+			continue // Don't include pods if node doesn't contain domain https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#conventions
 		}
 		topologyGroup.Increment(domain)
 	}
