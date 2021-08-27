@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/test"
+	f "github.com/awslabs/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
@@ -105,9 +106,8 @@ var _ = Describe("Termination", func() {
 			// Expect podEvict to be enqueued for eviction
 			ExpectEvicting(evictionQueue, podEvict)
 
-			// Expect node to exist, but be cordoned
-			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Spec.Unschedulable).To(BeTrue())
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
 
 			// Expect podEvict to be evicting, and delete it
 			ExpectEvicted(env.Client, podEvict)
@@ -134,9 +134,8 @@ var _ = Describe("Termination", func() {
 			// Expect no pod to be enqueued for eviction
 			ExpectNotEvicting(evictionQueue, podEvict, podNoEvict)
 
-			// Expect node to exist, but be cordoned
-			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Spec.Unschedulable).To(BeTrue())
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
 
 			// Delete do-not-evict pod
 			ExpectDeleted(env.Client, podNoEvict)
@@ -180,9 +179,8 @@ var _ = Describe("Termination", func() {
 			// Expect the pod to be enqueued for eviction
 			ExpectEvicting(evictionQueue, podNoEvict)
 
-			// Expect node to exist, but be cordoned
-			node = ExpectNodeExists(env.Client, node.Name)
-			Expect(node.Spec.Unschedulable).To(BeTrue())
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
 
 			// Expect podNoEvict to fail eviction due to PDB
 			// ExpectNotEvicted(env.Client, evictionQueue, podNoEvict) // TODO(etarn) reenable this after upgrading testenv apiserver
@@ -191,6 +189,37 @@ var _ = Describe("Termination", func() {
 			ExpectDeleted(env.Client, podNoEvict)
 
 			// Reconcile to delete node
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(env.Client, node)
+		})
+		It("should not terminate nodes until all pods are terminated", func() {
+			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}
+			ExpectCreated(env.Client, node, pods[0], pods[1])
+
+			// Trigger Termination Controller
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect the pod to be enqueued for eviction
+			ExpectEvicting(evictionQueue, pods[0], pods[1])
+
+			// Expect node to exist and be draining, but not deleted
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNodeDraining(env.Client, node.Name)
+
+			ExpectDeleted(env.Client, pods[1])
+
+			// Expect node to exist and be draining, but not deleted
+			node = ExpectNodeExists(env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNodeDraining(env.Client, node.Name)
+
+			ExpectDeleted(env.Client, pods[0])
+
+			// Expect node to exist and be draining, but not deleted
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
@@ -228,4 +257,12 @@ func ExpectNotEvicted(c client.Client, e *termination.EvictionQueue, pods ...*v1
 			return fmt.Sprintf("expected %s/%s to not be evicted, but it is", pod.Namespace, pod.Name)
 		})
 	}
+}
+
+func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
+	node := ExpectNodeExists(c, nodeName)
+	Expect(node.Spec.Unschedulable).To(BeTrue())
+	Expect(f.ContainsString(node.Finalizers, v1alpha3.TerminationFinalizer)).To(BeTrue())
+	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
+	return node
 }

@@ -66,6 +66,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	nonCritical := []*v1.Pod{}
 	critical := []*v1.Pod{}
+	readyToTerminate := true
 
 	for _, pod := range pods {
 		if val := pod.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
@@ -75,6 +76,8 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
 			continue
 		}
+		// If there are still pods that need to finish evicting, don't finish drain
+		readyToTerminate = false
 		// Don't attempt to evict a pod that's already evicting
 		if !pod.DeletionTimestamp.IsZero() {
 			continue
@@ -95,7 +98,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		t.EvictionQueue.Add(critical)
 		return false, nil
 	}
-	return true, nil
+	return readyToTerminate, nil
 }
 
 // terminate terminates the node then removes the finalizer to delete the node
