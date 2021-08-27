@@ -181,51 +181,6 @@ var _ = Describe("Allocation", func() {
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
 		})
-		It("should provision nodes for pods with tolerations", func() {
-			provisioner.Spec.Taints = []v1.Taint{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}}
-			schedulable := []client.Object{
-				// Tolerates with OpExists
-				test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists}},
-				}),
-				// Tolerates with OpEqual
-				test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{{Key: "test-key", Value: "test-value", Operator: v1.TolerationOpEqual}},
-				}),
-			}
-			unschedulable := []client.Object{
-				// Missing toleration
-				test.UnschedulablePod(),
-				// key mismatch with OpExists
-				test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}},
-				}),
-				// value mismatch with OpEqual
-				test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{{Key: "test-key", Value: "invalid", Operator: v1.TolerationOpEqual}},
-				}),
-				// key mismatch with OpEqual
-				test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{{Key: "invalid", Value: "test-value", Operator: v1.TolerationOpEqual}},
-				}),
-			}
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, schedulable...)
-			ExpectCreatedWithStatus(env.Client, unschedulable...)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-
-			nodes := &v1.NodeList{}
-			Expect(env.Client.List(ctx, nodes)).To(Succeed())
-			Expect(len(nodes.Items)).To(Equal(1))
-			for _, pod := range schedulable {
-				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
-			}
-			for _, pod := range unschedulable {
-				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-				Expect(unscheduled.Spec.NodeName).To(BeEmpty())
-			}
-		})
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,

@@ -19,7 +19,6 @@ import (
 	"math"
 	"sort"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
@@ -34,16 +33,6 @@ var (
 	// MaxInstanceTypes defines the number of instance type options to return to the cloud provider
 	MaxInstanceTypes = 20
 )
-
-// Constraints for an efficient binpacking solution of pods onto nodes, given
-// overhead and node constraints.
-type Constraints struct {
-	*v1alpha3.Constraints
-	// Pods is a list of equivalently schedulable pods to be binpacked.
-	Pods []*v1.Pod
-	// Daemons resources per node.
-	Daemons []*v1.Pod
-}
 
 type packer struct{}
 

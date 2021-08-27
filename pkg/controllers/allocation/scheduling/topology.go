@@ -112,15 +112,14 @@ func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *T
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, provisioner *v1alpha3.Provisioner, topologyGroup *TopologyGroup) error {
 	// 1. Get viable domains
-	domains, err := t.cloudProvider.GetZones(ctx, provisioner)
+	zones, err := t.cloudProvider.GetZones(ctx, provisioner)
 	if err != nil {
 		return fmt.Errorf("getting zones, %w", err)
 	}
-	if constrained := provisioner.Spec.Constraints.WithOverrides(topologyGroup.Pods[0]).Zones; len(constrained) != 0 {
-		domains = functional.IntersectStringSlice(domains, constrained)
+	if constrained := NewConstraintsWithOverrides(&provisioner.Spec.Constraints, topologyGroup.Pods[0]).Zones; len(constrained) != 0 {
+		zones = functional.IntersectStringSlice(zones, constrained)
 	}
-	topologyGroup.Register(domains...)
-
+	topologyGroup.Register(zones...)
 	// 2. Increment domains for matching pods
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)

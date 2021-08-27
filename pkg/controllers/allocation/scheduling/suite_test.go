@@ -39,6 +39,7 @@ import (
 )
 
 var ctx context.Context
+var provisioner *v1alpha3.Provisioner
 var controller *allocation.Controller
 var env *test.Environment
 
@@ -69,167 +70,264 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("Scheduling", func() {
-	var provisioner *v1alpha3.Provisioner
-	BeforeEach(func() {
-		provisioner = &v1alpha3.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name}}
+var _ = BeforeEach(func() {
+	provisioner = &v1alpha3.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name}}
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(env.Client)
+})
+
+var _ = Describe("Topology", func() {
+	labels := map[string]string{"test": "test"}
+
+	It("should ignore unknown topology keys", func() {
+		ExpectCreated(env.Client, provisioner)
+		pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+			test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: []v1.TopologySpreadConstraint{{
+				TopologyKey:       "unknown",
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}}),
+		)
+		Expect(pods[0].Spec.NodeName).To(BeEmpty())
 	})
 
-	AfterEach(func() {
-		ExpectCleanedUp(env.Client)
-	})
-
-	Context("Topology", func() {
-		labels := map[string]string{"test": "test"}
-
-		It("should ignore unknown topology keys", func() {
+	Context("Zone", func() {
+		It("should balance pods across zones", func() {
 			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: []v1.TopologySpreadConstraint{{
-					TopologyKey:       "unknown",
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}}}),
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
-			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1, 2))
 		})
-
-		Context("Zone", func() {
-			It("should balance pods across zones", func() {
-				ExpectCreated(env.Client, provisioner)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelTopologyZone,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1, 2))
-			})
-			It("should respect provisioner zonal constraints", func() {
-				provisioner.Spec.Constraints.Zones = []string{"test-zone-1", "test-zone-2"}
-				ExpectCreated(env.Client, provisioner)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelTopologyZone,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2))
-			})
-			It("should only count scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
-				firstNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
-				secondNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
-				thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
-				ExpectCreated(env.Client, provisioner, firstNode, secondNode, thirdNode)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelTopologyZone,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.Pod(test.PodOptions{Labels: labels}), // ignored, pending
-					test.Pod(test.PodOptions{}),               // ignored, missing labels
-					test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
-					test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
-					test.Pod(test.PodOptions{Labels: labels, NodeName: secondNode.Name}),
-					test.Pod(test.PodOptions{Labels: labels, NodeName: thirdNode.Name}), //ignored, no domain
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				)
-				nodes := v1.NodeList{}
-				Expect(env.Client.List(ctx, &nodes)).To(Succeed())
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
-			})
+		It("should respect provisioner zonal constraints", func() {
+			provisioner.Spec.Constraints.Zones = []string{"test-zone-1", "test-zone-2"}
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2))
 		})
-
-		Context("Hostname", func() {
-			It("should balance pods across nodes", func() {
-				ExpectCreated(env.Client, provisioner)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelHostname,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				)
-				ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(1, 1, 1, 1))
-			})
-			It("should balance pods on the same hostname up to maxskew", func() {
-				ExpectCreated(env.Client, provisioner)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelHostname,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           4,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-					test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				)
-				ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(4))
-			})
+		It("should only count scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
+			firstNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
+			secondNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
+			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
+			ExpectCreated(env.Client, provisioner, firstNode, secondNode, thirdNode)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.Pod(test.PodOptions{Labels: labels}), // ignored, pending
+				test.Pod(test.PodOptions{}),               // ignored, missing labels
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
+				test.Pod(test.PodOptions{Labels: labels, NodeName: secondNode.Name}),
+				test.Pod(test.PodOptions{Labels: labels, NodeName: thirdNode.Name}), //ignored, no domain
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+			)
+			nodes := v1.NodeList{}
+			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
 		})
+	})
 
-		Context("Combined Hostname and Topology", func() {
-			It("should spread pods while respecting both constraints", func() {
-				ExpectCreated(env.Client, provisioner)
-				topology := []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelTopologyZone,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           1,
-				}, {
-					TopologyKey:       v1.LabelHostname,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-					MaxSkew:           3,
-				}}
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					MakePods(2, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1))
-				ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
-
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					MakePods(3, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
-				ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
-
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					MakePods(5, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3, 3))
-				ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
-
-				ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					MakePods(11, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
-				)
-				ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(7, 7, 7))
-				ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
-			})
+	Context("Hostname", func() {
+		It("should balance pods across nodes", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+			)
+			ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(1, 1, 1, 1))
 		})
+		It("should balance pods on the same hostname up to maxskew", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           4,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+			)
+			ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(4))
+		})
+	})
+
+	Context("Combined Hostname and Topology", func() {
+		It("should spread pods while respecting both constraints", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}, {
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           3,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(2, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1))
+			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(3, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
+			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(5, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3, 3))
+			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(11, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(7, 7, 7))
+			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+		})
+	})
+})
+
+var _ = Describe("Taints", func() {
+	It("should schedule pods that tolerate provisioner constraints", func() {
+		provisioner.Spec.Taints = []v1.Taint{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}}
+		schedulable := []client.Object{
+			// Tolerates with OpExists
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}}}),
+			// Tolerates with OpEqual
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Value: "test-value", Operator: v1.TolerationOpEqual, Effect: v1.TaintEffectNoSchedule}}}),
+		}
+		unschedulable := []client.Object{
+			// Missing toleration
+			test.UnschedulablePod(),
+			// key mismatch with OpExists
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}}}),
+		}
+		ExpectCreated(env.Client, provisioner)
+		ExpectCreatedWithStatus(env.Client, schedulable...)
+		ExpectCreatedWithStatus(env.Client, unschedulable...)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(1))
+		for _, pod := range schedulable {
+			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
+		}
+		for _, pod := range unschedulable {
+			unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+			Expect(unscheduled.Spec.NodeName).To(BeEmpty())
+		}
+	})
+	// It("should not generate taints for OpExists", func() {
+	// 	pods := []client.Object{
+	// 		test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
+	// 	}
+	// 	ExpectCreated(env.Client, provisioner)
+	// 	ExpectCreatedWithStatus(env.Client, pods...)
+	// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+	// 	nodes := &v1.NodeList{}
+	// 	Expect(env.Client.List(ctx, nodes)).To(Succeed())
+	// 	Expect(len(nodes.Items)).To(Equal(1))
+	// })
+	It("should generate taints for pod tolerations", func() {
+		pods := []client.Object{
+			// Matching pods schedule together on a node with a matching taint
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			}),
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			}),
+			// Key is different, generate new node with a taint for this key
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "another-test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			}),
+			// Value is different, generate new node with a taint for this value
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "another-test-value", Effect: v1.TaintEffectNoSchedule}},
+			}),
+			// Effect is different, generate new node with a taint for this value
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoExecute}},
+			}),
+			// Missing effect, generate a new node with a taints for all effects
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
+				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value"}},
+			}),
+			// // No taint generated
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
+		}
+		ExpectCreated(env.Client, provisioner)
+		ExpectCreatedWithStatus(env.Client, pods...)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(6))
+
+		for i, expectedTaintsPerNode := range [][]v1.Taint{
+			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			{{Key: "another-test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
+			{{Key: "test-key", Value: "another-test-value", Effect: v1.TaintEffectNoSchedule}},
+			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoExecute}},
+			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}, {Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoExecute}},
+		} {
+			pod := ExpectPodExists(env.Client, pods[i].GetName(), pods[i].GetNamespace())
+			node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+			for _, taint := range expectedTaintsPerNode {
+				Expect(node.Spec.Taints).To(ContainElement(taint))
+			}
+		}
+
+		pod := ExpectPodExists(env.Client, pods[len(pods)-1].GetName(), pods[len(pods)-1].GetNamespace())
+		node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
 	})
 })
 

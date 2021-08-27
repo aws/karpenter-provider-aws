@@ -20,11 +20,11 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/mitchellh/hashstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -83,7 +83,8 @@ func (s *Scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Prov
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		constraints := provisioner.Spec.Constraints.WithOverrides(pod)
+
+		constraints := NewConstraintsWithOverrides(&provisioner.Spec.Constraints, pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
@@ -125,9 +126,25 @@ func (s *Scheduler) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, e
 	// 2. filter DaemonSets to include those that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
-		if pod.IsSchedulable(&daemonSet.Spec.Template.Spec, node) {
-			pods = append(pods, &v1.Pod{Spec: daemonSet.Spec.Template.Spec})
+		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
+		if IsSchedulable(pod, node) {
+			pods = append(pods, pod)
 		}
 	}
 	return pods, nil
+}
+
+
+// IsSchedulable returns true if the pod can schedule to the node
+func IsSchedulable(pod *v1.Pod, node *v1.Node) bool {
+	// Tolerate Taints
+	if err := Tolerates(pod, node.Spec.Taints...); err != nil {
+		return false
+	}
+	// Match Node Selector labels
+	if !labels.SelectorFromSet(pod.Spec.NodeSelector).Matches(labels.Set(node.Labels)) {
+		return false
+	}
+	// TODO, support node affinity
+	return true
 }
