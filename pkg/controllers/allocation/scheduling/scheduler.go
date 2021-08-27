@@ -70,6 +70,9 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 	for _, schedule := range schedules {
 		delete(schedule.Labels, v1.LabelHostname)
 	}
+	for _, pod := range pods {
+		delete(pod.Labels, v1.LabelHostname)
+	}
 	return schedules, nil
 }
 
