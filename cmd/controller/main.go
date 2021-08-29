@@ -68,7 +68,7 @@ func main() {
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// 1. Setup logger and watch for changes to log level
-	ctx := filesys.Inject(LoggingContextOrDie(config, clientSet))
+	ctx := LoggingContextOrDie(config, clientSet)
 
 	// 2. Setup controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
