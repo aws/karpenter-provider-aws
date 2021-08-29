@@ -16,7 +16,6 @@ package aws
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"testing"
 	"time"
@@ -60,7 +59,7 @@ type singletonFS struct {
 }
 
 func (s *singletonFS) Open(name string) (fs.File, error) {
-	panic("not implemented")
+	panic("not implemented; only ReadFile needed")
 }
 
 func (s *singletonFS) ReadFile(name string) ([]byte, error) {
@@ -72,7 +71,7 @@ func (s *singletonFS) ReadFile(name string) ([]byte, error) {
 
 func TestAPIs(t *testing.T) {
 	ctx = filesys.Inject(TestContextWithLogger(t), &singletonFS{filename: v1alpha3.InClusterCABundlePath,
-		contents: []byte("abc"),
+		contents: []byte("fake CA Bundle data"),
 	})
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
@@ -128,7 +127,6 @@ var _ = Describe("Allocation", func() {
 				Cluster: v1alpha3.Cluster{
 					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
-					//CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
 		}).WithDynamicDefaults(ctx)
@@ -580,14 +578,6 @@ var _ = Describe("Allocation", func() {
 	Context("Validation", func() {
 		Context("Cluster", func() {
 			It("should default in missing fields", func() {
-				//provisioner.Spec.Cluster.CABundle = nil
-				//fmt.Printf("grond: %v\n", filesys.For(ctx))
-				if v1alpha3.SpecValidationHook == nil {
-					fmt.Printf("\nv1alpha3.SpecValidationHook: nil\n")
-				} else {
-					fmt.Printf("\nv1alpha3.SpecValidationHook: non nil\n")
-				}
-				//v1alpha3.SpecValidationHook = nil
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should fail if aws required fields are empty", func() {
