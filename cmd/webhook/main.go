@@ -21,7 +21,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/utils/filesys"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
@@ -99,5 +98,5 @@ func newConfigValidationController(ctx context.Context, cmw configmap.Watcher) *
 }
 
 func InjectContext(ctx context.Context) context.Context {
-	return filesys.Inject(ctx)
+	return ctx
 }
