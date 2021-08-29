@@ -38,10 +38,10 @@ func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}
 // The returned copy might be complemented by dynamic default values which
 // must not be hoisted (saved) into the original Provisioner CRD as those
 // default values might change over time (e.g. rolling upgrade of CABundle, ...).
-func (p *Provisioner) WithDynamicDefaults(ctx context.Context) (_ Provisioner, err error) {
+func (p *Provisioner) WithDynamicDefaults(ctx context.Context) (_ *Provisioner, err error) {
 	provisioner := *p.DeepCopy()
 	provisioner.Spec, err = provisioner.Spec.withDynamicDefaults(ctx)
-	return provisioner, err
+	return &provisioner, err
 }
 
 // WithDefaults returns a copy of this ProvisionerSpec with some empty
@@ -71,7 +71,7 @@ func (c *Cluster) getCABundle(ctx context.Context) (*string, error) {
 	}
 
 	// Otherwise, fallback to the in-cluster configuration.
-	binary, err := fs.ReadFile(filesys.For(ctx), InClusterCABundlePath)
+	binary, err := fs.ReadFile(filesys.For(ctx), string("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
