@@ -589,7 +589,7 @@ var _ = Describe("Allocation", func() {
 					{Endpoint: "https://test-cluster", Name: ptr.String("test-cluster")},
 					{Name: ptr.String("test-cluster")},
 				} {
-					provisioner.Spec.Cluster = cluster
+					provisioner.Spec.Cluster = cluster // undo any defaulting
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
