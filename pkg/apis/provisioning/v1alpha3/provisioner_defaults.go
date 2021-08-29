@@ -71,7 +71,7 @@ func (c *Cluster) getCABundle(ctx context.Context) (*string, error) {
 	}
 
 	// Otherwise, fallback to the in-cluster configuration.
-	binary, err := fs.ReadFile(filesys.For(ctx), string("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"))
+	binary, err := fs.ReadFile(filesys.For(ctx), InClusterCABundlePath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
