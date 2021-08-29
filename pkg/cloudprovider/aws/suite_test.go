@@ -70,7 +70,8 @@ func (s *singletonFS) ReadFile(name string) ([]byte, error) {
 }
 
 func TestAPIs(t *testing.T) {
-	ctx = filesys.Inject(TestContextWithLogger(t), &singletonFS{filename: v1alpha3.InClusterCABundlePath,
+	ctx = filesys.Inject(TestContextWithLogger(t), &singletonFS{
+		filename: v1alpha3.InClusterCABundlePath,
 		contents: []byte("fake CA Bundle data"),
 	})
 	RegisterFailHandler(Fail)
