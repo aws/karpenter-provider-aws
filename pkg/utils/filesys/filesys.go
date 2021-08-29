@@ -15,17 +15,30 @@ package filesys
 import (
 	"context"
 	"io/fs"
-	"os"
+
+	"github.com/spf13/afero"
 )
+
+type contextKey string
 
 const (
-	KarpenterFS = "karpenter.sh/fs"
+	KarpenterFS contextKey = "karpenter.sh/fs"
 )
 
-func Inject(ctx context.Context) context.Context {
-	return context.WithValue(ctx, KarpenterFS, os.DirFS("/"))
+// Inject adds an fs.ReadFileFS that should be used by tests (only)
+// to mock out the filesystem.
+func Inject(ctx context.Context, override fs.ReadFileFS) context.Context {
+	return context.WithValue(ctx, KarpenterFS, override)
 }
 
-func For(ctx context.Context) fs.FS {
-	return ctx.Value(KarpenterFS).(fs.FS)
+// For returns an fs.ReadFileFS, normally a pass-through to the host
+// filesystem, except in the context of a test.
+func For(ctx context.Context) fs.ReadFileFS {
+	retval := ctx.Value(KarpenterFS)
+	if retval == nil {
+		// Use afero because os.DirFS() doesn't resolve aboslute paths
+		// anchored at '/' idiomatically.
+		return afero.NewIOFS(afero.NewOsFs())
+	}
+	return retval.(fs.ReadFileFS)
 }

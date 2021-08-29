@@ -178,9 +178,9 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 	//    loop iteration.
 	defaulted, err := provisioner.WithDynamicDefaults(ctx)
 	if err != nil {
-		return &defaulted, fmt.Errorf("setting dynamic default values, %w", err)
+		return defaulted, fmt.Errorf("setting dynamic default values, %w", err)
 	}
-	return &defaulted, nil
+	return defaulted, nil
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
