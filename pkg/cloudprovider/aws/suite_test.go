@@ -562,6 +562,14 @@ var _ = Describe("Allocation", func() {
 			It("should default in missing fields", func() {
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
+			It("should succeed if missing caBundle not required", func() {
+				cluster := v1alpha3.Cluster{
+					Endpoint: "http://insecure-endpoint",
+					Name:     ptr.String("insecure-cluster"),
+				}
+				provisioner.Spec.Cluster = cluster // undo any defaulting
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
 			It("should fail if aws required fields are empty", func() {
 				for _, cluster := range []v1alpha3.Cluster{
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
