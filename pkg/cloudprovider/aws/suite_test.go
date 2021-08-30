@@ -16,7 +16,6 @@ package aws
 
 import (
 	"context"
-	"io/fs"
 	"testing"
 	"time"
 
@@ -53,32 +52,14 @@ var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
 
-type singletonFS struct {
-	filename string
-	contents []byte
-}
-
-func (s *singletonFS) Open(name string) (fs.File, error) {
-	panic("not implemented; only ReadFile needed")
-}
-
-func (s *singletonFS) ReadFile(name string) ([]byte, error) {
-	if name == s.filename {
-		return s.contents, nil
-	}
-	return nil, fs.ErrNotExist
-}
-
 func TestAPIs(t *testing.T) {
-	ctx = filesystem.Inject(TestContextWithLogger(t), &singletonFS{
-		filename: v1alpha3.InClusterCABundlePath,
-		contents: []byte("fake CA Bundle data"),
-	})
+	ctx = filesystem.Inject(TestContextWithLogger(t), fake.Filesystem())
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
 }
 
 var _ = BeforeSuite(func() {
+
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API)

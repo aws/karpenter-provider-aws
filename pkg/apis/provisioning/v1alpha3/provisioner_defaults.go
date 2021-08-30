@@ -20,6 +20,8 @@ import (
 	"errors"
 	"io/fs"
 
+	"github.com/spf13/afero"
+
 	"github.com/awslabs/karpenter/pkg/utils/filesystem"
 )
 
@@ -71,7 +73,7 @@ func (c *Cluster) getCABundle(ctx context.Context) (*string, error) {
 	}
 
 	// Otherwise, fallback to the in-cluster configuration.
-	binary, err := fs.ReadFile(filesystem.For(ctx), InClusterCABundlePath)
+	binary, err := afero.ReadFile(filesystem.For(ctx), InClusterCABundlePath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
