@@ -14,7 +14,6 @@ package filesystem
 
 import (
 	"context"
-	"io/fs"
 
 	"github.com/spf13/afero"
 )
@@ -27,18 +26,18 @@ const (
 
 // Inject adds an fs.ReadFileFS that should be used by tests (only)
 // to mock out the filesystem.
-func Inject(ctx context.Context, override fs.ReadFileFS) context.Context {
+func Inject(ctx context.Context, override afero.Fs) context.Context {
 	return context.WithValue(ctx, fsKey, override)
 }
 
 // For returns an fs.ReadFileFS, normally a pass-through to the host
 // filesystem, except in the context of a test.
-func For(ctx context.Context) fs.ReadFileFS {
+func For(ctx context.Context) afero.Fs {
 	retval := ctx.Value(fsKey)
 	if retval == nil {
-		// Use afero because os.DirFS() doesn't resolve aboslute paths
-		// anchored at '/' idiomatically.
-		return afero.NewIOFS(afero.NewOsFs())
+		// Use afero because io/fs does not allow absolute paths like
+		// `/var/something`.
+		return afero.NewOsFs()
 	}
-	return retval.(fs.ReadFileFS)
+	return retval.(afero.Fs)
 }
