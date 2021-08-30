@@ -30,6 +30,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	testfake "github.com/awslabs/karpenter/pkg/test/fake"
 	"github.com/awslabs/karpenter/pkg/utils/filesystem"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -53,7 +54,7 @@ var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
 
 func TestAPIs(t *testing.T) {
-	ctx = filesystem.Inject(TestContextWithLogger(t), fake.Filesystem())
+	ctx = filesystem.Inject(TestContextWithLogger(t), testfake.Filesystem())
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
 }
