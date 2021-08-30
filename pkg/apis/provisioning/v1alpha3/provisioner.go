@@ -15,7 +15,6 @@ limitations under the License.
 package v1alpha3
 
 import (
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -152,72 +151,4 @@ type ProvisionerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provisioner `json:"items"`
-}
-
-func (c *Constraints) WithLabel(key string, value string) *Constraints {
-	c.Labels = functional.UnionStringMaps(c.Labels, map[string]string{key: value})
-	return c
-}
-
-func (c *Constraints) WithOverrides(pod *v1.Pod) *Constraints {
-	return &Constraints{
-		Taints:          c.Taints,
-		Labels:          functional.UnionStringMaps(c.Labels, pod.Spec.NodeSelector),
-		Zones:           c.getZones(pod),
-		InstanceTypes:   c.getInstanceTypes(pod),
-		Architecture:    c.getArchitecture(pod),
-		OperatingSystem: c.getOperatingSystem(pod),
-	}
-}
-
-func (c *Constraints) getZones(pod *v1.Pod) []string {
-	// Pod may override zone
-	if zone, ok := pod.Spec.NodeSelector[v1.LabelTopologyZone]; ok {
-		return []string{zone}
-	}
-	// Default to provisioner constraints
-	if len(c.Zones) != 0 {
-		return c.Zones
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func (c *Constraints) getInstanceTypes(pod *v1.Pod) []string {
-	// Pod may override instance type
-	if instanceType, ok := pod.Spec.NodeSelector[v1.LabelInstanceTypeStable]; ok {
-		return []string{instanceType}
-	}
-	// Default to provisioner constraints
-	if len(c.InstanceTypes) != 0 {
-		return c.InstanceTypes
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func (c *Constraints) getArchitecture(pod *v1.Pod) *string {
-	// Pod may override arch
-	if architecture, ok := pod.Spec.NodeSelector[v1.LabelArchStable]; ok {
-		return &architecture
-	}
-	// Use constraints if defined
-	if c.Architecture != nil {
-		return c.Architecture
-	}
-	// Default to amd64
-	return &ArchitectureAmd64
-}
-
-func (c *Constraints) getOperatingSystem(pod *v1.Pod) *string {
-	// Pod may override os
-	if operatingSystem, ok := pod.Spec.NodeSelector[v1.LabelOSStable]; ok {
-		return &operatingSystem
-	}
-	// Use constraints if defined
-	if c.OperatingSystem != nil {
-		return c.OperatingSystem
-	}
-	// Default to linux
-	return &OperatingSystemLinux
 }

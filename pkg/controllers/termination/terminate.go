@@ -20,8 +20,8 @@ import (
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"knative.dev/pkg/logging"
 
@@ -67,22 +67,22 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	nonCritical := []*v1.Pod{}
 	critical := []*v1.Pod{}
 
-	for _, p := range pods {
-		if val := p.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
-			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, p.Name)
+	for _, pod := range pods {
+		if val := pod.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
+			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, pod.Name)
 			return false, nil
 		}
-		if pod.ToleratesTaints(&p.Spec, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
+		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
 			continue
 		}
 		// Don't attempt to evict a pod that's already evicting
-		if !p.DeletionTimestamp.IsZero() {
+		if !pod.DeletionTimestamp.IsZero() {
 			continue
 		}
-		if p.Spec.PriorityClassName == "system-cluster-critical" || p.Spec.PriorityClassName == "system-node-critical" {
-			critical = append(critical, p)
+		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
+			critical = append(critical, pod)
 		} else {
-			nonCritical = append(nonCritical, p)
+			nonCritical = append(nonCritical, pod)
 		}
 	}
 	// 3. Evict non-critical pods

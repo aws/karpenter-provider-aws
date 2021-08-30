@@ -15,11 +15,8 @@ limitations under the License.
 package pod
 
 import (
-	"fmt"
-
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func FailedToSchedule(pod *v1.Pod) bool {
@@ -31,36 +28,18 @@ func FailedToSchedule(pod *v1.Pod) bool {
 	return false
 }
 
-// IsSchedulable returns true if the pod can schedule to the node
-func IsSchedulable(pod *v1.PodSpec, node *v1.Node) bool {
-	// Tolerate Taints
-	if err := ToleratesTaints(pod, node.Spec.Taints...); err != nil {
-		return false
-	}
-	// Match Node Selector labels
-	if !labels.SelectorFromSet(pod.NodeSelector).Matches(labels.Set(node.Labels)) {
-		return false
-	}
-	// TODO, support node affinity
-	return true
+func HasFailed(pod *v1.Pod) bool {
+	return pod.Status.Phase == "Failed"
 }
 
-// ToleratesTaints returns an error if the pod does not tolerate the taints
-// https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
-func ToleratesTaints(spec *v1.PodSpec, taints ...v1.Taint) (err error) {
-	for _, taint := range taints {
-		if !Tolerates(spec.Tolerations, taint) {
-			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
-		}
-	}
-	return err
-}
-
-// Tolerates returns true if one of the tolerations tolerate the taint
-func Tolerates(tolerations []v1.Toleration, taint v1.Taint) bool {
-	for _, t := range tolerations {
-		if t.ToleratesTaint(&taint) {
-			return true
+func IsOwnedByDaemonSet(pod *v1.Pod) bool {
+	for _, ignoredOwner := range []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
+	} {
+		for _, owner := range pod.ObjectMeta.OwnerReferences {
+			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
+				return true
+			}
 		}
 	}
 	return false
