@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// Emptiness is a subreconciler that terminates nodes that are empty after a ttl
+// Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
 	kubeClient client.Client
 }

@@ -31,23 +31,20 @@ type CloudProvider interface {
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request. This API
 	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha3.Provisioner, *v1alpha3.Constraints, []InstanceType, func(*v1.Node) error) chan error
+	Create(context.Context, *v1alpha3.Constraints, []InstanceType, func(*v1.Node) error) chan error
+	// Delete node in cloudprovider
+	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// GetZones returns the zones supported by the cloud provider and the specified provisioner
-	GetZones(context.Context, *v1alpha3.Provisioner) ([]string, error)
-	// ValidateSpec is a hook for additional spec validation logic specific to the cloud provider.
-	// Note, implementations should not validate constraints resp. call `ValidateConstraints`
-	// from whithin this method as constraints are validated separately.
-	ValidateSpec(context.Context, *v1alpha3.ProvisionerSpec) *apis.FieldError
-	// ValidateConstraints is a hook for additional constraint validation logic specific to the cloud provider.
-	// This method is not only called during Provisioner CRD validation, it is also used at provisioning time
-	// to ensure that pods are provisionable for the specified provisioner. For that reasons constraint
-	// validation has its own valdiation method and is not conducted as part of `ValidateSpec(...)`.
-	ValidateConstraints(context.Context, *v1alpha3.Constraints) *apis.FieldError
-	// Terminate node in cloudprovider
-	Terminate(context.Context, *v1.Node) error
+	GetZones(context.Context, *v1alpha3.Constraints) ([]string, error)
+	// Validate is a hook for additional validation logic. This method is not
+	// only called during Provisioner CRD validation, it is also used at
+	// provisioning time to ensure that pods are provisionable.
+	Validate(context.Context, *v1alpha3.Constraints) *apis.FieldError
+	// Default is a hook for additional defaulting logic specific.
+	Default(context.Context, *v1alpha3.Constraints)
 }
 
 // Options are injected into cloud providers' factories

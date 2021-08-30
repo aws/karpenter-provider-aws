@@ -22,21 +22,28 @@ import (
 
 func NewConstraintsWithOverrides(constraints *v1alpha3.Constraints, pod *v1.Pod) *v1alpha3.Constraints {
 	return &v1alpha3.Constraints{
-		Labels:          overrideLabels(constraints, pod),
-		Taints:          overrideTaints(constraints, pod),
-		Zones:           overrideZones(constraints, pod),
-		InstanceTypes:   overrideInstanceTypes(constraints, pod),
-		Architecture:    overrideArchitecture(constraints, pod),
-		OperatingSystem: overrideOperatingSystem(constraints, pod),
+		Provider:         constraints.Provider,
+		Labels:           functional.UnionStringMaps(constraints.Labels, pod.Spec.NodeSelector),
+		Taints:           overrideTaints(constraints.Taints, pod),
+		Zones:            GetOrDefault(v1.LabelTopologyZone, pod.Spec.NodeSelector, constraints.Zones),
+		InstanceTypes:    GetOrDefault(v1.LabelInstanceTypeStable, pod.Spec.NodeSelector, constraints.InstanceTypes),
+		Architectures:    GetOrDefault(v1.LabelArchStable, pod.Spec.NodeSelector, constraints.Architectures),
+		OperatingSystems: GetOrDefault(v1.LabelOSStable, pod.Spec.NodeSelector, constraints.OperatingSystems),
 	}
 }
 
-func overrideLabels(c *v1alpha3.Constraints, pod *v1.Pod) map[string]string {
-	return functional.UnionStringMaps(c.Labels, pod.Spec.NodeSelector)
+// GetOrDefault uses a nodeSelector's value if exists, otherwise defaults
+func GetOrDefault(key string, nodeSelector map[string]string, defaults []string) []string {
+	// Use override if set
+	if nodeSelector != nil && len(nodeSelector[key]) > 0 {
+		return []string{nodeSelector[key]}
+	}
+	// Otherwise use defaults
+	return defaults
 }
 
-func overrideTaints(c *v1alpha3.Constraints, pod *v1.Pod) []v1.Taint {
-	taints := []v1.Taint{}
+func overrideTaints(taints []v1.Taint, pod *v1.Pod) []v1.Taint {
+	overrides := []v1.Taint{}
 	// Generate taints from pod tolerations
 	for _, toleration := range pod.Spec.Tolerations {
 		// Only OpEqual is supported
@@ -45,71 +52,19 @@ func overrideTaints(c *v1alpha3.Constraints, pod *v1.Pod) []v1.Taint {
 		}
 		// Use effect if defined, otherwise taint all effects
 		if toleration.Effect != "" {
-			taints = append(taints, v1.Taint{Key: toleration.Key, Value: toleration.Value, Effect: toleration.Effect})
+			overrides = append(overrides, v1.Taint{Key: toleration.Key, Value: toleration.Value, Effect: toleration.Effect})
 		} else {
-			taints = append(taints,
+			overrides = append(overrides,
 				v1.Taint{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoSchedule},
 				v1.Taint{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoExecute},
 			)
 		}
 	}
 	// Add default taints if not overriden by pod above
-	for _, taint := range c.Taints {
-		if !HasTaint(taints, taint.Key) {
-			taints = append(taints, taint)
+	for _, taint := range taints {
+		if !HasTaint(overrides, taint.Key) {
+			overrides = append(overrides, taint)
 		}
 	}
-	return taints
-}
-
-func overrideZones(c *v1alpha3.Constraints, pod *v1.Pod) []string {
-	// Pod may override zone
-	if zone, ok := pod.Spec.NodeSelector[v1.LabelTopologyZone]; ok {
-		return []string{zone}
-	}
-	// Default to provisioner constraints
-	if len(c.Zones) != 0 {
-		return c.Zones
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func overrideInstanceTypes(c *v1alpha3.Constraints, pod *v1.Pod) []string {
-	// Pod may override instance type
-	if instanceType, ok := pod.Spec.NodeSelector[v1.LabelInstanceTypeStable]; ok {
-		return []string{instanceType}
-	}
-	// Default to provisioner constraints
-	if len(c.InstanceTypes) != 0 {
-		return c.InstanceTypes
-	}
-	// Otherwise unconstrained
-	return nil
-}
-
-func overrideArchitecture(c *v1alpha3.Constraints, pod *v1.Pod) *string {
-	// Pod may override arch
-	if architecture, ok := pod.Spec.NodeSelector[v1.LabelArchStable]; ok {
-		return &architecture
-	}
-	// Use constraints if defined
-	if c.Architecture != nil {
-		return c.Architecture
-	}
-	// Default to amd64
-	return &v1alpha3.ArchitectureAmd64
-}
-
-func overrideOperatingSystem(c *v1alpha3.Constraints, pod *v1.Pod) *string {
-	// Pod may override os
-	if operatingSystem, ok := pod.Spec.NodeSelector[v1.LabelOSStable]; ok {
-		return &operatingSystem
-	}
-	// Use constraints if defined
-	if c.OperatingSystem != nil {
-		return c.OperatingSystem
-	}
-	// Default to linux
-	return &v1alpha3.OperatingSystemLinux
+	return overrides
 }

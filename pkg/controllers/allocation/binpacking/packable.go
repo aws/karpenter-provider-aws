@@ -161,21 +161,21 @@ func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if schedule.Architecture == nil {
+	if schedule.Architectures == nil {
 		return nil
 	}
-	if !functional.ContainsString(p.Architectures(), *schedule.Architecture) {
-		return fmt.Errorf("architecture %s is not in %v", *schedule.Architecture, p.Architectures())
+	if len(functional.IntersectStringSlice(p.Architectures(), schedule.Architectures)) == 0 {
+		return fmt.Errorf("architecture %s is not in %v", schedule.Architectures, p.Architectures())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if schedule.OperatingSystem == nil {
+	if schedule.OperatingSystems == nil {
 		return nil
 	}
-	if !functional.ContainsString(p.OperatingSystems(), *schedule.OperatingSystem) {
-		return fmt.Errorf("operating system %s is not in %v", *schedule.OperatingSystem, p.OperatingSystems())
+	if len(functional.IntersectStringSlice(p.OperatingSystems(), schedule.OperatingSystems)) == 0 {
+		return fmt.Errorf("operating system %s is not in %v", schedule.OperatingSystems, p.OperatingSystems())
 	}
 	return nil
 }
