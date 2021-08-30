@@ -31,7 +31,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	"github.com/awslabs/karpenter/pkg/utils/filesys"
+	"github.com/awslabs/karpenter/pkg/utils/filesystem"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	. "github.com/onsi/ginkgo"
@@ -70,7 +70,7 @@ func (s *singletonFS) ReadFile(name string) ([]byte, error) {
 }
 
 func TestAPIs(t *testing.T) {
-	ctx = filesys.Inject(TestContextWithLogger(t), &singletonFS{
+	ctx = filesystem.Inject(TestContextWithLogger(t), &singletonFS{
 		filename: v1alpha3.InClusterCABundlePath,
 		contents: []byte("fake CA Bundle data"),
 	})
