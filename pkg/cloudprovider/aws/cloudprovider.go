@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
@@ -125,11 +126,11 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 }
 
 func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) error {
-	constraints := Constraints{*packing.Constraints}
+	constraints := Constraints(*packing.Constraints)
 	// 1. Get Subnets and constrain by zones
 	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return fmt.Errorf("getting zonal subnets, %w", err)
+		return fmt.Errorf("getting subnets, %w", err)
 	}
 	// 2. Get Launch Template
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
@@ -148,13 +149,25 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	return c.instanceTypeProvider.Get(ctx)
 }
 
+func (c *CloudProvider) GetZones(ctx context.Context, provisioner *v1alpha3.Provisioner) ([]string, error) {
+	subnets, err := c.subnetProvider.Get(ctx, provisioner, &Constraints{})
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+	zones := []string{}
+	for _, subnet := range subnets {
+		zones = append(zones, aws.StringValue(subnet.AvailabilityZone))
+	}
+	return functional.UniqueStrings(zones), nil
+}
+
 func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
 // Validate cloud provider specific components of the cluster spec
 func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1alpha3.Constraints) (errs *apis.FieldError) {
-	awsConstraints := Constraints{*constraints}
+	awsConstraints := Constraints(*constraints)
 	return awsConstraints.Validate(ctx)
 }
 

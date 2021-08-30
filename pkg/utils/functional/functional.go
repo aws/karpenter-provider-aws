@@ -32,10 +32,10 @@ func UnionStringMaps(maps ...map[string]string) map[string]string {
 	return result
 }
 
-func StringSliceWithout(vals []string, remove string) []string {
+func StringSliceWithout(vals []string, remove ...string) []string {
 	without := []string{}
 	for _, val := range vals {
-		if val == remove {
+		if ContainsString(remove, val) {
 			continue
 		}
 		without = append(without, val)

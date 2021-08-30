@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	"knative.dev/pkg/ptr"
@@ -48,7 +49,7 @@ var env *test.Environment
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provisioner/Allocator")
+	RunSpecs(t, "Controllers/Allocation")
 }
 
 var _ = BeforeSuite(func() {
@@ -59,7 +60,7 @@ var _ = BeforeSuite(func() {
 			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Constraints:   &allocation.Constraints{KubeClient: e.Client},
+			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),
 			Packer:        packing.NewPacker(),
 			CloudProvider: cloudProvider,
 			KubeClient:    e.Client,
@@ -95,7 +96,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				ExpectCreated(env.Client, provisioner)
 				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-1"))
@@ -104,7 +105,7 @@ var _ = Describe("Allocation", func() {
 				// Setup
 				provisioner.Spec.Zones = []string{"test-zone-2"}
 				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.PendingPod())
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-2"))
@@ -114,7 +115,7 @@ var _ = Describe("Allocation", func() {
 				provisioner.Spec.Zones = []string{"test-zone-1"}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}),
+					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}),
 				)
 				// Assertions
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -124,7 +125,7 @@ var _ = Describe("Allocation", func() {
 		It("should provision nodes for unconstrained pods", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-				test.PendingPod(), test.PendingPod(),
+				test.UnschedulablePod(), test.UnschedulablePod(),
 			)
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
@@ -136,29 +137,29 @@ var _ = Describe("Allocation", func() {
 		It("should provision nodes for pods with supported node selectors", func() {
 			schedulable := []client.Object{
 				// Constrained by provisioner
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name}}),
 				// Constrained by zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}),
 				// Constrained by instanceType
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"}}),
 				// Constrained by architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}),
 				// Constrained by operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "windows"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "windows"}}),
 				// Constrained by arbitrary label
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha3.ProvisionerNameLabelKey: "unknown"}}),
 				// Ignored, invalid zone
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}),
 				// Ignored, invalid instance type
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
 				// Ignored, invalid architecture
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
 				// Ignored, invalid operating system
-				test.PendingPod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -184,27 +185,27 @@ var _ = Describe("Allocation", func() {
 			provisioner.Spec.Taints = []v1.Taint{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}}
 			schedulable := []client.Object{
 				// Tolerates with OpExists
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists}},
 				}),
 				// Tolerates with OpEqual
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "test-value", Operator: v1.TolerationOpEqual}},
 				}),
 			}
 			unschedulable := []client.Object{
 				// Missing toleration
-				test.PendingPod(),
+				test.UnschedulablePod(),
 				// key mismatch with OpExists
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}},
 				}),
 				// value mismatch with OpEqual
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "test-key", Value: "invalid", Operator: v1.TolerationOpEqual}},
 				}),
 				// key mismatch with OpEqual
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					Tolerations: []v1.Toleration{{Key: "invalid", Value: "test-value", Operator: v1.TolerationOpEqual}},
 				}),
 			}
@@ -228,13 +229,13 @@ var _ = Describe("Allocation", func() {
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
 				}),
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AMDGPU: resource.MustParse("1")}},
 				}),
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")}},
 				}),
 			)
@@ -254,20 +255,20 @@ var _ = Describe("Allocation", func() {
 						Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "test"}},
 						Template: v1.PodTemplateSpec{
 							ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "test"}},
-							Spec: test.PendingPod(test.PodOptions{
+							Spec: test.UnschedulablePod(test.PodOptions{
 								ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 							}).Spec,
 						}},
 				},
 			}
 			schedulable := []client.Object{
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
-				test.PendingPod(test.PodOptions{
+				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}),
 			}
