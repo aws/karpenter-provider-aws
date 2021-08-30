@@ -86,14 +86,17 @@ func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Cluster) validate() (errs *apis.FieldError) {
-	if c == nil {
-		return errs.Also(apis.ErrMissingField())
-	}
+func (c *Cluster) parseEndpoint() (*url.URL, error) {
+	return url.Parse(c.Endpoint)
+}
+
+// validateEndpoint performs cloud-provider-agnostic validations
+// (only).
+func (c *Cluster) validateEndpoint() (errs *apis.FieldError) {
 	if len(c.Endpoint) == 0 {
 		errs = errs.Also(apis.ErrMissingField("endpoint"))
 	} else {
-		endpoint, err := url.Parse(c.Endpoint)
+		endpoint, err := c.parseEndpoint()
 		// url.Parse() will accept a lot of input without error; make
 		// sure it's a real URL
 		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
@@ -101,6 +104,23 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 		}
 	}
 	return errs
+}
+
+// HasTLSEndpoint returns whether or not the endpoint requires TLS
+// (and, most likely, depending on cloud provider, a CABundle).
+// Conservatively it assumes TLS unless the endpoint has been
+// explicitly configured with a non-TLS scheme, like 'http'.
+func (c *Cluster) HasTLSEndpoint() bool {
+	endpoint, err := c.parseEndpoint()
+	return err != nil || endpoint.Scheme != "http"
+}
+
+// validate performs cloud-provider-agnostic validations (only).
+func (c *Cluster) validate() (errs *apis.FieldError) {
+	if c == nil {
+		return errs.Also(apis.ErrMissingField())
+	}
+	return errs.Also(c.validateEndpoint())
 }
 
 // Validate constraints subresource. This validation logic is used both upon
