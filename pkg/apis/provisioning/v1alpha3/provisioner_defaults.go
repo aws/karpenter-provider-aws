@@ -20,9 +20,8 @@ import (
 	"errors"
 	"io/fs"
 
-	"github.com/spf13/afero"
-
 	"github.com/awslabs/karpenter/pkg/utils/filesystem"
+	"github.com/spf13/afero"
 )
 
 const (
