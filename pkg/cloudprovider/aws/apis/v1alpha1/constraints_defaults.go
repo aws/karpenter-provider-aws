@@ -12,13 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1alpha1
 
 import (
 	"context"
 )
 
-// SetDefaults for the provisioner
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-	DefaultingHook(ctx, &p.Spec.Constraints)
+func (c *Constraints) Default(ctx context.Context) {
 }

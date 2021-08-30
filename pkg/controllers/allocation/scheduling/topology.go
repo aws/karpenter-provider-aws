@@ -37,15 +37,15 @@ type Topology struct {
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
-func (t *Topology) Inject(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) error {
+func (t *Topology) Inject(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
-	topologyGroups, err := t.getTopologyGroups(ctx, provisioner, pods)
+	topologyGroups, err := t.getTopologyGroups(ctx, pods)
 	if err != nil {
 		return fmt.Errorf("splitting topology groups, %w", err)
 	}
 	// 2. Compute spread
 	for _, topologyGroup := range topologyGroups {
-		if err := t.computeCurrentTopology(ctx, provisioner, topologyGroup); err != nil {
+		if err := t.computeCurrentTopology(ctx, constraints, topologyGroup); err != nil {
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
@@ -59,7 +59,7 @@ func (t *Topology) Inject(ctx context.Context, provisioner *v1alpha3.Provisioner
 }
 
 // getTopologyGroups separates pods with equivalent topology rules
-func (t *Topology) getTopologyGroups(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*TopologyGroup, error) {
+func (t *Topology) getTopologyGroups(ctx context.Context, pods []*v1.Pod) ([]*TopologyGroup, error) {
 	topologyGroupMap := map[uint64]*TopologyGroup{}
 	for _, pod := range pods {
 		for _, constraint := range pod.Spec.TopologySpreadConstraints {
@@ -79,12 +79,12 @@ func (t *Topology) getTopologyGroups(ctx context.Context, provisioner *v1alpha3.
 	return topologyGroups, nil
 }
 
-func (t *Topology) computeCurrentTopology(ctx context.Context, provisioner *v1alpha3.Provisioner, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha3.Constraints, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(ctx, topologyGroup)
 	case v1.LabelTopologyZone:
-		return t.computeZonalTopology(ctx, provisioner, topologyGroup)
+		return t.computeZonalTopology(ctx, constraints, topologyGroup)
 	default:
 		return nil
 	}
@@ -110,13 +110,13 @@ func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *T
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, provisioner *v1alpha3.Provisioner, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha3.Constraints, topologyGroup *TopologyGroup) error {
 	// 1. Get viable domains
-	zones, err := t.cloudProvider.GetZones(ctx, provisioner)
+	zones, err := t.cloudProvider.GetZones(ctx, constraints)
 	if err != nil {
 		return fmt.Errorf("getting zones, %w", err)
 	}
-	if constrained := NewConstraintsWithOverrides(&provisioner.Spec.Constraints, topologyGroup.Pods[0]).Zones; len(constrained) != 0 {
+	if constrained := NewConstraintsWithOverrides(constraints, topologyGroup.Pods[0]).Zones; len(constrained) != 0 {
 		zones = functional.IntersectStringSlice(zones, constrained)
 	}
 	topologyGroup.Register(zones...)

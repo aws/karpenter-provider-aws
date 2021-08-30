@@ -62,7 +62,7 @@ var _ = Describe("Controller", func() {
 	BeforeEach(func() {
 		provisioner = &v1alpha3.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name},
-			Spec:       v1alpha3.ProvisionerSpec{},
+			Spec: v1alpha3.ProvisionerSpec{},
 		}
 	})
 
@@ -93,7 +93,7 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
-		It("should terminate nodes after expiry", func() {
+		It("should delete nodes after expiry", func() {
 			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
 			n := test.Node(test.NodeOptions{
 				Finalizers: []string{v1alpha3.TerminationFinalizer},
@@ -181,7 +181,7 @@ var _ = Describe("Controller", func() {
 		})
 	})
 	Context("Liveness", func() {
-		It("should terminate nodes if NodeStatusNeverUpdated after 5 minutes", func() {
+		It("should delete nodes if NodeStatusNeverUpdated after 5 minutes", func() {
 			n := test.Node(test.NodeOptions{
 				Finalizers:  []string{v1alpha3.TerminationFinalizer},
 				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
@@ -204,7 +204,7 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
-		It("should terminate nodes if we never hear anything after 5 minutes", func() {
+		It("should delete nodes if we never hear anything after 5 minutes", func() {
 			n := test.Node(test.NodeOptions{
 				Finalizers:  []string{v1alpha3.TerminationFinalizer},
 				Labels:      map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
@@ -289,7 +289,7 @@ var _ = Describe("Controller", func() {
 			node = ExpectNodeExists(env.Client, node.Name)
 			Expect(node.Annotations).ToNot(HaveKey(v1alpha3.EmptinessTimestampAnnotationKey))
 		})
-		It("should terminate empty nodes past their TTL", func() {
+		It("should delete empty nodes past their TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
 			node := test.Node(test.NodeOptions{
 				Finalizers: []string{v1alpha3.TerminationFinalizer},

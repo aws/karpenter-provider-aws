@@ -121,7 +121,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
-		It("should not terminate nodes that have a do-not-evict pod", func() {
+		It("should not delete nodes that have a do-not-evict pod", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
@@ -196,7 +196,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
-		It("should not terminate nodes until all pods are terminated", func() {
+		It("should not delete nodes until all pods are deleted", func() {
 			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}
 			ExpectCreated(env.Client, node, pods[0], pods[1])
 

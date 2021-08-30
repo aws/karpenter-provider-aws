@@ -45,13 +45,7 @@ var _ = Describe("Validation", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: strings.ToLower(randomdata.SillyName()),
 			},
-			Spec: ProvisionerSpec{
-				Cluster: Cluster{
-					Name:     ptr.String("test-cluster"),
-					Endpoint: "https://test-cluster",
-					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
-				},
-			},
+			Spec: ProvisionerSpec{},
 		}
 	})
 
@@ -63,34 +57,6 @@ var _ = Describe("Validation", func() {
 	It("should fail on negative empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-	})
-
-	It("should fail for empty cluster specification", func() {
-		for _, cluster := range []Cluster{
-			{},
-			{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
-			{Name: ptr.String("test-cluster")},
-			{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
-		} {
-			provisioner.Spec.Cluster = cluster
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		}
-	})
-
-	It("should fail for invalid endpoint", func() {
-		for _, endpoint := range []string{
-			"http",
-			"http:",
-			"http://",
-			"https",
-			"https:",
-			"https://",
-			"I am a meat popsicle",
-			"$(echo foo)",
-		} {
-			provisioner.Spec.Cluster.Endpoint = endpoint
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		}
 	})
 
 	Context("Labels", func() {
@@ -174,26 +140,26 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
-			provisioner.Spec.Architecture = ptr.String("unknown")
+			provisioner.Spec.Architectures = []string{"unknown"}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
-			provisioner.Spec.Architecture = ptr.String("test-architecture")
+			provisioner.Spec.Architectures = []string{"test-architecture"}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 	})
 
 	Context("OperatingSystem", func() {
-		SupportedOperatingSystems = append(SupportedArchitectures, "test-operating-system")
+		SupportedOperatingSystems = append(SupportedOperatingSystems, "test-operating-system")
 		It("should succeed if unspecified", func() {
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail if not supported", func() {
-			provisioner.Spec.OperatingSystem = ptr.String("unknown")
+			provisioner.Spec.OperatingSystems = []string{"unknown"}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should succeed if supported", func() {
-			provisioner.Spec.OperatingSystem = ptr.String("test-operating-system")
+			provisioner.Spec.OperatingSystems = []string{"test-operating-system"}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 	})

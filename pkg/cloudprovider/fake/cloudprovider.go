@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, bind func(*v1.Node) error) chan error {
 	name := strings.ToLower(randomdata.SillyName())
 	// Pick first instance type option
 	instance := instanceTypes[0]
@@ -70,7 +70,7 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 	return err
 }
 
-func (c *CloudProvider) GetZones(context context.Context, provisioner *v1alpha3.Provisioner) ([]string, error) {
+func (c *CloudProvider) GetZones(context context.Context, constraints *v1alpha3.Constraints) ([]string, error) {
 	return []string{"test-zone-1", "test-zone-2", "test-zone-3"}, nil
 }
 
@@ -102,14 +102,13 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	}, nil
 }
 
-func (c *CloudProvider) ValidateSpec(context.Context, *v1alpha3.ProvisionerSpec) *apis.FieldError {
+func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 	return nil
 }
 
-func (c *CloudProvider) ValidateConstraints(context.Context, *v1alpha3.Constraints) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha3.Constraints) *apis.FieldError {
 	return nil
 }
 
-func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
-	return nil
+func (c *CloudProvider) Default(context.Context, *v1alpha3.Constraints) {
 }

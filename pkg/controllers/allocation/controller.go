@@ -108,7 +108,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 4. Group by constraints
-	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
+	schedules, err := c.Scheduler.Solve(ctx, &provisioner.Spec.Constraints, pods)
 	if err != nil {
 		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
 	}
@@ -129,7 +129,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
-		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
+		errs[index] = <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
 			node.Labels = functional.UnionStringMaps(
 				map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
 				packing.Constraints.Labels,
@@ -147,7 +147,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		For(&v1alpha3.Provisioner{}).
 		Watches(
 			&source.Kind{Type: &v1.Pod{}},
-			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
+			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner(ctx)),
 			// Only process pod update events
 			builder.WithPredicates(
 				predicate.Funcs{
@@ -182,33 +182,34 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
-func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Request) {
-	pod := o.(*v1.Pod)
-	ctx := context.Background()
-	if err := c.Filter.isUnschedulable(pod); err != nil {
-		return nil
-	}
-	provisionerKey := v1alpha3.DefaultProvisioner
-	if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
-		provisionerKey.Name = name
-	}
-	provisioner, err := c.provisionerFor(ctx, provisionerKey)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Queue and batch a reconcile request for a non-existent, empty provisioner
-			// This will reduce the number of repeated error messages about a provisioner not existing
-			c.Batcher.Add(&v1alpha3.Provisioner{})
-			notFoundProvisioner := v1alpha3.DefaultProvisioner.Name
-			if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
-				notFoundProvisioner = name
-			}
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: notFoundProvisioner}}}
+func (c *Controller) podToProvisioner(ctx context.Context) func (o client.Object) []reconcile.Request {
+	return func (o client.Object) (requests []reconcile.Request) {
+		pod := o.(*v1.Pod)
+		if err := c.Filter.isUnschedulable(pod); err != nil {
+			return nil
 		}
-		return nil
+		provisionerKey := v1alpha3.DefaultProvisioner
+		if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
+			provisionerKey.Name = name
+		}
+		provisioner, err := c.provisionerFor(ctx, provisionerKey)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Queue and batch a reconcile request for a non-existent, empty provisioner
+				// This will reduce the number of repeated error messages about a provisioner not existing
+				c.Batcher.Add(&v1alpha3.Provisioner{})
+				notFoundProvisioner := v1alpha3.DefaultProvisioner.Name
+				if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
+					notFoundProvisioner = name
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: notFoundProvisioner}}}
+			}
+			return nil
+		}
+		if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
+			return nil
+		}
+		c.Batcher.Add(provisioner)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
 	}
-	if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
-		return nil
-	}
-	c.Batcher.Add(provisioner)
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
 }

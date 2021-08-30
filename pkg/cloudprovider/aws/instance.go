@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
@@ -34,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
+
 
 const (
 	EC2InstanceIDNotFoundErrCode = "InvalidInstanceID.NotFound"
@@ -49,7 +51,7 @@ type InstanceProvider struct {
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate *LaunchTemplate,
+	launchTemplate *v1alpha1.LaunchTemplate,
 	instanceTypes []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string,
@@ -99,7 +101,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstance(ctx context.Context,
-	launchTemplate *LaunchTemplate,
+	launchTemplate *v1alpha1.LaunchTemplate,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string) (*string, error) {
@@ -116,7 +118,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 					// to reduce the likelihood of getting an excessively large instance type.
 					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-					if capacityType == CapacityTypeSpot {
+					if capacityType == v1alpha1.CapacityTypeSpot {
 						override.Priority = aws.Float64(float64(i))
 					}
 					overrides = append(overrides, override)

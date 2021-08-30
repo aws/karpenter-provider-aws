@@ -20,21 +20,63 @@ limitations under the License.
 package v1alpha3
 
 import (
+	"context"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/apis"
 )
 
-var SchemeGroupVersion = schema.GroupVersion{Group: "karpenter.sh", Version: "v1alpha3"}
-var SchemeBuilder = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Provisioner{},
-		&ProvisionerList{},
-	)
-	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-	return nil
-})
+var (
+	ArchitectureAmd64    = "amd64"
+	ArchitectureArm64    = "arm64"
+	OperatingSystemLinux = "linux"
+
+	ProvisionerNameLabelKey         = SchemeGroupVersion.Group + "/provisioner-name"
+	NotReadyTaintKey                = SchemeGroupVersion.Group + "/not-ready"
+	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
+	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
+	TerminationFinalizer            = SchemeGroupVersion.Group + "/termination"
+	DefaultProvisioner              = types.NamespacedName{Name: "default"}
+)
+
+var (
+	// The following fields are injected by Cloud Providers
+	RestrictedLabels = []string{
+		// Use strongly typed fields instead
+		v1.LabelArchStable,
+		v1.LabelOSStable,
+		v1.LabelTopologyZone,
+		v1.LabelInstanceTypeStable,
+		// Used internally by provisioning logic
+		ProvisionerNameLabelKey,
+		EmptinessTimestampAnnotationKey,
+		v1.LabelHostname,
+	}
+	SupportedArchitectures    = []string{}
+	SupportedOperatingSystems = []string{}
+	SupportedZones            = []string{}
+	SupportedInstanceTypes    = []string{}
+	ValidationHook            = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
+	DefaultingHook            = func(ctx context.Context, constraints *Constraints) {}
+)
+
+var (
+	Group              = "karpenter.sh"
+	ExtensionsGroup    = "extensions." + Group
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha3"}
+	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
+		scheme.AddKnownTypes(SchemeGroupVersion,
+			&Provisioner{},
+			&ProvisionerList{},
+		)
+		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+		return nil
+	})
+)
 
 const (
 	// Active is a condition implemented by all resources. It indicates that the

@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -44,16 +45,19 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
-func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string, error) {
+func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
+	architecture := v1alpha3.ArchitectureAmd64 // default to amd
+	if len(constraints.Architectures) > 0 {
+		architecture = constraints.Architectures[0] // select the first one if multiple supported
+	}
 	var architectureSuffix string
-	if *constraints.Architecture == v1alpha3.ArchitectureArm64 {
+	if architecture == v1alpha3.ArchitectureArm64 {
 		architectureSuffix = "-arm64"
 	}
-	// TODO: support for the "amazon-linux-2-gpu" AMI for nvidia use cases
 	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)
 	if id, ok := p.cache.Get(name); ok {
 		return id.(string), nil

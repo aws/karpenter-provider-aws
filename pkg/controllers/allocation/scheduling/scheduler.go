@@ -73,7 +73,7 @@ func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.C
 
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	startTime := time.Now()
-	schedules, scheduleErr := s.solve(ctx, provisioner, pods)
+	schedules, scheduleErr := s.solve(ctx, &provisioner.Spec.Constraints, pods)
 	durationSeconds := time.Since(startTime).Seconds()
 
 	result := "success"
@@ -100,17 +100,17 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 	return schedules, scheduleErr
 }
 
-func (s *Scheduler) solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// 1. Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, provisioner, pods); err != nil {
+	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 
 	// 2. Separate pods into schedules of compatible scheduling constraints.
-	schedules, err := s.getSchedules(ctx, provisioner, pods)
+	schedules, err := s.getSchedules(ctx, constraints, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
@@ -128,12 +128,12 @@ func (s *Scheduler) solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain compatible scheduling constarints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
 
-		constraints := NewConstraintsWithOverrides(&provisioner.Spec.Constraints, pod)
+		constraints := NewConstraintsWithOverrides(constraints, pod)
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
@@ -143,7 +143,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Prov
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
 			daemons, err := s.getDaemons(ctx, &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{Labels: constraints.Labels},
-				Spec:       v1.NodeSpec{Taints: provisioner.Spec.Taints},
+				Spec:       v1.NodeSpec{Taints: constraints.Taints},
 			})
 			if err != nil {
 				return nil, fmt.Errorf("computing node overhead, %w", err)

@@ -21,11 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 )
 
 type SubnetProvider struct {
@@ -40,9 +39,9 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]*ec2.Subnet, error) {
+func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
 	// 1. Get all viable subnets for this provisioner
-	subnets, err := s.getSubnets(ctx, provisioner)
+	subnets, err := s.getSubnets(ctx, constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -65,20 +64,19 @@ func (s *SubnetProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisio
 	return subnets, nil
 }
 
-func (s *SubnetProvider) getSubnets(ctx context.Context, provisioner *v1alpha3.Provisioner) ([]*ec2.Subnet, error) {
-	clusterName := ptr.StringValue(provisioner.Spec.Cluster.Name)
-	if subnets, ok := s.cache.Get(clusterName); ok {
+func (s *SubnetProvider) getSubnets(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
+	if subnets, ok := s.cache.Get(constraints.Cluster.Name); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}
 	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: []*ec2.Filter{{
 		Name:   aws.String("tag-key"), // Subnets must be tagged for the cluster
-		Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
+		Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, constraints.Cluster.Name))},
 	}}})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets, %w", err)
 	}
-	s.cache.Set(clusterName, output.Subnets, CacheTTL)
-	logging.FromContext(ctx).Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), clusterName)
+	s.cache.Set(constraints.Cluster.Name, output.Subnets, CacheTTL)
+	logging.FromContext(ctx).Debugf("Discovered %d subnets for cluster %s", len(output.Subnets), constraints.Cluster.Name)
 	return output.Subnets, nil
 }
 

@@ -29,6 +29,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -49,8 +50,8 @@ var (
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = apis.AddToScheme(scheme)
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apis.AddToScheme(scheme))
 }
 
 // Options for running this binary

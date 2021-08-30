@@ -21,11 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 )
 
 type SecurityGroupProvider struct {
@@ -40,9 +39,9 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (s *SecurityGroupProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]*ec2.SecurityGroup, error) {
+func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.SecurityGroup, error) {
 	// 1. Get Security Groups
-	securityGroups, err := s.getSecurityGroups(ctx, ptr.StringValue(provisioner.Spec.Cluster.Name))
+	securityGroups, err := s.getSecurityGroups(ctx, constraints.Cluster.Name)
 	if err != nil {
 		return nil, err
 	}

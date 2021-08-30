@@ -26,7 +26,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
-	"knative.dev/pkg/ptr"
 
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
@@ -80,9 +79,7 @@ var _ = Describe("Allocation", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: v1alpha3.DefaultProvisioner.Name,
 			},
-			Spec: v1alpha3.ProvisionerSpec{
-				Cluster: v1alpha3.Cluster{Name: ptr.String("test-cluster"), Endpoint: "http://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
-			},
+			Spec: v1alpha3.ProvisionerSpec{},
 		}
 	})
 
