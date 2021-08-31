@@ -23,8 +23,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/test"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -58,7 +58,7 @@ var _ = BeforeSuite(func() {
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
 			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),
-			Packer:        packing.NewPacker(),
+			Packer:        binpacking.NewPacker(),
 			CloudProvider: cloudProvider,
 			KubeClient:    e.Client,
 		}

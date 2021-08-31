@@ -31,7 +31,7 @@ type CloudProvider interface {
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request. This API
 	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha3.Provisioner, *Packing, func(*v1.Node) error) chan error
+	Create(context.Context, *v1alpha3.Provisioner, *v1alpha3.Constraints, []InstanceType, func(*v1.Node) error) chan error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
@@ -48,23 +48,6 @@ type CloudProvider interface {
 	ValidateConstraints(context.Context, *v1alpha3.Constraints) *apis.FieldError
 	// Terminate node in cloudprovider
 	Terminate(context.Context, *v1.Node) error
-}
-
-// Packing is a binpacking solution of equivalently schedulable pods to a set of
-// viable instance types upon which they fit. All pods in the packing are
-// within the specified constraints (e.g., labels, taints).
-type Packing struct {
-	Pods                []*v1.Pod
-	InstanceTypeOptions []InstanceType
-	Constraints         *v1alpha3.Constraints
-}
-
-// PackedNode is a node object and the pods that should be bound to it. It is
-// expected that the pods in a cloudprovider.Packing will be equivalent to the
-// pods in a cloudprovider.PackedNode.
-type PackedNode struct {
-	*v1.Node
-	Pods []*v1.Pod
 }
 
 // Options are injected into cloud providers' factories

@@ -119,14 +119,15 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) chan error {
+
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) chan error {
 	return c.creationQueue.Add(func() error {
-		return c.create(ctx, provisioner, packing, callback)
+		return c.create(ctx, provisioner, constraints, instanceTypes, callback)
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) error {
-	constraints := Constraints(*packing.Constraints)
+func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, v1alpha3constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
+	constraints := Constraints(*v1alpha3constraints)
 	// 1. Get Subnets and constrain by zones
 	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
@@ -138,7 +139,7 @@ func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provis
 		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
-	node, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
+	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, constraints.GetCapacityType())
 	if err != nil {
 		return fmt.Errorf("launching instance, %w", err)
 	}
