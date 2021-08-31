@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
@@ -30,21 +28,22 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	testfake "github.com/awslabs/karpenter/pkg/test/fake"
-	"github.com/awslabs/karpenter/pkg/utils/filesystem"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/patrickmn/go-cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var ctx context.Context
@@ -54,7 +53,7 @@ var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
 
 func TestAPIs(t *testing.T) {
-	ctx = filesystem.Inject(TestContextWithLogger(t), testfake.Filesystem())
+	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CloudProvider/AWS")
 }
@@ -100,8 +99,7 @@ var _ = Describe("Allocation", func() {
 	var provisioner *v1alpha3.Provisioner
 
 	BeforeEach(func() {
-		var err error
-		provisioner, err = (&v1alpha3.Provisioner{
+		provisioner = &v1alpha3.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: v1alpha3.DefaultProvisioner.Name,
 			},
@@ -109,10 +107,10 @@ var _ = Describe("Allocation", func() {
 				Cluster: v1alpha3.Cluster{
 					Name:     ptr.String("test-cluster"),
 					Endpoint: "https://test-cluster",
+					CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="),
 				},
 			},
-		}).WithDynamicDefaults(ctx)
-		Expect(err).To(BeNil())
+		}
 		fakeEC2API.Reset()
 		ExpectCleanedUp(env.Client)
 		launchTemplateCache.Flush()
@@ -559,25 +557,14 @@ var _ = Describe("Allocation", func() {
 	})
 	Context("Validation", func() {
 		Context("Cluster", func() {
-			It("should default in missing fields", func() {
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
-			It("should succeed if missing caBundle not required", func() {
-				cluster := v1alpha3.Cluster{
-					Endpoint: "http://insecure-endpoint",
-					Name:     ptr.String("insecure-cluster"),
-				}
-				provisioner.Spec.Cluster = cluster // undo any defaulting
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
-			It("should fail if aws required fields are empty", func() {
+			It("should fail if fields are empty", func() {
 				for _, cluster := range []v1alpha3.Cluster{
+					{Endpoint: "https://test-cluster", CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
+					{Name: ptr.String("test-cluster"), CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
-					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Endpoint: "https://test-cluster"},
-					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Name: ptr.String("test-cluster")},
 					{Name: ptr.String("test-cluster")},
 				} {
-					provisioner.Spec.Cluster = cluster // undo any defaulting
+					provisioner.Spec.Cluster = cluster
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
