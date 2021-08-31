@@ -95,17 +95,16 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 			result.packed = append(result.packed, pod)
 			continue
 		}
+		if p.isFull(pods[len(pods)-1]) {
+			result.unpacked = append(result.unpacked, pods[i:]...)
+			return result
+		}
 		// if largest pod can't be packed, set it aside
 		if len(result.packed) == 0 {
 			result.unpacked = append(result.unpacked, pods...)
 			return result
 		}
 		result.unpacked = append(result.unpacked, pod)
-
-		if p.isFull(pods[len(pods)-1]) {
-			result.unpacked = append(result.unpacked, pods[i+1:]...)
-			return result
-		}
 	}
 	return result
 }
