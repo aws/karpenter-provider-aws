@@ -87,7 +87,7 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 
 // Pack attempts to pack the pods into capacity, keeping track of previously
 // packed pods. If the capacity cannot fit the pod, they are set aside.
-// pods should be sorted in descending order.
+// Pods must be sorted in descending order.
 func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	result := &Result{}
 	for i, pod := range pods {
