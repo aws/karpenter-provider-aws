@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/packing"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
@@ -123,7 +124,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
 		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
-			node.Labels = packing.Constraints.Labels
+			node.Labels = functional.UnionStringMaps(
+				map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
+				packing.Constraints.Labels,
+			)
 			node.Spec.Taints = packing.Constraints.Taints
 			return c.Binder.Bind(ctx, node, packing.Pods)
 		})

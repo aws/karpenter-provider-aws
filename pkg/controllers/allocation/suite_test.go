@@ -242,5 +242,13 @@ var _ = Describe("Allocation", func() {
 			Expect(*nodes.Items[0].Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
 			Expect(*nodes.Items[0].Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
+		It("should labels nodes with provisioner name", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{}))
+			for _, pod := range pods {
+				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+				Expect(node.Labels).To(HaveKeyWithValue(v1alpha3.ProvisionerNameLabelKey, provisioner.Name))
+			}
+		})
 	})
 })
