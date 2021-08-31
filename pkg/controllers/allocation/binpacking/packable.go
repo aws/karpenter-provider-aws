@@ -87,9 +87,10 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 
 // Pack attempts to pack the pods into capacity, keeping track of previously
 // packed pods. If the capacity cannot fit the pod, they are set aside.
+// pods should be sorted in descending order.
 func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	result := &Result{}
-	for _, pod := range pods {
+	for i, pod := range pods {
 		if ok := p.reservePod(pod); ok {
 			result.packed = append(result.packed, pod)
 			continue
@@ -100,8 +101,27 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 			return result
 		}
 		result.unpacked = append(result.unpacked, pod)
+
+		if p.isFull(pods[len(pods)-1]) {
+			result.unpacked = append(result.unpacked, pods[i+1:]...)
+			return result
+		}
 	}
 	return result
+}
+
+// isFull checks if the reserved resources + the minimum resourced pod overflows the total resources available.
+func (p *Packable) isFull(minPod *v1.Pod) bool {
+	minResourceList := resources.RequestsForPods(minPod)
+	for resourceName, totalQuantity := range p.total {
+		reservedQuantity := p.reserved[resourceName].DeepCopy()
+		// Add the minimum resourced pod to reserved
+		reservedQuantity.Add(minResourceList[resourceName])
+		if !totalQuantity.IsZero() && reservedQuantity.Cmp(totalQuantity) >= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Packable) reserve(requests v1.ResourceList) bool {
