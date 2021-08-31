@@ -17,14 +17,15 @@ package v1alpha3
 import (
 	"context"
 	"encoding/base64"
-	"errors"
-	"io/fs"
 
 	"github.com/awslabs/karpenter/pkg/utils/filesystem"
 	"github.com/spf13/afero"
 )
 
 const (
+	// InClusterCABundlePath is normally available to Pods such as
+	// Karpenter, as described here:
+	// https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod
 	InClusterCABundlePath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
 
@@ -32,51 +33,25 @@ const (
 func (p *Provisioner) SetDefaults(ctx context.Context) {}
 
 // SetDefaults for the provisioner, cascading to all subspecs
-func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}
+//func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}
 
-// WithDefaults returns a copy of this Provisioner with some empty/missing
-// properties replaced by (potentially dynamic) cloud provider agnostic default values.
-// The returned copy might be complemented by dynamic default values which
-// must not be hoisted (saved) into the original Provisioner CRD as those
-// default values might change over time (e.g. rolling upgrade of CABundle, ...).
-func (p *Provisioner) WithDynamicDefaults(ctx context.Context) (_ *Provisioner, err error) {
-	provisioner := *p.DeepCopy()
-	provisioner.Spec, err = provisioner.Spec.withDynamicDefaults(ctx)
-	return &provisioner, err
-}
-
-// WithDefaults returns a copy of this ProvisionerSpec with some empty
-// properties replaced by default values.
-func (s *ProvisionerSpec) withDynamicDefaults(ctx context.Context) (_ ProvisionerSpec, err error) {
-	spec := *s.DeepCopy()
-	spec.Cluster, err = spec.Cluster.withDynamicDefaults(ctx)
-	return spec, err
-}
-
-// WithDefaults returns a copy of this Cluster with some empty
-// properties replaced by default values. Notably, it will try
-// to load the CABundle from the in-cluster configuraiton if it
-// is not explicitly set.
-func (c *Cluster) withDynamicDefaults(ctx context.Context) (_ Cluster, err error) {
-	cluster := *c.DeepCopy()
-	cluster.CABundle, err = cluster.getCABundle(ctx)
-	return cluster, err
-}
-
-func (c *Cluster) getCABundle(ctx context.Context) (*string, error) {
+func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 	if c.CABundle != nil {
-		// If CABundle is explicitly provided use that one. An empty string is
-		// a valid value here if the intention is to disable the in-cluster CABundle
-		// and using the HTTP client's default trust-store (CABundle) instead.
+		// If CABundle is explicitly provided, use that one. An empty
+		// string is a valid value here if the intention is to disable
+		// the in-cluster CABundle, and using the HTTP client's
+		// default trust-store (CABundle) instead.
 		return c.CABundle, nil
 	}
 
-	// Otherwise, fallback to the in-cluster configuration.
+	// Otherwise, fall back to the in-cluster configuration.
+	fs := filesystem.For(ctx)
+	exists, err := afero.Exists(fs, InClusterCABundlePath)
+	if err != nil || !exists {
+		return nil, err
+	}
 	binary, err := afero.ReadFile(filesystem.For(ctx), InClusterCABundlePath)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, err
 	}
 	encoded := base64.StdEncoding.EncodeToString(binary)

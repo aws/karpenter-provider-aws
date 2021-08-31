@@ -172,15 +172,7 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 	if err := c.KubeClient.Get(ctx, name, provisioner); err != nil {
 		return nil, err
 	}
-
-	// Hydrate provisioner with (dynamic) default values, which must not
-	//    be persisted into the original CRD as they might change with each reconciliation
-	//    loop iteration.
-	defaulted, err := provisioner.WithDynamicDefaults(ctx)
-	if err != nil {
-		return defaulted, fmt.Errorf("setting dynamic default values, %w", err)
-	}
-	return defaulted, nil
+	return provisioner, nil
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
