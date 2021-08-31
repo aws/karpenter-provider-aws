@@ -178,8 +178,5 @@ func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha3.Provisi
 	if ptr.StringValue(spec.Cluster.Name) == "" {
 		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
 	}
-	if spec.Cluster.HasTLSEndpoint() && ptr.StringValue(spec.Cluster.CABundle) == "" {
-		errs = errs.Also(apis.ErrMissingField("caBundle")).ViaField("cluster")
-	}
 	return errs
 }
