@@ -21,8 +21,8 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/packing"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
@@ -57,7 +57,7 @@ type Controller struct {
 	Filter        *Filter
 	Binder        *Binder
 	Scheduler     *scheduling.Scheduler
-	Packer        packing.Packer
+	Packer        binpacking.Packer
 	CloudProvider cloudprovider.CloudProvider
 	KubeClient    client.Client
 }
@@ -69,7 +69,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
 		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
-		Packer:        packing.NewPacker(),
+		Packer:        binpacking.NewPacker(),
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
 	}
@@ -114,7 +114,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 6. Binpack each group
-	packings := []*cloudprovider.Packing{}
+	packings := []*binpacking.Packing{}
 	for _, schedule := range schedules {
 		packings = append(packings, c.Packer.Pack(ctx, schedule, instanceTypes)...)
 	}
@@ -123,12 +123,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
-		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
+		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
 			node.Labels = functional.UnionStringMaps(
 				map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
 				packing.Constraints.Labels,
 			)
-			node.Spec.Taints = packing.Constraints.Taints
 			return c.Binder.Bind(ctx, node, packing.Pods)
 		})
 	})

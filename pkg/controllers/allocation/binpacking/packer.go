@@ -12,13 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package packing
+package binpacking
 
 import (
 	"context"
 	"math"
 	"sort"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
@@ -38,12 +39,21 @@ type packer struct{}
 
 // Packer helps pack the pods and calculates efficient placement on the instances.
 type Packer interface {
-	Pack(context.Context, *scheduling.Schedule, []cloudprovider.InstanceType) []*cloudprovider.Packing
+	Pack(context.Context, *scheduling.Schedule, []cloudprovider.InstanceType) []*Packing
 }
 
 // NewPacker returns a Packer implementation
 func NewPacker() Packer {
 	return &packer{}
+}
+
+// Packing is a binpacking solution of equivalently schedulable pods to a set of
+// viable instance types upon which they fit. All pods in the packing are
+// within the specified constraints (e.g., labels, taints).
+type Packing struct {
+	Pods                []*v1.Pod
+	InstanceTypeOptions []cloudprovider.InstanceType
+	Constraints         *v1alpha3.Constraints
 }
 
 // Pack returns the node packings for the provided pods. It computes a set of viable
@@ -52,12 +62,12 @@ func NewPacker() Packer {
 // Pods provided are all schedulable in the same zone as tightly as possible.
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*cloudprovider.Packing {
+func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: schedule.Pods}))
-	var packings []*cloudprovider.Packing
-	var packing *cloudprovider.Packing
+	var packings []*Packing
+	var packing *Packing
 	remainingPods := schedule.Pods
 	for len(remainingPods) > 0 {
 
@@ -77,7 +87,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) (*cloudprovider.Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
@@ -105,7 +115,7 @@ func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod,
 	if len(bestInstances) > MaxInstanceTypes {
 		bestInstances = bestInstances[:MaxInstanceTypes]
 	}
-	return &cloudprovider.Packing{Pods: bestPackedPods, Constraints: schedule.Constraints, InstanceTypeOptions: bestInstances}, remainingPods
+	return &Packing{Pods: bestPackedPods, Constraints: schedule.Constraints, InstanceTypeOptions: bestInstances}, remainingPods
 }
 
 func (*packer) podsMatch(first, second []*v1.Pod) bool {
