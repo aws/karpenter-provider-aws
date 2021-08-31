@@ -576,7 +576,6 @@ var _ = Describe("Allocation", func() {
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg==")},
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Endpoint: "https://test-cluster"},
 					{CABundle: ptr.String("dGVzdC1jbHVzdGVyCg=="), Name: ptr.String("test-cluster")},
-					{Endpoint: "https://test-cluster", Name: ptr.String("test-cluster")},
 					{Name: ptr.String("test-cluster")},
 				} {
 					provisioner.Spec.Cluster = cluster // undo any defaulting
