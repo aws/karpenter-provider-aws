@@ -97,6 +97,4 @@ func newConfigValidationController(ctx context.Context, cmw configmap.Watcher) *
 	)
 }
 
-func InjectContext(ctx context.Context) context.Context {
-	return ctx
-}
+func InjectContext(ctx context.Context) context.Context { return ctx }
