@@ -97,7 +97,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha3.
 	}
 
 	// 4. Ensure the launch template exists, or create it
-
 	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 		Cluster:        provisioner.Spec.Cluster,
 		UserData:       userData,
