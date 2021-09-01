@@ -32,9 +32,6 @@ const (
 // SetDefaults for the provisioner
 func (p *Provisioner) SetDefaults(ctx context.Context) {}
 
-// SetDefaults for the provisioner, cascading to all subspecs
-//func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}
-
 func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 	if c.CABundle != nil {
 		// If CABundle is explicitly provided, use that one. An empty
