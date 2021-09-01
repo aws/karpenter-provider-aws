@@ -95,7 +95,7 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 			result.packed = append(result.packed, pod)
 			continue
 		}
-		if p.isFull(pods[len(pods)-1]) {
+		if p.fits(pods[len(pods)-1]) {
 			result.unpacked = append(result.unpacked, pods[i:]...)
 			return result
 		}
@@ -109,12 +109,11 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	return result
 }
 
-// isFull checks if the reserved resources + the minimum resourced pod overflows the total resources available.
-func (p *Packable) isFull(minPod *v1.Pod) bool {
-	minResourceList := resources.RequestsForPods(minPod)
+// fits checks if the reserved resources + the pod overflows the total resources available.s
+func (p *Packable) fits(pod *v1.Pod) bool {
+	minResourceList := resources.RequestsForPods(pod)
 	for resourceName, totalQuantity := range p.total {
 		reservedQuantity := p.reserved[resourceName].DeepCopy()
-		// Add the minimum resourced pod to reserved
 		reservedQuantity.Add(minResourceList[resourceName])
 		if !totalQuantity.IsZero() && reservedQuantity.Cmp(totalQuantity) >= 0 {
 			return true
