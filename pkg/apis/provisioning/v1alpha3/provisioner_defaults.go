@@ -18,15 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 
-	"github.com/awslabs/karpenter/pkg/utils/filesystem"
-	"github.com/spf13/afero"
-)
-
-const (
-	// InClusterCABundlePath is normally available to Pods such as
-	// Karpenter, as described here:
-	// https://kubernetes.io/docs/tasks/access-application-cluster/access-cluster/#accessing-the-api-from-a-pod
-	InClusterCABundlePath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	"k8s.io/client-go/rest"
 )
 
 // SetDefaults for the provisioner
@@ -41,16 +33,14 @@ func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 		return c.CABundle, nil
 	}
 
-	// Otherwise, fall back to the in-cluster configuration.
-	fs := filesystem.For(ctx)
-	exists, err := afero.Exists(fs, InClusterCABundlePath)
-	if err != nil || !exists {
-		return nil, err
-	}
-	binary, err := afero.ReadFile(filesystem.For(ctx), InClusterCABundlePath)
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
-	encoded := base64.StdEncoding.EncodeToString(binary)
+	err = rest.LoadTLSFiles(config)
+	if err != nil {
+		return nil, err
+	}
+	encoded := base64.StdEncoding.EncodeToString(config.CAData)
 	return &encoded, nil
 }
