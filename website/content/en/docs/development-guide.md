@@ -13,7 +13,7 @@ The following tools are required for contributing to the Karpenter project.
 | [go](https://golang.org/dl/)                                       | v1.15.3+ | [Instructions](https://golang.org/doc/install)   |
 | [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) |          | `brew install kubectl` |
 | [helm](https://helm.sh/docs/intro/install/)                        |          | `brew install helm`    |
-| Other tools                                                        |          | `make toolchain` then ensure `PATH` contains Go workspace's `bin` |
+| Other tools                                                        |          | `make toolchain`       |
 
 ## Developing
 
