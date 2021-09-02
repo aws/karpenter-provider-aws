@@ -335,7 +335,7 @@ var _ = Describe("Allocation", func() {
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 			})
-			It("should allow a pod to override the launch template id and use the default launch template version", func() {
+			It("should allow a pod to override the launch template name and use the default launch template version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{LaunchTemplateNameLabel: randomdata.SillyName()}
 				ExpectCreated(env.Client, provisioner)
@@ -352,7 +352,7 @@ var _ = Describe("Allocation", func() {
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal(pods[0].Spec.NodeSelector[LaunchTemplateNameLabel]))
 				Expect(*launchTemplate.Version).To(Equal(DefaultLaunchTemplateVersion))
 			})
-			It("should allow a pod to override the launch template id and use the provisioner's launch template version", func() {
+			It("should allow a pod to override the launch template name and use the provisioner's launch template version", func() {
 				// Setup
 				provisioner.Spec.Labels = map[string]string{
 					LaunchTemplateNameLabel: randomdata.SillyName(),
@@ -372,7 +372,7 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("Subnets", func() {
-			It("should default to the clusters subnets", func() {
+			It("should default to the cluster's subnets", func() {
 				// Setup
 				provisioner.Spec.InstanceTypes = []string{"m5.large"} // limit instance type to simplify ConsistOf checks
 				ExpectCreated(env.Client, provisioner)

@@ -134,7 +134,6 @@ func (s *Scheduler) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, e
 	return pods, nil
 }
 
-
 // IsSchedulable returns true if the pod can schedule to the node
 func IsSchedulable(pod *v1.Pod, node *v1.Node) bool {
 	// Tolerate Taints

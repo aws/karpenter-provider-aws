@@ -33,6 +33,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 )
 
 const (
@@ -174,7 +175,7 @@ func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1
 
 // Validate cloud provider specific components of the cluster spec.
 func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha3.ProvisionerSpec) (errs *apis.FieldError) {
-	if spec.Cluster.Name == nil || len(*spec.Cluster.Name) == 0 {
+	if ptr.StringValue(spec.Cluster.Name) == "" {
 		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
 	}
 	return errs
