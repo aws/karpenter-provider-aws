@@ -18,7 +18,10 @@ import (
 	"context"
 	"encoding/base64"
 
-	controllerruntime "sigs.k8s.io/controller-runtime"
+	"github.com/awslabs/karpenter/pkg/utils/restconfig"
+	"k8s.io/client-go/transport"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 )
 
 // SetDefaults for the provisioner
@@ -33,7 +36,16 @@ func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 		return c.CABundle, nil
 	}
 
-	config := controllerruntime.GetConfigOrDie()
-	encoded := base64.StdEncoding.EncodeToString(config.CAData)
-	return &encoded, nil
+	restConfig := restconfig.Get(ctx)
+	if restConfig == nil {
+		return nil, nil
+	}
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		logging.FromContext(ctx).Infof("Unable to discover caBundle, loading transport config, %v", err)
+		return nil, err
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	logging.FromContext(ctx).Infof("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
