@@ -36,6 +36,10 @@ func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 		return c.CABundle, nil
 	}
 
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
 	restConfig := restconfig.Get(ctx)
 	if restConfig == nil {
 		return nil, nil
