@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 
-	"k8s.io/client-go/rest"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
 // SetDefaults for the provisioner
@@ -33,14 +33,7 @@ func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 		return c.CABundle, nil
 	}
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-	err = rest.LoadTLSFiles(config)
-	if err != nil {
-		return nil, err
-	}
+	config := controllerruntime.GetConfigOrDie()
 	encoded := base64.StdEncoding.EncodeToString(config.CAData)
 	return &encoded, nil
 }
