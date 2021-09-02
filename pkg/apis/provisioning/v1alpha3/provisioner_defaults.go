@@ -50,6 +50,10 @@ func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 		return nil, err
 	}
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
+		return nil, err
+	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
