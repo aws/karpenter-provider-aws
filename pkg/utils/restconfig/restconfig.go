@@ -6,18 +6,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type contextKey string
-
-const (
-	restKey contextKey = "restKey"
-)
+type contextKey struct{}
 
 func Inject(ctx context.Context, config *rest.Config) context.Context {
-	return context.WithValue(ctx, restKey, config)
+	return context.WithValue(ctx, contextKey{}, config)
 }
 
 func Get(ctx context.Context) *rest.Config {
-	retval := ctx.Value(restKey)
+	retval := ctx.Value(contextKey{})
 	if retval == nil {
 		return nil
 	}
