@@ -8,18 +8,12 @@ main() {
 }
 
 tools() {
-    # Before installing tools check that the environment has been configured.
-    if [[ -z "$GOPATH" ]]; then
-        echo "error: GOPATH is not set."
-        exit 1
-    fi
-
     cd tools
     go mod tidy
     GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
 
-    if ! echo "$PATH" | grep -q "$GOPATH/bin"; then
-        echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\$GOPATH/bin\"'."
+    if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
+        echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."
     fi
 }
 
