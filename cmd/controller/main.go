@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
+	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -66,10 +67,14 @@ func main() {
 	config := controllerruntime.GetConfigOrDie()
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
-	// 1. Setup logger and watch for changes to log level
+	// 1. Set up logger and watch for changes to log level
 	ctx := LoggingContextOrDie(config, clientSet)
 
-	// 2. Setup controller runtime controller
+	// 2. Put REST config in context, as it can be used by arbitrary
+	// parts of the code base
+	ctx = restconfig.Inject(ctx, config)
+
+	// 3. Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	manager := controllers.NewManagerOrDie(config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),

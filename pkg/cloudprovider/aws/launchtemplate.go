@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -35,18 +34,6 @@ import (
 
 const (
 	launchTemplateNameFormat = "Karpenter-%s-%s"
-	bottlerocketUserData     = `
-[settings.kubernetes]
-api-server = "{{.Cluster.Endpoint}}"
-{{if .Cluster.CABundle}}{{if len .Cluster.CABundle}}cluster-certificate = "{{.Cluster.CABundle}}"{{end}}{{end}}
-cluster-name = "{{if .Cluster.Name}}{{.Cluster.Name}}{{end}}"
-{{if .Constraints.Labels }}[settings.kubernetes.node-labels]{{ end }}
-{{ range $Key, $Value := .Constraints.Labels }}"{{ $Key }}" = "{{ $Value }}"
-{{ end }}
-{{if .Constraints.Taints }}[settings.kubernetes.node-taints]{{ end }}
-{{ range $Taint := .Constraints.Taints }}"{{ $Taint.Key }}" = "{{ $Taint.Value}}:{{ $Taint.Effect }}"
-{{ end }}
-`
 )
 
 type LaunchTemplateProvider struct {
@@ -103,10 +90,16 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha3.
 		return nil, err
 	}
 
+	// 3. Get userData for Node
+	userData, err := p.getUserData(ctx, provisioner, constraints)
+	if err != nil {
+		return nil, err
+	}
+
 	// 4. Ensure the launch template exists, or create it
 	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 		Cluster:        provisioner.Spec.Cluster,
-		UserData:       p.getUserData(provisioner, constraints),
+		UserData:       userData,
 		AMIID:          amiID,
 		SecurityGroups: securityGroups,
 	})
@@ -197,14 +190,28 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provis
 	return securityGroupIds, nil
 }
 
-func (p *LaunchTemplateProvider) getUserData(provisioner *v1alpha3.Provisioner, constraints *Constraints) string {
-	t := template.Must(template.New("userData").Parse(bottlerocketUserData))
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (string, error) {
 	var userData bytes.Buffer
-	if err := t.Execute(&userData, struct {
-		Constraints *Constraints
-		Cluster     v1alpha3.Cluster
-	}{constraints, provisioner.Spec.Cluster}); err != nil {
-		panic(fmt.Sprintf("Parsing user data from %v, %v, %s", provisioner, constraints, err.Error()))
+	userData.WriteString(fmt.Sprintf("[settings.kubernetes]\napi-server = \"%s\"\n", provisioner.Spec.Cluster.Endpoint))
+	userData.WriteString(fmt.Sprintf("cluster-name = \"%s\"\n", *provisioner.Spec.Cluster.Name))
+	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting user data, %w", err)
 	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes())
+	if caBundle != nil {
+		userData.WriteString(fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle))
+	}
+	if len(constraints.Labels) > 0 {
+		userData.WriteString("[settings.kubernetes.node-labels]\n")
+		for k, v := range constraints.Labels {
+			userData.WriteString(fmt.Sprintf("\"%s\" = \"%v\"\n", k, v))
+		}
+	}
+	if len(constraints.Taints) > 0 {
+		userData.WriteString("[settings.kubernetes.node-taints]\n")
+		for _, taint := range constraints.Taints {
+			userData.WriteString(fmt.Sprintf("\"%s\" = \"%s:%s\"\n", taint.Key, taint.Value, taint.Effect))
+		}
+	}
+	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }

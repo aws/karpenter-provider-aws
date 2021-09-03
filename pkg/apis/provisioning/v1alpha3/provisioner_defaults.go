@@ -17,65 +17,43 @@ package v1alpha3
 import (
 	"context"
 	"encoding/base64"
-	"errors"
-	"io/ioutil"
-	"os"
-)
 
-const (
-	InClusterCABundlePath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	"github.com/awslabs/karpenter/pkg/utils/restconfig"
+	"k8s.io/client-go/transport"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 )
 
 // SetDefaults for the provisioner
 func (p *Provisioner) SetDefaults(ctx context.Context) {}
 
-// SetDefaults for the provisioner, cascading to all subspecs
-func (s *ProvisionerSpec) SetDefaults(ctx context.Context) {}
-
-// WithDefaults returns a copy of this Provisioner with some empty/missing
-// properties replaced by (potentially dynamic) cloud provider agnostic default values.
-// The returned copy might be complemented by dynamic default values which
-// must not be hoisted (saved) into the original Provisioner CRD as those
-// default values might change over time (e.g. rolling upgrade of CABundle, ...).
-func (p *Provisioner) WithDynamicDefaults(ctx context.Context) (_ Provisioner, err error) {
-	provisioner := *p.DeepCopy()
-	provisioner.Spec, err = provisioner.Spec.withDynamicDefaults()
-	return provisioner, err
-}
-
-// WithDefaults returns a copy of this ProvisionerSpec with some empty
-// properties replaced by default values.
-func (s *ProvisionerSpec) withDynamicDefaults() (_ ProvisionerSpec, err error) {
-	spec := *s.DeepCopy()
-	spec.Cluster, err = spec.Cluster.withDynamicDefaults()
-	return spec, err
-}
-
-// WithDefaults returns a copy of this Cluster with some empty
-// properties replaced by default values. Notably, it will try
-// to load the CABundle from the in-cluster configuraiton if it
-// is not explicitly set.
-func (c *Cluster) withDynamicDefaults() (_ Cluster, err error) {
-	cluster := *c.DeepCopy()
-	cluster.CABundle, err = cluster.getCABundle()
-	return cluster, err
-}
-
-func (c *Cluster) getCABundle() (*string, error) {
+func (c *Cluster) GetCABundle(ctx context.Context) (*string, error) {
 	if c.CABundle != nil {
-		// If CABundle is explicitly provided use that one. An empty string is
-		// a valid value here if the intention is to disable the in-cluster CABundle
-		// and using the HTTP client's default trust-store (CABundle) instead.
+		// If CABundle is explicitly provided, use that one. An empty
+		// string is a valid value here if the intention is to disable
+		// the in-cluster CABundle, and using the HTTP client's
+		// default trust-store (CABundle) instead.
 		return c.CABundle, nil
 	}
-	// Otherwise, fallback to the in-cluster configuration.
-	binary, err := ioutil.ReadFile(InClusterCABundlePath)
+
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	restConfig := restconfig.Get(ctx)
+	if restConfig == nil {
+		return nil, nil
+	}
+	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading transport config, %v", err)
 		return nil, err
 	}
-	encoded := base64.StdEncoding.EncodeToString(binary)
-	return &encoded, nil
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
+		return nil, err
+	}
+	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
