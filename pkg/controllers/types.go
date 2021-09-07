@@ -16,10 +16,13 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const LivenessTimeout = 5 * time.Minute
 
 // Controller is an interface implemented by Karpenter custom resources.
 type Controller interface {

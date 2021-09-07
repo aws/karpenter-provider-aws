@@ -22,6 +22,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/test"
 
@@ -197,7 +198,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			node.Now = func() time.Time { return time.Now().Add(controllers.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(env.Client, n.Name)
@@ -219,7 +220,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			node.Now = func() time.Time { return time.Now().Add(controllers.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(env.Client, n.Name)

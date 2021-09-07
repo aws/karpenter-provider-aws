@@ -17,13 +17,17 @@ package termination
 import (
 	"context"
 	"fmt"
+	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+
 	"knative.dev/pkg/logging"
+	kptr "knative.dev/pkg/ptr"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -79,7 +83,14 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		// If there are still pods that need to finish evicting, don't finish drain
 		readyToTerminate = false
 		// Don't attempt to evict a pod that's already evicting
+
 		if !pod.DeletionTimestamp.IsZero() {
+			if time.Since(pod.DeletionTimestamp.Time) > controllers.LivenessTimeout {
+				logging.FromContext(ctx).Infof("DEBUGGING: terminating old pod")
+				if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
+					logging.FromContext(ctx).Debugf("Unable to force delete pod %s after GracePeriodSeconds", pod.Name)
+				}
+			}
 			continue
 		}
 		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
