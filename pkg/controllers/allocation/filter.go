@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -56,13 +57,13 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(ctx context.Context, p *v1.Pod, provisioner *v1alpha3.Provisioner) error {
+func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
 	return functional.ValidateAll(
-		func() error { return f.isUnschedulable(p) },
-		func() error { return f.matchesProvisioner(p, provisioner) },
-		func() error { return f.hasSupportedSchedulingConstraints(p) },
-		func() error { return pod.ToleratesTaints(&p.Spec, provisioner.Spec.Taints...) },
-		func() error { return f.withValidConstraints(ctx, p, provisioner) },
+		func() error { return f.isUnschedulable(pod) },
+		func() error { return f.matchesProvisioner(pod, provisioner) },
+		func() error { return f.hasSupportedSchedulingConstraints(pod) },
+		func() error { return scheduling.Tolerates(pod, provisioner.Spec.Taints...) },
+		func() error { return f.withValidConstraints(ctx, pod, provisioner) },
 	)
 }
 
@@ -80,8 +81,10 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 	if pod.Spec.Affinity != nil {
 		return fmt.Errorf("affinity is not supported")
 	}
-	if pod.Spec.TopologySpreadConstraints != nil {
-		return fmt.Errorf("topology spread constraints are not supported")
+	for _, constraint := range pod.Spec.TopologySpreadConstraints {
+		if supported := []string{v1.LabelHostname, v1.LabelTopologyZone}; !functional.ContainsString(supported, constraint.TopologyKey) {
+			return fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported)
+		}
 	}
 	return nil
 }
@@ -98,7 +101,7 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha3.Provision
 }
 
 func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
-	if err := provisioner.Spec.Constraints.WithOverrides(pod).Validate(ctx); err != nil {
+	if err := scheduling.NewConstraintsWithOverrides(&provisioner.Spec.Constraints, pod).Validate(ctx); err != nil {
 		return fmt.Errorf("invalid constraints, %w", err)
 	}
 	return nil

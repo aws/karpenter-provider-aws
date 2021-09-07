@@ -21,7 +21,7 @@ import (
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if len(options.zones) == 0 {
-		options.zones = []string{"test-zone-1", "test-zone-2"}
+		options.zones = []string{"test-zone-1", "test-zone-2", "test-zone-3"}
 	}
 	if len(options.architectures) == 0 {
 		options.architectures = []string{"amd64"}

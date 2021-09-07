@@ -27,11 +27,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 )
 
 const (
@@ -118,18 +120,19 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) chan error {
+
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) chan error {
 	return c.creationQueue.Add(func() error {
-		return c.create(ctx, provisioner, packing, callback)
+		return c.create(ctx, provisioner, constraints, instanceTypes, callback)
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, callback func(*v1.Node) error) error {
-	constraints := Constraints{*packing.Constraints}
+func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provisioner, v1alpha3constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
+	constraints := Constraints(*v1alpha3constraints)
 	// 1. Get Subnets and constrain by zones
 	subnets, err := c.subnetProvider.Get(ctx, provisioner, &constraints)
 	if err != nil {
-		return fmt.Errorf("getting zonal subnets, %w", err)
+		return fmt.Errorf("getting subnets, %w", err)
 	}
 	// 2. Get Launch Template
 	launchTemplate, err := c.launchTemplateProvider.Get(ctx, provisioner, &constraints)
@@ -137,7 +140,7 @@ func (c *CloudProvider) create(ctx context.Context, provisioner *v1alpha3.Provis
 		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
-	node, err := c.instanceProvider.Create(ctx, launchTemplate, packing.InstanceTypeOptions, subnets, constraints.GetCapacityType())
+	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, constraints.GetCapacityType())
 	if err != nil {
 		return fmt.Errorf("launching instance, %w", err)
 	}
@@ -148,19 +151,31 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	return c.instanceTypeProvider.Get(ctx)
 }
 
+func (c *CloudProvider) GetZones(ctx context.Context, provisioner *v1alpha3.Provisioner) ([]string, error) {
+	subnets, err := c.subnetProvider.Get(ctx, provisioner, &Constraints{})
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+	zones := []string{}
+	for _, subnet := range subnets {
+		zones = append(zones, aws.StringValue(subnet.AvailabilityZone))
+	}
+	return functional.UniqueStrings(zones), nil
+}
+
 func (c *CloudProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
 // Validate cloud provider specific components of the cluster spec
 func (c *CloudProvider) ValidateConstraints(ctx context.Context, constraints *v1alpha3.Constraints) (errs *apis.FieldError) {
-	awsConstraints := Constraints{*constraints}
+	awsConstraints := Constraints(*constraints)
 	return awsConstraints.Validate(ctx)
 }
 
 // Validate cloud provider specific components of the cluster spec.
 func (c *CloudProvider) ValidateSpec(ctx context.Context, spec *v1alpha3.ProvisionerSpec) (errs *apis.FieldError) {
-	if spec.Cluster.Name == nil || len(*spec.Cluster.Name) == 0 {
+	if ptr.StringValue(spec.Cluster.Name) == "" {
 		errs = errs.Also(apis.ErrMissingField("name")).ViaField("cluster")
 	}
 	return errs

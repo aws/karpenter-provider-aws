@@ -21,7 +21,9 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/packing"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
@@ -46,7 +48,7 @@ import (
 
 const (
 	maxBatchWindow   = 10 * time.Second
-	batchIdleTimeout = 2 * time.Second
+	batchIdleTimeout = 1 * time.Second
 )
 
 // Controller for the resource
@@ -54,8 +56,8 @@ type Controller struct {
 	Batcher       *Batcher
 	Filter        *Filter
 	Binder        *Binder
-	Constraints   *Constraints
-	Packer        packing.Packer
+	Scheduler     *scheduling.Scheduler
+	Packer        binpacking.Packer
 	CloudProvider cloudprovider.CloudProvider
 	KubeClient    client.Client
 }
@@ -66,8 +68,8 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		Filter:        &Filter{KubeClient: kubeClient},
 		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
-		Constraints:   &Constraints{KubeClient: kubeClient},
-		Packer:        packing.NewPacker(),
+		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
+		Packer:        binpacking.NewPacker(),
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
 	}
@@ -100,9 +102,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 4. Group by constraints
-	constraintGroups, err := c.Constraints.Group(ctx, provisioner, pods)
+	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
 	if err != nil {
-		return result.RetryIfError(ctx, fmt.Errorf("building constraint groups, %w", err))
+		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
 	}
 
 	// 5. Get Instance Types Options
@@ -112,18 +114,20 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 6. Binpack each group
-	packings := []*cloudprovider.Packing{}
-	for _, constraintGroup := range constraintGroups {
-		packings = append(packings, c.Packer.Pack(ctx, constraintGroup, instanceTypes)...)
+	packings := []*binpacking.Packing{}
+	for _, schedule := range schedules {
+		packings = append(packings, c.Packer.Pack(ctx, schedule, instanceTypes)...)
 	}
 
 	// 7. Create capacity
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
-		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing, func(node *v1.Node) error {
-			node.Labels = packing.Constraints.Labels
-			node.Spec.Taints = packing.Constraints.Taints
+		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
+			node.Labels = functional.UnionStringMaps(
+				map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
+				packing.Constraints.Labels,
+			)
 			return c.Binder.Bind(ctx, node, packing.Pods)
 		})
 	})
@@ -168,15 +172,7 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 	if err := c.KubeClient.Get(ctx, name, provisioner); err != nil {
 		return nil, err
 	}
-
-	// Hydrate provisioner with (dynamic) default values, which must not
-	//    be persisted into the original CRD as they might change with each reconciliation
-	//    loop iteration.
-	defaulted, err := provisioner.WithDynamicDefaults(ctx)
-	if err != nil {
-		return &defaulted, fmt.Errorf("setting dynamic default values, %w", err)
-	}
-	return &defaulted, nil
+	return provisioner, nil
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests

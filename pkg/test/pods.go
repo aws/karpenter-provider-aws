@@ -28,18 +28,19 @@ import (
 
 // PodOptions customizes a Pod.
 type PodOptions struct {
-	Name                 string
-	Namespace            string
-	OwnerReferences      []metav1.OwnerReference
-	Image                string
-	NodeName             string
-	ResourceRequirements v1.ResourceRequirements
-	NodeSelector         map[string]string
-	Tolerations          []v1.Toleration
-	Conditions           []v1.PodCondition
-	Annotations          map[string]string
-	Labels               map[string]string
-	Finalizers           []string
+	Name                      string
+	Namespace                 string
+	OwnerReferences           []metav1.OwnerReference
+	Image                     string
+	NodeName                  string
+	ResourceRequirements      v1.ResourceRequirements
+	NodeSelector              map[string]string
+	TopologySpreadConstraints []v1.TopologySpreadConstraint
+	Tolerations               []v1.Toleration
+	Conditions                []v1.PodCondition
+	Annotations               map[string]string
+	Labels                    map[string]string
+	Finalizers                []string
 }
 
 type PDBOptions struct {
@@ -78,8 +79,9 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Finalizers:      options.Finalizers,
 		},
 		Spec: v1.PodSpec{
-			NodeSelector: options.NodeSelector,
-			Tolerations:  options.Tolerations,
+			NodeSelector:              options.NodeSelector,
+			TopologySpreadConstraints: options.TopologySpreadConstraints,
+			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
 				Name:      options.Name,
 				Image:     options.Image,
@@ -91,8 +93,8 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	}
 }
 
-// PendingPod creates a test pod with a pending scheduling status condition
-func PendingPod(options ...PodOptions) *v1.Pod {
+// UnschedulablePod creates a test pod with a pending scheduling status condition
+func UnschedulablePod(options ...PodOptions) *v1.Pod {
 	return Pod(append(options, PodOptions{
 		Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
 	})...)

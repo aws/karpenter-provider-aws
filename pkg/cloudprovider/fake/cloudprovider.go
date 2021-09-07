@@ -32,14 +32,14 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, packing *cloudprovider.Packing, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, bind func(*v1.Node) error) chan error {
 	name := strings.ToLower(randomdata.SillyName())
 	// Pick first instance type option
-	instance := packing.InstanceTypeOptions[0]
+	instance := instanceTypes[0]
 	// Pick first zone
 	zones := instance.Zones()
-	if len(packing.Constraints.Zones) != 0 {
-		zones = functional.IntersectStringSlice(packing.Constraints.Zones, instance.Zones())
+	if len(constraints.Zones) != 0 {
+		zones = functional.IntersectStringSlice(constraints.Zones, instance.Zones())
 	}
 	zone := zones[0]
 
@@ -48,11 +48,11 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
-				Labels: packing.Constraints.Labels,
+				Labels: constraints.Labels,
 			},
 			Spec: v1.NodeSpec{
 				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-				Taints:     packing.Constraints.Taints,
+				Taints:     constraints.Taints,
 			},
 			Status: v1.NodeStatus{
 				NodeInfo: v1.NodeSystemInfo{
@@ -68,6 +68,10 @@ func (c *CloudProvider) Create(ctx context.Context, provisioner *v1alpha3.Provis
 		})
 	}()
 	return err
+}
+
+func (c *CloudProvider) GetZones(context context.Context, provisioner *v1alpha3.Provisioner) ([]string, error) {
+	return []string{"test-zone-1", "test-zone-2", "test-zone-3"}, nil
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

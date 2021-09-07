@@ -103,13 +103,7 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail for restricted labels", func() {
-			for _, label := range []string{
-				v1.LabelArchStable,
-				v1.LabelOSStable,
-				ProvisionerNameLabelKey,
-				v1.LabelTopologyZone,
-				v1.LabelInstanceTypeStable,
-			} {
+			for _, label := range RestrictedLabels {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
