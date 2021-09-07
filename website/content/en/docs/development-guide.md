@@ -39,6 +39,7 @@ make delete # Uninstall Karpenter
 ### Build and Deploy
 ```
 make dev                                  # build and test code
+kubectl create namespace karpenter        # create target namespace for deployment
 make apply                                # deploy local changes to cluster
 CLOUD_PROVIDER=<YOUR_PROVIDER> make apply # deploy for your cloud provider
 ```
