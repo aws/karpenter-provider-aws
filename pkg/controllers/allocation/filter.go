@@ -38,10 +38,6 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
 		return nil, fmt.Errorf("listing unscheduled pods, %w", err)
 	}
-	if len(pods.Items) == 0 {
-		return nil, nil
-	}
-
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
@@ -53,7 +49,6 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 		}
 		provisionable = append(provisionable, ptr.Pod(p))
 	}
-	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(provisionable))
 	return provisionable, nil
 }
 

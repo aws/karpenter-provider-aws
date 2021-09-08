@@ -77,7 +77,11 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 
 // Reconcile executes an allocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Allocation"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(fmt.Sprintf("allocation.provisioner/%s", req.Name)))
+	logging.FromContext(ctx).Infof("Starting provisioning loop")
+	defer func() {
+		logging.FromContext(ctx).Infof("Watching for pod events")
+	}()
 
 	// 1. Fetch provisioner
 	provisioner, err := c.provisionerFor(ctx, req.NamespacedName)
@@ -91,6 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Wait on a pod batch
+	logging.FromContext(ctx).Infof("Waiting to batch additional pods")
 	c.Batcher.Wait(provisioner)
 
 	// 3. Filter pods
@@ -98,6 +103,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		return result.RetryIfError(ctx, fmt.Errorf("filtering pods, %w", err))
 	}
+	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(pods))
 	if len(pods) == 0 {
 		return reconcile.Result{}, nil
 	}
