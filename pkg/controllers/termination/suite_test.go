@@ -25,7 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/test"
-	f "github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
@@ -262,7 +262,7 @@ func ExpectNotEvicted(c client.Client, e *termination.EvictionQueue, pods ...*v1
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
 	node := ExpectNodeExists(c, nodeName)
 	Expect(node.Spec.Unschedulable).To(BeTrue())
-	Expect(f.ContainsString(node.Finalizers, v1alpha3.TerminationFinalizer)).To(BeTrue())
+	Expect(functional.ContainsString(node.Finalizers, v1alpha3.TerminationFinalizer)).To(BeTrue())
 	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
 	return node
 }

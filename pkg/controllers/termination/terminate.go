@@ -69,7 +69,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	nonCritical := []*v1.Pod{}
 	critical := []*v1.Pod{}
-	readyToTerminate := true
+	terminable := true
 
 	for _, pod := range pods {
 		if val := pod.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
@@ -89,7 +89,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 				continue
 			}
 			// If there are still pods that need to finish evicting, wait to terminate
-			readyToTerminate = false
+			terminable = false
 		}
 		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
 			critical = append(critical, pod)
@@ -107,7 +107,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		t.EvictionQueue.Add(critical)
 		return false, nil
 	}
-	return readyToTerminate, nil
+	return terminable, nil
 }
 
 // terminate terminates the node then removes the finalizer to delete the node
