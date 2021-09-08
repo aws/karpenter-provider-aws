@@ -196,17 +196,18 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
 yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
 /etc/eks/bootstrap.sh %s \
-  --apiserver-endpoint %s`,
+    --container-runtime containerd \
+    --apiserver-endpoint %s`,
 		*provisioner.Spec.Cluster.Name,
 		provisioner.Spec.Cluster.Endpoint))
 
 	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
 	if err != nil {
-		return "", fmt.Errorf("getting user data, %w", err)
+		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
 	if caBundle != nil && len(*caBundle) > 0 {
 		userData.WriteString(fmt.Sprintf(`\
-  --b64-cluster-ca %s`,
+    --b64-cluster-ca %s`,
 			*provisioner.Spec.Cluster.CABundle))
 	}
 	var nodeLabelArgs bytes.Buffer
@@ -234,8 +235,9 @@ yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/li
 		}
 	}
 	kubeletExtraArgs := strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " ")
-	if len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf("--kubelet-extra-args '%s'", kubeletExtraArgs))
+	if len(kubeletExtraArgs) > 1 { // Join adds separator always
+		userData.WriteString(fmt.Sprintf(`\
+    --kubelet-extra-args '%s'`, kubeletExtraArgs))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
