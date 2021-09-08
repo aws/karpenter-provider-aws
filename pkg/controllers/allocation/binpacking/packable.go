@@ -44,12 +44,18 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 	packables := []*Packable{}
 	for _, instanceType := range instanceTypes {
 		packable := PackableFor(instanceType)
-		// 1. Filter viable instance types
+		// 1. First pass at filtering down to viable instance types;
+		// additional filtering will be done by later steps (such as
+		// removing instance types that obviously lack resources, such
+		// as GPUs, for the workload being presented).
 		if err := functional.ValidateAll(
 			func() error { return packable.validateZones(schedule) },
 			func() error { return packable.validateInstanceType(schedule) },
 			func() error { return packable.validateArchitecture(schedule) },
 			func() error { return packable.validateOperatingSystem(schedule) },
+			// Although this will remove instances that have GPUs when
+			// not required, removal of instance types that *lack*
+			// GPUs will be done later.
 			func() error { return packable.validateNvidiaGpus(schedule) },
 			func() error { return packable.validateAMDGpus(schedule) },
 			func() error { return packable.validateAWSNeurons(schedule) },
@@ -85,9 +91,9 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 	}
 }
 
-// Pack attempts to pack the pods into capacity, keeping track of previously
-// packed pods. If the capacity cannot fit the pod, they are set aside.
-// Pods must be sorted in descending order.
+// Pack attempts to pack the pods, keeping track of previously packed
+// ones. Any pods that cannot fit, including because of missing
+// resources on the packable, will be left unpacked.
 func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	result := &Result{}
 	for i, pod := range pods {
@@ -109,7 +115,11 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 	return result
 }
 
-// fits checks if the reserved resources + the pod overflows the total resources available.s
+// fits checks if adding the pod would overflow the total resources
+// available. It also ensures that instance types that could not
+// possibly satisfy the pod at all (for example if the pod needs
+// NvidiaGPUs and the instance type doesn't have any) will be
+// eliminated from consideration.
 func (p *Packable) fits(pod *v1.Pod) bool {
 	minResourceList := resources.RequestsForPods(pod)
 	for resourceName, totalQuantity := range p.total {

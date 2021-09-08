@@ -166,12 +166,9 @@ var _ = Describe("Allocation", func() {
 				for i := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
 					overrides = append(overrides, i.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
 				}
-				Expect(overrides).To(ContainElement(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("p3.8xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				))
+				for _, override := range overrides {
+					Expect(*override.InstanceType).To(Equal("p3.8xlarge"))
+				}
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
 				// Setup
@@ -211,12 +208,9 @@ var _ = Describe("Allocation", func() {
 				for input := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
 					overrides = append(overrides, input.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
 				}
-				Expect(overrides).To(ContainElement(
-					&ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String("inf1.6xlarge"),
-						SubnetId:     aws.String("test-subnet-1"),
-					},
-				))
+				for _, override := range overrides {
+					Expect(*override.InstanceType).To(Equal("inf1.6xlarge"))
+				}
 			})
 		})
 		Context("CapacityType", func() {
