@@ -154,8 +154,8 @@ func weightOf(instanceType cloudprovider.InstanceType) float64 {
 		float64(instanceType.CPU().Value()),
 		float64(instanceType.Memory().ScaledValue(resource.Giga)), // 1 gb = 1 cpu
 		float64(instanceType.NvidiaGPUs().Value())*1000,           // Heavily weigh gpus x 1000
-		float64(instanceType.AMDGPUs().Value())*1000,              // Heavily weigh gpus x1000
-		float64(instanceType.AWSNeurons().Value())*1000,           // Heavily weigh neurons x1000
+		float64(instanceType.AMDGPUs().Value())*1000,              // Heavily weigh gpus x 1000
+		float64(instanceType.AWSNeurons().Value())*1000,           // Heavily weigh neurons x 1000
 	)
 }
 
