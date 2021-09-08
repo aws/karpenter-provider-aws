@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -192,26 +193,49 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provis
 
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (string, error) {
 	var userData bytes.Buffer
-	userData.WriteString(fmt.Sprintf("[settings.kubernetes]\napi-server = \"%s\"\n", provisioner.Spec.Cluster.Endpoint))
-	userData.WriteString(fmt.Sprintf("cluster-name = \"%s\"\n", *provisioner.Spec.Cluster.Name))
+	userData.WriteString(fmt.Sprintf(`#!/bin/bash
+yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+/etc/eks/bootstrap.sh %s \
+  --apiserver-endpoint %s`,
+		*provisioner.Spec.Cluster.Name,
+		provisioner.Spec.Cluster.Endpoint))
+
 	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting user data, %w", err)
 	}
-	if caBundle != nil {
-		userData.WriteString(fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle))
+	if caBundle != nil && len(*caBundle) > 0 {
+		userData.WriteString(fmt.Sprintf(`\
+  --b64-cluster-ca %s`,
+			*provisioner.Spec.Cluster.CABundle))
 	}
+	var nodeLabelArgs bytes.Buffer
 	if len(constraints.Labels) > 0 {
-		userData.WriteString("[settings.kubernetes.node-labels]\n")
+		nodeLabelArgs.WriteString("--node-labels=")
+		first := true
 		for k, v := range constraints.Labels {
-			userData.WriteString(fmt.Sprintf("\"%s\" = \"%v\"\n", k, v))
+			if !first {
+				nodeLabelArgs.WriteString(",")
+			}
+			first = false
+			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v\n", k, v))
 		}
 	}
+	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
-		userData.WriteString("[settings.kubernetes.node-taints]\n")
+		nodeTaintsArgs.WriteString("--register-with-taints=")
+		first := true
 		for _, taint := range constraints.Taints {
-			userData.WriteString(fmt.Sprintf("\"%s\" = \"%s:%s\"\n", taint.Key, taint.Value, taint.Effect))
+			if !first {
+				nodeTaintsArgs.WriteString(",")
+			}
+			first = false
+			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
+	}
+	kubeletExtraArgs := strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " ")
+	if len(kubeletExtraArgs) > 0 {
+		userData.WriteString(fmt.Sprintf("--kubelet-extra-args '%s'", kubeletExtraArgs))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
