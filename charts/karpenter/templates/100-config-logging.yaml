@@ -31,3 +31,6 @@ data:
         "timeEncoder": "iso8601"
       }
     }
+  # Log level overrides
+  # loglevel.controller: info # debug
+  # loglevel.webhook: info # debug
