@@ -112,12 +112,12 @@ func InvertStringMap(stringMap map[string]string) map[string]string {
 }
 
 // MaxDuration returns the largest duration
-func MaxDuration(durations ...time.Duration) time.Duration {
-	var max time.Duration
+func MinDuration(durations ...time.Duration) time.Duration {
+	var min time.Duration
 	for _, duration := range durations {
-		if duration > max {
-			max = duration
+		if (duration < min && duration != 0) || (duration != 0 && min == 0) {
+			min = duration
 		}
 	}
-	return max
+	return min
 }

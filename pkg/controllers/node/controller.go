@@ -114,7 +114,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if errs != nil {
 		return result.RetryIfError(ctx, errs)
 	}
-	return reconcile.Result{RequeueAfter: functional.MaxDuration(backoffs...)}, nil
+	return reconcile.Result{RequeueAfter: functional.MinDuration(backoffs...)}, nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
