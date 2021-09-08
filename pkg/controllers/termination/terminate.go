@@ -21,7 +21,6 @@ import (
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -80,18 +79,17 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
 			continue
 		}
-		// If there are still pods that need to finish evicting, don't finish drain
-		readyToTerminate = false
 		// Don't attempt to evict a pod that's already evicting
-
 		if !pod.DeletionTimestamp.IsZero() {
-			if time.Since(pod.DeletionTimestamp.Time) > controllers.LivenessTimeout {
-				logging.FromContext(ctx).Infof("DEBUGGING: terminating old pod")
+			// If the kubelet cannot register a pod as deleted, we need to force delete the pod in order to terminate the node
+			if time.Since(pod.DeletionTimestamp.Time) > time.Duration(*pod.DeletionGracePeriodSeconds) {
 				if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
-					logging.FromContext(ctx).Debugf("Unable to force delete pod %s after GracePeriodSeconds", pod.Name)
+					return false, fmt.Errorf("force deleting pod %s for expired eviction", pod.Name)
 				}
+				continue
 			}
-			continue
+			// If there are still pods that need to finish evicting, wait to terminate
+			readyToTerminate = false
 		}
 		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
 			critical = append(critical, pod)
