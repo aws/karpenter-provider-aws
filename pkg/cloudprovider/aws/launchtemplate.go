@@ -206,9 +206,9 @@ yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/li
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
 	if caBundle != nil && len(*caBundle) > 0 {
-		userData.WriteString(fmt.Sprintf(`\
+		userData.WriteString(fmt.Sprintf(` \
     --b64-cluster-ca %s`,
-			*provisioner.Spec.Cluster.CABundle))
+			*caBundle))
 	}
 	var nodeLabelArgs bytes.Buffer
 	if len(constraints.Labels) > 0 {
@@ -236,7 +236,7 @@ yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/li
 	}
 	kubeletExtraArgs := strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " ")
 	if len(kubeletExtraArgs) > 1 { // Join adds separator always
-		userData.WriteString(fmt.Sprintf(`\
+		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
