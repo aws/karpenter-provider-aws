@@ -16,6 +16,8 @@ package result
 
 import (
 	"context"
+	"math"
+	"time"
 
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
@@ -28,4 +30,20 @@ func RetryIfError(ctx context.Context, err error) (reconcile.Result, error) {
 		logging.FromContext(ctx).Errorf("Failed reconciliation, %s", err.Error())
 	}
 	return reconcile.Result{Requeue: err != nil}, nil
+}
+
+// MinResult returns the result that wants to requeue the soonest
+func MinResult(results ...reconcile.Result) (result reconcile.Result) {
+	min := time.Duration(math.MaxInt64)
+	for _, r := range results {
+		if r.IsZero() {
+			continue
+		}
+		if r.RequeueAfter < min {
+			min = r.RequeueAfter
+			result.RequeueAfter = min
+			result.Requeue = true
+		}
+	}
+	return
 }

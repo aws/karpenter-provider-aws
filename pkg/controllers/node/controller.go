@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 
 	"go.uber.org/multierr"
@@ -88,7 +87,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// 3. Execute reconcilers
 	node := stored.DeepCopy()
-	var backoffs []time.Duration
+	var results []reconcile.Result
 	var errs error
 	for _, reconciler := range []interface {
 		Reconcile(context.Context, *v1alpha3.Provisioner, *v1.Node) (reconcile.Result, error)
@@ -101,7 +100,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	} {
 		res, err := reconciler.Reconcile(ctx, provisioner, node)
 		errs = multierr.Append(errs, err)
-		backoffs = append(backoffs, res.RequeueAfter)
+		results = append(results, res)
 	}
 
 	// 4. Patch any changes, regardless of errors
@@ -114,7 +113,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if errs != nil {
 		return result.RetryIfError(ctx, errs)
 	}
-	return reconcile.Result{RequeueAfter: functional.MinDuration(backoffs...)}, nil
+	return result.MinResult(results...), nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

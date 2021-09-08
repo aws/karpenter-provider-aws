@@ -16,7 +16,6 @@ package functional
 
 import (
 	"strings"
-	"time"
 
 	"go.uber.org/multierr"
 )
@@ -109,15 +108,4 @@ func InvertStringMap(stringMap map[string]string) map[string]string {
 		inverted[v] = k
 	}
 	return inverted
-}
-
-// MaxDuration returns the largest duration
-func MinDuration(durations ...time.Duration) time.Duration {
-	var min time.Duration
-	for _, duration := range durations {
-		if (duration < min && duration != 0) || (duration != 0 && min == 0) {
-			min = duration
-		}
-	}
-	return min
 }
