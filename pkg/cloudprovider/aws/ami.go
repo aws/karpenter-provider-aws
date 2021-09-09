@@ -50,13 +50,13 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
-	var architectureSuffix bytes.Buffer
+	var architectureSuffix string
 	if *constraints.Architecture == v1alpha3.ArchitectureArm64 {
-		architectureSuffix.WriteString("-arm64")
+		architectureSuffix = "-arm64"
 	}
 	// TODO: support for the "amazon-linux-2-gpu" AMI for nvidia use
 	// cases
-	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix.String())
+	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)
 	if id, ok := p.cache.Get(name); ok {
 		return id.(string), nil
 	}
