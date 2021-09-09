@@ -32,5 +32,5 @@ data:
       }
     }
   # Log level overrides
-  loglevel.controller: info # debug
-  loglevel.webhook: info # debug
+  # loglevel.controller: info # debug
+  # loglevel.webhook: info # debug
