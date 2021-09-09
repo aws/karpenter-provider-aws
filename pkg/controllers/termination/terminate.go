@@ -107,7 +107,10 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.TerminationFinalizer)
-	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil && !errors.IsNotFound(err) {
+	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}
 	logging.FromContext(ctx).Infof("Deleted node %s", node.Name)
