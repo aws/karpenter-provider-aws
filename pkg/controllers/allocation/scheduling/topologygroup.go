@@ -53,7 +53,7 @@ func (t *TopologyGroup) Increment(domain string) {
 // NextDomain chooses a domain that minimizes skew and increments its count
 func (t *TopologyGroup) NextDomain() string {
 	minDomain := ""
-	minCount := math.MaxInt64
+	minCount := math.MaxInt32
 	for domain, count := range t.spread {
 		if count <= minCount {
 			minDomain = domain
