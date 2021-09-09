@@ -219,7 +219,7 @@ yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/li
 				nodeLabelArgs.WriteString(",")
 			}
 			first = false
-			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v\n", k, v))
+			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, v))
 		}
 	}
 	var nodeTaintsArgs bytes.Buffer
@@ -234,7 +234,7 @@ yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/li
 			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	kubeletExtraArgs := strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " ")
+	kubeletExtraArgs := strings.TrimRight(strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " "), " ")
 	if len(kubeletExtraArgs) > 1 { // Join adds separator always
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))

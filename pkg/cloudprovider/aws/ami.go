@@ -15,7 +15,6 @@ limitations under the License.
 package aws
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
