@@ -104,13 +104,13 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	if err := t.CloudProvider.Terminate(ctx, node); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Terminated instance %s", node.Name)
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
 	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.TerminationFinalizer)
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
 	}
+	logging.FromContext(ctx).Infof("Deleted node %s", node.Name)
 	return nil
 }
 
