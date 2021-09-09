@@ -219,7 +219,7 @@ var _ = Describe("Termination", func() {
 
 			ExpectDeleted(env.Client, pods[0])
 
-			// Expect node to exist and be draining, but not deleted
+			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)

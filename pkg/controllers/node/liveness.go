@@ -27,12 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const LivenessTimeout = 5 * time.Minute
+
 // Liveness is a subreconciler that deletes nodes if its determined to be unrecoverable
 type Liveness struct {
 	kubeClient client.Client
 }
-
-const LivenessTimeout = 5 * time.Minute
 
 // Reconcile reconciles the node
 func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {

@@ -82,7 +82,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		// Don't attempt to evict a pod that's already evicting
 		if !pod.DeletionTimestamp.IsZero() {
 			// If the kubelet cannot register a pod as deleted, we need to force delete the pod in order to terminate the node
-			if time.Since(pod.DeletionTimestamp.Time) > time.Duration(*pod.DeletionGracePeriodSeconds) {
+			if time.Since(pod.DeletionTimestamp.Time) > time.Duration(ptr.Int64Value(pod.DeletionGracePeriodSeconds))*time.Second {
 				if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
 					return false, fmt.Errorf("force deleting pod %s for expired eviction", pod.Name)
 				}
