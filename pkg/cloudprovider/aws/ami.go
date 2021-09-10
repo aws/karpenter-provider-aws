@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -48,7 +49,12 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *Constraints) (string
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
-	name := fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, KubeToAWSArchitectures[*constraints.Architecture])
+	var architectureSuffix string
+	if *constraints.Architecture == v1alpha3.ArchitectureArm64 {
+		architectureSuffix = "-arm64"
+	}
+	// TODO: support for the "amazon-linux-2-gpu" AMI for nvidia use cases
+	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)
 	if id, ok := p.cache.Get(name); ok {
 		return id.(string), nil
 	}
