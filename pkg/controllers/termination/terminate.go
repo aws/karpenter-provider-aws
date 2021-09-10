@@ -67,47 +67,28 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 
 	// 2. Separate pods as non-critical and critical
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
-	nonCritical := []*v1.Pod{}
-	critical := []*v1.Pod{}
-	terminable := true
-
 	for _, pod := range pods {
 		if val := pod.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
 			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, pod.Name)
 			return false, nil
 		}
-		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
-			continue
-		}
-		// Don't attempt to evict a pod that's already evicting
-		if !pod.DeletionTimestamp.IsZero() {
-			// If the kubelet cannot register a pod as deleted, we need to force delete the pod in order to terminate the node
-			if time.Since(pod.DeletionTimestamp.Time) > time.Duration(ptr.Int64Value(pod.DeletionGracePeriodSeconds))*time.Second {
-				if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
-					return false, fmt.Errorf("force deleting pod %s for expired eviction", pod.Name)
-				}
-				continue
+	}
+
+	// 3. Force delete pods that the kubelet can't mark terminated
+	for _, pod := range pods {
+		if IsStuckTerminating(pod) {
+			if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
+				return false, fmt.Errorf("force deleting pod %s for expired eviction", pod.Name)
 			}
-			// If there are still pods that need to finish evicting, wait to terminate
-			terminable = false
-		}
-		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
-			critical = append(critical, pod)
-		} else {
-			nonCritical = append(nonCritical, pod)
 		}
 	}
-	// 3. Evict non-critical pods
-	if len(nonCritical) != 0 {
-		t.EvictionQueue.Add(nonCritical)
-		return false, nil
-	}
-	// 4. Evict critical pods once all non-critical pods are evicted
-	if len(critical) != 0 {
-		t.EvictionQueue.Add(critical)
-		return false, nil
-	}
-	return terminable, nil
+
+	// 4. Get and evict pods
+	evictable := t.getEvictablePods(pods)
+	t.evict(ctx, evictable)
+
+	// 5. If nothing to evict, success
+	return len(evictable) == 0, nil
 }
 
 // terminate terminates the node then removes the finalizer to delete the node
@@ -133,4 +114,44 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 		return nil, fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 	}
 	return ptr.PodListToSlice(pods), nil
+}
+
+func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
+	evictable := []*v1.Pod{}
+	for _, pod := range pods {
+		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
+			continue
+		}
+		evictable = append(evictable, pod)
+	}
+	return evictable
+}
+
+func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
+	// 1. Prioritize noncritical pods https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
+	critical := []*v1.Pod{}
+	nonCritical := []*v1.Pod{}
+	for _, pod := range pods {
+		if !pod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if pod.Spec.PriorityClassName != "system-cluster-critical" && pod.Spec.PriorityClassName != "system-node-critical" {
+			critical = append(critical, pod)
+		} else {
+			nonCritical = append(nonCritical, pod)
+		}
+	}
+	// 2. Evict critical pods if all noncritical are evicted
+	if len(nonCritical) == 0 {
+		t.EvictionQueue.Add(critical)
+	} else {
+		t.EvictionQueue.Add(nonCritical)
+	}
+}
+
+func IsStuckTerminating(pod *v1.Pod) bool {
+	if pod.DeletionTimestamp.IsZero() {
+		return false
+	}
+	return time.Since(pod.DeletionTimestamp.Time) > time.Duration(ptr.Int64Value(pod.DeletionGracePeriodSeconds))*time.Second
 }
