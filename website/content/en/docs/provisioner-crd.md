@@ -34,8 +34,8 @@ spec:
   labels:
     ##### AWS Specific #####
     # Constrain node launch template ('$Default' version always used).
-    # If not specified, Karpenter will generate a Bottlerocket-
-    # based launch template dynamically.
+    # If not specified, Karpenter will generate a default launch template,
+	# dynamically.
     node.k8s.aws/launch-template-name: "my-launch-template-name"
     # Constrain node capacity type, default="on-demand"
     node.k8s.aws/capacity-type: "spot"

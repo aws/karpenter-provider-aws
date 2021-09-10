@@ -219,11 +219,10 @@ spec:
 ```
 
 Then it could ignore that pending pod since there is no way it could
-possibly work. Another possiblity is that it could ignore the launch
-template `node.k8s.aws/launch-template-name` for that pod and revert to
-the default dynamically-generated
-([Bottlerocket](https://aws.amazon.com/bottlerocket/)) launch template
-that would work for that architecture.
+possibly work. Another possibility is that it could ignore the launch
+template `node.k8s.aws/launch-template-name` for that pod and revert
+to the default, dynamically-generated launch template that would work
+for that architecture.
 
 
 ## Recommendation
