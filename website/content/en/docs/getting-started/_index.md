@@ -52,12 +52,28 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 ### Create a Cluster
 
-Create a cluster with `eksctl`. The [example configuration](eksctl.yaml) file specifies a basic cluster (name, region), and an IAM role for Karpenter to use.
+Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
 ```bash
-curl -fsSL https://karpenter.sh/docs/getting-started/eksctl.yaml \
-  | envsubst \
-  | eksctl create cluster -f -
+cat <<EOF > cluster.yaml
+---
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: ${CLUSTER_NAME}
+  region: ${AWS_DEFAULT_REGION}
+  version: "1.20"
+managedNodeGroups:
+  - instanceType: m5.large
+    amiFamily: AmazonLinux2
+    name: ${CLUSTER_NAME}-ng
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 10
+iam:
+  withOIDC: true
+EOF
+eksctl create cluster -f cluster.yaml
 ```
 
 This guide uses a self-managed node group to host Karpenter.
