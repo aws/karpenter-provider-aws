@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -36,7 +37,7 @@ type Liveness struct {
 
 // Reconcile reconciles the node
 func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha3.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
+	if injectabletime.Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}
 	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady)

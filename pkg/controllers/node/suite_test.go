@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/test"
+	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -66,7 +67,7 @@ var _ = Describe("Controller", func() {
 	})
 
 	AfterEach(func() {
-		node.Now = time.Now
+		injectabletime.Now = time.Now
 		ExpectCleanedUp(env.Client)
 	})
 
@@ -108,7 +109,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing
-			node.Now = func() time.Time {
+			injectabletime.Now = func() time.Time {
 				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
 			}
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
@@ -197,7 +198,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(env.Client, n.Name)
@@ -219,7 +220,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			node.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(env.Client, n.Name)
