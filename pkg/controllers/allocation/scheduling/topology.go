@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -37,7 +37,7 @@ type Topology struct {
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
-func (t *Topology) Inject(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) error {
+func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
 	topologyGroups, err := t.getTopologyGroups(ctx, pods)
 	if err != nil {
@@ -79,7 +79,7 @@ func (t *Topology) getTopologyGroups(ctx context.Context, pods []*v1.Pod) ([]*To
 	return topologyGroups, nil
 }
 
-func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha3.Constraints, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(ctx, topologyGroup)
@@ -110,7 +110,7 @@ func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *T
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha3.Constraints, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
 	// 1. Get viable domains
 	zones, err := t.cloudProvider.GetZones(ctx, constraints)
 	if err != nil {

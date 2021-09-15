@@ -16,7 +16,7 @@ spec:
     singular: provisioner
   scope: Cluster
   versions:
-  - name: v1alpha3
+  - name: v1alpha4
     schema:
       openAPIV3Schema:
         description: Provisioner is the Schema for the Provisioners API

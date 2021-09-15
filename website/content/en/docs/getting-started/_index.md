@@ -170,7 +170,7 @@ Review the [provsioner CRD](/docs/provisioner-crd) for more information. For exa
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: karpenter.sh/v1alpha3
+apiVersion: karpenter.sh/v1alpha4
 kind: Provisioner
 metadata:
   name: default

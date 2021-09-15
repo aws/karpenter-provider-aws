@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -61,11 +61,11 @@ const (
 
 var (
 	SupportedOperatingSystems = []string{
-		v1alpha3.OperatingSystemLinux,
+		v1alpha4.OperatingSystemLinux,
 	}
 	SupportedArchitectures = []string{
-		v1alpha3.ArchitectureAmd64,
-		v1alpha3.ArchitectureArm64,
+		v1alpha4.ArchitectureAmd64,
+		v1alpha4.ArchitectureArm64,
 	}
 )
 
@@ -122,14 +122,14 @@ func withUserAgent(sess *session.Session) *session.Session {
 
 // Create a node given the constraints.
 
-func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) chan error {
 	return c.creationQueue.Add(func() error {
 		return c.create(ctx, constraints, instanceTypes, callback)
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, v1alpha3constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
-	constraints, err := v1alpha1.NewConstraints(v1alpha3constraints)
+func (c *CloudProvider) create(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
+	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
 	if err != nil {
 		return err
 	}
@@ -155,8 +155,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	return c.instanceTypeProvider.Get(ctx)
 }
 
-func (c *CloudProvider) GetZones(ctx context.Context, v1alpha3constraints *v1alpha3.Constraints) ([]string, error) {
-	constraints, err := v1alpha1.NewConstraints(v1alpha3constraints)
+func (c *CloudProvider) GetZones(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) ([]string, error) {
+	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +176,8 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate the constraints
-func (c *CloudProvider) Validate(ctx context.Context, v1alpha3constraints *v1alpha3.Constraints) (errs *apis.FieldError) {
-	constraints, err := v1alpha1.NewConstraints(v1alpha3constraints)
+func (c *CloudProvider) Validate(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) (errs *apis.FieldError) {
+	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
@@ -185,9 +185,9 @@ func (c *CloudProvider) Validate(ctx context.Context, v1alpha3constraints *v1alp
 }
 
 // Default the constraints
-func (c *CloudProvider) Default(ctx context.Context, v1alpha3constraints *v1alpha3.Constraints) {
-	constraints, _ := v1alpha1.NewConstraints(v1alpha3constraints)
+func (c *CloudProvider) Default(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) {
+	constraints, _ := v1alpha1.NewConstraints(v1alpha4constraints)
 	constraints.Default(ctx)
 	logging.FromContext(context.Background()).Infof("serializing %s, %s", constraints.APIVersion, constraints.Kind)
-	v1alpha3constraints.Provider.Raw, _ = json.Marshal(constraints.AWS)
+	v1alpha4constraints.Provider.Raw, _ = json.Marshal(constraints.AWS)
 }

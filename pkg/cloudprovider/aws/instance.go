@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/logging"
@@ -203,7 +203,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					},
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    aws.StringValue(instance.Architecture),
-						OperatingSystem: v1alpha3.OperatingSystemLinux,
+						OperatingSystem: v1alpha4.OperatingSystemLinux,
 					},
 				},
 			}, nil

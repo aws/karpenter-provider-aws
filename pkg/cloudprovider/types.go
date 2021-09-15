@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -31,20 +31,20 @@ type CloudProvider interface {
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request. This API
 	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha3.Constraints, []InstanceType, func(*v1.Node) error) chan error
+	Create(context.Context, *v1alpha4.Constraints, []InstanceType, func(*v1.Node) error) chan error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// GetZones returns the zones supported by the cloud provider and the specified provisioner
-	GetZones(context.Context, *v1alpha3.Constraints) ([]string, error)
+	GetZones(context.Context, *v1alpha4.Constraints) ([]string, error)
 	// Validate is a hook for additional validation logic. This method is not
 	// only called during Provisioner CRD validation, it is also used at
 	// provisioning time to ensure that pods are provisionable.
-	Validate(context.Context, *v1alpha3.Constraints) *apis.FieldError
+	Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError
 	// Default is a hook for additional defaulting logic specific.
-	Default(context.Context, *v1alpha3.Constraints)
+	Default(context.Context, *v1alpha4.Constraints)
 }
 
 // Options are injected into cloud providers' factories

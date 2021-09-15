@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
@@ -98,7 +98,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Allocation", func() {
-	var provisioner *v1alpha3.Provisioner
+	var provisioner *v1alpha4.Provisioner
 
 	BeforeEach(func() {
 		awsextensions, err := json.Marshal(&v1alpha1.AWS{
@@ -108,12 +108,12 @@ var _ = Describe("Allocation", func() {
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
-		provisioner = &v1alpha3.Provisioner{
+		provisioner = &v1alpha4.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: v1alpha3.DefaultProvisioner.Name,
+				Name: v1alpha4.DefaultProvisioner.Name,
 			},
-			Spec: v1alpha3.ProvisionerSpec{
-				Constraints: v1alpha3.Constraints{
+			Spec: v1alpha4.ProvisionerSpec{
+				Constraints: v1alpha4.Constraints{
 					Provider: &runtime.RawExtension{
 						Raw: awsextensions,
 					},
@@ -632,11 +632,11 @@ var _ = Describe("Allocation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support AMD", func() {
-				provisioner.Spec.Architectures = []string{v1alpha3.ArchitectureAmd64}
+				provisioner.Spec.Architectures = []string{v1alpha4.ArchitectureAmd64}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			It("should support ARM", func() {
-				provisioner.Spec.Architectures = []string{v1alpha3.ArchitectureArm64}
+				provisioner.Spec.Architectures = []string{v1alpha4.ArchitectureArm64}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})
@@ -649,7 +649,7 @@ var _ = Describe("Allocation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should support linux", func() {
-				provisioner.Spec.OperatingSystems = []string{v1alpha3.OperatingSystemLinux}
+				provisioner.Spec.OperatingSystems = []string{v1alpha4.OperatingSystemLinux}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 		})

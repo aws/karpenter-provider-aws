@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
@@ -39,7 +39,7 @@ import (
 )
 
 var ctx context.Context
-var provisioner *v1alpha3.Provisioner
+var provisioner *v1alpha4.Provisioner
 var controller *allocation.Controller
 var env *test.Environment
 
@@ -71,9 +71,9 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provisioner = &v1alpha3.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name},
-		Spec: v1alpha3.ProvisionerSpec{},
+	provisioner = &v1alpha4.Provisioner{
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha4.DefaultProvisioner.Name},
+		Spec: v1alpha4.ProvisionerSpec{},
 	}
 })
 

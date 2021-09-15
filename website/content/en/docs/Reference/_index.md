@@ -6,20 +6,20 @@ weight: 70
 <p>Packages:</p>
 <ul>
 <li>
-<a href="#karpenter.sh%2fv1alpha3">karpenter.sh/v1alpha3</a>
+<a href="#karpenter.sh%2fv1alpha4">karpenter.sh/v1alpha4</a>
 </li>
 </ul>
-<h2 id="karpenter.sh/v1alpha3">karpenter.sh/v1alpha3</h2>
+<h2 id="karpenter.sh/v1alpha4">karpenter.sh/v1alpha4</h2>
 <p>
-<p>Package v1alpha3 contains API Schema definitions for the v1alpha3 API group</p>
+<p>Package v1alpha4 contains API Schema definitions for the v1alpha4 API group</p>
 </p>
 Resource Types:
 <ul></ul>
-<h3 id="karpenter.sh/v1alpha3.Constraints">Constraints
+<h3 id="karpenter.sh/v1alpha4.Constraints">Constraints
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#karpenter.sh/v1alpha4.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
 <p>Constraints are applied to all nodes created by the provisioner. They can be
@@ -125,7 +125,7 @@ k8s.io/apimachinery/pkg/runtime.RawExtension
 </tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.Provisioner">Provisioner
+<h3 id="karpenter.sh/v1alpha4.Provisioner">Provisioner
 </h3>
 <p>
 <p>Provisioner is the Schema for the Provisioners API</p>
@@ -156,7 +156,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">
+<a href="#karpenter.sh/v1alpha4.ProvisionerSpec">
 ProvisionerSpec
 </a>
 </em>
@@ -169,7 +169,7 @@ ProvisionerSpec
 <td>
 <code>Constraints</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.Constraints">
+<a href="#karpenter.sh/v1alpha4.Constraints">
 Constraints
 </a>
 </em>
@@ -220,7 +220,7 @@ memory leak protection, and disruption testing.</p>
 <td>
 <code>status</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerStatus">
+<a href="#karpenter.sh/v1alpha4.ProvisionerStatus">
 ProvisionerStatus
 </a>
 </em>
@@ -230,11 +230,11 @@ ProvisionerStatus
 </tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec
+<h3 id="karpenter.sh/v1alpha4.ProvisionerSpec">ProvisionerSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha4.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -259,7 +259,7 @@ pod.spec.nodeSelector[&ldquo;karpenter.sh/provisioner-name&rdquo;]=$PROVISIONER_
 <td>
 <code>Constraints</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.Constraints">
+<a href="#karpenter.sh/v1alpha4.Constraints">
 Constraints
 </a>
 </em>
@@ -305,11 +305,11 @@ memory leak protection, and disruption testing.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.ProvisionerStatus">ProvisionerStatus
+<h3 id="karpenter.sh/v1alpha4.ProvisionerStatus">ProvisionerStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha4.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerStatus defines the observed state of Provisioner</p>

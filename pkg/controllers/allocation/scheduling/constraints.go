@@ -15,13 +15,13 @@ limitations under the License.
 package scheduling
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 )
 
-func NewConstraintsWithOverrides(constraints *v1alpha3.Constraints, pod *v1.Pod) *v1alpha3.Constraints {
-	return &v1alpha3.Constraints{
+func NewConstraintsWithOverrides(constraints *v1alpha4.Constraints, pod *v1.Pod) *v1alpha4.Constraints {
+	return &v1alpha4.Constraints{
 		Provider:         constraints.Provider,
 		Labels:           functional.UnionStringMaps(constraints.Labels, pod.Spec.NodeSelector),
 		Taints:           overrideTaints(constraints.Taints, pod),

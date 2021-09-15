@@ -357,8 +357,8 @@ Notes:
     - [El] CAPI picking templates - creat machine set - in there u define template you want to use ahead of time you already create infra tempalte - might have pre-created, when I create machineset, pick template I'd want ot use, folow model of replication controller
     - [El] Each individual provider has its own template
     - [ET] How do you pick one template over another?
-    - CAPI references re: MachineTemplate for AWS: [awsmachine_types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha3/awsmachine_types.go#L51)
-[types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha3/types.go#L36)
+    - CAPI references re: MachineTemplate for AWS: [awsmachine_types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha4/awsmachine_types.go#L51)
+[types](https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/76d4b0fea950c2ccbd8505d87ba0f2f00d95ddad/api/v1alpha4/types.go#L36)
 - [PG] We shouldn't validate pods with webhook and just log in Karpenter, to keep the same experience as native Kubernetes
 - [El] Where do we stand with a Cluster API Cloud Provider for Karpenter?
   - [ET] Multiple ways for this to work

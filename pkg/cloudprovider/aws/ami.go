@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
@@ -50,12 +50,12 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
-	architecture := v1alpha3.ArchitectureAmd64 // default to amd
+	architecture := v1alpha4.ArchitectureAmd64 // default to amd
 	if len(constraints.Architectures) > 0 {
 		architecture = constraints.Architectures[0] // select the first one if multiple supported
 	}
 	var architectureSuffix string
-	if architecture == v1alpha3.ArchitectureArm64 {
+	if architecture == v1alpha4.ArchitectureArm64 {
 		architectureSuffix = "-arm64"
 	}
 	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)

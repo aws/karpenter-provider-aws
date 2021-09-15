@@ -12,12 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha3 contains API Schema definitions for the v1alpha3 API group
+// Package v1alpha4 contains API Schema definitions for the v1alpha4 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=karpenter.sh
-package v1alpha3
+package v1alpha4
 
 import (
 	"context"
@@ -67,7 +67,7 @@ var (
 var (
 	Group              = "karpenter.sh"
 	ExtensionsGroup    = "extensions." + Group
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha3"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha4"}
 	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 		scheme.AddKnownTypes(SchemeGroupVersion,
 			&Provisioner{},

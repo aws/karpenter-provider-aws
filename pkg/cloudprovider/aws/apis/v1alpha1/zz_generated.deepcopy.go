@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -102,7 +102,7 @@ func (in *Constraints) DeepCopyInto(out *Constraints) {
 	*out = *in
 	if in.Constraints != nil {
 		in, out := &in.Constraints, &out.Constraints
-		*out = new(v1alpha3.Constraints)
+		*out = new(v1alpha4.Constraints)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.AWS != nil {

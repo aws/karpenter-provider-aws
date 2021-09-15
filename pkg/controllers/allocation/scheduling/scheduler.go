@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
@@ -54,7 +54,7 @@ type Scheduler struct {
 }
 
 type Schedule struct {
-	*v1alpha3.Constraints
+	*v1alpha4.Constraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
 	// Daemons are a set of daemons that will schedule to the node; used for overhead.
@@ -71,7 +71,7 @@ func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.C
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	startTime := time.Now()
 	schedules, scheduleErr := s.solve(ctx, &provisioner.Spec.Constraints, pods)
 	durationSeconds := time.Since(startTime).Seconds()
@@ -100,7 +100,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 	return schedules, scheduleErr
 }
 
-func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// 1. Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
@@ -128,7 +128,7 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha3.Constraints
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain compatible scheduling constarints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha3.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1alpha4
 
 import (
 	v1 "k8s.io/api/core/v1"

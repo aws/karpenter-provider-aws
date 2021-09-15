@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha3 contains API Schema definitions for the v1alpha3 API group
+// Package v1alpha4 contains API Schema definitions for the v1alpha4 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
@@ -23,11 +23,11 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func NewConstraints(constraints *v1alpha3.Constraints) (*Constraints, error) {
+func NewConstraints(constraints *v1alpha4.Constraints) (*Constraints, error) {
 	aws := &AWS{}
 	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
 	if err != nil {
@@ -42,7 +42,7 @@ func NewConstraints(constraints *v1alpha3.Constraints) (*Constraints, error) {
 // Constraints are used to specify node creation parameters. Both types are
 // embedded to enforce compile time checks against field conflicts.
 type Constraints struct {
-	*v1alpha3.Constraints
+	*v1alpha4.Constraints
 	*AWS
 }
 

@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 
@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha3.Constraints, instanceTypes []cloudprovider.InstanceType, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, bind func(*v1.Node) error) chan error {
 	name := strings.ToLower(randomdata.SillyName())
 	// Pick first instance type option
 	instance := instanceTypes[0]
@@ -70,7 +70,7 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha3.Constr
 	return err
 }
 
-func (c *CloudProvider) GetZones(context context.Context, constraints *v1alpha3.Constraints) ([]string, error) {
+func (c *CloudProvider) GetZones(context context.Context, constraints *v1alpha4.Constraints) ([]string, error) {
 	return []string{"test-zone-1", "test-zone-2", "test-zone-3"}, nil
 }
 
@@ -106,9 +106,9 @@ func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 	return nil
 }
 
-func (c *CloudProvider) Validate(context.Context, *v1alpha3.Constraints) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError {
 	return nil
 }
 
-func (c *CloudProvider) Default(context.Context, *v1alpha3.Constraints) {
+func (c *CloudProvider) Default(context.Context, *v1alpha4.Constraints) {
 }
