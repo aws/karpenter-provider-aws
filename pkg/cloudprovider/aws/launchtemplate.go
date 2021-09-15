@@ -194,7 +194,6 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provis
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (string, error) {
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
-yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
 /etc/eks/bootstrap.sh '%s' \
     --container-runtime containerd \
     --apiserver-endpoint '%s'`,
