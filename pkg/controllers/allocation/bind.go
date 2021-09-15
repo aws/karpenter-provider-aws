@@ -17,8 +17,10 @@ package allocation
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,14 +29,23 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-type Binder struct {
-	KubeClient   client.Client
-	CoreV1Client corev1.CoreV1Interface
+type Binder interface {
+	Bind(context.Context, *v1.Node, []*v1.Pod) error
 }
 
-func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+type binder struct {
+	kubeClient   client.Client
+	coreV1Client corev1.CoreV1Interface
+}
+
+func NewBinder(kubeClient client.Client, coreV1Client corev1.CoreV1Interface) Binder {
+	return &binder{kubeClient: kubeClient, coreV1Client: coreV1Client}
+}
+
+func (b *binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha3.TerminationFinalizer)
 	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
@@ -55,7 +66,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
 	// before the node is fully Ready.
-	if _, err := b.CoreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
@@ -71,9 +82,9 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	return err
 }
 
-func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
+func (b *binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
 	// TODO, Stop using deprecated v1.Binding
-	if err := b.CoreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
+	if err := b.coreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
 		TypeMeta:   pod.TypeMeta,
 		ObjectMeta: pod.ObjectMeta,
 		Target:     v1.ObjectReference{Name: node.Name},
@@ -81,4 +92,56 @@ func (b *Binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
 		return fmt.Errorf("binding pod, %w", err)
 	}
 	return nil
+}
+
+type binderMetricsDecorator struct {
+	binder               Binder
+	bindTimeHistogramVec *prometheus.HistogramVec
+}
+
+const metricLabelResult = "result"
+
+func DecorateBinderMetrics(binder Binder) Binder {
+	bindTimeHistogramVec := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "karpenter",
+			Subsystem: "allocation_controller",
+			Name:      "bind_duration_seconds",
+			Help:      "Duration of bind process in seconds. Broken down by result.",
+			// Use same bucket thresholds as controller-runtime.
+			// https://github.com/kubernetes-sigs/controller-runtime/blob/v0.10.0/pkg/internal/controller/metrics/metrics.go#L47-L48
+			Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+				1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60},
+		},
+		[]string{metricLabelResult},
+	)
+	metrics.Registry.MustRegister(bindTimeHistogramVec)
+
+	return &binderMetricsDecorator{binder: binder, bindTimeHistogramVec: bindTimeHistogramVec}
+}
+
+func (b *binderMetricsDecorator) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+	startTime := time.Now()
+	bindErr := b.binder.Bind(ctx, node, pods)
+	durationSeconds := time.Since(startTime).Seconds()
+
+	result := "success"
+	if bindErr != nil {
+		result = "error"
+	}
+
+	observer, promErr := b.bindTimeHistogramVec.GetMetricWith(prometheus.Labels{metricLabelResult: result})
+	if promErr != nil {
+		logging.FromContext(ctx).Warnf(
+			"Failed to record bind duration metric [%s=%s, duration=%f]: error=%w",
+			metricLabelResult,
+			result,
+			durationSeconds,
+			promErr,
+		)
+	} else {
+		observer.Observe(durationSeconds)
+	}
+
+	return bindErr
 }
