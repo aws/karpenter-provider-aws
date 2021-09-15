@@ -56,7 +56,7 @@ type Controller struct {
 	Batcher       *Batcher
 	Filter        *Filter
 	Binder        Binder
-	Scheduler     *scheduling.Scheduler
+	Scheduler     scheduling.Scheduler
 	Packer        binpacking.Packer
 	CloudProvider cloudprovider.CloudProvider
 	KubeClient    client.Client
@@ -68,7 +68,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		Filter:        &Filter{KubeClient: kubeClient},
 		Binder:        DecorateBinderMetrics(NewBinder(kubeClient, coreV1Client)),
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
-		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
+		Scheduler:     scheduling.DecorateSchedulerMetrics(scheduling.NewScheduler(cloudProvider, kubeClient)),
 		Packer:        binpacking.NewPacker(),
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,

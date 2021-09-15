@@ -17,30 +17,29 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.Client) *Scheduler {
-	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology: &Topology{
-			cloudProvider: cloudProvider,
-			kubeClient:    kubeClient,
-		},
-	}
+type Scheduler interface {
+	Solve(context.Context, *v1alpha3.Provisioner, []*v1.Pod) ([]*Schedule, error)
 }
 
-type Scheduler struct {
-	KubeClient client.Client
-	Topology   *Topology
+type scheduler struct {
+	kubeClient client.Client
+	topology   *Topology
 }
 
 type Schedule struct {
@@ -51,12 +50,22 @@ type Schedule struct {
 	Daemons []*v1.Pod
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.Client) Scheduler {
+	return &scheduler{
+		kubeClient: kubeClient,
+		topology: &Topology{
+			cloudProvider: cloudProvider,
+			kubeClient:    kubeClient,
+		},
+	}
+}
+
+func (s *scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	// 1. Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, provisioner, pods); err != nil {
+	if err := s.topology.Inject(ctx, provisioner, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 
@@ -79,7 +88,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain compatible scheduling constarints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
@@ -116,10 +125,10 @@ func (s *Scheduler) getSchedules(ctx context.Context, provisioner *v1alpha3.Prov
 	return result, nil
 }
 
-func (s *Scheduler) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
+func (s *scheduler) getDaemons(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
-	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
+	if err := s.kubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
 
@@ -146,4 +155,57 @@ func IsSchedulable(pod *v1.Pod, node *v1.Node) bool {
 	}
 	// TODO, support node affinity
 	return true
+}
+
+type schedulerMetricsDecorator struct {
+	scheduler                Scheduler
+	scheduleTimeHistogramVec *prometheus.HistogramVec
+}
+
+func DecorateSchedulerMetrics(scheduler Scheduler) Scheduler {
+	scheduleTimeHistogramVec := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metrics.KarpenterNamespace,
+			Subsystem: "allocation_controller",
+			Name:      "scheduling_duration_seconds",
+			Help:      "Duration of scheduling process in seconds. Broken down by provisioner and result.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+		[]string{metrics.ProvisionerLabel, metrics.ResultLabel},
+	)
+	crmetrics.Registry.MustRegister(scheduleTimeHistogramVec)
+
+	return &schedulerMetricsDecorator{scheduler: scheduler, scheduleTimeHistogramVec: scheduleTimeHistogramVec}
+}
+
+func (s *schedulerMetricsDecorator) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+	startTime := time.Now()
+	schedules, scheduleErr := s.scheduler.Solve(ctx, provisioner, pods)
+	durationSeconds := time.Since(startTime).Seconds()
+
+	result := "success"
+	if scheduleErr != nil {
+		result = "error"
+	}
+
+	provisionerName := provisioner.ObjectMeta.Name
+	observer, promErr := s.scheduleTimeHistogramVec.GetMetricWith(prometheus.Labels{
+		metrics.ProvisionerLabel: provisionerName,
+		metrics.ResultLabel:      result,
+	})
+	if promErr != nil {
+		logging.FromContext(ctx).Warnf(
+			"Failed to record scheduling duration metric [%s=%s, %s=%s, duration=%f]: error=%w",
+			metrics.ProvisionerLabel,
+			provisionerName,
+			metrics.ResultLabel,
+			result,
+			durationSeconds,
+			promErr,
+		)
+	} else {
+		observer.Observe(durationSeconds)
+	}
+
+	return schedules, scheduleErr
 }
