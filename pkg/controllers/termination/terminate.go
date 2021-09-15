@@ -17,16 +17,15 @@ package termination
 import (
 	"context"
 	"fmt"
-	"time"
 
 	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 
 	"knative.dev/pkg/logging"
-	kptr "knative.dev/pkg/ptr"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -74,21 +73,13 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		}
 	}
 
-	// 3. Force delete pods that the kubelet can't mark terminated
-	for _, pod := range pods {
-		if IsStuckTerminating(pod) {
-			if err := t.KubeClient.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: kptr.Int64(0)}); err != nil {
-				return false, fmt.Errorf("force deleting pod %s for expired eviction", pod.Name)
-			}
-		}
-	}
-
 	// 4. Get and evict pods
 	evictable := t.getEvictablePods(pods)
+	if len(evictable) == 0 {
+		return true, nil
+	}
 	t.evict(ctx, evictable)
-
-	// 5. If nothing to evict, success
-	return len(evictable) == 0, nil
+	return false, nil
 }
 
 // terminate terminates the node then removes the finalizer to delete the node
@@ -122,7 +113,12 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 	evictable := []*v1.Pod{}
 	for _, pod := range pods {
+		// Ignore if unschedulable is tolerated, since they will reschedule
 		if scheduling.Tolerates(pod, v1.Taint{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}) == nil {
+			continue
+		}
+		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
+		if IsStuckTerminating(pod) {
 			continue
 		}
 		evictable = append(evictable, pod)
@@ -153,8 +149,8 @@ func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
 }
 
 func IsStuckTerminating(pod *v1.Pod) bool {
-	if pod.DeletionTimestamp.IsZero() {
+	if pod.DeletionTimestamp == nil {
 		return false
 	}
-	return time.Since(pod.DeletionTimestamp.Time) > time.Duration(ptr.Int64Value(pod.DeletionGracePeriodSeconds))*time.Second
+	return injectabletime.Now().After(pod.DeletionTimestamp.Time)
 }

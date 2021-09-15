@@ -17,7 +17,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/utils/result"
@@ -36,9 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
-
-// Now is a time.Now() that may be mocked by tests.
-var Now = time.Now
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {

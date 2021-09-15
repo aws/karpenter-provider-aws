@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -41,7 +42,7 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha3.Provis
 	// 2. Trigger termination workflow if expired
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
-	if Now().After(expirationTime) {
+	if injectabletime.Now().After(expirationTime) {
 		logging.FromContext(ctx).Infof("Triggering termination for expired node %s after %s (+%s)", node.Name, expirationTTL, time.Since(expirationTime))
 		if err := r.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
