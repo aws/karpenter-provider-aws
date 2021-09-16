@@ -1,6 +1,7 @@
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
+
+   you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
@@ -76,19 +77,14 @@ type launchTemplateOptions struct {
 	AMIID             string
 }
 
-type LaunchTemplate struct {
-	Name    string
-	Version string
-}
-
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	// 1. If the customer specified a launch template then just use it
 	if constraints.LaunchTemplate != nil {
 		return ptr.StringValue(constraints.LaunchTemplate), nil
 	}
 
 	// 2. Get constrained AMI ID
-	amiID, err := p.amiProvider.Get(ctx, constraints)
+	amiID, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
 	if err != nil {
 		return "", err
 	}

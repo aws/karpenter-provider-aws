@@ -121,7 +121,6 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-
 func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) chan error {
 	return c.creationQueue.Add(func() error {
 		return c.create(ctx, constraints, instanceTypes, callback)
@@ -139,7 +138,7 @@ func (c *CloudProvider) create(ctx context.Context, v1alpha4constraints *v1alpha
 		return fmt.Errorf("getting subnets, %w", err)
 	}
 	// 2. Get Launch Template
-	launchTemplate, err := c.launchTemplateProvider.Get(ctx, constraints)
+	launchTemplate, err := c.launchTemplateProvider.Get(ctx, constraints, instanceTypes)
 	if err != nil {
 		return fmt.Errorf("getting launch template, %w", err)
 	}

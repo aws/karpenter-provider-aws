@@ -45,20 +45,22 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
-func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
-	architecture := v1alpha4.ArchitectureAmd64 // default to amd
-	if len(constraints.Architectures) > 0 {
-		architecture = constraints.Architectures[0] // select the first one if multiple supported
+	var amiNameSuffix string
+	if *constraints.Architecture == v1alpha3.ArchitectureArm64 {
+		amiNameSuffix = "-arm64"
 	}
-	var architectureSuffix string
-	if architecture == v1alpha4.ArchitectureArm64 {
-		architectureSuffix = "-arm64"
+	if AnyNvidiaGPUs(instanceTypes) {
+		if amiNameSuffix != "" {
+			return "", fmt.Errorf("no amazon-linux-2 ami available for both nvidia gpus and arm64 cpus")
+		}
+		amiNameSuffix = "-gpu"
 	}
-	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)
+	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiNameSuffix)
 	if id, ok := p.cache.Get(name); ok {
 		return id.(string), nil
 	}

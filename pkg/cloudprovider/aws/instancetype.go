@@ -84,6 +84,15 @@ func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
+func AnyNvidiaGPUs(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		if !i.NvidiaGPUs().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *InstanceType) AMDGPUs() *resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
