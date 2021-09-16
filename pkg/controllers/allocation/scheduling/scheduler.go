@@ -81,20 +81,17 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner
 		result = "error"
 	}
 
-	provisionerName := provisioner.ObjectMeta.Name
-	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(prometheus.Labels{
-		metrics.ProvisionerLabel: provisionerName,
+	labels := prometheus.Labels{
+		metrics.ProvisionerLabel: provisioner.ObjectMeta.Name,
 		metrics.ResultLabel:      result,
-	})
+	}
+	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(labels)
 	if promErr != nil {
 		logging.FromContext(ctx).Warnf(
-			"Failed to record scheduling duration metric [%s=%s, %s=%s, duration=%f]: error=%w",
-			metrics.ProvisionerLabel,
-			provisionerName,
-			metrics.ResultLabel,
-			result,
+			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
+			labels,
 			durationSeconds,
-			promErr,
+			promErr.Error(),
 		)
 	} else {
 		observer.Observe(durationSeconds)
