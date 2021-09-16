@@ -33,20 +33,53 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-type Binder interface {
-	Bind(context.Context, *v1.Node, []*v1.Pod) error
+var bindTimeHistogramVec = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Namespace: metrics.KarpenterNamespace,
+		Subsystem: "allocation_controller",
+		Name:      "bind_duration_seconds",
+		Help:      "Duration of bind process in seconds. Broken down by result.",
+		Buckets:   metrics.DurationBuckets(),
+	},
+	[]string{metrics.ResultLabel},
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(bindTimeHistogramVec)
 }
 
-type binder struct {
-	kubeClient   client.Client
-	coreV1Client corev1.CoreV1Interface
+type Binder struct {
+	KubeClient   client.Client
+	CoreV1Client corev1.CoreV1Interface
 }
 
-func NewBinder(kubeClient client.Client, coreV1Client corev1.CoreV1Interface) Binder {
-	return &binder{kubeClient: kubeClient, coreV1Client: coreV1Client}
+func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+	startTime := time.Now()
+	bindErr := b.bind(ctx, node, pods)
+	durationSeconds := time.Since(startTime).Seconds()
+
+	result := "success"
+	if bindErr != nil {
+		result = "error"
+	}
+
+	labels := prometheus.Labels{metrics.ResultLabel: result}
+	observer, promErr := bindTimeHistogramVec.GetMetricWith(labels)
+	if promErr != nil {
+		logging.FromContext(ctx).Warnf(
+			"Failed to record bind duration metric [labels=%s, duration=%f]: error=%s",
+			labels,
+			durationSeconds,
+			promErr.Error(),
+		)
+	} else {
+		observer.Observe(durationSeconds)
+	}
+
+	return bindErr
 }
 
-func (b *binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
+func (b *Binder) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha3.TerminationFinalizer)
 	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
@@ -67,7 +100,7 @@ func (b *binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
 	// before the node is fully Ready.
-	if _, err := b.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+	if _, err := b.CoreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
@@ -76,16 +109,16 @@ func (b *binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// 4. Bind pods
 	errs := make([]error, len(pods))
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(index int) {
-		errs[index] = b.bind(ctx, node, pods[index])
+		errs[index] = b.bindPod(ctx, node, pods[index])
 	})
 	err := multierr.Combine(errs...)
 	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(err)), node.Name)
 	return err
 }
 
-func (b *binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
+func (b *Binder) bindPod(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
 	// TODO, Stop using deprecated v1.Binding
-	if err := b.coreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
+	if err := b.CoreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
 		TypeMeta:   pod.TypeMeta,
 		ObjectMeta: pod.ObjectMeta,
 		Target:     v1.ObjectReference{Name: node.Name},
@@ -93,51 +126,4 @@ func (b *binder) bind(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
 		return fmt.Errorf("binding pod, %w", err)
 	}
 	return nil
-}
-
-type binderMetricsDecorator struct {
-	binder               Binder
-	bindTimeHistogramVec *prometheus.HistogramVec
-}
-
-func DecorateBinderMetrics(binder Binder) Binder {
-	bindTimeHistogramVec := prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: metrics.KarpenterNamespace,
-			Subsystem: "allocation_controller",
-			Name:      "bind_duration_seconds",
-			Help:      "Duration of bind process in seconds. Broken down by result.",
-			Buckets:   metrics.DurationBuckets(),
-		},
-		[]string{metrics.ResultLabel},
-	)
-	crmetrics.Registry.MustRegister(bindTimeHistogramVec)
-
-	return &binderMetricsDecorator{binder: binder, bindTimeHistogramVec: bindTimeHistogramVec}
-}
-
-func (b *binderMetricsDecorator) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
-	startTime := time.Now()
-	bindErr := b.binder.Bind(ctx, node, pods)
-	durationSeconds := time.Since(startTime).Seconds()
-
-	result := "success"
-	if bindErr != nil {
-		result = "error"
-	}
-
-	observer, promErr := b.bindTimeHistogramVec.GetMetricWith(prometheus.Labels{metrics.ResultLabel: result})
-	if promErr != nil {
-		logging.FromContext(ctx).Warnf(
-			"Failed to record bind duration metric [%s=%s, duration=%f]: error=%w",
-			metrics.ResultLabel,
-			result,
-			durationSeconds,
-			promErr,
-		)
-	} else {
-		observer.Observe(durationSeconds)
-	}
-
-	return bindErr
 }
