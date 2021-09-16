@@ -45,7 +45,7 @@ spec:
               using pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
             properties:
               architectures:
-                description: Architecture constrains the underlying node architecture
+                description: Architectures constrains the underlying node architecture
                 items:
                   type: string
                 type: array
@@ -63,7 +63,7 @@ spec:
                   Provisioner.
                 type: object
               operatingSystems:
-                description: OperatingSystem constrains the underlying node operating
+                description: OperatingSystems constrains the underlying node operating
                   system
                 items:
                   type: string

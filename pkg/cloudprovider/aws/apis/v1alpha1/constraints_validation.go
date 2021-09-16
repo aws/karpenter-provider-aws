@@ -19,39 +19,56 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
 )
 
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
+	return c.AWS.validate(ctx).ViaField("provider")
+}
+
+func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		c.validateCapacityType(ctx),
-		c.validateLaunchTemplate(ctx),
-		c.validateSubnets(ctx),
-		c.Cluster.Validate(ctx),
+		a.validateInstanceProfile(ctx),
+		a.validateCapacityType(ctx),
+		a.validateLaunchTemplate(ctx),
+		a.validateSubnets(ctx),
+		a.validateSecurityGroups(ctx),
+		a.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
 
-func (c *Constraints) validateCapacityType(ctx context.Context) (errs *apis.FieldError) {
-	capacityType, ok := c.Labels[CapacityTypeLabel]
-	if !ok {
-		return nil
-	}
+func (a *AWS) validateCapacityType(ctx context.Context) (errs *apis.FieldError) {
 	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
-	if !functional.ContainsString(capacityTypes, capacityType) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", capacityType, capacityTypes), fmt.Sprintf("labels[%s]", CapacityTypeLabel)))
+	if !functional.ContainsString(capacityTypes, aws.StringValue(a.CapacityType)) {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", aws.StringValue(a.CapacityType), capacityTypes), "capacityType"))
 	}
 	return errs
 }
 
-func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWS) validateInstanceProfile(ctx context.Context)(errs *apis.FieldError) {
+	if a.InstanceProfile == "" {
+		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
+	}
+	return errs
+}
+
+func (a *AWS) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
 	// nothing to validate at the moment
 	return errs
 }
 
-func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
-	if c.GetSubnetName() != nil && c.GetSubnetTagKey() != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(fmt.Sprintf("labels[%s]", SubnetNameLabel), fmt.Sprintf("labels[%s]", SubnetTagKeyLabel)))
+func (a *AWS) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
+	if a.SubnetSelector == nil {
+		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
+	}
+	return errs
+}
+
+func (a *AWS) validateSecurityGroups(ctx context.Context) (errs *apis.FieldError) {
+	if a.SecurityGroupsSelector == nil {
+		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
 	}
 	return errs
 }

@@ -144,7 +144,7 @@ func (c *CloudProvider) create(ctx context.Context, v1alpha4constraints *v1alpha
 		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
-	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, constraints.GetCapacityType())
+	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, aws.StringValue(constraints.CapacityType))
 	if err != nil {
 		return fmt.Errorf("launching instance, %w", err)
 	}
@@ -186,8 +186,13 @@ func (c *CloudProvider) Validate(ctx context.Context, v1alpha4constraints *v1alp
 
 // Default the constraints
 func (c *CloudProvider) Default(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) {
-	constraints, _ := v1alpha1.NewConstraints(v1alpha4constraints)
+	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
+	if err != nil {
+		logging.FromContext(context.Background()).Errorf("failed to deserialize provider, %s", err.Error())
+	}
 	constraints.Default(ctx)
-	logging.FromContext(context.Background()).Infof("serializing %s, %s", constraints.APIVersion, constraints.Kind)
-	v1alpha4constraints.Provider.Raw, _ = json.Marshal(constraints.AWS)
+	v1alpha4constraints.Provider.Raw, err = json.Marshal(constraints.AWS)
+	if err != nil {
+		logging.FromContext(context.Background()).Errorf("failed to serialize provider, %s", err.Error())
+	}
 }

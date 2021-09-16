@@ -62,7 +62,7 @@ var _ = Describe("Controller", func() {
 	BeforeEach(func() {
 		provisioner = &v1alpha4.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: v1alpha4.DefaultProvisioner.Name},
-			Spec: v1alpha4.ProvisionerSpec{},
+			Spec:       v1alpha4.ProvisionerSpec{},
 		}
 	})
 

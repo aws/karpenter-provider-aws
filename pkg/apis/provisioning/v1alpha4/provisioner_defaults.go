@@ -20,5 +20,10 @@ import (
 
 // SetDefaults for the provisioner
 func (p *Provisioner) SetDefaults(ctx context.Context) {
-	DefaultingHook(ctx, &p.Spec.Constraints)
+	p.Spec.Constraints.Default(ctx)
+}
+
+// Default the constraints
+func (c *Constraints) Default(ctx context.Context) {
+	DefaultingHook(ctx, c)
 }

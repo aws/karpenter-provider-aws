@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-
 const (
 	EC2InstanceIDNotFoundErrCode = "InvalidInstanceID.NotFound"
 )
@@ -51,7 +50,7 @@ type InstanceProvider struct {
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate *v1alpha1.LaunchTemplate,
+	launchTemplate string,
 	instanceTypes []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string,
@@ -101,7 +100,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstance(ctx context.Context,
-	launchTemplate *v1alpha1.LaunchTemplate,
+	launchTemplateName string,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string) (*string, error) {
@@ -149,8 +148,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplate.Name),
-				Version:            aws.String(launchTemplate.Version),
+				LaunchTemplateName: aws.String(launchTemplateName),
+				Version:            aws.String("$Default"),
 			},
 			Overrides: overrides,
 		}},

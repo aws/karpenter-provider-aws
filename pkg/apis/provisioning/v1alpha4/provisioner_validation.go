@@ -64,7 +64,7 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	for key := range s.Labels {
 		for _, restricted := range RestrictedLabels {
-			if strings.Contains(key, restricted) {
+			if strings.HasPrefix(key, restricted) {
 				errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
 			}
 		}

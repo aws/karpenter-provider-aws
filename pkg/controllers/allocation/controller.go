@@ -108,7 +108,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// 4. Group by constraints
-	schedules, err := c.Scheduler.Solve(ctx, &provisioner.Spec.Constraints, pods)
+	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
 	if err != nil {
 		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
 	}
@@ -182,8 +182,8 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
-func (c *Controller) podToProvisioner(ctx context.Context) func (o client.Object) []reconcile.Request {
-	return func (o client.Object) (requests []reconcile.Request) {
+func (c *Controller) podToProvisioner(ctx context.Context) func(o client.Object) []reconcile.Request {
+	return func(o client.Object) (requests []reconcile.Request) {
 		pod := o.(*v1.Pod)
 		if err := c.Filter.isUnschedulable(pod); err != nil {
 			return nil

@@ -60,6 +60,10 @@ var _ = Describe("Validation", func() {
 	})
 
 	Context("Labels", func() {
+		It("should allow unrecognized labels", func() {
+			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
 		It("should fail for invalid label keys", func() {
 			provisioner.Spec.Labels = map[string]string{"spaces are not allowed": randomdata.SillyName()}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())

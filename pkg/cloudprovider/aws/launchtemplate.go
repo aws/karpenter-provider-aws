@@ -68,51 +68,55 @@ func launchTemplateName(options *launchTemplateOptions) string {
 // to the number of LaunchTemplates that will result from this change.
 type launchTemplateOptions struct {
 	// Edge-triggered fields that will only change on kube events.
-	ClusterName string
-	UserData    string
+	ClusterName     string
+	UserData        string
+	InstanceProfile string
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups []string
-	AMIID          string
+	SecurityGroupsIds []string
+	AMIID             string
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (*v1alpha1.LaunchTemplate, error) {
+type LaunchTemplate struct {
+	Name    string
+	Version string
+}
+
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
 	// 1. If the customer specified a launch template then just use it
-	if result := constraints.GetLaunchTemplate(); result != nil {
-		return result, nil
+	if constraints.LaunchTemplate != nil {
+		return ptr.StringValue(constraints.LaunchTemplate), nil
 	}
 
 	// 2. Get constrained AMI ID
 	amiID, err := p.amiProvider.Get(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 3. Get constrained security groups
-	securityGroups, err := p.getSecurityGroupIds(ctx, constraints)
+	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 3. Get userData for Node
 	userData, err := p.getUserData(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 4. Ensure the launch template exists, or create it
 	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-		UserData:       userData,
-		ClusterName:    constraints.Cluster.Name,
-		AMIID:          amiID,
-		SecurityGroups: securityGroups,
+		UserData:          userData,
+		ClusterName:       constraints.Cluster.Name,
+		InstanceProfile:   constraints.InstanceProfile,
+		AMIID:             amiID,
+		SecurityGroupsIds: securityGroupsIds,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return &v1alpha1.LaunchTemplate{
-		Name:    aws.StringValue(launchTemplate.LaunchTemplateName),
-		Version: fmt.Sprint(v1alpha1.DefaultLaunchTemplateVersion),
-	}, nil
+	return aws.StringValue(launchTemplate.LaunchTemplateName), nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
@@ -169,7 +173,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 					},
 				},
 			}},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroups),
+			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
 		},
@@ -179,18 +183,6 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	}
 	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
-}
-
-func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
-	securityGroupIds := []string{}
-	securityGroups, err := p.securityGroupProvider.Get(ctx, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting security group ids, %w", err)
-	}
-	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
-	}
-	return securityGroupIds, nil
 }
 
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {

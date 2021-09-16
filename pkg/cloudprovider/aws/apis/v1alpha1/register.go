@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha4 contains API Schema definitions for the v1alpha4 API group
+// Package v1alpha1 contains API Schema definitions for the v1alpha4 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:defaulter-gen=TypeMeta
@@ -20,27 +20,19 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-const (
-	DefaultLaunchTemplateVersion = "$Default"
-	CapacityTypeSpot             = "spot"
-	CapacityTypeOnDemand         = "on-demand"
-)
-
 var (
-	AWSLabelPrefix           = "node.k8s.aws/"
-	CapacityTypeLabel        = AWSLabelPrefix + "capacity-type"
-	LaunchTemplateNameLabel  = AWSLabelPrefix + "launch-template-name"
-	SubnetNameLabel          = AWSLabelPrefix + "subnet-name"
-	SubnetTagKeyLabel        = AWSLabelPrefix + "subnet-tag-key"
-	SecurityGroupNameLabel   = AWSLabelPrefix + "security-group-name"
-	SecurityGroupTagKeyLabel = AWSLabelPrefix + "security-group-tag-key"
-	AWSToKubeArchitectures   = map[string]string{
+	AWSLabelPrefix         = "node.k8s.aws/"
+	CapacityTypeLabel      = AWSLabelPrefix + "capacity-type"
+	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
+	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
+	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                   v1alpha4.ArchitectureAmd64,
 		v1alpha4.ArchitectureArm64: v1alpha4.ArchitectureArm64,
 	}
@@ -48,7 +40,7 @@ var (
 
 var (
 	Scheme = runtime.NewScheme()
-	Codec = serializer.NewCodecFactory(Scheme, serializer.EnableStrict)
+	Codec  = serializer.NewCodecFactory(Scheme, serializer.EnableStrict)
 )
 
 func init() {

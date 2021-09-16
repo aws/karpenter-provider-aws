@@ -12,17 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha4 contains API Schema definitions for the v1alpha4 API group
-// +k8s:openapi-gen=true
-// +k8s:deepcopy-gen=package,register
-// +k8s:defaulter-gen=TypeMeta
-// +groupName=karpenter.k8s.aws
 package v1alpha1
 
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -55,27 +49,22 @@ type AWS struct {
 	// Cluster is used to connect Nodes to the Kubernetes cluster.
 	// +required
 	Cluster Cluster `json:"cluster"`
-	// InstanceRole is the AWS identity that instances use.
+	// InstanceProfile is the AWS identity that instances use.
 	// +required
-	InstanceRole string `json:"instanceRole"`
-	// Subnets specify the names of the subnets.
+	InstanceProfile string `json:"instanceProfile"`
+	// CapacityType for the node. If not specified, defaults to on-demand.
+	// May be overriden by pods.spec.nodeSelector["node.k8s.aws/capacityType"]
 	// +optional
-	Subnets []string `json:"subnets,omitempty"`
-	// SubnetSelector discovers subnets by tags. A value of "" is a wildcard.
-	// +optional
-	SubnetSelector map[string]string `json:"subnetTags,omitempty"`
-	// SecurityGroups specify the names of the security groups.
-	// +optional
-	SecurityGroups []string `json:"securityGroups,omitempty"`
-	// SecurityGroupSelector discovers security groups by tags. A value of "" is a wildcard.
-	// +optional
-	SecurityGroupsSelector map[string]string `json:"securityGroupSelector,omitempty"`
+	CapacityType *string `json:"capacityType,omitempty"`
 	// LaunchTemplate for the node. If not specified, a launch template will be generated.
 	// +optional
 	LaunchTemplate *string `json:"launchTemplate,omitempty"`
-	// CapacityType for the node. If not specified, defaults to on-demand
+	// SubnetSelector discovers subnets by tags. A value of "" is a wildcard.
 	// +optional
-	CapacityType *string `json:"capacityType,omitempty"`
+	SubnetSelector map[string]string `json:"subnetSelector,omitempty"`
+	// SecurityGroups specify the names of the security groups.
+	// +optional
+	SecurityGroupsSelector map[string]string `json:"securityGroupSelector,omitempty"`
 }
 
 // Cluster configures the cluster that the provisioner operates against.
@@ -86,60 +75,4 @@ type Cluster struct {
 	// Endpoint is required for nodes to connect to the API Server.
 	// +required
 	Endpoint string `json:"endpoint"`
-}
-
-func (c *Constraints) GetCapacityType() string {
-	capacityType, ok := c.Labels[CapacityTypeLabel]
-	if !ok {
-		capacityType = CapacityTypeOnDemand
-	}
-	return capacityType
-}
-
-type LaunchTemplate struct {
-	Name    string
-	Version string
-}
-
-func (c *Constraints) GetLaunchTemplate() *LaunchTemplate {
-	name, ok := c.Labels[LaunchTemplateNameLabel]
-	if !ok {
-		return nil
-	}
-	return &LaunchTemplate{
-		Name:    name,
-		Version: DefaultLaunchTemplateVersion,
-	}
-}
-
-func (c *Constraints) GetSubnetName() *string {
-	name, ok := c.Labels[SubnetNameLabel]
-	if !ok {
-		return nil
-	}
-	return aws.String(name)
-}
-
-func (c *Constraints) GetSubnetTagKey() *string {
-	tag, ok := c.Labels[SubnetTagKeyLabel]
-	if !ok {
-		return nil
-	}
-	return aws.String(tag)
-}
-
-func (c *Constraints) GetSecurityGroupName() *string {
-	name, ok := c.Labels[SecurityGroupNameLabel]
-	if !ok {
-		return nil
-	}
-	return aws.String(name)
-}
-
-func (c *Constraints) GetSecurityGroupTagKey() *string {
-	tag, ok := c.Labels[SecurityGroupTagKeyLabel]
-	if !ok {
-		return nil
-	}
-	return aws.String(tag)
 }

@@ -70,10 +70,10 @@ type Constraints struct {
 	// launched by the Provisioner. If unspecified, defaults to all types.
 	// +optional
 	InstanceTypes []string `json:"instanceTypes,omitempty"`
-	// Architecture constrains the underlying node architecture
+	// Architectures constrains the underlying node architecture
 	// +optional
 	Architectures []string `json:"architectures,omitempty"`
-	// OperatingSystem constrains the underlying node operating system
+	// OperatingSystems constrains the underlying node operating system
 	// +optional
 	OperatingSystems []string `json:"operatingSystems,omitempty"`
 	// Provider contains fields specific to your cloudprovider.

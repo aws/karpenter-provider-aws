@@ -58,7 +58,6 @@ func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *
 		func() error { return f.matchesProvisioner(pod, provisioner) },
 		func() error { return f.hasSupportedSchedulingConstraints(pod) },
 		func() error { return scheduling.Tolerates(pod, provisioner.Spec.Taints...) },
-		func() error { return f.withValidConstraints(ctx, pod, provisioner) },
 	)
 }
 
@@ -93,11 +92,4 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha4.Provision
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s", name)
-}
-
-func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
-	if err := scheduling.NewConstraintsWithOverrides(&provisioner.Spec.Constraints, pod).Validate(ctx); err != nil {
-		return fmt.Errorf("invalid constraints, %w", err)
-	}
-	return nil
 }

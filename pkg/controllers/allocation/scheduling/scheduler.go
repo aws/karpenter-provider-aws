@@ -132,8 +132,12 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha4.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-
 		constraints := NewConstraintsWithOverrides(constraints, pod)
+		constraints.Default(ctx)
+		if err := constraints.Validate(ctx); err != nil {
+			logging.FromContext(ctx).Debugf("Ignored pod %s/%s due to invalid constraints, %s", pod.Name, pod.Namespace, err.Error())
+			continue
+		}
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, nil)
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)

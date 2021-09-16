@@ -16,7 +16,40 @@ package v1alpha1
 
 import (
 	"context"
+	"fmt"
+
+	"knative.dev/pkg/ptr"
 )
 
+var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
+
+// Default the constraints
 func (c *Constraints) Default(ctx context.Context) {
+	c.defaultCapacityType(ctx)
+	c.defaultSubnets(ctx)
+	c.defaultSecurityGroups(ctx)
+}
+
+func (c *Constraints) defaultCapacityType(ctx context.Context) {
+	if capacityType, ok := c.Labels[CapacityTypeLabel]; ok {
+		c.CapacityType = &capacityType
+	}
+	if c.CapacityType != nil {
+		return
+	}
+	c.CapacityType = ptr.String(CapacityTypeOnDemand)
+}
+
+func (c *Constraints) defaultSubnets(ctx context.Context) {
+	if c.SubnetSelector != nil {
+		return
+	}
+	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): ""}
+}
+
+func (c *Constraints) defaultSecurityGroups(ctx context.Context) {
+	if c.SecurityGroupsSelector != nil {
+		return
+	}
+	c.SecurityGroupsSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): ""}
 }
