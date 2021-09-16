@@ -17,25 +17,35 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.Client) *Scheduler {
-	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology: &Topology{
-			cloudProvider: cloudProvider,
-			kubeClient:    kubeClient,
-		},
-	}
+var scheduleTimeHistogramVec = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Namespace: metrics.KarpenterNamespace,
+		Subsystem: "allocation_controller",
+		Name:      "scheduling_duration_seconds",
+		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and result.",
+		Buckets:   metrics.DurationBuckets(),
+	},
+	[]string{metrics.ProvisionerLabel, metrics.ResultLabel},
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(scheduleTimeHistogramVec)
 }
 
 type Scheduler struct {
@@ -51,7 +61,46 @@ type Schedule struct {
 	Daemons []*v1.Pod
 }
 
+func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.Client) *Scheduler {
+	return &Scheduler{
+		KubeClient: kubeClient,
+		Topology: &Topology{
+			cloudProvider: cloudProvider,
+			kubeClient:    kubeClient,
+		},
+	}
+}
+
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+	startTime := time.Now()
+	schedules, scheduleErr := s.solve(ctx, provisioner, pods)
+	durationSeconds := time.Since(startTime).Seconds()
+
+	result := "success"
+	if scheduleErr != nil {
+		result = "error"
+	}
+
+	labels := prometheus.Labels{
+		metrics.ProvisionerLabel: provisioner.ObjectMeta.Name,
+		metrics.ResultLabel:      result,
+	}
+	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(labels)
+	if promErr != nil {
+		logging.FromContext(ctx).Warnf(
+			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
+			labels,
+			durationSeconds,
+			promErr.Error(),
+		)
+	} else {
+		observer.Observe(durationSeconds)
+	}
+
+	return schedules, scheduleErr
+}
+
+func (s *Scheduler) solve(ctx context.Context, provisioner *v1alpha3.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	// 1. Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -29,7 +30,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type Binder interface {
@@ -99,23 +100,18 @@ type binderMetricsDecorator struct {
 	bindTimeHistogramVec *prometheus.HistogramVec
 }
 
-const metricLabelResult = "result"
-
 func DecorateBinderMetrics(binder Binder) Binder {
 	bindTimeHistogramVec := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: "karpenter",
+			Namespace: metrics.KarpenterNamespace,
 			Subsystem: "allocation_controller",
 			Name:      "bind_duration_seconds",
 			Help:      "Duration of bind process in seconds. Broken down by result.",
-			// Use same bucket thresholds as controller-runtime.
-			// https://github.com/kubernetes-sigs/controller-runtime/blob/v0.10.0/pkg/internal/controller/metrics/metrics.go#L47-L48
-			Buckets: []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-				1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60},
+			Buckets:   metrics.DurationBuckets(),
 		},
-		[]string{metricLabelResult},
+		[]string{metrics.ResultLabel},
 	)
-	metrics.Registry.MustRegister(bindTimeHistogramVec)
+	crmetrics.Registry.MustRegister(bindTimeHistogramVec)
 
 	return &binderMetricsDecorator{binder: binder, bindTimeHistogramVec: bindTimeHistogramVec}
 }
@@ -130,11 +126,11 @@ func (b *binderMetricsDecorator) Bind(ctx context.Context, node *v1.Node, pods [
 		result = "error"
 	}
 
-	observer, promErr := b.bindTimeHistogramVec.GetMetricWith(prometheus.Labels{metricLabelResult: result})
+	observer, promErr := b.bindTimeHistogramVec.GetMetricWith(prometheus.Labels{metrics.ResultLabel: result})
 	if promErr != nil {
 		logging.FromContext(ctx).Warnf(
 			"Failed to record bind duration metric [%s=%s, duration=%f]: error=%w",
-			metricLabelResult,
+			metrics.ResultLabel,
 			result,
 			durationSeconds,
 			promErr,
