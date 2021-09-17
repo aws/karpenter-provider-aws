@@ -54,7 +54,7 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints
 	if *constraints.Architecture == v1alpha3.ArchitectureArm64 {
 		amiNameSuffix = "-arm64"
 	}
-	if AnyNvidiaGPUs(instanceTypes) {
+	if NeedsGPUAmi(instanceTypes) {
 		if amiNameSuffix != "" {
 			return "", fmt.Errorf("no amazon-linux-2 ami available for both nvidia gpus and arm64 cpus")
 		}

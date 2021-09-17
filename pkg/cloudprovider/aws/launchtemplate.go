@@ -96,7 +96,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	}
 
 	// 3. Get userData for Node
-	userData, err := p.getUserData(ctx, constraints)
+	userData, err := p.getUserData(ctx, constraints, instanceTypes)
 	if err != nil {
 		return "", err
 	}
@@ -181,15 +181,43 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
+<<<<<<< HEAD
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+=======
+func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]string, error) {
+	securityGroupIds := []string{}
+	securityGroups, err := p.securityGroupProvider.Get(ctx, provisioner, constraints)
+	if err != nil {
+		return nil, fmt.Errorf("getting security group ids, %w", err)
+	}
+	for _, securityGroup := range securityGroups {
+		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
+	}
+	return securityGroupIds, nil
+}
+
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+	var containerRuntimeArg string
+	if !NeedsDocker(instanceTypes) {
+		containerRuntimeArg = "--container-runtime containerd"
+	}
+
+>>>>>>> support for neuron
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
-/etc/eks/bootstrap.sh '%s' \
-    --container-runtime containerd \
+/etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
+<<<<<<< HEAD
 		constraints.Cluster.Name,
 		constraints.Cluster.Endpoint))
 	caBundle, err := p.GetCABundle(ctx)
+=======
+		*provisioner.Spec.Cluster.Name,
+		containerRuntimeArg,
+		provisioner.Spec.Cluster.Endpoint))
+
+	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
+>>>>>>> support for neuron
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
