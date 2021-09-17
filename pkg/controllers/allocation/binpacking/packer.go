@@ -18,22 +18,40 @@ import (
 	"context"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var (
 	// MaxInstanceTypes defines the number of instance type options to return to the cloud provider
 	MaxInstanceTypes = 20
+
+	packTimeHistogram = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: metrics.KarpenterNamespace,
+			Subsystem: "allocation_controller",
+			Name:      "binpacking_duration_seconds",
+			Help:      "Duration of binpacking process in seconds.",
+			Buckets:   metrics.DurationBuckets(),
+		},
+	)
 )
+
+func init() {
+	crmetrics.Registry.MustRegister(packTimeHistogram)
+}
 
 type packer struct{}
 
@@ -63,6 +81,14 @@ type Packing struct {
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
+	startTime := time.Now()
+	packings := p.pack(ctx, schedule, instances)
+	packTimeHistogram.Observe(time.Since(startTime).Seconds())
+
+	return packings
+}
+
+func (p *packer) pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: schedule.Pods}))
