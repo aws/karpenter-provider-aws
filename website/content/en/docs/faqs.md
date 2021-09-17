@@ -6,7 +6,7 @@ weight: 30
 
 ## General
 ### How does a Provisioner decide to manage a particular node?
-Karpenter will only take action on nodes that it provisions. All nodes launched by Karpenter will contain be labeled with `karpenter.sh/provisioner-name`.
+Karpenter will only take action on nodes that it provisions. All nodes launched by Karpenter will be labeled with `karpenter.sh/provisioner-name`.
 ## Compatibility
 ### Which Kubernetes versions does Karpenter support?
 Karpenter releases on a similar cadence to upstream Kubernetes releases. Currently, Karpenter is compatible with Kubernetes versions v1.19+. However, this may change in the future as Karpenter takes dependencies on new Kubernetes features.
@@ -38,7 +38,7 @@ Each Provisioner is capable of defining heterogenous nodes across multiple avail
 By default, pods will use the rules defined by a Provisioner named `default`. This is analogous to the `default` scheduler. To select an alternative provisioner, use the node selector `karpenter.sh/provisioner-name: alternative-provisioner`. You must either define a default provisioner or explicitly specify `karpenter.sh/provisioner-name` node selector.
 ## Deprovisioning
 ### How does Karpenter decide which nodes it can terminate?
-Nodes will only terminate nodes that it manages. Nodes will be considered for termination due to expiry or emptiness (see below).
+Karpenter will only terminate nodes that it manages. Nodes will be considered for termination due to expiry or emptiness (see below).
 ### When does Karpenter terminate empty nodes?
 Nodes are considered empty when they do not have any pods scheduled to them. Daemonsets pods and Failed pods are ignored. Karpenter will send a deletion request to the Kubernetes API, and graceful termination will be handled by termination finalizer. Karpenter will wait for the duration of `ttlSecondsAfterUnderutilized` to terminate an empty node. If `ttlSecondsAfterUnderutilized` is unset, **which it is by default**, Karpenter will not terminate nodes once they are empty.
 ### When does Karpenter terminate expired nodes?
