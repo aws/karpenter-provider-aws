@@ -82,13 +82,10 @@ type Packing struct {
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
 	startTime := time.Now()
-	packings := p.pack(ctx, schedule, instances)
-	packTimeHistogram.Observe(time.Since(startTime).Seconds())
+	defer func() {
+		packTimeHistogram.Observe(time.Since(startTime).Seconds())
+	}()
 
-	return packings
-}
-
-func (p *packer) pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: schedule.Pods}))
