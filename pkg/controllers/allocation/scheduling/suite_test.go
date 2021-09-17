@@ -55,7 +55,7 @@ var _ = BeforeSuite(func() {
 		registry.RegisterOrDie(cloudProvider)
 		controller = &allocation.Controller{
 			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        allocation.NewBinder(e.Client, corev1.NewForConfigOrDie(e.Config)),
+			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
 			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),
 			Packer:        binpacking.NewPacker(),
