@@ -145,6 +145,28 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
+func needsGPUAmi(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+// needsDocker returns true if the instance type is unable to use
+// conatinerd directly
+func needsDocker(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		// This function can be removed once containerd support for
+		// Neurons is in the EKS Optimized AMI
+		if !i.AWSNeurons().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
@@ -198,7 +220,7 @@ func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provis
 
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	var containerRuntimeArg string
-	if !NeedsDocker(instanceTypes) {
+	if !needsDocker(instanceTypes) {
 		containerRuntimeArg = "--container-runtime containerd"
 	}
 

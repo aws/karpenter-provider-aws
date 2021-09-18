@@ -84,29 +84,6 @@ func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-func NeedsGPUAmi(is []cloudprovider.InstanceType) bool {
-	for _, i := range is {
-		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
-			return true
-		}
-	}
-	return false
-}
-
-// NeedsDocker returns true if the instance type is unable to use
-// conatinerd directly
-func NeedsDocker(is []cloudprovider.InstanceType) bool {
-	for _, i := range is {
-		// This function can be removed once containerd support for
-		// Neurons is in the EKS Optimized AMI
-		if !i.AWSNeurons().IsZero() {
-			return true
-		}
-	}
-	return false
-
-}
-
 func (i *InstanceType) AMDGPUs() *resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
