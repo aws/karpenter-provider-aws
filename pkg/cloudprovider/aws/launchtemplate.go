@@ -1,7 +1,6 @@
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
-
-   you may not use this file except in compliance with the License.
+you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
@@ -26,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
@@ -203,43 +203,20 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-<<<<<<< HEAD
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
-=======
-func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]string, error) {
-	securityGroupIds := []string{}
-	securityGroups, err := p.securityGroupProvider.Get(ctx, provisioner, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting security group ids, %w", err)
-	}
-	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
-	}
-	return securityGroupIds, nil
-}
-
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
 		containerRuntimeArg = "--container-runtime containerd"
 	}
 
->>>>>>> support for neuron
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
 /etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
-<<<<<<< HEAD
 		constraints.Cluster.Name,
+		containerRuntimeArg,
 		constraints.Cluster.Endpoint))
 	caBundle, err := p.GetCABundle(ctx)
-=======
-		*provisioner.Spec.Cluster.Name,
-		containerRuntimeArg,
-		provisioner.Spec.Cluster.Endpoint))
-
-	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
->>>>>>> support for neuron
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
