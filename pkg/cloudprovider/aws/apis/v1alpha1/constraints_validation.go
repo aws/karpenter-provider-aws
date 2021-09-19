@@ -47,7 +47,7 @@ func (a *AWS) validateCapacityType(ctx context.Context) (errs *apis.FieldError) 
 	return errs
 }
 
-func (a *AWS) validateInstanceProfile(ctx context.Context)(errs *apis.FieldError) {
+func (a *AWS) validateInstanceProfile(ctx context.Context) (errs *apis.FieldError) {
 	if a.InstanceProfile == "" {
 		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
 	}
