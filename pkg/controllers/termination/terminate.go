@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
@@ -82,10 +82,10 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	return false, nil
 }
 
-// terminate terminates the node then removes the finalizer to delete the node
+// terminate calls cloud provider delete then removes the finalizer to delete the node
 func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
-	// 1. Terminate instance associated with node
-	if err := t.CloudProvider.Terminate(ctx, node); err != nil {
+	// 1. Delete the instance associated with node
+	if err := t.CloudProvider.Delete(ctx, node); err != nil {
 		return fmt.Errorf("terminating cloudprovider instance, %w", err)
 	}
 	// 2. Remove finalizer from node in APIServer

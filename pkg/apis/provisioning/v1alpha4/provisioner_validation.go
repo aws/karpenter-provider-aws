@@ -12,12 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1alpha4
 
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"strings"
 
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -25,16 +25,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
-)
-
-var (
-	// The following fields are injected by Cloud Providers
-	SupportedArchitectures    = []string{}
-	SupportedOperatingSystems = []string{}
-	SupportedZones            = []string{}
-	SupportedInstanceTypes    = []string{}
-	ConstraintsValidationHook func(ctx context.Context, constraints *Constraints) *apis.FieldError
-	SpecValidationHook        func(ctx context.Context, constraints *ProvisionerSpec) *apis.FieldError
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -45,10 +35,9 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 }
 
 func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) {
-	errs = errs.Also(
+	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		s.Cluster.validate().ViaField("cluster"),
 		// This validation is on the ProvisionerSpec despite the fact that
 		// labels are a property of Constraints. This is necessary because
 		// validation is applied to constraints that include pod overrides.
@@ -57,11 +46,6 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
-	if SpecValidationHook != nil {
-		// Call cloud provider specific spec validation logic.
-		errs = errs.Also(SpecValidationHook(ctx, s))
-	}
-	return errs
 }
 
 func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldError) {
@@ -79,25 +63,10 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 
 func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	for key := range s.Labels {
-		if functional.ContainsString(RestrictedLabels, key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
-		}
-	}
-	return errs
-}
-
-func (c *Cluster) validate() (errs *apis.FieldError) {
-	if c == nil {
-		return errs.Also(apis.ErrMissingField())
-	}
-	if len(c.Endpoint) == 0 {
-		errs = errs.Also(apis.ErrMissingField("endpoint"))
-	} else {
-		endpoint, err := url.Parse(c.Endpoint)
-		// url.Parse() will accept a lot of input without error; make
-		// sure it's a real URL
-		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not a valid URL", c.Endpoint), "endpoint"))
+		for _, restricted := range RestrictedLabels {
+			if strings.HasPrefix(key, restricted) {
+				errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
+			}
 		}
 	}
 	return errs
@@ -106,21 +75,17 @@ func (c *Cluster) validate() (errs *apis.FieldError) {
 // Validate constraints subresource. This validation logic is used both upon
 // creation of a provisioner as well as when a pod is attempting to be
 // provisioned. If a provisioner fails validation, it will be rejected by the
-// API Server. If constraints.WithOverrides(pod) fails validation, the pod will
-// be ignored for provisioning.
+// API Server. If validation fails at provisioning time, the pod is ignored
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
-	errs = errs.Also(
+	return errs.Also(
 		c.validateLabels(),
 		c.validateTaints(),
 		c.validateArchitecture(),
 		c.validateOperatingSystem(),
 		c.validateZones(),
 		c.validateInstanceTypes(),
+		ValidationHook(ctx, c),
 	)
-	if ConstraintsValidationHook != nil {
-		errs = errs.Also(ConstraintsValidationHook(ctx, c))
-	}
-	return errs
 }
 
 func (c *Constraints) validateLabels() (errs *apis.FieldError) {
@@ -161,21 +126,25 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 }
 
 func (c *Constraints) validateArchitecture() (errs *apis.FieldError) {
-	if c.Architecture == nil {
+	if c.Architectures == nil {
 		return nil
 	}
-	if !functional.ContainsString(SupportedArchitectures, *c.Architecture) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", *c.Architecture, SupportedArchitectures), "architecture"))
+	for _, architecture := range c.Architectures {
+		if !functional.ContainsString(SupportedArchitectures, architecture) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", architecture, SupportedArchitectures), "architecture"))
+		}
 	}
 	return errs
 }
 
 func (c *Constraints) validateOperatingSystem() (errs *apis.FieldError) {
-	if c.OperatingSystem == nil {
+	if c.OperatingSystems == nil {
 		return nil
 	}
-	if !functional.ContainsString(SupportedOperatingSystems, *c.OperatingSystem) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", *c.OperatingSystem, SupportedOperatingSystems), "operatingSystem"))
+	for _, operatingSystem := range c.OperatingSystems {
+		if !functional.ContainsString(SupportedOperatingSystems, operatingSystem) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", operatingSystem, SupportedOperatingSystems), "operatingSystem"))
+		}
 	}
 	return errs
 }

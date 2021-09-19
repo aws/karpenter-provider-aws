@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
@@ -77,7 +77,7 @@ var _ = Describe("Termination", func() {
 	var node *v1.Node
 
 	BeforeEach(func() {
-		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha3.TerminationFinalizer}})
+		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha4.TerminationFinalizer}})
 	})
 
 	AfterEach(func() {
@@ -121,11 +121,11 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
-		It("should not terminate nodes that have a do-not-evict pod", func() {
+		It("should not delete nodes that have a do-not-evict pod", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
-				Annotations: map[string]string{v1alpha3.DoNotEvictPodAnnotationKey: "true"},
+				Annotations: map[string]string{v1alpha4.DoNotEvictPodAnnotationKey: "true"},
 			})
 
 			ExpectCreated(env.Client, node, podEvict, podNoEvict)
@@ -196,7 +196,7 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(env.Client, node)
 		})
-		It("should not terminate nodes until all pods are terminated", func() {
+		It("should not delete nodes until all pods are deleted", func() {
 			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}
 			ExpectCreated(env.Client, node, pods[0], pods[1])
 
@@ -280,7 +280,7 @@ func ExpectNotEvicted(c client.Client, e *termination.EvictionQueue, pods ...*v1
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
 	node := ExpectNodeExists(c, nodeName)
 	Expect(node.Spec.Unschedulable).To(BeTrue())
-	Expect(functional.ContainsString(node.Finalizers, v1alpha3.TerminationFinalizer)).To(BeTrue())
+	Expect(functional.ContainsString(node.Finalizers, v1alpha4.TerminationFinalizer)).To(BeTrue())
 	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
 	return node
 }

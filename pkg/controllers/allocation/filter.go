@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
@@ -32,7 +32,7 @@ type Filter struct {
 	KubeClient client.Client
 }
 
-func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3.Provisioner) ([]*v1.Pod, error) {
+func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4.Provisioner) ([]*v1.Pod, error) {
 	// 1. List Pods that aren't scheduled
 	pods := &v1.PodList{}
 	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
@@ -52,13 +52,12 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha3
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
+func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
 	return functional.ValidateAll(
 		func() error { return f.isUnschedulable(pod) },
 		func() error { return f.matchesProvisioner(pod, provisioner) },
 		func() error { return f.hasSupportedSchedulingConstraints(pod) },
 		func() error { return scheduling.Tolerates(pod, provisioner.Spec.Taints...) },
-		func() error { return f.withValidConstraints(ctx, pod, provisioner) },
 	)
 }
 
@@ -84,20 +83,13 @@ func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
 	return nil
 }
 
-func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
-	name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]
+func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
+	name, ok := pod.Spec.NodeSelector[v1alpha4.ProvisionerNameLabelKey]
 	if ok && provisioner.Name == name {
 		return nil
 	}
-	if !ok && provisioner.Name == v1alpha3.DefaultProvisioner.Name {
+	if !ok && provisioner.Name == v1alpha4.DefaultProvisioner.Name {
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s", name)
-}
-
-func (f *Filter) withValidConstraints(ctx context.Context, pod *v1.Pod, provisioner *v1alpha3.Provisioner) error {
-	if err := scheduling.NewConstraintsWithOverrides(&provisioner.Spec.Constraints, pod).Validate(ctx); err != nil {
-		return fmt.Errorf("invalid constraints, %w", err)
-	}
-	return nil
 }

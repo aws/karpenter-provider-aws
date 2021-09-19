@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
@@ -39,7 +39,7 @@ import (
 )
 
 var ctx context.Context
-var provisioner *v1alpha3.Provisioner
+var provisioner *v1alpha4.Provisioner
 var controller *allocation.Controller
 var env *test.Environment
 
@@ -71,7 +71,10 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provisioner = &v1alpha3.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha3.DefaultProvisioner.Name}}
+	provisioner = &v1alpha4.Provisioner{
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha4.DefaultProvisioner.Name},
+		Spec:       v1alpha4.ProvisionerSpec{},
+	}
 })
 
 var _ = AfterEach(func() {
@@ -263,17 +266,17 @@ var _ = Describe("Taints", func() {
 			Expect(unscheduled.Spec.NodeName).To(BeEmpty())
 		}
 	})
-	// It("should not generate taints for OpExists", func() {
-	// 	pods := []client.Object{
-	// 		test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
-	// 	}
-	// 	ExpectCreated(env.Client, provisioner)
-	// 	ExpectCreatedWithStatus(env.Client, pods...)
-	// 	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-	// 	nodes := &v1.NodeList{}
-	// 	Expect(env.Client.List(ctx, nodes)).To(Succeed())
-	// 	Expect(len(nodes.Items)).To(Equal(1))
-	// })
+	It("should not generate taints for OpExists", func() {
+		pods := []client.Object{
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
+		}
+		ExpectCreated(env.Client, provisioner)
+		ExpectCreatedWithStatus(env.Client, pods...)
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(1))
+	})
 	It("should generate taints for pod tolerations", func() {
 		pods := []client.Object{
 			// Matching pods schedule together on a node with a matching taint

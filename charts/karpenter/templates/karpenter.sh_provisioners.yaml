@@ -16,7 +16,7 @@ spec:
     singular: provisioner
   scope: Cluster
   versions:
-  - name: v1alpha3
+  - name: v1alpha4
     schema:
       openAPIV3Schema:
         description: Provisioner is the Schema for the Provisioners API
@@ -40,40 +40,19 @@ spec:
               of provisioner specification (defaults) and pod scheduling constraints
               (overrides). A single provisioner is capable of managing highly diverse
               capacity within a single cluster and in most cases, only one should
-              be necessary. For advanced use cases like workload separation and sharding,
-              it's possible to define multiple provisioners. These provisioners may
-              have different defaults and can be specifically targeted by pods using
-              pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
+              be necessary. It's possible to define multiple provisioners. These provisioners
+              may have different defaults and can be specifically targeted by pods
+              using pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
             properties:
-              architecture:
-                description: Architecture constrains the underlying node architecture
-                type: string
-              cluster:
-                description: Cluster that launched nodes connect to.
-                properties:
-                  caBundle:
-                    description: CABundle used by nodes to verify API Server certificates.
-                      If omitted (nil), it will be dynamically loaded at runtime from
-                      the in-cluster configuration file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
-                      An empty value ("") can be used to signal that no CABundle should
-                      be used.
-                    type: string
-                  endpoint:
-                    description: Endpoint is required for nodes to connect to the
-                      API Server.
-                    type: string
-                  name:
-                    description: Name may be required to detect implementing cloud
-                      provider resources.
-                    type: string
-                required:
-                - endpoint
-                type: object
+              architectures:
+                description: Architectures constrains the underlying node architecture
+                items:
+                  type: string
+                type: array
               instanceTypes:
                 description: InstanceTypes constrains which instances types will be
-                  used for nodes launched by the Provisioner. If unspecified, it will
-                  support all types. Cannot be specified if label "node.kubernetes.io/instance-type"
-                  is specified.
+                  used for nodes launched by the Provisioner. If unspecified, defaults
+                  to all types.
                 items:
                   type: string
                 type: array
@@ -81,18 +60,23 @@ spec:
                 additionalProperties:
                   type: string
                 description: Labels will be applied to every node launched by the
-                  Provisioner unless overriden by pod node selectors. Well known labels
-                  control provisioning behavior. Additional labels may be supported
-                  by your cloudprovider.
+                  Provisioner.
                 type: object
-              operatingSystem:
-                description: OperatingSystem constrains the underlying node operating
+              operatingSystems:
+                description: OperatingSystems constrains the underlying node operating
                   system
-                type: string
+                items:
+                  type: string
+                type: array
+              provider:
+                description: Provider contains fields specific to your cloudprovider.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               taints:
                 description: Taints will be applied to every node launched by the
                   Provisioner. If specified, the provisioner will not provision nodes
-                  for pods that do not have matching tolerations.
+                  for pods that do not have matching tolerations. Additional taints
+                  will be created that match pod tolerations on a per-node basis.
                 items:
                   description: The node this Taint is attached to has the "effect"
                     on any pod that does not tolerate the Taint.
@@ -120,7 +104,7 @@ spec:
                 type: array
               ttlSecondsAfterEmpty:
                 description: "TTLSecondsAfterEmpty is the number of seconds the controller
-                  will wait before attempting to terminate a node, measured from when
+                  will wait before attempting to delete a node, measured from when
                   the node is detected to be empty. A Node is considered to be empty
                   when it does not have pods scheduled to it, excluding daemonsets.
                   \n Termination due to underutilization is disabled if this field
@@ -139,12 +123,9 @@ spec:
               zones:
                 description: Zones constrains where nodes will be launched by the
                   Provisioner. If unspecified, defaults to all zones in the region.
-                  Cannot be specified if label "topology.kubernetes.io/zone" is specified.
                 items:
                   type: string
                 type: array
-            required:
-            - cluster
             type: object
           status:
             description: ProvisionerStatus defines the observed state of Provisioner

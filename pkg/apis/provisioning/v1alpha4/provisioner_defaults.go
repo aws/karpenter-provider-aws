@@ -12,9 +12,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package injectabletime
+package v1alpha4
 
-import "time"
+import (
+	"context"
+)
 
-// Now is a time.Now() that may be mocked by tests.
-var Now = time.Now
+// SetDefaults for the provisioner
+func (p *Provisioner) SetDefaults(ctx context.Context) {
+	p.Spec.Constraints.Default(ctx)
+}
+
+// Default the constraints
+func (c *Constraints) Default(ctx context.Context) {
+	DefaultingHook(ctx, c)
+}

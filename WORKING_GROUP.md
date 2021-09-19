@@ -34,12 +34,12 @@ Please contribute to our meeting notes by opening a PR.
 - [ET] We need to rethink how custom cloud provider resources would work. But I think the current GPU stuff should probably be cloud provider specific rather than generic since it doesn't exist in upstream k8s.
 - [EL] Is the CloudProvider interface for returning Zones specifically for AWS or can any freeform string be returned to support other cloud provider concepts?
 - [ET] The Zones func is meant to be cloud provider agnostic, so the return string could be whatever makes sense for the cloud provider.
-- [EL] ClusterAPI cloud provider would increment a MachineSet right now. There might be some issues with multiple things touching the replica count of the sets, but starting with a simple model and see what breaks. 
+- [EL] ClusterAPI cloud provider would increment a MachineSet right now. There might be some issues with multiple things touching the replica count of the sets, but starting with a simple model and see what breaks.
 - [READING v1alpha4 proposal](https://github.com/awslabs/karpenter/pull/676)
-- [BW] How would the pluralization of Arch and OS work and why would we want to support Linux and Windows in the same provisioner? 
-- [ET] We would default to Linux and AMD64 most likely and then allow the user to configure if they'd like to expand the constraints to use both Arch's or OS. 
-- [BW] I don't think Windows would be a popular or practical choice if the pod could be run on Linux. But I can see how the semantics make it nice and uniform. I'm okay with the pluralization approach here. 
- 
+- [BW] How would the pluralization of Arch and OS work and why would we want to support Linux and Windows in the same provisioner?
+- [ET] We would default to Linux and AMD64 most likely and then allow the user to configure if they'd like to expand the constraints to use both Arch's or OS.
+- [BW] I don't think Windows would be a popular or practical choice if the pod could be run on Linux. But I can see how the semantics make it nice and uniform. I'm okay with the pluralization approach here.
+
 
 # Meeting notes (07/22/21)
 

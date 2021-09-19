@@ -25,8 +25,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
@@ -58,7 +60,7 @@ func launchTemplateName(options *launchTemplateOptions) string {
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err.Error()))
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, ptr.StringValue(options.Cluster.Name), fmt.Sprint(hash))
+	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
 // launchTemplateOptions is hashed and results in the creation of a real EC2
@@ -66,51 +68,55 @@ func launchTemplateName(options *launchTemplateOptions) string {
 // to the number of LaunchTemplates that will result from this change.
 type launchTemplateOptions struct {
 	// Edge-triggered fields that will only change on kube events.
-	Cluster  v1alpha3.Cluster
-	UserData string
+	ClusterName     string
+	UserData        string
+	InstanceProfile string
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups []string
-	AMIID          string
+	SecurityGroupsIds []string
+	AMIID             string
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (*LaunchTemplate, error) {
+type LaunchTemplate struct {
+	Name    string
+	Version string
+}
+
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
 	// 1. If the customer specified a launch template then just use it
-	if result := constraints.GetLaunchTemplate(); result != nil {
-		return result, nil
+	if constraints.LaunchTemplate != nil {
+		return ptr.StringValue(constraints.LaunchTemplate), nil
 	}
 
 	// 2. Get constrained AMI ID
 	amiID, err := p.amiProvider.Get(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 3. Get constrained security groups
-	securityGroups, err := p.getSecurityGroupIds(ctx, provisioner, constraints)
+	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 3. Get userData for Node
-	userData, err := p.getUserData(ctx, provisioner, constraints)
+	userData, err := p.getUserData(ctx, constraints)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 4. Ensure the launch template exists, or create it
 	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-		Cluster:        provisioner.Spec.Cluster,
-		UserData:       userData,
-		AMIID:          amiID,
-		SecurityGroups: securityGroups,
+		UserData:          userData,
+		ClusterName:       constraints.Cluster.Name,
+		InstanceProfile:   constraints.InstanceProfile,
+		AMIID:             amiID,
+		SecurityGroupsIds: securityGroupsIds,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return &LaunchTemplate{
-		Name:    aws.StringValue(launchTemplate.LaunchTemplateName),
-		Version: fmt.Sprint(DefaultLaunchTemplateVersion),
-	}, nil
+	return aws.StringValue(launchTemplate.LaunchTemplateName), nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
@@ -148,26 +154,26 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", ptr.StringValue(options.Cluster.Name))),
+				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", options.ClusterName)),
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
 				Tags: []*ec2.Tag{
 					{
 						Key:   aws.String("Name"),
-						Value: aws.String(fmt.Sprintf("Karpenter/%s", ptr.StringValue(options.Cluster.Name))),
+						Value: aws.String(fmt.Sprintf("Karpenter/%s", options.ClusterName)),
 					},
 					{
-						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, ptr.StringValue(options.Cluster.Name))),
+						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, options.ClusterName)),
 						Value: aws.String("owned"),
 					},
 					{
-						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, ptr.StringValue(options.Cluster.Name))),
+						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, options.ClusterName)),
 						Value: aws.String("owned"),
 					},
 				},
 			}},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroups),
+			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
 		},
@@ -179,28 +185,15 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) getSecurityGroupIds(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]string, error) {
-	securityGroupIds := []string{}
-	securityGroups, err := p.securityGroupProvider.Get(ctx, provisioner, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting security group ids, %w", err)
-	}
-	for _, securityGroup := range securityGroups {
-		securityGroupIds = append(securityGroupIds, aws.StringValue(securityGroup.GroupId))
-	}
-	return securityGroupIds, nil
-}
-
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) (string, error) {
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
 /etc/eks/bootstrap.sh '%s' \
     --container-runtime containerd \
     --apiserver-endpoint '%s'`,
-		*provisioner.Spec.Cluster.Name,
-		provisioner.Spec.Cluster.Endpoint))
-
-	caBundle, err := provisioner.Spec.Cluster.GetCABundle(ctx)
+		constraints.Cluster.Name,
+		constraints.Cluster.Endpoint))
+	caBundle, err := p.GetCABundle(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
@@ -239,4 +232,27 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, provisioner *v
     --kubelet-extra-args '%s'`, kubeletExtraArgs))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+}
+
+func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	restConfig := restconfig.Get(ctx)
+	if restConfig == nil {
+		return nil, nil
+	}
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading transport config, %v", err)
+		return nil, err
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
+		return nil, err
+	}
+	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }

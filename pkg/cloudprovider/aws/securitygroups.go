@@ -21,11 +21,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/utils/predicates"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 )
 
 type SecurityGroupProvider struct {
@@ -40,55 +39,63 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (s *SecurityGroupProvider) Get(ctx context.Context, provisioner *v1alpha3.Provisioner, constraints *Constraints) ([]*ec2.SecurityGroup, error) {
-	// 1. Get Security Groups
-	securityGroups, err := s.getSecurityGroups(ctx, ptr.StringValue(provisioner.Spec.Cluster.Name))
+func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
+	// Get SecurityGroups
+	securityGroups, err := s.getSecurityGroups(ctx, s.getFilters(ctx, constraints))
 	if err != nil {
 		return nil, err
 	}
-	// 2. Filter by subnet name if constrained
-	if name := constraints.GetSecurityGroupName(); name != nil {
-		securityGroups = filterSecurityGroups(securityGroups, withSecurityGroupTags(predicates.HasNameTag(*name)))
-	}
-	// 3. Filter by security group tag key if constrained
-	if tagKey := constraints.GetSecurityGroupTagKey(); tagKey != nil {
-		securityGroups = filterSecurityGroups(securityGroups, withSecurityGroupTags(predicates.HasTagKey(*tagKey)))
-	}
-	// 4. Fail if no security groups found, since the constraints may be
-	// violated and node cannot connect to the API Server.
+	// Fail if no security groups found
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	return securityGroups, nil
+	// Convert to IDs
+	securityGroupIds := []string{}
+	for _, securityGroup := range securityGroups {
+		securityGroupIds = append(securityGroupIds, *securityGroup.GroupId)
+	}
+	return securityGroupIds, nil
 }
 
-func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, clusterName string) ([]*ec2.SecurityGroup, error) {
-	if securityGroups, ok := s.cache.Get(clusterName); ok {
+func (s *SecurityGroupProvider) getFilters(ctx context.Context, constraints *v1alpha1.Constraints) []*ec2.Filter {
+	filters := []*ec2.Filter{}
+	for key, value := range constraints.SecurityGroupsSelector {
+		if value == "" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(key)},
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
+	}
+	return filters
+}
+
+func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+	if err != nil {
+		return nil, err
+	}
+	if securityGroups, ok := s.cache.Get(fmt.Sprint(hash)); ok {
 		return securityGroups.([]*ec2.SecurityGroup), nil
 	}
-	output, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
-		Filters: []*ec2.Filter{{
-			Name:   aws.String("tag-key"), // Security Groups must be tagged for the cluster
-			Values: []*string{aws.String(fmt.Sprintf(ClusterTagKeyFormat, clusterName))},
-		}},
-	})
+	output, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 	if err != nil {
-		return nil, fmt.Errorf("describing security groups with tag key %s, %w", fmt.Sprintf(ClusterTagKeyFormat, clusterName), err)
+		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	s.cache.Set(clusterName, output.SecurityGroups, CacheTTL)
-	logging.FromContext(ctx).Debugf("Discovered %d security groups for cluster %s", len(output.SecurityGroups), clusterName)
+	s.cache.Set(fmt.Sprint(hash), output.SecurityGroups, CacheTTL)
+	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
 }
 
-func filterSecurityGroups(securityGroups []*ec2.SecurityGroup, predicate func(securityGroup *ec2.SecurityGroup) bool) (result []*ec2.SecurityGroup) {
+func (s *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+	names := []string{}
 	for _, securityGroup := range securityGroups {
-		if predicate(securityGroup) {
-			result = append(result, securityGroup)
-		}
+		names = append(names, aws.StringValue(securityGroup.GroupId))
 	}
-	return result
-}
-
-func withSecurityGroupTags(predicate func([]*ec2.Tag) bool) func(securityGroup *ec2.SecurityGroup) bool {
-	return func(securityGroup *ec2.SecurityGroup) bool { return predicate(securityGroup.Tags) }
+	return names
 }

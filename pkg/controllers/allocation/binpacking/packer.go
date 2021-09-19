@@ -19,7 +19,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
@@ -53,7 +53,7 @@ func NewPacker() Packer {
 type Packing struct {
 	Pods                []*v1.Pod
 	InstanceTypeOptions []cloudprovider.InstanceType
-	Constraints         *v1alpha3.Constraints
+	Constraints         *v1alpha4.Constraints
 }
 
 // Pack returns the node packings for the provided pods. It computes a set of viable

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"golang.org/x/time/rate"

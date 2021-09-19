@@ -3,83 +3,23 @@ title: "API Reference"
 linkTitle: "API Reference"
 weight: 70
 ---
-
-
 <p>Packages:</p>
 <ul>
 <li>
-<a href="#karpenter.sh%2fv1alpha3">karpenter.sh/v1alpha3</a>
+<a href="#karpenter.sh%2fv1alpha4">karpenter.sh/v1alpha4</a>
 </li>
 </ul>
-<h2 id="karpenter.sh/v1alpha3">karpenter.sh/v1alpha3</h2>
+<h2 id="karpenter.sh/v1alpha4">karpenter.sh/v1alpha4</h2>
 <p>
-<p>Package v1alpha3 contains API Schema definitions for the v1alpha3 API group</p>
+<p>Package v1alpha4 contains API Schema definitions for the v1alpha4 API group</p>
 </p>
 Resource Types:
 <ul></ul>
-<h3 id="karpenter.sh/v1alpha3.Cluster">Cluster
+<h3 id="karpenter.sh/v1alpha4.Constraints">Constraints
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec</a>)
-</p>
-<p>
-<p>Cluster configures the cluster that the provisioner operates against. If
-not specified, it will default to using the controller&rsquo;s kube-config.</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>endpoint</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Endpoint is required for nodes to connect to the API Server.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>caBundle</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>CABundle used by nodes to verify API Server certificates. If omitted (nil),
-it will be dynamically loaded at runtime from the in-cluster configuration
-file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
-An empty value (&ldquo;&rdquo;) can be used to signal that no CABundle should be used.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>name</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Name may be required to detect implementing cloud provider resources.</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="karpenter.sh/v1alpha3.Constraints">Constraints
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec</a>)
+<a href="#karpenter.sh/v1alpha4.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
 <p>Constraints are applied to all nodes created by the provisioner. They can be
@@ -106,7 +46,8 @@ overriden by NodeSelectors at the pod level.</p>
 <em>(Optional)</em>
 <p>Taints will be applied to every node launched by the Provisioner. If
 specified, the provisioner will not provision nodes for pods that do not
-have matching tolerations.</p>
+have matching tolerations. Additional taints will be created that match
+pod tolerations on a per-node basis.</p>
 </td>
 </tr>
 <tr>
@@ -118,9 +59,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Labels will be applied to every node launched by the Provisioner unless
-overriden by pod node selectors. Well known labels control provisioning
-behavior. Additional labels may be supported by your cloudprovider.</p>
+<p>Labels will be applied to every node launched by the Provisioner.</p>
 </td>
 </tr>
 <tr>
@@ -133,8 +72,7 @@ behavior. Additional labels may be supported by your cloudprovider.</p>
 <td>
 <em>(Optional)</em>
 <p>Zones constrains where nodes will be launched by the Provisioner. If
-unspecified, defaults to all zones in the region. Cannot be specified if
-label &ldquo;topology.kubernetes.io/zone&rdquo; is specified.</p>
+unspecified, defaults to all zones in the region.</p>
 </td>
 </tr>
 <tr>
@@ -147,15 +85,14 @@ label &ldquo;topology.kubernetes.io/zone&rdquo; is specified.</p>
 <td>
 <em>(Optional)</em>
 <p>InstanceTypes constrains which instances types will be used for nodes
-launched by the Provisioner. If unspecified, it will support all types.
-Cannot be specified if label &ldquo;node.kubernetes.io/instance-type&rdquo; is specified.</p>
+launched by the Provisioner. If unspecified, defaults to all types.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>architecture</code><br/>
+<code>architectures</code><br/>
 <em>
-string
+[]string
 </em>
 </td>
 <td>
@@ -165,9 +102,9 @@ string
 </tr>
 <tr>
 <td>
-<code>operatingSystem</code><br/>
+<code>operatingSystems</code><br/>
 <em>
-string
+[]string
 </em>
 </td>
 <td>
@@ -175,9 +112,20 @@ string
 <p>OperatingSystem constrains the underlying node operating system</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>provider</code><br/>
+<em>
+k8s.io/apimachinery/pkg/runtime.RawExtension
+</em>
+</td>
+<td>
+<p>Provider contains fields specific to your cloudprovider.</p>
+</td>
+</tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.Provisioner">Provisioner
+<h3 id="karpenter.sh/v1alpha4.Provisioner">Provisioner
 </h3>
 <p>
 <p>Provisioner is the Schema for the Provisioners API</p>
@@ -208,7 +156,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerSpec">
+<a href="#karpenter.sh/v1alpha4.ProvisionerSpec">
 ProvisionerSpec
 </a>
 </em>
@@ -219,22 +167,9 @@ ProvisionerSpec
 <table>
 <tr>
 <td>
-<code>cluster</code><br/>
-<em>
-<a href="#karpenter.sh/v1alpha3.Cluster">
-Cluster
-</a>
-</em>
-</td>
-<td>
-<p>Cluster that launched nodes connect to.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>Constraints</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.Constraints">
+<a href="#karpenter.sh/v1alpha4.Constraints">
 Constraints
 </a>
 </em>
@@ -243,7 +178,6 @@ Constraints
 <p>
 (Members of <code>Constraints</code> are embedded into this type.)
 </p>
-<em>(Optional)</em>
 <p>Constraints are applied to all nodes launched by this provisioner.</p>
 </td>
 </tr>
@@ -257,7 +191,7 @@ int64
 <td>
 <em>(Optional)</em>
 <p>TTLSecondsAfterEmpty is the number of seconds the controller will wait
-before attempting to terminate a node, measured from when the node is
+before attempting to delete a node, measured from when the node is
 detected to be empty. A Node is considered to be empty when it does not
 have pods scheduled to it, excluding daemonsets.</p>
 <p>Termination due to underutilization is disabled if this field is not set.</p>
@@ -286,7 +220,7 @@ memory leak protection, and disruption testing.</p>
 <td>
 <code>status</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.ProvisionerStatus">
+<a href="#karpenter.sh/v1alpha4.ProvisionerStatus">
 ProvisionerStatus
 </a>
 </em>
@@ -296,11 +230,11 @@ ProvisionerStatus
 </tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.ProvisionerSpec">ProvisionerSpec
+<h3 id="karpenter.sh/v1alpha4.ProvisionerSpec">ProvisionerSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha4.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -309,9 +243,8 @@ status=true]. Node configuration is driven by through a combination of
 provisioner specification (defaults) and pod scheduling constraints
 (overrides). A single provisioner is capable of managing highly diverse
 capacity within a single cluster and in most cases, only one should be
-necessary. For advanced use cases like workload separation and sharding, it&rsquo;s
-possible to define multiple provisioners. These provisioners may have
-different defaults and can be specifically targeted by pods using
+necessary. It&rsquo;s possible to define multiple provisioners. These provisioners
+may have different defaults and can be specifically targeted by pods using
 pod.spec.nodeSelector[&ldquo;karpenter.sh/provisioner-name&rdquo;]=$PROVISIONER_NAME.</p>
 </p>
 <table>
@@ -324,22 +257,9 @@ pod.spec.nodeSelector[&ldquo;karpenter.sh/provisioner-name&rdquo;]=$PROVISIONER_
 <tbody>
 <tr>
 <td>
-<code>cluster</code><br/>
-<em>
-<a href="#karpenter.sh/v1alpha3.Cluster">
-Cluster
-</a>
-</em>
-</td>
-<td>
-<p>Cluster that launched nodes connect to.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>Constraints</code><br/>
 <em>
-<a href="#karpenter.sh/v1alpha3.Constraints">
+<a href="#karpenter.sh/v1alpha4.Constraints">
 Constraints
 </a>
 </em>
@@ -348,7 +268,6 @@ Constraints
 <p>
 (Members of <code>Constraints</code> are embedded into this type.)
 </p>
-<em>(Optional)</em>
 <p>Constraints are applied to all nodes launched by this provisioner.</p>
 </td>
 </tr>
@@ -362,7 +281,7 @@ int64
 <td>
 <em>(Optional)</em>
 <p>TTLSecondsAfterEmpty is the number of seconds the controller will wait
-before attempting to terminate a node, measured from when the node is
+before attempting to delete a node, measured from when the node is
 detected to be empty. A Node is considered to be empty when it does not
 have pods scheduled to it, excluding daemonsets.</p>
 <p>Termination due to underutilization is disabled if this field is not set.</p>
@@ -386,11 +305,11 @@ memory leak protection, and disruption testing.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="karpenter.sh/v1alpha3.ProvisionerStatus">ProvisionerStatus
+<h3 id="karpenter.sh/v1alpha4.ProvisionerStatus">ProvisionerStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#karpenter.sh/v1alpha3.Provisioner">Provisioner</a>)
+<a href="#karpenter.sh/v1alpha4.Provisioner">Provisioner</a>)
 </p>
 <p>
 <p>ProvisionerStatus defines the observed state of Provisioner</p>
@@ -434,6 +353,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>f37f9ba</code>.
+on git commit <code>bf8ae63</code>.
 </em></p>
-

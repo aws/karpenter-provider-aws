@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/utils/result"
 
 	"go.uber.org/multierr"
@@ -68,7 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return result.RetryIfError(ctx, err)
 	}
-	if _, ok := stored.Labels[v1alpha3.ProvisionerNameLabelKey]; !ok {
+	if _, ok := stored.Labels[v1alpha4.ProvisionerNameLabelKey]; !ok {
 		return reconcile.Result{}, nil
 	}
 	if !stored.DeletionTimestamp.IsZero() {
@@ -76,8 +76,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Retrieve Provisioner
-	provisioner := &v1alpha3.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: stored.Labels[v1alpha3.ProvisionerNameLabelKey]}, provisioner); err != nil {
+	provisioner := &v1alpha4.Provisioner{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: stored.Labels[v1alpha4.ProvisionerNameLabelKey]}, provisioner); err != nil {
 		return result.RetryIfError(ctx, err)
 	}
 
@@ -86,7 +86,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var results []reconcile.Result
 	var errs error
 	for _, reconciler := range []interface {
-		Reconcile(context.Context, *v1alpha3.Provisioner, *v1.Node) (reconcile.Result, error)
+		Reconcile(context.Context, *v1alpha4.Provisioner, *v1.Node) (reconcile.Result, error)
 	}{
 		c.readiness,
 		c.liveness,
@@ -119,10 +119,10 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		For(&v1.Node{}).
 		Watches(
 			// Reconcile all nodes related to a provisioner when it changes.
-			&source.Kind{Type: &v1alpha3.Provisioner{}},
+			&source.Kind{Type: &v1alpha4.Provisioner{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				nodes := &v1.NodeList{}
-				if err := c.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha3.ProvisionerNameLabelKey: o.GetName()})); err != nil {
+				if err := c.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha4.ProvisionerNameLabelKey: o.GetName()})); err != nil {
 					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
 					return requests
 				}

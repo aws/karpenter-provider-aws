@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
@@ -87,8 +87,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	provisioner, err := c.provisionerFor(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			c.Batcher.Wait(&v1alpha3.Provisioner{})
-			logging.FromContext(ctx).Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha3.ProvisionerNameLabelKey)
+			c.Batcher.Wait(&v1alpha4.Provisioner{})
+			logging.FromContext(ctx).Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha4.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
 		return result.RetryIfError(ctx, err)
@@ -129,9 +129,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	errs := make([]error, len(packings))
 	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
 		packing := packings[index]
-		errs[index] = <-c.CloudProvider.Create(ctx, provisioner, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
+		errs[index] = <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
 			node.Labels = functional.UnionStringMaps(
-				map[string]string{v1alpha3.ProvisionerNameLabelKey: provisioner.Name},
+				map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
 				packing.Constraints.Labels,
 			)
 			return c.Binder.Bind(ctx, node, packing.Pods)
@@ -144,10 +144,10 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	err := controllerruntime.
 		NewControllerManagedBy(m).
 		Named("Allocation").
-		For(&v1alpha3.Provisioner{}).
+		For(&v1alpha4.Provisioner{}).
 		Watches(
 			&source.Kind{Type: &v1.Pod{}},
-			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner),
+			handler.EnqueueRequestsFromMapFunc(c.podToProvisioner(ctx)),
 			// Only process pod update events
 			builder.WithPredicates(
 				predicate.Funcs{
@@ -173,8 +173,8 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 }
 
 // provisionerFor fetches the provisioner and returns a provisioner w/ default runtime values
-func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedName) (*v1alpha3.Provisioner, error) {
-	provisioner := &v1alpha3.Provisioner{}
+func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedName) (*v1alpha4.Provisioner, error) {
+	provisioner := &v1alpha4.Provisioner{}
 	if err := c.KubeClient.Get(ctx, name, provisioner); err != nil {
 		return nil, err
 	}
@@ -182,33 +182,34 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 }
 
 // podToProvisioner is a function handler to transform pod objs to provisioner reconcile requests
-func (c *Controller) podToProvisioner(o client.Object) (requests []reconcile.Request) {
-	pod := o.(*v1.Pod)
-	ctx := context.Background()
-	if err := c.Filter.isUnschedulable(pod); err != nil {
-		return nil
-	}
-	provisionerKey := v1alpha3.DefaultProvisioner
-	if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
-		provisionerKey.Name = name
-	}
-	provisioner, err := c.provisionerFor(ctx, provisionerKey)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Queue and batch a reconcile request for a non-existent, empty provisioner
-			// This will reduce the number of repeated error messages about a provisioner not existing
-			c.Batcher.Add(&v1alpha3.Provisioner{})
-			notFoundProvisioner := v1alpha3.DefaultProvisioner.Name
-			if name, ok := pod.Spec.NodeSelector[v1alpha3.ProvisionerNameLabelKey]; ok {
-				notFoundProvisioner = name
-			}
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: notFoundProvisioner}}}
+func (c *Controller) podToProvisioner(ctx context.Context) func(o client.Object) []reconcile.Request {
+	return func(o client.Object) (requests []reconcile.Request) {
+		pod := o.(*v1.Pod)
+		if err := c.Filter.isUnschedulable(pod); err != nil {
+			return nil
 		}
-		return nil
+		provisionerKey := v1alpha4.DefaultProvisioner
+		if name, ok := pod.Spec.NodeSelector[v1alpha4.ProvisionerNameLabelKey]; ok {
+			provisionerKey.Name = name
+		}
+		provisioner, err := c.provisionerFor(ctx, provisionerKey)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Queue and batch a reconcile request for a non-existent, empty provisioner
+				// This will reduce the number of repeated error messages about a provisioner not existing
+				c.Batcher.Add(&v1alpha4.Provisioner{})
+				notFoundProvisioner := v1alpha4.DefaultProvisioner.Name
+				if name, ok := pod.Spec.NodeSelector[v1alpha4.ProvisionerNameLabelKey]; ok {
+					notFoundProvisioner = name
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: notFoundProvisioner}}}
+			}
+			return nil
+		}
+		if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
+			return nil
+		}
+		c.Batcher.Add(provisioner)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
 	}
-	if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
-		return nil
-	}
-	c.Batcher.Add(provisioner)
-	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisioner.Name}}}
 }

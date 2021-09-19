@@ -25,8 +25,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha3"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
@@ -49,7 +50,7 @@ type InstanceProvider struct {
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate *LaunchTemplate,
+	launchTemplate string,
 	instanceTypes []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string,
@@ -99,7 +100,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstance(ctx context.Context,
-	launchTemplate *LaunchTemplate,
+	launchTemplateName string,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
 	capacityType string) (*string, error) {
@@ -116,7 +117,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 					// to reduce the likelihood of getting an excessively large instance type.
 					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-					if capacityType == CapacityTypeSpot {
+					if capacityType == v1alpha1.CapacityTypeSpot {
 						override.Priority = aws.Float64(float64(i))
 					}
 					overrides = append(overrides, override)
@@ -147,8 +148,8 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		},
 		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplate.Name),
-				Version:            aws.String(launchTemplate.Version),
+				LaunchTemplateName: aws.String(launchTemplateName),
+				Version:            aws.String("$Default"),
 			},
 			Overrides: overrides,
 		}},
@@ -201,7 +202,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					},
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    aws.StringValue(instance.Architecture),
-						OperatingSystem: v1alpha3.OperatingSystemLinux,
+						OperatingSystem: v1alpha4.OperatingSystemLinux,
 					},
 				},
 			}, nil
