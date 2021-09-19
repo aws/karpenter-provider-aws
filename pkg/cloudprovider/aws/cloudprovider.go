@@ -189,6 +189,7 @@ func (c *CloudProvider) Default(ctx context.Context, v1alpha4constraints *v1alph
 	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
 	if err != nil {
 		logging.FromContext(context.Background()).Errorf("failed to deserialize provider, %s", err.Error())
+		return
 	}
 	constraints.Default(ctx)
 	v1alpha4constraints.Provider.Raw, err = json.Marshal(constraints.AWS)
