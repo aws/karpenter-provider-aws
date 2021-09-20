@@ -124,7 +124,7 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	}
 	// TODO exclude if not available for spot
 	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
-		"m", "c", "r", "a", // Standard
+		"m3", "m4", "m5", "m6g", "c", "r", "a", // Standard
 		"t3", "t4", // Burstable
 		"p", "inf", "g", // Accelerators
 	)
