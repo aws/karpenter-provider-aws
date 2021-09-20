@@ -40,11 +40,11 @@ spec:
 
   # Constrain architectures, or use choose from all if unconstrained (recommended)
   # Overriden by pod.spec.nodeSelector["kubernetes.io/arch"]
-  architectures: [ "linux" ]
+  architectures: [ "amd64" ]
 
   # Constrain operating systems, or use choose from all if unconstrained (recommended)
   # Overriden by pod.spec.nodeSelector["kubernetes.io/os"]
-  operatingSystems: [ "amd64" ]
+  operatingSystems: [ "linux" ]
 
   # These fields vary per cloud provider, see your cloud provider specific documentation
   provider: {}
