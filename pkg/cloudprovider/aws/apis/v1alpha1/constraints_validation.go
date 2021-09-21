@@ -19,55 +19,50 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"knative.dev/pkg/apis"
 )
 
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
-	return c.AWS.validate(ctx).ViaField("provider")
+	return c.validate(ctx).ViaField("provider")
 }
 
-func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		a.validateInstanceProfile(ctx),
-		a.validateCapacityType(ctx),
-		a.validateLaunchTemplate(ctx),
-		a.validateSubnets(ctx),
-		a.validateSecurityGroups(ctx),
-		a.Cluster.Validate(ctx).ViaField("cluster"),
+		c.validateInstanceProfile(ctx),
+		c.validateCapacityTypes(ctx),
+		c.validateLaunchTemplate(ctx),
+		c.validateSubnets(ctx),
+		c.validateSecurityGroups(ctx),
+		c.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
 
-func (a *AWS) validateCapacityType(ctx context.Context) (errs *apis.FieldError) {
-	capacityTypes := []string{CapacityTypeSpot, CapacityTypeOnDemand}
-	if !functional.ContainsString(capacityTypes, aws.StringValue(a.CapacityType)) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", aws.StringValue(a.CapacityType), capacityTypes), "capacityType"))
-	}
-	return errs
+func (c *Constraints) validateCapacityTypes(ctx context.Context) (errs *apis.FieldError) {
+	return v1alpha4.ValidateWellKnown(CapacityTypeLabel, c.CapacityTypes, "capacityTypes")
 }
 
-func (a *AWS) validateInstanceProfile(ctx context.Context) (errs *apis.FieldError) {
-	if a.InstanceProfile == "" {
+func (c *Constraints) validateInstanceProfile(ctx context.Context) (errs *apis.FieldError) {
+	if c.InstanceProfile == "" {
 		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
 	}
 	return errs
 }
 
-func (a *AWS) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
 	// nothing to validate at the moment
 	return errs
 }
 
-func (a *AWS) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
-	if a.SubnetSelector == nil {
+func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
+	if c.SubnetSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
 	}
 	return errs
 }
 
-func (a *AWS) validateSecurityGroups(ctx context.Context) (errs *apis.FieldError) {
-	if a.SecurityGroupsSelector == nil {
+func (c *Constraints) validateSecurityGroups(ctx context.Context) (errs *apis.FieldError) {
+	if c.SecurityGroupsSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
 	}
 	return errs

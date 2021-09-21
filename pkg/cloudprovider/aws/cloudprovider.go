@@ -29,7 +29,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	v1 "k8s.io/api/core/v1"
@@ -143,7 +142,7 @@ func (c *CloudProvider) create(ctx context.Context, v1alpha4constraints *v1alpha
 		return fmt.Errorf("getting launch template, %w", err)
 	}
 	// 3. Create instance
-	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, aws.StringValue(constraints.CapacityType))
+	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, constraints.CapacityTypes)
 	if err != nil {
 		return fmt.Errorf("launching instance, %w", err)
 	}
@@ -154,28 +153,12 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 	return c.instanceTypeProvider.Get(ctx)
 }
 
-func (c *CloudProvider) GetZones(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) ([]string, error) {
-	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
-	if err != nil {
-		return nil, err
-	}
-	subnets, err := c.subnetProvider.Get(ctx, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting subnets, %w", err)
-	}
-	zones := []string{}
-	for _, subnet := range subnets {
-		zones = append(zones, aws.StringValue(subnet.AvailabilityZone))
-	}
-	return functional.UniqueStrings(zones), nil
-}
-
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
 // Validate the constraints
-func (c *CloudProvider) Validate(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) (errs *apis.FieldError) {
+func (c *CloudProvider) Validate(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) *apis.FieldError {
 	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
@@ -195,4 +178,21 @@ func (c *CloudProvider) Default(ctx context.Context, v1alpha4constraints *v1alph
 	if err != nil {
 		logging.FromContext(context.Background()).Errorf("failed to serialize provider, %s", err.Error())
 	}
+}
+
+// Constrain applies the pod's scheduling constraints to the constraints.
+// Returns an error if the constraints cannot be applied.
+func (c *CloudProvider) Constrain(ctx context.Context, constraints *v1alpha4.Constraints, pods ...*v1.Pod) error {
+	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize provider, %w", err)
+	}
+	if err:= vendorConstraints.Constrain(ctx, pods...); err != nil {
+		return err
+	}
+	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)
+	if err != nil {
+		return fmt.Errorf("failed to serialize provider, %w", err)
+	}
+	return nil
 }

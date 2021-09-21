@@ -44,7 +44,9 @@ func (i *InstanceType) Zones() []string {
 func (i *InstanceType) Architectures() []string {
 	architectures := []string{}
 	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
-		architectures = append(architectures, v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)])
+		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
+			architectures = append(architectures, value)
+		}
 	}
 	return architectures
 }

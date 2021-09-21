@@ -19,10 +19,9 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,11 +52,9 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4
 }
 
 func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
-	return functional.ValidateAll(
-		func() error { return f.isUnschedulable(pod) },
-		func() error { return f.matchesProvisioner(pod, provisioner) },
-		func() error { return f.hasSupportedSchedulingConstraints(pod) },
-		func() error { return scheduling.Tolerates(pod, provisioner.Spec.Taints...) },
+	return multierr.Combine(
+		f.isUnschedulable(pod),
+		f.matchesProvisioner(pod, provisioner),
 	)
 }
 
@@ -67,18 +64,6 @@ func (f *Filter) isUnschedulable(p *v1.Pod) error {
 	}
 	if pod.IsOwnedByDaemonSet(p) {
 		return fmt.Errorf("owned by daemonset")
-	}
-	return nil
-}
-
-func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
-	if pod.Spec.Affinity != nil {
-		return fmt.Errorf("affinity is not supported")
-	}
-	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if supported := []string{v1.LabelHostname, v1.LabelTopologyZone}; !functional.ContainsString(supported, constraint.TopologyKey) {
-			return fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported)
-		}
 	}
 	return nil
 }

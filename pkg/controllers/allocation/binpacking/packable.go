@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
@@ -48,17 +49,17 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		// additional filtering will be done by later steps (such as
 		// removing instance types that obviously lack resources, such
 		// as GPUs, for the workload being presented).
-		if err := functional.ValidateAll(
-			func() error { return packable.validateZones(schedule) },
-			func() error { return packable.validateInstanceType(schedule) },
-			func() error { return packable.validateArchitecture(schedule) },
-			func() error { return packable.validateOperatingSystem(schedule) },
+		if err := multierr.Combine(
+			packable.validateZones(schedule),
+			packable.validateInstanceType(schedule),
+			packable.validateArchitecture(schedule),
+			packable.validateOperatingSystem(schedule),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
-			func() error { return packable.validateNvidiaGpus(schedule) },
-			func() error { return packable.validateAMDGpus(schedule) },
-			func() error { return packable.validateAWSNeurons(schedule) },
+			packable.validateNvidiaGpus(schedule),
+			packable.validateAMDGpus(schedule),
+			packable.validateAWSNeurons(schedule),
 		); err != nil {
 			continue
 		}
@@ -151,9 +152,6 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if len(schedule.InstanceTypes) == 0 {
-		return nil
-	}
 	if !functional.ContainsString(schedule.InstanceTypes, p.Name()) {
 		return fmt.Errorf("instance type %s is not in %v", p.Name(), schedule.InstanceTypes)
 	}
@@ -161,9 +159,6 @@ func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if schedule.Architectures == nil {
-		return nil
-	}
 	if len(functional.IntersectStringSlice(p.Architectures(), schedule.Architectures)) == 0 {
 		return fmt.Errorf("architecture %s is not in %v", schedule.Architectures, p.Architectures())
 	}
@@ -171,9 +166,6 @@ func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if schedule.OperatingSystems == nil {
-		return nil
-	}
 	if len(functional.IntersectStringSlice(p.OperatingSystems(), schedule.OperatingSystems)) == 0 {
 		return fmt.Errorf("operating system %s is not in %v", schedule.OperatingSystems, p.OperatingSystems())
 	}
@@ -181,9 +173,6 @@ func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error 
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if len(schedule.Zones) == 0 {
-		return nil
-	}
 	if len(functional.IntersectStringSlice(schedule.Zones, p.Zones())) == 0 {
 		return fmt.Errorf("zones %v are not in %v", schedule.Zones, p.Zones())
 	}

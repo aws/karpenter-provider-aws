@@ -52,16 +52,19 @@ var (
 		v1.LabelTopologyZone,
 		v1.LabelInstanceTypeStable,
 		// Used internally by provisioning logic
-		ProvisionerNameLabelKey,
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
 	}
-	SupportedArchitectures    = []string{}
-	SupportedOperatingSystems = []string{}
-	SupportedZones            = []string{}
-	SupportedInstanceTypes    = []string{}
-	ValidationHook            = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
-	DefaultingHook            = func(ctx context.Context, constraints *Constraints) {}
+	// WellKnownLabels supported by karpenter and their allowable values
+	WellKnownLabels = map[string][]string{
+		v1.LabelArchStable:         {},
+		v1.LabelOSStable:           {},
+		v1.LabelTopologyZone:       {},
+		v1.LabelInstanceTypeStable: {},
+	}
+	DefaultHook = func(ctx context.Context, constraints *Constraints) {}
+	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
+	ConstrainHook  = func(ctx context.Context, constraints *Constraints, pods ...*v1.Pod) error { return nil }
 )
 
 var (

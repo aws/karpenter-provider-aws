@@ -55,7 +55,7 @@ type AWS struct {
 	// CapacityType for the node. If not specified, defaults to on-demand.
 	// May be overriden by pods.spec.nodeSelector["node.k8s.aws/capacityType"]
 	// +optional
-	CapacityType *string `json:"capacityType,omitempty"`
+	CapacityTypes []string `json:"capacityTypes,omitempty"`
 	// LaunchTemplate for the node. If not specified, a launch template will be generated.
 	// +optional
 	LaunchTemplate *string `json:"launchTemplate,omitempty"`

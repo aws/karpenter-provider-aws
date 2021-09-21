@@ -23,11 +23,11 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"knative.dev/pkg/apis"
 )
 
 type CloudProvider struct{}
@@ -48,7 +48,10 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
-				Labels: constraints.Labels,
+				Labels: map[string]string{
+					v1.LabelTopologyZone: zone,
+					v1.LabelInstanceTypeStable: instance.Name(),
+				},
 			},
 			Spec: v1.NodeSpec{
 				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
@@ -67,10 +70,6 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 		})
 	}()
 	return err
-}
-
-func (c *CloudProvider) GetZones(context context.Context, constraints *v1alpha4.Constraints) ([]string, error) {
-	return []string{"test-zone-1", "test-zone-2", "test-zone-3"}, nil
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
@@ -105,9 +104,13 @@ func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 	return nil
 }
 
+func (c *CloudProvider) Default(context.Context, *v1alpha4.Constraints) {
+}
+
 func (c *CloudProvider) Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError {
 	return nil
 }
 
-func (c *CloudProvider) Default(context.Context, *v1alpha4.Constraints) {
+func (c *CloudProvider) Constrain(context.Context, *v1alpha4.Constraints, ...*v1.Pod) error {
+	return nil
 }

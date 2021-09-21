@@ -22,7 +22,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/mitchellh/hashstructure/v2"
@@ -32,8 +32,7 @@ import (
 )
 
 type Topology struct {
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
+	kubeClient client.Client
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
@@ -111,16 +110,7 @@ func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *T
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
-	// 1. Get viable domains
-	zones, err := t.cloudProvider.GetZones(ctx, constraints)
-	if err != nil {
-		return fmt.Errorf("getting zones, %w", err)
-	}
-	if constrained := NewConstraintsWithOverrides(constraints, topologyGroup.Pods[0]).Zones; len(constrained) != 0 {
-		zones = functional.IntersectStringSlice(zones, constrained)
-	}
-	topologyGroup.Register(zones...)
-	// 2. Increment domains for matching pods
+	topologyGroup.Register(scheduling.NodeAffinityFor(topologyGroup.Pods[0]).GetLabelValues(v1.LabelTopologyZone, constraints.Zones)...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}

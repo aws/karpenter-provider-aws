@@ -37,14 +37,13 @@ type CloudProvider interface {
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
-	// GetZones returns the zones supported by the cloud provider and the specified provisioner
-	GetZones(context.Context, *v1alpha4.Constraints) ([]string, error)
-	// Validate is a hook for additional validation logic. This method is not
-	// only called during Provisioner CRD validation, it is also used at
-	// provisioning time to ensure that pods are provisionable.
-	Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError
-	// Default is a hook for additional defaulting logic specific.
+	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha4.Constraints)
+	// Validate is a hook for additional validation logic at webhook time.
+	Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError
+	// Constrain is a hook for additional constraint logic at runtime.
+	// Returns an error if the constraints cannot be applied.
+	Constrain(context.Context, *v1alpha4.Constraints, ...*v1.Pod) error
 }
 
 // Options are injected into cloud providers' factories
