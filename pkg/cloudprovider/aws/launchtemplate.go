@@ -172,7 +172,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", options.ClusterName)),
+				Name: aws.String(options.InstanceProfile),
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
