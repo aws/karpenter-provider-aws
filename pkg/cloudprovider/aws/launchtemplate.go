@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
@@ -76,19 +77,14 @@ type launchTemplateOptions struct {
 	AMIID             string
 }
 
-type LaunchTemplate struct {
-	Name    string
-	Version string
-}
-
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	// 1. If the customer specified a launch template then just use it
 	if constraints.LaunchTemplate != nil {
 		return ptr.StringValue(constraints.LaunchTemplate), nil
 	}
 
 	// 2. Get constrained AMI ID
-	amiID, err := p.amiProvider.Get(ctx, constraints)
+	amiID, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +96,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	}
 
 	// 3. Get userData for Node
-	userData, err := p.getUserData(ctx, constraints)
+	userData, err := p.getUserData(ctx, constraints, instanceTypes)
 	if err != nil {
 		return "", err
 	}
@@ -149,6 +145,28 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
+func needsGPUAmi(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+// needsDocker returns true if the instance type is unable to use
+// conatinerd directly
+func needsDocker(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		// This function can be removed once containerd support for
+		// Neurons is in the EKS Optimized AMI
+		if !i.AWSNeurons().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
@@ -185,13 +203,18 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+	var containerRuntimeArg string
+	if !needsDocker(instanceTypes) {
+		containerRuntimeArg = "--container-runtime containerd"
+	}
+
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash
-/etc/eks/bootstrap.sh '%s' \
-    --container-runtime containerd \
+/etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
 		constraints.Cluster.Name,
+		containerRuntimeArg,
 		constraints.Cluster.Endpoint))
 	caBundle, err := p.GetCABundle(ctx)
 	if err != nil {

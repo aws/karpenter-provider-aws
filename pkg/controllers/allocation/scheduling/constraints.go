@@ -20,7 +20,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func NewConstraintsWithOverrides(constraints *v1alpha4.Constraints, pod *v1.Pod) (*v1alpha4.Constraints) {
+func NewConstraintsWithOverrides(constraints *v1alpha4.Constraints, pod *v1.Pod) *v1alpha4.Constraints {
 	return &v1alpha4.Constraints{
 		Provider:         constraints.Provider,
 		Labels:           functional.UnionStringMaps(constraints.Labels, pod.Spec.NodeSelector),

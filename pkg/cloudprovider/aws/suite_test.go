@@ -317,19 +317,19 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Defaulting", func() {
-		It("should default subnetSelector" ,func() {
+		It("should default subnetSelector", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.SubnetSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": ""}))
 		})
-		It("should default securityGroupSelector" ,func() {
+		It("should default securityGroupSelector", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.SecurityGroupsSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": ""}))
 		})
-		It("should default capacityType" ,func() {
+		It("should default capacityType", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())

@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
@@ -45,20 +46,32 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
-func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+func (p *AMIProvider) getSSMParameter(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return "", fmt.Errorf("kube server version, %w", err)
 	}
-	architecture := v1alpha4.ArchitectureAmd64 // default to amd
+	var amiNameSuffix string
 	if len(constraints.Architectures) > 0 {
-		architecture = constraints.Architectures[0] // select the first one if multiple supported
+		// select the first one if multiple supported
+		if constraints.Architectures[0] == v1alpha4.ArchitectureArm64 {
+			amiNameSuffix = "-arm64"
+		}
 	}
-	var architectureSuffix string
-	if architecture == v1alpha4.ArchitectureArm64 {
-		architectureSuffix = "-arm64"
+	if needsGPUAmi(instanceTypes) {
+		if amiNameSuffix != "" {
+			return "", fmt.Errorf("no amazon-linux-2 ami available for both nvidia/neuron gpus and arm64 cpus")
+		}
+		amiNameSuffix = "-gpu"
 	}
-	name := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, architectureSuffix)
+	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiNameSuffix), nil
+}
+
+func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+	name, err := p.getSSMParameter(ctx, constraints, instanceTypes)
+	if err != nil {
+		return "", err
+	}
 	if id, ok := p.cache.Get(name); ok {
 		return id.(string), nil
 	}
