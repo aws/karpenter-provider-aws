@@ -6,6 +6,8 @@
 
 ![](website/static/banner.png)
 
+> **❗Note:** Karpenter is in active development and should be considered **pre-production** software. Backwards incompatible API changes are possible in future releases and support is best-effort by the Karpenter community.
+
 Karpenter is a node lifecycle management solution. It observes incoming pods and launches the right instances for the situation. Instance selection decisions are intent based and driven by the specification of incoming pods, including resource requests and scheduling constraints.
 
 It's responsible for:
