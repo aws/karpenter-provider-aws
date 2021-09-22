@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
+	nodemetrics "github.com/awslabs/karpenter/pkg/controllers/metrics/node"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
@@ -89,6 +90,7 @@ func main() {
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
+		&nodemetrics.Controller{KubeClient: manager.GetClient()},
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}
