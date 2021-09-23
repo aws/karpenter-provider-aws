@@ -134,6 +134,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
 				packing.Constraints.Labels,
 			)
+			node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
 			return c.Binder.Bind(ctx, node, packing.Pods)
 		})
 	})
