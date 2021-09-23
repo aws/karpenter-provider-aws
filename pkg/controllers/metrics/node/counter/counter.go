@@ -126,18 +126,20 @@ func handleUpdatedNode(ctx context.Context, name types.NamespacedName, currLabel
 
 func getLabels(node *v1.Node) prometheus.Labels {
 	labels := make(prometheus.Labels)
-	if node != nil {
-		labels[metrics.ProvisionerLabel] = node.Labels["karpenter.sh/provisioner-name"]
-		labels[metricArchLabel] = node.Labels["kubernetes.io/arch"]
-		labels[metricInstanceTypeLabel] = node.Labels["node.kubernetes.io/instance-type"]
-		labels[metricTopologyRegionLabel] = node.Labels["topology.kubernetes.io/region"]
-		labels[metricTopologyZoneLabel] = node.Labels["topology.kubernetes.io/zone"]
-		labels[metricOsLabel] = node.Labels["kubernetes.io/os"]
+	if node == nil {
+		return labels
+	}
 
-		for _, c := range node.Status.Conditions {
-			if labelName, found := conditionTypeToMetricLabel[c.Type]; found {
-				labels[labelName] = strings.ToLower(string(c.Status))
-			}
+	labels[metrics.ProvisionerLabel] = node.Labels["karpenter.sh/provisioner-name"]
+	labels[metricArchLabel] = node.Labels["kubernetes.io/arch"]
+	labels[metricInstanceTypeLabel] = node.Labels["node.kubernetes.io/instance-type"]
+	labels[metricTopologyRegionLabel] = node.Labels["topology.kubernetes.io/region"]
+	labels[metricTopologyZoneLabel] = node.Labels["topology.kubernetes.io/zone"]
+	labels[metricOsLabel] = node.Labels["kubernetes.io/os"]
+
+	for _, c := range node.Status.Conditions {
+		if labelName, found := conditionTypeToMetricLabel[c.Type]; found {
+			labels[labelName] = strings.ToLower(string(c.Status))
 		}
 	}
 
@@ -154,8 +156,10 @@ func decrementNodeCount(labels prometheus.Labels) error {
 
 func updateNodeCount(labels prometheus.Labels, update func(prometheus.Gauge)) error {
 	nodeCount, err := nodeCountGaugeVec.GetMetricWith(labels)
-	if err == nil {
-		update(nodeCount)
+	if err != nil {
+		return err
 	}
-	return err
+
+	update(nodeCount)
+	return nil
 }
