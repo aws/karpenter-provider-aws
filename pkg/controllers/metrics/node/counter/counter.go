@@ -82,33 +82,45 @@ func UpdateCount(ctx context.Context, name types.NamespacedName, node *v1.Node) 
 	currLabels := getLabels(node)
 	pastLabels, isKnown := prometheusLabelsFor[name]
 	switch {
-	case !isKnown && node != nil: // node was created.
-		prometheusLabelsFor[name] = currLabels
-		if err := incrementNodeCount(currLabels); err != nil {
-			logging.FromContext(ctx).Warnf("Failed to update count metric for new node [labels=%s]: error=%s", currLabels, err.Error())
-		}
-
-	case isKnown && node == nil: // node was deleted.
-		delete(prometheusLabelsFor, name)
-
-		if err := decrementNodeCount(currLabels); err != nil {
-			logging.FromContext(ctx).Warnf("Failed to update count metric for deleted node [labels=%s]: error=%s", currLabels, err.Error())
-		}
-
-	case isKnown && node != nil: // node was updated.
-		// Only report node updates that affect tracked dimensions.
-		if !reflect.DeepEqual(currLabels, pastLabels) {
-			prometheusLabelsFor[name] = currLabels
-
-			if err := decrementNodeCount(pastLabels); err != nil {
-				logging.FromContext(ctx).Warnf("Failed to decrement previous count for updated node [labels=%s]: error=%s", pastLabels, err.Error())
-			}
-			if err := incrementNodeCount(currLabels); err != nil {
-				logging.FromContext(ctx).Warnf("Failed to increment current count for updated node [labels=%s]: error=%s", currLabels, err.Error())
-			}
-		}
-
+	case !isKnown && node != nil:
+		handleCreatedNode(ctx, name, currLabels)
+	case isKnown && node == nil:
+		handleDeletedNode(ctx, name, pastLabels)
+	case isKnown && node != nil:
+		handleUpdatedNode(ctx, name, currLabels, pastLabels)
 	default: // An unknow node was deleted.
+	}
+}
+
+func handleCreatedNode(ctx context.Context, name types.NamespacedName, labels prometheus.Labels) {
+	prometheusLabelsFor[name] = labels
+
+	if err := incrementNodeCount(labels); err != nil {
+		logging.FromContext(ctx).Warnf("Failed to update count metric for new node [labels=%s]: error=%s", labels, err.Error())
+	}
+}
+
+func handleDeletedNode(ctx context.Context, name types.NamespacedName, labels prometheus.Labels) {
+	delete(prometheusLabelsFor, name)
+
+	if err := decrementNodeCount(labels); err != nil {
+		logging.FromContext(ctx).Warnf("Failed to update count metric for deleted node [labels=%s]: error=%s", labels, err.Error())
+	}
+}
+
+func handleUpdatedNode(ctx context.Context, name types.NamespacedName, currLabels prometheus.Labels, pastLabels prometheus.Labels) {
+	// Only report node updates that affect tracked dimensions.
+	if reflect.DeepEqual(currLabels, pastLabels) {
+		return
+	}
+
+	prometheusLabelsFor[name] = currLabels
+
+	if err := decrementNodeCount(pastLabels); err != nil {
+		logging.FromContext(ctx).Warnf("Failed to decrement previous count for updated node [labels=%s]: error=%s", pastLabels, err.Error())
+	}
+	if err := incrementNodeCount(currLabels); err != nil {
+		logging.FromContext(ctx).Warnf("Failed to increment current count for updated node [labels=%s]: error=%s", currLabels, err.Error())
 	}
 }
 
