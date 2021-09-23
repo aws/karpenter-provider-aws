@@ -135,8 +135,7 @@ func getLabels(node *v1.Node) prometheus.Labels {
 		labels[metricOsLabel] = node.Labels["kubernetes.io/os"]
 
 		for _, c := range node.Status.Conditions {
-			labelName, found := conditionTypeToMetricLabel[c.Type]
-			if found {
+			if labelName, found := conditionTypeToMetricLabel[c.Type]; found {
 				labels[labelName] = strings.ToLower(string(c.Status))
 			}
 		}
