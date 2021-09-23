@@ -88,7 +88,7 @@ func UpdateCount(ctx context.Context, name types.NamespacedName, node *v1.Node) 
 		handleDeletedNode(ctx, name, pastLabels)
 	case isKnown && node != nil:
 		handleUpdatedNode(ctx, name, currLabels, pastLabels)
-	default: // An unknow node was deleted.
+	default: // An unknown node was deleted.
 	}
 }
 
