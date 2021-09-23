@@ -35,6 +35,10 @@ type Controller struct {
 	KubeClient client.Client
 }
 
+func NewController(kubeClient client.Client) *Controller {
+	return &Controller{KubeClient: kubeClient}
+}
+
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("NodeMetrics"))
 
