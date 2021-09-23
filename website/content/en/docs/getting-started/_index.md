@@ -165,7 +165,7 @@ resources like subnets and security groups using the cluster's name.
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
 
-Review the [provsioner CRD](/docs/provisioner-crd) for more information. For example,
+Review the [provisioner CRD](/docs/provisioner-crd) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 ```bash
