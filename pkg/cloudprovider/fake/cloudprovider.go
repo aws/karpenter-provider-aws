@@ -52,7 +52,6 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 			},
 			Spec: v1.NodeSpec{
 				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-				Taints:     constraints.Taints,
 			},
 			Status: v1.NodeStatus{
 				NodeInfo: v1.NodeSystemInfo{
