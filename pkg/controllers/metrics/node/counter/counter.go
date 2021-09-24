@@ -19,9 +19,10 @@ import (
 	"reflect"
 	"strings"
 
+	karpenterapi "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
+	coreapi "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -63,11 +64,11 @@ var (
 
 	prometheusLabelsFor = make(map[types.NamespacedName]prometheus.Labels)
 
-	conditionTypeToMetricLabel = map[v1.NodeConditionType]string{
-		v1.NodeDiskPressure:   metricConditionDiskPressureLabel,
-		v1.NodeMemoryPressure: metricConditionMemoryPressureLabel,
-		v1.NodePIDPressure:    metricConditionPIDPressureLabel,
-		v1.NodeReady:          metricConditionReadyLabel,
+	conditionTypeToMetricLabel = map[coreapi.NodeConditionType]string{
+		coreapi.NodeDiskPressure:   metricConditionDiskPressureLabel,
+		coreapi.NodeMemoryPressure: metricConditionMemoryPressureLabel,
+		coreapi.NodePIDPressure:    metricConditionPIDPressureLabel,
+		coreapi.NodeReady:          metricConditionReadyLabel,
 	}
 )
 
@@ -78,7 +79,7 @@ func init() {
 // UpdateCount updates the emitted metric based on the node's current status relative to the
 // past status. If the data for `node` cannot be populated then `nil` should be passed as the
 // argument.
-func UpdateCount(ctx context.Context, name types.NamespacedName, node *v1.Node) {
+func UpdateCount(ctx context.Context, name types.NamespacedName, node *coreapi.Node) {
 	currLabels := getLabels(node)
 	pastLabels, isKnown := prometheusLabelsFor[name]
 	switch {
@@ -124,18 +125,18 @@ func handleUpdatedNode(ctx context.Context, name types.NamespacedName, currLabel
 	}
 }
 
-func getLabels(node *v1.Node) prometheus.Labels {
+func getLabels(node *coreapi.Node) prometheus.Labels {
 	labels := make(prometheus.Labels)
 	if node == nil {
 		return labels
 	}
 
-	labels[metrics.ProvisionerLabel] = node.Labels["karpenter.sh/provisioner-name"]
-	labels[metricArchLabel] = node.Labels["kubernetes.io/arch"]
-	labels[metricInstanceTypeLabel] = node.Labels["node.kubernetes.io/instance-type"]
-	labels[metricTopologyRegionLabel] = node.Labels["topology.kubernetes.io/region"]
-	labels[metricTopologyZoneLabel] = node.Labels["topology.kubernetes.io/zone"]
-	labels[metricOsLabel] = node.Labels["kubernetes.io/os"]
+	labels[metrics.ProvisionerLabel] = node.Labels[karpenterapi.ProvisionerNameLabelKey]
+	labels[metricArchLabel] = node.Labels[coreapi.LabelArchStable]
+	labels[metricInstanceTypeLabel] = node.Labels[coreapi.LabelInstanceTypeStable]
+	labels[metricTopologyRegionLabel] = node.Labels[coreapi.LabelTopologyRegion]
+	labels[metricTopologyZoneLabel] = node.Labels[coreapi.LabelTopologyZone]
+	labels[metricOsLabel] = node.Labels[coreapi.LabelOSStable]
 
 	for _, c := range node.Status.Conditions {
 		if labelName, found := conditionTypeToMetricLabel[c.Type]; found {
