@@ -66,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		return result.RetryIfError(ctx, err)
+		return reconcile.Result{}, err
 	}
 	if _, ok := stored.Labels[v1alpha4.ProvisionerNameLabelKey]; !ok {
 		return reconcile.Result{}, nil
@@ -78,7 +78,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 2. Retrieve Provisioner
 	provisioner := &v1alpha4.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: stored.Labels[v1alpha4.ProvisionerNameLabelKey]}, provisioner); err != nil {
-		return result.RetryIfError(ctx, err)
+		return reconcile.Result{}, err
 	}
 
 	// 3. Execute reconcilers
@@ -107,9 +107,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	// 5. Requeue if error or if retryAfter is set
 	if errs != nil {
-		return result.RetryIfError(ctx, errs)
+		return reconcile.Result{}, errs
 	}
-	return result.MinResult(results...), nil
+	return result.Min(results...), nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

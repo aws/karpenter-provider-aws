@@ -65,7 +65,7 @@ spec:
         {{- if .Values.webhook.affinity }}
           {{- toYaml .Values.webhook.affinity | nindent 8 }}
         {{- else }}
-        nodeAffinity: 
+        nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
@@ -73,6 +73,8 @@ spec:
                 operator: In
                 values:
                 - linux
+              - key: karpenter.sh/provisioner-name
+                operator: DoesNotExist
         {{- end }}
       {{- with .Values.webhook.tolerations }}
       tolerations:

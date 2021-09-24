@@ -368,6 +368,90 @@ var _ = Describe("NodeAffinity", func() {
 	})
 })
 
+var _ = Describe("Preferential Fallback", func() {
+	Context("Required", func() {
+		It("should not relax the final term", func() {
+			provisioner.Spec.Zones = []string{"test-zone-1"}
+			provisioner.Spec.InstanceTypes = []string{"default-instance-type"}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}}, // Should not be relaxed
+				}},
+			}}}}
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, pod)
+			// Don't relax
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Don't relax
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+		})
+		It("should relax multiple terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+				}},
+			}}}}
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, pod)
+			// Remove first term
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Remove second term
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Success
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			ExpectNodeExists(env.Client, pod.Spec.NodeName)
+		})
+	})
+	Context("Preferred", func() {
+		It("should relax all terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+			}}}
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, pod)
+			// Remove first term
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Remove second term
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Success
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			ExpectNodeExists(env.Client, pod.Spec.NodeName)
+		})
+	})
+})
+
 var _ = Describe("Topology", func() {
 	labels := map[string]string{"test": "test"}
 
