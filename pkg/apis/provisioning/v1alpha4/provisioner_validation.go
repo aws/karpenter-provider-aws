@@ -80,11 +80,11 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		c.validateLabels(),
 		c.validateTaints(),
-		c.validateArchitecture(),
-		c.validateOperatingSystem(),
-		c.validateZones(),
-		c.validateInstanceTypes(),
-		ValidationHook(ctx, c),
+		ValidateWellKnown(v1.LabelTopologyZone, c.Zones, "zones"),
+		ValidateWellKnown(v1.LabelInstanceTypeStable, c.InstanceTypes, "instanceTypes"),
+		ValidateWellKnown(v1.LabelArchStable, c.Architectures, "architectures"),
+		ValidateWellKnown(v1.LabelOSStable, c.OperatingSystems, "operatingSystems"),
+		ValidateHook(ctx, c),
 	)
 }
 
@@ -125,43 +125,13 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Constraints) validateArchitecture() (errs *apis.FieldError) {
-	if c.Architectures == nil {
-		return nil
+func ValidateWellKnown(key string, values []string, fieldName string) (errs *apis.FieldError) {
+	if values != nil && len(values) == 0 {
+		errs = errs.Also(apis.ErrMissingField(fieldName))
 	}
-	for _, architecture := range c.Architectures {
-		if !functional.ContainsString(SupportedArchitectures, architecture) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", architecture, SupportedArchitectures), "architecture"))
-		}
-	}
-	return errs
-}
-
-func (c *Constraints) validateOperatingSystem() (errs *apis.FieldError) {
-	if c.OperatingSystems == nil {
-		return nil
-	}
-	for _, operatingSystem := range c.OperatingSystems {
-		if !functional.ContainsString(SupportedOperatingSystems, operatingSystem) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", operatingSystem, SupportedOperatingSystems), "operatingSystem"))
-		}
-	}
-	return errs
-}
-
-func (c *Constraints) validateZones() (errs *apis.FieldError) {
-	for i, zone := range c.Zones {
-		if !functional.ContainsString(SupportedZones, zone) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", zone, SupportedZones), "zones", i))
-		}
-	}
-	return errs
-}
-
-func (c *Constraints) validateInstanceTypes() (errs *apis.FieldError) {
-	for i, instanceType := range c.InstanceTypes {
-		if !functional.ContainsString(SupportedInstanceTypes, instanceType) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", instanceType, SupportedInstanceTypes), "instanceTypes", i))
+	for i, value := range values {
+		if known := WellKnownLabels[key]; !functional.ContainsString(known, value) {
+			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", value, known), fieldName, i))
 		}
 	}
 	return errs

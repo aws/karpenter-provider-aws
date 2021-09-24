@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
@@ -53,10 +54,10 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	launchTemplate string,
 	instanceTypes []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
-	capacityType string,
+	capacityTypes []string,
 ) (*v1.Node, error) {
 	// 1. Launch Instance
-	id, err := p.launchInstance(ctx, launchTemplate, instanceTypes, subnets, capacityType)
+	id, err := p.launchInstance(ctx, launchTemplate, instanceTypes, subnets, capacityTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -103,30 +104,19 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 	launchTemplateName string,
 	instanceTypeOptions []cloudprovider.InstanceType,
 	subnets []*ec2.Subnet,
-	capacityType string) (*string, error) {
-	// 1. Construct override options.
-	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	for i, instanceType := range instanceTypeOptions {
-		for _, zone := range instanceType.Zones() {
-			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) == zone {
-					override := &ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String(instanceType.Name()),
-						SubnetId:     subnet.SubnetId,
-					}
-					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-					// to reduce the likelihood of getting an excessively large instance type.
-					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-					if capacityType == v1alpha1.CapacityTypeSpot {
-						override.Priority = aws.Float64(float64(i))
-					}
-					overrides = append(overrides, override)
-					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
-					break
-				}
-			}
-		}
+	capacityTypes []string) (*string, error) {
+
+	// If unconstrained, default to spot to save on cost, otherwise use on
+	// demand. Constraint solving logic will guarantee that capacityTypes are
+	// either unconstrained (nil), or a valid WellKnownLabel. Provisioner
+	// defaulting logic will currently default to [on-demand] if unspecifed.
+	capacityType := v1alpha1.CapacityTypeSpot
+	if capacityTypes != nil && !functional.ContainsString(capacityTypes, v1alpha1.CapacityTypeSpot) {
+		capacityType = v1alpha1.CapacityTypeOnDemand
 	}
+
+	// 1. Construct override options.
+	overrides := p.getOverrides(instanceTypeOptions, subnets, capacityType)
 	if len(overrides) == 0 {
 		return nil, fmt.Errorf("no viable {subnet, instanceType} combination")
 	}
@@ -161,6 +151,32 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
+}
+
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
+	for i, instanceType := range instanceTypeOptions {
+		for _, zone := range instanceType.Zones() {
+			for _, subnet := range subnets {
+				if aws.StringValue(subnet.AvailabilityZone) == zone {
+					override := &ec2.FleetLaunchTemplateOverridesRequest{
+						InstanceType: aws.String(instanceType.Name()),
+						SubnetId:     subnet.SubnetId,
+					}
+					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+					// to reduce the likelihood of getting an excessively large instance type.
+					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+					if capacityType == v1alpha1.CapacityTypeSpot {
+						override.Priority = aws.Float64(float64(i))
+					}
+					overrides = append(overrides, override)
+					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
+					break
+				}
+			}
+		}
+	}
+	return overrides
 }
 
 func (p *InstanceProvider) getInstance(ctx context.Context, id *string, instance *ec2.Instance) error {

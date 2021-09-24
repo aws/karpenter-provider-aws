@@ -82,4 +82,42 @@ var _ = Describe("Functional", func() {
 			Expect(UnionStringMaps(original, disjoiner, empty, uberwriter)).To(Equal(expected))
 		})
 	})
+	Context("IntersectStringSlice", func() {
+		var nilset []string
+		empty := []string{}
+		universe := []string{"a", "b", "c"}
+		subset := []string{"a", "b"}
+		overlap := []string{"a", "b", "d"}
+		disjoint := []string{"d", "e"}
+		duplicates := []string{"a", "a"}
+		Specify("nil set", func() {
+			Expect(IntersectStringSlice()).To(BeNil())
+			Expect(IntersectStringSlice(nilset)).To(BeNil())
+			Expect(IntersectStringSlice(nilset, nilset)).To(BeNil())
+			Expect(IntersectStringSlice(nilset, universe)).To(ConsistOf(universe))
+			Expect(IntersectStringSlice(universe, nilset)).To(ConsistOf(universe))
+			Expect(IntersectStringSlice(universe, nilset, nilset)).To(ConsistOf(universe))
+		})
+		Specify("empty set", func() {
+			Expect(IntersectStringSlice(empty, nilset)).To(And(BeEmpty(), Not(BeNil())))
+			Expect(IntersectStringSlice(nilset, empty)).To(And(BeEmpty(), Not(BeNil())))
+			Expect(IntersectStringSlice(universe, empty)).To(And(BeEmpty(), Not(BeNil())))
+			Expect(IntersectStringSlice(universe, universe, empty)).To(And(BeEmpty(), Not(BeNil())))
+		})
+		Specify("intersect", func() {
+			Expect(IntersectStringSlice(universe, subset)).To(ConsistOf(subset))
+			Expect(IntersectStringSlice(subset, universe)).To(ConsistOf(subset))
+			Expect(IntersectStringSlice(universe, overlap)).To(ConsistOf(subset))
+			Expect(IntersectStringSlice(overlap, universe)).To(ConsistOf(subset))
+			Expect(IntersectStringSlice(universe, disjoint)).To(And(BeEmpty(), Not(BeNil())))
+			Expect(IntersectStringSlice(disjoint, universe)).To(And(BeEmpty(), Not(BeNil())))
+			Expect(IntersectStringSlice(overlap, disjoint, universe)).To(And(BeEmpty(), Not(BeNil())))
+		})
+		Specify("duplicates", func() {
+			Expect(IntersectStringSlice(duplicates)).To(ConsistOf("a"))
+			Expect(IntersectStringSlice(duplicates, nilset)).To(ConsistOf("a"))
+			Expect(IntersectStringSlice(duplicates, universe)).To(ConsistOf("a"))
+			Expect(IntersectStringSlice(duplicates, universe, subset)).To(ConsistOf("a"))
+		})
+	})
 })

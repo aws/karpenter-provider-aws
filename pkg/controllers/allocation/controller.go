@@ -112,7 +112,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
 	}
-
 	// 5. Get Instance Types Options
 	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
 	if err != nil {
@@ -131,8 +130,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		packing := packings[index]
 		errs[index] = <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
 			node.Labels = functional.UnionStringMaps(
-				map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
+				node.Labels,
 				packing.Constraints.Labels,
+				map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
 			)
 			node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
 			return c.Binder.Bind(ctx, node, packing.Pods)

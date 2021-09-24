@@ -18,26 +18,25 @@ import (
 	"context"
 	"fmt"
 
-	"knative.dev/pkg/ptr"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/scheduling"
+	v1 "k8s.io/api/core/v1"
 )
 
 var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
-// Default the constraints
+// Default the constraints.
 func (c *Constraints) Default(ctx context.Context) {
-	c.defaultCapacityType(ctx)
+	c.defaultCapacityTypes(ctx)
 	c.defaultSubnets(ctx)
 	c.defaultSecurityGroups(ctx)
 }
 
-func (c *Constraints) defaultCapacityType(ctx context.Context) {
-	if capacityType, ok := c.Labels[CapacityTypeLabel]; ok {
-		c.CapacityType = &capacityType
-	}
-	if c.CapacityType != nil {
+func (c *Constraints) defaultCapacityTypes(ctx context.Context) {
+	if len(c.CapacityTypes) != 0 {
 		return
 	}
-	c.CapacityType = ptr.String(CapacityTypeOnDemand)
+	c.CapacityTypes = []string{CapacityTypeOnDemand}
 }
 
 func (c *Constraints) defaultSubnets(ctx context.Context) {
@@ -52,4 +51,16 @@ func (c *Constraints) defaultSecurityGroups(ctx context.Context) {
 		return
 	}
 	c.SecurityGroupsSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): ""}
+}
+
+// Constrain applies the pod's scheduling constraints to the constraints.
+// Returns an error if the constraints cannot be applied.
+func (c *Constraints) Constrain(ctx context.Context, pods ...*v1.Pod) error {
+	nodeAffinity := scheduling.NodeAffinityFor(pods...)
+	capacityTypes := nodeAffinity.GetLabelValues(CapacityTypeLabel, c.CapacityTypes, v1alpha4.WellKnownLabels[CapacityTypeLabel])
+	if len(capacityTypes) == 0 {
+		return fmt.Errorf("no valid capacity types")
+	}
+	c.CapacityTypes = capacityTypes
+	return nil
 }

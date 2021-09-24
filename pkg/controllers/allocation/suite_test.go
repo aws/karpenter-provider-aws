@@ -88,37 +88,6 @@ var _ = Describe("Allocation", func() {
 	})
 
 	Context("Reconcilation", func() {
-		Context("Zones", func() {
-			It("should default to a cluster zone", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-1"))
-			})
-			It("should default to a provisioner's zone", func() {
-				// Setup
-				provisioner.Spec.Zones = []string{"test-zone-2"}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-2"))
-			})
-			It("should allow a pod to override the zone", func() {
-				// Setup
-				provisioner.Spec.Zones = []string{"test-zone-1"}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}),
-				)
-				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Spec.ProviderID).To(ContainSubstring("test-zone-2"))
-			})
-		})
 		It("should provision nodes for unconstrained pods", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
@@ -168,10 +137,7 @@ var _ = Describe("Allocation", func() {
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range schedulable {
 				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-				node := ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
-				for key, value := range scheduled.Spec.NodeSelector {
-					Expect(node.Labels[key]).To(Equal(value))
-				}
+				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
 				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
@@ -239,13 +205,38 @@ var _ = Describe("Allocation", func() {
 			Expect(*nodes.Items[0].Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
 			Expect(*nodes.Items[0].Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
-		It("should labels nodes with provisioner name", func() {
-			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{}))
-			for _, pod := range pods {
-				node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+
+		Context("Labels", func() {
+			It("should label nodes with provisioner labels", func() {
+				provisioner.Spec.Labels = map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}
+				ExpectCreated(env.Client, provisioner)
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
+				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
+			})
+			It("should labels nodes with provisioner name", func() {
+				ExpectCreated(env.Client, provisioner)
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
+				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha4.ProvisionerNameLabelKey, provisioner.Name))
-			}
+			})
+		})
+		Context("Taints", func() {
+			It("should apply unready taints", func() {
+				ExpectCreated(env.Client, provisioner)
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
+				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha4.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
+			})
+			It("should taint nodes with provisioner taints", func() {
+				provisioner.Spec.Taints = []v1.Taint{{Key: "test", Value: "bar", Effect: v1.TaintEffectNoSchedule}}
+				ExpectCreated(env.Client, provisioner)
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpExists}}}))
+				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				Expect(node.Spec.Taints).To(ContainElement(provisioner.Spec.Taints[0]))
+			})
 		})
 	})
 })

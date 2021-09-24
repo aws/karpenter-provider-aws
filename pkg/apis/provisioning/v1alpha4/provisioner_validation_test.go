@@ -107,9 +107,10 @@ var _ = Describe("Validation", func() {
 		})
 	})
 	Context("Zones", func() {
-		SupportedZones = append(SupportedZones, "test-zone-1")
-		It("should succeed if unspecified", func() {
-			Expect(provisioner.Validate(ctx)).To(Succeed())
+		WellKnownLabels[v1.LabelTopologyZone] = append(WellKnownLabels[v1.LabelTopologyZone], "test-zone-1")
+		It("should fail if empty", func() {
+			provisioner.Spec.Zones = []string{}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.Zones = []string{"unknown"}
@@ -122,9 +123,10 @@ var _ = Describe("Validation", func() {
 	})
 
 	Context("InstanceTypes", func() {
-		SupportedInstanceTypes = append(SupportedInstanceTypes, "test-instance-type")
-		It("should succeed if unspecified", func() {
-			Expect(provisioner.Validate(ctx)).To(Succeed())
+		WellKnownLabels[v1.LabelInstanceTypeStable] = append(WellKnownLabels[v1.LabelInstanceTypeStable], "test-instance-type")
+		It("should fail if empty", func() {
+			provisioner.Spec.InstanceTypes = []string{}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.InstanceTypes = []string{"unknown"}
@@ -139,9 +141,10 @@ var _ = Describe("Validation", func() {
 	})
 
 	Context("Architecture", func() {
-		SupportedArchitectures = append(SupportedArchitectures, "test-architecture")
-		It("should succeed if unspecified", func() {
-			Expect(provisioner.Validate(ctx)).To(Succeed())
+		WellKnownLabels[v1.LabelArchStable] = append(WellKnownLabels[v1.LabelArchStable], "test-architecture")
+		It("should fail if empty", func() {
+			provisioner.Spec.Architectures = []string{}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.Architectures = []string{"unknown"}
@@ -154,9 +157,10 @@ var _ = Describe("Validation", func() {
 	})
 
 	Context("OperatingSystem", func() {
-		SupportedOperatingSystems = append(SupportedOperatingSystems, "test-operating-system")
-		It("should succeed if unspecified", func() {
-			Expect(provisioner.Validate(ctx)).To(Succeed())
+		WellKnownLabels[v1.LabelOSStable] = append(WellKnownLabels[v1.LabelOSStable], "test-operating-system")
+		It("should fail if empty", func() {
+			provisioner.Spec.OperatingSystems = []string{}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail if not supported", func() {
 			provisioner.Spec.OperatingSystems = []string{"unknown"}

@@ -35,6 +35,8 @@ type PodOptions struct {
 	NodeName                  string
 	ResourceRequirements      v1.ResourceRequirements
 	NodeSelector              map[string]string
+	NodeRequirements          []v1.NodeSelectorRequirement
+	NodePreferences           []v1.NodeSelectorRequirement
 	TopologySpreadConstraints []v1.TopologySpreadConstraint
 	Tolerations               []v1.Toleration
 	Conditions                []v1.PodCondition
@@ -80,6 +82,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		},
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
+			Affinity:                  buildAffinity(options.NodeRequirements, options.NodePreferences),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
@@ -126,4 +129,24 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 			MaxUnavailable: options.MaxUnavailable,
 		},
 	}
+}
+
+func buildAffinity(nodeRequirements []v1.NodeSelectorRequirement, nodePreferences []v1.NodeSelectorRequirement) *v1.Affinity {
+	var affinity *v1.Affinity
+	if nodeRequirements == nil && nodePreferences == nil {
+		return affinity
+	}
+	affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{}}
+
+	if nodeRequirements != nil {
+		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: nodeRequirements}},
+		}
+	}
+	if nodePreferences != nil {
+		affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.PreferredSchedulingTerm{
+			{Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: nodePreferences}},
+		}
+	}
+	return affinity
 }

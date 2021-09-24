@@ -21,27 +21,28 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// Tolerates returns an error if the pod does not tolerate the taints
-// https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/#concepts
-func Tolerates(pod *v1.Pod, taints ...v1.Taint) error {
-	var err error
-	for _, taint := range taints {
+type Taints []v1.Taint
+
+// Has returns true if taints has a taint for the given key
+func (ts Taints) Has(taint v1.Taint) bool {
+	for _, t := range ts {
+		if t.Key == taint.Key && t.Effect == taint.Effect {
+			return true
+		}
+	}
+	return false
+}
+
+// Tolerates returns true if the pod tolerates all taints
+func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
+	for _, taint := range ts {
 		tolerates := false
 		for _, t := range pod.Spec.Tolerations {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
 		}
 		if !tolerates {
-			err = multierr.Append(err, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
+			errs = multierr.Append(errs, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	return err
-}
-
-func HasTaint(taints []v1.Taint, key string) bool {
-	for _, taint := range taints {
-		if taint.Key == key {
-			return true
-		}
-	}
-	return false
+	return errs
 }

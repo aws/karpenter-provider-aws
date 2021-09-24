@@ -81,6 +81,293 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(env.Client)
 })
 
+var _ = Describe("NodeAffinity", func() {
+	Context("Custom Labels", func() {
+		It("should schedule pods that have matching node selectors", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+		})
+		It("should generate custom labels for node selectors", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{"another-key": "another-value"},
+			}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("another-key", "another-value"))
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+		})
+		It("should not schedule pods that have conflicting node selectors", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{"test-key": "different-value"},
+			}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule pods that have matching requirements", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+				}},
+			))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+		})
+		It("should not schedule pods that have conflicting requirements", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"another-value"}},
+				}},
+			))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should generate custom labels for requirements", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+				}},
+			))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", Or(Equal("test-value"), Equal("another-value"))))
+		})
+		It("should schedule pods that have matching preferences", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+				}},
+			))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+		})
+		It("should not schedule pods with have conflicting preferences", func() {
+			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
+				}},
+			))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should generate custom labels for preferences", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+				}},
+			))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", Or(Equal("test-value"), Equal("another-value"))))
+		})
+		It("should generate custom labels with both requirements and preferences", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
+				test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+					},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
+					},
+				},
+			))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue("test-key", "another-value"))
+		})
+	})
+	Context("Well Known Labels", func() {
+		It("should use provisioner constraints", func() {
+			provisioner.Spec.Zones = []string{"test-zone-2"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
+		})
+		It("should use node selectors", func() {
+			provisioner.Spec.Zones = []string{"test-zone-1", "test-zone-2"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
+		})
+		It("should not schedule the pod if nodeselector unknown", func() {
+			provisioner.Spec.Zones = []string{"test-zone-1"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should not schedule if node selector outside of provisioner constraints", func() {
+			provisioner.Spec.Zones = []string{"test-zone-1"}
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule compatible requirements with Operator=In", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-3"}}},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
+		})
+		It("should not schedule incompatible preferences and requirements with Operator=In", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"unknown"}}},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule compatible requirements with Operator=NotIn", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-1", "test-zone-2", "unknown"}}},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
+		})
+		It("should not schedule incompatible preferences and requirements with Operator=NotIn", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3", "unknown"}}},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule compatible preferences and requirements with Operator=In", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3", "unknown"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2", "unknown"}}},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
+		})
+		It("should not schedule incompatible preferences and requirements with Operator=In", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3", "unknown"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"unknown"}}},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule compatible preferences and requirements with Operator=NotIn", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3", "unknown"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-1", "test-zone-3"}}},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
+		})
+		It("should not schedule incompatible preferences and requirements with Operator=NotIn", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3", "unknown"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}}},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should schedule compatible node selectors, preferences and requirements", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-3"},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}}},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
+		})
+		It("should not schedule incompatible node selectors, preferences and requirements", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-3"},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-3"}}},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-2", "test-zone-3"}}},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+		It("should combine multidimensional node selectors, preferences and requirements", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelTopologyZone:       "test-zone-3",
+						v1.LabelInstanceTypeStable: "arm-instance-type",
+					},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-3"}},
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"default-instance-type", "arm-instance-type"}},
+					},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"unnknown"}},
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpNotIn, Values: []string{"unknown"}},
+					},
+				}))
+			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "arm-instance-type"))
+		})
+		It("should not combine incompatible multidimensional node selectors, preferences and requirements", func() {
+			ExpectCreated(env.Client, provisioner)
+			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelTopologyZone:       "test-zone-3",
+						v1.LabelInstanceTypeStable: "arm-instance-type",
+					},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-3"}},
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"default-instance-type", "arm-instance-type"}},
+					},
+					NodePreferences: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-zone-3"}},
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpNotIn, Values: []string{"arm-instance-type"}},
+					},
+				}))
+			Expect(pods[0].Spec.NodeName).To(BeEmpty())
+		})
+	})
+})
+
 var _ = Describe("Topology", func() {
 	labels := map[string]string{"test": "test"}
 
@@ -97,7 +384,7 @@ var _ = Describe("Topology", func() {
 		Expect(pods[0].Spec.NodeName).To(BeEmpty())
 	})
 
-	Context("Zone", func() {
+	Context("Zonal", func() {
 		It("should balance pods across zones", func() {
 			ExpectCreated(env.Client, provisioner)
 			topology := []v1.TopologySpreadConstraint{{
@@ -193,7 +480,7 @@ var _ = Describe("Topology", func() {
 		})
 	})
 
-	Context("Combined Hostname and Topology", func() {
+	Context("Combined Hostname and Zonal Topology", func() {
 		It("should spread pods while respecting both constraints", func() {
 			ExpectCreated(env.Client, provisioner)
 			topology := []v1.TopologySpreadConstraint{{
@@ -248,6 +535,8 @@ var _ = Describe("Taints", func() {
 			test.UnschedulablePod(),
 			// key mismatch with OpExists
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "invalid", Operator: v1.TolerationOpExists}}}),
+			// value mismatch
+			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpEqual, Effect: v1.TaintEffectNoSchedule}}}),
 		}
 		ExpectCreated(env.Client, provisioner)
 		ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -257,6 +546,7 @@ var _ = Describe("Taints", func() {
 		nodes := &v1.NodeList{}
 		Expect(env.Client.List(ctx, nodes)).To(Succeed())
 		Expect(len(nodes.Items)).To(Equal(1))
+		Expect(nodes.Items[0].Spec.Taints[0]).To(Equal(provisioner.Spec.Taints[0]))
 		for _, pod := range schedulable {
 			scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 			ExpectNodeExists(env.Client, scheduled.Spec.NodeName)

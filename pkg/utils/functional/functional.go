@@ -16,8 +16,6 @@ package functional
 
 import (
 	"strings"
-
-	"go.uber.org/multierr"
 )
 
 // UnionStringMaps merges all key value pairs into a single map, last write wins.
@@ -32,7 +30,10 @@ func UnionStringMaps(maps ...map[string]string) map[string]string {
 }
 
 func StringSliceWithout(vals []string, remove ...string) []string {
-	without := []string{}
+	if vals == nil {
+		return nil
+	}
+	var without []string
 	for _, val := range vals {
 		if ContainsString(remove, val) {
 			continue
@@ -42,31 +43,47 @@ func StringSliceWithout(vals []string, remove ...string) []string {
 	return without
 }
 
-// IntersectStringSlice takes the intersection of all string slices
+// IntersectStringSlice takes the intersection of the slices.
+// Semantically:
+// 1. [],[a,b] -> []: Empty set will always result in []
+// 2. nil,[a,b] -> [a,b]: Nil is the universal set and does not constrain
+// 3. ([a,b],[b]) -> [b]: Takes the intersection of the two sets
 func IntersectStringSlice(slices ...[]string) []string {
-	// count occurrences
-	counts := map[string]int{}
-	for _, strings := range slices {
-		for _, s := range UniqueStrings(strings) {
-			counts[s] = counts[s] + 1
+	if len(slices) == 0 {
+		return nil
+	}
+	if len(slices) == 1 {
+		return UniqueStrings(slices[0])
+	}
+	if slices[0] == nil {
+		return IntersectStringSlice(slices[1:]...)
+	}
+	if slices[1] == nil {
+		sliced := append(slices[:1], slices[2:]...)
+		return IntersectStringSlice(sliced...)
+	}
+	counts := map[string]bool{}
+	for _, s := range slices[0] {
+		counts[s] = true
+	}
+	intersection := []string{}
+	for _, s := range slices[1] {
+		if _, ok := counts[s]; ok {
+			intersection = append(intersection, s)
 		}
 	}
-	// select if occurred in all
-	var intersection []string
-	for key, count := range counts {
-		if count == len(slices) {
-			intersection = append(intersection, key)
-		}
-	}
-	return intersection
+	return IntersectStringSlice(append(slices[2:], intersection)...)
 }
 
 func UniqueStrings(strings []string) []string {
+	if strings == nil {
+		return nil
+	}
 	exists := map[string]bool{}
 	for _, s := range strings {
 		exists[s] = true
 	}
-	var unique []string
+	unique := []string{}
 	for s := range exists {
 		unique = append(unique, s)
 	}
@@ -80,15 +97,6 @@ func ContainsString(strings []string, candidate string) bool {
 		}
 	}
 	return false
-}
-
-// ValidateAll returns nil if all errorables return nil, otherwise returns the concatenated failure messages.
-func ValidateAll(errorables ...func() error) error {
-	var err error
-	for _, errorable := range errorables {
-		err = multierr.Append(err, errorable())
-	}
-	return err
 }
 
 // HasAnyPrefix returns true if any of the provided prefixes match the given string s

@@ -217,30 +217,53 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should default to a provisioner's specified capacity type", func() {
 				// Setup
-				provisioner.Spec.Labels = map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}
-				ExpectCreated(env.Client, provisioner)
+				provider.CapacityTypes = []string{v1alpha1.CapacityTypeSpot}
+				ExpectCreated(env.Client, ProvisionerWithProvider(provisioner, provider))
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.CapacityTypeLabel, v1alpha1.CapacityTypeSpot))
+				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(v1alpha1.CapacityTypeSpot))
 			})
-			It("should allow a pod to override the capacity type", func() {
+			It("should launch spot capacity if flexible to both spot and on demand", func() {
 				// Setup
-				ExpectCreated(env.Client, provisioner)
+				provider.CapacityTypes = []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}
+				ExpectCreated(env.Client, ProvisionerWithProvider(provisioner, provider))
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}}),
 				)
 				// Assertions
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(v1alpha1.CapacityTypeLabel, v1alpha1.CapacityTypeSpot))
+				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(v1alpha1.CapacityTypeSpot))
+			})
+			It("should allow a pod to constrain the capacity type", func() {
+				// Setup
+				provider.CapacityTypes = []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}
+				ExpectCreated(env.Client, ProvisionerWithProvider(provisioner, provider))
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeOnDemand}}),
+				)
+				// Assertions
+				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
+				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(v1alpha1.CapacityTypeOnDemand))
+			})
+			It("should not schedule a pod if outside of provisioner constraints", func() {
+				// Setup
+				provider.CapacityTypes = []string{v1alpha1.CapacityTypeOnDemand}
+				ExpectCreated(env.Client, ProvisionerWithProvider(provisioner, provider))
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}}),
+				)
+				// Assertions
+				Expect(pods[0].Spec.NodeName).To(BeEmpty())
 			})
 			It("should not schedule a pod with an invalid capacityType", func() {
 				// Setup
@@ -333,7 +356,7 @@ var _ = Describe("Allocation", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(aws.StringValue(constraints.CapacityType)).To(Equal(v1alpha1.CapacityTypeOnDemand))
+			Expect(constraints.CapacityTypes).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
 		})
 	})
 	Context("Validation", func() {
@@ -372,9 +395,6 @@ var _ = Describe("Allocation", func() {
 		})
 
 		Context("Zones", func() {
-			It("should succeed if unspecified", func() {
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.Zones = []string{"unknown"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -394,9 +414,6 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("InstanceTypes", func() {
-			It("should succeed if unspecified", func() {
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.InstanceTypes = []string{"unknown"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -409,9 +426,6 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("Architecture", func() {
-			It("should succeed if unspecified", func() {
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.Architectures = []string{"unknown"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -426,9 +440,6 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("OperatingSystem", func() {
-			It("should succeed if unspecified", func() {
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			})
 			It("should fail if not supported", func() {
 				provisioner.Spec.OperatingSystems = []string{"unknown"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -436,6 +447,20 @@ var _ = Describe("Allocation", func() {
 			It("should support linux", func() {
 				provisioner.Spec.OperatingSystems = []string{v1alpha4.OperatingSystemLinux}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+		})
+		Context("CapacityType", func() {
+			It("should fail if not supported", func() {
+				provider.CapacityTypes = []string{"unknown"}
+				Expect(ProvisionerWithProvider(provisioner, provider).Validate(ctx)).ToNot(Succeed())
+			})
+			It("should support spot", func() {
+				provider.CapacityTypes = []string{"spot"}
+				Expect(ProvisionerWithProvider(provisioner, provider).Validate(ctx)).ToNot(Succeed())
+			})
+			It("should support on demand", func() {
+				provider.CapacityTypes = []string{"on demand"}
+				Expect(ProvisionerWithProvider(provisioner, provider).Validate(ctx)).ToNot(Succeed())
 			})
 		})
 	})
