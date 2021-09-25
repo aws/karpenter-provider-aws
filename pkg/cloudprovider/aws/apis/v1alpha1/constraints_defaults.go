@@ -44,7 +44,7 @@ func (c *Constraints) defaultArchitectures(ctx context.Context) {
 	if len(c.Architectures) != 0 {
 		return
 	}
-	// In practice is is rare to be able to support both amd64 and
+	// In practice it is rare to be able to support both amd64 and
 	// arm64 at the same time, so we default to just amd64; this could
 	// change over time as tooling and techniques improve, etc.
 	c.Architectures = []string{v1alpha4.ArchitectureAmd64}
