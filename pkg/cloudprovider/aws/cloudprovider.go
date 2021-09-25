@@ -187,7 +187,7 @@ func (c *CloudProvider) Constrain(ctx context.Context, constraints *v1alpha4.Con
 	if err != nil {
 		return fmt.Errorf("failed to deserialize provider, %w", err)
 	}
-	if err:= vendorConstraints.Constrain(ctx, pods...); err != nil {
+	if err := vendorConstraints.Constrain(ctx, pods...); err != nil {
 		return err
 	}
 	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)

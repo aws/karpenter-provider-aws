@@ -65,7 +65,7 @@ func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.C
 	return &Scheduler{
 		KubeClient: kubeClient,
 		Topology: &Topology{
-			kubeClient:    kubeClient,
+			kubeClient: kubeClient,
 		},
 	}
 }
@@ -177,7 +177,6 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha4.Constr
 	}
 	return pods, nil
 }
-
 
 // IsSchedulable returns true if the pod can schedule to the node
 func DaemonWillSchedule(constraints *v1alpha4.Constraints, pod *v1.Pod) bool {
