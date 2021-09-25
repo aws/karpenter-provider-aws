@@ -27,6 +27,7 @@ var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
 func (c *Constraints) Default(ctx context.Context) {
+	c.defaultArchitectures(ctx)
 	c.defaultCapacityTypes(ctx)
 	c.defaultSubnets(ctx)
 	c.defaultSecurityGroups(ctx)
@@ -37,6 +38,16 @@ func (c *Constraints) defaultCapacityTypes(ctx context.Context) {
 		return
 	}
 	c.CapacityTypes = []string{CapacityTypeOnDemand}
+}
+
+func (c *Constraints) defaultArchitectures(ctx context.Context) {
+	if len(c.Architectures) != 0 {
+		return
+	}
+	// In practice is is rare to be able to support both amd64 and
+	// arm64 at the same time, so we default to just amd64; this could
+	// change over time as tooling and techniques improve, etc.
+	c.Architectures = []string{v1alpha4.ArchitectureAmd64}
 }
 
 func (c *Constraints) defaultSubnets(ctx context.Context) {

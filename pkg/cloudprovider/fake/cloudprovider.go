@@ -47,9 +47,9 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 	go func() {
 		err <- bind(&v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
+				Name: name,
 				Labels: map[string]string{
-					v1.LabelTopologyZone: zone,
+					v1.LabelTopologyZone:       zone,
 					v1.LabelInstanceTypeStable: instance.Name(),
 				},
 			},

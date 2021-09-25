@@ -58,7 +58,7 @@ func (p *AMIProvider) getSSMParameter(ctx context.Context, constraints *v1alpha1
 			return "", fmt.Errorf("no amazon-linux-2 ami available for both nvidia/neuron gpus and arm64 cpus")
 		}
 		amiNameSuffix = "-gpu"
-	} else if functional.ContainsString(constraints.Architectures, v1alpha4.ArchitectureArm64)  {
+	} else if functional.ContainsString(constraints.Architectures, v1alpha4.ArchitectureArm64) {
 		amiNameSuffix = "-arm64"
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiNameSuffix), nil
