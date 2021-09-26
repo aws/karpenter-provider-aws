@@ -47,6 +47,15 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
+func needsGPUAmi(is []cloudprovider.InstanceType) bool {
+	for _, i := range is {
+		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *AMIProvider) getSSMParameter(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {

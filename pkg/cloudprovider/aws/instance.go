@@ -46,6 +46,41 @@ type InstanceProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 }
 
+// filterInstanceTypes returns just the amd64-capable instance types
+// from the slice, unless there are none at all, in which case it
+// returns the arm ones. We need to generate a single launch template,
+// and launch templates do not allow multiple architectures at the
+// moment.
+func filterInstanceTypes(ctx context.Context, instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
+	var amd64s, arm64s, excluded []cloudprovider.InstanceType
+	for _, instanceType := range instanceTypes {
+		if len(instanceType.Architectures()) > 1 {
+			// There are no multi-arch instances today, but if there
+			// were we would not be able to create the corresponding
+			// launch templates
+			excluded = append(excluded, instanceType)
+			continue
+		}
+
+		if functional.ContainsString(instanceType.Architectures(), v1alpha4.ArchitectureAmd64) {
+			amd64s = append(amd64s, instanceType)
+		} else {
+			arm64s = append(arm64s, instanceType)
+		}
+	}
+
+	if len(excluded) > 0 {
+		logging.FromContext(ctx).Debugf("Excluded %d multi-architecture instance types", len(excluded))
+	}
+	if len(amd64s) > 0 {
+		if len(arm64s) > 0 {
+			logging.FromContext(ctx).Debugf("Excluded %d arm instance types", len(arm64s))
+		}
+		return amd64s
+	}
+	return arm64s
+}
+
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
@@ -56,12 +91,14 @@ func (p *InstanceProvider) Create(ctx context.Context,
 	subnets []*ec2.Subnet,
 	capacityTypes []string,
 ) (*v1.Node, error) {
-	// 1. Launch Instance
+	// 1. Remove instance types we cannot handle
+	instanceTypes = filterInstanceTypes(ctx, instanceTypes)
+	// 2. Launch Instance
 	id, err := p.launchInstance(ctx, launchTemplate, instanceTypes, subnets, capacityTypes)
 	if err != nil {
 		return nil, err
 	}
-	// 2. Get Instance with backoff retry since EC2 is eventually consistent
+	// 3. Get Instance with backoff retry since EC2 is eventually consistent
 	instance := &ec2.Instance{}
 	if err := retry.Do(
 		func() (err error) { return p.getInstance(ctx, id, instance) },
@@ -76,7 +113,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		aws.StringValue(instance.Placement.AvailabilityZone),
 		aws.StringValue(instance.PrivateDnsName),
 	)
-	// 3. Convert Instance to Node
+	// 4. Convert Instance to Node
 	node, err := p.instanceToNode(ctx, instance, instanceTypes)
 	if err != nil {
 		return nil, err

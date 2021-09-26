@@ -145,15 +145,6 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func needsGPUAmi(is []cloudprovider.InstanceType) bool {
-	for _, i := range is {
-		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
-			return true
-		}
-	}
-	return false
-}
-
 // needsDocker returns true if the instance type is unable to use
 // conatinerd directly
 func needsDocker(is []cloudprovider.InstanceType) bool {
