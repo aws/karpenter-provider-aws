@@ -47,21 +47,12 @@ type InstanceProvider struct {
 }
 
 // filterInstanceTypes returns just the amd64-capable instance types
-// from the slice, unless there are none at all, in which case it
-// returns the arm ones. We need to generate a single launch template,
-// and launch templates do not allow multiple architectures at the
-// moment.
+// from the slice, unless there are nonea, in which case it returns
+// the arm ones. We need to generate a single launch template, which
+// does not support multiple architectures at the moment.
 func filterInstanceTypes(ctx context.Context, instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
-	var amd64s, arm64s, excluded []cloudprovider.InstanceType
+	var amd64s, arm64s []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
-		if len(instanceType.Architectures()) > 1 {
-			// There are no multi-arch instances today, but if there
-			// were we would not be able to create the corresponding
-			// launch templates
-			excluded = append(excluded, instanceType)
-			continue
-		}
-
 		if functional.ContainsString(instanceType.Architectures(), v1alpha4.ArchitectureAmd64) {
 			amd64s = append(amd64s, instanceType)
 		} else {
@@ -69,9 +60,6 @@ func filterInstanceTypes(ctx context.Context, instanceTypes []cloudprovider.Inst
 		}
 	}
 
-	if len(excluded) > 0 {
-		logging.FromContext(ctx).Debugf("Excluded %d multi-architecture instance types", len(excluded))
-	}
 	if len(amd64s) > 0 {
 		if len(arm64s) > 0 {
 			logging.FromContext(ctx).Debugf("Excluded %d arm instance types", len(arm64s))
