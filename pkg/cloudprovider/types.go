@@ -55,7 +55,7 @@ type Options struct {
 type InstanceType interface {
 	Name() string
 	Zones() []string
-	Architectures() []string
+	Architecture() string
 	OperatingSystems() []string
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity

@@ -25,7 +25,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -47,39 +46,52 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
-func (p *AMIProvider) getSSMParameter(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, acclerator, etc
+func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
-		return "", fmt.Errorf("kube server version, %w", err)
+		return nil, fmt.Errorf("kube server version, %w", err)
 	}
-	var amiNameSuffix string
-	if needsGPUAmi(instanceTypes) {
-		if !functional.ContainsString(constraints.Architectures, v1alpha4.ArchitectureAmd64) {
-			return "", fmt.Errorf("no amazon-linux-2 ami available for both nvidia/neuron gpus and arm64 cpus")
+	// Separate instance types by unique queries
+	amiQueries := map[string][]cloudprovider.InstanceType{}
+	for _, instanceType := range instanceTypes {
+		query := p.getSSMQuery(ctx, constraints, instanceType, version)
+		amiQueries[query] = append(amiQueries[query], instanceType)
+	}
+	// Separate instance types by unique AMIIDs
+	amiIDs := map[string][]cloudprovider.InstanceType{}
+	for query, instanceTypes := range amiQueries {
+		amiID, err := p.getAMIID(ctx, query)
+		if err != nil {
+			return nil, err
 		}
-		amiNameSuffix = "-gpu"
-	} else if functional.ContainsString(constraints.Architectures, v1alpha4.ArchitectureArm64) {
-		amiNameSuffix = "-arm64"
+		amiIDs[amiID] = instanceTypes
 	}
-	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiNameSuffix), nil
+	return amiIDs, nil
 }
 
-func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
-	name, err := p.getSSMParameter(ctx, constraints, instanceTypes)
-	if err != nil {
-		return "", err
-	}
-	if id, ok := p.cache.Get(name); ok {
+func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error) {
+	if id, ok := p.cache.Get(query); ok {
 		return id.(string), nil
 	}
-	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(name)})
+	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(query)})
 	if err != nil {
 		return "", fmt.Errorf("getting ssm parameter, %w", err)
 	}
 	ami := aws.StringValue(output.Parameter.Value)
-	p.cache.Set(name, ami, CacheTTL)
-	logging.FromContext(ctx).Debugf("Discovered ami %s for query %s", ami, name)
+	p.cache.Set(query, ami, CacheTTL)
+	logging.FromContext(ctx).Debugf("Discovered ami %s for query %s", ami, query)
 	return ami, nil
+}
+
+func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
+	var amiSuffix string
+	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
+		amiSuffix = "-gpu"
+	} else if instanceType.Architecture() == v1alpha4.ArchitectureArm64 {
+		amiSuffix = "-arm64"
+	}
+	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {

@@ -67,18 +67,18 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
-			launchTemplateProvider: &LaunchTemplateProvider{
+			instanceTypeProvider: instanceTypeProvider,
+			instanceProvider: &InstanceProvider{fakeEC2API, instanceTypeProvider, &LaunchTemplateProvider{
 				fakeEC2API,
 				NewAMIProvider(&fake.SSMAPI{}, clientSet),
 				NewSecurityGroupProvider(fakeEC2API),
 				launchTemplateCache,
 			},
-			subnetProvider:       NewSubnetProvider(fakeEC2API),
-			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider:     &InstanceProvider{fakeEC2API, instanceTypeProvider},
-			creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
+				NewSubnetProvider(fakeEC2API),
+			},
+			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
-		registry.RegisterOrDie(cloudProvider)
+		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
 			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
