@@ -121,6 +121,10 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
+	// Remove labels injected by TopologySpreadConstraints.
+	for _, schedule := range schedules {
+		delete(schedule.Labels, v1.LabelHostname)
+	}
 	return schedules, nil
 }
 
