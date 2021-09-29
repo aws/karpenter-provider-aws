@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
@@ -66,11 +66,12 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 	); err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Infof("Launched instance: %s, type: %s, zone: %s, hostname: %s",
+	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
 		aws.StringValue(instance.InstanceId),
+		aws.StringValue(instance.PrivateDnsName),
 		aws.StringValue(instance.InstanceType),
 		aws.StringValue(instance.Placement.AvailabilityZone),
-		aws.StringValue(instance.PrivateDnsName),
+		getCapacityType(instance),
 	)
 	// Convert Instance to Node
 	node, err := p.instanceToNode(ctx, instance, instanceTypes)
@@ -223,6 +224,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					},
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    aws.StringValue(instance.Architecture),
+						OSImage:         aws.StringValue(instance.ImageId),
 						OperatingSystem: v1alpha4.OperatingSystemLinux,
 					},
 				},
@@ -249,4 +251,12 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
 	}
 	return fmt.Errorf("with fleet error(s), %w", errs)
+}
+
+func getCapacityType(instance *ec2.Instance) string {
+	capacityType := v1alpha1.CapacityTypeOnDemand
+	if instance.SpotInstanceRequestId != nil {
+		capacityType = v1alpha1.CapacityTypeSpot
+	}
+	return capacityType
 }
