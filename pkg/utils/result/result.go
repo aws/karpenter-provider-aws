@@ -15,25 +15,14 @@ limitations under the License.
 package result
 
 import (
-	"context"
 	"math"
 	"time"
 
-	"go.uber.org/multierr"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// RetryIfError logs any errors and requeues if not nil. Supports multierr unwrapping.
-func RetryIfError(ctx context.Context, err error) (reconcile.Result, error) {
-	for _, err := range multierr.Errors(err) {
-		logging.FromContext(ctx).Errorf("Failed reconciliation, %s", err.Error())
-	}
-	return reconcile.Result{Requeue: err != nil}, nil
-}
-
-// MinResult returns the result that wants to requeue the soonest
-func MinResult(results ...reconcile.Result) (result reconcile.Result) {
+// Min returns the result that wants to requeue the soonest
+func Min(results ...reconcile.Result) (result reconcile.Result) {
 	min := time.Duration(math.MaxInt64)
 	for _, r := range results {
 		if r.IsZero() {

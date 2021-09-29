@@ -49,8 +49,9 @@ func init() {
 }
 
 type Scheduler struct {
-	KubeClient client.Client
-	Topology   *Topology
+	KubeClient  client.Client
+	Topology    *Topology
+	Preferences *Preferences
 }
 
 type Schedule struct {
@@ -67,6 +68,7 @@ func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.C
 		Topology: &Topology{
 			kubeClient: kubeClient,
 		},
+		Preferences: NewPreferences(),
 	}
 }
 
@@ -105,6 +107,8 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints
 	if err := constraints.Constrain(ctx); err != nil {
 		return nil, fmt.Errorf("applying constraints, %w", err)
 	}
+	// Relax preferences if pods have previously failed to schedule.
+	s.Preferences.Relax(ctx, pods)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It

@@ -75,6 +75,8 @@ spec:
                 operator: In
                 values:
                 - linux
+              - key: karpenter.sh/provisioner-name
+                operator: DoesNotExist
         {{- end }}
       {{- with .Values.controller.tolerations }}
       tolerations:

@@ -24,9 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/result"
 	"go.uber.org/multierr"
-	"golang.org/x/time/rate"
 	"knative.dev/pkg/logging"
 
 	v1 "k8s.io/api/core/v1"
@@ -79,11 +77,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(fmt.Sprintf("allocation.provisioner/%s", req.Name)))
 	logging.FromContext(ctx).Infof("Starting provisioning loop")
-	defer func() {
-		logging.FromContext(ctx).Infof("Watching for pod events")
-	}()
-
-	// 1. Fetch provisioner
+	// Fetch provisioner
 	provisioner, err := c.provisionerFor(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -91,54 +85,50 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			logging.FromContext(ctx).Errorf("Provisioner \"%s\" not found. Create the \"default\" provisioner or specify an alternative using the nodeSelector %s", req.Name, v1alpha4.ProvisionerNameLabelKey)
 			return reconcile.Result{}, nil
 		}
-		return result.RetryIfError(ctx, err)
+		return reconcile.Result{}, err
 	}
-
-	// 2. Wait on a pod batch
+	// Wait on a pod batch
 	logging.FromContext(ctx).Infof("Waiting to batch additional pods")
 	c.Batcher.Wait(provisioner)
 
-	// 3. Filter pods
+	// Filter pods
 	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
-		return result.RetryIfError(ctx, fmt.Errorf("filtering pods, %w", err))
+		return reconcile.Result{}, fmt.Errorf("filtering pods, %w", err)
 	}
 	logging.FromContext(ctx).Infof("Found %d provisionable pods", len(pods))
 	if len(pods) == 0 {
+		logging.FromContext(ctx).Infof("Watching for pod events")
 		return reconcile.Result{}, nil
 	}
-	// 4. Group by constraints
+	// Group by constraints
 	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
 	if err != nil {
-		return result.RetryIfError(ctx, fmt.Errorf("solving scheduling constraints, %w", err))
+		return reconcile.Result{}, fmt.Errorf("solving scheduling constraints, %w", err)
 	}
-	// 5. Get Instance Types Options
+	// Get Instance Types Options
 	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
 	if err != nil {
-		return result.RetryIfError(ctx, fmt.Errorf("getting instance types, %w", err))
+		return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 	}
-
-	// 6. Binpack each group
-	packings := []*binpacking.Packing{}
-	for _, schedule := range schedules {
-		packings = append(packings, c.Packer.Pack(ctx, schedule, instanceTypes)...)
-	}
-
-	// 7. Create capacity
-	errs := make([]error, len(packings))
-	workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(index int) {
-		packing := packings[index]
-		errs[index] = <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
-			node.Labels = functional.UnionStringMaps(
-				node.Labels,
-				packing.Constraints.Labels,
-				map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
-			)
-			node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
-			return c.Binder.Bind(ctx, node, packing.Pods)
-		})
+	// Create capacity
+	errs := make([]error, len(schedules))
+	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
+		for _, packing := range c.Packer.Pack(ctx, schedules[index], instanceTypes) {
+			if err := <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, func(node *v1.Node) error {
+				node.Labels = functional.UnionStringMaps(
+					node.Labels,
+					packing.Constraints.Labels,
+					map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name},
+				)
+				node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
+				return c.Binder.Bind(ctx, node, packing.Pods)
+			}); err != nil {
+				errs[index] = multierr.Append(errs[index], err)
+			}
+		}
 	})
-	return result.RetryIfError(ctx, multierr.Combine(errs...))
+	return reconcile.Result{Requeue: true}, multierr.Combine(errs...)
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
@@ -158,16 +148,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 				},
 			),
 		).
-		WithOptions(
-			controller.Options{
-				RateLimiter: workqueue.NewMaxOfRateLimiter(
-					workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 10*time.Second),
-					// 10 qps, 100 bucket size
-					&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-				),
-				MaxConcurrentReconciles: 4,
-			},
-		).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
 	c.Batcher.Start(ctx)
 	return err

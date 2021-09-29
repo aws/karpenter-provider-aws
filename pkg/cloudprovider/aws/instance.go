@@ -28,7 +28,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/logging"
 
 	"go.uber.org/multierr"
@@ -106,13 +105,15 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 	subnets []*ec2.Subnet,
 	capacityTypes []string) (*string, error) {
 
-	// If unconstrained, default to spot to save on cost, otherwise use on
-	// demand. Constraint solving logic will guarantee that capacityTypes are
-	// either unconstrained (nil), or a valid WellKnownLabel. Provisioner
-	// defaulting logic will currently default to [on-demand] if unspecifed.
-	capacityType := v1alpha1.CapacityTypeSpot
-	if capacityTypes != nil && !functional.ContainsString(capacityTypes, v1alpha1.CapacityTypeSpot) {
-		capacityType = v1alpha1.CapacityTypeOnDemand
+	// Default to on-demand unless constrained otherwise. This code assumes two
+	// options: {spot, on-demand}, which is enforced by constraints.Constrain().
+	// Spot may be selected by constraining the provisioner, or using
+	// nodeSelectors, required node affinity, or preferred node affinity.
+	capacityType := v1alpha1.CapacityTypeOnDemand
+	if len(capacityTypes) == 0 {
+		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
+	} else if len(capacityTypes) == 1 {
+		capacityType = capacityTypes[0]
 	}
 
 	// 1. Construct override options.
