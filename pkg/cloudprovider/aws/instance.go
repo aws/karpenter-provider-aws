@@ -41,26 +41,23 @@ const (
 )
 
 type InstanceProvider struct {
-	ec2api               ec2iface.EC2API
-	instanceTypeProvider *InstanceTypeProvider
+	ec2api                 ec2iface.EC2API
+	instanceTypeProvider   *InstanceTypeProvider
+	launchTemplateProvider *LaunchTemplateProvider
+	subnetProvider         *SubnetProvider
 }
 
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context,
-	launchTemplate string,
-	instanceTypes []cloudprovider.InstanceType,
-	subnets []*ec2.Subnet,
-	capacityTypes []string,
-) (*v1.Node, error) {
-	// 1. Launch Instance
-	id, err := p.launchInstance(ctx, launchTemplate, instanceTypes, subnets, capacityTypes)
+func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+	// Launch Instance
+	id, err := p.launchInstance(ctx, constraints, instanceTypes)
 	if err != nil {
 		return nil, err
 	}
-	// 2. Get Instance with backoff retry since EC2 is eventually consistent
+	// Get Instance with backoff retry since EC2 is eventually consistent
 	instance := &ec2.Instance{}
 	if err := retry.Do(
 		func() (err error) { return p.getInstance(ctx, id, instance) },
@@ -75,7 +72,7 @@ func (p *InstanceProvider) Create(ctx context.Context,
 		aws.StringValue(instance.Placement.AvailabilityZone),
 		aws.StringValue(instance.PrivateDnsName),
 	)
-	// 3. Convert Instance to Node
+	// Convert Instance to Node
 	node, err := p.instanceToNode(ctx, instance, instanceTypes)
 	if err != nil {
 		return nil, err
@@ -99,51 +96,34 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context,
-	launchTemplateName string,
-	instanceTypeOptions []cloudprovider.InstanceType,
-	subnets []*ec2.Subnet,
-	capacityTypes []string) (*string, error) {
-
+func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*string, error) {
 	// Default to on-demand unless constrained otherwise. This code assumes two
 	// options: {spot, on-demand}, which is enforced by constraints.Constrain().
 	// Spot may be selected by constraining the provisioner, or using
 	// nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
-	if len(capacityTypes) == 0 {
+	if len(constraints.CapacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
-	} else if len(capacityTypes) == 1 {
-		capacityType = capacityTypes[0]
+	} else if len(constraints.CapacityTypes) == 1 {
+		capacityType = constraints.CapacityTypes[0]
 	}
-
-	// 1. Construct override options.
-	overrides := p.getOverrides(instanceTypeOptions, subnets, capacityType)
-	if len(overrides) == 0 {
-		return nil, fmt.Errorf("no viable {subnet, instanceType} combination")
+	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
+	if err != nil {
+		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
-
-	// 2. Create fleet
+	// Create fleet
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
-		Type: aws.String(ec2.FleetTypeInstant),
+		Type:                  aws.String(ec2.FleetTypeInstant),
+		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
 		// OnDemandOptions are allowed to be specified even when requesting spot
-		OnDemandOptions: &ec2.OnDemandOptionsRequest{
-			AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice),
-		},
+		OnDemandOptions: &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)},
 		// SpotOptions are allowed to be specified even when requesting on-demand
-		SpotOptions: &ec2.SpotOptionsRequest{
-			AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized),
-		},
-		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{{
-			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplateName),
-				Version:            aws.String("$Default"),
-			},
-			Overrides: overrides,
-		}},
+		SpotOptions: &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
@@ -152,6 +132,30 @@ func (p *InstanceProvider) launchInstance(ctx context.Context,
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
+}
+
+func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+	// Get subnets given the constraints
+	subnets, err := p.subnetProvider.Get(ctx, constraints)
+	if err != nil {
+		return nil, fmt.Errorf("getting subnets, %w", err)
+	}
+
+	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("getting launch templates, %w", err)
+	}
+	for launchTemplateName, instanceTypes := range launchTemplates {
+		launchTemplateConfigs = append(launchTemplateConfigs, &ec2.FleetLaunchTemplateConfigRequest{
+			Overrides: p.getOverrides(instanceTypes, subnets, capacityType),
+			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+				LaunchTemplateName: aws.String(launchTemplateName),
+				Version:            aws.String("$Default"),
+			},
+		})
+	}
+	return launchTemplateConfigs, nil
 }
 
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {

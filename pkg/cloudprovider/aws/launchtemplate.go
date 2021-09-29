@@ -77,42 +77,43 @@ type launchTemplateOptions struct {
 	AMIID             string
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
-	// 1. If the customer specified a launch template then just use it
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
+	// If Launch Template is directly specified then just use it
 	if constraints.LaunchTemplate != nil {
-		return ptr.StringValue(constraints.LaunchTemplate), nil
+		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplate): instanceTypes}, nil
 	}
-
-	// 2. Get constrained AMI ID
-	amiID, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
-	if err != nil {
-		return "", err
-	}
-
-	// 3. Get constrained security groups
+	// Get constrained security groups
 	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// 3. Get userData for Node
-	userData, err := p.getUserData(ctx, constraints, instanceTypes)
+	// Get constrained AMI ID
+	amis, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// 4. Ensure the launch template exists, or create it
-	launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-		UserData:          userData,
-		ClusterName:       constraints.Cluster.Name,
-		InstanceProfile:   constraints.InstanceProfile,
-		AMIID:             amiID,
-		SecurityGroupsIds: securityGroupsIds,
-	})
-	if err != nil {
-		return "", err
+	// Construct launch templates
+	launchTemplates := map[string][]cloudprovider.InstanceType{}
+	for amiID, instanceTypes := range amis {
+		// Get userData for Node
+		userData, err := p.getUserData(ctx, constraints, instanceTypes)
+		if err != nil {
+			return nil, err
+		}
+		// Ensure the launch template exists, or create it
+		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
+			UserData:          userData,
+			ClusterName:       constraints.Cluster.Name,
+			InstanceProfile:   constraints.InstanceProfile,
+			AMIID:             amiID,
+			SecurityGroupsIds: securityGroupsIds,
+		})
+		if err != nil {
+			return nil, err
+		}
+		launchTemplates[aws.StringValue(launchTemplate.LaunchTemplateName)] = instanceTypes
 	}
-	return aws.StringValue(launchTemplate.LaunchTemplateName), nil
+	return launchTemplates, nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
@@ -143,15 +144,6 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	// 4. Populate cache
 	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
-}
-
-func needsGPUAmi(is []cloudprovider.InstanceType) bool {
-	for _, i := range is {
-		if !i.NvidiaGPUs().IsZero() || !i.AWSNeurons().IsZero() {
-			return true
-		}
-	}
-	return false
 }
 
 // needsDocker returns true if the instance type is unable to use

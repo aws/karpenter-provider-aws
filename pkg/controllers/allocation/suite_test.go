@@ -54,7 +54,7 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(cloudProvider)
+		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
 			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},

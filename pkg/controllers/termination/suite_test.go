@@ -53,7 +53,7 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(cloudProvider)
+		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client)
 		controller = &termination.Controller{

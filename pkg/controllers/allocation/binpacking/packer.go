@@ -93,11 +93,11 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 	var packing *Packing
 	remainingPods := schedule.Pods
 	for len(remainingPods) > 0 {
-
-		packing, remainingPods = p.packWithLargestPod(ctx, remainingPods, schedule, instances)
+		packables := PackablesFor(ctx, instances, schedule)
+		packing, remainingPods = p.packWithLargestPod(ctx, schedule.Constraints, remainingPods, packables)
 		// checked all instance types and found no packing option
 		if len(packing.Pods) == 0 {
-			logging.FromContext(ctx).Errorf("Failed to compute packing for pod(s) %v with instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), instanceTypeNames(instances))
+			logging.FromContext(ctx).Errorf("Failed to compute packing, pod(s) %s did not fit in instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), packableNames(packables))
 			remainingPods = remainingPods[1:]
 			continue
 		}
@@ -110,11 +110,11 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) (*Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(ctx context.Context, constraints *v1alpha4.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
-	for _, packable := range PackablesFor(ctx, instances, schedule) {
+	for _, packable := range packables {
 		// check how many pods we can fit with the available capacity
 		result := packable.Pack(unpackedPods)
 		if len(result.packed) == 0 {
@@ -138,7 +138,7 @@ func (p *packer) packWithLargestPod(ctx context.Context, unpackedPods []*v1.Pod,
 	if len(bestInstances) > MaxInstanceTypes {
 		bestInstances = bestInstances[:MaxInstanceTypes]
 	}
-	return &Packing{Pods: bestPackedPods, Constraints: schedule.Constraints, InstanceTypeOptions: bestInstances}, remainingPods
+	return &Packing{Pods: bestPackedPods, Constraints: constraints, InstanceTypeOptions: bestInstances}, remainingPods
 }
 
 func (*packer) podsMatch(first, second []*v1.Pod) bool {

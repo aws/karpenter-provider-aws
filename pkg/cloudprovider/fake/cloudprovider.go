@@ -58,7 +58,7 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 			},
 			Status: v1.NodeStatus{
 				NodeInfo: v1.NodeSystemInfo{
-					Architecture:    instance.Architectures()[0],
+					Architecture:    instance.Architecture(),
 					OperatingSystem: instance.OperatingSystems()[0],
 				},
 				Allocatable: v1.ResourceList{
@@ -94,8 +94,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.I
 			operatingSystems: []string{"windows"},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:          "arm-instance-type",
-			architectures: []string{"arm64"},
+			name:         "arm-instance-type",
+			architecture: "arm64",
 		}),
 	}, nil
 }

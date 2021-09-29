@@ -41,14 +41,13 @@ func (i *InstanceType) Zones() []string {
 	return i.ZoneOptions
 }
 
-func (i *InstanceType) Architectures() []string {
-	architectures := []string{}
+func (i *InstanceType) Architecture() string {
 	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
 		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
-			architectures = append(architectures, value)
+			return value
 		}
 	}
-	return architectures
+	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
 }
 
 func (i *InstanceType) OperatingSystems() []string {

@@ -23,8 +23,8 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if len(options.zones) == 0 {
 		options.zones = []string{"test-zone-1", "test-zone-2", "test-zone-3"}
 	}
-	if len(options.architectures) == 0 {
-		options.architectures = []string{"amd64"}
+	if len(options.architecture) == 0 {
+		options.architecture = "amd64"
 	}
 	if len(options.operatingSystems) == 0 {
 		options.operatingSystems = []string{"linux"}
@@ -42,7 +42,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 		InstanceTypeOptions: InstanceTypeOptions{
 			name:             options.name,
 			zones:            options.zones,
-			architectures:    options.architectures,
+			architecture:     options.architecture,
 			operatingSystems: options.operatingSystems,
 			cpu:              options.cpu,
 			memory:           options.memory,
@@ -57,7 +57,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 type InstanceTypeOptions struct {
 	name             string
 	zones            []string
-	architectures    []string
+	architecture     string
 	operatingSystems []string
 	cpu              resource.Quantity
 	memory           resource.Quantity
@@ -79,8 +79,8 @@ func (i *InstanceType) Zones() []string {
 	return i.zones
 }
 
-func (i *InstanceType) Architectures() []string {
-	return i.architectures
+func (i *InstanceType) Architecture() string {
+	return i.architecture
 }
 
 func (i *InstanceType) OperatingSystems() []string {

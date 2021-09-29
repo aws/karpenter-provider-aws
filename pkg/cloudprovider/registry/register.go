@@ -25,7 +25,7 @@ import (
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
 	cloudProvider := newCloudProvider(ctx, options)
-	RegisterOrDie(cloudProvider)
+	RegisterOrDie(ctx, cloudProvider)
 	return cloudProvider
 }
 
@@ -33,22 +33,20 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudp
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
-func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
+func RegisterOrDie(ctx context.Context,cloudProvider cloudprovider.CloudProvider) {
 	zones := map[string]bool{}
 	architectures := map[string]bool{}
 	operatingSystems := map[string]bool{}
 
-	instanceTypes, err := cloudProvider.GetInstanceTypes(context.Background())
+	instanceTypes, err := cloudProvider.GetInstanceTypes(ctx)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
 	}
 	for _, instanceType := range instanceTypes {
 		v1alpha4.WellKnownLabels[v1.LabelInstanceTypeStable] = append(v1alpha4.WellKnownLabels[v1.LabelInstanceTypeStable], instanceType.Name())
+		architectures[instanceType.Architecture()] = true
 		for _, zone := range instanceType.Zones() {
 			zones[zone] = true
-		}
-		for _, architecture := range instanceType.Architectures() {
-			architectures[architecture] = true
 		}
 		for _, operatingSystem := range instanceType.OperatingSystems() {
 			operatingSystems[operatingSystem] = true

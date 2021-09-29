@@ -159,8 +159,8 @@ func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if len(functional.IntersectStringSlice(p.Architectures(), schedule.Architectures)) == 0 {
-		return fmt.Errorf("architecture %s is not in %v", schedule.Architectures, p.Architectures())
+	if !functional.ContainsString(schedule.Architectures, p.Architecture()) {
+		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), schedule.Architectures)
 	}
 	return nil
 }
@@ -219,4 +219,12 @@ func (p *Packable) validateAWSNeurons(schedule *scheduling.Schedule) error {
 		}
 	}
 	return fmt.Errorf("aws neuron is not required")
+}
+
+func packableNames(instanceTypes []*Packable) []string {
+	names := []string{}
+	for _, instanceType := range instanceTypes {
+		names = append(names, instanceType.Name())
+	}
+	return names
 }

@@ -55,11 +55,10 @@ func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(ctx, pod) },
 	} {
 		if reason := relaxFunc(pod); reason != nil {
-			logging.FromContext(ctx).Debugf("Pod %s/%s previously failed to schedule, removing soft constraint: %s", pod.Namespace, pod.Name, ptr.StringValue(reason))
+			logging.FromContext(ctx).Debugf("Relaxing soft constraints for %s/%s since it previously failed to schedule, removing: %s", pod.Namespace, pod.Name, ptr.StringValue(reason))
 			return true
 		}
 	}
-	logging.FromContext(ctx).Debugf("Pod %s/%s previously failed to schedule, but no soft constraints remain", pod.Namespace, pod.Name)
 	return false
 }
 

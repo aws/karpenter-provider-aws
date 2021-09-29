@@ -69,11 +69,9 @@ var (
 )
 
 type CloudProvider struct {
-	launchTemplateProvider *LaunchTemplateProvider
-	subnetProvider         *SubnetProvider
-	instanceTypeProvider   *InstanceTypeProvider
-	instanceProvider       *InstanceProvider
-	creationQueue          *parallel.WorkQueue
+	instanceTypeProvider *InstanceTypeProvider
+	instanceProvider     *InstanceProvider
+	creationQueue        *parallel.WorkQueue
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -91,15 +89,16 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	ec2api := ec2.New(sess)
 	instanceTypeProvider := NewInstanceTypeProvider(ec2api)
 	return &CloudProvider{
-		launchTemplateProvider: NewLaunchTemplateProvider(
-			ec2api,
-			NewAMIProvider(ssm.New(sess), options.ClientSet),
-			NewSecurityGroupProvider(ec2api),
-		),
-		subnetProvider:       NewSubnetProvider(ec2api),
 		instanceTypeProvider: instanceTypeProvider,
-		instanceProvider:     &InstanceProvider{ec2api, instanceTypeProvider},
-		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
+		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider,
+			NewLaunchTemplateProvider(
+				ec2api,
+				NewAMIProvider(ssm.New(sess), options.ClientSet),
+				NewSecurityGroupProvider(ec2api),
+			),
+			NewSubnetProvider(ec2api),
+		},
+		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
@@ -126,23 +125,13 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
-	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
+func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, callback func(*v1.Node) error) error {
+	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
 	if err != nil {
 		return err
 	}
-	// 1. Get Subnets and constrain by zones
-	subnets, err := c.subnetProvider.Get(ctx, constraints)
-	if err != nil {
-		return fmt.Errorf("getting subnets, %w", err)
-	}
-	// 2. Get Launch Template
-	launchTemplate, err := c.launchTemplateProvider.Get(ctx, constraints, instanceTypes)
-	if err != nil {
-		return fmt.Errorf("getting launch template, %w", err)
-	}
 	// 3. Create instance
-	node, err := c.instanceProvider.Create(ctx, launchTemplate, instanceTypes, subnets, constraints.CapacityTypes)
+	node, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes)
 	if err != nil {
 		return fmt.Errorf("launching instance, %w", err)
 	}
@@ -158,23 +147,23 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate the constraints
-func (c *CloudProvider) Validate(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) *apis.FieldError {
-	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
+func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha4.Constraints) *apis.FieldError {
+	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return constraints.Validate(ctx)
+	return vendorConstraints.Validate(ctx)
 }
 
 // Default the constraints
-func (c *CloudProvider) Default(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints) {
-	constraints, err := v1alpha1.NewConstraints(v1alpha4constraints)
+func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha4.Constraints) {
+	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
 	if err != nil {
 		logging.FromContext(context.Background()).Errorf("failed to deserialize provider, %s", err.Error())
 		return
 	}
-	constraints.Default(ctx)
-	v1alpha4constraints.Provider.Raw, err = json.Marshal(constraints.AWS)
+	vendorConstraints.Default(ctx)
+	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)
 	if err != nil {
 		logging.FromContext(context.Background()).Errorf("failed to serialize provider, %s", err.Error())
 	}
