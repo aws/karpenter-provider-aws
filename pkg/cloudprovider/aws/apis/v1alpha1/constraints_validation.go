@@ -58,12 +58,22 @@ func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldErro
 	if c.SubnetSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
 	}
+	for key, value := range c.SubnetSelector {
+		if key == "" || value == "" {
+			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("subnetSelector['%s']", key)))
+		}
+	}
 	return errs
 }
 
 func (c *Constraints) validateSecurityGroups(ctx context.Context) (errs *apis.FieldError) {
-	if c.SecurityGroupsSelector == nil {
+	if c.SecurityGroupSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
+	}
+	for key, value := range c.SecurityGroupSelector {
+		if key == "" || value == "" {
+			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("securityGroupSelector['%s']", key)))
+		}
 	}
 	return errs
 }

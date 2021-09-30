@@ -43,14 +43,14 @@ func (c *Constraints) defaultSubnets(ctx context.Context) {
 	if c.SubnetSelector != nil {
 		return
 	}
-	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): ""}
+	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
 }
 
 func (c *Constraints) defaultSecurityGroups(ctx context.Context) {
-	if c.SecurityGroupsSelector != nil {
+	if c.SecurityGroupSelector != nil {
 		return
 	}
-	c.SecurityGroupsSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): ""}
+	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
 }
 
 // Constrain applies the pod's scheduling constraints to the constraints.

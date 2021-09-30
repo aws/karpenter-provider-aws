@@ -64,7 +64,7 @@ func (s *SubnetProvider) getFilters(ctx context.Context, constraints *v1alpha1.C
 	}
 	// Filter by selector
 	for key, value := range constraints.SubnetSelector {
-		if value == "" {
+		if value == "*" {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("tag-key"),
 				Values: []*string{aws.String(key)},

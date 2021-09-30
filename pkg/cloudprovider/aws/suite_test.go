@@ -344,13 +344,13 @@ var _ = Describe("Allocation", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.SubnetSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": ""}))
+			Expect(constraints.SubnetSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": "*"}))
 		})
 		It("should default securityGroupSelector", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.NewConstraints(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.SecurityGroupsSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": ""}))
+			Expect(constraints.SecurityGroupSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": "*"}))
 		})
 		It("should default capacityType", func() {
 			provisioner.SetDefaults(ctx)
@@ -387,13 +387,36 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 		})
+		Context("SubnetSelector", func() {
+			It("should not allow empty string keys or values", func() {
+				for key, value := range map[string]string{
+					"":    "value",
+					"key": "",
+				} {
+					provider.SubnetSelector = map[string]string{key: value}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				}
+			})
+		})
+		Context("SecurityGroupSelector", func() {
+			It("should not allow empty string keys or values", func() {
+				for key, value := range map[string]string{
+					"":    "value",
+					"key": "",
+				} {
+					provider.SecurityGroupSelector = map[string]string{key: value}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				}
+			})
+		})
 		Context("Labels", func() {
 			It("should not allow labels with the aws label prefix", func() {
 				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/foo": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 		})
-
 		Context("Zones", func() {
 			It("should fail if not supported", func() {
 				provisioner.Spec.Zones = []string{"unknown"}
