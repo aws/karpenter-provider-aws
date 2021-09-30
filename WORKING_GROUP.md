@@ -10,6 +10,28 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (09/30/21)
+
+## Attendees
+- Brandon Wagner
+- Ellis Tarn
+- Jason Haugen
+- Jerad Cramp
+- Elmiko
+- Abeer Sethi
+- Suket Sharma
+
+## Announcements:
+- v0.4 targetting Kubecon
+- Next working group is cancelled due to Kubecon
+
+## Notes:
+- [EL] Cluster API Update
+  - Can we directly create machines?
+  - Starts to get outside of the CAPI workflow
+  - Want to test with kubemark (hollow nodes)
+  - Hopefully will have a demo at some point
+
 # Meeting notes (09/16/21)
 
 ## Attendees
