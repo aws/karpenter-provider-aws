@@ -64,7 +64,7 @@ type AWS struct {
 	SubnetSelector map[string]string `json:"subnetSelector,omitempty"`
 	// SecurityGroups specify the names of the security groups.
 	// +optional
-	SecurityGroupsSelector map[string]string `json:"securityGroupSelector,omitempty"`
+	SecurityGroupSelector map[string]string `json:"securityGroupSelector,omitempty"`
 }
 
 // Cluster configures the cluster that the provisioner operates against.

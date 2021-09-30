@@ -45,8 +45,8 @@ func (in *AWS) DeepCopyInto(out *AWS) {
 			(*out)[key] = val
 		}
 	}
-	if in.SecurityGroupsSelector != nil {
-		in, out := &in.SecurityGroupsSelector, &out.SecurityGroupsSelector
+	if in.SecurityGroupSelector != nil {
+		in, out := &in.SecurityGroupSelector, &out.SecurityGroupSelector
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
