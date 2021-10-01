@@ -15,7 +15,6 @@ limitations under the License.
 package env
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 )
@@ -35,12 +34,10 @@ func WithDefaultString(key string, def string) string {
 func WithDefaultInt(key string, def int) int {
 	val, ok := os.LookupEnv(key)
 	if !ok {
-		fmt.Printf("COULDN'T FIND KEY %s", key)
 		return def
 	}
 	i, err := strconv.Atoi(val)
 	if err != nil {
-		fmt.Printf("CONVERSION FAILED FOR %s w/ value %s", key, val)
 		return def
 	}
 	return i
