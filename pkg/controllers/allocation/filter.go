@@ -65,6 +65,9 @@ func (f *Filter) isUnschedulable(p *v1.Pod) error {
 	if pod.IsOwnedByDaemonSet(p) {
 		return fmt.Errorf("owned by daemonset")
 	}
+	if pod.IsOwnedByNode(p) {
+		return fmt.Errorf("owned by node")
+	}
 	return nil
 }
 
