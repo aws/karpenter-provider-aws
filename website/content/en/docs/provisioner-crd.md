@@ -7,18 +7,12 @@ date: 2017-01-05
 
 ## Example Provisioner Resource
 
-```bash
-apiVersion: karpenter.sh/v1alpha3
+```yaml
+apiVersion: karpenter.sh/v1alpha4
 kind: Provisioner
 metadata:
   name: default
 spec:
-  # Provisioned nodes connect to this cluster
-  cluster:
-    name: "${CLUSTER_NAME}"
-    caBundle: "${CLUSTER_CA_BUNDLE}"
-    endpoint: "${CLUSTER_ENDPOINT}"
-
   # If nil, the feature is disabled, nodes will never expire
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
 
@@ -26,17 +20,32 @@ spec:
   ttlSecondsAfterEmpty: 30
 
   # Provisioned nodes will have these taints
+  # Taints may prevent pods from scheduling if they are not tolerated
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
 
   # Provisioned nodes will have these labels
+  # Additional labels may be applied, e.g.: karpenter.sh/provisioner-name: default
   labels:
-    ##### AWS Specific #####
-    # Constrain node launch template ('$Default' version always used).
-    # If not specified, Karpenter will generate a default launch template,
-    # dynamically.
-    node.k8s.aws/launch-template-name: "my-launch-template-name"
-    # Constrain node capacity type, default="on-demand"
-    node.k8s.aws/capacity-type: "spot"
+    foo: bar
+
+  # Constrain instance types, or choose from all if unconstrained (recommended)
+  # Overriden by pod.spec.nodeSelector["kubernetes.io/instance-type"]
+  instanceTypes: ["m5.large", "m5.2xlarge"]
+
+  # Constrain zones, or choose from all if unconstrained (recommended)
+  # Overriden by pod.spec.nodeSelector["topology.kubernetes.io/zone"]
+  zones: [ "us-west-2a", "us-west-2b" ]
+
+  # Constrain architectures, or use choose from all if unconstrained (recommended)
+  # Overriden by pod.spec.nodeSelector["kubernetes.io/arch"]
+  architectures: [ "amd64" ]
+
+  # Constrain operating systems, or use choose from all if unconstrained (recommended)
+  # Overriden by pod.spec.nodeSelector["kubernetes.io/os"]
+  operatingSystems: [ "linux" ]
+
+  # These fields vary per cloud provider, see your cloud provider specific documentation
+  provider: {}
 ```
