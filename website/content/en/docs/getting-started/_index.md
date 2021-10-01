@@ -177,13 +177,7 @@ metadata:
 spec:
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    capacityTypes: [spot]
-    architectures: [ "amd64" ]
-    operatingSystems: [ "linux" ]
-    subnetSelector:
-      kubernetes.io/cluster/${CLUSTER_NAME}: "*"
-    securityGroupSelector:
-      eksctl.cluster.k8s.io/v1alpha1/cluster-name: "${CLUSTER_NAME}"
+    capacityTypes: [ "spot" ]
     cluster:
       name: ${CLUSTER_NAME}
       endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
