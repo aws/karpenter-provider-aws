@@ -177,7 +177,9 @@ metadata:
 spec:
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    capacityType: spot
+    capacityTypes: [spot]
+    architectures: [ "amd64" ]
+    operatingSystems: [ "linux" ]
     subnetSelector:
       kubernetes.io/cluster/${CLUSTER_NAME}: "*"
     securityGroupSelector:
