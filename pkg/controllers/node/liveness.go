@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const LivenessTimeout = 5 * time.Minute
+const LivenessTimeout = 15 * time.Minute
 
 // Liveness is a subreconciler that deletes nodes if its determined to be unrecoverable
 type Liveness struct {

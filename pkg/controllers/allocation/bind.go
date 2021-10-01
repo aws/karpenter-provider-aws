@@ -117,7 +117,6 @@ func (b *Binder) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 }
 
 func (b *Binder) bindPod(ctx context.Context, node *v1.Node, pod *v1.Pod) error {
-	// TODO, Stop using deprecated v1.Binding
 	if err := b.CoreV1Client.Pods(pod.Namespace).Bind(ctx, &v1.Binding{
 		TypeMeta:   pod.TypeMeta,
 		ObjectMeta: pod.ObjectMeta,
