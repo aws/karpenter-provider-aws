@@ -83,8 +83,8 @@ func (p *Preferences) removePreferredNodeAffinityTerm(ctx context.Context, pod *
 	terms := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution
 	// Remove the terms if there are any (terms are an OR semantic)
 	if len(terms) > 0 {
-		// Sort ascending by weight to remove lightest preferences first
-		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight < terms[j].Weight })
+		// Sort descending by weight to remove heaviest preferences to try lighter ones
+		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
 		pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
 		return ptr.String(fmt.Sprintf("spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
 	}

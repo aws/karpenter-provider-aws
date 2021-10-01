@@ -15,6 +15,8 @@ limitations under the License.
 package scheduling
 
 import (
+	"sort"
+
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 )
@@ -31,14 +33,15 @@ func NodeAffinityFor(pods ...*v1.Pod) (nodeAffinity NodeAffinity) {
 		if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
 			continue
 		}
-		// Preferences are treated as requirements. An outer loop will iteratively unconstrain them if unsatisfiable
-		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			nodeAffinity = append(nodeAffinity, term.Preference.MatchExpressions...)
+		// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
+		if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
+			sort.Slice(preferred, (func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight }))
+			nodeAffinity = append(nodeAffinity, preferred[0].Preference.MatchExpressions...)
 		}
-		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-				nodeAffinity = append(nodeAffinity, term.MatchExpressions...)
-			}
+		// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable
+		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil &&
+			len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
+			nodeAffinity = append(nodeAffinity, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
 		}
 	}
 	return nodeAffinity

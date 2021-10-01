@@ -177,7 +177,8 @@ metadata:
 spec:
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    capacityType: spot
+    capacityTypes:
+      - spot
     cluster:
       name: ${CLUSTER_NAME}
       endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
