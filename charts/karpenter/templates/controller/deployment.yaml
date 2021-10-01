@@ -54,7 +54,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             {{- with .Values.controller.env }}
-            {{- toYaml . | nindent 10 }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
       securityContext:

@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
+	"github.com/awslabs/karpenter/pkg/utils/env"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +35,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/flowcontrol"
 	"knative.dev/pkg/configmap/informer"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
@@ -58,14 +60,19 @@ func init() {
 type Options struct {
 	MetricsPort     int
 	HealthProbePort int
+	KubeClientQPS   int
+	KubeClientBurst int
 }
 
 func main() {
-	flag.IntVar(&options.MetricsPort, "metrics-port", 8080, "The port the metric endpoint binds to for operating metrics about the controller itself")
-	flag.IntVar(&options.HealthProbePort, "health-probe-port", 8081, "The port the health probe endpoint binds to for reporting controller health")
+	flag.IntVar(&options.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
+	flag.IntVar(&options.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
+	flag.IntVar(&options.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
+	flag.IntVar(&options.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	flag.Parse()
 
 	config := controllerruntime.GetConfigOrDie()
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(options.KubeClientQPS), options.KubeClientBurst)
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// 1. Set up logger and watch for changes to log level
