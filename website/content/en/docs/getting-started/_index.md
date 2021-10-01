@@ -178,6 +178,10 @@ spec:
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
     capacityType: spot
+    subnetSelector:
+      kubernetes.io/cluster/${CLUSTER_NAME}: "*"
+    securityGroupSelector:
+      eksctl.cluster.k8s.io/v1alpha1/cluster-name: "${CLUSTER_NAME}"
     cluster:
       name: ${CLUSTER_NAME}
       endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
