@@ -33,9 +33,20 @@ func HasFailed(pod *v1.Pod) bool {
 }
 
 func IsOwnedByDaemonSet(pod *v1.Pod) bool {
-	for _, ignoredOwner := range []schema.GroupVersionKind{
+	return IsOwnedBy(pod, []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "DaemonSet"},
-	} {
+	})
+}
+
+// IsOwnedByNode returns true if the pod is a static pod owned by a specific node
+func IsOwnedByNode(pod *v1.Pod) bool {
+	return IsOwnedBy(pod, []schema.GroupVersionKind{
+		{Version: "v1", Kind: "Node"},
+	})
+}
+
+func IsOwnedBy(pod *v1.Pod, gvks []schema.GroupVersionKind) bool {
+	for _, ignoredOwner := range gvks {
 		for _, owner := range pod.ObjectMeta.OwnerReferences {
 			if owner.APIVersion == ignoredOwner.GroupVersion().String() && owner.Kind == ignoredOwner.Kind {
 				return true

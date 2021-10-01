@@ -90,7 +90,7 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 		if pod.HasFailed(&p) {
 			continue
 		}
-		if !pod.IsOwnedByDaemonSet(&p) {
+		if !pod.IsOwnedByDaemonSet(&p) && !pod.IsOwnedByNode(&p) {
 			return false, nil
 		}
 	}
