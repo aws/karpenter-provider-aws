@@ -6,7 +6,6 @@
 </ul>
 <h2 id="karpenter.sh/v1alpha4">karpenter.sh/v1alpha4</h2>
 <p>
-<p>Package v1alpha4 contains API Schema definitions for the v1alpha4 API group</p>
 </p>
 Resource Types:
 <ul></ul>
@@ -92,7 +91,7 @@ launched by the Provisioner. If unspecified, defaults to all types.</p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Architecture constrains the underlying node architecture</p>
+<p>Architectures constrains the underlying node architecture</p>
 </td>
 </tr>
 <tr>
@@ -104,7 +103,7 @@ launched by the Provisioner. If unspecified, defaults to all types.</p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>OperatingSystem constrains the underlying node operating system</p>
+<p>OperatingSystems constrains the underlying node operating system</p>
 </td>
 </tr>
 <tr>
@@ -348,5 +347,5 @@ its target, and indicates whether or not those conditions are met.</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>94d6217</code>.
+on git commit <code>a0e3d3e</code>.
 </em></p>
