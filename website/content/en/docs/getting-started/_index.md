@@ -148,7 +148,7 @@ eksctl. Thus, we don't need the helm chart to do that.
 helm repo add karpenter https://awslabs.github.io/karpenter/charts
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version 0.3.3
+  --create-namespace --set serviceAccount.create=false --version 0.3.4
 ```
 
 ### Provisioner
@@ -177,7 +177,7 @@ metadata:
 spec:
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    capacityType: spot
+    capacityTypes: [ "spot" ]
     cluster:
       name: ${CLUSTER_NAME}
       endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
