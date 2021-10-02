@@ -402,6 +402,9 @@ var _ = Describe("Preferential Fallback", func() {
 				{MatchExpressions: []v1.NodeSelectorRequirement{
 					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
 				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}, // OR operator, never get to this one
+				}},
 			}}}}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, pod)
@@ -416,7 +419,8 @@ var _ = Describe("Preferential Fallback", func() {
 			// Success
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
-			ExpectNodeExists(env.Client, pod.Spec.NodeName)
+			node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1"))
 		})
 	})
 	Context("Preferred", func() {
@@ -448,6 +452,38 @@ var _ = Describe("Preferential Fallback", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
 			ExpectNodeExists(env.Client, pod.Spec.NodeName)
+		})
+		It("should relax to use lighter weights", func() {
+			provisioner.Spec.Zones = []string{"test-zone-1", "test-zone-2"}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 100, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-3"}},
+					}},
+				},
+				{
+					Weight: 50, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{ // OR operator, never get to this one
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+					}},
+				},
+			}}}
+			ExpectCreated(env.Client, provisioner)
+			ExpectCreatedWithStatus(env.Client, pod)
+			// Remove heaviest term
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			Expect(pod.Spec.NodeName).To(BeEmpty())
+			// Success
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			pod = ExpectPodExists(env.Client, pod.Name, pod.Namespace)
+			node := ExpectNodeExists(env.Client, pod.Spec.NodeName)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
 	})
 })
