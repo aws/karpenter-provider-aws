@@ -150,9 +150,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 // conatinerd directly
 func needsDocker(is []cloudprovider.InstanceType) bool {
 	for _, i := range is {
-		// This function can be removed once containerd support for
-		// Neurons is in the EKS Optimized AMI
-		if !i.AWSNeurons().IsZero() {
+		if !i.AWSNeurons().IsZero() || !i.NvidiaGPUs().IsZero() {
 			return true
 		}
 	}
