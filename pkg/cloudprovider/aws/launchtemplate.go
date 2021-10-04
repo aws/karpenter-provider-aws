@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
 	"k8s.io/client-go/transport"
@@ -77,7 +78,7 @@ type launchTemplateOptions struct {
 	AMIID             string
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
 	// If Launch Template is directly specified then just use it
 	if constraints.LaunchTemplate != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplate): instanceTypes}, nil
@@ -96,7 +97,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
 	for amiID, instanceTypes := range amis {
 		// Get userData for Node
-		userData, err := p.getUserData(ctx, constraints, instanceTypes)
+		userData, err := p.getUserData(ctx, constraints, instanceTypes, additionalLabels)
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +196,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (string, error) {
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
 		containerRuntimeArg = "--container-runtime containerd"
@@ -218,11 +219,13 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
     --b64-cluster-ca '%s'`,
 			*caBundle))
 	}
+
+	additionalLabels = functional.UnionStringMaps(additionalLabels, constraints.Labels)
 	var nodeLabelArgs bytes.Buffer
-	if len(constraints.Labels) > 0 {
+	if len(additionalLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
-		for k, v := range constraints.Labels {
+		for k, v := range additionalLabels {
 			if !first {
 				nodeLabelArgs.WriteString(",")
 			}

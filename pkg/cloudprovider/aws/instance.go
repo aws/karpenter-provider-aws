@@ -142,8 +142,9 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
 
+	additionalLabels := map[string]string{v1alpha1.CapacityTypeLabel: capacityType}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes)
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, additionalLabels)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
@@ -212,6 +213,9 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: aws.StringValue(instance.PrivateDnsName),
+					Labels: map[string]string{
+						v1alpha1.CapacityTypeLabel: getCapacityType(instance),
+					},
 				},
 				Spec: v1.NodeSpec{
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
