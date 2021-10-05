@@ -55,7 +55,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
-		crd:trivialVersions=false \
+		crd \
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/templates
 	hack/boilerplate.sh
