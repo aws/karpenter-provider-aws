@@ -220,12 +220,12 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 			*caBundle))
 	}
 
-	additionalLabels = functional.UnionStringMaps(additionalLabels, constraints.Labels)
+	nodeLabels := functional.UnionStringMaps(additionalLabels, constraints.Labels)
 	var nodeLabelArgs bytes.Buffer
-	if len(additionalLabels) > 0 {
+	if len(nodeLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
-		for k, v := range additionalLabels {
+		for k, v := range nodeLabels {
 			if !first {
 				nodeLabelArgs.WriteString(",")
 			}
