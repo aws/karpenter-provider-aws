@@ -33,7 +33,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudp
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
-func RegisterOrDie(ctx context.Context,cloudProvider cloudprovider.CloudProvider) {
+func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvider) {
 	zones := map[string]bool{}
 	architectures := map[string]bool{}
 	operatingSystems := map[string]bool{}
