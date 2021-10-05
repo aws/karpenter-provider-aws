@@ -169,6 +169,7 @@ spec:
               lastScaleTime:
                 description: LastScaleTime is the last time the Provisioner scaled
                   the number of nodes
+                format: date-time
                 type: string
             type: object
         type: object
