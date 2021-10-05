@@ -22,6 +22,7 @@ type ProvisionerStatus struct {
 	// LastScaleTime is the last time the Provisioner scaled the number
 	// of nodes
 	// +optional
+	// +kubebuilder:validation:Format="date-time"
 	LastScaleTime *apis.VolatileTime `json:"lastScaleTime,omitempty"`
 
 	// Conditions is the set of conditions required for this provisioner to scale
