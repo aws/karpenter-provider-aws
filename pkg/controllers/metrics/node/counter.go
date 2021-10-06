@@ -144,8 +144,11 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		return publishCount(nodeCountByProvisioner, metricLabelsFrom(nodeLabels), len(nodes))
 	}))
 
+	// 2. Publish the count of all nodes associated with `provisioner`, in `zone`, and reported as "ready".
+	// 3. Publish the count of all nodes with `arch`, associated with `provisioner`, in `zone`, and reported as "ready".
+	// 4. Publish the count of all nodes with `instanceType`, associated with `provisioner`, in `zone`, and reported as "ready"
+	// 5. Publish the count of all nodes with `os`, associated with `provisioner`, in `zone`, and reported as "ready".
 	for _, zone := range zoneValues {
-		// 2. Publish the count of all nodes associated with `provisioner`, in `zone`, and reported as "ready".
 		nodeLabels = client.MatchingLabels{
 			nodeLabelProvisioner: provisioner,
 			nodeLabelZone:        zone,
@@ -155,7 +158,6 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		})))
 
 		for _, arch := range archValues {
-			// 3. Publish the count of all nodes with `arch`, associated with `provisioner`, in `zone`, and reported as "ready".
 			nodeLabels := client.MatchingLabels{
 				nodeLabelArch:        arch,
 				nodeLabelProvisioner: provisioner,
@@ -167,7 +169,6 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		}
 
 		for _, instanceType := range instanceTypeValues {
-			// 4. Publish the count of all nodes with `instanceType`, associated with `provisioner`, in `zone`, and reported as "ready"
 			nodeLabels := client.MatchingLabels{
 				nodeLabelInstanceType: instanceType,
 				nodeLabelProvisioner:  provisioner,
@@ -179,7 +180,6 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		}
 
 		for _, os := range osValues {
-			// 5. Publish the count of all nodes with `os`, associated with `provisioner`, in `zone`, and reported as "ready".
 			nodeLabels := client.MatchingLabels{
 				nodeLabelOS:          os,
 				nodeLabelProvisioner: provisioner,
