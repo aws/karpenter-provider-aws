@@ -141,7 +141,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 	// 1. Publish the count of all nodes associated with `provisioner`.
 	nodeLabels := client.MatchingLabels{nodeLabelProvisioner: provisioner}
 	errors = append(errors, consumeNodesWith(nodeLabels, func(nodes []v1.Node) error {
-		return publishCount(nodeCountByProvisioner, metricLabelsFromNodeLabels(nodeLabels), len(nodes))
+		return publishCount(nodeCountByProvisioner, metricLabelsFrom(nodeLabels), len(nodes))
 	}))
 
 	for _, zone := range zoneValues {
@@ -151,7 +151,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 			nodeLabelZone:        zone,
 		}
 		errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
-			return publishCount(readyNodeCountByProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
+			return publishCount(readyNodeCountByProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
 		})))
 
 		for _, arch := range archValues {
@@ -162,7 +162,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelZone:        zone,
 			}
 			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
-				return publishCount(readyNodeCountByArchProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
+				return publishCount(readyNodeCountByArchProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
 			})))
 		}
 
@@ -174,7 +174,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelZone:         zone,
 			}
 			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
-				return publishCount(readyNodeCountByInstancetypeProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
+				return publishCount(readyNodeCountByInstancetypeProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
 			})))
 		}
 
@@ -186,7 +186,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelZone:        zone,
 			}
 			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
-				return publishCount(readyNodeCountByOsProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
+				return publishCount(readyNodeCountByOsProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
 			})))
 		}
 	}
@@ -211,7 +211,7 @@ func filterReadyNodes(consume nodeListConsumerFunc) nodeListConsumerFunc {
 	}
 }
 
-func metricLabelsFromNodeLabels(nodeLabels client.MatchingLabels) (metricLabels prometheus.Labels) {
+func metricLabelsFrom(nodeLabels client.MatchingLabels) (metricLabels prometheus.Labels) {
 	metricLabels = prometheus.Labels{}
 	// Exclude node label values that not present or are empty strings.
 	if arch := nodeLabels[nodeLabelArch]; arch != "" {
