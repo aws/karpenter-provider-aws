@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	karpenterv1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -82,7 +82,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
-		For(&karpenterv1.Provisioner{}, builder.WithPredicates(
+		For(&v1alpha4.Provisioner{}, builder.WithPredicates(
 			predicate.Funcs{
 				CreateFunc:  func(_ event.CreateEvent) bool { return true },
 				DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
@@ -99,7 +99,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // provisionerExists simply attempts to retrieve the provisioner from the Controller's Client
 // and returns any resulting error.
 func (c *Controller) provisionerExists(ctx context.Context, req reconcile.Request) error {
-	provisioner := karpenterv1.Provisioner{}
+	provisioner := v1alpha4.Provisioner{}
 	return c.KubeClient.Get(ctx, req.NamespacedName, &provisioner)
 }
 
@@ -108,7 +108,7 @@ func (c *Controller) provisionerExists(ctx context.Context, req reconcile.Reques
 // retrieving nodes then the error is returned without calling `consume`.
 func (c *Controller) consumeNodesFromKubeClientWithContext(ctx context.Context) consumeNodesWithFunc {
 	return func(nodeLabels client.MatchingLabels, consume nodeListConsumerFunc) error {
-		nodes := corev1.NodeList{}
+		nodes := v1.NodeList{}
 		if err := c.KubeClient.List(ctx, &nodes, nodeLabels); err != nil {
 			return err
 		}
@@ -118,5 +118,5 @@ func (c *Controller) consumeNodesFromKubeClientWithContext(ctx context.Context) 
 
 // consumeNoNodes calls `consume` with an empty slice and returns any resulting error.
 func consumeNoNodes(_ client.MatchingLabels, consume nodeListConsumerFunc) error {
-	return consume([]corev1.Node{})
+	return consume([]v1.Node{})
 }

@@ -17,11 +17,11 @@ package node
 import (
 	"strings"
 
-	karpenterv1 "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -36,23 +36,23 @@ const (
 	metricLabelProvisioner  = metrics.ProvisionerLabel
 	metricLabelZone         = "zone"
 
-	nodeLabelArch         = corev1.LabelArchStable
-	nodeLabelInstanceType = corev1.LabelInstanceTypeStable
-	nodeLabelOs           = corev1.LabelOSStable
-	nodeLabelZone         = corev1.LabelTopologyZone
+	nodeLabelArch         = v1.LabelArchStable
+	nodeLabelInstanceType = v1.LabelInstanceTypeStable
+	nodeLabelOs           = v1.LabelOSStable
+	nodeLabelZone         = v1.LabelTopologyZone
 
-	nodeConditionTypeReady = corev1.NodeReady
+	nodeConditionTypeReady = v1.NodeReady
 )
 
 type (
-	nodeListConsumerFunc = func([]corev1.Node) error
+	nodeListConsumerFunc = func([]v1.Node) error
 	consumeNodesWithFunc = func(client.MatchingLabels, nodeListConsumerFunc) error
 )
 
 var (
-	nodeLabelProvisioner = karpenterv1.ProvisionerNameLabelKey
+	nodeLabelProvisioner = v1alpha4.ProvisionerNameLabelKey
 
-	knownValuesForNodeLabels = karpenterv1.WellKnownLabels
+	knownValuesForNodeLabels = v1alpha4.WellKnownLabels
 
 	nodeCountByProvisioner = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -140,7 +140,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 
 	// 1. Publish the count of all nodes associated with `provisioner`.
 	nodeLabels := client.MatchingLabels{nodeLabelProvisioner: provisioner}
-	errors = append(errors, consumeNodesWith(nodeLabels, func(nodes []corev1.Node) error {
+	errors = append(errors, consumeNodesWith(nodeLabels, func(nodes []v1.Node) error {
 		return publishCount(nodeCountByProvisioner, metricLabelsFromNodeLabels(nodeLabels), len(nodes))
 	}))
 
@@ -150,7 +150,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 			nodeLabelProvisioner: provisioner,
 			nodeLabelZone:        zone,
 		}
-		errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []corev1.Node) error {
+		errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
 			return publishCount(readyNodeCountByProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
 		})))
 
@@ -161,7 +161,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelProvisioner: provisioner,
 				nodeLabelZone:        zone,
 			}
-			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []corev1.Node) error {
+			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
 				return publishCount(readyNodeCountByArchProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
 			})))
 		}
@@ -173,7 +173,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelProvisioner:  provisioner,
 				nodeLabelZone:         zone,
 			}
-			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []corev1.Node) error {
+			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
 				return publishCount(readyNodeCountByInstancetypeProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
 			})))
 		}
@@ -185,7 +185,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 				nodeLabelProvisioner: provisioner,
 				nodeLabelZone:        zone,
 			}
-			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []corev1.Node) error {
+			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
 				return publishCount(readyNodeCountByOsProvisionerZone, metricLabelsFromNodeLabels(nodeLabels), len(readyNodes))
 			})))
 		}
@@ -198,8 +198,8 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 // filterReadyNodes returns a new function that will filter "ready" nodes to pass on
 // to `consume`, and returns the result.
 func filterReadyNodes(consume nodeListConsumerFunc) nodeListConsumerFunc {
-	return func(nodes []corev1.Node) error {
-		readyNodes := make([]corev1.Node, 0, len(nodes))
+	return func(nodes []v1.Node) error {
+		readyNodes := make([]v1.Node, 0, len(nodes))
 		for _, node := range nodes {
 			for _, condition := range node.Status.Conditions {
 				if condition.Type == nodeConditionTypeReady && strings.ToLower(string(condition.Status)) == "true" {
