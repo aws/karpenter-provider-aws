@@ -58,7 +58,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// The provisioner has been deleted. Reset all the associated counts to zero.
-		if err := publishNodeCountsForProvisioner(provisionerName, consumeNoNodes); err != nil {
+		if err := publishNodeCountsForProvisioner(provisionerName, consumeZeroNodes); err != nil {
 			// One or more metrics were not zeroed. Try again later.
 			return reconcile.Result{Requeue: true}, err
 		}
@@ -115,7 +115,7 @@ func (c *Controller) consumeNodesWith(ctx context.Context) consumeNodesWithFunc 
 	}
 }
 
-// consumeNoNodes calls `consume` with an empty slice and returns any resulting error.
-func consumeNoNodes(_ client.MatchingLabels, consume nodeListConsumerFunc) error {
+// consumeZeroNodes calls `consume` with an empty slice and returns any resulting error.
+func consumeZeroNodes(_ client.MatchingLabels, consume nodeListConsumerFunc) error {
 	return consume([]v1.Node{})
 }
