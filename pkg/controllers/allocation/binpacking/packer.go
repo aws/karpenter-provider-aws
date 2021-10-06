@@ -216,9 +216,7 @@ func instanceTypeNames(instanceTypes []cloudprovider.InstanceType) []string {
 func flatten(pods ...[]*v1.Pod) []*v1.Pod {
 	flatPods := []*v1.Pod{}
 	for _, ps := range pods {
-		for _, p := range ps {
-			flatPods = append(flatPods, p)
-		}
+		flatPods = append(flatPods, ps...)
 	}
 	return flatPods
 }
