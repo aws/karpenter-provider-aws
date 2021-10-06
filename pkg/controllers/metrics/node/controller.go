@@ -68,7 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// 2. Update node counts associated with this provisioner.
-	if err := publishNodeCountsForProvisioner(provisionerName, c.consumeNodesFromKubeClientWithContext(ctx)); err != nil {
+	if err := publishNodeCountsForProvisioner(provisionerName, c.consumeNodesWith(ctx)); err != nil {
 		// An updated value for one or more metrics was not published. Try again later.
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -102,10 +102,10 @@ func (c *Controller) provisionerExists(ctx context.Context, req reconcile.Reques
 	return c.KubeClient.Get(ctx, req.NamespacedName, &provisioner)
 }
 
-// consumeNodesFromKubeClientWithContext will retrieve matching nodes from the Controller's Client then
+// consumeNodesWith will retrieve matching nodes from the Controller's Client then
 // pass the nodes to `consume` and returns any resulting error. If Client returns an error when
 // retrieving nodes then the error is returned without calling `consume`.
-func (c *Controller) consumeNodesFromKubeClientWithContext(ctx context.Context) consumeNodesWithFunc {
+func (c *Controller) consumeNodesWith(ctx context.Context) consumeNodesWithFunc {
 	return func(nodeLabels client.MatchingLabels, consume nodeListConsumerFunc) error {
 		nodes := v1.NodeList{}
 		if err := c.KubeClient.List(ctx, &nodes, nodeLabels); err != nil {
