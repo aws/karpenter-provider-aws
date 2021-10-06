@@ -45,7 +45,7 @@ Follow the setup recommendations of your cloud provider.
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks
-- [Karpenter @ Container Day, May 2021](https://www.youtube.com/watch?v=MZ-4HzOC_ac)
+- [Karpenter @ Container Day, May 2021](https://youtu.be/MZ-4HzOC_ac?t=7137)
 - [Groupless Autoscaling with Karpenter @ Kubecon, May 2021](https://www.youtube.com/watch?v=43g8uPohTgc)
 
 ## License
