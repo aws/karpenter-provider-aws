@@ -232,12 +232,10 @@ func metricLabelsFromNodeLabels(nodeLabels client.MatchingLabels) (metricLabels 
 	return
 }
 
-func publishCount(gaugeVec *prometheus.GaugeVec, labels prometheus.Labels, count int) (err error) {
-	var gauge prometheus.Gauge
-	gauge, err = gaugeVec.GetMetricWith(labels)
-	if err != nil {
-		return
+func publishCount(gaugeVec *prometheus.GaugeVec, labels prometheus.Labels, count int) error {
+	gauge, err := gaugeVec.GetMetricWith(labels)
+	if err == nil {
+		gauge.Set(float64(count))
 	}
-	gauge.Set(float64(count))
-	return
+	return err
 }
