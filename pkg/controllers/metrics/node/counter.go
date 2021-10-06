@@ -138,16 +138,11 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 
 	errors := make([]error, 0, len(archValues)*len(instanceTypeValues)*len(osValues)*len(zoneValues))
 
-	// 1. Publish the count of all nodes associated with `provisioner`.
 	nodeLabels := client.MatchingLabels{nodeLabelProvisioner: provisioner}
 	errors = append(errors, consumeNodesWith(nodeLabels, func(nodes []v1.Node) error {
 		return publishCount(nodeCountByProvisioner, metricLabelsFrom(nodeLabels), len(nodes))
 	}))
 
-	// 2. Publish the count of all nodes associated with `provisioner`, in `zone`, and reported as "ready".
-	// 3. Publish the count of all nodes with `arch`, associated with `provisioner`, in `zone`, and reported as "ready".
-	// 4. Publish the count of all nodes with `instanceType`, associated with `provisioner`, in `zone`, and reported as "ready"
-	// 5. Publish the count of all nodes with `os`, associated with `provisioner`, in `zone`, and reported as "ready".
 	for _, zone := range zoneValues {
 		nodeLabels = client.MatchingLabels{
 			nodeLabelProvisioner: provisioner,
@@ -191,7 +186,6 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		}
 	}
 
-	// Combine will filter out `nil` values; if no errors remain then it will return `nil`.
 	return multierr.Combine(errors...)
 }
 
