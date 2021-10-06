@@ -32,13 +32,13 @@ const (
 
 	metricLabelArch         = "arch"
 	metricLabelInstanceType = "instancetype"
-	metricLabelOs           = "os"
+	metricLabelOS           = "os"
 	metricLabelProvisioner  = metrics.ProvisionerLabel
 	metricLabelZone         = "zone"
 
 	nodeLabelArch         = v1.LabelArchStable
 	nodeLabelInstanceType = v1.LabelInstanceTypeStable
-	nodeLabelOs           = v1.LabelOSStable
+	nodeLabelOS           = v1.LabelOSStable
 	nodeLabelZone         = v1.LabelTopologyZone
 
 	nodeConditionTypeReady = v1.NodeReady
@@ -115,7 +115,7 @@ var (
 			Help:      "Count of nodes that are ready by operating system, provisioner, and zone.",
 		},
 		[]string{
-			metricLabelOs,
+			metricLabelOS,
 			metricLabelProvisioner,
 			metricLabelZone,
 		},
@@ -133,7 +133,7 @@ func init() {
 func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consumeNodesWithFunc) error {
 	archValues := knownValuesForNodeLabels[nodeLabelArch]
 	instanceTypeValues := knownValuesForNodeLabels[nodeLabelInstanceType]
-	osValues := knownValuesForNodeLabels[nodeLabelOs]
+	osValues := knownValuesForNodeLabels[nodeLabelOS]
 	zoneValues := knownValuesForNodeLabels[nodeLabelZone]
 
 	errors := make([]error, 0, len(archValues)*len(instanceTypeValues)*len(osValues)*len(zoneValues))
@@ -181,7 +181,7 @@ func publishNodeCountsForProvisioner(provisioner string, consumeNodesWith consum
 		for _, os := range osValues {
 			// 5. Publish the count of all nodes with `os`, associated with `provisioner`, in `zone`, and reported as "ready".
 			nodeLabels := client.MatchingLabels{
-				nodeLabelOs:          os,
+				nodeLabelOS:          os,
 				nodeLabelProvisioner: provisioner,
 				nodeLabelZone:        zone,
 			}
@@ -220,8 +220,8 @@ func metricLabelsFromNodeLabels(nodeLabels client.MatchingLabels) (metricLabels 
 	if instanceType := nodeLabels[nodeLabelInstanceType]; instanceType != "" {
 		metricLabels[metricLabelInstanceType] = instanceType
 	}
-	if os := nodeLabels[nodeLabelOs]; os != "" {
-		metricLabels[metricLabelOs] = os
+	if os := nodeLabels[nodeLabelOS]; os != "" {
+		metricLabels[metricLabelOS] = os
 	}
 	if provisioner := nodeLabels[nodeLabelProvisioner]; provisioner != "" {
 		metricLabels[metricLabelProvisioner] = provisioner
