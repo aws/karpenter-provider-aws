@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	controllerName = "NodeMetrics"
-
+	controllerName  = "NodeMetrics"
 	requeueInterval = 10 * time.Second
 )
 
