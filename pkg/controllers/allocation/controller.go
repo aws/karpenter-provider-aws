@@ -115,7 +115,12 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	errs := make([]error, len(schedules))
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range c.Packer.Pack(ctx, schedules[index], instanceTypes) {
-			packedPods := make(<-chan []*v1.Pod, len(packing.Pods))
+			// Create thread safe channel to pop off packed pod slices
+			packedPods := make(chan []*v1.Pod, len(packing.Pods))
+			for _, pods := range packing.Pods {
+				packedPods <- pods
+			}
+			close(packedPods)
 			if err := <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
 				node.Labels = functional.UnionStringMaps(
 					node.Labels,

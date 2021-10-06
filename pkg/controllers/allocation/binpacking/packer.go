@@ -99,7 +99,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 		packables := PackablesFor(ctx, instances, schedule)
 		packing, remainingPods = p.packWithLargestPod(ctx, schedule.Constraints, remainingPods, packables)
 		// checked all instance types and found no packing option
-		if len(packing.Pods) == 0 {
+		if len(flatten(packing.Pods...)) == 0 {
 			logging.FromContext(ctx).Errorf("Failed to compute packing, pod(s) %s did not fit in instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), packableNames(packables))
 			remainingPods = remainingPods[1:]
 			continue
@@ -109,14 +109,14 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 			if mainPack, ok := packs[key]; ok {
 				mainPack.NodeQuantity += 1
 				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
-				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, len(packing.Pods), packableNames(packables))
+				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, len(flatten(packing.Pods...)), instanceTypeNames(mainPack.InstanceTypeOptions))
 				continue
 			} else {
 				packs[key] = packing
 			}
 		}
 		packings = append(packings, packing)
-		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
+		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(flatten(packing.Pods...)), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }
@@ -211,6 +211,16 @@ func instanceTypeNames(instanceTypes []cloudprovider.InstanceType) []string {
 		names = append(names, instanceType.Name())
 	}
 	return names
+}
+
+func flatten(pods ...[]*v1.Pod) []*v1.Pod {
+	flatPods := []*v1.Pod{}
+	for _, ps := range pods {
+		for _, p := range ps {
+			flatPods = append(flatPods, p)
+		}
+	}
+	return flatPods
 }
 
 type SortablePods []*v1.Pod
