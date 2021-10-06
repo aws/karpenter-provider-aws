@@ -211,8 +211,8 @@ func filterReadyNodes(consume nodeListConsumerFunc) nodeListConsumerFunc {
 	}
 }
 
-func metricLabelsFrom(nodeLabels client.MatchingLabels) (metricLabels prometheus.Labels) {
-	metricLabels = prometheus.Labels{}
+func metricLabelsFrom(nodeLabels client.MatchingLabels) prometheus.Labels {
+	metricLabels := prometheus.Labels{}
 	// Exclude node label values that not present or are empty strings.
 	if arch := nodeLabels[nodeLabelArch]; arch != "" {
 		metricLabels[metricLabelArch] = arch
@@ -229,7 +229,7 @@ func metricLabelsFrom(nodeLabels client.MatchingLabels) (metricLabels prometheus
 	if zone := nodeLabels[nodeLabelZone]; zone != "" {
 		metricLabels[metricLabelZone] = zone
 	}
-	return
+	return metricLabels
 }
 
 func publishCount(gaugeVec *prometheus.GaugeVec, labels prometheus.Labels, count int) error {
