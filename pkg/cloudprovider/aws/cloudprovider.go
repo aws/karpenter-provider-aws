@@ -126,7 +126,7 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 	})
 }
 
-func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) (errs error) {
+func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
 	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
 	if err != nil {
 		return err
@@ -134,15 +134,15 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constr
 	// Create instance
 	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
 	if err != nil {
-		return fmt.Errorf("launching instance, %w", err)
+		return fmt.Errorf("launching %d instance(s), %w", quantity, err)
 	}
 
 	for _, node := range nodes {
-		if err := callback(node); err != nil {
-			errs = multierr.Append(errs, err)
+		if cErr := callback(node); err != nil {
+			err = multierr.Append(err, cErr)
 		}
 	}
-	return errs
+	return err
 }
 
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {

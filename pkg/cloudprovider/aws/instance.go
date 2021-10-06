@@ -78,13 +78,14 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 		)
 
 		// Convert Instance to Node
-		node, err := p.instanceToNode(ctx, instance, instanceTypes)
-		if err != nil {
-			return nil, err
+		node, convertErr := p.instanceToNode(ctx, instance, instanceTypes)
+		if convertErr != nil {
+			err = multierr.Append(err, convertErr)
+			continue
 		}
 		nodes = append(nodes, node)
 	}
-	return nodes, nil
+	return nodes, err
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -136,8 +137,11 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
 	instanceIds := combineFleetInstances(*createFleetOutput)
-	if len(instanceIds) != quantity {
+	if len(instanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
+	} else if len(instanceIds) != quantity {
+		logging.FromContext(ctx).Errorf("Failed to launch %d EC2 instances out of the %d EC2 instances requested: %s",
+			quantity-len(instanceIds), quantity, combineFleetErrors(createFleetOutput.Errors).Error())
 	}
 	return instanceIds, nil
 }
