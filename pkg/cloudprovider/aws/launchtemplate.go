@@ -228,6 +228,9 @@ func sortedKeys(m map[string]string) []string {
 	return keys
 }
 
+// getUserData returns the exact same string for equivalent input,
+// even if elements of those inputs are in differeing orders,
+// guaranteeing it won't cause spurious hash differences.
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
@@ -257,6 +260,8 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(nodeLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
+		// Must be in sorted order or else eequivalent options won't
+		// hash the same
 		for _, k := range sortedKeys(nodeLabels) {
 			if !first {
 				nodeLabelArgs.WriteString(",")
@@ -269,10 +274,10 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
 		first := true
+		// Must be in sorted order or else eequivalent options won't
+		// hash the same
 		sortedTaints := taints(constraints.Taints)
 		sort.Sort(sortedTaints)
-		// Hash value of options will differ spuriously if we don't
-		// sort
 		for _, taint := range sortedTaints {
 			if !first {
 				nodeTaintsArgs.WriteString(",")
