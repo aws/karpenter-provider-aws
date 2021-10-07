@@ -210,11 +210,29 @@ func (ts taints) Len() int {
 
 func (ts taints) Less(i, j int) bool {
 	ti, tj := ts[i], ts[j]
-	return ti.Key < tj.Key && ti.Value < tj.Value && ti.Effect < tj.Effect
+	if ti.Key < tj.Key {
+		fmt.Printf("key: %s %s\n", ti.Key, tj.Key)
+		return true
+	}
+	if ti.Key == tj.Key && ti.Value < tj.Value {
+		fmt.Printf("value: %s %s\n", ti.Value, tj.Value)
+		return true
+	}
+	if ti.Value == tj.Value {
+		fmt.Printf("value: %s %s\n", ti.Value, tj.Value)
+		return ti.Effect < tj.Effect
+	}
+	return false
 }
 
 func (ts taints) Swap(i, j int) {
 	ts[i], ts[j] = ts[j], ts[i]
+}
+
+func sortedTaints(ts []core.Taint) []core.Taint {
+	sorted := taints(append(ts[:0:0], ts...)) // copy to avoid touching original
+	sort.Sort(sorted)
+	return sorted
 }
 
 func sortedKeys(m map[string]string) []string {
@@ -276,9 +294,10 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		first := true
 		// Must be in sorted order or else eequivalent options won't
 		// hash the same
-		sortedTaints := taints(constraints.Taints)
-		sort.Sort(sortedTaints)
-		for _, taint := range sortedTaints {
+		fmt.Printf("XXX before: %+v\n", constraints.Taints)
+		sorted := sortedTaints(constraints.Taints)
+		fmt.Printf("XXX after: %+v\n", sorted)
+		for _, taint := range sorted {
 			if !first {
 				nodeTaintsArgs.WriteString(",")
 			}

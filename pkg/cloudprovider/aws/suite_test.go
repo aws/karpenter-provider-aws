@@ -278,24 +278,30 @@ var _ = Describe("Allocation", func() {
 		Context("LaunchTemplates", func() {
 			FIt("should use same launch template for equivalent constraints", func() {
 				t1 := v1.Toleration{
-					Key:      "Foo",
+					Key:      "Abacus",
 					Operator: "Equal",
-					Value:    "Bar",
+					Value:    "Zebra",
 					Effect:   "NoSchedule",
 				}
 				t2 := v1.Toleration{
-					Key:      "Abra",
+					Key:      "Zebra",
 					Operator: "Equal",
-					Value:    "Cadabra",
+					Value:    "Abacus",
+					Effect:   "NoSchedule",
+				}
+				t3 := v1.Toleration{
+					Key:      "Boar",
+					Operator: "Equal",
+					Value:    "Abacus",
 					Effect:   "NoSchedule",
 				}
 
 				ExpectCreated(env.Client, provisioner)
 				pod1 := test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{t1, t2},
+					Tolerations: []v1.Toleration{t1, t2, t3},
 				})
 				pod2 := test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{t2, t1},
+					Tolerations: []v1.Toleration{t2, t3, t1},
 				})
 				// Ensure it's on its own node
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, pod1)
