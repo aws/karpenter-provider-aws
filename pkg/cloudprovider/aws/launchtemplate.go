@@ -29,7 +29,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
 	core "k8s.io/api/core/v1"
@@ -206,15 +205,12 @@ func (ts taints) Len() int {
 func (ts taints) Less(i, j int) bool {
 	ti, tj := ts[i], ts[j]
 	if ti.Key < tj.Key {
-		fmt.Printf("key: %s %s\n", ti.Key, tj.Key)
 		return true
 	}
 	if ti.Key == tj.Key && ti.Value < tj.Value {
-		fmt.Printf("value: %s %s\n", ti.Value, tj.Value)
 		return true
 	}
 	if ti.Value == tj.Value {
-		fmt.Printf("value: %s %s\n", ti.Value, tj.Value)
 		return ti.Effect < tj.Effect
 	}
 	return false
