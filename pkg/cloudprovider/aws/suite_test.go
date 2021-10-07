@@ -276,7 +276,7 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("LaunchTemplates", func() {
-			FIt("should use same launch template for equivalent constraints", func() {
+			It("should use same launch template for equivalent constraints", func() {
 				t1 := v1.Toleration{
 					Key:      "Abacus",
 					Operator: "Equal",

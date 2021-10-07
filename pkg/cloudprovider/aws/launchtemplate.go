@@ -62,8 +62,6 @@ func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider,
 
 func launchTemplateName(options *launchTemplateOptions) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
-	//logging.FromContext(ctx).Infof("launch template options hashed to: %v", hash)
-
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err.Error()))
 	}
@@ -125,7 +123,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
-	logging.FromContext(ctx).Debugf("Launch template '%s' options are: %s", name, pretty.Concise(*options))
 	// 1. Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
@@ -134,10 +131,8 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
+	// 3. Create LT if one doesn't exist
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-		// 3. Create LT if one doesn't exist
-		logging.FromContext(ctx).Debugf("Launch template %s does not exist", name)
-
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
@@ -150,7 +145,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		logging.FromContext(ctx).Debugf("Discovered launch template %s", name)
 		launchTemplate = output.LaunchTemplates[0]
 	}
-	// 4. Populate cache
+	// 4. Save in cache to reduce API calls
 	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }
@@ -294,9 +289,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		first := true
 		// Must be in sorted order or else eequivalent options won't
 		// hash the same
-		fmt.Printf("XXX before: %+v\n", constraints.Taints)
 		sorted := sortedTaints(constraints.Taints)
-		fmt.Printf("XXX after: %+v\n", sorted)
 		for _, taint := range sorted {
 			if !first {
 				nodeTaintsArgs.WriteString(",")
