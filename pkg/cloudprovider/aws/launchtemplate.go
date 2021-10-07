@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,8 +29,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
+	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -59,6 +62,8 @@ func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider,
 
 func launchTemplateName(options *launchTemplateOptions) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
+	//logging.FromContext(ctx).Infof("launch template options hashed to: %v", hash)
+
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err.Error()))
 	}
@@ -120,6 +125,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
+	logging.FromContext(ctx).Debugf("Launch template '%s' options are: %s", name, pretty.Concise(*options))
 	// 1. Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
@@ -130,6 +136,8 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
 		// 3. Create LT if one doesn't exist
+		logging.FromContext(ctx).Debugf("Launch template %s does not exist", name)
+
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
@@ -194,6 +202,32 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
+type taints []core.Taint
+
+func (ts taints) Len() int {
+	return len(ts)
+}
+
+func (ts taints) Less(i, j int) bool {
+	ti, tj := ts[i], ts[j]
+	return ti.Key < tj.Key && ti.Value < tj.Value && ti.Effect < tj.Effect
+}
+
+func (ts taints) Swap(i, j int) {
+	ts[i], ts[j] = ts[j], ts[i]
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, len(m))
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
@@ -223,19 +257,23 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(nodeLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
-		for k, v := range nodeLabels {
+		for _, k := range sortedKeys(nodeLabels) {
 			if !first {
 				nodeLabelArgs.WriteString(",")
 			}
 			first = false
-			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, v))
+			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, nodeLabels[k]))
 		}
 	}
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
 		first := true
-		for _, taint := range constraints.Taints {
+		sortedTaints := taints(constraints.Taints)
+		sort.Sort(sortedTaints)
+		// Hash value of options will differ spuriously if we don't
+		// sort
+		for _, taint := range sortedTaints {
 			if !first {
 				nodeTaintsArgs.WriteString(",")
 			}
