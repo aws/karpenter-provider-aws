@@ -269,8 +269,8 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(nodeLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
-		// Must be in sorted order or else eequivalent options won't
-		// hash the same.
+		// Must be in sorted order or else equivalent options won't
+		// hash the same
 		for _, k := range sortedKeys(nodeLabels) {
 			if !first {
 				nodeLabelArgs.WriteString(",")
