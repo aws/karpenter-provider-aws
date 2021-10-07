@@ -276,6 +276,42 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("LaunchTemplates", func() {
+			FIt("should use same launch template for equivalent constraints", func() {
+				t1 := v1.Toleration{
+					Key:      "Foo",
+					Operator: "Equal",
+					Value:    "Bar",
+					Effect:   "NoSchedule",
+				}
+				t2 := v1.Toleration{
+					Key:      "Abra",
+					Operator: "Equal",
+					Value:    "Cadabra",
+					Effect:   "NoSchedule",
+				}
+
+				ExpectCreated(env.Client, provisioner)
+				pod1 := test.UnschedulablePod(test.PodOptions{
+					Tolerations: []v1.Toleration{t1, t2},
+				})
+				pod2 := test.UnschedulablePod(test.PodOptions{
+					Tolerations: []v1.Toleration{t2, t1},
+				})
+				// Ensure it's on its own node
+				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, pod1)
+				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				name1 := *(input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)
+				// Ensure it's on its own node
+				pods2 := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, pod2)
+				ExpectNodeExists(env.Client, pods2[0].Spec.NodeName)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				input2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				name2 := *(input2.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)
+				Expect(name1).To(Equal(name2))
+			})
+
 			It("should default to a generated launch template", func() {
 				// Setup
 				ExpectCreated(env.Client, provisioner)
