@@ -33,42 +33,44 @@ import (
 type CloudProvider struct{}
 
 func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
-	name := strings.ToLower(randomdata.SillyName())
-	// Pick first instance type option
-	instance := instanceTypes[0]
-	// Pick first zone
-	zones := instance.Zones()
-	if len(constraints.Zones) != 0 {
-		zones = functional.IntersectStringSlice(constraints.Zones, instance.Zones())
-	}
-	zone := zones[0]
-
 	err := make(chan error)
-	go func() {
-		err <- bind(&v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-				Labels: map[string]string{
-					v1.LabelTopologyZone:       zone,
-					v1.LabelInstanceTypeStable: instance.Name(),
+	for i := 0; i < quantity; i++ {
+		name := strings.ToLower(randomdata.SillyName())
+		// Pick first instance type option
+		instance := instanceTypes[0]
+		// Pick first zone
+		zones := instance.Zones()
+		if len(constraints.Zones) != 0 {
+			zones = functional.IntersectStringSlice(constraints.Zones, instance.Zones())
+		}
+		zone := zones[0]
+
+		go func() {
+			err <- bind(&v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+					Labels: map[string]string{
+						v1.LabelTopologyZone:       zone,
+						v1.LabelInstanceTypeStable: instance.Name(),
+					},
 				},
-			},
-			Spec: v1.NodeSpec{
-				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-			},
-			Status: v1.NodeStatus{
-				NodeInfo: v1.NodeSystemInfo{
-					Architecture:    instance.Architecture(),
-					OperatingSystem: instance.OperatingSystems()[0],
+				Spec: v1.NodeSpec{
+					ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
 				},
-				Allocatable: v1.ResourceList{
-					v1.ResourcePods:   *instance.Pods(),
-					v1.ResourceCPU:    *instance.CPU(),
-					v1.ResourceMemory: *instance.Memory(),
+				Status: v1.NodeStatus{
+					NodeInfo: v1.NodeSystemInfo{
+						Architecture:    instance.Architecture(),
+						OperatingSystem: instance.OperatingSystems()[0],
+					},
+					Allocatable: v1.ResourceList{
+						v1.ResourcePods:   *instance.Pods(),
+						v1.ResourceCPU:    *instance.CPU(),
+						v1.ResourceMemory: *instance.Memory(),
+					},
 				},
-			},
-		})
-	}()
+			})
+		}()
+	}
 	return err
 }
 

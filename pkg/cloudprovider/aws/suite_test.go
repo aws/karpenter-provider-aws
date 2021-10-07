@@ -151,7 +151,7 @@ var _ = Describe("Allocation", func() {
 				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
 				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
 				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(2))
+				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
 				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
 				for i := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
 					overrides = append(overrides, i.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
@@ -193,7 +193,7 @@ var _ = Describe("Allocation", func() {
 				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
 				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
 				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
-				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(2))
+				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
 				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
 				for input := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
 					overrides = append(overrides, input.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
@@ -494,4 +494,13 @@ func ProvisionerWithProvider(provisioner *v1alpha4.Provisioner, provider *v1alph
 	Expect(err).ToNot(HaveOccurred())
 	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}
 	return provisioner
+}
+
+func InstancesLaunchedFrom(createFleetInputIter <-chan interface{}) int {
+	instancesLaunched := 0
+	for input := range createFleetInputIter {
+		createFleetInput := input.(*ec2.CreateFleetInput)
+		instancesLaunched += int(*createFleetInput.TargetCapacitySpecification.TotalTargetCapacity)
+	}
+	return instancesLaunched
 }

@@ -65,14 +65,20 @@ func (e *EC2API) CreateFleetWithContext(ctx context.Context, input *ec2.CreateFl
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
-	instance := &ec2.Instance{
-		InstanceId:     aws.String(randomdata.SillyName()),
-		Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
-		PrivateDnsName: aws.String(randomdata.IpV4Address()),
-		InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+	instances := []*ec2.Instance{}
+	instanceIds := []*string{}
+	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
+		instances = append(instances, &ec2.Instance{
+			InstanceId:     aws.String(randomdata.SillyName()),
+			Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
+			PrivateDnsName: aws.String(randomdata.IpV4Address()),
+			InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+		})
+		e.Instances.Store(*instances[i].InstanceId, instances[i])
+		instanceIds = append(instanceIds, instances[i].InstanceId)
 	}
-	e.Instances.Store(*instance.InstanceId, instance)
-	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: []*string{instance.InstanceId}}}}, nil
+
+	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}, nil
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(ctx context.Context, input *ec2.CreateLaunchTemplateInput, options ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
@@ -86,9 +92,14 @@ func (e *EC2API) DescribeInstancesWithContext(ctx context.Context, input *ec2.De
 	if e.DescribeInstancesOutput != nil {
 		return e.DescribeInstancesOutput, nil
 	}
-	instance, _ := e.Instances.Load(*input.InstanceIds[0])
+	instances := []*ec2.Instance{}
+	for _, instanceId := range input.InstanceIds {
+		instance, _ := e.Instances.Load(*instanceId)
+		instances = append(instances, instance.(*ec2.Instance))
+	}
+
 	return &ec2.DescribeInstancesOutput{
-		Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance.(*ec2.Instance)}}},
+		Reservations: []*ec2.Reservation{{Instances: instances}},
 	}, nil
 }
 
