@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,6 +31,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
+	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -128,8 +130,8 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
+	// 3. Create LT if one doesn't exist
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-		// 3. Create LT if one doesn't exist
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
@@ -142,7 +144,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		logging.FromContext(ctx).Debugf("Discovered launch template %s", name)
 		launchTemplate = output.LaunchTemplates[0]
 	}
-	// 4. Populate cache
+	// 4. Save in cache to reduce API calls
 	p.cache.Set(name, launchTemplate, CacheTTL)
 	return launchTemplate, nil
 }
@@ -194,6 +196,50 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
+type taints []core.Taint
+
+func (ts taints) Len() int {
+	return len(ts)
+}
+
+func (ts taints) Less(i, j int) bool {
+	ti, tj := ts[i], ts[j]
+	if ti.Key < tj.Key {
+		return true
+	}
+	if ti.Key == tj.Key && ti.Value < tj.Value {
+		return true
+	}
+	if ti.Value == tj.Value {
+		return ti.Effect < tj.Effect
+	}
+	return false
+}
+
+func (ts taints) Swap(i, j int) {
+	ts[i], ts[j] = ts[j], ts[i]
+}
+
+func sortedTaints(ts []core.Taint) []core.Taint {
+	sorted := taints(append(ts[:0:0], ts...)) // copy to avoid touching original
+	sort.Sort(sorted)
+	return sorted
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, len(m))
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// getUserData returns the exact same string for equivalent input,
+// even if elements of those inputs are in differeing orders,
+// guaranteeing it won't cause spurious hash differences.
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
@@ -223,19 +269,24 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(nodeLabels) > 0 {
 		nodeLabelArgs.WriteString("--node-labels=")
 		first := true
-		for k, v := range nodeLabels {
+		// Must be in sorted order or else equivalent options won't
+		// hash the same
+		for _, k := range sortedKeys(nodeLabels) {
 			if !first {
 				nodeLabelArgs.WriteString(",")
 			}
 			first = false
-			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, v))
+			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, nodeLabels[k]))
 		}
 	}
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
 		first := true
-		for _, taint := range constraints.Taints {
+		// Must be in sorted order or else equivalent options won't
+		// hash the same.
+		sorted := sortedTaints(constraints.Taints)
+		for _, taint := range sorted {
 			if !first {
 				nodeTaintsArgs.WriteString(",")
 			}
