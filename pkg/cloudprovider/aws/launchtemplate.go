@@ -283,7 +283,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
 		first := true
-		// Must be in sorted order or else eequivalent options won't
+		// Must be in sorted order or else equivalent options won't
 		// hash the same
 		sorted := sortedTaints(constraints.Taints)
 		for _, taint := range sorted {
