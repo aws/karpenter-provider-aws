@@ -11,10 +11,10 @@ controller:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  image: "public.ecr.aws/karpenter/controller:v0.3.4@sha256:63322433af3b39e926446f31c83002012b2064f0490872c51e4729c95e3e30f7"
+  image: "public.ecr.aws/karpenter/controller:v0.4.0@sha256:798d02a97e93f2609f3373822c85b75ac067eef130c54f4a39c2c69f848a2d6f"
 webhook:
   env: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  image: "public.ecr.aws/karpenter/webhook:v0.3.4@sha256:82e70d659a6449cd81fa6cb854fb6f4c10b2dda097be4632892575cf121190dd"
+  image: "public.ecr.aws/karpenter/webhook:v0.4.0@sha256:8fc48edc459357c75600dbe055d35c2c939a32a95bb5c9c2284ead756d5b8d89"
