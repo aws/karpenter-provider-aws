@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/ahmetb/gen-crd-api-reference-docs v0.3.0
+	github.com/containerd/containerd v1.5.7 // indirect
 	github.com/fzipp/gocyclo v0.3.1
 	github.com/golangci/golangci-lint v1.41.1
 	github.com/google/ko v0.9.3
