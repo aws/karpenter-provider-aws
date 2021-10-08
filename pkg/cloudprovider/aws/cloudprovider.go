@@ -131,7 +131,8 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constr
 	if err != nil {
 		return err
 	}
-	// Create instance
+	// Create will only return an error if zero nodes could be launched.
+	// Partial fulfillment will be logged
 	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
 	if err != nil {
 		return fmt.Errorf("launching %d instance(s), %w", quantity, err)

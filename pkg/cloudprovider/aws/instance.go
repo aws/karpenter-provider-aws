@@ -63,8 +63,10 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 		func() (err error) { instances, err = p.getInstances(ctx, ids); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(3),
-	); err != nil {
+	); err != nil && len(instances) == 0 {
 		return nil, err
+	} else if err != nil {
+		logging.FromContext(ctx).Errorf("retrieving node name for %d instances out of %d", quantity-len(instances), quantity)
 	}
 
 	nodes := []*v1.Node{}
@@ -78,14 +80,17 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 		)
 
 		// Convert Instance to Node
-		node, convertErr := p.instanceToNode(ctx, instance, instanceTypes)
-		if convertErr != nil {
-			err = multierr.Append(err, convertErr)
+		node, err := p.instanceToNode(ctx, instance, instanceTypes)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err.Error())
 			continue
 		}
 		nodes = append(nodes, node)
 	}
-	return nodes, err
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("zero nodes were created")
+	}
+	return nodes, nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -207,16 +212,17 @@ func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*
 	}
 	describedInstances := combineReservations(describeInstancesOutput.Reservations)
 	if len(describedInstances) != len(ids) {
-		return nil, fmt.Errorf("expected a %d instance, got %d", len(ids), len(describedInstances))
+		return nil, fmt.Errorf("expected %d instance(s), but got %d", len(ids), len(describedInstances))
 	}
 	instances := []*ec2.Instance{}
 	for _, instance := range describedInstances {
 		if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
-			return nil, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId))
+			err = multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
+			continue
 		}
 		instances = append(instances, instance)
 	}
-	return instances, nil
+	return instances, err
 }
 
 func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
