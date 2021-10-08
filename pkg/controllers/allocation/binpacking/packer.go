@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -69,7 +70,8 @@ func NewPacker() Packer {
 // viable instance types upon which they fit. All pods in the packing are
 // within the specified constraints (e.g., labels, taints).
 type Packing struct {
-	Pods                []*v1.Pod
+	Pods                [][]*v1.Pod `hash:"ignore"`
+	NodeQuantity        int         `hash:"ignore"`
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Constraints         *v1alpha4.Constraints
 }
@@ -89,6 +91,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
 	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: schedule.Pods}))
+	packs := map[uint64]*Packing{}
 	var packings []*Packing
 	var packing *Packing
 	remainingPods := schedule.Pods
@@ -96,13 +99,24 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 		packables := PackablesFor(ctx, instances, schedule)
 		packing, remainingPods = p.packWithLargestPod(ctx, schedule.Constraints, remainingPods, packables)
 		// checked all instance types and found no packing option
-		if len(packing.Pods) == 0 {
+		if flattenedLen(packing.Pods...) == 0 {
 			logging.FromContext(ctx).Errorf("Failed to compute packing, pod(s) %s did not fit in instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), packableNames(packables))
 			remainingPods = remainingPods[1:]
 			continue
 		}
+		key, err := hashstructure.Hash(packing, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		if err == nil {
+			if mainPack, ok := packs[key]; ok {
+				mainPack.NodeQuantity += 1
+				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
+				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
+				continue
+			} else {
+				packs[key] = packing
+			}
+		}
 		packings = append(packings, packing)
-		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", len(packing.Pods), instanceTypeNames(packing.InstanceTypeOptions))
+		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", flattenedLen(packing.Pods...), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }
@@ -138,7 +152,7 @@ func (p *packer) packWithLargestPod(ctx context.Context, constraints *v1alpha4.C
 	if len(bestInstances) > MaxInstanceTypes {
 		bestInstances = bestInstances[:MaxInstanceTypes]
 	}
-	return &Packing{Pods: bestPackedPods, Constraints: constraints, InstanceTypeOptions: bestInstances}, remainingPods
+	return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, Constraints: constraints, InstanceTypeOptions: bestInstances, NodeQuantity: 1}, remainingPods
 }
 
 func (*packer) podsMatch(first, second []*v1.Pod) bool {
@@ -197,6 +211,14 @@ func instanceTypeNames(instanceTypes []cloudprovider.InstanceType) []string {
 		names = append(names, instanceType.Name())
 	}
 	return names
+}
+
+func flattenedLen(pods ...[]*v1.Pod) int {
+	length := 0
+	for _, ps := range pods {
+		length += len(ps)
+	}
+	return length
 }
 
 type SortablePods []*v1.Pod

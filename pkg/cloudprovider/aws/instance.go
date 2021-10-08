@@ -51,34 +51,46 @@ type InstanceProvider struct {
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*v1.Node, error) {
 	// Launch Instance
-	id, err := p.launchInstance(ctx, constraints, instanceTypes)
+	ids, err := p.launchInstances(ctx, constraints, instanceTypes, quantity)
 	if err != nil {
 		return nil, err
 	}
 	// Get Instance with backoff retry since EC2 is eventually consistent
-	instance := &ec2.Instance{}
+	instances := []*ec2.Instance{}
 	if err := retry.Do(
-		func() (err error) { return p.getInstance(ctx, id, instance) },
+		func() (err error) { instances, err = p.getInstances(ctx, ids); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(3),
-	); err != nil {
+	); err != nil && len(instances) == 0 {
 		return nil, err
+	} else if err != nil {
+		logging.FromContext(ctx).Errorf("retrieving node name for %d instances out of %d", quantity-len(instances), quantity)
 	}
-	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
-		aws.StringValue(instance.InstanceId),
-		aws.StringValue(instance.PrivateDnsName),
-		aws.StringValue(instance.InstanceType),
-		aws.StringValue(instance.Placement.AvailabilityZone),
-		getCapacityType(instance),
-	)
-	// Convert Instance to Node
-	node, err := p.instanceToNode(ctx, instance, instanceTypes)
-	if err != nil {
-		return nil, err
+
+	nodes := []*v1.Node{}
+	for _, instance := range instances {
+		logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
+			aws.StringValue(instance.InstanceId),
+			aws.StringValue(instance.PrivateDnsName),
+			aws.StringValue(instance.InstanceType),
+			aws.StringValue(instance.Placement.AvailabilityZone),
+			getCapacityType(instance),
+		)
+
+		// Convert Instance to Node
+		node, err := p.instanceToNode(ctx, instance, instanceTypes)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err.Error())
+			continue
+		}
+		nodes = append(nodes, node)
 	}
-	return node, nil
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("zero nodes were created")
+	}
+	return nodes, nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -97,7 +109,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*string, error) {
+func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
 	// Default to on-demand unless constrained otherwise. This code assumes two
 	// options: {spot, on-demand}, which is enforced by constraints.Constrain().
 	// Spot may be selected by constraining the provisioner, or using
@@ -119,7 +131,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1al
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
-			TotalTargetCapacity:       aws.Int64(1),
+			TotalTargetCapacity:       aws.Int64(int64(quantity)),
 		},
 		// OnDemandOptions are allowed to be specified even when requesting spot
 		OnDemandOptions: &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)},
@@ -129,10 +141,14 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1al
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	if len(createFleetOutput.Instances) != 1 || len(createFleetOutput.Instances[0].InstanceIds) != 1 {
+	instanceIds := combineFleetInstances(*createFleetOutput)
+	if len(instanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
+	} else if len(instanceIds) != quantity {
+		logging.FromContext(ctx).Errorf("Failed to launch %d EC2 instances out of the %d EC2 instances requested: %s",
+			quantity-len(instanceIds), quantity, combineFleetErrors(createFleetOutput.Errors).Error())
 	}
-	return createFleetOutput.Instances[0].InstanceIds[0], nil
+	return instanceIds, nil
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
@@ -186,25 +202,27 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	return overrides
 }
 
-func (p *InstanceProvider) getInstance(ctx context.Context, id *string, instance *ec2.Instance) error {
-	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: []*string{id}})
+func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*ec2.Instance, error) {
+	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: ids})
 	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == EC2InstanceIDNotFoundErrCode {
-		return aerr
+		return nil, aerr
 	}
 	if err != nil {
-		return fmt.Errorf("failed to describe ec2 instances, %w", err)
+		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
-	if len(describeInstancesOutput.Reservations) != 1 {
-		return fmt.Errorf("expected a single instance reservation, got %d", len(describeInstancesOutput.Reservations))
+	describedInstances := combineReservations(describeInstancesOutput.Reservations)
+	if len(describedInstances) != len(ids) {
+		return nil, fmt.Errorf("expected %d instance(s), but got %d", len(ids), len(describedInstances))
 	}
-	if len(describeInstancesOutput.Reservations[0].Instances) != 1 {
-		return fmt.Errorf("expected a single instance, got %d", len(describeInstancesOutput.Reservations[0].Instances))
+	instances := []*ec2.Instance{}
+	for _, instance := range describedInstances {
+		if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
+			err = multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
+			continue
+		}
+		instances = append(instances, instance)
 	}
-	*instance = *describeInstancesOutput.Reservations[0].Instances[0]
-	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
-		return fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId))
-	}
-	return nil
+	return instances, err
 }
 
 func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
@@ -263,4 +281,20 @@ func getCapacityType(instance *ec2.Instance) string {
 		capacityType = v1alpha1.CapacityTypeSpot
 	}
 	return capacityType
+}
+
+func combineFleetInstances(createFleetOutput ec2.CreateFleetOutput) []*string {
+	instanceIds := []*string{}
+	for _, reservation := range createFleetOutput.Instances {
+		instanceIds = append(instanceIds, reservation.InstanceIds...)
+	}
+	return instanceIds
+}
+
+func combineReservations(reservations []*ec2.Reservation) []*ec2.Instance {
+	instances := []*ec2.Instance{}
+	for _, reservation := range reservations {
+		instances = append(instances, reservation.Instances...)
+	}
+	return instances
 }
