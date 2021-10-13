@@ -17,10 +17,12 @@ limitations under the License.
 package registry
 
 import (
+	"context"
+
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 )
 
-func newCloudProvider() cloudprovider.CloudProvider {
+func newCloudProvider(context.Context, cloudprovider.Options) cloudprovider.CloudProvider {
 	return &fake.CloudProvider{}
 }
