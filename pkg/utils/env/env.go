@@ -19,9 +19,6 @@ import (
 	"strconv"
 )
 
-// WithDefaultString returns the string value of the supplied environ variable or, if not
-// present, the supplied default value
-
 // WithDefaultInt returns the int value of the supplied environ variable or, if not present,
 // the supplied default value. If the int conversion fails, returns the default
 func WithDefaultInt(key string, def int) int {
@@ -35,6 +32,3 @@ func WithDefaultInt(key string, def int) int {
 	}
 	return i
 }
-
-// WithDefaultBool returns the boolvalue of the supplied environ variable or, if not present,
-// the supplied default value. If the conversion fails, returns the default

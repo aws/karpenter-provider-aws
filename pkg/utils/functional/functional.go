@@ -108,5 +108,3 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 	}
 	return false
 }
-
-// InvertStringMap swaps keys to values and values to keys. All values must be distinct.
