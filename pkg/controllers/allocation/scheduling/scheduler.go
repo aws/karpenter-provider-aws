@@ -88,7 +88,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner
 	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(newLabels)
 	if promErr != nil {
 		logging.FromContext(ctx).Warnf(
-			"Failed to record scheduling duration metric [newLabels=%s, duration=%f]: error=%s",
+			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
 			newLabels,
 			durationSeconds,
 			promErr.Error(),
