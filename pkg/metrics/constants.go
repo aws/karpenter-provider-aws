@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// KarpenterNamespace is the common namespace for application metrics
-	KarpenterNamespace = "karpenter"
+	// Common namespace for application metrics.
+	Namespace = "karpenter"
 
 	ErrorLabel       = "error"
 	ProvisionerLabel = "provisioner"

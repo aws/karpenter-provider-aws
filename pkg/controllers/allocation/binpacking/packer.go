@@ -40,7 +40,7 @@ var (
 
 	packDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Namespace: metrics.KarpenterNamespace,
+			Namespace: metrics.Namespace,
 			Subsystem: "allocation_controller",
 			Name:      "binpacking_duration_seconds",
 			Help:      "Duration of binpacking process in seconds.",
