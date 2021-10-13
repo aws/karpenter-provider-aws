@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
@@ -52,7 +53,7 @@ const (
 // Controller for the resource
 type Controller struct {
 	Batcher       *Batcher
-	Filter        *Filter
+	Filter        *podutils.Filter
 	Binder        *Binder
 	Scheduler     *scheduling.Scheduler
 	Packer        binpacking.Packer
@@ -63,7 +64,7 @@ type Controller struct {
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		Filter:        &Filter{KubeClient: kubeClient},
+		Filter:        &podutils.Filter{KubeClient: kubeClient},
 		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
 		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
@@ -173,7 +174,7 @@ func (c *Controller) provisionerFor(ctx context.Context, name types.NamespacedNa
 func (c *Controller) podToProvisioner(ctx context.Context) func(o client.Object) []reconcile.Request {
 	return func(o client.Object) (requests []reconcile.Request) {
 		pod := o.(*v1.Pod)
-		if err := c.Filter.isUnschedulable(pod); err != nil {
+		if err := c.Filter.IsUnschedulable(pod); err != nil {
 			return nil
 		}
 		provisionerKey := v1alpha4.DefaultProvisioner
@@ -194,7 +195,7 @@ func (c *Controller) podToProvisioner(ctx context.Context) func(o client.Object)
 			}
 			return nil
 		}
-		if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
+		if err = c.Filter.IsProvisionable(ctx, pod, provisioner); err != nil {
 			return nil
 		}
 		c.Batcher.Add(provisioner)

@@ -12,14 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allocation
+package pod
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -40,7 +39,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
 	for _, p := range pods.Items {
-		if err := f.isProvisionable(ctx, &p, provisioner); err != nil {
+		if err := f.IsProvisionable(ctx, &p, provisioner); err != nil {
 			logging.FromContext(ctx).Debugf("Ignored pod %s/%s when allocating for provisioner %s, %s",
 				p.Name, p.Namespace, provisioner.Name, err.Error(),
 			)
@@ -51,27 +50,27 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
+func (f *Filter) IsProvisionable(ctx context.Context, pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
 	return multierr.Combine(
-		f.isUnschedulable(pod),
-		f.matchesProvisioner(pod, provisioner),
+		f.IsUnschedulable(pod),
+		f.MatchesProvisioner(pod, provisioner),
 	)
 }
 
-func (f *Filter) isUnschedulable(p *v1.Pod) error {
-	if !pod.FailedToSchedule(p) {
+func (f *Filter) IsUnschedulable(p *v1.Pod) error {
+	if !FailedToSchedule(p) {
 		return fmt.Errorf("awaiting scheduling")
 	}
-	if pod.IsOwnedByDaemonSet(p) {
+	if IsOwnedByDaemonSet(p) {
 		return fmt.Errorf("owned by daemonset")
 	}
-	if pod.IsOwnedByNode(p) {
+	if IsOwnedByNode(p) {
 		return fmt.Errorf("owned by node")
 	}
 	return nil
 }
 
-func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
+func (f *Filter) MatchesProvisioner(pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
 	name, ok := pod.Spec.NodeSelector[v1alpha4.ProvisionerNameLabelKey]
 	if ok && provisioner.Name == name {
 		return nil
