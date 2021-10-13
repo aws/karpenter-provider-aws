@@ -17,9 +17,9 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
@@ -30,13 +30,13 @@ import (
 
 const LivenessTimeout = 15 * time.Minute
 
-// Liveness is a subreconciler that deletes nodes if its determined to be unrecoverable
+// Liveness is a subreconciler that deletes nodes determined to be unrecoverable
 type Liveness struct {
 	kubeClient client.Client
 }
 
 // Reconcile reconciles the node
-func (r *Liveness) Reconcile(ctx context.Context, n *v1.Node) (reconcile.Result, error) {
+func (r *Liveness) Reconcile(ctx context.Context, _ *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if injectabletime.Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}

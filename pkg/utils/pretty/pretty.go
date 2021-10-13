@@ -25,4 +25,3 @@ func Concise(o interface{}) string {
 	}
 	return string(bytes)
 }
-

@@ -17,8 +17,6 @@ limitations under the License.
 package registry
 
 import (
-	"context"
-
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 )
