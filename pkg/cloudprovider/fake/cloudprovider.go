@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
@@ -74,7 +74,7 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",

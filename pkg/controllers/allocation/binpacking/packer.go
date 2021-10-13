@@ -97,7 +97,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 	remainingPods := schedule.Pods
 	for len(remainingPods) > 0 {
 		packables := PackablesFor(ctx, instances, schedule)
-		packing, remainingPods = p.packWithLargestPod(ctx, schedule.Constraints, remainingPods, packables)
+		packing, remainingPods = p.packWithLargestPod(schedule.Constraints, remainingPods, packables)
 		// checked all instance types and found no packing option
 		if flattenedLen(packing.Pods...) == 0 {
 			logging.FromContext(ctx).Errorf("Failed to compute packing, pod(s) %s did not fit in instance type option(s) %v", apiobject.PodNamespacedNames(remainingPods), packableNames(packables))
@@ -124,7 +124,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(ctx context.Context, constraints *v1alpha4.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(constraints *v1alpha4.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods

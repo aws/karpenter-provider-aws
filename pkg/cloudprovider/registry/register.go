@@ -24,7 +24,7 @@ import (
 )
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-	cloudProvider := newCloudProvider(ctx, options)
+	cloudProvider := newCloudProvider()
 	RegisterOrDie(ctx, cloudProvider)
 	return cloudProvider
 }

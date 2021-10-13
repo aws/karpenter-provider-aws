@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	APIServerPropagationTime  = 1 * time.Second
 	ReconcilerPropagationTime = 10 * time.Second
 	RequestInterval           = 1 * time.Second
 )

@@ -35,7 +35,7 @@ func NodeAffinityFor(pods ...*v1.Pod) (nodeAffinity NodeAffinity) {
 		}
 		// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
 		if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
-			sort.Slice(preferred, (func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight }))
+			sort.Slice(preferred, func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight })
 			nodeAffinity = append(nodeAffinity, preferred[0].Preference.MatchExpressions...)
 		}
 		// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable

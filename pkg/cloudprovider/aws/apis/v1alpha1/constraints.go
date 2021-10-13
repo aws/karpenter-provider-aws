@@ -40,7 +40,7 @@ type Constraints struct {
 	*AWS
 }
 
-// Extensions are parameters specific to this cloud provider
+// AWS contains parameters specific to this cloud provider
 // +kubebuilder:object:root=true
 type AWS struct {
 	// TypeMeta includes version and kind of the extensions, inferred if not provided.

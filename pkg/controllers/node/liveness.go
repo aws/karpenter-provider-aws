@@ -36,7 +36,7 @@ type Liveness struct {
 }
 
 // Reconcile reconciles the node
-func (r *Liveness) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Liveness) Reconcile(ctx context.Context, n *v1.Node) (reconcile.Result, error) {
 	if injectabletime.Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}

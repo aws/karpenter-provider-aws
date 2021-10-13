@@ -32,14 +32,14 @@ type GenericControllerManager struct {
 
 // NewManagerOrDie instantiates a controller manager or panics
 func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
-	manager, err := controllerruntime.NewManager(config, options)
+	newManager, err := controllerruntime.NewManager(config, options)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create controller manager, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to create controller newManager, %s", err.Error()))
 	}
-	if err := manager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
+	if err := newManager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
 		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err.Error()))
 	}
-	return &GenericControllerManager{Manager: manager}
+	return &GenericControllerManager{Manager: newManager}
 }
 
 // RegisterControllers registers a set of controllers to the controller manager

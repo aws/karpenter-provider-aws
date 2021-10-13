@@ -27,7 +27,7 @@ import (
 type Readiness struct{}
 
 // Reconcile reconciles the node
-func (r *Readiness) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Readiness) Reconcile(n *v1.Node) (reconcile.Result, error) {
 	if !node.IsReady(n) {
 		return reconcile.Result{}, nil
 	}

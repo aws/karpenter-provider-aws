@@ -29,32 +29,32 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 
 func (c *Constraints) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		c.validateInstanceProfile(ctx),
-		c.validateCapacityTypes(ctx),
-		c.validateLaunchTemplate(ctx),
-		c.validateSubnets(ctx),
-		c.validateSecurityGroups(ctx),
+		c.validateInstanceProfile(),
+		c.validateCapacityTypes(),
+		c.validateLaunchTemplate(),
+		c.validateSubnets(),
+		c.validateSecurityGroups(),
 		c.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
 
-func (c *Constraints) validateCapacityTypes(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateCapacityTypes() (errs *apis.FieldError) {
 	return v1alpha4.ValidateWellKnown(CapacityTypeLabel, c.CapacityTypes, "capacityTypes")
 }
 
-func (c *Constraints) validateInstanceProfile(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateInstanceProfile() (errs *apis.FieldError) {
 	if c.InstanceProfile == "" {
 		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
 	}
 	return errs
 }
 
-func (c *Constraints) validateLaunchTemplate(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateLaunchTemplate() (errs *apis.FieldError) {
 	// nothing to validate at the moment
 	return errs
 }
 
-func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateSubnets() (errs *apis.FieldError) {
 	if c.SubnetSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
 	}
@@ -66,7 +66,7 @@ func (c *Constraints) validateSubnets(ctx context.Context) (errs *apis.FieldErro
 	return errs
 }
 
-func (c *Constraints) validateSecurityGroups(ctx context.Context) (errs *apis.FieldError) {
+func (c *Constraints) validateSecurityGroups() (errs *apis.FieldError) {
 	if c.SecurityGroupSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
 	}
@@ -78,7 +78,7 @@ func (c *Constraints) validateSecurityGroups(ctx context.Context) (errs *apis.Fi
 	return errs
 }
 
-func (c *Cluster) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (c *Cluster) Validate(context.Context) (errs *apis.FieldError) {
 	if len(c.Name) == 0 {
 		errs = errs.Also(apis.ErrMissingField("name"))
 	}

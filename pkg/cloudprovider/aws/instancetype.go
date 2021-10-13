@@ -20,13 +20,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// EC2VMOverheadFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
+// EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
 const EC2VMAvailableMemoryFactor = .925
 
 type InstanceType struct {
@@ -107,8 +107,8 @@ func (i *InstanceType) AWSNeurons() *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// Computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
-// Overhead calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings
+// Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
+// using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings
 func (i *InstanceType) Overhead() v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(

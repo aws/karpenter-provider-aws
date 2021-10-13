@@ -59,7 +59,7 @@ type Environment struct {
 	cleanup *sync.WaitGroup
 }
 
-// LocalOption passes the Local environment to an option function. This is
+// EnvironmentOption passes the local environment to an option function. This is
 // useful for registering controllers with the controller-runtime manager or for
 // customizing Client, Scheme, or other variables.
 type EnvironmentOption func(env *Environment)

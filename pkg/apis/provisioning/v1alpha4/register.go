@@ -39,7 +39,7 @@ var (
 )
 
 var (
-	// The following fields are injected by Cloud Providers
+	// RestrictedLabels are injected by Cloud Providers
 	RestrictedLabels = []string{
 		// Use strongly typed fields instead
 		v1.LabelArchStable,

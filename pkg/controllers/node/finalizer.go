@@ -15,8 +15,6 @@ limitations under the License.
 package node
 
 import (
-	"context"
-
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
@@ -30,7 +28,7 @@ import (
 type Finalizer struct{}
 
 // Reconcile reconciles the node
-func (r *Finalizer) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Finalizer) Reconcile(n *v1.Node) (reconcile.Result, error) {
 	if !n.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}

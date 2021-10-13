@@ -267,16 +267,6 @@ func ExpectEvicted(c client.Client, pods ...*v1.Pod) {
 	}
 }
 
-func ExpectNotEvicted(c client.Client, e *termination.EvictionQueue, pods ...*v1.Pod) {
-	for _, pod := range pods {
-		Eventually(func() bool {
-			return ExpectPodExists(c, pod.Name, pod.Namespace).GetDeletionTimestamp().IsZero() && e.NumRequeues(client.ObjectKeyFromObject(pod)) > 0
-		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
-			return fmt.Sprintf("expected %s/%s to not be evicted, but it is", pod.Namespace, pod.Name)
-		})
-	}
-}
-
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
 	node := ExpectNodeExists(c, nodeName)
 	Expect(node.Spec.Unschedulable).To(BeTrue())

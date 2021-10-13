@@ -17,7 +17,7 @@ package v1alpha1
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )

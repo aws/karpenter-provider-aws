@@ -65,8 +65,8 @@ func (p *Preferences) Relax(ctx context.Context, pods []*v1.Pod) {
 
 func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
-		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(ctx, pod) },
-		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(ctx, pod) },
+		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(pod) },
+		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(pod) },
 	} {
 		if reason := relaxFunc(pod); reason != nil {
 			logging.FromContext(ctx).Debugf("Relaxing soft constraints for %s/%s since it previously failed to schedule, removing: %s", pod.Namespace, pod.Name, ptr.StringValue(reason))
@@ -76,7 +76,7 @@ func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	return false
 }
 
-func (p *Preferences) removePreferredNodeAffinityTerm(ctx context.Context, pod *v1.Pod) *string {
+func (p *Preferences) removePreferredNodeAffinityTerm(pod *v1.Pod) *string {
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil || len(pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
 		return nil
 	}
@@ -91,7 +91,7 @@ func (p *Preferences) removePreferredNodeAffinityTerm(ctx context.Context, pod *
 	return nil
 }
 
-func (p *Preferences) removeRequiredNodeAffinityTerm(ctx context.Context, pod *v1.Pod) *string {
+func (p *Preferences) removeRequiredNodeAffinityTerm(pod *v1.Pod) *string {
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil || len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
 		return nil
 	}

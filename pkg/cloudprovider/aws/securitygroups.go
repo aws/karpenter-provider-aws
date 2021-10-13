@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -41,7 +41,7 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 
 func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
 	// Get SecurityGroups
-	securityGroups, err := s.getSecurityGroups(ctx, s.getFilters(ctx, constraints))
+	securityGroups, err := s.getSecurityGroups(ctx, s.getFilters(constraints))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	return securityGroupIds, nil
 }
 
-func (s *SecurityGroupProvider) getFilters(ctx context.Context, constraints *v1alpha1.Constraints) []*ec2.Filter {
+func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range constraints.SecurityGroupSelector {
 		if value == "*" {
