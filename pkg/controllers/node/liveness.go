@@ -17,12 +17,12 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"time"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/node"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
