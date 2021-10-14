@@ -19,11 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
@@ -42,6 +37,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
+	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (

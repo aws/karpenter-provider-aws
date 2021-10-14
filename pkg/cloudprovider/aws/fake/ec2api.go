@@ -93,8 +93,8 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 		return e.DescribeInstancesOutput, nil
 	}
 	instances := []*ec2.Instance{}
-	for _, instanceId := range input.InstanceIds {
-		instance, _ := e.Instances.Load(*instanceId)
+	for _, instanceID := range input.InstanceIds {
+		instance, _ := e.Instances.Load(*instanceID)
 		instances = append(instances, instance.(*ec2.Instance))
 	}
 
