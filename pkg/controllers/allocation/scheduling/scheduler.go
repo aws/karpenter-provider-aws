@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
@@ -62,7 +61,7 @@ type Schedule struct {
 	Daemons []*v1.Pod
 }
 
-func NewScheduler(cloudProvider cloudprovider.CloudProvider, kubeClient client.Client) *Scheduler {
+func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
 		KubeClient: kubeClient,
 		Topology: &Topology{
@@ -82,15 +81,15 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner
 		result = "error"
 	}
 
-	labels := prometheus.Labels{
+	newLabels := prometheus.Labels{
 		metrics.ProvisionerLabel: provisioner.ObjectMeta.Name,
 		metrics.ResultLabel:      result,
 	}
-	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(labels)
+	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(newLabels)
 	if promErr != nil {
 		logging.FromContext(ctx).Warnf(
 			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
-			labels,
+			newLabels,
 			durationSeconds,
 			promErr.Error(),
 		)
@@ -186,7 +185,7 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha4.Constr
 	return pods, nil
 }
 
-// IsSchedulable returns true if the pod can schedule to the node
+// DaemonWillSchedule returns true if the pod can schedule to the node
 func DaemonWillSchedule(constraints *v1alpha4.Constraints, pod *v1.Pod) bool {
 	// Tolerate Taints
 	if err := scheduling.Taints(constraints.Taints).Tolerates(pod); err != nil {

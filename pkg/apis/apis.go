@@ -29,7 +29,7 @@ var (
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
-	// Resources
+	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
 		v1alpha4.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha4.Provisioner{},
 	}

@@ -15,10 +15,9 @@ limitations under the License.
 package metrics
 
 const (
-	// Common namespace for application metrics.
+	// KarpenterNamespace is the common namespace for application metrics
 	KarpenterNamespace = "karpenter"
 
-	// Common set of metric label names.
 	ResultLabel      = "result"
 	ProvisionerLabel = "provisioner"
 )

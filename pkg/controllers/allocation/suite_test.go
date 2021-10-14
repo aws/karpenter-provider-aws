@@ -59,7 +59,7 @@ var _ = BeforeSuite(func() {
 			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),
+			Scheduler:     scheduling.NewScheduler(e.Client),
 			Packer:        binpacking.NewPacker(),
 			CloudProvider: cloudProvider,
 			KubeClient:    e.Client,

@@ -28,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"go.uber.org/multierr"
@@ -57,16 +57,6 @@ const (
 	ClusterTagKeyFormat = "kubernetes.io/cluster/%s"
 	// KarpenterTagKeyFormat is set on all Karpenter owned resources.
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
-)
-
-var (
-	SupportedOperatingSystems = []string{
-		v1alpha4.OperatingSystemLinux,
-	}
-	SupportedArchitectures = []string{
-		v1alpha4.ArchitectureAmd64,
-		v1alpha4.ArchitectureArm64,
-	}
 )
 
 type CloudProvider struct {
@@ -184,7 +174,7 @@ func (c *CloudProvider) Constrain(ctx context.Context, constraints *v1alpha4.Con
 	if err != nil {
 		return fmt.Errorf("failed to deserialize provider, %w", err)
 	}
-	if err := vendorConstraints.Constrain(ctx, pods...); err != nil {
+	if err := vendorConstraints.Constrain(pods...); err != nil {
 		return err
 	}
 	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)

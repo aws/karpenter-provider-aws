@@ -126,18 +126,18 @@ func validateAffinity(pod *v1.Pod) (errs error) {
 	}
 	if pod.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference, pod.Spec.NodeSelector))
+			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
 		}
 		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 			for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-				errs = multierr.Append(errs, validateNodeSelectorTerm(term, pod.Spec.NodeSelector))
+				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
 			}
 		}
 	}
 	return errs
 }
 
-func validateNodeSelectorTerm(term v1.NodeSelectorTerm, nodeSelector map[string]string) (errs error) {
+func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 	if term.MatchFields != nil {
 		errs = multierr.Append(errs, fmt.Errorf("matchFields is not supported"))
 	}

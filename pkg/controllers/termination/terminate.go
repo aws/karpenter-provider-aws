@@ -78,7 +78,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	if len(evictable) == 0 {
 		return true, nil
 	}
-	t.evict(ctx, evictable)
+	t.evict(evictable)
 	return false, nil
 }
 
@@ -114,7 +114,7 @@ func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 	evictable := []*v1.Pod{}
 	for _, pod := range pods {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if scheduling.Taints(scheduling.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(pod) == nil {
+		if (scheduling.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(pod) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
@@ -126,7 +126,7 @@ func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 	return evictable
 }
 
-func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
+func (t *Terminator) evict(pods []*v1.Pod) {
 	// 1. Prioritize noncritical pods https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	critical := []*v1.Pod{}
 	nonCritical := []*v1.Pod{}

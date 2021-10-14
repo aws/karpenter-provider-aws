@@ -25,7 +25,7 @@ const (
 	AWSNeuron = "aws.amazon.com/neuron"
 )
 
-// RequestsForPodSpecs returns the total resources of a variadic list of podspecs.
+// RequestsForPods returns the total resources of a variadic list of podspecs.
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	resources := []v1.ResourceList{}
 	for _, pod := range pods {

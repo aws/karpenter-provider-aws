@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	v1alpha1 "github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -55,7 +55,7 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints
 	// Separate instance types by unique queries
 	amiQueries := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		query := p.getSSMQuery(ctx, constraints, instanceType, version)
+		query := p.getSSMQuery(constraints, instanceType, version)
 		amiQueries[query] = append(amiQueries[query], instanceType)
 	}
 	// Separate instance types by unique AMIIDs
@@ -84,7 +84,7 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	return ami, nil
 }
 
-func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
+func (p *AMIProvider) getSSMQuery(constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
 	var amiSuffix string
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-gpu"

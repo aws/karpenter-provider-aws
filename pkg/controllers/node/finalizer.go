@@ -30,7 +30,7 @@ import (
 type Finalizer struct{}
 
 // Reconcile reconciles the node
-func (r *Finalizer) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Finalizer) Reconcile(_ context.Context, _ *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !n.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}

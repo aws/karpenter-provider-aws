@@ -27,26 +27,26 @@ var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
 func (c *Constraints) Default(ctx context.Context) {
-	c.defaultCapacityTypes(ctx)
-	c.defaultSubnets(ctx)
-	c.defaultSecurityGroups(ctx)
+	c.defaultCapacityTypes()
+	c.defaultSubnets()
+	c.defaultSecurityGroups()
 }
 
-func (c *Constraints) defaultCapacityTypes(ctx context.Context) {
+func (c *Constraints) defaultCapacityTypes() {
 	if len(c.CapacityTypes) != 0 {
 		return
 	}
 	c.CapacityTypes = []string{CapacityTypeOnDemand}
 }
 
-func (c *Constraints) defaultSubnets(ctx context.Context) {
+func (c *Constraints) defaultSubnets() {
 	if c.SubnetSelector != nil {
 		return
 	}
 	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
 }
 
-func (c *Constraints) defaultSecurityGroups(ctx context.Context) {
+func (c *Constraints) defaultSecurityGroups() {
 	if c.SecurityGroupSelector != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func (c *Constraints) defaultSecurityGroups(ctx context.Context) {
 
 // Constrain applies the pod's scheduling constraints to the constraints.
 // Returns an error if the constraints cannot be applied.
-func (c *Constraints) Constrain(ctx context.Context, pods ...*v1.Pod) error {
+func (c *Constraints) Constrain(pods ...*v1.Pod) error {
 	nodeAffinity := scheduling.NodeAffinityFor(pods...)
 	capacityTypes := nodeAffinity.GetLabelValues(CapacityTypeLabel, c.CapacityTypes, v1alpha4.WellKnownLabels[CapacityTypeLabel])
 	if len(capacityTypes) == 0 {

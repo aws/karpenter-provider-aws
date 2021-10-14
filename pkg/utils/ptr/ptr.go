@@ -26,14 +26,6 @@ func Node(node v1.Node) *v1.Node {
 	return &node
 }
 
-func NodeListToSlice(nodes *v1.NodeList) []*v1.Node {
-	nodePointers := []*v1.Node{}
-	for _, node := range nodes.Items {
-		nodePointers = append(nodePointers, Node(node))
-	}
-	return nodePointers
-}
-
 func PodListToSlice(pods *v1.PodList) []*v1.Pod {
 	podPointers := []*v1.Pod{}
 	for _, pod := range pods.Items {

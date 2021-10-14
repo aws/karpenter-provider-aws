@@ -38,7 +38,7 @@ type Topology struct {
 // Inject injects topology rules into pods using supported NodeSelectors
 func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
-	topologyGroups, err := t.getTopologyGroups(ctx, pods)
+	topologyGroups, err := t.getTopologyGroups(pods)
 	if err != nil {
 		return fmt.Errorf("splitting topology groups, %w", err)
 	}
@@ -58,7 +58,7 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints
 }
 
 // getTopologyGroups separates pods with equivalent topology rules
-func (t *Topology) getTopologyGroups(ctx context.Context, pods []*v1.Pod) ([]*TopologyGroup, error) {
+func (t *Topology) getTopologyGroups(pods []*v1.Pod) ([]*TopologyGroup, error) {
 	topologyGroupMap := map[uint64]*TopologyGroup{}
 	for _, pod := range pods {
 		for _, constraint := range pod.Spec.TopologySpreadConstraints {
@@ -81,7 +81,7 @@ func (t *Topology) getTopologyGroups(ctx context.Context, pods []*v1.Pod) ([]*To
 func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
-		return t.computeHostnameTopology(ctx, topologyGroup)
+		return t.computeHostnameTopology(topologyGroup)
 	case v1.LabelTopologyZone:
 		return t.computeZonalTopology(ctx, constraints, topologyGroup)
 	default:
@@ -96,7 +96,7 @@ func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1al
 // the global minimum) by adding pods to the cluster. We will generate
 // len(pods)/MaxSkew number of domains, to ensure that skew is not violated for
 // new instances.
-func (t *Topology) computeHostnameTopology(ctx context.Context, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 	numDomains := math.Ceil(float64(len(topologyGroup.Pods)) / float64(topologyGroup.Constraint.MaxSkew))
 	for i := 0; i < int(numDomains); i++ {
 		topologyGroup.Register(strings.ToLower(randomdata.Alphanumeric(8)))

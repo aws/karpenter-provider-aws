@@ -66,7 +66,7 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 		Filter:        &Filter{KubeClient: kubeClient},
 		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
 		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
-		Scheduler:     scheduling.NewScheduler(cloudProvider, kubeClient),
+		Scheduler:     scheduling.NewScheduler(kubeClient),
 		Packer:        binpacking.NewPacker(),
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
@@ -194,7 +194,7 @@ func (c *Controller) podToProvisioner(ctx context.Context) func(o client.Object)
 			}
 			return nil
 		}
-		if err = c.Filter.isProvisionable(ctx, pod, provisioner); err != nil {
+		if err = c.Filter.isProvisionable(pod, provisioner); err != nil {
 			return nil
 		}
 		c.Batcher.Add(provisioner)
