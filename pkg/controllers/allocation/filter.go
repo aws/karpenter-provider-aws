@@ -39,7 +39,8 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4
 	}
 	// 2. Filter pods that aren't provisionable
 	provisionable := []*v1.Pod{}
-	for _, p := range pods.Items {
+	for i := range pods.Items {
+		p := pods.Items[i]
 		if err := f.isProvisionable(&p, provisioner); err != nil {
 			logging.FromContext(ctx).Debugf("Ignored pod %s/%s when allocating for provisioner %s, %s",
 				p.Name, p.Namespace, provisioner.Name, err.Error(),
