@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -131,7 +130,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	// 3. Create LT if one doesn't exist
-	if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
+	if isNotFound(err) {
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
