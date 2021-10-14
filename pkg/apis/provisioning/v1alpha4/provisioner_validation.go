@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/ptr"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
+
+	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/ptr"
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
