@@ -27,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 
-	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -57,7 +56,7 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &podutils.Filter{KubeClient: e.Client},
+			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
 			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),

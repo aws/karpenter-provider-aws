@@ -74,7 +74,7 @@ func init() {
 	crmetrics.Registry.MustRegister(runningPodCountByProvisionerZone)
 }
 
-func publishPodCounts(provisioner string, podsByZone map[string][]v1.Pod, provisionablePods []*v1.Pod) error {
+func publishPodCounts(provisioner string, podsByZone map[string][]v1.Pod, provisionablePods []v1.Pod) error {
 	countByPhase := make(map[v1.PodPhase]int, len(phaseValues))
 	zoneValues := knownValuesForNodeLabels[nodeLabelZone]
 	countByZone := make(map[string]int, len(zoneValues))

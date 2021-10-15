@@ -31,7 +31,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
-	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,7 +80,7 @@ var _ = BeforeSuite(func() {
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &podutils.Filter{KubeClient: e.Client},
+			Filter:        &allocation.Filter{KubeClient: e.Client},
 			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
 			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
 			Scheduler:     scheduling.NewScheduler(cloudProvider, e.Client),

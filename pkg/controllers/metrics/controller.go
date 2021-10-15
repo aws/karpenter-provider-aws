@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	podutils "github.com/awslabs/karpenter/pkg/utils/pod"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,13 +33,11 @@ import (
 )
 
 type Controller struct {
-	Filter     *podutils.Filter
 	KubeClient client.Client
 }
 
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
-		Filter:     &podutils.Filter{KubeClient: kubeClient},
 		KubeClient: kubeClient,
 	}
 }
@@ -100,7 +97,7 @@ func (c *Controller) zeroNodeCounts(provisioner *v1alpha4.Provisioner) error {
 }
 
 func (c *Controller) zeroPodCounts(provisioner *v1alpha4.Provisioner) error {
-	return publishPodCounts(provisioner.Name, map[string][]v1.Pod{}, []*v1.Pod{})
+	return publishPodCounts(provisioner.Name, map[string][]v1.Pod{}, []v1.Pod{})
 }
 
 func (c *Controller) updateCounts(ctx context.Context, provisioner *v1alpha4.Provisioner) error {
@@ -133,12 +130,12 @@ func (c *Controller) updatePodCounts(ctx context.Context, provisioner *v1alpha4.
 		return err
 	}
 
-	provisionablePods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
-	if err != nil {
-		return err
+	provisionablePodList := &v1.PodList{}
+	if err := c.KubeClient.List(ctx, provisionablePodList, client.MatchingFields{"spec.nodeName": ""}); err != nil {
+		return nil
 	}
 
-	return publishPodCounts(provisioner.Name, podsByZone, provisionablePods)
+	return publishPodCounts(provisioner.Name, podsByZone, provisionablePodList.Items)
 }
 
 // podsByZone returns a map of slices containing all pods scheduled to nodes in each zone.
