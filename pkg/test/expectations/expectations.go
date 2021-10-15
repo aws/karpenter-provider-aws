@@ -19,8 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-
+	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -29,6 +28,8 @@ import (
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 )
 
 const (
@@ -91,23 +92,23 @@ func ExpectCleanedUp(c client.Client) {
 	ctx := context.Background()
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
-	for _, pdb := range pdbs.Items {
-		ExpectDeleted(c, &pdb)
+	for i := range pdbs.Items {
+		ExpectDeleted(c, &pdbs.Items[i])
 	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
-	for _, pod := range pods.Items {
-		ExpectDeleted(c, &pod)
+	for i := range pods.Items {
+		ExpectDeleted(c, &pods.Items[i])
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
-	for _, node := range nodes.Items {
-		ExpectDeleted(c, &node)
+	for i := range nodes.Items {
+		ExpectDeleted(c, &nodes.Items[i])
 	}
 	provisioners := v1alpha4.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for _, provisioner := range provisioners.Items {
-		ExpectDeleted(c, &provisioner)
+	for i := range provisioners.Items {
+		ExpectDeleted(c, &provisioners.Items[i])
 	}
 }
 

@@ -38,10 +38,7 @@ type Topology struct {
 // Inject injects topology rules into pods using supported NodeSelectors
 func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
-	topologyGroups, err := t.getTopologyGroups(pods)
-	if err != nil {
-		return fmt.Errorf("splitting topology groups, %w", err)
-	}
+	topologyGroups := t.getTopologyGroups(pods)
 	// 2. Compute spread
 	for _, topologyGroup := range topologyGroups {
 		if err := t.computeCurrentTopology(ctx, constraints, topologyGroup); err != nil {
@@ -58,7 +55,7 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints
 }
 
 // getTopologyGroups separates pods with equivalent topology rules
-func (t *Topology) getTopologyGroups(pods []*v1.Pod) ([]*TopologyGroup, error) {
+func (t *Topology) getTopologyGroups(pods []*v1.Pod) []*TopologyGroup {
 	topologyGroupMap := map[uint64]*TopologyGroup{}
 	for _, pod := range pods {
 		for _, constraint := range pod.Spec.TopologySpreadConstraints {
@@ -75,7 +72,7 @@ func (t *Topology) getTopologyGroups(pods []*v1.Pod) ([]*TopologyGroup, error) {
 	for _, topologyGroup := range topologyGroupMap {
 		topologyGroups = append(topologyGroups, topologyGroup)
 	}
-	return topologyGroups, nil
+	return topologyGroups
 }
 
 func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {

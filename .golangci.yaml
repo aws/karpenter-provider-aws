@@ -1,0 +1,33 @@
+# See https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
+run:
+  tests: false
+  
+  timeout: 5m
+
+  build-tags:
+    - aws
+
+  skip-dirs:
+    - tools
+    - website
+    - hack
+    - charts
+    - designs
+
+linters:
+  enable:
+    - asciicheck
+    - errorlint
+    - gosec
+    - revive
+    - stylecheck
+    - tparallel
+    - unconvert
+    - unparam
+  disable:
+    - errcheck
+    - prealloc
+
+  linters-settings:
+    gci:
+      local-prefixes: github.com/awslabs/karpenter

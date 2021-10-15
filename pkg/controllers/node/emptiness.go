@@ -86,7 +86,8 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 	if err := r.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": n.Name}); err != nil {
 		return false, fmt.Errorf("listing pods for node %s, %w", n.Name, err)
 	}
-	for _, p := range pods.Items {
+	for i := range pods.Items {
+		p := pods.Items[i]
 		if pod.HasFailed(&p) {
 			continue
 		}

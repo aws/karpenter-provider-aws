@@ -107,7 +107,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 		key, err := hashstructure.Hash(packing, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err == nil {
 			if mainPack, ok := packs[key]; ok {
-				mainPack.NodeQuantity += 1
+				mainPack.NodeQuantity++
 				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
 				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
 				continue

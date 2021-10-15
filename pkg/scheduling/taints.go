@@ -35,7 +35,8 @@ func (ts Taints) Has(taint v1.Taint) bool {
 
 // Tolerates returns true if the pod tolerates all taints
 func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
-	for _, taint := range ts {
+	for i := range ts {
+		taint := ts[i]
 		tolerates := false
 		for _, t := range pod.Spec.Tolerations {
 			tolerates = tolerates || t.ToleratesTaint(&taint)
