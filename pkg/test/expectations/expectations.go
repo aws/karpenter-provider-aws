@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -91,13 +92,13 @@ func ExpectCleanedUp(c client.Client) {
 	ctx := context.Background()
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
-	for _, pdb := range pdbs.Items {
-		ExpectDeleted(c, &pdb)
+	for i := range pdbs.Items {
+		ExpectDeleted(c, &pdbs.Items[i])
 	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
-	for _, pod := range pods.Items {
-		ExpectDeleted(c, &pod)
+	for i := range pods.Items {
+		ExpectDeleted(c, &pods.Items[i])
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())

@@ -44,13 +44,11 @@ func NewConstraints(ctx context.Context, constraints *v1alpha4.Constraints, pod 
 	if err := generateLabels(constraints, pod); err != nil {
 		return nil, err
 	}
-	if err := generateTaints(constraints, pod); err != nil {
-		return nil, err
-	}
+	generateTaints(constraints, pod)
 	return constraints, nil
 }
 
-func generateTaints(constraints *v1alpha4.Constraints, pod *v1.Pod) error {
+func generateTaints(constraints *v1alpha4.Constraints, pod *v1.Pod) {
 	taints := scheduling.Taints(constraints.Taints)
 	for _, toleration := range pod.Spec.Tolerations {
 		// Only OpEqual is supported. OpExists does not make sense for
@@ -77,7 +75,6 @@ func generateTaints(constraints *v1alpha4.Constraints, pod *v1.Pod) error {
 		}
 	}
 	constraints.Taints = taints
-	return nil
 }
 
 func generateLabels(constraints *v1alpha4.Constraints, pod *v1.Pod) error {
