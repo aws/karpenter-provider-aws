@@ -12,33 +12,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pod
+package metrics
 
 import (
 	"strings"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-const (
-	metricNamespace = metrics.KarpenterNamespace
-	metricSubsystem = "pods"
-
-	metricLabelPhase       = "phase"
-	metricLabelProvisioner = metrics.ProvisionerLabel
-	metricLabelZone        = "zone"
-
-	nodeLabelZone = v1.LabelTopologyZone
-)
-
 var (
-	knownValuesForNodeLabels = v1alpha4.WellKnownLabels
-	phaseValues              = []v1.PodPhase{
+	phaseValues = []v1.PodPhase{
 		v1.PodFailed,
 		v1.PodPending,
 		v1.PodRunning,
@@ -49,7 +35,7 @@ var (
 	provisionablePodCount = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Subsystem: metricSubsystem,
+			Subsystem: metricSubsystemPods,
 			Name:      "provisionable_count",
 			Help:      "Total count of pods that are eligible for provisioning.",
 		},
@@ -58,7 +44,7 @@ var (
 	podCountByPhaseProvisioner = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Subsystem: metricSubsystem,
+			Subsystem: metricSubsystemPods,
 			Name:      "count",
 			Help:      "Total pod count by phase and provisioner.",
 		},
@@ -71,7 +57,7 @@ var (
 	runningPodCountByProvisionerZone = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Subsystem: metricSubsystem,
+			Subsystem: metricSubsystemPods,
 			Name:      "running_count",
 			Help:      "Total running pod count by provisioner and zone.",
 		},
@@ -120,12 +106,4 @@ func publishPodCounts(provisioner string, podsByZone map[string][]v1.Pod, provis
 	}
 
 	return multierr.Combine(errors...)
-}
-
-func publishCount(gaugeVec *prometheus.GaugeVec, labels prometheus.Labels, count int) error {
-	gauge, err := gaugeVec.GetMetricWith(labels)
-	if err == nil {
-		gauge.Set(float64(count))
-	}
-	return err
 }
