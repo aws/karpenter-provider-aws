@@ -18,7 +18,6 @@ linters:
   enable:
     - asciicheck
     - errorlint
-    - gci
     - gosec
     - revive
     - stylecheck

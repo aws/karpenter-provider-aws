@@ -102,13 +102,13 @@ func ExpectCleanedUp(c client.Client) {
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
-	for _, node := range nodes.Items {
-		ExpectDeleted(c, &node)
+	for i := range nodes.Items {
+		ExpectDeleted(c, &nodes.Items[i])
 	}
 	provisioners := v1alpha4.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for _, provisioner := range provisioners.Items {
-		ExpectDeleted(c, &provisioner)
+	for i := range provisioners.Items {
+		ExpectDeleted(c, &provisioners.Items[i])
 	}
 }
 
