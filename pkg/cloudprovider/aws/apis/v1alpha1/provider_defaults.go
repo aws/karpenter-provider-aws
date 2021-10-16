@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/scheduling"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -33,10 +31,19 @@ func (c *Constraints) Default(ctx context.Context) {
 }
 
 func (c *Constraints) defaultCapacityTypes() {
-	if len(c.CapacityTypes) != 0 {
+	if _, ok := c.Labels[CapacityTypeLabel]; ok {
 		return
 	}
-	c.CapacityTypes = []string{CapacityTypeOnDemand}
+	for _, requirement := range c.Requirements {
+		if requirement.Key == CapacityTypeLabel {
+			return
+		}
+	}
+	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
+		Key:      CapacityTypeLabel,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{CapacityTypeOnDemand},
+	})
 }
 
 func (c *Constraints) defaultSubnets() {
@@ -51,16 +58,4 @@ func (c *Constraints) defaultSecurityGroups() {
 		return
 	}
 	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
-}
-
-// Constrain applies the pod's scheduling constraints to the constraints.
-// Returns an error if the constraints cannot be applied.
-func (c *Constraints) Constrain(pods ...*v1.Pod) error {
-	nodeAffinity := scheduling.NodeAffinityFor(pods...)
-	capacityTypes := nodeAffinity.GetLabelValues(CapacityTypeLabel, c.CapacityTypes, v1alpha4.WellKnownLabels[CapacityTypeLabel])
-	if len(capacityTypes) == 0 {
-		return fmt.Errorf("no valid capacity types")
-	}
-	c.CapacityTypes = capacityTypes
-	return nil
 }

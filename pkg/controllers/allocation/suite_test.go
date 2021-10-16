@@ -88,7 +88,7 @@ var _ = Describe("Allocation", func() {
 	})
 
 	Context("Reconcilation", func() {
-		It("should provision nodes for unconstrained pods", func() {
+		It("should provision nodes for unschedulable pods", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.UnschedulablePod(), test.UnschedulablePod(),
@@ -228,14 +228,6 @@ var _ = Describe("Allocation", func() {
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha4.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
-			})
-			It("should taint nodes with provisioner taints", func() {
-				provisioner.Spec.Taints = []v1.Taint{{Key: "test", Value: "bar", Effect: v1.TaintEffectNoSchedule}}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Effect: v1.TaintEffectNoSchedule, Operator: v1.TolerationOpExists}}}))
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Spec.Taints).To(ContainElement(provisioner.Spec.Taints[0]))
 			})
 		})
 	})

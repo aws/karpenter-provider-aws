@@ -28,11 +28,6 @@ func (in *AWS) DeepCopyInto(out *AWS) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	out.Cluster = in.Cluster
-	if in.CapacityTypes != nil {
-		in, out := &in.CapacityTypes, &out.CapacityTypes
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.LaunchTemplate != nil {
 		in, out := &in.LaunchTemplate, &out.LaunchTemplate
 		*out = new(string)

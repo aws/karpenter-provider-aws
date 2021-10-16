@@ -27,6 +27,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 )
 
+var (
+	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)}
+)
+
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		apis.ValidateObjectMetadata(p).ViaField("metadata"),
@@ -72,18 +76,13 @@ func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
 	return errs
 }
 
-// Validate constraints subresource. This validation logic is used both upon
-// creation of a provisioner as well as when a pod is attempting to be
-// provisioned. If a provisioner fails validation, it will be rejected by the
-// API Server. If validation fails at provisioning time, the pod is ignored
+// Validate the constraints
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		c.validateLabels(),
 		c.validateTaints(),
-		ValidateWellKnown(v1.LabelTopologyZone, c.Zones, "zones"),
-		ValidateWellKnown(v1.LabelInstanceTypeStable, c.InstanceTypes, "instanceTypes"),
-		ValidateWellKnown(v1.LabelArchStable, c.Architectures, "architectures"),
-		ValidateWellKnown(v1.LabelOSStable, c.OperatingSystems, "operatingSystems"),
+		c.validateRequirements(),
+		c.CombineRequirements().Validate(),
 		ValidateHook(ctx, c),
 	)
 }
@@ -94,7 +93,10 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err))
 		}
 		for _, err := range validation.IsValidLabelValue(value) {
-			errs = errs.Also(apis.ErrInvalidValue(value+", "+err, "labels"))
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
+		}
+		if known, ok := WellKnownLabels[key]; ok && !functional.ContainsString(known, value) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
 		}
 	}
 	return errs
@@ -125,14 +127,40 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
-func ValidateWellKnown(key string, values []string, fieldName string) (errs *apis.FieldError) {
-	if values != nil && len(values) == 0 {
-		errs = errs.Also(apis.ErrMissingField(fieldName))
-	}
-	for i, value := range values {
-		if known := WellKnownLabels[key]; !functional.ContainsString(known, value) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %v", value, known), fieldName, i))
+func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
+	for i, requirement := range c.Requirements {
+		if err := validateRequirement(requirement); err != nil {
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
 		}
+	}
+	return errs
+}
+
+func (r Requirements) Validate() (errs *apis.FieldError) {
+	for _, label := range r.GetLabels() {
+		if len(r.GetLabelValues(label)) == 0 {
+			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s is too constrained", label)))
+		}
+	}
+	return errs
+}
+
+func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
+	for _, err := range validation.IsQualifiedName(requirement.Key) {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
+	}
+	for i, value := range requirement.Values {
+		for _, err := range validation.IsValidLabelValue(value) {
+			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
+		}
+		if known, ok := WellKnownLabels[requirement.Key]; ok {
+			if !functional.ContainsString(known, value) {
+				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %s", value, known), "values", i))
+			}
+		}
+	}
+	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
 	}
 	return errs
 }

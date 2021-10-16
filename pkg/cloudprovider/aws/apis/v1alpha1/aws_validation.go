@@ -19,46 +19,40 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"knative.dev/pkg/apis"
 )
 
-func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
-	return c.validate(ctx).ViaField("provider")
+func (a *AWS) Validate(ctx context.Context) (errs *apis.FieldError) {
+	return a.validate(ctx).ViaField("provider")
 }
 
-func (c *Constraints) validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		c.validateInstanceProfile(),
-		c.validateCapacityTypes(),
-		c.validateLaunchTemplate(),
-		c.validateSubnets(),
-		c.validateSecurityGroups(),
-		c.Cluster.Validate(ctx).ViaField("cluster"),
+		a.validateInstanceProfile(),
+		a.validateLaunchTemplate(),
+		a.validateSubnets(),
+		a.validateSecurityGroups(),
+		a.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
 
-func (c *Constraints) validateCapacityTypes() (errs *apis.FieldError) {
-	return v1alpha4.ValidateWellKnown(CapacityTypeLabel, c.CapacityTypes, "capacityTypes")
-}
-
-func (c *Constraints) validateInstanceProfile() (errs *apis.FieldError) {
-	if c.InstanceProfile == "" {
+func (a *AWS) validateInstanceProfile() (errs *apis.FieldError) {
+	if a.InstanceProfile == "" {
 		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
 	}
 	return errs
 }
 
-func (c *Constraints) validateLaunchTemplate() (errs *apis.FieldError) {
+func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
 	// nothing to validate at the moment
 	return errs
 }
 
-func (c *Constraints) validateSubnets() (errs *apis.FieldError) {
-	if c.SubnetSelector == nil {
+func (a *AWS) validateSubnets() (errs *apis.FieldError) {
+	if a.SubnetSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
 	}
-	for key, value := range c.SubnetSelector {
+	for key, value := range a.SubnetSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("subnetSelector['%s']", key)))
 		}
@@ -66,11 +60,11 @@ func (c *Constraints) validateSubnets() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Constraints) validateSecurityGroups() (errs *apis.FieldError) {
-	if c.SecurityGroupSelector == nil {
+func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
+	if a.SecurityGroupSelector == nil {
 		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
 	}
-	for key, value := range c.SecurityGroupSelector {
+	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("securityGroupSelector['%s']", key)))
 		}

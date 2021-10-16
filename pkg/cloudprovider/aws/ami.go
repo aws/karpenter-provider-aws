@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -47,7 +46,7 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 }
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, acclerator, etc
-func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kube server version, %w", err)

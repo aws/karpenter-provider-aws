@@ -20,7 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
@@ -64,5 +64,4 @@ func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvide
 
 	v1alpha4.ValidateHook = cloudProvider.Validate
 	v1alpha4.DefaultHook = cloudProvider.Default
-	v1alpha4.ConstrainHook = cloudProvider.Constrain
 }

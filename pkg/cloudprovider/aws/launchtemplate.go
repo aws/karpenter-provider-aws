@@ -90,7 +90,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		return nil, err
 	}
 	// Get constrained AMI ID
-	amis, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
+	amis, err := p.amiProvider.Get(ctx, instanceTypes)
 	if err != nil {
 		return nil, err
 	}

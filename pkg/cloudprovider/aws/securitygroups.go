@@ -47,7 +47,7 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	}
 	// Fail if no security groups found
 	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given constraints")
+		return nil, fmt.Errorf("no security groups exist given provider")
 	}
 	// Convert to IDs
 	securityGroupIds := []string{}
@@ -57,9 +57,9 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	return securityGroupIds, nil
 }
 
-func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
+func (s *SecurityGroupProvider) getFilters(provider *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	for key, value := range constraints.SecurityGroupSelector {
+	for key, value := range provider.SecurityGroupSelector {
 		if value == "*" {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("tag-key"),

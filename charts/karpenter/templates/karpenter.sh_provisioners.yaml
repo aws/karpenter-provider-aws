@@ -44,34 +44,46 @@ spec:
               may have different defaults and can be specifically targeted by pods
               using pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
             properties:
-              architectures:
-                description: Architectures constrains the underlying node architecture
-                items:
-                  type: string
-                type: array
-              instanceTypes:
-                description: InstanceTypes constrains which instances types will be
-                  used for nodes launched by the Provisioner. If unspecified, defaults
-                  to all types.
-                items:
-                  type: string
-                type: array
               labels:
                 additionalProperties:
                   type: string
-                description: Labels will be applied to every node launched by the
-                  Provisioner.
+                description: Labels are layered with Requirements and applied to every
+                  node.
                 type: object
-              operatingSystems:
-                description: OperatingSystems constrains the underlying node operating
-                  system
-                items:
-                  type: string
-                type: array
               provider:
                 description: Provider contains fields specific to your cloudprovider.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              requirements:
+                description: Requirements are layered with Labels and applied to every
+                  node.
+                items:
+                  description: A node selector requirement is a selector that contains
+                    values, a key, and an operator that relates the key and values.
+                  properties:
+                    key:
+                      description: The label key that the selector applies to.
+                      type: string
+                    operator:
+                      description: Represents a key's relationship to a set of values.
+                        Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and
+                        Lt.
+                      type: string
+                    values:
+                      description: An array of string values. If the operator is In
+                        or NotIn, the values array must be non-empty. If the operator
+                        is Exists or DoesNotExist, the values array must be empty.
+                        If the operator is Gt or Lt, the values array must have a
+                        single element, which will be interpreted as an integer. This
+                        array is replaced during a strategic merge patch.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - key
+                  - operator
+                  type: object
+                type: array
               taints:
                 description: Taints will be applied to every node launched by the
                   Provisioner. If specified, the provisioner will not provision nodes
@@ -120,12 +132,6 @@ spec:
                   is not set."
                 format: int64
                 type: integer
-              zones:
-                description: Zones constrains where nodes will be launched by the
-                  Provisioner. If unspecified, defaults to all zones in the region.
-                items:
-                  type: string
-                type: array
             type: object
           status:
             description: ProvisionerStatus defines the observed state of Provisioner

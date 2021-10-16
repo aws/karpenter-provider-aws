@@ -41,25 +41,19 @@ var (
 var (
 	// RestrictedLabels are injected by Cloud Providers
 	RestrictedLabels = []string{
-		// Use strongly typed fields instead
-		v1.LabelArchStable,
-		v1.LabelOSStable,
-		v1.LabelTopologyZone,
-		v1.LabelInstanceTypeStable,
 		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
 	}
 	// WellKnownLabels supported by karpenter and their allowable values
 	WellKnownLabels = map[string][]string{
-		v1.LabelArchStable:         {},
-		v1.LabelOSStable:           {},
 		v1.LabelTopologyZone:       {},
 		v1.LabelInstanceTypeStable: {},
+		v1.LabelArchStable:         {},
+		v1.LabelOSStable:           {},
 	}
-	DefaultHook   = func(ctx context.Context, constraints *Constraints) {}
-	ValidateHook  = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
-	ConstrainHook = func(ctx context.Context, constraints *Constraints, pods ...*v1.Pod) error { return nil }
+	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
+	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
 )
 
 var (
