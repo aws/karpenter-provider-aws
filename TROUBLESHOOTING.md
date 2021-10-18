@@ -6,7 +6,7 @@
 ### Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
 ```
-karpenter-controller-5f9869988f-czcvj manager 2021-10-18T20:20:54.437Z	ERROR	controller.controller.Allocation	Reconciler error	{"commit": "8dd6b65", "reconciler group": "karpenter.sh", "reconciler kind": "Provisioner", "name": "default", "namespace": "", "error": "launching 1 instance(s), with fleet error(s), AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances."}
+AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances
 ```
 This can be resolved by creating the [Service Linked Role](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
 ```
