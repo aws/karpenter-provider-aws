@@ -137,6 +137,15 @@ eksctl create iamserviceaccount \
   --approve
 ```
 
+### Create the EC2 Spot Service Linked Role
+
+This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+```bash
+aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
+# If the role has already been successfully created, you will see:
+# An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
+```
+
 ### Install Karpenter Helm Chart
 
 Use helm to deploy Karpenter to the cluster.
