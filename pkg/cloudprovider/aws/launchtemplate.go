@@ -195,33 +195,21 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	return output.LaunchTemplate, nil
 }
 
-type taints []core.Taint
-
-func (ts taints) Len() int {
-	return len(ts)
-}
-
-func (ts taints) Less(i, j int) bool {
-	ti, tj := ts[i], ts[j]
-	if ti.Key < tj.Key {
-		return true
-	}
-	if ti.Key == tj.Key && ti.Value < tj.Value {
-		return true
-	}
-	if ti.Value == tj.Value {
-		return ti.Effect < tj.Effect
-	}
-	return false
-}
-
-func (ts taints) Swap(i, j int) {
-	ts[i], ts[j] = ts[j], ts[i]
-}
-
 func sortedTaints(ts []core.Taint) []core.Taint {
-	sorted := taints(append(ts[:0:0], ts...)) // copy to avoid touching original
-	sort.Sort(sorted)
+	sorted := append(ts[:0:0], ts...) // copy to avoid touching original
+	sort.Slice(sorted, func(i, j int) bool {
+		ti, tj := sorted[i], sorted[j]
+		if ti.Key < tj.Key {
+			return true
+		}
+		if ti.Key == tj.Key && ti.Value < tj.Value {
+			return true
+		}
+		if ti.Value == tj.Value {
+			return ti.Effect < tj.Effect
+		}
+		return false
+	})
 	return sorted
 }
 
