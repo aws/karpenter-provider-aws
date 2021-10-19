@@ -160,6 +160,10 @@ helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
   --create-namespace --set serviceAccount.create=false --version 0.4.0
 ```
 
+### Enable Debug Logging (optional)
+```sh
+kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
+```
 ### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
