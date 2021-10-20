@@ -42,12 +42,6 @@ type InstanceProvider struct {
 	subnetProvider         *SubnetProvider
 }
 
-type InstancePool struct {
-	InstanceType     *string
-	AvailabilityZone *string
-	CapacityType     *string
-}
-
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
@@ -268,7 +262,6 @@ func getInstanceID(node *v1.Node) (*string, error) {
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	unique := sets.NewString()
 	for _, err := range errors {
-
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
 	for _, errorCode := range unique.List() {

@@ -66,7 +66,6 @@ Linux:
 gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```
 
-
 ## Environment specific setup
 
 ### AWS

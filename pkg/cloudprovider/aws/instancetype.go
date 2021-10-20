@@ -29,6 +29,7 @@ import (
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
 const EC2VMAvailableMemoryFactor = .925
 
+// For details on what's in InstanceTypeInfo: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceTypeInfo.html
 type InstanceType struct {
 	ec2.InstanceTypeInfo
 	ZoneOptions []string
@@ -43,7 +44,6 @@ func (i *InstanceType) Zones() []string {
 }
 
 func (i *InstanceType) CapacityTypes() []string {
-	// values would be "spot" and/or "on-demand": https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceTypeInfo.html
 	return aws.StringValueSlice(i.SupportedUsageClasses)
 }
 
