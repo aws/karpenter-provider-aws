@@ -1,52 +1,146 @@
-![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/CI/main)
-![GitHub stars](https://img.shields.io/github/stars/awslabs/karpenter)
-![GitHub forks](https://img.shields.io/github/forks/awslabs/karpenter)
-[![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/awslabs/karpenter/blob/main/LICENSE)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/karpenter/issues)
+# Viddy
 
-![](website/static/banner.png)
+<p align="center">
+<img src="images/logo.png" width="200" alt="viddy" title="viddy" />
+</p>
 
-> **❗Note:** Karpenter is in active development and should be considered **pre-production** software. Backwards incompatible API changes are possible in future releases and support is best-effort by the Karpenter community.
+Modern `watch` command.
 
-Karpenter is a node lifecycle management solution. It observes incoming pods and launches the right instances for the situation. Instance selection decisions are intent based and driven by the specification of incoming pods, including resource requests and scheduling constraints.
+Viddy well, gopher. Viddy well.
 
-It's responsible for:
-- **Launching** nodes for unschedulable pods
-- **Replacing** existing nodes to improve resource utilization
-- **Terminating** nodes if outdated or no longer needed
-- **Draining** nodes gracefully before preemption
+## Demo
 
-For most use cases, the entirety of a cluster’s capacity can be managed by a single Karpenter [Provisioner](README.md). Availability zone, instance type, capacity type, machine image, and scheduling constraints are automatically determined by the controller using a combination of defaults and overrides. Additionally, you can define multiple Provisioners, enabling use cases like isolation, entitlements, and sharding.
+<p align="center">
+<img src="images/demo.gif" width="100%" alt="viddy" title="viddy" />
+</p>
 
-Karpenter optimizes for scheduling latency and utilization efficiency using two complementary control loops. First, is the allocator, a fast-acting latency-sensitive controller responsible for ensuring that incoming pods are scheduled as quickly as possible. Second, is the reallocator, a slow-acting cost-sensitive controller that replaces nodes as pods requests and capacity prices shift over time. Together, they maximize the availability and efficiency of your cluster.
 
-Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
+## Features
 
-Check out the [FAQs](https://karpenter.sh/docs/faqs/) and [Roadmap](ROADMAP.md) to learn more.
+* Basic features of original watch command.
+    * Execute command periodically, and display the result.
+    * color output.
+    * diff highlight.
+* Time machine mode. 😎
+    * Rewind like video.
+    * Go to the past, and back to the future.
+* See output in pager.
+* Vim like keymaps.
+* Search text.
+* Suspend and restart execution.
+* Run command in precise intervals forcibly.
+* Support shell alias
+    * See detail https://github.com/sachaos/viddy/issues/2#issuecomment-904002053
+* Customize keymappings.
+* Customize color.
 
-## Installation
+## Install
 
-Follow the setup recommendations of your cloud provider.
-- [AWS](https://karpenter.sh/docs/cloud-providers/aws/)
+### Mac
 
-> ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
-> - Check the [release notes](https://github.com/awslabs/karpenter/releases)
-> - Uninstall Karpenter
-> - Remove all nodes launched by karpenter
-> - Reinstall Karpenter
+#### [Homebrew](https://brew.sh)
 
-## References
-- [Docs](https://karpenter.sh/docs/)
-- [API](README.md)
-- [FAQs](https://karpenter.sh/docs/faqs/)
-- [Roadmap](ROADMAP.md)
-- [Working Group](WORKING_GROUP.md)
-- [Developer Guide](https://karpenter.sh/docs/development-guide/)
-- [Contributing](CONTRIBUTING.md)
+```shell
+brew install viddy
+```
 
-## Talks
-- [Karpenter @ Container Day, May 2021](https://youtu.be/MZ-4HzOC_ac?t=7137)
-- [Groupless Autoscaling with Karpenter @ Kubecon, May 2021](https://www.youtube.com/watch?v=43g8uPohTgc)
+#### [MacPorts](https://www.macports.org)
 
-## License
-This project is licensed under the Apache-2.0 License.
+```shell
+sudo port install viddy
+```
+
+### Linux
+
+```shell
+wget -O viddy.tar.gz https://github.com/sachaos/viddy/releases/download/v0.3.1/viddy_0.3.1_Linux_x86_64.tar.gz && tar xvf viddy.tar.gz && mv viddy /usr/local/bin
+```
+
+#### ArchLinux ( AUR )
+
+```shell
+yay -S viddy
+```
+Alternatively you can use the [AUR Git repo](https://aur.archlinux.org/packages/viddy/) directly
+
+#### Alpine Linux
+
+After [enabling the community repository](https://wiki.alpinelinux.org/wiki/Enable_Community_Repository):
+
+```shell
+apk add viddy
+```
+
+### [asdf version manager](https://asdf-vm.com)
+
+```shell
+asdf plugin add viddy
+asdf install viddy latest
+asdf global viddy latest
+```
+
+### Go
+
+```shell
+go install github.com/sachaos/viddy@latest
+```
+
+### Other
+
+Download from [release page](https://github.com/sachaos/viddy/releases).
+
+## Keymaps
+
+| key       |                                            |
+|-----------|--------------------------------------------|
+| SPACE     | Toggle time machine mode                   |
+| s         | Toggle suspend execution                   |
+| d         | Toggle diff                                |
+| t         | Toggle header display                      |
+| ?         | Toggle help view                           |
+| /         | Search text                                |
+| j         | Pager: next line                           |
+| k         | Pager: previous line                       |
+| Control-F | Pager: page down                           |
+| Control-B | Pager: page up                             |
+| g         | Pager: go to top of page                   |
+| Shift-G   | Pager: go to bottom of page                |
+| Shift-J   | (Time machine mode) Go to the past         |
+| Shift-K   | (Time machine mode) Back to the future     |
+| Shift-F   | (Time machine mode) Go to more past        |
+| Shift-B   | (Time machine mode) Back to more future    |
+| Shift-O   | (Time machine mode) Go to oldest position  |
+| Shift-N   | (Time machine mode) Go to current position |
+
+## Configuration
+
+Install your config file on `$XDG_CONFIG_HOME/viddy.toml`
+On macOS, the path is `~/Library/Application\ Support/viddy.toml`.
+
+```toml
+[general]
+shell = "zsh"
+shell_options = ""
+
+[keymap]
+timemachine_go_to_past = "Down"
+timemachine_go_to_more_past = "Shift-Down"
+timemachine_go_to_future = "Up"
+timemachine_go_to_more_future = "Shift-Up"
+timemachine_go_to_now = "Ctrl-Shift-Up"
+timemachine_go_to_oldest = "Ctrl-Shift-Down"
+
+[color]
+background = "white" # Default value is inherit from terminal color.
+```
+
+## What is "viddy" ?
+
+"viddy" is Nadsat word meaning to see.
+Nadsat is fictional argot of gangs in the violence movie "A Clockwork Orange".
+
+## Credits
+
+The gopher's logo of viddy is licensed under the Creative Commons 3.0 Attributions license.
+
+The original Go gopher was designed by [Renee French](https://reneefrench.blogspot.com/).

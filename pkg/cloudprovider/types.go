@@ -54,7 +54,10 @@ type Options struct {
 // InstanceType describes the properties of a potential node
 type InstanceType interface {
 	Name() string
+	// these are the zones that support this instance type
 	Zones() []string
+	// these are the capacity types for which this instance type can be provisioned
+	CapacityTypes() []string
 	Architecture() string
 	OperatingSystems() []string
 	CPU() *resource.Quantity

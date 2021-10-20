@@ -35,11 +35,22 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
+const (
+	EC2InstanceIDNotFoundErrCode = "InvalidInstanceID.NotFound"
+	InsufficientCapacityErrCode  = "InsufficientInstanceCapacity"
+)
+
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
 	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
+}
+
+type InstancePool struct {
+	InstanceType     *string
+	AvailabilityZone *string
+	CapacityType     *string
 }
 
 // Create an instance given the constraints.
@@ -105,10 +116,10 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
-	// Default to on-demand unless constrained otherwise. This code assumes two
-	// options: {spot, on-demand}, which is enforced by constraints.Constrain().
-	// Spot may be selected by constraining the provisioner, or using
-	// nodeSelectors, required node affinity, or preferred node affinity.
+	// Default to on-demand unless constrained otherwise or if flexible to spot and
+	// on-demand. This code assumes two options: {spot, on-demand}, which is enforced
+	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
+	// or using nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
 	if len(constraints.CapacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
@@ -262,6 +273,7 @@ func getInstanceID(node *v1.Node) (*string, error) {
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	unique := sets.NewString()
 	for _, err := range errors {
+
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
 	for _, errorCode := range unique.List() {
