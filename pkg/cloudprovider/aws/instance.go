@@ -35,11 +35,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
-const (
-	EC2InstanceIDNotFoundErrCode = "InvalidInstanceID.NotFound"
-	InsufficientCapacityErrCode  = "InsufficientInstanceCapacity"
-)
-
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
