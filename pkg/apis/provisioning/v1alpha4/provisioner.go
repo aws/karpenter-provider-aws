@@ -177,7 +177,10 @@ func (r Requirements) GetLabels() []string {
 
 // GetLabelValues for the provided key constrained by the requirements
 func (r Requirements) GetLabelValues(label string) []string {
-	result := WellKnownLabels[label]
+	var result []string
+	if known, ok := WellKnownLabels[label]; ok {
+		result = known
+	}
 	// OpIn
 	for _, requirement := range r {
 		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpIn {
@@ -189,6 +192,9 @@ func (r Requirements) GetLabelValues(label string) []string {
 		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpNotIn {
 			result = functional.StringSliceWithout(result, requirement.Values...)
 		}
+	}
+	if len(result) == 0 {
+		result = []string{}
 	}
 	return result
 }
