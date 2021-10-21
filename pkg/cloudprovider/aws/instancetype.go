@@ -37,8 +37,13 @@ type InstanceType struct {
 func (i *InstanceType) Name() string {
 	return aws.StringValue(i.InstanceType)
 }
+
 func (i *InstanceType) Zones() []string {
 	return i.ZoneOptions
+}
+
+func (i *InstanceType) CapacityTypes() []string {
+	return aws.StringValueSlice(i.SupportedUsageClasses)
 }
 
 func (i *InstanceType) Architecture() string {

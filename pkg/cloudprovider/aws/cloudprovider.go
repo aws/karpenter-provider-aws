@@ -30,6 +30,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
+	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/project"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -125,7 +126,8 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constr
 	// Partial fulfillment will be logged
 	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
 	if err != nil {
-		return fmt.Errorf("launching %d instance(s), %w", quantity, err)
+		return fmt.Errorf("launching %d instance(s) with constraints %s and instance types %s, %w",
+			quantity, pretty.Concise(vendorConstraints), pretty.Concise(instanceTypes), err)
 	}
 
 	for _, node := range nodes {

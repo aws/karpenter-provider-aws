@@ -105,10 +105,10 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
-	// Default to on-demand unless constrained otherwise. This code assumes two
-	// options: {spot, on-demand}, which is enforced by constraints.Constrain().
-	// Spot may be selected by constraining the provisioner, or using
-	// nodeSelectors, required node affinity, or preferred node affinity.
+	// Default to on-demand unless constrained otherwise or if flexible to spot and
+	// on-demand. This code assumes two options: {spot, on-demand}, which is enforced
+	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
+	// or using nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
 	if len(constraints.CapacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")

@@ -56,8 +56,14 @@ kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.
 ```
 
 ### Debugging Metrics
+OSX:
 ```bash
 open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
+```
+
+Linux:
+```bash
+gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```
 
 ## Environment specific setup

@@ -23,6 +23,9 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if len(options.zones) == 0 {
 		options.zones = []string{"test-zone-1", "test-zone-2", "test-zone-3"}
 	}
+	if len(options.capacityTypes) == 0 {
+		options.capacityTypes = []string{"spot", "on-demand"}
+	}
 	if len(options.architecture) == 0 {
 		options.architecture = "amd64"
 	}
@@ -42,6 +45,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 		InstanceTypeOptions: InstanceTypeOptions{
 			name:             options.name,
 			zones:            options.zones,
+			capacityTypes:    options.capacityTypes,
 			architecture:     options.architecture,
 			operatingSystems: options.operatingSystems,
 			cpu:              options.cpu,
@@ -57,6 +61,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 type InstanceTypeOptions struct {
 	name             string
 	zones            []string
+	capacityTypes    []string
 	architecture     string
 	operatingSystems []string
 	cpu              resource.Quantity
@@ -73,6 +78,10 @@ type InstanceType struct {
 
 func (i *InstanceType) Name() string {
 	return i.name
+}
+
+func (i *InstanceType) CapacityTypes() []string {
+	return i.capacityTypes
 }
 
 func (i *InstanceType) Zones() []string {

@@ -51,10 +51,12 @@ type Options struct {
 	ClientSet *kubernetes.Clientset
 }
 
-// InstanceType describes the properties of a potential node
+// InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type
+// or supported options in the case of arrays)
 type InstanceType interface {
 	Name() string
 	Zones() []string
+	CapacityTypes() []string
 	Architecture() string
 	OperatingSystems() []string
 	CPU() *resource.Quantity
