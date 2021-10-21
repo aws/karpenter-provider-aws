@@ -90,15 +90,17 @@ var _ = Describe("Combining Constraints", func() {
 			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 		})
-		It("should generate custom labels for node selectors", func() {
+		It("should generate custom labels", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
+			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2", "not this one"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{"another-key": "another-value"},
 			}))
 			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-			Expect(node.Labels).To(HaveKeyWithValue("another-key", "another-value"))
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+			Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
+			Expect(node.Labels).To(HaveKeyWithValue("another-key", "another-value"))
 		})
 		It("should not schedule pods that have conflicting node selectors", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
