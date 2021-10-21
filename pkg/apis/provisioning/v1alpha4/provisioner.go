@@ -99,7 +99,7 @@ func (c *Constraints) Zones() []string {
 	return c.Requirements.GetLabelValues(v1.LabelTopologyZone)
 }
 
-/// InstanceTypes for the constraints
+// InstanceTypes for the constraints
 func (c *Constraints) InstanceTypes() []string {
 	return c.Requirements.GetLabelValues(v1.LabelInstanceTypeStable)
 }
@@ -114,7 +114,7 @@ func (c *Constraints) OperatingSystems() []string {
 	return c.Requirements.GetLabelValues(v1.LabelOSStable)
 }
 
-// CombineRequirements of the constraints and collapses them
+// CombineRequirements of the constraints and collapses them.
 func (c *Constraints) CombineRequirements() Requirements {
 	// Combine labels and requirements
 	combined := Requirements{}
