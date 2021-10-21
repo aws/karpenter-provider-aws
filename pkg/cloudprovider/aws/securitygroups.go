@@ -47,7 +47,7 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	}
 	// Fail if no security groups found
 	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given provider")
+		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	// Convert to IDs
 	securityGroupIds := []string{}

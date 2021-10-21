@@ -114,11 +114,10 @@ func (c *Constraints) OperatingSystems() []string {
 	return c.Requirements.GetLabelValues(v1.LabelOSStable)
 }
 
-// Compress and copy the constraints
-func (c *Constraints) Compress() *Constraints {
+// Consolidate and copy the constraints
+func (c *Constraints) Consolidate() *Constraints {
 	// Combine labels and requirements
-	combined := Requirements{}
-	combined = append(combined, c.Requirements...)
+	combined := append(Requirements{}, c.Requirements...)
 	for key, value := range c.Labels {
 		combined = append(combined, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
@@ -162,7 +161,7 @@ func (r Requirements) With(pods ...*v1.Pod) Requirements {
 	return r
 }
 
-// GetLabels returns unique set of the label keys from the requiements
+// GetLabels returns unique set of the label keys from the requirements
 func (r Requirements) GetLabels() []string {
 	keys := map[string]bool{}
 	for _, requirement := range r {
