@@ -4,14 +4,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
-
-    - name: Setup Go
-      uses: actions/setup-go@v2
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
       with:
         go-version: 1.17
-
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+          ~/go/bin/
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
     - name: CI - Verifications and Tests
       run: |
         make toolchain
@@ -19,9 +24,7 @@ jobs:
         make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload Code Coverage
-      uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v2
       with:
         name: coverage
         path: coverage.html
