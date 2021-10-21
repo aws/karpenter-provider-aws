@@ -137,7 +137,7 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
-		FIt("should validate well known labels", func() {
+		It("should validate well known labels", func() {
 			WellKnownLabels[v1.LabelTopologyZone] = []string{"test"}
 			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
