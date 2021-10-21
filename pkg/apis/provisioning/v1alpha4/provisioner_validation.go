@@ -82,7 +82,7 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 		c.validateLabels(),
 		c.validateTaints(),
 		c.validateRequirements(),
-		c.CombineRequirements().Validate(),
+		c.Compress().Requirements.Validate(),
 		ValidateHook(ctx, c),
 	)
 }

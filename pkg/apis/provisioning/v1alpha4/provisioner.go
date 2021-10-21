@@ -114,8 +114,8 @@ func (c *Constraints) OperatingSystems() []string {
 	return c.Requirements.GetLabelValues(v1.LabelOSStable)
 }
 
-// CombineRequirements of the constraints and collapses them.
-func (c *Constraints) CombineRequirements() Requirements {
+// Compress and copy the constraints
+func (c *Constraints) Compress() *Constraints {
 	// Combine labels and requirements
 	combined := Requirements{}
 	combined = append(combined, c.Requirements...)
@@ -131,7 +131,12 @@ func (c *Constraints) CombineRequirements() Requirements {
 			Values:   combined.GetLabelValues(label),
 		})
 	}
-	return requirements
+	return &Constraints{
+		Labels: c.Labels,
+		Taints: c.Taints,
+		Requirements: requirements,
+		Provider: c.Provider,
+	}
 }
 
 // With adds additional requirements from the pods

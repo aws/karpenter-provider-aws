@@ -103,8 +103,7 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints
 	// Consolidate requirements in memory before executing scheduling logic.
 	// This is a performance optimization to avoid executing requirement
 	// evaluation logic redundantly for every pod.
-	constraints = constraints.DeepCopy()
-	constraints.Requirements = constraints.CombineRequirements()
+	constraints = constraints.Compress()
 	// Relax preferences if pods have previously failed to schedule.
 	s.Preferences.Relax(ctx, pods)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
