@@ -92,7 +92,7 @@ var _ = Describe("Combining Constraints", func() {
 		})
 		It("should generate custom labels", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
-			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2", "not this one"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{"another-key": "another-value"},
@@ -146,7 +146,7 @@ var _ = Describe("Combining Constraints", func() {
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
 				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
-					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
+					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"another-value", "test-value"}},
 				}},
 			))
 			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
