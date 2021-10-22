@@ -1,0 +1,68 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: defaulting.webhook.provisioners.karpenter.sh
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: karpenter-webhook
+      namespace: '{{ .Release.Namespace }}'
+  failurePolicy: Fail
+  sideEffects: None
+  name: defaulting.webhook.provisioners.karpenter.sh
+  rules:
+  - apiGroups:
+    - karpenter.sh
+    apiVersions:
+    - v1alpha5
+    resources:
+    - provisioners
+      provisioners/status
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.provisioners.karpenter.sh
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: karpenter-webhook
+      namespace: '{{ .Release.Namespace }}'
+  failurePolicy: Fail
+  sideEffects: None
+  name: validation.webhook.provisioners.karpenter.sh
+  rules:
+  - apiGroups:
+    - karpenter.sh
+    apiVersions:
+    - v1alpha5
+    resources:
+    - provisioners
+      provisioners/status
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.config.karpenter.sh
+webhooks:
+- admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: karpenter-webhook
+      namespace: '{{ .Release.Namespace }}'
+  failurePolicy: Fail
+  sideEffects: None
+  name: validation.webhook.config.karpenter.sh
+  objectSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: karpenter

@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter-webhook
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - port: 443
+      targetPort: webhook
+  selector:
+    karpenter: webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter-webhook
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      karpenter: webhook
+  template:
+    metadata:
+      labels:
+        karpenter: webhook
+    spec:
+      priorityClassName: system-cluster-critical
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: webhook
+          image: {{ .Values.webhook.image }}
+          resources:
+            limits:
+              cpu: 100m
+              memory: 50Mi
+            requests:
+              cpu: 100m
+              memory: 50Mi
+          ports:
+            - name: webhook
+              containerPort: 8443
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              port: 8443
+          env:
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- with .Values.webhook.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
+      securityContext:
+        fsGroup: 1000
+      {{- with .Values.webhook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        {{- if .Values.webhook.affinity }}
+          {{- toYaml .Values.webhook.affinity | nindent 8 }}
+        {{- else }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: karpenter.sh/provisioner-name
+                operator: DoesNotExist
+        {{- end }}
+      {{- with .Values.webhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karpenter-webhook-cert
+  namespace: {{ .Release.Namespace }}
+data: {} # Injected by karpenter-webhook

@@ -1,0 +1,191 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: provisioners.karpenter.sh
+spec:
+  group: karpenter.sh
+  names:
+    kind: Provisioner
+    listKind: ProvisionerList
+    plural: provisioners
+    singular: provisioner
+  scope: Cluster
+  versions:
+  - name: v1alpha5
+    schema:
+      openAPIV3Schema:
+        description: Provisioner is the Schema for the Provisioners API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ProvisionerSpec is the top level provisioner specification.
+              Provisioners launch nodes in response to pods where status.conditions[type=unschedulable,
+              status=true]. Node configuration is driven by through a combination
+              of provisioner specification (defaults) and pod scheduling constraints
+              (overrides). A single provisioner is capable of managing highly diverse
+              capacity within a single cluster and in most cases, only one should
+              be necessary. It's possible to define multiple provisioners. These provisioners
+              may have different defaults and can be specifically targeted by pods
+              using pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
+            properties:
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels are layered with Requirements and applied to every
+                  node.
+                type: object
+              provider:
+                description: Provider contains fields specific to your cloudprovider.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              requirements:
+                description: Requirements are layered with Labels and applied to every
+                  node.
+                items:
+                  description: A node selector requirement is a selector that contains
+                    values, a key, and an operator that relates the key and values.
+                  properties:
+                    key:
+                      description: The label key that the selector applies to.
+                      type: string
+                    operator:
+                      description: Represents a key's relationship to a set of values.
+                        Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and
+                        Lt.
+                      type: string
+                    values:
+                      description: An array of string values. If the operator is In
+                        or NotIn, the values array must be non-empty. If the operator
+                        is Exists or DoesNotExist, the values array must be empty.
+                        If the operator is Gt or Lt, the values array must have a
+                        single element, which will be interpreted as an integer. This
+                        array is replaced during a strategic merge patch.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - key
+                  - operator
+                  type: object
+                type: array
+              taints:
+                description: Taints will be applied to every node launched by the
+                  Provisioner. If specified, the provisioner will not provision nodes
+                  for pods that do not have matching tolerations. Additional taints
+                  will be created that match pod tolerations on a per-node basis.
+                items:
+                  description: The node this Taint is attached to has the "effect"
+                    on any pod that does not tolerate the Taint.
+                  properties:
+                    effect:
+                      description: Required. The effect of the taint on pods that
+                        do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule
+                        and NoExecute.
+                      type: string
+                    key:
+                      description: Required. The taint key to be applied to a node.
+                      type: string
+                    timeAdded:
+                      description: TimeAdded represents the time at which the taint
+                        was added. It is only written for NoExecute taints.
+                      format: date-time
+                      type: string
+                    value:
+                      description: The taint value corresponding to the taint key.
+                      type: string
+                  required:
+                  - effect
+                  - key
+                  type: object
+                type: array
+              ttlSecondsAfterEmpty:
+                description: "TTLSecondsAfterEmpty is the number of seconds the controller
+                  will wait before attempting to delete a node, measured from when
+                  the node is detected to be empty. A Node is considered to be empty
+                  when it does not have pods scheduled to it, excluding daemonsets.
+                  \n Termination due to underutilization is disabled if this field
+                  is not set."
+                format: int64
+                type: integer
+              ttlSecondsUntilExpired:
+                description: "TTLSecondsUntilExpired is the number of seconds the
+                  controller will wait before terminating a node, measured from when
+                  the node is created. This is useful to implement features like eventually
+                  consistent node upgrade, memory leak protection, and disruption
+                  testing. \n Termination due to expiration is disabled if this field
+                  is not set."
+                format: int64
+                type: integer
+            type: object
+          status:
+            description: ProvisionerStatus defines the observed state of Provisioner
+            properties:
+              conditions:
+                description: Conditions is the set of conditions required for this
+                  provisioner to scale its target, and indicates whether or not those
+                  conditions are met.
+                items:
+                  description: 'Condition defines a readiness condition for a Knative
+                    resource. See: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties'
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned from one status to another. We use VolatileTime
+                        in place of metav1.Time to exclude this from creating equality.Semantic
+                        differences (all other things held constant).
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      type: string
+                    severity:
+                      description: Severity with which to treat failures of this type
+                        of condition. When this is not specified, it defaults to Error.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastScaleTime:
+                description: LastScaleTime is the last time the Provisioner scaled
+                  the number of nodes
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
