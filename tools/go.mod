@@ -3,7 +3,6 @@ module github.com/awslabs/karpenter/tools
 go 1.17
 
 require (
-	github.com/ahmetb/gen-crd-api-reference-docs v0.3.0
 	github.com/fzipp/gocyclo v0.3.1
 	github.com/golangci/golangci-lint v1.41.1
 	github.com/google/ko v0.9.3
@@ -159,7 +158,6 @@ require (
 	github.com/quasilyte/go-ruleguard v0.3.4 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect
 	github.com/rsc/goversion v1.2.0 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/ryancurrah/gomodguard v1.2.2 // indirect
 	github.com/ryanrolds/sqlclosecheck v0.3.0 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.0.6 // indirect
@@ -232,8 +230,6 @@ require (
 	k8s.io/api v0.22.2 // indirect
 	k8s.io/apiextensions-apiserver v0.22.2 // indirect
 	k8s.io/apimachinery v0.22.2 // indirect
-	k8s.io/gengo v0.0.0-20201214224949-b6c5ce23f027 // indirect
-	k8s.io/klog v0.2.0 // indirect
 	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a // indirect
 	mvdan.cc/gofumpt v0.1.1 // indirect
