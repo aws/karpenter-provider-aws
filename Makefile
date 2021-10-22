@@ -31,12 +31,17 @@ battletest: ## Run stronger tests
 		--randomizeAllSpecs --randomizeSuites -race
 	go tool cover -html coverage.out -o coverage.html
 
-verify: ## Verify code. Includes dependencies, linting, formatting, etc
+verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
 	go vet ./...
 	go fmt ./...
 	golangci-lint run
+	@git diff --quiet ||\
+		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
+		if [ $(MAKECMDGOALS) = 'ci' ]; then\
+			exit 1;\
+		fi;}
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	go build $(GOFLAGS) -o karpenter cmd/controller/main.go
@@ -59,11 +64,6 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/templates
 	hack/boilerplate.sh
-	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/provisioning/v1alpha5 \
-		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/example-config.json \
-		-out-file API.md \
-		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/template
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
