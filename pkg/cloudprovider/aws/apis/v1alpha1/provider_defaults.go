@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -25,24 +27,31 @@ var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
 func (c *Constraints) Default(ctx context.Context) {
+	c.defaultArchitecture()
 	c.defaultCapacityTypes()
 	c.defaultSubnets()
 	c.defaultSecurityGroups()
 }
 
 func (c *Constraints) defaultCapacityTypes() {
-	if _, ok := c.Labels[CapacityTypeLabel]; ok {
+	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(),CapacityTypeLabel) {
 		return
-	}
-	for _, requirement := range c.Requirements {
-		if requirement.Key == CapacityTypeLabel {
-			return
-		}
 	}
 	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
 		Key:      CapacityTypeLabel,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{CapacityTypeOnDemand},
+	})
+}
+
+func (c *Constraints) defaultArchitecture() {
+	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(), v1.LabelArchStable) {
+		return
+	}
+	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
+		Key:      v1.LabelArchStable,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{v1alpha5.ArchitectureAmd64},
 	})
 }
 

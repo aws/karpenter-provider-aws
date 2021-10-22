@@ -348,11 +348,10 @@ var _ = Describe("Allocation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.SecurityGroupSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": "*"}))
 		})
-		It("should default capacityType", func() {
+		FIt("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel)).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel)).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements.GetLabelValues(v1.LabelArchStable)).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {
