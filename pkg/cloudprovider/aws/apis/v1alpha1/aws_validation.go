@@ -32,6 +32,7 @@ func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
 		a.validateLaunchTemplate(),
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
+		a.validateTags(),
 		a.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
@@ -67,6 +68,17 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("securityGroupSelector['%s']", key)))
+		}
+	}
+	return errs
+}
+
+func (a *AWS) validateTags() (errs *apis.FieldError) {
+	// Only checking for empty tag keys. Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
+	// defined and Karpenter tags, and the latter could change over time.
+	for key := range a.Tags {
+		if key == "" {
+			errs = errs.Also(apis.ErrInvalidValue("Empty tag keys are not supported", "tags"))
 		}
 	}
 	return errs

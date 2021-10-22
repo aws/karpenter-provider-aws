@@ -48,6 +48,9 @@ type AWS struct {
 	// SecurityGroups specify the names of the security groups.
 	// +optional
 	SecurityGroupSelector map[string]string `json:"securityGroupSelector,omitempty"`
+	// Tags to be applied on ec2 resources like instances and launch templates.
+	// +optional
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // Cluster configures the cluster that the provisioner operates against.
