@@ -34,7 +34,7 @@ func (c *Constraints) Default(ctx context.Context) {
 }
 
 func (c *Constraints) defaultCapacityTypes() {
-	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(),CapacityTypeLabel) {
+	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(), CapacityTypeLabel) {
 		return
 	}
 	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
