@@ -60,7 +60,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		output:crd:artifacts:config=charts/karpenter/templates
 	hack/boilerplate.sh
 	gen-crd-api-reference-docs \
-		-api-dir ./pkg/apis/provisioning/v1alpha4 \
+		-api-dir ./pkg/apis/provisioning/v1alpha5 \
 		-config $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/example-config.json \
 		-out-file API.md \
 		-template-dir $(shell go env GOMODCACHE)/github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0/template

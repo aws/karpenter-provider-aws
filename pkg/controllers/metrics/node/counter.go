@@ -17,7 +17,7 @@ package node
 import (
 	"strings"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
@@ -50,9 +50,9 @@ type (
 )
 
 var (
-	nodeLabelProvisioner = v1alpha4.ProvisionerNameLabelKey
+	nodeLabelProvisioner = v1alpha5.ProvisionerNameLabelKey
 
-	knownValuesForNodeLabels = v1alpha4.WellKnownLabels
+	knownValuesForNodeLabels = v1alpha5.WellKnownLabels
 
 	nodeCountByProvisioner = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

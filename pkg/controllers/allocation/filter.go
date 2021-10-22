@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"go.uber.org/multierr"
@@ -31,7 +31,7 @@ type Filter struct {
 	KubeClient client.Client
 }
 
-func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4.Provisioner) ([]*v1.Pod, error) {
+func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*v1.Pod, error) {
 	// 1. List Pods that aren't scheduled
 	pods := &v1.PodList{}
 	if err := f.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": ""}); err != nil {
@@ -52,7 +52,7 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha4
 	return provisionable, nil
 }
 
-func (f *Filter) isProvisionable(pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
+func (f *Filter) isProvisionable(pod *v1.Pod, provisioner *v1alpha5.Provisioner) error {
 	return multierr.Combine(
 		f.isUnschedulable(pod),
 		f.matchesProvisioner(pod, provisioner),
@@ -72,12 +72,12 @@ func (f *Filter) isUnschedulable(p *v1.Pod) error {
 	return nil
 }
 
-func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha4.Provisioner) error {
-	name, ok := pod.Spec.NodeSelector[v1alpha4.ProvisionerNameLabelKey]
+func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha5.Provisioner) error {
+	name, ok := pod.Spec.NodeSelector[v1alpha5.ProvisionerNameLabelKey]
 	if ok && provisioner.Name == name {
 		return nil
 	}
-	if !ok && provisioner.Name == v1alpha4.DefaultProvisioner.Name {
+	if !ok && provisioner.Name == v1alpha5.DefaultProvisioner.Name {
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s", name)

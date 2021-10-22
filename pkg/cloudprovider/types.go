@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
@@ -31,16 +31,16 @@ type CloudProvider interface {
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request. This API
 	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha4.Constraints, []InstanceType, int, func(*v1.Node) error) chan error
+	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) chan error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns the instance types supported by the cloud
 	// provider limited by the provided constraints and daemons.
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
-	Default(context.Context, *v1alpha4.Constraints)
+	Default(context.Context, *v1alpha5.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.
-	Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError
+	Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError
 }
 
 // Options are injected into cloud providers' factories

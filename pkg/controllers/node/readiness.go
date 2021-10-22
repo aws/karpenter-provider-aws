@@ -17,7 +17,7 @@ package node
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -27,13 +27,13 @@ import (
 type Readiness struct{}
 
 // Reconcile reconciles the node
-func (r *Readiness) Reconcile(_ context.Context, _ *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Readiness) Reconcile(_ context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !node.IsReady(n) {
 		return reconcile.Result{}, nil
 	}
 	taints := []v1.Taint{}
 	for _, taint := range n.Spec.Taints {
-		if taint.Key != v1alpha4.NotReadyTaintKey {
+		if taint.Key != v1alpha5.NotReadyTaintKey {
 			taints = append(taints, taint)
 		}
 	}

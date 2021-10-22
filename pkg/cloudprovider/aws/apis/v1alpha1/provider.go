@@ -17,13 +17,13 @@ package v1alpha1
 import (
 	"encoding/json"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Constraints wraps generic constraints with AWS specific parameters
 type Constraints struct {
-	*v1alpha4.Constraints
+	*v1alpha5.Constraints
 	*AWS
 }
 
@@ -60,7 +60,7 @@ type Cluster struct {
 	Endpoint string `json:"endpoint"`
 }
 
-func Deserialize(constraints *v1alpha4.Constraints) (*Constraints, error) {
+func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {
 	aws := &AWS{}
 	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
 	if err != nil {
@@ -72,7 +72,7 @@ func Deserialize(constraints *v1alpha4.Constraints) (*Constraints, error) {
 	return &Constraints{constraints, aws}, nil
 }
 
-func (a *AWS) Serialize(constraints *v1alpha4.Constraints) error {
+func (a *AWS) Serialize(constraints *v1alpha5.Constraints) error {
 	bytes, err := json.Marshal(a)
 	if err != nil {
 		return err

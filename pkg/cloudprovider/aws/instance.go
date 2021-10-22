@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
@@ -242,7 +242,7 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    aws.StringValue(instance.Architecture),
 						OSImage:         aws.StringValue(instance.ImageId),
-						OperatingSystem: v1alpha4.OperatingSystemLinux,
+						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 				},
 			}, nil

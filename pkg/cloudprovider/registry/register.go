@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
@@ -43,7 +43,7 @@ func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvide
 		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
 	}
 	for _, instanceType := range instanceTypes {
-		v1alpha4.WellKnownLabels[v1.LabelInstanceTypeStable] = append(v1alpha4.WellKnownLabels[v1.LabelInstanceTypeStable], instanceType.Name())
+		v1alpha5.WellKnownLabels[v1.LabelInstanceTypeStable] = append(v1alpha5.WellKnownLabels[v1.LabelInstanceTypeStable], instanceType.Name())
 		architectures[instanceType.Architecture()] = true
 		for _, zone := range instanceType.Zones() {
 			zones[zone] = true
@@ -53,15 +53,15 @@ func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvide
 		}
 	}
 	for zone := range zones {
-		v1alpha4.WellKnownLabels[v1.LabelTopologyZone] = append(v1alpha4.WellKnownLabels[v1.LabelTopologyZone], zone)
+		v1alpha5.WellKnownLabels[v1.LabelTopologyZone] = append(v1alpha5.WellKnownLabels[v1.LabelTopologyZone], zone)
 	}
 	for architecture := range architectures {
-		v1alpha4.WellKnownLabels[v1.LabelArchStable] = append(v1alpha4.WellKnownLabels[v1.LabelArchStable], architecture)
+		v1alpha5.WellKnownLabels[v1.LabelArchStable] = append(v1alpha5.WellKnownLabels[v1.LabelArchStable], architecture)
 	}
 	for operatingSystem := range operatingSystems {
-		v1alpha4.WellKnownLabels[v1.LabelOSStable] = append(v1alpha4.WellKnownLabels[v1.LabelOSStable], operatingSystem)
+		v1alpha5.WellKnownLabels[v1.LabelOSStable] = append(v1alpha5.WellKnownLabels[v1.LabelOSStable], operatingSystem)
 	}
 
-	v1alpha4.ValidateHook = cloudProvider.Validate
-	v1alpha4.DefaultHook = cloudProvider.Default
+	v1alpha5.ValidateHook = cloudProvider.Validate
+	v1alpha5.DefaultHook = cloudProvider.Default
 }

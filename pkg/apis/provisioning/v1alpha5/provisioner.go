@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha4
+package v1alpha5
 
 import (
 	"sort"
@@ -131,10 +131,10 @@ func (c *Constraints) Consolidate() *Constraints {
 		})
 	}
 	return &Constraints{
-		Labels: c.Labels,
-		Taints: c.Taints,
+		Labels:       c.Labels,
+		Taints:       c.Taints,
 		Requirements: requirements,
-		Provider: c.Provider,
+		Provider:     c.Provider,
 	}
 }
 

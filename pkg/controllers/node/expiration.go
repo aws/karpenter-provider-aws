@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	v1 "k8s.io/api/core/v1"
@@ -34,7 +34,7 @@ type Expiration struct {
 }
 
 // Reconcile reconciles the node
-func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, node *v1.Node) (reconcile.Result, error) {
+func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, node *v1.Node) (reconcile.Result, error) {
 	// 1. Ignore node if not applicable
 	if provisioner.Spec.TTLSecondsUntilExpired == nil {
 		return reconcile.Result{}, nil

@@ -15,7 +15,7 @@ webhooks:
   - apiGroups:
     - karpenter.sh
     apiVersions:
-    - v1alpha4
+    - v1alpha5
     resources:
     - provisioners
       provisioners/status
@@ -41,7 +41,7 @@ webhooks:
   - apiGroups:
     - karpenter.sh
     apiVersions:
-    - v1alpha4
+    - v1alpha5
     resources:
     - provisioners
       provisioners/status

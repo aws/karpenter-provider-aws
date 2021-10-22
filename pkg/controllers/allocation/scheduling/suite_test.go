@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
@@ -39,7 +39,7 @@ import (
 )
 
 var ctx context.Context
-var provisioner *v1alpha4.Provisioner
+var provisioner *v1alpha5.Provisioner
 var controller *allocation.Controller
 var env *test.Environment
 
@@ -71,9 +71,9 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	provisioner = &v1alpha4.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha4.DefaultProvisioner.Name},
-		Spec:       v1alpha4.ProvisionerSpec{},
+	provisioner = &v1alpha5.Provisioner{
+		ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name},
+		Spec:       v1alpha5.ProvisionerSpec{},
 	}
 })
 
@@ -92,7 +92,7 @@ var _ = Describe("Combining Constraints", func() {
 		})
 		It("should generate custom labels", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2", "not this one"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2", "not this one"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
 				NodeSelector: map[string]string{"another-key": "another-value"},
@@ -190,14 +190,14 @@ var _ = Describe("Combining Constraints", func() {
 	})
 	Context("Well Known Labels", func() {
 		It("should use provisioner constraints", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
 		It("should use node selectors", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}))
@@ -205,14 +205,14 @@ var _ = Describe("Combining Constraints", func() {
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
 		It("should not schedule the pod if nodeselector unknown", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}))
 			Expect(pods[0].Spec.NodeName).To(BeEmpty())
 		})
 		It("should not schedule if node selector outside of provisioner constraints", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}))
@@ -373,7 +373,7 @@ var _ = Describe("Combining Constraints", func() {
 var _ = Describe("Preferential Fallback", func() {
 	Context("Required", func() {
 		It("should not relax the final term", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{
+			provisioner.Spec.Requirements = v1alpha5.Requirements{
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"default-instance-type"}},
 			}
@@ -458,7 +458,7 @@ var _ = Describe("Preferential Fallback", func() {
 			ExpectNodeExists(env.Client, pod.Spec.NodeName)
 		})
 		It("should relax to use lighter weights", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
@@ -526,7 +526,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1, 2))
 		})
 		It("should respect provisioner zonal constraints", func() {
-			provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
 			ExpectCreated(env.Client, provisioner)
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,

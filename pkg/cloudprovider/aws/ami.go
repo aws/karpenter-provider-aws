@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
@@ -87,7 +87,7 @@ func (p *AMIProvider) getSSMQuery(instanceType cloudprovider.InstanceType, versi
 	var amiSuffix string
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-gpu"
-	} else if instanceType.Architecture() == v1alpha4.ArchitectureArm64 {
+	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
 		amiSuffix = "-arm64"
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
