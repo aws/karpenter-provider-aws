@@ -34,8 +34,10 @@ View the full list of instance types with `aws ec2 describe-instance-types`.
 
 ```yaml
 spec:
-  instanceTypes:
-    - m5.large
+  requirements:
+    - key: node.kubernetes.io/instance-type
+      operator: In
+      values: ["m5.large", "m5.2xlarge"]
 ```
 
 *Override with workload manifest (e.g., pod)*
@@ -80,8 +82,10 @@ be used for critical workloads.
 
 ```yaml
 spec:
-  labels:
-    node.k8s.aws/capacity-type: spot
+  requirements:
+    - key: node.k8s.aws/capacity-type
+      operator: In
+      values: ["spot", "on-demand"]
 ```
 
 *Override with workload manifest (e.g., pod)*
@@ -109,8 +113,10 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 ```yaml
 spec:
-  labels:
-    kubernetes.io/arch: arm64
+  requirements:
+    - key: kubernetes.io/arch
+      operator: In
+      values: ["arm64", "amd64"]
 ```
 
 *Override with workload manifest (e.g., pod)*
