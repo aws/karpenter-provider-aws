@@ -31,12 +31,17 @@ battletest: ## Run stronger tests
 		--randomizeAllSpecs --randomizeSuites -race
 	go tool cover -html coverage.out -o coverage.html
 
-verify: ## Verify code. Includes dependencies, linting, formatting, etc
+verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
 	go vet ./...
 	go fmt ./...
 	golangci-lint run
+	@git diff --quiet ||\
+		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
+		if [ $(MAKECMDGOALS) = 'ci' ]; then\
+			exit 1;\
+		fi;}
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	go build $(GOFLAGS) -o karpenter cmd/controller/main.go
