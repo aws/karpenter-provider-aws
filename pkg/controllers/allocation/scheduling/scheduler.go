@@ -21,7 +21,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	"github.com/awslabs/karpenter/pkg/metrics"
-	"github.com/awslabs/karpenter/pkg/scheduling"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -101,18 +100,17 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner
 }
 
 func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
-	// Apply runtime constraints
-	constraints = constraints.DeepCopy()
-	if err := constraints.Constrain(ctx); err != nil {
-		return nil, fmt.Errorf("applying constraints, %w", err)
-	}
+	// Consolidate requirements in memory before executing scheduling logic.
+	// This is a performance optimization to avoid executing requirement
+	// evaluation logic redundantly for every pod.
+	constraints = constraints.Consolidate()
 	// Relax preferences if pods have previously failed to schedule.
 	s.Preferences.Relax(ctx, pods)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
+	if err := s.Topology.Inject(ctx, constraints.Requirements, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
@@ -130,11 +128,11 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, v1alpha4constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		constraints, err := NewConstraints(ctx, v1alpha4constraints, pod)
+		constraints, err := NewConstraints(ctx, constraints, pod)
 		if err != nil {
 			logging.FromContext(ctx).Debugf("Ignored pod %s/%s due to invalid constraints, %s", pod.Name, pod.Namespace, err.Error())
 			continue
@@ -188,7 +186,7 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha4.Constr
 // DaemonWillSchedule returns true if the pod can schedule to the node
 func DaemonWillSchedule(constraints *v1alpha4.Constraints, pod *v1.Pod) bool {
 	// Tolerate Taints
-	if err := scheduling.Taints(constraints.Taints).Tolerates(pod); err != nil {
+	if err := Taints(constraints.Taints).Tolerates(pod); err != nil {
 		return false
 	}
 	// Match Node Selector labels

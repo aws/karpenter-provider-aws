@@ -110,10 +110,10 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
 	// or using nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
-	if len(constraints.CapacityTypes) == 0 {
+	if capacityTypes := constraints.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
-	} else if len(constraints.CapacityTypes) == 1 {
-		capacityType = constraints.CapacityTypes[0]
+	} else if len(capacityTypes) == 1 {
+		capacityType = capacityTypes[0]
 	}
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)

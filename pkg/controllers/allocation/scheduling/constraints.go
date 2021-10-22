@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -31,26 +30,24 @@ func NewConstraints(ctx context.Context, constraints *v1alpha4.Constraints, pod 
 	if err := multierr.Combine(
 		validateAffinity(pod),
 		validateTopology(pod),
-		scheduling.Taints(constraints.Taints).Tolerates(pod),
+		Taints(constraints.Taints).Tolerates(pod),
 	); err != nil {
 		return nil, err
 	}
-
-	// Copy constraints and apply pod scheduling constraints
-	constraints = constraints.DeepCopy()
-	if err := constraints.Constrain(ctx, pod); err != nil {
+	requirements := constraints.Requirements.With(pod)
+	if err := requirements.Validate(); err != nil {
 		return nil, err
 	}
-	if err := generateLabels(constraints, pod); err != nil {
-		return nil, err
-	}
-	generateTaints(constraints, pod)
-	return constraints, nil
+	return &v1alpha4.Constraints{
+		Requirements: requirements,
+		Labels:       generateLabels(requirements),
+		Taints:       generateTaints(constraints.Taints, pod.Spec.Tolerations),
+		Provider:     constraints.Provider,
+	}, nil
 }
 
-func generateTaints(constraints *v1alpha4.Constraints, pod *v1.Pod) {
-	taints := scheduling.Taints(constraints.Taints)
-	for _, toleration := range pod.Spec.Tolerations {
+func generateTaints(taints []v1.Taint, tolerations []v1.Toleration) []v1.Taint {
+	for _, toleration := range tolerations {
 		// Only OpEqual is supported. OpExists does not make sense for
 		// provisioning -- in theory we could create a taint on the node with a
 		// random string, but it's unclear use case this would accomplish.
@@ -69,37 +66,23 @@ func generateTaints(constraints *v1alpha4.Constraints, pod *v1.Pod) {
 		}
 		// Only add taints that do not already exist on constraints
 		for _, taint := range generated {
-			if !taints.Has(taint) {
+			if !Taints(taints).Has(taint) {
 				taints = append(taints, taint)
 			}
 		}
 	}
-	constraints.Taints = taints
+	return taints
 }
 
-func generateLabels(constraints *v1alpha4.Constraints, pod *v1.Pod) error {
+func generateLabels(requirements v1alpha4.Requirements) map[string]string {
 	labels := map[string]string{}
-	// Default to constraint labels
-	for key, value := range constraints.Labels {
-		labels[key] = value
-	}
-	// Override with pod labels
-	nodeAffinity := scheduling.NodeAffinityFor(pod)
-	for _, key := range nodeAffinity.GetLabels() {
-		if _, ok := v1alpha4.WellKnownLabels[key]; !ok {
-			var labelConstraints []string
-			if value, ok := constraints.Labels[key]; ok {
-				labelConstraints = append(labelConstraints, value)
-			}
-			values := nodeAffinity.GetLabelValues(key, labelConstraints)
-			if len(values) == 0 {
-				return fmt.Errorf("label %s is too constrained", key)
-			}
-			labels[key] = values[0]
+	for _, label := range requirements.GetLabels() {
+		// Only include labels that aren't well known. Well known labels will be populated by the kubelet
+		if _, ok := v1alpha4.WellKnownLabels[label]; !ok {
+			labels[label] = requirements.GetLabelValues(label)[0]
 		}
 	}
-	constraints.Labels = labels
-	return nil
+	return labels
 }
 
 func validateTopology(pod *v1.Pod) (errs error) {

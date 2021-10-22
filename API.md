@@ -16,8 +16,7 @@ Resource Types:
 <a href="#karpenter.sh/v1alpha4.ProvisionerSpec">ProvisionerSpec</a>)
 </p>
 <p>
-<p>Constraints are applied to all nodes created by the provisioner. They can be
-overriden by NodeSelectors at the pod level.</p>
+<p>Constraints are applied to all nodes created by the provisioner.</p>
 </p>
 <table>
 <thead>
@@ -27,6 +26,18 @@ overriden by NodeSelectors at the pod level.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Labels are layered with Requirements and applied to every node.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>taints</code><br/>
@@ -46,64 +57,15 @@ pod tolerations on a per-node basis.</p>
 </tr>
 <tr>
 <td>
-<code>labels</code><br/>
+<code>requirements</code><br/>
 <em>
-map[string]string
+<a href="#karpenter.sh/v1alpha4.Requirements">
+Requirements
+</a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>Labels will be applied to every node launched by the Provisioner.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>zones</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Zones constrains where nodes will be launched by the Provisioner. If
-unspecified, defaults to all zones in the region.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>instanceTypes</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>InstanceTypes constrains which instances types will be used for nodes
-launched by the Provisioner. If unspecified, defaults to all types.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>architectures</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Architectures constrains the underlying node architecture</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>operatingSystems</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>OperatingSystems constrains the underlying node operating system</p>
+<p>Requirements are layered with Labels and applied to every node.</p>
 </td>
 </tr>
 <tr>
@@ -344,8 +306,17 @@ its target, and indicates whether or not those conditions are met.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="karpenter.sh/v1alpha4.Requirements">Requirements
+(<code>[]k8s.io/api/core/v1.NodeSelectorRequirement</code> alias)</p></h3>
+<p>
+(<em>Appears on:</em>
+<a href="#karpenter.sh/v1alpha4.Constraints">Constraints</a>)
+</p>
+<p>
+<p>Requirements is a decorated alias type for []v1.NodeSelectorRequirements</p>
+</p>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>8dd6b65</code>.
+on git commit <code>1f7aaa6</code>.
 </em></p>

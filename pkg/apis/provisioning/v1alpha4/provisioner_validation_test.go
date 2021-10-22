@@ -58,7 +58,6 @@ var _ = Describe("Validation", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
-
 	Context("Labels", func() {
 		It("should allow unrecognized labels", func() {
 			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
@@ -75,6 +74,24 @@ var _ = Describe("Validation", func() {
 		It("should fail for restricted labels", func() {
 			for _, label := range RestrictedLabels {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should succeed for well known label values", func() {
+			WellKnownLabels[v1.LabelTopologyZone] = []string{"test-1", "test1"}
+			WellKnownLabels[v1.LabelInstanceTypeStable] = []string{"test-1", "test1"}
+			WellKnownLabels[v1.LabelArchStable] = []string{"test-1", "test1"}
+			WellKnownLabels[v1.LabelOSStable] = []string{"test-1", "test1"}
+			for key, values := range WellKnownLabels {
+				for _, value := range values {
+					provisioner.Spec.Labels = map[string]string{key: value}
+					Expect(provisioner.Validate(ctx)).To(Succeed())
+				}
+			}
+		})
+		It("should fail for invalid well known label values", func() {
+			for key := range WellKnownLabels {
+				provisioner.Spec.Labels = map[string]string{key: "unknown"}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
@@ -106,69 +123,52 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
-	Context("Zones", func() {
-		WellKnownLabels[v1.LabelTopologyZone] = append(WellKnownLabels[v1.LabelTopologyZone], "test-zone-1")
-		It("should fail if empty", func() {
-			provisioner.Spec.Zones = []string{}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should fail if not supported", func() {
-			provisioner.Spec.Zones = []string{"unknown"}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should succeed if supported", func() {
-			provisioner.Spec.Zones = []string{"test-zone-1"}
-			Expect(provisioner.Validate(ctx)).To(Succeed())
-		})
-	})
-
-	Context("InstanceTypes", func() {
-		WellKnownLabels[v1.LabelInstanceTypeStable] = append(WellKnownLabels[v1.LabelInstanceTypeStable], "test-instance-type")
-		It("should fail if empty", func() {
-			provisioner.Spec.InstanceTypes = []string{}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should fail if not supported", func() {
-			provisioner.Spec.InstanceTypes = []string{"unknown"}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should succeed if supported", func() {
-			provisioner.Spec.InstanceTypes = []string{
-				"test-instance-type",
+	Context("Requirements", func() {
+		It("should allow supported ops", func() {
+			provisioner.Spec.Requirements = Requirements{
+				{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: "test", Operator: v1.NodeSelectorOpNotIn, Values: []string{"bar"}},
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-	})
-
-	Context("Architecture", func() {
-		WellKnownLabels[v1.LabelArchStable] = append(WellKnownLabels[v1.LabelArchStable], "test-architecture")
-		It("should fail if empty", func() {
-			provisioner.Spec.Architectures = []string{}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		It("should fail for unsupported ops", func() {
+			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt} {
+				provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: op, Values: []string{"test"}}}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
 		})
-		It("should fail if not supported", func() {
-			provisioner.Spec.Architectures = []string{"unknown"}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should succeed if supported", func() {
-			provisioner.Spec.Architectures = []string{"test-architecture"}
+		It("should validate well known labels", func() {
+			WellKnownLabels[v1.LabelTopologyZone] = []string{"test"}
+			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
-		})
-	})
-
-	Context("OperatingSystem", func() {
-		WellKnownLabels[v1.LabelOSStable] = append(WellKnownLabels[v1.LabelOSStable], "test-operating-system")
-		It("should fail if empty", func() {
-			provisioner.Spec.OperatingSystems = []string{}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should fail if not supported", func() {
-			provisioner.Spec.OperatingSystems = []string{"unknown"}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
-		It("should succeed if supported", func() {
-			provisioner.Spec.OperatingSystems = []string{"test-operating-system"}
+			provisioner.Spec.Labels = map[string]string{}
+			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
+			provisioner.Spec.Labels = map[string]string{v1.LabelTopologyZone: "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+			provisioner.Spec.Labels = map[string]string{v1.LabelTopologyZone: "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			provisioner.Spec.Labels = map[string]string{v1.LabelTopologyZone: "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"unknown"}}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should validate custom labels", func() {
+			provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+			provisioner.Spec.Labels = map[string]string{}
+			provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+			provisioner.Spec.Labels = map[string]string{"test": "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+			provisioner.Spec.Labels = map[string]string{"test": "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test"}}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			provisioner.Spec.Labels = map[string]string{"test": "test"}
+			provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"unknown"}}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
 })

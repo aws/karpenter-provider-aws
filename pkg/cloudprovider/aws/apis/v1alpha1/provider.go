@@ -15,26 +15,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
+	"encoding/json"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func NewConstraints(constraints *v1alpha4.Constraints) (*Constraints, error) {
-	aws := &AWS{}
-	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
-	if err != nil {
-		return nil, fmt.Errorf("decoding provider, %w", err)
-	}
-	if gvk != nil {
-		aws.SetGroupVersionKind(*gvk)
-	}
-	return &Constraints{Constraints: constraints, AWS: aws}, nil
-}
-
-// Constraints are used to specify node creation parameters. Both types are
-// embedded to enforce compile time checks against field conflicts.
+// Constraints wraps generic constraints with AWS specific parameters
 type Constraints struct {
 	*v1alpha4.Constraints
 	*AWS
@@ -52,10 +39,6 @@ type AWS struct {
 	// InstanceProfile is the AWS identity that instances use.
 	// +required
 	InstanceProfile string `json:"instanceProfile"`
-	// CapacityType for the node. If not specified, defaults to on-demand.
-	// May be overriden by pods.spec.nodeSelector["node.k8s.aws/capacityType"]
-	// +optional
-	CapacityTypes []string `json:"capacityTypes,omitempty"`
 	// LaunchTemplate for the node. If not specified, a launch template will be generated.
 	// +optional
 	LaunchTemplate *string `json:"launchTemplate,omitempty"`
@@ -75,4 +58,25 @@ type Cluster struct {
 	// Endpoint is required for nodes to connect to the API Server.
 	// +required
 	Endpoint string `json:"endpoint"`
+}
+
+func Deserialize(constraints *v1alpha4.Constraints) (*Constraints, error) {
+	aws := &AWS{}
+	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
+	if err != nil {
+		return nil, err
+	}
+	if gvk != nil {
+		aws.SetGroupVersionKind(*gvk)
+	}
+	return &Constraints{constraints, aws}, nil
+}
+
+func (a *AWS) Serialize(constraints *v1alpha4.Constraints) error {
+	bytes, err := json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	constraints.Provider.Raw = bytes
+	return nil
 }

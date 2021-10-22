@@ -41,9 +41,6 @@ type CloudProvider interface {
 	Default(context.Context, *v1alpha4.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.
 	Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError
-	// Constrain is a hook for additional constraint logic at runtime.
-	// Returns an error if the constraints cannot be applied.
-	Constrain(context.Context, *v1alpha4.Constraints, ...*v1.Pod) error
 }
 
 // Options are injected into cloud providers' factories

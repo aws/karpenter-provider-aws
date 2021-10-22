@@ -64,5 +64,4 @@ func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvide
 
 	v1alpha4.ValidateHook = cloudProvider.Validate
 	v1alpha4.DefaultHook = cloudProvider.Default
-	v1alpha4.ConstrainHook = cloudProvider.Constrain
 }

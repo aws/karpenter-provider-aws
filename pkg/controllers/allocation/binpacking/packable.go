@@ -152,29 +152,29 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if !functional.ContainsString(schedule.InstanceTypes, p.Name()) {
-		return fmt.Errorf("instance type %s is not in %v", p.Name(), schedule.InstanceTypes)
+	if instanceTypes := schedule.InstanceTypes(); !functional.ContainsString(instanceTypes, p.Name()) {
+		return fmt.Errorf("instance type %s is not in %v", p.Name(), instanceTypes)
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if !functional.ContainsString(schedule.Architectures, p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), schedule.Architectures)
+	if architectures := schedule.Architectures(); !functional.ContainsString(architectures, p.Architecture()) {
+		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), architectures)
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if len(functional.IntersectStringSlice(p.OperatingSystems(), schedule.OperatingSystems)) == 0 {
-		return fmt.Errorf("operating system %s is not in %v", schedule.OperatingSystems, p.OperatingSystems())
+	if operatingSystems := schedule.OperatingSystems(); len(functional.IntersectStringSlice(p.OperatingSystems(), operatingSystems)) == 0 {
+		return fmt.Errorf("operating system %s is not in %v", operatingSystems, p.OperatingSystems())
 	}
 	return nil
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if len(functional.IntersectStringSlice(schedule.Zones, p.Zones())) == 0 {
-		return fmt.Errorf("zones %v are not in %v", schedule.Zones, p.Zones())
+	if zones := schedule.Zones(); len(functional.IntersectStringSlice(zones, p.Zones())) == 0 {
+		return fmt.Errorf("zones %v are not in %v", zones, p.Zones())
 	}
 	return nil
 }

@@ -14,7 +14,6 @@ package aws
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -118,7 +117,7 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha4.Constr
 }
 
 func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
-	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
+	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return err
 	}
@@ -146,42 +145,24 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
 }
 
-// Validate the constraints
+// Validate the provisioner
 func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha4.Constraints) *apis.FieldError {
-	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
+	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return vendorConstraints.Validate(ctx)
+	return vendorConstraints.AWS.Validate(ctx)
 }
 
-// Default the constraints
+// Default the provisioner
 func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha4.Constraints) {
-	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
+	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
-		logging.FromContext(context.Background()).Errorf("failed to deserialize provider, %s", err.Error())
+		logging.FromContext(ctx).Fatalf("Failed to deserialize provider, %s", err.Error())
 		return
 	}
 	vendorConstraints.Default(ctx)
-	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)
-	if err != nil {
-		logging.FromContext(context.Background()).Errorf("failed to serialize provider, %s", err.Error())
+	if err := vendorConstraints.Serialize(constraints); err != nil {
+		logging.FromContext(ctx).Fatalf("Failed to serialize provider, %s", err.Error())
 	}
-}
-
-// Constrain applies the pod's scheduling constraints to the constraints.
-// Returns an error if the constraints cannot be applied.
-func (c *CloudProvider) Constrain(ctx context.Context, constraints *v1alpha4.Constraints, pods ...*v1.Pod) error {
-	vendorConstraints, err := v1alpha1.NewConstraints(constraints)
-	if err != nil {
-		return fmt.Errorf("failed to deserialize provider, %w", err)
-	}
-	if err := vendorConstraints.Constrain(pods...); err != nil {
-		return err
-	}
-	constraints.Provider.Raw, err = json.Marshal(vendorConstraints.AWS)
-	if err != nil {
-		return fmt.Errorf("failed to serialize provider, %w", err)
-	}
-	return nil
 }

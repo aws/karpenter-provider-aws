@@ -22,7 +22,6 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
-	"github.com/awslabs/karpenter/pkg/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/mitchellh/hashstructure/v2"
@@ -36,12 +35,12 @@ type Topology struct {
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
-func (t *Topology) Inject(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) error {
+func (t *Topology) Inject(ctx context.Context, requirements v1alpha4.Requirements, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
 	topologyGroups := t.getTopologyGroups(pods)
 	// 2. Compute spread
 	for _, topologyGroup := range topologyGroups {
-		if err := t.computeCurrentTopology(ctx, constraints, topologyGroup); err != nil {
+		if err := t.computeCurrentTopology(ctx, requirements, topologyGroup); err != nil {
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
@@ -75,12 +74,12 @@ func (t *Topology) getTopologyGroups(pods []*v1.Pod) []*TopologyGroup {
 	return topologyGroups
 }
 
-func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeCurrentTopology(ctx context.Context, requirements v1alpha4.Requirements, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(topologyGroup)
 	case v1.LabelTopologyZone:
-		return t.computeZonalTopology(ctx, constraints, topologyGroup)
+		return t.computeZonalTopology(ctx, requirements, topologyGroup)
 	default:
 		return nil
 	}
@@ -106,8 +105,8 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha4.Constraints, topologyGroup *TopologyGroup) error {
-	topologyGroup.Register(scheduling.NodeAffinityFor(topologyGroup.Pods[0]).GetLabelValues(v1.LabelTopologyZone, constraints.Zones)...)
+func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha4.Requirements, topologyGroup *TopologyGroup) error {
+	topologyGroup.Register(requirements.GetLabelValues(v1.LabelTopologyZone)...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}

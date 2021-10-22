@@ -40,8 +40,8 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha4.Constrai
 		instance := instanceTypes[0]
 		// Pick first zone
 		zones := instance.Zones()
-		if len(constraints.Zones) != 0 {
-			zones = functional.IntersectStringSlice(constraints.Zones, instance.Zones())
+		if len(constraints.Zones()) != 0 {
+			zones = functional.IntersectStringSlice(constraints.Zones(), instance.Zones())
 		}
 		zone := zones[0]
 
@@ -110,9 +110,5 @@ func (c *CloudProvider) Default(context.Context, *v1alpha4.Constraints) {
 }
 
 func (c *CloudProvider) Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError {
-	return nil
-}
-
-func (c *CloudProvider) Constrain(context.Context, *v1alpha4.Constraints, ...*v1.Pod) error {
 	return nil
 }

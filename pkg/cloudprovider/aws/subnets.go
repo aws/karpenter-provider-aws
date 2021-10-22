@@ -56,10 +56,10 @@ func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constrai
 func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by zone
-	if constraints.Zones != nil {
+	if zones := constraints.Zones(); zones != nil {
 		filters = append(filters, &ec2.Filter{
 			Name:   aws.String("availability-zone"),
-			Values: aws.StringSlice(constraints.Zones),
+			Values: aws.StringSlice(zones),
 		})
 	}
 	// Filter by selector
