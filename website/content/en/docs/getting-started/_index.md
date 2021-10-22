@@ -184,14 +184,17 @@ Review the [provisioner CRD](/docs/provisioner-crd) for more information. For ex
 
 ```bash
 cat <<EOF | kubectl apply -f -
-apiVersion: karpenter.sh/v1alpha4
+apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: default
 spec:
+  requirements:
+    - key: node.k8s.io/capacity-type
+      operator: In
+      values: ["spot"]
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    capacityTypes: [ "spot" ]
     cluster:
       name: ${CLUSTER_NAME}
       endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
