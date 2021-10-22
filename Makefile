@@ -55,7 +55,9 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter --namespace karpenter | kubectl delete -f -
+	helm template karpenter charts/karpenter --namespace karpenter \
+		--set serviceAccount.create=false \
+		| kubectl delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
