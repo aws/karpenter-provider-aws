@@ -8,7 +8,7 @@ date: 2017-01-05
 ## Example Provisioner Resource
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha4
+apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: default
