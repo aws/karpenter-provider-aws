@@ -17,7 +17,7 @@ package node
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,12 +30,12 @@ import (
 type Finalizer struct{}
 
 // Reconcile reconciles the node
-func (r *Finalizer) Reconcile(_ context.Context, _ *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Finalizer) Reconcile(_ context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !n.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
-	if !functional.ContainsString(n.Finalizers, v1alpha4.TerminationFinalizer) {
-		n.Finalizers = append(n.Finalizers, v1alpha4.TerminationFinalizer)
+	if !functional.ContainsString(n.Finalizers, v1alpha5.TerminationFinalizer) {
+		n.Finalizers = append(n.Finalizers, v1alpha5.TerminationFinalizer)
 	}
 	return reconcile.Result{}, nil
 }

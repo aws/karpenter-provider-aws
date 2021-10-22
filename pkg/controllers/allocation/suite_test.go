@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation"
@@ -73,13 +73,13 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Allocation", func() {
-	var provisioner *v1alpha4.Provisioner
+	var provisioner *v1alpha5.Provisioner
 	BeforeEach(func() {
-		provisioner = &v1alpha4.Provisioner{
+		provisioner = &v1alpha5.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: v1alpha4.DefaultProvisioner.Name,
+				Name: v1alpha5.DefaultProvisioner.Name,
 			},
-			Spec: v1alpha4.ProvisionerSpec{},
+			Spec: v1alpha5.ProvisionerSpec{},
 		}
 	})
 
@@ -103,7 +103,7 @@ var _ = Describe("Allocation", func() {
 		It("should provision nodes for pods with supported node selectors", func() {
 			schedulable := []client.Object{
 				// Constrained by provisioner
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha4.ProvisionerNameLabelKey: provisioner.Name}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}),
 				// Constrained by zone
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}),
 				// Constrained by instanceType
@@ -117,7 +117,7 @@ var _ = Describe("Allocation", func() {
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha4.ProvisionerNameLabelKey: "unknown"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: "unknown"}}),
 				// Ignored, invalid zone
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "unknown"}}),
 				// Ignored, invalid instance type
@@ -219,7 +219,7 @@ var _ = Describe("Allocation", func() {
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Labels).To(HaveKeyWithValue(v1alpha4.ProvisionerNameLabelKey, provisioner.Name))
+				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 			})
 		})
 		Context("Taints", func() {
@@ -227,7 +227,7 @@ var _ = Describe("Allocation", func() {
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha4.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
+				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
 			})
 		})
 	})

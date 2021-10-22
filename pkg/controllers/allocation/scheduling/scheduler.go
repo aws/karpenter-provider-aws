@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -53,7 +53,7 @@ type Scheduler struct {
 }
 
 type Schedule struct {
-	*v1alpha4.Constraints
+	*v1alpha5.Constraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
 	// Daemons are a set of daemons that will schedule to the node; used for overhead.
@@ -70,7 +70,7 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
 	startTime := time.Now()
 	schedules, scheduleErr := s.solve(ctx, &provisioner.Spec.Constraints, pods)
 	durationSeconds := time.Since(startTime).Seconds()
@@ -99,7 +99,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha4.Provisioner
 	return schedules, scheduleErr
 }
 
-func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// Consolidate requirements in memory before executing scheduling logic.
 	// This is a performance optimization to avoid executing requirement
 	// evaluation logic redundantly for every pod.
@@ -128,7 +128,7 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha4.Constraints
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha4.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
@@ -165,7 +165,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha4.Cons
 	return result, nil
 }
 
-func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha4.Constraints) ([]*v1.Pod, error) {
+func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constraints) ([]*v1.Pod, error) {
 	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
@@ -184,7 +184,7 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha4.Constr
 }
 
 // DaemonWillSchedule returns true if the pod can schedule to the node
-func DaemonWillSchedule(constraints *v1alpha4.Constraints, pod *v1.Pod) bool {
+func DaemonWillSchedule(constraints *v1alpha5.Constraints, pod *v1.Pod) bool {
 	// Tolerate Taints
 	if err := Taints(constraints.Taints).Tolerates(pod); err != nil {
 		return false

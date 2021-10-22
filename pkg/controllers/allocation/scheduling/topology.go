@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/mitchellh/hashstructure/v2"
@@ -35,7 +35,7 @@ type Topology struct {
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
-func (t *Topology) Inject(ctx context.Context, requirements v1alpha4.Requirements, pods []*v1.Pod) error {
+func (t *Topology) Inject(ctx context.Context, requirements v1alpha5.Requirements, pods []*v1.Pod) error {
 	// 1. Group pods by equivalent topology spread constraints
 	topologyGroups := t.getTopologyGroups(pods)
 	// 2. Compute spread
@@ -74,7 +74,7 @@ func (t *Topology) getTopologyGroups(pods []*v1.Pod) []*TopologyGroup {
 	return topologyGroups
 }
 
-func (t *Topology) computeCurrentTopology(ctx context.Context, requirements v1alpha4.Requirements, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeCurrentTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(topologyGroup)
@@ -105,7 +105,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha4.Requirements, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
 	topologyGroup.Register(requirements.GetLabelValues(v1.LabelTopologyZone)...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)

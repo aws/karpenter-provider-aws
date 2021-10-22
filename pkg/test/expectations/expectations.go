@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 const (
@@ -105,14 +105,14 @@ func ExpectCleanedUp(c client.Client) {
 	for i := range nodes.Items {
 		ExpectDeleted(c, &nodes.Items[i])
 	}
-	provisioners := v1alpha4.ProvisionerList{}
+	provisioners := v1alpha5.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
 	for i := range provisioners.Items {
 		ExpectDeleted(c, &provisioners.Items[i])
 	}
 }
 
-func ExpectProvisioningSucceeded(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha4.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioningSucceeded(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) []*v1.Pod {
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}

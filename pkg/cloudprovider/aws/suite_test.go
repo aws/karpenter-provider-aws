@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
@@ -98,7 +98,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Allocation", func() {
-	var provisioner *v1alpha4.Provisioner
+	var provisioner *v1alpha5.Provisioner
 	var provider *v1alpha1.AWS
 
 	BeforeEach(func() {
@@ -109,7 +109,7 @@ var _ = Describe("Allocation", func() {
 			},
 			InstanceProfile: "test-instance-profile",
 		}
-		provisioner = ProvisionerWithProvider(&v1alpha4.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha4.DefaultProvisioner.Name}}, provider)
+		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
 		ExpectCleanedUp(env.Client)
@@ -217,7 +217,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
 				// Setup
-				provisioner.Spec.Requirements = v1alpha4.Requirements{{Key: v1alpha1.CapacityTypeLabel, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
+				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha1.CapacityTypeLabel, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}}),
@@ -422,7 +422,7 @@ var _ = Describe("Allocation", func() {
 	})
 })
 
-func ProvisionerWithProvider(provisioner *v1alpha4.Provisioner, provider *v1alpha1.AWS) *v1alpha4.Provisioner {
+func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alpha1.AWS) *v1alpha5.Provisioner {
 	raw, err := json.Marshal(provider)
 	Expect(err).ToNot(HaveOccurred())
 	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}

@@ -20,7 +20,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
@@ -73,7 +73,7 @@ type Packing struct {
 	Pods                [][]*v1.Pod `hash:"ignore"`
 	NodeQuantity        int         `hash:"ignore"`
 	InstanceTypeOptions []cloudprovider.InstanceType
-	Constraints         *v1alpha4.Constraints
+	Constraints         *v1alpha5.Constraints
 }
 
 // Pack returns the node packings for the provided pods. It computes a set of viable
@@ -124,7 +124,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(constraints *v1alpha4.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
+func (p *packer) packWithLargestPod(constraints *v1alpha5.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
@@ -81,7 +81,7 @@ func (b *Binder) Bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 
 func (b *Binder) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error {
 	// 1. Add the Karpenter finalizer to the node to enable the termination workflow
-	node.Finalizers = append(node.Finalizers, v1alpha4.TerminationFinalizer)
+	node.Finalizers = append(node.Finalizers, v1alpha5.TerminationFinalizer)
 	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
 	// from scheduling pods before we're able to bind them ourselves. The kube
 	// scheduler has an eventually consistent cache of nodes and pods, so it's
@@ -92,7 +92,7 @@ func (b *Binder) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) error 
 	// heals, but causes delays from additional provisioning (thrash). This
 	// taint will be removed by the node controller when a node is marked ready.
 	node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
-		Key:    v1alpha4.NotReadyTaintKey,
+		Key:    v1alpha5.NotReadyTaintKey,
 		Effect: v1.TaintEffectNoSchedule,
 	})
 	// 3. Idempotently create a node. In rare cases, nodes can come online and

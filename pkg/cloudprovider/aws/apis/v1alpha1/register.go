@@ -16,7 +16,7 @@ package v1alpha1
 
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -28,8 +28,8 @@ var (
 	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
 	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                   v1alpha4.ArchitectureAmd64,
-		v1alpha4.ArchitectureArm64: v1alpha4.ArchitectureArm64,
+		"x86_64":                   v1alpha5.ArchitectureAmd64,
+		v1alpha5.ArchitectureArm64: v1alpha5.ArchitectureArm64,
 	}
 )
 
@@ -39,7 +39,7 @@ var (
 )
 
 func init() {
-	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha4.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
-	v1alpha4.RestrictedLabels = append(v1alpha4.RestrictedLabels, AWSLabelPrefix)
-	v1alpha4.WellKnownLabels[CapacityTypeLabel] = []string{CapacityTypeSpot, CapacityTypeOnDemand}
+	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
+	v1alpha5.RestrictedLabels = append(v1alpha5.RestrictedLabels, AWSLabelPrefix)
+	v1alpha5.WellKnownLabels[CapacityTypeLabel] = []string{CapacityTypeSpot, CapacityTypeOnDemand}
 }

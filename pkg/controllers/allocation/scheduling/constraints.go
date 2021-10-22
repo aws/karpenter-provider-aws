@@ -18,14 +18,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 )
 
 // NewConstraints overrides the constraints with pod scheduling constraints
-func NewConstraints(ctx context.Context, constraints *v1alpha4.Constraints, pod *v1.Pod) (*v1alpha4.Constraints, error) {
+func NewConstraints(ctx context.Context, constraints *v1alpha5.Constraints, pod *v1.Pod) (*v1alpha5.Constraints, error) {
 	// Validate that the pod is viable
 	if err := multierr.Combine(
 		validateAffinity(pod),
@@ -38,7 +38,7 @@ func NewConstraints(ctx context.Context, constraints *v1alpha4.Constraints, pod 
 	if err := requirements.Validate(); err != nil {
 		return nil, err
 	}
-	return &v1alpha4.Constraints{
+	return &v1alpha5.Constraints{
 		Requirements: requirements,
 		Labels:       generateLabels(requirements),
 		Taints:       generateTaints(constraints.Taints, pod.Spec.Tolerations),
@@ -74,11 +74,11 @@ func generateTaints(taints []v1.Taint, tolerations []v1.Toleration) []v1.Taint {
 	return taints
 }
 
-func generateLabels(requirements v1alpha4.Requirements) map[string]string {
+func generateLabels(requirements v1alpha5.Requirements) map[string]string {
 	labels := map[string]string{}
 	for _, label := range requirements.GetLabels() {
 		// Only include labels that aren't well known. Well known labels will be populated by the kubelet
-		if _, ok := v1alpha4.WellKnownLabels[label]; !ok {
+		if _, ok := v1alpha5.WellKnownLabels[label]; !ok {
 			labels[label] = requirements.GetLabelValues(label)[0]
 		}
 	}

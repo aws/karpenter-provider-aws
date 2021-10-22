@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/node"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -36,7 +36,7 @@ type Liveness struct {
 }
 
 // Reconcile reconciles the node
-func (r *Liveness) Reconcile(ctx context.Context, _ *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Liveness) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if injectabletime.Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
 		return reconcile.Result{}, nil
 	}

@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
@@ -81,7 +81,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
-		For(&v1alpha4.Provisioner{}, builder.WithPredicates(
+		For(&v1alpha5.Provisioner{}, builder.WithPredicates(
 			predicate.Funcs{
 				CreateFunc:  func(_ event.CreateEvent) bool { return true },
 				DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
@@ -98,7 +98,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // provisionerExists simply attempts to retrieve the provisioner from the Controller's Client
 // and returns any resulting error.
 func (c *Controller) provisionerExists(ctx context.Context, req reconcile.Request) error {
-	provisioner := v1alpha4.Provisioner{}
+	provisioner := v1alpha5.Provisioner{}
 	return c.KubeClient.Get(ctx, req.NamespacedName, &provisioner)
 }
 

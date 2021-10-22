@@ -12,18 +12,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha4
-
-import (
-	"context"
-)
-
-// SetDefaults for the provisioner
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-	p.Spec.Constraints.Default(ctx)
-}
-
-// Default the constraints
-func (c *Constraints) Default(ctx context.Context) {
-	DefaultHook(ctx, c)
-}
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen=package,register
+// +k8s:defaulter-gen=TypeMeta
+// +groupName=karpenter.sh
+package v1alpha5 // doc.go is discovered by codegen

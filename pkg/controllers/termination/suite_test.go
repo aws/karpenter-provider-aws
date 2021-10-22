@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
@@ -77,7 +77,7 @@ var _ = Describe("Termination", func() {
 	var node *v1.Node
 
 	BeforeEach(func() {
-		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha4.TerminationFinalizer}})
+		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha5.TerminationFinalizer}})
 	})
 
 	AfterEach(func() {
@@ -125,7 +125,7 @@ var _ = Describe("Termination", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:    node.Name,
-				Annotations: map[string]string{v1alpha4.DoNotEvictPodAnnotationKey: "true"},
+				Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
 			})
 
 			ExpectCreated(env.Client, node, podEvict, podNoEvict)
@@ -270,7 +270,7 @@ func ExpectEvicted(c client.Client, pods ...*v1.Pod) {
 func ExpectNodeDraining(c client.Client, nodeName string) *v1.Node {
 	node := ExpectNodeExists(c, nodeName)
 	Expect(node.Spec.Unschedulable).To(BeTrue())
-	Expect(functional.ContainsString(node.Finalizers, v1alpha4.TerminationFinalizer)).To(BeTrue())
+	Expect(functional.ContainsString(node.Finalizers, v1alpha5.TerminationFinalizer)).To(BeTrue())
 	Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
 	return node
 }

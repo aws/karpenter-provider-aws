@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
@@ -32,7 +32,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha4.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
@@ -106,9 +106,9 @@ func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 	return nil
 }
 
-func (c *CloudProvider) Default(context.Context, *v1alpha4.Constraints) {
+func (c *CloudProvider) Default(context.Context, *v1alpha5.Constraints) {
 }
 
-func (c *CloudProvider) Validate(context.Context, *v1alpha4.Constraints) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError {
 	return nil
 }

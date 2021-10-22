@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	set "github.com/deckarep/golang-set"
 )
@@ -237,7 +237,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
 				ProcessorInfo: &ec2.ProcessorInfo{
-					SupportedArchitectures: aws.StringSlice([]string{v1alpha4.ArchitectureArm64}),
+					SupportedArchitectures: aws.StringSlice([]string{v1alpha5.ArchitectureArm64}),
 				},
 				VCpuInfo: &ec2.VCpuInfo{
 					DefaultVCpus: aws.Int64(2),

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/node"
@@ -37,7 +37,7 @@ type Emptiness struct {
 }
 
 // Reconcile reconciles the node
-func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	// 1. Ignore node if not applicable
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
@@ -51,10 +51,10 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisi
 		return reconcile.Result{}, err
 	}
 
-	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha4.EmptinessTimestampAnnotationKey]
+	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey]
 	if !empty {
 		if hasEmptinessTimestamp {
-			delete(n.Annotations, v1alpha4.EmptinessTimestampAnnotationKey)
+			delete(n.Annotations, v1alpha5.EmptinessTimestampAnnotationKey)
 			logging.FromContext(ctx).Infof("Removed emptiness TTL from node %s", n.Name)
 		}
 		return reconcile.Result{}, nil
@@ -63,7 +63,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha4.Provisi
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
 	if !hasEmptinessTimestamp {
-		n.Annotations[v1alpha4.EmptinessTimestampAnnotationKey] = injectabletime.Now().Format(time.RFC3339)
+		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = injectabletime.Now().Format(time.RFC3339)
 		logging.FromContext(ctx).Infof("Added TTL to empty node %s", n.Name)
 		return reconcile.Result{RequeueAfter: ttl}, nil
 	}

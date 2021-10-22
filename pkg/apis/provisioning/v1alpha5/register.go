@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha4
+package v1alpha5
 
 import (
 	"context"
@@ -59,7 +59,7 @@ var (
 var (
 	Group              = "karpenter.sh"
 	ExtensionsGroup    = "extensions." + Group
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha4"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha5"}
 	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 		scheme.AddKnownTypes(SchemeGroupVersion,
 			&Provisioner{},

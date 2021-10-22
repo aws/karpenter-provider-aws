@@ -19,7 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha4"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
@@ -56,7 +56,7 @@ func (i *InstanceType) Architecture() string {
 }
 
 func (i *InstanceType) OperatingSystems() []string {
-	return []string{v1alpha4.OperatingSystemLinux}
+	return []string{v1alpha5.OperatingSystemLinux}
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {
