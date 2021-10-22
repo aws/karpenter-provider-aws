@@ -154,7 +154,7 @@ We created a Kubernetes service account when we created the cluster using
 eksctl. Thus, we don't need the helm chart to do that.
 
 ```bash
-helm repo add karpenter https://awslabs.github.io/karpenter
+helm repo add karpenter https://charts.karpenter.sh
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
   --create-namespace --set serviceAccount.create=false --version 0.4.0 \
