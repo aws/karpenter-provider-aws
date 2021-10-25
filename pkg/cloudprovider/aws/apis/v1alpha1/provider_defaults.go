@@ -28,7 +28,6 @@ func (c *Constraints) Default(ctx context.Context) {
 	c.defaultCapacityTypes()
 	c.defaultSubnets()
 	c.defaultSecurityGroups()
-	c.defaultTags()
 }
 
 func (c *Constraints) defaultCapacityTypes() {
@@ -52,13 +51,6 @@ func (c *Constraints) defaultSubnets() {
 		return
 	}
 	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
-}
-
-func (c *Constraints) defaultTags() {
-	if c.Tags != nil {
-		return
-	}
-	c.Tags = make(map[string]string)
 }
 
 func (c *Constraints) defaultSecurityGroups() {

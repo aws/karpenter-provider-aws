@@ -162,7 +162,7 @@ func needsDocker(is []cloudprovider.InstanceType) bool {
 }
 
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	tags := getTags(options.Tags, options.ClusterName)
+	tags := tagsFor(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -306,25 +306,16 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
-// Returns a combination of user defined and karpenter tags
-// If user tag has the same key as a karpenter tag, it's dropped.
-func getTags(constraintTags map[string]string, clusterName string) []*ec2.Tag {
-	karpenterTags := map[string]string{
-		"Name": fmt.Sprintf("Karpenter/%s", clusterName),
-		fmt.Sprintf(ClusterTagKeyFormat, clusterName):   "owned",
-		fmt.Sprintf(KarpenterTagKeyFormat, clusterName): "owned",
-	}
+func tagsFor(options *launchTemplateOptions) []*ec2.Tag {
 	var tags []*ec2.Tag
-	for key, value := range constraintTags {
-		_, exists := karpenterTags[key]
-		if !exists {
-			tags = append(tags, &ec2.Tag{
-				Key:   aws.String(key),
-				Value: aws.String(value),
-			})
-		}
-	}
-	for key, value := range karpenterTags {
+	// Combine user defined and karpenter tags. If keys conflict, choose the latter.
+	for key, value := range functional.UnionStringMaps(
+		options.Tags,
+		map[string]string{
+			"Name": fmt.Sprintf("karpenter.sh/%s", options.ClusterName),
+			fmt.Sprintf(ClusterTagKeyFormat, options.ClusterName):   "owned",
+			fmt.Sprintf(KarpenterTagKeyFormat, options.ClusterName): "owned",
+		}) {
 		tags = append(tags, &ec2.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
