@@ -56,7 +56,7 @@ func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constrai
 func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by zone
-	if zones := constraints.Zones(); zones != nil {
+	if zones := constraints.Requirements.Zones(); zones != nil {
 		filters = append(filters, &ec2.Filter{
 			Name:   aws.String("availability-zone"),
 			Values: aws.StringSlice(zones),
@@ -92,14 +92,14 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, filters []*ec2.Filter) 
 		return nil, fmt.Errorf("describing subnets %+v, %w", filters, err)
 	}
 	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
-	logging.FromContext(ctx).Debugf("Discovered subnets: %s", s.subnetIds(output.Subnets))
+	logging.FromContext(ctx).Debugf("Discovered subnets: %s", s.prettySubnets(output.Subnets))
 	return output.Subnets, nil
 }
 
-func (s *SubnetProvider) subnetIds(subnets []*ec2.Subnet) []string {
+func (s *SubnetProvider) prettySubnets(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
-		names = append(names, aws.StringValue(subnet.SubnetId))
+		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
 	}
 	return names
 }

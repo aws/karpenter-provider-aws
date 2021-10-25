@@ -34,9 +34,9 @@ type CloudProvider interface {
 	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) chan error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
-	// GetInstanceTypes returns the instance types supported by the cloud
-	// provider limited by the provided constraints and daemons.
-	GetInstanceTypes(context.Context) ([]InstanceType, error)
+	// GetInstanceTypes returns instance types supported by the cloudprovider.
+	// Availability of types or zone may vary by provisioner or over time.
+	GetInstanceTypes(context.Context, *v1alpha5.Constraints) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.

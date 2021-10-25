@@ -17,39 +17,41 @@ package scheduling
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var scheduleTimeHistogramVec = prometheus.NewHistogramVec(
+var schedulingDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Namespace: metrics.KarpenterNamespace,
 		Subsystem: "allocation_controller",
 		Name:      "scheduling_duration_seconds",
-		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and result.",
+		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and error.",
 		Buckets:   metrics.DurationBuckets(),
 	},
-	[]string{metrics.ProvisionerLabel, metrics.ResultLabel},
+	[]string{metrics.ProvisionerLabel},
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(scheduleTimeHistogramVec)
+	crmetrics.Registry.MustRegister(schedulingDuration)
 }
 
 type Scheduler struct {
-	KubeClient  client.Client
-	Topology    *Topology
-	Preferences *Preferences
+	CloudProvider cloudprovider.CloudProvider
+	KubeClient    client.Client
+	Topology      *Topology
+	Preferences   *Preferences
 }
 
 type Schedule struct {
@@ -60,61 +62,31 @@ type Schedule struct {
 	Daemons []*v1.Pod
 }
 
-func NewScheduler(kubeClient client.Client) *Scheduler {
+func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
 	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology: &Topology{
-			kubeClient: kubeClient,
-		},
-		Preferences: NewPreferences(),
+		CloudProvider: cloudProvider,
+		KubeClient:    kubeClient,
+		Topology:      &Topology{kubeClient: kubeClient},
+		Preferences:   NewPreferences(),
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
-	startTime := time.Now()
-	schedules, scheduleErr := s.solve(ctx, &provisioner.Spec.Constraints, pods)
-	durationSeconds := time.Since(startTime).Seconds()
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (schedules []*Schedule, err error) {
+	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
 
-	result := "success"
-	if scheduleErr != nil {
-		result = "error"
-	}
+	requirements := globalRequirements(instanceTypes).WithProvisioner(*provisioner).Consolidate()
 
-	newLabels := prometheus.Labels{
-		metrics.ProvisionerLabel: provisioner.ObjectMeta.Name,
-		metrics.ResultLabel:      result,
-	}
-	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(newLabels)
-	if promErr != nil {
-		logging.FromContext(ctx).Warnf(
-			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
-			newLabels,
-			durationSeconds,
-			promErr.Error(),
-		)
-	} else {
-		observer.Observe(durationSeconds)
-	}
-
-	return schedules, scheduleErr
-}
-
-func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
-	// Consolidate requirements in memory before executing scheduling logic.
-	// This is a performance optimization to avoid executing requirement
-	// evaluation logic redundantly for every pod.
-	constraints = constraints.Consolidate()
 	// Relax preferences if pods have previously failed to schedule.
 	s.Preferences.Relax(ctx, pods)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints.Requirements, pods); err != nil {
+	if err := s.Topology.Inject(ctx, requirements, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err := s.getSchedules(ctx, constraints, pods)
+	schedules, err = s.getSchedules(ctx, &provisioner.Spec.Constraints, requirements, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
@@ -125,16 +97,35 @@ func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha5.Constraints
 	return schedules, nil
 }
 
+func globalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
+	supported := map[string]sets.String{
+		v1.LabelInstanceTypeStable: sets.NewString(),
+		v1.LabelTopologyZone:       sets.NewString(),
+		v1.LabelArchStable:         sets.NewString(),
+		v1.LabelOSStable:           sets.NewString(),
+	}
+	for _, instanceType := range instanceTypes {
+		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
+		supported[v1.LabelTopologyZone].Insert(instanceType.Zones()...)
+		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
+		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems()...)
+	}
+	for key, values := range supported {
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.List()})
+	}
+	return requirements
+}
+
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, requirements v1alpha5.Requirements, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		constraints, err := NewConstraints(ctx, constraints, pod)
+		constraints, err := NewConstraints(ctx, constraints, requirements, pod)
 		if err != nil {
-			logging.FromContext(ctx).Debugf("Ignored pod %s/%s due to invalid constraints, %s", pod.Name, pod.Namespace, err.Error())
+			logging.FromContext(ctx).Infof("Ignored pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
 		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})

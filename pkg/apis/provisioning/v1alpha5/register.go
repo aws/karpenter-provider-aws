@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/apis"
 )
 
@@ -45,19 +46,19 @@ var (
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
 	}
-	// WellKnownLabels supported by karpenter and their allowable values
-	WellKnownLabels = map[string][]string{
-		v1.LabelTopologyZone:       {},
-		v1.LabelInstanceTypeStable: {},
-		v1.LabelArchStable:         {},
-		v1.LabelOSStable:           {},
-	}
 	// These are either prohibited by the kubelet or reserved by karpenter
 	RestrictedLabelDomains = []string{
 		"kubernetes.io",
 		"k8s.io",
 		"karpenter.sh",
 	}
+	// WellKnownLabels supported by karpenter
+	WellKnownLabels = sets.NewString(
+		v1.LabelTopologyZone,
+		v1.LabelInstanceTypeStable,
+		v1.LabelArchStable,
+		v1.LabelOSStable,
+	)
 	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
 	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
 )

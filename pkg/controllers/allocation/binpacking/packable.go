@@ -152,28 +152,28 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if instanceTypes := schedule.InstanceTypes(); !functional.ContainsString(instanceTypes, p.Name()) {
+	if instanceTypes := schedule.Requirements.InstanceTypes(); !functional.ContainsString(instanceTypes, p.Name()) {
 		return fmt.Errorf("instance type %s is not in %v", p.Name(), instanceTypes)
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if architectures := schedule.Architectures(); !functional.ContainsString(architectures, p.Architecture()) {
+	if architectures := schedule.Requirements.Architectures(); !functional.ContainsString(architectures, p.Architecture()) {
 		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), architectures)
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if operatingSystems := schedule.OperatingSystems(); len(functional.IntersectStringSlice(p.OperatingSystems(), operatingSystems)) == 0 {
+	if operatingSystems := schedule.Requirements.OperatingSystems(); len(functional.IntersectStringSlice(p.OperatingSystems(), operatingSystems)) == 0 {
 		return fmt.Errorf("operating system %s is not in %v", operatingSystems, p.OperatingSystems())
 	}
 	return nil
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if zones := schedule.Zones(); len(functional.IntersectStringSlice(zones, p.Zones())) == 0 {
+	if zones := schedule.Requirements.Zones(); len(functional.IntersectStringSlice(zones, p.Zones())) == 0 {
 		return fmt.Errorf("zones %v are not in %v", zones, p.Zones())
 	}
 	return nil

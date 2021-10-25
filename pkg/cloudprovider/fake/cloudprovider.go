@@ -40,8 +40,8 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 		instance := instanceTypes[0]
 		// Pick first zone
 		zones := instance.Zones()
-		if len(constraints.Zones()) != 0 {
-			zones = functional.IntersectStringSlice(constraints.Zones(), instance.Zones())
+		if len(constraints.Requirements.Zones()) != 0 {
+			zones = functional.IntersectStringSlice(constraints.Requirements.Zones(), instance.Zones())
 		}
 		zone := zones[0]
 
@@ -74,7 +74,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",

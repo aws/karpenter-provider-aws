@@ -38,8 +38,8 @@ import (
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
-	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
+	launchTemplateProvider *LaunchTemplateProvider
 }
 
 // Create an instance given the constraints.
@@ -61,7 +61,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 	); err != nil && len(instances) == 0 {
 		return nil, err
 	} else if err != nil {
-		logging.FromContext(ctx).Errorf("retrieving node name for %d instances out of %d", quantity-len(instances), quantity)
+		logging.FromContext(ctx).Errorf("retrieving node name for %d/%d instances", quantity-len(instances), quantity)
 	}
 
 	nodes := []*v1.Node{}
@@ -152,10 +152,8 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
-
-	additionalLabels := map[string]string{v1alpha1.CapacityTypeLabel: capacityType}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, additionalLabels)
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, map[string]string{v1alpha1.CapacityTypeLabel: capacityType})
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}

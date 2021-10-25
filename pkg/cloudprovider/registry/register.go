@@ -16,11 +16,9 @@ package registry
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	v1 "k8s.io/api/core/v1"
 )
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
@@ -34,34 +32,6 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudp
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
 func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvider) {
-	zones := map[string]bool{}
-	architectures := map[string]bool{}
-	operatingSystems := map[string]bool{}
-
-	instanceTypes, err := cloudProvider.GetInstanceTypes(ctx)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to retrieve instance types, %s", err.Error()))
-	}
-	for _, instanceType := range instanceTypes {
-		v1alpha5.WellKnownLabels[v1.LabelInstanceTypeStable] = append(v1alpha5.WellKnownLabels[v1.LabelInstanceTypeStable], instanceType.Name())
-		architectures[instanceType.Architecture()] = true
-		for _, zone := range instanceType.Zones() {
-			zones[zone] = true
-		}
-		for _, operatingSystem := range instanceType.OperatingSystems() {
-			operatingSystems[operatingSystem] = true
-		}
-	}
-	for zone := range zones {
-		v1alpha5.WellKnownLabels[v1.LabelTopologyZone] = append(v1alpha5.WellKnownLabels[v1.LabelTopologyZone], zone)
-	}
-	for architecture := range architectures {
-		v1alpha5.WellKnownLabels[v1.LabelArchStable] = append(v1alpha5.WellKnownLabels[v1.LabelArchStable], architecture)
-	}
-	for operatingSystem := range operatingSystems {
-		v1alpha5.WellKnownLabels[v1.LabelOSStable] = append(v1alpha5.WellKnownLabels[v1.LabelOSStable], operatingSystem)
-	}
-
 	v1alpha5.ValidateHook = cloudProvider.Validate
 	v1alpha5.DefaultHook = cloudProvider.Default
 }

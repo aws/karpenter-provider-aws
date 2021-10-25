@@ -29,8 +29,8 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/project"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
@@ -57,6 +57,7 @@ const (
 
 type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
+	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
 	creationQueue        *parallel.WorkQueue
 }
@@ -74,16 +75,17 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
-	instanceTypeProvider := NewInstanceTypeProvider(ec2api)
+	subnetProvider := NewSubnetProvider(ec2api)
+	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider)
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
-		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider,
+		subnetProvider:       subnetProvider,
+		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ec2api,
 				NewAMIProvider(ssm.New(sess), options.ClientSet),
 				NewSecurityGroupProvider(ec2api),
 			),
-			NewSubnetProvider(ec2api),
 		},
 		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
@@ -121,20 +123,21 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha5.Constr
 	// Partial fulfillment will be logged
 	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
 	if err != nil {
-		return fmt.Errorf("launching %d instance(s) with constraints %s and instance types %s, %w",
-			quantity, pretty.Concise(vendorConstraints), pretty.Concise(instanceTypes), err)
+		return fmt.Errorf("launching instances, %w", err)
 	}
-
+	var errs error
 	for _, node := range nodes {
-		if cErr := callback(node); err != nil {
-			err = multierr.Append(err, cErr)
-		}
+		errs = multierr.Append(errs, callback(node))
 	}
-	return err
+	return errs
 }
 
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return c.instanceTypeProvider.Get(ctx)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
+	vendorConstraints, err := v1alpha1.Deserialize(constraints)
+	if err != nil {
+		return nil, apis.ErrGeneric(err.Error())
+	}
+	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {

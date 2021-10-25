@@ -34,7 +34,10 @@ func (c *Constraints) Default(ctx context.Context) {
 }
 
 func (c *Constraints) defaultCapacityTypes() {
-	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(), CapacityTypeLabel) {
+	if _, ok := c.Labels[CapacityTypeLabel]; ok {
+		return
+	}
+	if functional.ContainsString(c.Requirements.GetLabels(), CapacityTypeLabel) {
 		return
 	}
 	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
@@ -45,7 +48,10 @@ func (c *Constraints) defaultCapacityTypes() {
 }
 
 func (c *Constraints) defaultArchitecture() {
-	if functional.ContainsString(c.Consolidate().Requirements.GetLabels(), v1.LabelArchStable) {
+	if _, ok := c.Labels[v1.LabelArchStable]; ok {
+		return
+	}
+	if functional.ContainsString(c.Requirements.GetLabels(), v1.LabelArchStable) {
 		return
 	}
 	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{

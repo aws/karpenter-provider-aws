@@ -54,13 +54,17 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
-			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(e.Client),
-			Packer:        binpacking.NewPacker(),
-			CloudProvider: cloudProvider,
+			Batcher:   allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+			Filter:    &allocation.Filter{KubeClient: e.Client},
+			Scheduler: scheduling.NewScheduler(e.Client, cloudProvider),
+			Launcher: &allocation.Launcher{
+				Packer:        &binpacking.Packer{},
+				KubeClient:    e.Client,
+				CoreV1Client:  corev1.NewForConfigOrDie(e.Config),
+				CloudProvider: cloudProvider,
+			},
 			KubeClient:    e.Client,
+			CloudProvider: cloudProvider,
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

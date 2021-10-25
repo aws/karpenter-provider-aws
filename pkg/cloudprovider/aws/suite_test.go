@@ -63,30 +63,36 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
-	instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API)
+	subnetProvider := NewSubnetProvider(fakeEC2API)
+	instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API, subnetProvider)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
+			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider: &InstanceProvider{fakeEC2API, instanceTypeProvider, &LaunchTemplateProvider{
-				fakeEC2API,
-				NewAMIProvider(&fake.SSMAPI{}, clientSet),
-				NewSecurityGroupProvider(fakeEC2API),
-				launchTemplateCache,
-			},
-				NewSubnetProvider(fakeEC2API),
+			instanceProvider: &InstanceProvider{
+				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+					fakeEC2API,
+					NewAMIProvider(&fake.SSMAPI{}, clientSet),
+					NewSecurityGroupProvider(fakeEC2API),
+					launchTemplateCache,
+				},
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
-			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(e.Client),
-			Packer:        binpacking.NewPacker(),
-			CloudProvider: cloudProvider,
+			Batcher:   allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+			Filter:    &allocation.Filter{KubeClient: e.Client},
+			Scheduler: scheduling.NewScheduler(e.Client, cloudProvider),
+			Launcher: &allocation.Launcher{
+				Packer:        &binpacking.Packer{},
+				KubeClient:    e.Client,
+				CoreV1Client:  clientSet.CoreV1(),
+				CloudProvider: cloudProvider,
+			},
 			KubeClient:    e.Client,
+			CloudProvider: cloudProvider,
 		}
 	})
 

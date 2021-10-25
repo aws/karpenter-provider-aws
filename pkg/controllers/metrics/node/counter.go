@@ -52,7 +52,7 @@ type (
 var (
 	nodeLabelProvisioner = v1alpha5.ProvisionerNameLabelKey
 
-	knownValuesForNodeLabels = v1alpha5.WellKnownLabels
+	knownValuesForNodeLabels = map[string][]string{}
 
 	nodeCountByProvisioner = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -205,7 +205,7 @@ func filterReadyNodes(consume nodeListConsumerFunc) nodeListConsumerFunc {
 	}
 }
 
-func metricLabelsFrom(nodeLabels client.MatchingLabels) prometheus.Labels {
+func metricLabelsFrom(nodeLabels map[string]string) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	// Exclude node label values that not present or are empty strings.
 	if arch := nodeLabels[nodeLabelArch]; arch != "" {
