@@ -14,9 +14,7 @@ jobs:
           ~/.cache/go-build
           ~/go/pkg/mod
           ~/go/bin/
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+        key: gocache
     - name: CI - Verifications and Tests
       run: |
         make toolchain

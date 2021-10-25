@@ -8,7 +8,7 @@ date: 2017-01-05
 ## Example Provisioner Resource
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha4
+apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: default
@@ -33,7 +33,7 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "kubernetes.io/instance-type" # If not included, all instance types are considered
+    - key: "node.kubernetes.io/instance-type" # If not included, all instance types are considered
       operator: In
       values: ["m5.large", "m5.2xlarge"]
     - key: "topology.kubernetes.io/zone" # If not included, all zones are considered
