@@ -308,14 +308,10 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 
 func tagsFor(options *launchTemplateOptions) []*ec2.Tag {
 	var tags []*ec2.Tag
-	// Combine user defined and karpenter tags. If keys conflict, choose the latter.
 	for key, value := range functional.UnionStringMaps(
 		options.Tags,
-		map[string]string{
-			"Name": fmt.Sprintf("karpenter.sh/%s", options.ClusterName),
-			fmt.Sprintf(ClusterTagKeyFormat, options.ClusterName):   "owned",
-			fmt.Sprintf(KarpenterTagKeyFormat, options.ClusterName): "owned",
-		}) {
+		v1alpha1.ManagedTagsFor(options.ClusterName),
+	) {
 		tags = append(tags, &ec2.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
