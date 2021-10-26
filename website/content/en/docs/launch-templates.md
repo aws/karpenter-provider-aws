@@ -1,4 +1,10 @@
-# Custom Images
+---
+title: "Launch Templates"
+linkTitle: "Launch Templates"
+weight: 80
+---
+
+# Launch Templates and Custom Images
 
 ## Introduction
 
