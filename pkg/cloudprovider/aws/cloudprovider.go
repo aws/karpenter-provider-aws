@@ -53,10 +53,6 @@ const (
 	CacheTTL = 60 * time.Second
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CacheCleanupInterval = 10 * time.Minute
-	// ClusterTagKeyFormat is set on all Kubernetes owned resources.
-	ClusterTagKeyFormat = "kubernetes.io/cluster/%s"
-	// KarpenterTagKeyFormat is set on all Karpenter owned resources.
-	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
 type CloudProvider struct {

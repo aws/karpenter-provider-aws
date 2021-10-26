@@ -77,6 +77,7 @@ type launchTemplateOptions struct {
 	// Level-triggered fields that may change out of sync.
 	SecurityGroupsIds []string
 	AMIID             string
+	Tags              map[string]string
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
@@ -109,6 +110,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 			InstanceProfile:   constraints.InstanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
+			Tags:              constraints.Tags,
 		})
 		if err != nil {
 			return nil, err
@@ -160,6 +162,7 @@ func needsDocker(is []cloudprovider.InstanceType) bool {
 }
 
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	tags := tagsFor(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -168,25 +171,16 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags: []*ec2.Tag{
-					{
-						Key:   aws.String("Name"),
-						Value: aws.String(fmt.Sprintf("Karpenter/%s", options.ClusterName)),
-					},
-					{
-						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, options.ClusterName)),
-						Value: aws.String("owned"),
-					},
-					{
-						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, options.ClusterName)),
-						Value: aws.String("owned"),
-					},
-				},
+				Tags:         tags,
 			}},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
 		},
+		TagSpecifications: []*ec2.TagSpecification{{
+			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
+			Tags:         tags,
+		}},
 	})
 	if err != nil {
 		return nil, err
@@ -310,4 +304,18 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func tagsFor(options *launchTemplateOptions) []*ec2.Tag {
+	var tags []*ec2.Tag
+	for key, value := range functional.UnionStringMaps(
+		options.Tags,
+		v1alpha1.ManagedTagsFor(options.ClusterName),
+	) {
+		tags = append(tags, &ec2.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return tags
 }

@@ -32,6 +32,7 @@ func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
 		a.validateLaunchTemplate(),
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
+		a.validateTags(),
 		a.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
@@ -67,6 +68,21 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("securityGroupSelector['%s']", key)))
+		}
+	}
+	return errs
+}
+
+func (a *AWS) validateTags() (errs *apis.FieldError) {
+	// Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
+	// defined and Karpenter tags, and the latter could change over time.
+	managedTags := ManagedTagsFor(a.Cluster.Name)
+	for tagKey, tagValue := range a.Tags {
+		if tagKey == "" {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf(
+				"the tag with key : '' and value : '%s' is invalid because empty tag keys aren't supported", tagValue), "tags"))
+		} else if _, exists := managedTags[tagKey]; exists {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("tag key '%s' is reserved", tagKey), "tags"))
 		}
 	}
 	return errs
