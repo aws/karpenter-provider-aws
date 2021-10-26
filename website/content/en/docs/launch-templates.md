@@ -1,10 +1,8 @@
 ---
-title: "Launch Templates"
+title: "Launch Templates and Custom Images"
 linkTitle: "Launch Templates"
 weight: 80
 ---
-
-# Launch Templates and Custom Images
 
 ## Introduction
 
