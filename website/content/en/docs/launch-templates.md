@@ -7,12 +7,14 @@ weight: 80
 ## Introduction
 
 Karpenter follows existing AWS patterns for customizing the base image of
-instances. More specifically, Karpenter uses EC2 launch templates. Launch
+instances. More specifically, Karpenter uses [EC2 launch templates](https://docs.aws.amazon.com/autoscaling/ec2/userguide/LaunchTemplates.html). Launch
 templates may specify many values. The pivotal value is the base image (AMI).
 Launch templates further specify many parameters related to networking,
 authorization, instance type, and more.  
 
-## Launch Template Configuration
+This guide describes requirements for using launch templates with Karpenter, and includes an example procedure.
+
+## Launch Template Requirements
 
 ### AMI
 
@@ -31,13 +33,11 @@ default OS, Amazon Linux 2 (AL2), accepts shell scripts (bash commands).
 [AWS calls data passed to an instance at launch time "user
 data".](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-data-shell-scripts)
 
-In the default configuration, Karpenter uses AL2 and passes the hostname of the
-Kubernetes API server, and a certificate. The instance subsequently uses this
-information to securely join the cluster.
+In the default configuration, Karpenter uses an EKS optimized version of AL2 and passes the hostname of the Kubernetes API server, and a certificate. The EKS Optimized AMI includes a `bootstrap.sh` script which connects the instance to the cluster, based on the passed data. 
 
-When building a custom image, you may reference AWS's [`bootstrap.sh`
+Alternatively, you may reference AWS's [`bootstrap.sh`
 file](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh)
-from GitHub, and this associated `user data` startup script. 
+when building a custom base image. 
 
 ```
 #!/bin/bash
@@ -94,7 +94,6 @@ Launch Templates may be created via the web console, the AWS CLI, or
 CloudFormation. 
 
 ### CloudFormation
-
 
 An example yaml cloudformation definition of a launch template for Karpenter is
 provided below. 
