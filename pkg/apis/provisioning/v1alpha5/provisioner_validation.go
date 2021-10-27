@@ -99,7 +99,7 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
 		}
 		if _, ok := WellKnownLabels[key]; !ok && isRestrictedLabelNamespace(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", fmt.Sprintf("label '%s' has an unsupported prefix", key)))
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label prefix not supported"))
 		}
 	}
 	return errs
