@@ -16,6 +16,7 @@ package v1alpha5
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -74,6 +75,13 @@ var _ = Describe("Validation", func() {
 		It("should fail for restricted labels", func() {
 			for _, label := range RestrictedLabels {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should fail for restricted namespaces when not well known keys", func() {
+			for _, label := range RestricedLabelNamespaces {
+				fmt.Print("Label " + label)
+				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})

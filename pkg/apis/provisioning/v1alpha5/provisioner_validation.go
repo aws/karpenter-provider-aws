@@ -98,8 +98,28 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		if known, ok := WellKnownLabels[key]; ok && !functional.ContainsString(known, value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
 		}
+		if _, ok := WellKnownLabels[key]; !ok && isRestrictedLabelNamespace(key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", fmt.Sprintf("label '%s' has an unsupported prefix", key)))
+		}
 	}
 	return errs
+}
+
+func isRestrictedLabelNamespace(key string) bool {
+	namespace := getLabelNamespace(key)
+	for _, restrictedNamespace := range RestricedLabelNamespaces {
+		if strings.HasSuffix(namespace, restrictedNamespace) {
+			return true
+		}
+	}
+	return false
+}
+
+func getLabelNamespace(key string) string {
+	if parts := strings.SplitN(key, "/", 2); len(parts) == 2 {
+		return parts[0]
+	}
+	return ""
 }
 
 func (c *Constraints) validateTaints() (errs *apis.FieldError) {
