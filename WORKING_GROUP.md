@@ -10,7 +10,7 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
-# Meeting notes (10/20/21)
+# Meeting notes (10/28/21)
 ## Attendees
 - Brandon Wagner
 - Suket Sharma
@@ -21,6 +21,7 @@ Please contribute to our meeting notes by opening a PR.
 - Ellis Tarn
 - Geoffrey Cline
 - Alex Kestner
+- Jacob Gabrielson
 
 ## Notes
 - Capi Provider work in progress
