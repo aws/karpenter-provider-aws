@@ -30,10 +30,6 @@ import (
 	"knative.dev/pkg/logging"
 )
 
-const (
-	allInstanceTypesKey = "all"
-)
-
 type InstanceTypeProvider struct {
 	ec2api         ec2iface.EC2API
 	subnetProvider *SubnetProvider
@@ -61,7 +57,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	if err != nil {
 		return nil, err
 	}
-	p.cache.SetDefault(allInstanceTypesKey, instanceTypes)
+	p.cache.SetDefault(fmt.Sprint(hash), instanceTypes)
 	logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
 	return instanceTypes, nil
 }

@@ -152,12 +152,18 @@ func (r Requirements) WithPod(pod *v1.Pod) Requirements {
 	return r
 }
 
+// Consolidate combines In and NotIn requirements for each unique key, producing
+// an equivalent minimal representation of the requirements. This is useful as
+// requirements may be appended from a variety of sources and then consolidated.
+// Caution: If a key has contains a `NotIn` operator without a corresponding
+// `In` operator, the requirement will permanently be [] after consolidation. To
+// avoid this, include the broadest `In` requirements before consolidating.
 func (r Requirements) Consolidate() (requirements Requirements) {
 	for _, key := range r.Keys() {
 		requirements = append(requirements, v1.NodeSelectorRequirement{
 			Key:      key,
 			Operator: v1.NodeSelectorOpIn,
-			Values:   r.Requirement(key).List(),
+			Values:   r.Requirement(key).UnsortedList(),
 		})
 	}
 	return requirements
@@ -168,7 +174,7 @@ func (r Requirements) CustomLabels() map[string]string {
 	for _, key := range r.Keys() {
 		if !WellKnownLabels.Has(key) {
 			if requirement := r.Requirement(key); len(requirement) > 0 {
-				labels[key] = requirement.List()[0]
+				labels[key] = requirement.UnsortedList()[0]
 			}
 		}
 	}
@@ -184,16 +190,16 @@ func (r Requirements) WellKnown() (requirements Requirements) {
 	return requirements
 }
 
-// GetLabels returns unique set of the label keys from the requirements
+// Keys returns unique set of the label keys from the requirements
 func (r Requirements) Keys() []string {
 	keys := sets.NewString()
 	for _, requirement := range r {
 		keys.Insert(requirement.Key)
 	}
-	return keys.List()
+	return keys.UnsortedList()
 }
 
-// Values for the provided key constrained by the requirements
+// Requirements for the provided key, nil if unconstrained
 func (r Requirements) Requirement(key string) sets.String {
 	var result sets.String
 	// OpIn
@@ -211,10 +217,6 @@ func (r Requirements) Requirement(key string) sets.String {
 		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpNotIn {
 			result = result.Difference(sets.NewString(requirement.Values...))
 		}
-	}
-	// Unconstrained
-	if result == nil {
-		return nil
 	}
 	return result
 }

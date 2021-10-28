@@ -36,10 +36,9 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
-		// Pick first instance type option
 		instance := instanceTypes[0]
-		// Pick first zone
-		zone := instance.Zones().Intersection(constraints.Requirements.Zones()).List()[0]
+		zone, _ := instance.Zones().Intersection(constraints.Requirements.Zones()).PopAny()
+		operatingSystem, _ := instance.OperatingSystems().PopAny()
 
 		go func() {
 			err <- bind(&v1.Node{
@@ -56,7 +55,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 				Status: v1.NodeStatus{
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    instance.Architecture(),
-						OperatingSystem: instance.OperatingSystems().List()[0],
+						OperatingSystem: operatingSystem,
 					},
 					Allocatable: v1.ResourceList{
 						v1.ResourcePods:   *instance.Pods(),

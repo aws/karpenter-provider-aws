@@ -106,12 +106,12 @@ func globalRequirements(instanceTypes []cloudprovider.InstanceType) (requirement
 	}
 	for _, instanceType := range instanceTypes {
 		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
-		supported[v1.LabelTopologyZone].Insert(instanceType.Zones().List()...)
+		supported[v1.LabelTopologyZone].Insert(instanceType.Zones().UnsortedList()...)
 		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
-		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().List()...)
+		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().UnsortedList()...)
 	}
 	for key, values := range supported {
-		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.List()})
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
 	}
 	return requirements
 }

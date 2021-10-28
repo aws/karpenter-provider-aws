@@ -59,7 +59,7 @@ func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Fi
 	if zones := constraints.Requirements.Zones(); zones != nil {
 		filters = append(filters, &ec2.Filter{
 			Name:   aws.String("availability-zone"),
-			Values: aws.StringSlice(zones.List()),
+			Values: aws.StringSlice(zones.UnsortedList()),
 		})
 	}
 	// Filter by selector

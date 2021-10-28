@@ -104,7 +104,7 @@ var _ = Describe("Allocation", func() {
 				Expect(pod.Spec.NodeName).To(Equal(nodes.Items[0].Name))
 			}
 		})
-		It("should provision nodes for pods with supported node selectors", func() {
+		FIt("should provision nodes for pods with supported node selectors", func() {
 			schedulable := []client.Object{
 				// Constrained by provisioner
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}),

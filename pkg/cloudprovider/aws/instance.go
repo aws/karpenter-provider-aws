@@ -113,7 +113,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	if capacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
 	} else if len(capacityTypes) == 1 {
-		capacityType = capacityTypes.List()[0]
+		capacityType, _ = capacityTypes.PopAny()
 	}
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
@@ -264,7 +264,7 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	for _, err := range errors {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
-	for _, errorCode := range unique.List() {
+	for errorCode := range unique {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
 	}
 	return fmt.Errorf("with fleet error(s), %w", errs)

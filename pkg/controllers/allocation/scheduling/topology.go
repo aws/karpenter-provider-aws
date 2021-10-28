@@ -104,7 +104,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
-	topologyGroup.Register(requirements.Zones().List()...)
+	topologyGroup.Register(requirements.Zones().UnsortedList()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}
