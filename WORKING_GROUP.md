@@ -10,6 +10,40 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (10/28/21)
+## Attendees
+- Brandon Wagner
+- Suket Sharma
+- Michael Mccune
+- Felix Huang
+- Jason Haugen
+- Jerad Cramp
+- Ellis Tarn
+- Geoffrey Cline
+- Alex Kestner
+- Jacob Gabrielson
+
+## Notes
+- Capi Provider work in progress
+- Inline Launch Templates
+  - What about CAPI?
+    - This corresponds to the machine template
+    - separate template object
+  - We can probably wait and do this backwards compatible
+  - EKS Node Group APIs
+    - Many users use custom launch templates
+    - similar problems to have LTs have unnecessary fields (instance type)
+  - Attribute Based Selection
+- Storage
+  - Supporting persistent volumes
+  - Tricky because of how we create nodes/bind pods
+  - WaitForFirstConsumer creates a chicken and egg problem
+    - Karpenter assigns the pod to the node, but the PV isn't assigned
+    - Scheduler puts a special label on the PV
+  - If the PV already exists, we need to launch the pod in that zone
+  - If multiple volumes are in different zones, it's never going to work
+    - just need to not make it worse
+
 # Meeting notes (09/30/21)
 
 ## Attendees
