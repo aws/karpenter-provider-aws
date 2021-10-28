@@ -37,8 +37,8 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
 		instance := instanceTypes[0]
-		zone, _ := instance.Zones().Intersection(constraints.Requirements.Zones()).PopAny()
-		operatingSystem, _ := instance.OperatingSystems().PopAny()
+		zone := instance.Zones().Intersection(constraints.Requirements.Zones()).UnsortedList()[0]
+		operatingSystem := instance.OperatingSystems().UnsortedList()[0]
 
 		go func() {
 			err <- bind(&v1.Node{

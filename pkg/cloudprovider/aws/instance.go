@@ -113,7 +113,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	if capacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
 	} else if len(capacityTypes) == 1 {
-		capacityType, _ = capacityTypes.PopAny()
+		capacityType = capacityTypes.UnsortedList()[0]
 	}
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)

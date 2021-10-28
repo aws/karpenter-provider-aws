@@ -27,7 +27,7 @@ func (ts Taints) WithPod(pod *v1.Pod) Taints {
 	for _, toleration := range pod.Spec.Tolerations {
 		// Only OpEqual is supported. OpExists does not make sense for
 		// provisioning -- in theory we could create a taint on the node with a
-		// random string, but it's unclear use case this would accomplish.
+		// random string, but it's unclear what use case this would accomplish.
 		if toleration.Operator != v1.TolerationOpEqual {
 			continue
 		}
