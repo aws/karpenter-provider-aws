@@ -80,7 +80,6 @@ var _ = Describe("Validation", func() {
 		})
 		It("should fail for restricted namespaces when not well known keys", func() {
 			for _, label := range RestricedLabelNamespaces {
-				fmt.Print("Label " + label)
 				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
