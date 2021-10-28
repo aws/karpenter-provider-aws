@@ -78,7 +78,7 @@ var _ = Describe("Validation", func() {
 			}
 		})
 		It("should fail for restricted prefixes when not well known labels", func() {
-			for _, label := range RestricedLabelPrefixes {
+			for _, label := range RestrictedLabelDomains {
 				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}

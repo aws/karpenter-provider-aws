@@ -98,24 +98,24 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		if known, ok := WellKnownLabels[key]; ok && !functional.ContainsString(known, value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
 		}
-		if _, ok := WellKnownLabels[key]; !ok && isRestrictedLabelPrefix(key) {
+		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label prefix not supported"))
 		}
 	}
 	return errs
 }
 
-func isRestrictedLabelPrefix(key string) bool {
-	prefix := getLabelPrefix(key)
-	for _, restrictedPrefix := range RestricedLabelPrefixes {
-		if strings.HasSuffix(prefix, restrictedPrefix) {
+func IsRestrictedLabelDomain(key string) bool {
+	labelDomain := getLabelDomain(key)
+	for _, restrictedLabelDomain := range RestrictedLabelDomains {
+		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
 			return true
 		}
 	}
 	return false
 }
 
-func getLabelPrefix(key string) string {
+func getLabelDomain(key string) string {
 	if parts := strings.SplitN(key, "/", 2); len(parts) == 2 {
 		return parts[0]
 	}
