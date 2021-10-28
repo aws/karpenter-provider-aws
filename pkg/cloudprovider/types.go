@@ -20,6 +20,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
 )
@@ -52,10 +53,10 @@ type Options struct {
 // or supported options in the case of arrays)
 type InstanceType interface {
 	Name() string
-	Zones() []string
-	CapacityTypes() []string
+	Zones() sets.String
+	CapacityTypes() sets.String
 	Architecture() string
-	OperatingSystems() []string
+	OperatingSystems() sets.String
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity
 	Pods() *resource.Quantity

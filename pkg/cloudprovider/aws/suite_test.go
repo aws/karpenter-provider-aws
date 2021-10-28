@@ -356,8 +356,8 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(provisioner.Spec.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel)).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(provisioner.Spec.Requirements.GetLabelValues(v1.LabelArchStable)).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(provisioner.Spec.Requirements.Requirement(v1alpha1.CapacityTypeLabel).List()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements.Architectures().List()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {

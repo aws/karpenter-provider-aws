@@ -211,19 +211,16 @@ var _ = Describe("Allocation", func() {
 		})
 
 		Context("Labels", func() {
-			It("should label nodes with provisioner labels", func() {
+			It("should label nodes", func() {
 				provisioner.Spec.Labels = map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-			})
-			It("should labels nodes with provisioner name", func() {
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
+				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))
+				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 			})
 		})
 		Context("Taints", func() {

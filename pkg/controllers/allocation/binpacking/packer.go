@@ -97,7 +97,7 @@ func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 			if mainPack, ok := packs[key]; ok {
 				mainPack.NodeQuantity++
 				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
-				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
+				logging.FromContext(ctx).Debugf("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
 				continue
 			} else {
 				packs[key] = packing

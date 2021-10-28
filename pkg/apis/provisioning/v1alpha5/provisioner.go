@@ -95,23 +95,23 @@ type ProvisionerList struct {
 }
 
 // Zones for the constraints
-func (r Requirements) Zones() []string {
-	return r.GetLabelValues(v1.LabelTopologyZone)
+func (r Requirements) Zones() sets.String {
+	return r.Requirement(v1.LabelTopologyZone)
 }
 
 // InstanceTypes for the constraints
-func (r Requirements) InstanceTypes() []string {
-	return r.GetLabelValues(v1.LabelInstanceTypeStable)
+func (r Requirements) InstanceTypes() sets.String {
+	return r.Requirement(v1.LabelInstanceTypeStable)
 }
 
 // Architectures for the constraints
-func (r Requirements) Architectures() []string {
-	return r.GetLabelValues(v1.LabelArchStable)
+func (r Requirements) Architectures() sets.String {
+	return r.Requirement(v1.LabelArchStable)
 }
 
 // OperatingSystems for the constraints
-func (r Requirements) OperatingSystems() []string {
-	return r.GetLabelValues(v1.LabelOSStable)
+func (r Requirements) OperatingSystems() sets.String {
+	return r.Requirement(v1.LabelOSStable)
 }
 
 func (r Requirements) WithProvisioner(provisioner Provisioner) Requirements {
@@ -153,11 +153,11 @@ func (r Requirements) WithPod(pod *v1.Pod) Requirements {
 }
 
 func (r Requirements) Consolidate() (requirements Requirements) {
-	for _, label := range r.GetLabels() {
+	for _, key := range r.Keys() {
 		requirements = append(requirements, v1.NodeSelectorRequirement{
-			Key:      label,
+			Key:      key,
 			Operator: v1.NodeSelectorOpIn,
-			Values:   r.GetLabelValues(label),
+			Values:   r.Requirement(key).List(),
 		})
 	}
 	return requirements
@@ -165,10 +165,10 @@ func (r Requirements) Consolidate() (requirements Requirements) {
 
 func (r Requirements) CustomLabels() map[string]string {
 	labels := map[string]string{}
-	for _, label := range r.GetLabels() {
-		if !WellKnownLabels.Has(label) {
-			if values := r.GetLabelValues(label); len(values) > 0 {
-				labels[label] = values[0]
+	for _, key := range r.Keys() {
+		if !WellKnownLabels.Has(key) {
+			if requirement := r.Requirement(key); len(requirement) > 0 {
+				labels[key] = requirement.List()[0]
 			}
 		}
 	}
@@ -185,7 +185,7 @@ func (r Requirements) WellKnown() (requirements Requirements) {
 }
 
 // GetLabels returns unique set of the label keys from the requirements
-func (r Requirements) GetLabels() []string {
+func (r Requirements) Keys() []string {
 	keys := sets.NewString()
 	for _, requirement := range r {
 		keys.Insert(requirement.Key)
@@ -193,12 +193,12 @@ func (r Requirements) GetLabels() []string {
 	return keys.List()
 }
 
-// GetLabelValues for the provided key constrained by the requirements
-func (r Requirements) GetLabelValues(label string) []string {
+// Values for the provided key constrained by the requirements
+func (r Requirements) Requirement(key string) sets.String {
 	var result sets.String
 	// OpIn
 	for _, requirement := range r {
-		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpIn {
+		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpIn {
 			if result == nil {
 				result = sets.NewString(requirement.Values...)
 			} else {
@@ -208,7 +208,7 @@ func (r Requirements) GetLabelValues(label string) []string {
 	}
 	// OpNotIn
 	for _, requirement := range r {
-		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpNotIn {
+		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpNotIn {
 			result = result.Difference(sets.NewString(requirement.Values...))
 		}
 	}
@@ -216,5 +216,5 @@ func (r Requirements) GetLabelValues(label string) []string {
 	if result == nil {
 		return nil
 	}
-	return result.List()
+	return result
 }

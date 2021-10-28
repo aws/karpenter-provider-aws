@@ -647,6 +647,67 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
 		})
 	})
+
+	// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
+	Context("Combined Zonal Topology and Affinity", func() {
+		It("should limit spread options by nodeSelector", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				append(
+					MakePods(5, test.PodOptions{
+						Labels:                    labels,
+						TopologySpreadConstraints: topology,
+						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-1"},
+					}),
+					MakePods(5, test.PodOptions{
+						Labels:                    labels,
+						TopologySpreadConstraints: topology,
+						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-2"},
+					})...,
+				)...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(5, 5))
+		})
+		It("should limit spread options by node affinity", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, append(
+				MakePods(6, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{
+						"test-zone-1", "test-zone-2",
+					}}},
+				}),
+				MakePods(1, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{
+						"test-zone-2", "test-zone-3",
+					}}},
+				})...,
+			)...)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3))
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(5, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+				})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 4, 4))
+		})
+	})
 })
 
 var _ = Describe("Taints", func() {

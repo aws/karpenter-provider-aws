@@ -153,8 +153,8 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 }
 
 func (r Requirements) Validate() (errs *apis.FieldError) {
-	for _, label := range r.GetLabels() {
-		if len(r.GetLabelValues(label)) == 0 {
+	for _, label := range r.Keys() {
+		if r.Requirement(label).Len() == 0 {
 			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s is too constrained", label)))
 		}
 	}

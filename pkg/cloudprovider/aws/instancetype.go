@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
@@ -31,19 +32,19 @@ const EC2VMAvailableMemoryFactor = .925
 
 type InstanceType struct {
 	ec2.InstanceTypeInfo
-	ZoneOptions []string
+	ZoneOptions sets.String
 }
 
 func (i *InstanceType) Name() string {
 	return aws.StringValue(i.InstanceType)
 }
 
-func (i *InstanceType) Zones() []string {
+func (i *InstanceType) Zones() sets.String {
 	return i.ZoneOptions
 }
 
-func (i *InstanceType) CapacityTypes() []string {
-	return aws.StringValueSlice(i.SupportedUsageClasses)
+func (i *InstanceType) CapacityTypes() sets.String {
+	return sets.NewString(aws.StringValueSlice(i.SupportedUsageClasses)...)
 }
 
 func (i *InstanceType) Architecture() string {
@@ -55,8 +56,8 @@ func (i *InstanceType) Architecture() string {
 	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
 }
 
-func (i *InstanceType) OperatingSystems() []string {
-	return []string{v1alpha5.OperatingSystemLinux}
+func (i *InstanceType) OperatingSystems() sets.String {
+	return sets.NewString(v1alpha5.OperatingSystemLinux)
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {

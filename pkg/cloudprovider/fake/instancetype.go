@@ -17,20 +17,21 @@ package fake
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if len(options.zones) == 0 {
-		options.zones = []string{"test-zone-1", "test-zone-2", "test-zone-3"}
+		options.zones = sets.NewString("test-zone-1", "test-zone-2", "test-zone-3")
 	}
 	if len(options.capacityTypes) == 0 {
-		options.capacityTypes = []string{"spot", "on-demand"}
+		options.capacityTypes = sets.NewString("spot", "on-demand")
 	}
 	if len(options.architecture) == 0 {
 		options.architecture = "amd64"
 	}
 	if len(options.operatingSystems) == 0 {
-		options.operatingSystems = []string{"linux"}
+		options.operatingSystems = sets.NewString("linux")
 	}
 	if options.cpu.IsZero() {
 		options.cpu = resource.MustParse("4")
@@ -60,10 +61,10 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 
 type InstanceTypeOptions struct {
 	name             string
-	zones            []string
-	capacityTypes    []string
+	zones            sets.String
+	capacityTypes    sets.String
 	architecture     string
-	operatingSystems []string
+	operatingSystems sets.String
 	cpu              resource.Quantity
 	memory           resource.Quantity
 	pods             resource.Quantity
@@ -80,11 +81,11 @@ func (i *InstanceType) Name() string {
 	return i.name
 }
 
-func (i *InstanceType) CapacityTypes() []string {
+func (i *InstanceType) CapacityTypes() sets.String {
 	return i.capacityTypes
 }
 
-func (i *InstanceType) Zones() []string {
+func (i *InstanceType) Zones() sets.String {
 	return i.zones
 }
 
@@ -92,7 +93,7 @@ func (i *InstanceType) Architecture() string {
 	return i.architecture
 }
 
-func (i *InstanceType) OperatingSystems() []string {
+func (i *InstanceType) OperatingSystems() sets.String {
 	return i.operatingSystems
 }
 

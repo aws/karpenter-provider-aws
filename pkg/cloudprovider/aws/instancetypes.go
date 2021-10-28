@@ -89,7 +89,7 @@ func (p *InstanceTypeProvider) get(ctx context.Context, constraints *v1alpha1.Co
 	// Convert to cloudprovider.InstanceType
 	result := []cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		instanceType.ZoneOptions = subnetZones.Intersection(instanceTypeZones[instanceType.Name()]).List()
+		instanceType.ZoneOptions = subnetZones.Intersection(instanceTypeZones[instanceType.Name()])
 		result = append(result, instanceType)
 	}
 	return result, nil

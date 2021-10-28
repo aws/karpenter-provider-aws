@@ -44,10 +44,8 @@ func (t *Topology) Inject(ctx context.Context, requirements v1alpha5.Requirement
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			pod.Spec.NodeSelector = functional.UnionStringMaps(
-				pod.Spec.NodeSelector,
-				map[string]string{topologyGroup.Constraint.TopologyKey: topologyGroup.NextDomain()},
-			)
+			domain := topologyGroup.NextDomain(requirements.WithPod(pod).Requirement(topologyGroup.Constraint.TopologyKey))
+			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}
 	return nil
@@ -106,7 +104,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
-	topologyGroup.Register(requirements.GetLabelValues(v1.LabelTopologyZone)...)
+	topologyGroup.Register(requirements.Zones().List()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}
@@ -142,7 +140,7 @@ func topologyGroupKey(namespace string, constraint v1.TopologySpreadConstraint) 
 	hash, err := hashstructure.Hash(struct {
 		Namespace  string
 		Constraint v1.TopologySpreadConstraint
-	}{Namespace: namespace, Constraint: constraint}, hashstructure.FormatV2, nil)
+	}{namespace, constraint}, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Errorf("unexpected failure hashing topology, %w", err))
 	}
