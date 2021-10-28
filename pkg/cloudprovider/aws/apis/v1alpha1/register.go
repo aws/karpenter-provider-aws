@@ -31,6 +31,9 @@ var (
 		"x86_64":                   v1alpha5.ArchitectureAmd64,
 		v1alpha5.ArchitectureArm64: v1alpha5.ArchitectureArm64,
 	}
+	AWSRestrictedLabelDomains = []string{
+		"k8s.aws",
+	}
 )
 
 var (
@@ -42,4 +45,5 @@ func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
 	v1alpha5.RestrictedLabels = append(v1alpha5.RestrictedLabels, AWSLabelPrefix)
 	v1alpha5.WellKnownLabels[CapacityTypeLabel] = []string{CapacityTypeSpot, CapacityTypeOnDemand}
+	v1alpha5.RestrictedLabelDomains = append(v1alpha5.RestrictedLabelDomains, AWSRestrictedLabelDomains...)
 }

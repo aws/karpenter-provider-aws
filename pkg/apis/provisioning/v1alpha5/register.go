@@ -52,6 +52,12 @@ var (
 		v1.LabelArchStable:         {},
 		v1.LabelOSStable:           {},
 	}
+	// These are either prohibited by the kubelet or reserved by karpenter
+	RestrictedLabelDomains = []string{
+		"kubernetes.io",
+		"k8s.io",
+		"karpenter.sh",
+	}
 	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
 	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
 )

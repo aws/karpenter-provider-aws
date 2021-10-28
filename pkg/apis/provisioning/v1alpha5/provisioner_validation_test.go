@@ -77,6 +77,12 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
+		It("should fail for restricted prefixes when not well known labels", func() {
+			for _, label := range RestrictedLabelDomains {
+				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
 		It("should succeed for well known label values", func() {
 			WellKnownLabels[v1.LabelTopologyZone] = []string{"test-1", "test1"}
 			WellKnownLabels[v1.LabelInstanceTypeStable] = []string{"test-1", "test1"}
