@@ -53,7 +53,7 @@ var (
 		v1.LabelOSStable:           {},
 	}
 	// These are either prohibited by the kubelet or reserved by karpenter
-	RestricedLabelNamespaces = []string{
+	RestricedLabelPrefixes = []string{
 		"kubernetes.io",
 		"k8s.io",
 		"karpenter.sh",
