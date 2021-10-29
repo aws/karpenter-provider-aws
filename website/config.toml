@@ -125,7 +125,8 @@ footer_about_disable = true
 
 # Navigation menu
 [[menu.main]]
-name = "GitHub"
-weight = 99
-url = "https://github.com/awslabs/karpenter"
-pre = "<i class='fab fa-github'></i>"
+  name = "GitHub"
+  weight = 99
+  url = "https://github.com/awslabs/karpenter"
+  pre = "<i class='fab fa-github'></i>"
+
