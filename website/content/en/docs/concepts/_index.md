@@ -2,9 +2,6 @@
 title: "Concepts"
 linkTitle: "Concepts"
 weight: 35
-menu:
-  main:
-    weight: 10
 ---
 
 By adding Karpenter to a Kubernetes cluster you can dramatically improve the efficiency and cost of running workloads on that cluster.
