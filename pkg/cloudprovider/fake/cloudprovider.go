@@ -22,12 +22,12 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type CloudProvider struct{}
@@ -36,14 +36,9 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
-		// Pick first instance type option
 		instance := instanceTypes[0]
-		// Pick first zone
-		zones := instance.Zones()
-		if len(constraints.Zones()) != 0 {
-			zones = functional.IntersectStringSlice(constraints.Zones(), instance.Zones())
-		}
-		zone := zones[0]
+		zone := instance.Zones().Intersection(constraints.Requirements.Zones()).UnsortedList()[0]
+		operatingSystem := instance.OperatingSystems().UnsortedList()[0]
 
 		go func() {
 			err <- bind(&v1.Node{
@@ -60,7 +55,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 				Status: v1.NodeStatus{
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    instance.Architecture(),
-						OperatingSystem: instance.OperatingSystems()[0],
+						OperatingSystem: operatingSystem,
 					},
 					Allocatable: v1.ResourceList{
 						v1.ResourcePods:   *instance.Pods(),
@@ -74,7 +69,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",
@@ -93,7 +88,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 		}),
 		NewInstanceType(InstanceTypeOptions{
 			name:             "windows-instance-type",
-			operatingSystems: []string{"windows"},
+			operatingSystems: sets.NewString("windows"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
 			name:         "arm-instance-type",

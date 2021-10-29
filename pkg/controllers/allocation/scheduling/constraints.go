@@ -24,8 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// NewConstraints overrides the constraints with pod scheduling constraints
-func NewConstraints(ctx context.Context, constraints *v1alpha5.Constraints, pod *v1.Pod) (*v1alpha5.Constraints, error) {
+func NewConstraints(ctx context.Context, constraints *v1alpha5.Constraints, requirements v1alpha5.Requirements, pod *v1.Pod) (*v1alpha5.Constraints, error) {
 	// Validate that the pod is viable
 	if err := multierr.Combine(
 		validateAffinity(pod),
@@ -34,55 +33,16 @@ func NewConstraints(ctx context.Context, constraints *v1alpha5.Constraints, pod 
 	); err != nil {
 		return nil, err
 	}
-	requirements := constraints.Requirements.With(pod)
+	requirements = requirements.WithPod(pod).Consolidate()
 	if err := requirements.Validate(); err != nil {
 		return nil, err
 	}
 	return &v1alpha5.Constraints{
-		Requirements: requirements,
-		Labels:       generateLabels(requirements),
-		Taints:       generateTaints(constraints.Taints, pod.Spec.Tolerations),
+		Labels:       requirements.CustomLabels(),
+		Requirements: requirements.WellKnown(),
+		Taints:       Taints(constraints.Taints).WithPod(pod),
 		Provider:     constraints.Provider,
 	}, nil
-}
-
-func generateTaints(taints []v1.Taint, tolerations []v1.Toleration) []v1.Taint {
-	for _, toleration := range tolerations {
-		// Only OpEqual is supported. OpExists does not make sense for
-		// provisioning -- in theory we could create a taint on the node with a
-		// random string, but it's unclear use case this would accomplish.
-		if toleration.Operator != v1.TolerationOpEqual {
-			continue
-		}
-		var generated []v1.Taint
-		// Use effect if defined, otherwise taint all effects
-		if toleration.Effect != "" {
-			generated = []v1.Taint{{Key: toleration.Key, Value: toleration.Value, Effect: toleration.Effect}}
-		} else {
-			generated = []v1.Taint{
-				{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoSchedule},
-				{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoExecute},
-			}
-		}
-		// Only add taints that do not already exist on constraints
-		for _, taint := range generated {
-			if !Taints(taints).Has(taint) {
-				taints = append(taints, taint)
-			}
-		}
-	}
-	return taints
-}
-
-func generateLabels(requirements v1alpha5.Requirements) map[string]string {
-	labels := map[string]string{}
-	for _, label := range requirements.GetLabels() {
-		// Only include labels that aren't well known. Well known labels will be populated by the kubelet
-		if _, ok := v1alpha5.WellKnownLabels[label]; !ok {
-			labels[label] = requirements.GetLabelValues(label)[0]
-		}
-	}
-	return labels
 }
 
 func validateTopology(pod *v1.Pod) (errs error) {

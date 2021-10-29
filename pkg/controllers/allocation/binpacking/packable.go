@@ -20,7 +20,6 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -152,29 +151,29 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if instanceTypes := schedule.InstanceTypes(); !functional.ContainsString(instanceTypes, p.Name()) {
-		return fmt.Errorf("instance type %s is not in %v", p.Name(), instanceTypes)
+	if !schedule.Requirements.InstanceTypes().Has(p.Name()) {
+		return fmt.Errorf("instance type %s is not in %v", p.Name(), schedule.Requirements.InstanceTypes().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if architectures := schedule.Architectures(); !functional.ContainsString(architectures, p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), architectures)
+	if !schedule.Requirements.Architectures().Has(p.Architecture()) {
+		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), schedule.Requirements.Architectures().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if operatingSystems := schedule.OperatingSystems(); len(functional.IntersectStringSlice(p.OperatingSystems(), operatingSystems)) == 0 {
-		return fmt.Errorf("operating system %s is not in %v", operatingSystems, p.OperatingSystems())
+	if schedule.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
+		return fmt.Errorf("operating system %s is not in %v", p.OperatingSystems(), schedule.Requirements.OperatingSystems().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if zones := schedule.Zones(); len(functional.IntersectStringSlice(zones, p.Zones())) == 0 {
-		return fmt.Errorf("zones %v are not in %v", zones, p.Zones())
+	if schedule.Requirements.Zones().Intersection(p.Zones()).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", p.Zones(), schedule.Requirements.Zones().List())
 	}
 	return nil
 }

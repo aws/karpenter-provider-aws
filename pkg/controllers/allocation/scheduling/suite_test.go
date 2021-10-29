@@ -54,13 +54,17 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
-			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(e.Client),
-			Packer:        binpacking.NewPacker(),
-			CloudProvider: cloudProvider,
+			Batcher:   allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+			Filter:    &allocation.Filter{KubeClient: e.Client},
+			Scheduler: scheduling.NewScheduler(e.Client, cloudProvider),
+			Launcher: &allocation.Launcher{
+				Packer:        &binpacking.Packer{},
+				KubeClient:    e.Client,
+				CoreV1Client:  corev1.NewForConfigOrDie(e.Config),
+				CloudProvider: cloudProvider,
+			},
 			KubeClient:    e.Client,
+			CloudProvider: cloudProvider,
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -641,6 +645,67 @@ var _ = Describe("Topology", func() {
 			)
 			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(7, 7, 7))
 			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+		})
+	})
+
+	// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
+	Context("Combined Zonal Topology and Affinity", func() {
+		It("should limit spread options by nodeSelector", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				append(
+					MakePods(5, test.PodOptions{
+						Labels:                    labels,
+						TopologySpreadConstraints: topology,
+						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-1"},
+					}),
+					MakePods(5, test.PodOptions{
+						Labels:                    labels,
+						TopologySpreadConstraints: topology,
+						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-2"},
+					})...,
+				)...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(5, 5))
+		})
+		It("should limit spread options by node affinity", func() {
+			ExpectCreated(env.Client, provisioner)
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, append(
+				MakePods(6, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{
+						"test-zone-1", "test-zone-2",
+					}}},
+				}),
+				MakePods(1, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{
+						"test-zone-2", "test-zone-3",
+					}}},
+				})...,
+			)...)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3))
+			ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
+				MakePods(5, test.PodOptions{
+					Labels:                    labels,
+					TopologySpreadConstraints: topology,
+				})...,
+			)
+			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 4, 4))
 		})
 	})
 })

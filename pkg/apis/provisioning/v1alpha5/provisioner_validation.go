@@ -82,7 +82,6 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 		c.validateLabels(),
 		c.validateTaints(),
 		c.validateRequirements(),
-		c.Consolidate().Requirements.Validate(),
 		ValidateHook(ctx, c),
 	)
 }
@@ -95,11 +94,8 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
-		if known, ok := WellKnownLabels[key]; ok && !functional.ContainsString(known, value) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
-		}
 		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label prefix not supported"))
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label domain not allowed"))
 		}
 	}
 	return errs
@@ -157,8 +153,8 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 }
 
 func (r Requirements) Validate() (errs *apis.FieldError) {
-	for _, label := range r.GetLabels() {
-		if len(r.GetLabelValues(label)) == 0 {
+	for _, label := range r.Keys() {
+		if r.Requirement(label).Len() == 0 {
 			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s is too constrained", label)))
 		}
 	}
@@ -172,11 +168,6 @@ func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.Fie
 	for i, value := range requirement.Values {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-		}
-		if known, ok := WellKnownLabels[requirement.Key]; ok {
-			if !functional.ContainsString(known, value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %s", value, known), "values", i))
-			}
 		}
 	}
 	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {

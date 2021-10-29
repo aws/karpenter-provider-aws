@@ -44,6 +44,6 @@ var (
 func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
 	v1alpha5.RestrictedLabels = append(v1alpha5.RestrictedLabels, AWSLabelPrefix)
-	v1alpha5.WellKnownLabels[CapacityTypeLabel] = []string{CapacityTypeSpot, CapacityTypeOnDemand}
 	v1alpha5.RestrictedLabelDomains = append(v1alpha5.RestrictedLabelDomains, AWSRestrictedLabelDomains...)
+	v1alpha5.WellKnownLabels.Insert(CapacityTypeLabel)
 }

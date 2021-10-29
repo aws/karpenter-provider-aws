@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -41,7 +39,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
@@ -53,23 +50,26 @@ const (
 type Controller struct {
 	Batcher       *Batcher
 	Filter        *Filter
-	Binder        *Binder
 	Scheduler     *scheduling.Scheduler
-	Packer        binpacking.Packer
-	CloudProvider cloudprovider.CloudProvider
+	Launcher      *Launcher
 	KubeClient    client.Client
+	CloudProvider cloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		Filter:        &Filter{KubeClient: kubeClient},
-		Binder:        &Binder{KubeClient: kubeClient, CoreV1Client: coreV1Client},
-		Batcher:       NewBatcher(maxBatchWindow, batchIdleTimeout),
-		Scheduler:     scheduling.NewScheduler(kubeClient),
-		Packer:        binpacking.NewPacker(),
-		CloudProvider: cloudProvider,
+		Batcher:   NewBatcher(maxBatchWindow, batchIdleTimeout),
+		Filter:    &Filter{KubeClient: kubeClient},
+		Scheduler: scheduling.NewScheduler(kubeClient, cloudProvider),
+		Launcher: &Launcher{
+			Packer:        &binpacking.Packer{},
+			CloudProvider: cloudProvider,
+			KubeClient:    kubeClient,
+			CoreV1Client:  coreV1Client,
+		},
 		KubeClient:    kubeClient,
+		CloudProvider: cloudProvider,
 	}
 }
 
@@ -90,7 +90,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Wait on a pod batch
 	logging.FromContext(ctx).Infof("Waiting to batch additional pods")
 	c.Batcher.Wait(provisioner)
-
 	// Filter pods
 	pods, err := c.Filter.GetProvisionablePods(ctx, provisioner)
 	if err != nil {
@@ -101,40 +100,21 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		logging.FromContext(ctx).Infof("Watching for pod events")
 		return reconcile.Result{}, nil
 	}
-	// Group by constraints
-	schedules, err := c.Scheduler.Solve(ctx, provisioner, pods)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("solving scheduling constraints, %w", err)
-	}
 	// Get Instance Types Options
-	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx)
+	instanceTypes, err := c.CloudProvider.GetInstanceTypes(ctx, &provisioner.Spec.Constraints)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting instance types, %w", err)
 	}
-	// Create capacity
-	errs := make([]error, len(schedules))
-	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
-		for _, packing := range c.Packer.Pack(ctx, schedules[index], instanceTypes) {
-			// Create thread safe channel to pop off packed pod slices
-			packedPods := make(chan []*v1.Pod, len(packing.Pods))
-			for _, pods := range packing.Pods {
-				packedPods <- pods
-			}
-			close(packedPods)
-			if err := <-c.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
-				node.Labels = functional.UnionStringMaps(
-					node.Labels,
-					packing.Constraints.Labels,
-					map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-				)
-				node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
-				return c.Binder.Bind(ctx, node, <-packedPods)
-			}); err != nil {
-				errs[index] = multierr.Append(errs[index], err)
-			}
-		}
-	})
-	return reconcile.Result{Requeue: true}, multierr.Combine(errs...)
+	// Separate pods by scheduling constraints
+	schedules, err := c.Scheduler.Solve(ctx, provisioner, instanceTypes, pods)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("solving scheduling constraints, %w", err)
+	}
+	// Launch capacity and bind pods
+	if err := c.Launcher.Launch(ctx, schedules, instanceTypes); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{Requeue: true}, nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {

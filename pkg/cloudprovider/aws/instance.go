@@ -38,8 +38,8 @@ import (
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
-	launchTemplateProvider *LaunchTemplateProvider
 	subnetProvider         *SubnetProvider
+	launchTemplateProvider *LaunchTemplateProvider
 }
 
 // Create an instance given the constraints.
@@ -61,7 +61,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 	); err != nil && len(instances) == 0 {
 		return nil, err
 	} else if err != nil {
-		logging.FromContext(ctx).Errorf("retrieving node name for %d instances out of %d", quantity-len(instances), quantity)
+		logging.FromContext(ctx).Errorf("retrieving node name for %d/%d instances", quantity-len(instances), quantity)
 	}
 
 	nodes := []*v1.Node{}
@@ -110,10 +110,10 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
 	// or using nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
-	if capacityTypes := constraints.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
+	if capacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
 	} else if len(capacityTypes) == 1 {
-		capacityType = capacityTypes[0]
+		capacityType = capacityTypes.UnsortedList()[0]
 	}
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
@@ -152,10 +152,8 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
-
-	additionalLabels := map[string]string{v1alpha1.CapacityTypeLabel: capacityType}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, additionalLabels)
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, map[string]string{v1alpha1.CapacityTypeLabel: capacityType})
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
@@ -174,7 +172,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
-		for _, zone := range instanceType.Zones() {
+		for zone := range instanceType.Zones() {
 			for _, subnet := range subnets {
 				if aws.StringValue(subnet.AvailabilityZone) == zone {
 					override := &ec2.FleetLaunchTemplateOverridesRequest{
@@ -227,6 +225,8 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 				ObjectMeta: metav1.ObjectMeta{
 					Name: aws.StringValue(instance.PrivateDnsName),
 					Labels: map[string]string{
+						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
+						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
 						v1alpha1.CapacityTypeLabel: getCapacityType(instance),
 					},
 				},
@@ -240,7 +240,7 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 						v1.ResourceMemory: *instanceType.Memory(),
 					},
 					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    aws.StringValue(instance.Architecture),
+						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
 						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
@@ -264,7 +264,7 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 	for _, err := range errors {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}
-	for _, errorCode := range unique.List() {
+	for errorCode := range unique {
 		errs = multierr.Append(errs, fmt.Errorf(errorCode))
 	}
 	return fmt.Errorf("with fleet error(s), %w", errs)

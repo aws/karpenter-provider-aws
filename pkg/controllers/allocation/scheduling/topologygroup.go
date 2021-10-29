@@ -18,6 +18,7 @@ import (
 	"math"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func NewTopologyGroup(pod *v1.Pod, constraint v1.TopologySpreadConstraint) *TopologyGroup {
@@ -44,17 +45,19 @@ func (t *TopologyGroup) Register(domains ...string) {
 
 // Increment increments the spread of a registered domain
 func (t *TopologyGroup) Increment(domain string) {
-	_, ok := t.spread[domain]
-	if ok {
+	if _, ok := t.spread[domain]; ok {
 		t.spread[domain]++
 	}
 }
 
-// NextDomain chooses a domain that minimizes skew and increments its count
-func (t *TopologyGroup) NextDomain() string {
+// NextDomain chooses a domain within the constraints that minimizes skew
+func (t *TopologyGroup) NextDomain(requirement sets.String) string {
 	minDomain := ""
 	minCount := math.MaxInt32
 	for domain, count := range t.spread {
+		if requirement != nil && !requirement.Has(domain) {
+			continue
+		}
 		if count <= minCount {
 			minDomain = domain
 			minCount = count

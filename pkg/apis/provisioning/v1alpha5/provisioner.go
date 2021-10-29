@@ -17,10 +17,10 @@ package v1alpha5
 import (
 	"sort"
 
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -95,105 +95,128 @@ type ProvisionerList struct {
 }
 
 // Zones for the constraints
-func (c *Constraints) Zones() []string {
-	return c.Requirements.GetLabelValues(v1.LabelTopologyZone)
+func (r Requirements) Zones() sets.String {
+	return r.Requirement(v1.LabelTopologyZone)
 }
 
 // InstanceTypes for the constraints
-func (c *Constraints) InstanceTypes() []string {
-	return c.Requirements.GetLabelValues(v1.LabelInstanceTypeStable)
+func (r Requirements) InstanceTypes() sets.String {
+	return r.Requirement(v1.LabelInstanceTypeStable)
 }
 
 // Architectures for the constraints
-func (c *Constraints) Architectures() []string {
-	return c.Requirements.GetLabelValues(v1.LabelArchStable)
+func (r Requirements) Architectures() sets.String {
+	return r.Requirement(v1.LabelArchStable)
 }
 
 // OperatingSystems for the constraints
-func (c *Constraints) OperatingSystems() []string {
-	return c.Requirements.GetLabelValues(v1.LabelOSStable)
+func (r Requirements) OperatingSystems() sets.String {
+	return r.Requirement(v1.LabelOSStable)
 }
 
-// Consolidate and copy the constraints
-func (c *Constraints) Consolidate() *Constraints {
-	// Combine labels and requirements
-	combined := append(Requirements{}, c.Requirements...)
-	for key, value := range c.Labels {
-		combined = append(combined, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
-	}
-	// Simplify to a single OpIn per label
-	requirements := Requirements{}
-	for _, label := range combined.GetLabels() {
-		requirements = append(requirements, v1.NodeSelectorRequirement{
-			Key:      label,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   combined.GetLabelValues(label),
-		})
-	}
-	return &Constraints{
-		Labels:       c.Labels,
-		Taints:       c.Taints,
-		Requirements: requirements,
-		Provider:     c.Provider,
-	}
+func (r Requirements) WithProvisioner(provisioner Provisioner) Requirements {
+	return r.
+		With(provisioner.Spec.Requirements).
+		WithLabels(provisioner.Spec.Labels).
+		WithLabels(map[string]string{ProvisionerNameLabelKey: provisioner.Name})
 }
 
-// With adds additional requirements from the pods
-func (r Requirements) With(pods ...*v1.Pod) Requirements {
-	for _, pod := range pods {
-		for key, value := range pod.Spec.NodeSelector {
-			r = append(r, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
-		}
-		if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
-			continue
-		}
-		// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
-		if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
-			sort.Slice(preferred, func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight })
-			r = append(r, preferred[0].Preference.MatchExpressions...)
-		}
-		// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable
-		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil &&
-			len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-			r = append(r, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
-		}
+func (r Requirements) With(requirements Requirements) Requirements {
+	return append(r, requirements...)
+}
+
+func (r Requirements) WithLabels(labels map[string]string) Requirements {
+	for key, value := range labels {
+		r = append(r, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
 	return r
 }
 
-// GetLabels returns unique set of the label keys from the requirements
-func (r Requirements) GetLabels() []string {
-	keys := map[string]bool{}
-	for _, requirement := range r {
-		keys[requirement.Key] = true
+func (r Requirements) WithPod(pod *v1.Pod) Requirements {
+	for key, value := range pod.Spec.NodeSelector {
+		r = append(r, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
-	result := []string{}
-	for key := range keys {
-		result = append(result, key)
+	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
+		return r
 	}
-	return result
+	// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
+	if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
+		sort.Slice(preferred, func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight })
+		r = append(r, preferred[0].Preference.MatchExpressions...)
+	}
+	// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable
+	if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil &&
+		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
+		r = append(r, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+	}
+	return r
 }
 
-// GetLabelValues for the provided key constrained by the requirements
-func (r Requirements) GetLabelValues(label string) []string {
-	var result []string
-	if known, ok := WellKnownLabels[label]; ok {
-		result = known
+// Consolidate combines In and NotIn requirements for each unique key, producing
+// an equivalent minimal representation of the requirements. This is useful as
+// requirements may be appended from a variety of sources and then consolidated.
+// Caution: If a key has contains a `NotIn` operator without a corresponding
+// `In` operator, the requirement will permanently be [] after consolidation. To
+// avoid this, include the broadest `In` requirements before consolidating.
+func (r Requirements) Consolidate() (requirements Requirements) {
+	for _, key := range r.Keys() {
+		requirements = append(requirements, v1.NodeSelectorRequirement{
+			Key:      key,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   r.Requirement(key).UnsortedList(),
+		})
 	}
+	return requirements
+}
+
+func (r Requirements) CustomLabels() map[string]string {
+	labels := map[string]string{}
+	for _, key := range r.Keys() {
+		if !WellKnownLabels.Has(key) {
+			if requirement := r.Requirement(key); len(requirement) > 0 {
+				labels[key] = requirement.UnsortedList()[0]
+			}
+		}
+	}
+	return labels
+}
+
+func (r Requirements) WellKnown() (requirements Requirements) {
+	for _, requirement := range r {
+		if WellKnownLabels.Has(requirement.Key) {
+			requirements = append(requirements, requirement)
+		}
+	}
+	return requirements
+}
+
+// Keys returns unique set of the label keys from the requirements
+func (r Requirements) Keys() []string {
+	keys := sets.NewString()
+	for _, requirement := range r {
+		keys.Insert(requirement.Key)
+	}
+	return keys.UnsortedList()
+}
+
+// Requirements for the provided key, nil if unconstrained
+func (r Requirements) Requirement(key string) sets.String {
+	var result sets.String
 	// OpIn
 	for _, requirement := range r {
-		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpIn {
-			result = functional.IntersectStringSlice(result, requirement.Values)
+		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpIn {
+			if result == nil {
+				result = sets.NewString(requirement.Values...)
+			} else {
+				result = result.Intersection(sets.NewString(requirement.Values...))
+			}
 		}
 	}
 	// OpNotIn
 	for _, requirement := range r {
-		if requirement.Key == label && requirement.Operator == v1.NodeSelectorOpNotIn {
-			result = functional.StringSliceWithout(result, requirement.Values...)
+		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpNotIn {
+			result = result.Difference(sets.NewString(requirement.Values...))
 		}
-	}
-	if len(result) == 0 {
-		result = []string{}
 	}
 	return result
 }

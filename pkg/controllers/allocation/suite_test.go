@@ -56,13 +56,17 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{
-			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: corev1.NewForConfigOrDie(e.Config)},
-			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(e.Client),
-			Packer:        binpacking.NewPacker(),
 			CloudProvider: cloudProvider,
-			KubeClient:    e.Client,
+			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
+			Filter:        &allocation.Filter{KubeClient: e.Client},
+			Scheduler:     scheduling.NewScheduler(e.Client, cloudProvider),
+			Launcher: &allocation.Launcher{
+				Packer:        &binpacking.Packer{},
+				KubeClient:    e.Client,
+				CoreV1Client:  corev1.NewForConfigOrDie(e.Config),
+				CloudProvider: cloudProvider,
+			},
+			KubeClient: e.Client,
 		}
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -207,19 +211,16 @@ var _ = Describe("Allocation", func() {
 		})
 
 		Context("Labels", func() {
-			It("should label nodes with provisioner labels", func() {
+			It("should label nodes", func() {
 				provisioner.Spec.Labels = map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-			})
-			It("should labels nodes with provisioner name", func() {
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
+				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))
+				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 			})
 		})
 		Context("Taints", func() {

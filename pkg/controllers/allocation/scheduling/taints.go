@@ -23,6 +23,34 @@ import (
 
 type Taints []v1.Taint
 
+func (ts Taints) WithPod(pod *v1.Pod) Taints {
+	for _, toleration := range pod.Spec.Tolerations {
+		// Only OpEqual is supported. OpExists does not make sense for
+		// provisioning -- in theory we could create a taint on the node with a
+		// random string, but it's unclear what use case this would accomplish.
+		if toleration.Operator != v1.TolerationOpEqual {
+			continue
+		}
+		var generated []v1.Taint
+		// Use effect if defined, otherwise taint all effects
+		if toleration.Effect != "" {
+			generated = []v1.Taint{{Key: toleration.Key, Value: toleration.Value, Effect: toleration.Effect}}
+		} else {
+			generated = []v1.Taint{
+				{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoSchedule},
+				{Key: toleration.Key, Value: toleration.Value, Effect: v1.TaintEffectNoExecute},
+			}
+		}
+		// Only add taints that do not already exist on constraints
+		for _, taint := range generated {
+			if !ts.Has(taint) {
+				ts = append(ts, taint)
+			}
+		}
+	}
+	return ts
+}
+
 // Has returns true if taints has a taint for the given key
 func (ts Taints) Has(taint v1.Taint) bool {
 	for _, t := range ts {
