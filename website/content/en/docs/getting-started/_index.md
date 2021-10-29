@@ -157,7 +157,7 @@ eksctl. Thus, we don't need the helm chart to do that.
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version 0.4.0 \
+  --create-namespace --set serviceAccount.create=false --version 0.4.1 \
   --wait # for the defaulting webhook to install before creating a Provisioner
 ```
 
