@@ -167,6 +167,35 @@ helm upgrade --install --skip-crds karpenter karpenter/karpenter --namespace kar
 ```sh
 kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
 ```
+
+### Create Grafana dashboards (optional)
+
+The Karpenter repo contains multiple [importable dashboards](https://github.com/awslabs/karpenter/tree/main/grafana-dashboards) for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
+
+#### Deploy a temporary Prometheus and Grafana stack (optional)
+
+The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
+
+```sh
+helm repo add grafana-charts https://grafana.github.io/helm-charts
+helm repo update
+kubectl create namespace monitoring
+curl -fsSL https://karpenter.sh/docs/getting-started/grafana-stack-values.yaml
+helm install --namespace monitoring grafana grafana-charts/loki-stack --values grafana-stack-values.yaml
+```
+
+The Grafana instance may be accessed using port forwarding.
+
+```sh
+kubectl port-forward --namespace monitoring svc/grafana 3000:80
+```
+
+The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password and copy it onto your system clipboard.
+
+```sh
+kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode | pbcopy
+```
+
 ### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod

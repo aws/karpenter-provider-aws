@@ -1,0 +1,22 @@
+grafana:
+  enabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      provider:
+        folder: "Karpenter"
+        allowUiUpdates: true
+
+prometheus:
+  enabled: true
+  alertmanager:
+    persistentVolume:
+      enabled: false
+  server:
+    persistentVolume:
+      enabled: false
+  extraScrapeConfigs: |
+    - job_name: karpenter
+      static_configs:
+      - targets:
+        - karpenter-metrics.karpenter:8080
