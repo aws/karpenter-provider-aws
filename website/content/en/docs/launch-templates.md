@@ -45,9 +45,21 @@ when building a custom base image.
 --kubelet-extra-args <'--max-pods=40'> \
 --b64-cluster-ca <certificateAuthority> \
 --apiserver-endpoint <endpoint> 
---dns-cluster-ip <serivceIpv4Cidr>.10
+--dns-cluster-ip <serviceIpv4Cidr>
 --use-max-pods false
 ```
+
+Encode using yaml function `!Base64` yaml function or `cat hi.yaml | base64 > hi.base` shell command. 
+
+```
+aws eks describe-cluster --name october --region us-west-1
+```
+
+use that above command to get these values...
+- certificate authority?
+- api server?
+
+- dns cluster ip? default value is ...
 
 Note, you must populate this startup script with live values. Karpenter will
 not change the user data in the launch template. 
@@ -101,6 +113,11 @@ provided below.
 Cloudformation yaml is suited for the moderately high configuration density of
 launch templates, and creating the unusual InstanceProfile resource. 
 
+You must replace:
+- SecurityGroupID
+  - list all security groups with `aws ec2 describe-security-groups`
+- Parameters in UserData
+
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
 Resources:
@@ -143,7 +160,14 @@ Resources:
             - Arn
         ImageId: ami-074cce78125f09d61
         # UserData is Base64 Encoded
-        UserData:    "IyEvYmluL2Jhc2gKL2V0Yy9la3MvYm9vdHN0cmFwLnNoIDxteS1jbHVzdGVyLW5hbWU+IFwKLS1rdWJlbGV0LWV4dHJhLWFyZ3MgPCctLW1heC1wb2RzPTQwJz4gXAotLWI2NC1jbHVzdGVyLWNhIDxjZXJ0aWZpY2F0ZUF1dGhvcml0eT4gXAotLWFwaXNlcnZlci1lbmRwb2ludCA8ZW5kcG9pbnQ+IAotLWRucy1jbHVzdGVyLWlwIDxzZXJpdmNlSXB2NENpZHI+LjEwCi0tdXNlLW1heC1wb2RzIGZhbHNl"
+        UserData: !Base64 > 
+            #!/bin/bash
+            /etc/eks/bootstrap.sh <my-cluster-name> \
+            --kubelet-extra-args <'--max-pods=40'> \
+            --b64-cluster-ca <certificateAuthority> \
+            --apiserver-endpoint <endpoint> 
+            --dns-cluster-ip <serviceIpv4Cidr>
+            --use-max-pods false
         BlockDeviceMappings: 
           - Ebs:
               VolumeSize: 80
@@ -168,8 +192,8 @@ aws cloudformation create-stack \
 
 ### Define LaunchTemplate for Provisioner
 
-The LaunchTemplate is ready to be used. Specify it by name in the Provisioner
-CRD. Karpenter will use this template when creating new instances.
+The LaunchTemplate is ready to be used. Specify it by name in the [Provisioner
+CRD](provisioner-crd.md). Karpenter will use this template when creating new instances.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
