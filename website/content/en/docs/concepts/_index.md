@@ -29,38 +29,6 @@ Karpenter's provisioning work is configured through [Provisioner CRDs](/docs/pro
 
 Here are some things to know about the Karpenter provisioner:
 
-provisioner(s)
-well known labels
-provider-specific parameters
-resource requests
-node affinity (w/ node selector syntactic sugar)
-tolerations
-topology spread constraints
-persistent volumes
-AWS-specific Concepts:
-
-instance role
-launch template
-security groups
-subnets
-Behaviors:
-
-batching
-scheduling
-binpacking
-termination
-expiration
-emptiness
-
-
-
-
-zzzzzz
-
-
-
-
-
 * **Unschedulable pods**: Karpenter only attempts to provision pods that has a status condition Unschedulable=True, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
 
 * **Provisioner CRD**: Provisioner CRDs define how the provisioner controller behaves.
