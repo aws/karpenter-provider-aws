@@ -1,5 +1,5 @@
 ---
-title: "Deleting nodes with Karpenter"
-linkTitle: "Deleting nodes with Karpenter"
+title: "Deleting nodes"
+linkTitle: "Deleting nodes"
 weight: 30
 ---

@@ -1,6 +1,6 @@
 ---
-title: "Karpenter pod developer concepts"
-linkTitle: "Karpenter pod developer concepts"
+title: "Supported scheduling constraints"
+linkTitle: "Supported scheduling constraints"
 weight: 25
 ---
 

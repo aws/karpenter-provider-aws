@@ -1,6 +1,6 @@
 ---
-title: "Karpenter provisioner and scheduler"
-linkTitle: "Karpenter provisioner and scheduler"
+title: "Provisioning"
+linkTitle: "Provisioning"
 weight: 20
 ---
 

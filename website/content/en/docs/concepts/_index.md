@@ -4,86 +4,119 @@ linkTitle: "Concepts"
 weight: 35
 ---
 
-By adding Karpenter to a Kubernetes cluster you can dramatically improve the efficiency and cost of running workloads on that cluster.
-Instead of introducing lots of new concepts and configuration, Karpenter is tightly integrated with Kubernetes features to make sure that the right types and amounts of compute resources are available to pods as they are needed.
+Adding Karpenter to a Kubernetes cluster can dramatically improve the efficiency and cost of running workloads on that cluster.
+Karpenter is tightly integrated with Kubernetes features to make sure that the right types and amounts of compute resources are available to pods as they are needed.
 Karpenter carries out its duties by:
 
 * Watching for pods that the Kubernetes scheduler has marked as unschedulable
-* Evaluating the requirements (capacity, features, and taints) identified by the unscheduable pods
-* Provisioning nodes that meet the requirements of the unschedulable pods
-* Scheduling the unschedulable pods to run on the new nodes
+* Evaluating scheduling constraints (resource requests, nodeselectors, affinities, tolerations, and topology spread constraints) requested by the pods
+* Provisioning nodes that meet the requirements of the pods
+* Scheduling the pods to run on the new nodes
 * Removing the nodes when the nodes are no longer needed
 
-In many cases, you can configure a simple Karpenter provisioner when it is first installed and not change it again. 
-Other times, you might want to continue to tweak the provisioner or even create multiple provisioners for a cluster where you tailor the requirements of different teams to use specific instance types, zones, or computer architectures.
-Likewise, you might want to instruct the provisioner to take advantage of underlying cloud features, such as AWS spot instances.
+In many cases, you can configure an unconstrained Karpenter provisioner when it is first installed and not change it again. 
+Other times, you might want to continue to tweak the provisioner or even create multiple provisioners for a cluster where you tailor the requirements of different teams to use specific instance types, zones, or architectures.
+Likewise, you might want to constrain the provisioner to use underlying cloud features, such as AWS spot instances.
 
-As someone deploying pod workloads, you can make specific requests for capacity and features you want from the nodes running your pods.
-If the Kubernetes scheduler is unable to meet those requirements, Karpenter is designed to quickly create the best possible nodes to meet those needs.
+Application developers can make specific requests for capacity and features you want from the nodes running your pods.
+Karpenter is designed to quickly create the best possible nodes to meet those needs.
 
-## Karpenter concepts
+## Provisioners
 
-The following are some key concepts you should understand about Karpenter.
-
-### Karpenter provisioners
-
-A Karpenter provisioner controller runs on a Kubernetes cluster.
+Karpenter can be installed onto your Kubernetes cluster's data plane.
 Its job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed.
-The controller's work is configured through [Provisioner CRDs](/docs/provisioner-crd/).
+Karpenter's provisioning work is configured through [Provisioner CRDs](/docs/provisioner-crd/).
 
-Rather than take over the process of provisioning nodes and scheduling pods, the provisioner controller integrates with the Kubernetes scheduler, cluster autoscaler, and related Kubernetes features to make sure that pods are properly and efficiently deployed.
-It also works through Kubernetes to request needed assets from the cloud provider.
+Here are some things to know about the Karpenter provisioner:
 
-Here are some attributes of the Karpenter provisioner:
+provisioner(s)
+well known labels
+provider-specific parameters
+resource requests
+node affinity (w/ node selector syntactic sugar)
+tolerations
+topology spread constraints
+persistent volumes
+AWS-specific Concepts:
 
-* **Unschedulable pods**: Karpenter only looks at pods that the Kubernetes scheduler identifies as unschedulable.
-If the Kubernetes scheduler is able to schedule a pod, the Karpenter provisioner takes no action on it.
+instance role
+launch template
+security groups
+subnets
+Behaviors:
+
+batching
+scheduling
+binpacking
+termination
+expiration
+emptiness
+
+
+
+
+zzzzzz
+
+
+
+
+
+* **Unschedulable pods**: Karpenter only attempts to provision pods that has a status condition Unschedulable=True, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
+
 * **Provisioner CRD**: Provisioner CRDs define how the provisioner controller behaves.
+Each provisioner manages a distinct set of nodes.
 Each CRD contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
 See [Provisioner CRD](/docs/provisioner-crd/) for a description of settings.
-* **Well-known labels**: The CRD can use well-known Kubernetes labels to allow pods to request only certain instance types, computer architectures, operating systems, or other attributes when creating nodes.
+* **Well-known labels**: The CRD can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
+See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
+Keep in mind that only a subset of these labels are supported in Karpenter, as described in [Provisioning](/docs/concepts/provisioner.md).
 * **Time to live**: A provisioner can also include time-to-live values to indicate when nodes should be decommissioned after a set amount of time from when it was created or after it becomes empty of deployed pods.
 * **Multiple provisioner CRDs**: An important feature of Karpenter is that it allows multiple provisioner CRDs on the same cluster.
 One possible result is that you could configure different teams on the same cluster to run on completely separate capacity.
 One team could run on GPU nodes while another uses storage nodes, with each having a different set of defaults.
-This approach could some day lead Karpenter to allow provisioners with different cloud providers on the same cluster or a control plane on one cloud and data plane on another.
+Although you can address the needs of multiple teams in one CRD in some ways, having separate ones lets you isolate nodes for billing, use different defaults (such as no GPUs for a team), or use different expiration and scale-down values.
+Having multiple CRDs could some day lead Karpenter to allow provisioners with different cloud providers on the same cluster or a control plane on one cloud and data plane on another.
 
-### Karpenter scheduler
+## Scheduling
 
-Besides creating nodes, Karpenter also works with the Kubernetes schedular to schedule pods.
+Besides creating nodes, Karpenter also schedules pods.
 To avoid conflicts, Karpenter only schedules pods that the Kubernetes scheduler has marked unschedulable.
-When Karpenter finds unschedulable pods, it provisions the needed nodes and immediately binds the previously unschedulable pods to the new nodes.
-Once Karpenter brings up a node, that node is available for the Kubernetes scheduler to schedule pods on it as well.
+Karpenter optimistically creates the Node object and binds the pod.
+This stateless approach avoids race conditions and improves performance.
+If something is wrong with the launched node, Kubernetes will automatically migrate the pods to a new node.
 
-### Cloud provider
+Once Karpenter brings up a node, that node is available for the Kubernetes scheduler to schedule pods on it as well.
+This is useful if there is additional room in the node due to imperfect packing shape or as workloads finish over time.
+
+## Cloud provider
 Karpenter makes requests to provision new nodes to the associated cloud provider.
 The first supported cloud provider is AWS, although Karpenter is designed to work other cloud providers as well.
 Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to integrating with other cloud providers.
 
-While using Kubernetes well-known labels, the provisioner can set values that are specific to the cloud provider.
+While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
 So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
-Other cloud assets you can identify include security groups and capacity type.
+
 Choosing spot instances is one feature that is specific to AWS.
+Cloud providers may choose to implement support for additional vendor specific labels like `node.k8s.aws/capacity-type`.
 See [AWS labels](/docs/cloud-providers/aws/) for details.
 
-### Kubernetes cluster autoscaler
+## Kubernetes cluster autoscaler
 Like Karpenter, [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is
 designed to add nodes when requests come in to run pods that cannot be met by current capacity.
 Cluster autoscaler is part of the Kubenetes project, with implementations by most major Kubernetes cloud providers.
 By taking a fresh look at provisioning, Karpenter offers the following improvements over the older cluster autoscaler:
 
-* **Tuned to manage AWS EC2 instances**: 
-At the time cluster autoscaler was created, cloud providers, such as GCE, only had about a half dozen instance types.
-Cluster autoscaler was not built with the flexibility to handle hundreds of instance types or request EC2 spot instances.
+* **Designed to handle the full flexibility of the cloud**:
+Cluster autoscaler was not built with the flexibility to handle hundreds of instance types, zones, and purchase options.
 Karpenter has the ability to efficiently address the full range of instance types available through AWS.
 
 * **Adds scheduling**: Cluster autoscaler doesn’t bind pods to the nodes it creates.
 A node that Karpenter creates knows to run the bound pods immediately when the node comes up.
-It doesn't have to wait for the scheduler or for the node to become ready.
+I doesn't have to wait for the scheduler or for the node to become ready.
 It can start pulling the container images it needs immediately.
-This alone can save an extra 15 seconds of performance.
+This can save seconds of performance.
 
-### Constraints
+## Constraints
 Understanding the concept of layered constraints is key to using Karpenter.
 With no constraints defined in provisioners and none requested from pods being deployed, Karpenter on AWS is free to choose from the entire universe of features available from EC2.
 Nodes can be created using any instance type and run in any zones.
@@ -101,7 +134,7 @@ The Karpenter provisoners configured for the cluster will look to best match the
 For details about how to set constraints when configuring a Karpenter provider, see [Karpenter provisioner and scheduler](/docs/concepts/provisioner.md) for details.
 For more on how, as a developer, you can add constraints to your pod spec deployment, see [Karpenter pod developer concepts](/docs/concepts/running-pods.md) for details.
 
-### Deprovisioning nodes
+## Deprovisioning nodes
 
 Karpenter not only manages the creation of nodes to add cluster capacity, but also will delete nodes when that capacity is no longer needed.
 There are several things you should know about how Karpenter deprovisions nodes:

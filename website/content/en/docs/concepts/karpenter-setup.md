@@ -1,5 +1,5 @@
 ---
-title: "Karpenter setup workflow"
-linkTitle: "Karpenter setup workflow"
+title: "Installation"
+linkTitle: "Installation"
 weight: 15
 ---
