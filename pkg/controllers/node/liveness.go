@@ -37,8 +37,8 @@ type Liveness struct {
 
 // Reconcile reconciles the node
 func (r *Liveness) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if injectabletime.Now().Sub(n.GetCreationTimestamp().Time) < LivenessTimeout {
-		return reconcile.Result{}, nil
+	if ttl := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); ttl < LivenessTimeout {
+		return reconcile.Result{RequeueAfter: LivenessTimeout - ttl}, nil
 	}
 	condition := node.GetCondition(n.Status.Conditions, v1.NodeReady)
 	// If the reason is "", then the condition has never been set. We expect
