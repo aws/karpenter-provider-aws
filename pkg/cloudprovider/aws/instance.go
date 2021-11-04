@@ -171,8 +171,15 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
+	zonesUsed := sets.String{}
 	for i, instanceType := range instanceTypeOptions {
-		for zone := range instanceType.Zones() {
+		for _, offering := range instanceType.Offerings() {
+			zone := offering.Zone
+			// we can't assume that all zones will be available for all capacity types, hence this check
+			// (we shouldn't ever have duplicate zones, just being paranoid to create a well-formed set of overrides)
+			if offering.CapacityType != capacityType || zonesUsed.Has(zone) {
+				continue
+			}
 			for _, subnet := range subnets {
 				if aws.StringValue(subnet.AvailabilityZone) == zone {
 					override := &ec2.FleetLaunchTemplateOverridesRequest{
@@ -186,11 +193,15 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 						override.Priority = aws.Float64(float64(i))
 					}
 					overrides = append(overrides, override)
+					zonesUsed.Insert(zone)
 					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
 					break
 				}
 			}
 		}
+	}
+	if len(overrides) == 0 {
+		fmt.Printf("Overrides was empty. Capacity type was %v and instance types were %v", capacityType, instanceTypeOptions)
 	}
 	return overrides
 }
@@ -240,8 +251,9 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 						v1.ResourceMemory: *instanceType.Memory(),
 					},
 					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
-						OSImage:         aws.StringValue(instance.ImageId),
+						Architecture: v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
+						OSImage:      aws.StringValue(instance.ImageId),
+						//TODO: stop hard-coding this
 						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 				},

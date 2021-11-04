@@ -22,6 +22,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
@@ -37,8 +38,25 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
 		instance := instanceTypes[0]
-		zone := instance.Zones().Intersection(constraints.Requirements.Zones()).UnsortedList()[0]
-		operatingSystem := instance.OperatingSystems().UnsortedList()[0]
+		zoneSet := sets.String{}
+		offeringMap := make(map[string]sets.String)
+		constrainedCapacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel)
+		if constrainedCapacityTypes.Len() == 0 {
+			constrainedCapacityTypes = sets.String{}.Insert(v1alpha1.CapacityTypeOnDemand)
+		}
+		for _, o := range instance.Offerings() {
+			if !constrainedCapacityTypes.Has(o.CapacityType) {
+				continue
+			}
+			zoneSet.Insert(o.Zone)
+			_, exists := offeringMap[o.Zone]
+			if !exists {
+				offeringMap[o.Zone] = sets.String{}
+			}
+			offeringMap[o.Zone].Insert(o.CapacityType)
+		}
+		zone := zoneSet.Intersection(constraints.Requirements.Zones()).UnsortedList()[0]
+		capacityType := offeringMap[zone].UnsortedList()[0]
 
 		go func() {
 			err <- bind(&v1.Node{
@@ -47,6 +65,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       zone,
 						v1.LabelInstanceTypeStable: instance.Name(),
+						v1alpha1.CapacityTypeLabel: capacityType,
 					},
 				},
 				Spec: v1.NodeSpec{
@@ -55,7 +74,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 				Status: v1.NodeStatus{
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    instance.Architecture(),
-						OperatingSystem: operatingSystem,
+						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 					Allocatable: v1.ResourceList{
 						v1.ResourcePods:   *instance.Pods(),
@@ -85,10 +104,6 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constrai
 		NewInstanceType(InstanceTypeOptions{
 			name:       "aws-neuron-instance-type",
 			awsNeurons: resource.MustParse("2"),
-		}),
-		NewInstanceType(InstanceTypeOptions{
-			name:             "windows-instance-type",
-			operatingSystems: sets.NewString("windows"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
 			name:         "arm-instance-type",

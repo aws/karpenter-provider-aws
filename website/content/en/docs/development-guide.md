@@ -66,6 +66,13 @@ Linux:
 gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
 ```
 
+### Tailing Logs
+While you can tail Karpenter's logs with kubectl, but there's a number of tools out there that enhance the experience. We recommend [Stern](https://pkg.go.dev/github.com/planetscale/stern#section-readme):
+
+```bash
+stern -l karpenter=controller -n karpenter
+```
+
 ## Environment specific setup
 
 ### AWS

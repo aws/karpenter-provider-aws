@@ -16,6 +16,7 @@ package allocation_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 
+	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -128,8 +130,6 @@ var _ = Describe("Allocation", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
 				// Ignored, invalid architecture
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
-				// Ignored, invalid operating system
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -138,15 +138,18 @@ var _ = Describe("Allocation", func() {
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
-			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range schedulable {
 				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
 				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
+				if unscheduled.Spec.NodeName != "" {
+					fmt.Printf("This pod shouldn't have been scheduled: %s", pretty.Concise(pod))
+				}
 				Expect(unscheduled.Spec.NodeName).To(Equal(""))
 			}
+			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 		})
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)

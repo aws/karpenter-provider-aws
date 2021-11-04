@@ -166,7 +166,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 		InstanceTypes: []*ec2.InstanceTypeInfo{
 			{
 				InstanceType:                  aws.String("m5.large"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -186,7 +186,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("m5.xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -206,7 +206,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("p3.8xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -232,7 +232,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("c6g.large"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -252,7 +252,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("inf1.6xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand")},
+				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),

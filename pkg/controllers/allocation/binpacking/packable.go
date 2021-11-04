@@ -19,11 +19,13 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -52,7 +54,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateZones(schedule),
 			packable.validateInstanceType(schedule),
 			packable.validateArchitecture(schedule),
-			packable.validateOperatingSystem(schedule),
+			packable.validateCapacityTypes(schedule),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
@@ -164,16 +166,28 @@ func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
 	return nil
 }
 
-func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if schedule.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
-		return fmt.Errorf("operating system %s is not in %v", p.OperatingSystems(), schedule.Requirements.OperatingSystems().List())
+func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
+	packableZoneSet := sets.String{}
+	for _, offering := range p.Offerings() {
+		packableZoneSet.Insert(offering.Zone)
+	}
+	if schedule.Requirements.Zones().Intersection(packableZoneSet).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", packableZoneSet, schedule.Requirements.Zones().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if schedule.Requirements.Zones().Intersection(p.Zones()).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", p.Zones(), schedule.Requirements.Zones().List())
+func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
+	scheduledCapacityTypes := schedule.Requirements.Requirement(v1alpha1.CapacityTypeLabel)
+	if scheduledCapacityTypes.Len() == 0 {
+		return nil
+	}
+	packableCapacityTypes := sets.String{}
+	for _, offering := range p.Offerings() {
+		packableCapacityTypes.Insert(offering.CapacityType)
+	}
+	if scheduledCapacityTypes.Intersection(packableCapacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", packableCapacityTypes, scheduledCapacityTypes.List())
 	}
 	return nil
 }
