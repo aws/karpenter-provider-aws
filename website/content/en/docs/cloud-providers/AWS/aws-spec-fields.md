@@ -1,13 +1,11 @@
 ---
-title: "Amazon Web Services (AWS)"
-linkTitle: "AWS"
+title: "Specifying Values to Control AWS Provisioning"
+linkTitle: "Spec Fields"
 weight: 10
 ---
 
-## Control Provisioning with Labels
-
 The [Provisioner CRD]({{< ref "provisioner-crd.md" >}}) supports defining
-node properties like instance type and zone.For certain well-known labels (documented below), Karpenter will provision
+node properties like instance type and zone. For certain well-known labels (documented below), Karpenter will provision
 nodes accordingly. For example, in response to a label of
 `topology.kubernetes.io/zone=us-east-1c`, Karpenter will provision nodes in
 that availability zone.

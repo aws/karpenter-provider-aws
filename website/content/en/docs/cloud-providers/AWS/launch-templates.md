@@ -4,6 +4,8 @@ linkTitle: "Launch Templates"
 weight: 80
 ---
 
+By default, Karpenter uses the EKS Optimized version of Amazon Linux 2 (AL2) for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template. 
+
 ## Introduction
 
 Karpenter follows existing AWS patterns for customizing the base image of
@@ -12,9 +14,19 @@ templates may specify many values. The pivotal value is the base image (AMI).
 Launch templates further specify many parameters related to networking,
 authorization, instance type, and more.  
 
-This guide describes requirements for using launch templates with Karpenter, and includes an example procedure.
+This guide describes requirements for using launch templates with Karpenter, and later an example procedure.
 
 ## Launch Template Requirements
+
+The Launch Template resource includes a large number of fields. AWS accepts launch templates with any subset of these fields defined.
+
+Certain fields are obviously critical, such as AMI and User Data. Some fields are useful for particular workloads, such as storage and IAM Instance Profile. 
+
+Finally, **the majority of Launch Template fields should not be set** (or will have no effect), such as network interfaces and instance type. 
+
+## Important Fields
+
+When creating a custom launch template, the AMI and User Data are the defining characteristics. 
 
 ### AMI
 
@@ -49,25 +61,27 @@ when building a custom base image.
 --use-max-pods false
 ```
 
-Encode using yaml function `!Base64` yaml function or `cat hi.yaml | base64 > hi.base` shell command. 
-
-```
-aws eks describe-cluster --name october --region us-west-1
-```
-
-use that above command to get these values...
-- certificate authority?
-- api server?
-
-- dns cluster ip? default value is ...
-
-Note, you must populate this startup script with live values. Karpenter will
+Note, you must populate this command with live values. Karpenter will
 not change the user data in the launch template. 
 
-### Instance Type
+Encode using yaml function `!Base64` yaml function or `cat userdata.sh | base64 > userdata-encoded.txt` shell command. 
 
-The instance type should not be specified in the launch template. Karpenter
-will determine the launch template at run time. 
+**Bootstrap Script Parameters**
+
+The sample bootstrap script requires information to join the cluster.
+
+These values may be found using:
+```
+aws eks describe-cluster --name MyKarpenterCluster 
+```
+
+**Kubelet Arguments**
+
+Specifying max-pods can break Karpenter's binpacking logic (it has no way to know what this setting is). If karpenter attempts to pack more than this number of pods, the instance may be oversized, and additional pods will reschedule.
+
+## Situational Fields 
+
+Configure these values in response to a particular use case, such as nodes interacting with another AWS service, or using EBS storage on the node. 
 
 ### Instance Profile - IAM
 
@@ -95,6 +109,15 @@ your subnet's network access control list (network ACL).
 The security group must be associated with the virtual private cloud (VPC) of
 the EKS cluster.
 
+## Fields with Undefined Behavior
+
+These resources referenced by these fields are controlled by EKS/Karpenter, and not the launch template. 
+
+### Instance Type
+
+The instance type should not be specified in the launch template. Karpenter
+will determine the launch template at run time. 
+
 ### Network Interfaces
 
 EKS will configure the network interfaces. Do not configure network instances
@@ -107,13 +130,19 @@ CloudFormation.
 
 ### CloudFormation
 
+The procedure, in summary, is to:
+1. [Create an AMI as described in the EC2 documentation.](https://docs.aws.amazon.com/vm-import/latest/userguide/vmimport-image-import.html)
+2. Write a EC2 Launch Template specification including the AMI.
+3. Push the specification to AWS with CloudFormation.
+4. Update the Provisioner CRD to specify the new Launch Template.
+
 An example yaml cloudformation definition of a launch template for Karpenter is
 provided below. 
 
 Cloudformation yaml is suited for the moderately high configuration density of
 launch templates, and creating the unusual InstanceProfile resource. 
 
-You must replace:
+You must manually replace these values in the template:
 - SecurityGroupID
   - list all security groups with `aws ec2 describe-security-groups`
 - Parameters in UserData
