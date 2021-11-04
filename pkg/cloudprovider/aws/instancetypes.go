@@ -74,7 +74,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	for _, instanceType := range instanceTypes {
 		//TODO filter out possible zones and capacity types using an ICE cache
 		possibleZones := subnetZones.Intersection(instanceTypeZones[instanceType.Name()])
-		offerings := make([]cloudprovider.Offering, len(possibleZones)*len(instanceType.SupportedUsageClasses))
+		offerings := []cloudprovider.Offering{}
 		for zone := range possibleZones {
 			for _, capacityType := range instanceType.SupportedUsageClasses {
 				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: *capacityType})

@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
@@ -178,16 +177,12 @@ func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
-	scheduledCapacityTypes := schedule.Requirements.Requirement(v1alpha1.CapacityTypeLabel)
-	if scheduledCapacityTypes.Len() == 0 {
-		return nil
-	}
 	packableCapacityTypes := sets.String{}
 	for _, offering := range p.Offerings() {
 		packableCapacityTypes.Insert(offering.CapacityType)
 	}
-	if scheduledCapacityTypes.Intersection(packableCapacityTypes).Len() == 0 {
-		return fmt.Errorf("capacity types %v are not in %v", packableCapacityTypes, scheduledCapacityTypes.List())
+	if schedule.Requirements.CapacityTypes().Intersection(packableCapacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", packableCapacityTypes, schedule.Requirements.CapacityTypes().List())
 	}
 	return nil
 }

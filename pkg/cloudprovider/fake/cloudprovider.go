@@ -40,7 +40,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 		instance := instanceTypes[0]
 		zoneSet := sets.String{}
 		offeringMap := make(map[string]sets.String)
-		constrainedCapacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel)
+		constrainedCapacityTypes := constraints.Requirements.CapacityTypes()
 		if constrainedCapacityTypes.Len() == 0 {
 			constrainedCapacityTypes = sets.String{}.Insert(v1alpha1.CapacityTypeOnDemand)
 		}
@@ -65,7 +65,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       zone,
 						v1.LabelInstanceTypeStable: instance.Name(),
-						v1alpha1.CapacityTypeLabel: capacityType,
+						v1alpha5.LabelCapacityType: capacityType,
 					},
 				},
 				Spec: v1.NodeSpec{

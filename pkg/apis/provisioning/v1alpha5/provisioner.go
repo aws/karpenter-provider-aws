@@ -114,6 +114,10 @@ func (r Requirements) OperatingSystems() sets.String {
 	return r.Requirement(v1.LabelOSStable)
 }
 
+func (r Requirements) CapacityTypes() sets.String {
+	return r.Requirement(LabelCapacityType)
+}
+
 func (r Requirements) WithProvisioner(provisioner Provisioner) Requirements {
 	return r.
 		With(provisioner.Spec.Requirements).

@@ -223,10 +223,10 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
 				// Setup
-				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha1.CapacityTypeLabel, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
+				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
 				ExpectCreated(env.Client, provisioner)
 				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}}),
+					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}),
 				)
 				// Assertions
 				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
@@ -356,7 +356,7 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(provisioner.Spec.Requirements.Requirement(v1alpha1.CapacityTypeLabel).UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements.CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
 			Expect(provisioner.Spec.Requirements.Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
@@ -419,8 +419,8 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support a capacity type label", func() {
 				for _, value := range []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot} {
-					provisioner.Spec.Labels = map[string]string{v1alpha1.CapacityTypeLabel: value}
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+					provisioner.Spec.Labels = map[string]string{v1alpha5.LabelCapacityType: value}
+					Expect(provisioner.Validate(ctx)).To(Succeed())
 				}
 			})
 		})

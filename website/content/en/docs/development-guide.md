@@ -67,7 +67,7 @@ gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter
 ```
 
 ### Tailing Logs
-While you can tail Karpenter's logs with kubectl, but there's a number of tools out there that enhance the experience. We recommend [Stern](https://pkg.go.dev/github.com/planetscale/stern#section-readme):
+While you can tail Karpenter's logs with kubectl, there's a number of tools out there that enhance the experience. We recommend [Stern](https://pkg.go.dev/github.com/planetscale/stern#section-readme):
 
 ```bash
 stern -l karpenter=controller -n karpenter
