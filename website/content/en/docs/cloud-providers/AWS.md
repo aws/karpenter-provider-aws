@@ -129,14 +129,6 @@ spec:
         kubernetes.io/arch: amd64
 ```
 
-### Operating System
-
-- key: `kubernetes.io/os`
-- values
-  - `linux` (default)
-
-At this time, Karpenter only supports Linux OS nodes.
-
 ### Accelerators, GPU
 
 Accelerator (e.g., GPU) values include
