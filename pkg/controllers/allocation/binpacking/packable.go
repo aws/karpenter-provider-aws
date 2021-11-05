@@ -166,12 +166,12 @@ func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	packableZoneSet := sets.String{}
+	packableZones := sets.String{}
 	for _, offering := range p.Offerings() {
-		packableZoneSet.Insert(offering.Zone)
+		packableZones.Insert(offering.Zone)
 	}
-	if schedule.Requirements.Zones().Intersection(packableZoneSet).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", packableZoneSet, schedule.Requirements.Zones().List())
+	if schedule.Requirements.Zones().Intersection(packableZones).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", packableZones, schedule.Requirements.Zones().List())
 	}
 	return nil
 }

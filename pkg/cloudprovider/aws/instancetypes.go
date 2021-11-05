@@ -72,12 +72,11 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	// Convert to cloudprovider.InstanceType
 	result := []cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		//TODO filter out possible zones and capacity types using an ICE cache
-		possibleZones := subnetZones.Intersection(instanceTypeZones[instanceType.Name()])
+		//TODO filter out possible zones and capacity types using an ICE cache https://github.com/awslabs/karpenter/issues/371
 		offerings := []cloudprovider.Offering{}
-		for zone := range possibleZones {
+		for zone := range subnetZones.Intersection(instanceTypeZones[instanceType.Name()]) {
 			for _, capacityType := range instanceType.SupportedUsageClasses {
-				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: *capacityType})
+				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: aws.StringValue(capacityType)})
 			}
 		}
 		instanceType.AvailableOfferings = offerings

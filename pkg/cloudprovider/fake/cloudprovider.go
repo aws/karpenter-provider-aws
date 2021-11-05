@@ -22,13 +22,11 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type CloudProvider struct{}
@@ -38,25 +36,15 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
 		instance := instanceTypes[0]
-		zoneSet := sets.String{}
-		offeringMap := make(map[string]sets.String)
-		constrainedCapacityTypes := constraints.Requirements.CapacityTypes()
-		if constrainedCapacityTypes.Len() == 0 {
-			constrainedCapacityTypes = sets.String{}.Insert(v1alpha1.CapacityTypeOnDemand)
-		}
+		var zone, capacityType string
 		for _, o := range instance.Offerings() {
-			if !constrainedCapacityTypes.Has(o.CapacityType) {
-				continue
+			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) {
+				if constraints.Requirements.Zones().Has(o.Zone) {
+					zone = o.Zone
+					capacityType = o.CapacityType
+				}
 			}
-			zoneSet.Insert(o.Zone)
-			_, exists := offeringMap[o.Zone]
-			if !exists {
-				offeringMap[o.Zone] = sets.String{}
-			}
-			offeringMap[o.Zone].Insert(o.CapacityType)
 		}
-		zone := zoneSet.Intersection(constraints.Requirements.Zones()).UnsortedList()[0]
-		capacityType := offeringMap[zone].UnsortedList()[0]
 
 		go func() {
 			err <- bind(&v1.Node{

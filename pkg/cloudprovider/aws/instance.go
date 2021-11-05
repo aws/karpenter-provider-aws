@@ -248,9 +248,8 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 						v1.ResourceMemory: *instanceType.Memory(),
 					},
 					NodeInfo: v1.NodeSystemInfo{
-						Architecture: v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
-						OSImage:      aws.StringValue(instance.ImageId),
-						//TODO: stop hard-coding this
+						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
+						OSImage:         aws.StringValue(instance.ImageId),
 						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 				},
