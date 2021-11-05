@@ -190,7 +190,7 @@ metadata:
   name: default
 spec:
   requirements:
-    - key: karpenter.sh/capacity-type
+    - key: node.k8s.aws/capacity-type
       operator: In
       values: ["spot"]
   provider:

@@ -94,22 +94,18 @@ type ProvisionerList struct {
 	Items           []Provisioner `json:"items"`
 }
 
-// Zones for the constraints
 func (r Requirements) Zones() sets.String {
 	return r.Requirement(v1.LabelTopologyZone)
 }
 
-// InstanceTypes for the constraints
 func (r Requirements) InstanceTypes() sets.String {
 	return r.Requirement(v1.LabelInstanceTypeStable)
 }
 
-// Architectures for the constraints
 func (r Requirements) Architectures() sets.String {
 	return r.Requirement(v1.LabelArchStable)
 }
 
-// OperatingSystems for the constraints
 func (r Requirements) OperatingSystems() sets.String {
 	return r.Requirement(v1.LabelOSStable)
 }

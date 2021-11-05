@@ -65,7 +65,7 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 ### Capacity Type
 
-- key: `karpenter.sh/capacity-type`
+- key: `node.k8s.aws/capacity-type`
 - values
   - `on-demand` (default)
   - `spot`
@@ -82,7 +82,7 @@ be used for critical workloads that do not tolerate interruptions.
 ```yaml
 spec:
   requirements:
-    - key: karpenter.sh/capacity-type
+    - key: node.k8s.aws/capacity-type
       operator: In
       values: ["spot", "on-demand"]
 ```
@@ -94,7 +94,7 @@ spec:
   template:
     spec:
       nodeSelector:
-        karpenter.sh/capacity-type: spot
+        node.k8s.aws/capacity-type: spot
 ```
 
 ### Architecture
@@ -127,6 +127,13 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
 ```
+ ### Operating System
+
+- key: `kubernetes.io/os`
+- values
+  - `linux` (default)
+
+At this time, Karpenter only supports Linux OS nodes.
 
 ### Accelerators, GPU
 

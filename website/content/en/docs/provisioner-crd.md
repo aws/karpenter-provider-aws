@@ -45,7 +45,7 @@ spec:
     - key: "kubernetes.io/os" # If not included, all operating systems are considered
       operator: In
       values: ["linux"]
-    - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
+    - key: "node.k8s.aws/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
       operator: In
       values: ["spot", "on-demand"]
   # These fields vary per cloud provider, see your cloud provider specific documentation
