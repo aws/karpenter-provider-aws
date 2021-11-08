@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/utils/pretty"
 )
 
 const (
@@ -57,6 +58,15 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 			return fmt.Sprintf("expected %s to be deleted, but it still exists", object.GetSelfLink())
 		})
 	}
+}
+
+func ExpectPodNotScheduled(c client.Client, name string, namespace string) {
+	pod := &v1.Pod{}
+	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
+
+	Eventually(pod.Spec.NodeName).Should(BeEmpty(), func() string {
+		return fmt.Sprintf("expected pod to not be scheduled, but it was: %s", pretty.Concise(pod))
+	})
 }
 
 func ExpectCreated(c client.Client, objects ...client.Object) {

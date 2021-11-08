@@ -16,7 +16,6 @@ package allocation_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -145,11 +143,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-				if unscheduled.Spec.NodeName != "" {
-					fmt.Printf("This pod shouldn't have been scheduled: %s", pretty.Concise(pod))
-				}
-				Expect(unscheduled.Spec.NodeName).To(Equal(""))
+				ExpectPodNotScheduled(env.Client, pod.GetName(), pod.GetNamespace())
 			}
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 		})
