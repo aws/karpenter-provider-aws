@@ -6,6 +6,9 @@ weight: 80
 
 By default, Karpenter generates launch templates that use [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template. 
 
+Note: By customizing the image, you are taking responsibility for maintianing the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. 
+
+
 ## Introduction
 
 Karpenter follows existing AWS patterns for customizing the base image of
