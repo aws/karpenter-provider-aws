@@ -143,7 +143,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				ExpectPodNotScheduled(env.Client, pod.GetName(), pod.GetNamespace())
+				ExpectNotScheduled(env.Client, pod.GetName(), pod.GetNamespace())
 			}
 			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 		})

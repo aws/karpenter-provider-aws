@@ -60,10 +60,8 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectPodNotScheduled(c client.Client, name string, namespace string) {
-	pod := &v1.Pod{}
-	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
-
+func ExpectNotScheduled(c client.Client, name string, namespace string) {
+	pod := *ExpectPodExists(c, name, namespace)
 	Eventually(pod.Spec.NodeName).Should(BeEmpty(), func() string {
 		return fmt.Sprintf("expected pod to not be scheduled, but it was: %s", pretty.Concise(pod))
 	})
