@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -30,6 +31,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/env"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
+	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -59,18 +61,44 @@ func init() {
 
 // Options for running this binary
 type Options struct {
+	ClusterName     string
+	ClusterEndpoint string
 	MetricsPort     int
 	HealthProbePort int
 	KubeClientQPS   int
 	KubeClientBurst int
 }
 
+func (o Options) Validate() (err error) {
+	multierr.Append(err, o.validateEndpoint())
+	if o.ClusterName == "" {
+		multierr.Append(err, fmt.Errorf("CLUSTER_NAME is required"))
+	}
+	return err
+}
+
+func (o Options) validateEndpoint() error {
+	endpoint, err := url.Parse(o.ClusterEndpoint)
+	// url.Parse() will accept a lot of input without error; make
+	// sure it's a real URL
+	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
+		return fmt.Errorf("%s not a valid URL", o.ClusterEndpoint)
+	}
+	return nil
+}
+
 func main() {
+	flag.StringVar(&options.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The cluster name to lookup CA bundles")
+	flag.StringVar(&options.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external cluster endpoint for new nodes to connect with")
 	flag.IntVar(&options.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
 	flag.IntVar(&options.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
 	flag.IntVar(&options.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
 	flag.IntVar(&options.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	flag.Parse()
+
+	if err := options.Validate(); err != nil {
+		panic(fmt.Sprintf("Input parameter validation failed, %s", err.Error()))
+	}
 
 	config := controllerruntime.GetConfigOrDie()
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(options.KubeClientQPS), options.KubeClientBurst)
@@ -84,7 +112,7 @@ func main() {
 	ctx = restconfig.Inject(ctx, config)
 
 	// 3. Set up controller runtime controller
-	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, ClusterName: options.ClusterName, ClusterEndpoint: options.ClusterEndpoint})
 	manager := controllers.NewManagerOrDie(config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,

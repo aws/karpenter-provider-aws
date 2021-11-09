@@ -26,11 +26,11 @@ import (
 var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
-func (c *Constraints) Default(ctx context.Context) {
+func (c *Constraints) Default(ctx context.Context, clusterName string) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultSubnets()
-	c.defaultSecurityGroups()
+	c.defaultSubnets(clusterName)
+	c.defaultSecurityGroups(clusterName)
 }
 
 func (c *Constraints) defaultCapacityTypes() {
@@ -61,16 +61,16 @@ func (c *Constraints) defaultArchitecture() {
 	})
 }
 
-func (c *Constraints) defaultSubnets() {
+func (c *Constraints) defaultSubnets(clusterName string) {
 	if c.SubnetSelector != nil {
 		return
 	}
-	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
+	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
 }
 
-func (c *Constraints) defaultSecurityGroups() {
+func (c *Constraints) defaultSecurityGroups(clusterName string) {
 	if c.SecurityGroupSelector != nil {
 		return
 	}
-	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
+	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
 }

@@ -60,6 +60,7 @@ type CloudProvider struct {
 	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
 	creationQueue        *parallel.WorkQueue
+	clusterName          string
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -85,9 +86,12 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ec2api,
 				NewAMIProvider(ssm.New(sess), options.ClientSet),
 				NewSecurityGroupProvider(ec2api),
+				options.ClusterName,
+				options.ClusterEndpoint,
 			),
 		},
 		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
+		clusterName:   options.ClusterName,
 	}
 }
 
@@ -160,7 +164,7 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 		logging.FromContext(ctx).Fatalf("Failed to deserialize provider, %s", err.Error())
 		return
 	}
-	vendorConstraints.Default(ctx)
+	vendorConstraints.Default(ctx, c.clusterName)
 	if err := vendorConstraints.Serialize(constraints); err != nil {
 		logging.FromContext(ctx).Fatalf("Failed to serialize provider, %s", err.Error())
 	}

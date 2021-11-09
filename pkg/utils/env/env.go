@@ -32,3 +32,13 @@ func WithDefaultInt(key string, def int) int {
 	}
 	return i
 }
+
+// WithDefaultString returns the string value of the supplied environ variable or, if not present,
+// the supplied default value.
+func WithDefaultString(key string, def string) string {
+	val, ok := os.LookupEnv(key)
+	if !ok {
+		return def
+	}
+	return val
+}

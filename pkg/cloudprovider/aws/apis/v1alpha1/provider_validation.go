@@ -17,7 +17,6 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"knative.dev/pkg/apis"
 )
@@ -33,7 +32,6 @@ func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
 		a.validateTags(),
-		a.Cluster.Validate(ctx).ViaField("cluster"),
 	)
 }
 
@@ -76,30 +74,10 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 func (a *AWS) validateTags() (errs *apis.FieldError) {
 	// Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
 	// defined and Karpenter tags, and the latter could change over time.
-	managedTags := ManagedTagsFor(a.Cluster.Name)
 	for tagKey, tagValue := range a.Tags {
 		if tagKey == "" {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf(
 				"the tag with key : '' and value : '%s' is invalid because empty tag keys aren't supported", tagValue), "tags"))
-		} else if _, exists := managedTags[tagKey]; exists {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("tag key '%s' is reserved", tagKey), "tags"))
-		}
-	}
-	return errs
-}
-
-func (c *Cluster) Validate(context.Context) (errs *apis.FieldError) {
-	if len(c.Name) == 0 {
-		errs = errs.Also(apis.ErrMissingField("name"))
-	}
-	if len(c.Endpoint) == 0 {
-		errs = errs.Also(apis.ErrMissingField("endpoint"))
-	} else {
-		endpoint, err := url.Parse(c.Endpoint)
-		// url.Parse() will accept a lot of input without error; make
-		// sure it's a real URL
-		if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not a valid URL", c.Endpoint), "endpoint"))
 		}
 	}
 	return errs

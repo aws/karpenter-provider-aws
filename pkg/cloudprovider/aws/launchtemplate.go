@@ -47,14 +47,18 @@ type LaunchTemplateProvider struct {
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
+	clusterName           string
+	clusterEndpoint       string
 }
 
-func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider, clusterName string, clusterEndpoint string) *LaunchTemplateProvider {
 	return &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
+		clusterName:           clusterName,
+		clusterEndpoint:       clusterEndpoint,
 	}
 }
 
@@ -106,7 +110,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 			UserData:          userData,
-			ClusterName:       constraints.Cluster.Name,
+			ClusterName:       p.clusterName,
 			InstanceProfile:   constraints.InstanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
@@ -232,9 +236,9 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
-		constraints.Cluster.Name,
+		p.clusterName,
 		containerRuntimeArg,
-		constraints.Cluster.Endpoint))
+		p.clusterEndpoint))
 	caBundle, err := p.GetCABundle(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
