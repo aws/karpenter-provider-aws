@@ -90,10 +90,9 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: metricSubsystemCapacity,
 			Name:      "ready_node_os_count",
-			Help:      "Count of nodes that are ready by operating system, provisioner, and zone.",
+			Help:      "Count of nodes that are ready by provisioner, and zone.",
 		},
 		[]string{
-			metricLabelOS,
 			metricLabelProvisioner,
 			metricLabelZone,
 		},
@@ -111,10 +110,9 @@ func init() {
 func publishNodeCounts(provisioner string, knownValuesForNodeLabels map[string]sets.String, consumeNodesWith consumeNodesWithFunc) error {
 	archValues := knownValuesForNodeLabels[nodeLabelArch]
 	instanceTypeValues := knownValuesForNodeLabels[nodeLabelInstanceType]
-	osValues := knownValuesForNodeLabels[nodeLabelOS]
 	zoneValues := knownValuesForNodeLabels[nodeLabelZone]
 
-	errors := make([]error, 0, len(archValues)*len(instanceTypeValues)*len(osValues)*len(zoneValues))
+	errors := make([]error, 0, len(archValues)*len(instanceTypeValues)*len(zoneValues))
 
 	nodeLabels := client.MatchingLabels{nodeLabelProvisioner: provisioner}
 	errors = append(errors, consumeNodesWith(nodeLabels, func(nodes []v1.Node) error {
@@ -151,17 +149,6 @@ func publishNodeCounts(provisioner string, knownValuesForNodeLabels map[string]s
 				return publishCount(readyNodeCountByInstancetypeProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
 			})))
 		}
-
-		for os := range osValues {
-			nodeLabels := client.MatchingLabels{
-				nodeLabelOS:          os,
-				nodeLabelProvisioner: provisioner,
-				nodeLabelZone:        zone,
-			}
-			errors = append(errors, consumeNodesWith(nodeLabels, filterReadyNodes(func(readyNodes []v1.Node) error {
-				return publishCount(readyNodeCountByOsProvisionerZone, metricLabelsFrom(nodeLabels), len(readyNodes))
-			})))
-		}
 	}
 
 	return multierr.Combine(errors...)
@@ -191,9 +178,6 @@ func metricLabelsFrom(nodeLabels map[string]string) prometheus.Labels {
 	}
 	if instanceType := nodeLabels[nodeLabelInstanceType]; instanceType != "" {
 		metricLabels[metricLabelInstanceType] = instanceType
-	}
-	if os := nodeLabels[nodeLabelOS]; os != "" {
-		metricLabels[metricLabelOS] = os
 	}
 	if provisioner := nodeLabels[nodeLabelProvisioner]; provisioner != "" {
 		metricLabels[metricLabelProvisioner] = provisioner

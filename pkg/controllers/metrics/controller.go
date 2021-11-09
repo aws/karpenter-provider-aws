@@ -105,18 +105,15 @@ func (c *Controller) updateNodeCounts(ctx context.Context, provisioner *v1alpha5
 
 	archValues := sets.NewString()
 	instanceTypeValues := sets.NewString()
-	osValues := sets.NewString()
 	zoneValues := sets.NewString()
 	for _, instanceType := range instanceTypes {
 		archValues.Insert(instanceType.Architecture())
 		instanceTypeValues.Insert(instanceType.Name())
-		osValues.Insert(instanceType.OperatingSystems().UnsortedList()...)
 		zoneValues.Insert(instanceType.Zones().UnsortedList()...)
 	}
 	knownValuesForNodeLabels := map[string]sets.String{
 		nodeLabelArch:         archValues,
 		nodeLabelInstanceType: instanceTypeValues,
-		nodeLabelOS:           osValues,
 		nodeLabelZone:         zoneValues,
 	}
 

@@ -29,14 +29,12 @@ const (
 
 	metricLabelArch         = "arch"
 	metricLabelInstanceType = "instancetype"
-	metricLabelOS           = "os"
 	metricLabelPhase        = "phase"
 	metricLabelProvisioner  = metrics.ProvisionerLabel
 	metricLabelZone         = "zone"
 
 	nodeLabelArch         = v1.LabelArchStable
 	nodeLabelInstanceType = v1.LabelInstanceTypeStable
-	nodeLabelOS           = v1.LabelOSStable
 	nodeLabelZone         = v1.LabelTopologyZone
 
 	nodeConditionTypeReady = v1.NodeReady
