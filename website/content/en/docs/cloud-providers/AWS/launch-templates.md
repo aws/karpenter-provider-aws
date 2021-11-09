@@ -11,8 +11,9 @@ By default, Karpenter generates launch templates that use [EKS Optimized AMI](ht
 Karpenter follows existing AWS patterns for customizing the base image of
 instances. More specifically, Karpenter uses [EC2 launch templates](https://docs.aws.amazon.com/autoscaling/ec2/userguide/LaunchTemplates.html). Launch
 templates may specify many values. The pivotal value is the base image (AMI).
-Launch templates further specify many parameters related to networking,
-authorization, instance type, and more.  
+Launch templates further specify many different parameters related to networking, authorization, instance type, and more. 
+
+**Karpenter only implementes a subset of launch template fields, and some fields should not be set.**  
 
 This guide describes requirements for using launch templates with Karpenter, and later an example procedure.
 
@@ -26,7 +27,7 @@ Finally, **the majority of Launch Template fields should not be set** (or will h
 
 ## Important Fields
 
-When creating a custom launch template, the AMI and User Data are the defining characteristics. 
+When creating a custom launch template, the AMI and User Data are the defining characteristics. Instance Profile (IAM Role) and Security Group (firewall rules) are also important for Karpenter. 
 
 ### AMI
 
@@ -87,10 +88,9 @@ Configure these values in response to a particular use case, such as nodes inter
 
 The launch template must include an "instance profile" -- a set of IAM roles. 
 
-The instance profile must include all the permissions of the default Karpenter
-node instance profile. For example, permission to run containers and manage
-networking. See the default role, `KarpenterNodeRole`, in the full example
-below for more information. 
+The instance profile must include *at least* the permissions of the default Karpenter node instance profile. See the default role, `KarpenterNodeRole`, in the full example below for more information. 
+
+See also, [the managed policy "AmazonEKSWorkerNodePolicy"](https://docs.aws.amazon.com/eks/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonEKSWorkerNodePolicy) which includes permission to describe clusters and subnets.
 
 ### Storage
 
@@ -99,19 +99,13 @@ image.
 
 ### Security Groups - Firewall
 
-EKS configures security groups (i.e., instance firewall rules) automatically. 
+The launch template must include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster.
 
-However, you may manually specify a security group. The security group must
-permit communication with EKS control plane. Outbound access should be
-permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and
-your subnet's network access control list (network ACL). 
-
-The security group must be associated with the virtual private cloud (VPC) of
-the EKS cluster.
+The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet's network access control list (network ACL). 
 
 ## Fields with Undefined Behavior
 
-These resources referenced by these fields are controlled by EKS/Karpenter, and not the launch template. 
+Resources referenced by these fields are controlled by EKS/Karpenter, and not the launch template. 
 
 ### Instance Type
 
@@ -120,8 +114,7 @@ will determine the launch template at run time.
 
 ### Network Interfaces
 
-EKS will configure the network interfaces. Do not configure network instances
-in the launch template.
+The [AWS CNI](https://docs.aws.amazon.com/eks/latest/userguide/pod-networking.html) will configure the network interfaces. Do not configure network instances in the launch template.
 
 ## Creating the Launch Template
 
@@ -146,6 +139,7 @@ You must manually replace these values in the template:
 - SecurityGroupID
   - list all security groups with `aws ec2 describe-security-groups`
 - Parameters in UserData
+- AMI
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
@@ -215,7 +209,7 @@ CAPABILITY_NAMED_IAM` must be indicated.
 ```
 aws cloudformation create-stack \
   --stack-name KarpenterLaunchTemplateStack \
-  --template-body file:///Users/gcline/Desktop/lt-cfn-demo.yaml \
+  --template-body file://$(pwd)/lt-cfn-demo.yaml \
   --capabilities CAPABILITY_NAMED_IAM
 ```
 
