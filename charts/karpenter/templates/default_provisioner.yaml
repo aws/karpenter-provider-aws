@@ -1,0 +1,29 @@
+{{- if .Values.defaultProvisioner.create }}
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  {{ if .Values.defaultProvisioner.ttlSecondsAfterEmpty }}
+    ttlSecondsAfterEmpty: {{ .Values.defaultProvisioner.ttlSecondsAfterEmpty }}
+  {{- end }}
+  {{ if .Values.defaultProvisioner.ttlSecondsUntilExpired }}
+    ttlSecondsUntilExpired: {{ .Values.defaultProvisioner.ttlSecondsUntilExpired }}
+  {{- end }}
+  {{- with .Values.defaultProvisioner.provider }}
+    provider:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with .Values.defaultProvisioner.taints }}
+    taints:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with .Values.defaultProvisioner.requirements }}
+    requirements:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with .Values.defaultProvisioner.labels }}
+    labels:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+{{- end }}

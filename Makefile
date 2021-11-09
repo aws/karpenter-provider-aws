@@ -50,7 +50,7 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template karpenter charts/karpenter --namespace karpenter \
+	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
 		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \

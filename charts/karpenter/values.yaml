@@ -20,3 +20,12 @@ webhook:
   tolerations: []
   affinity: {}
   image: "public.ecr.aws/karpenter/webhook:v0.4.2@sha256:2d004cd277209242d7e886308be419f86107811b4d0f1ed21c908b77e284202b"
+defaultProvisioner:
+  create: true
+  ttlSecondsAfterEmpty: 300
+  #ttlSecondsUntilExpired: 86400 
+  provider: {}
+  requirements: []
+  taints: []
+  labels: {}
+
