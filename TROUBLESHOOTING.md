@@ -34,3 +34,10 @@ github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation.
 github.com/awslabs/karpenter/pkg/controllers.(*GenericController).Reconcile(0xc000b00720, 0x23354c0, 0xc000e209f0, 0xc001db9be0, 0x7, 0xc001db9bd0, 0x7, 0xc000e209f0, 0x7fc864172d20, 0xc0000be2a0, ...)
 ```
 This is fixed in Karpenter v0.2.7+. Reinstall Karpenter on the latest version.
+
+### Nodes stuck in pending and not running the kubelet due to outdated CNI
+If you have an EC2 instance get launched that is stuck in pending and ultimately not running the kubelet, you may see a message like this in your `/var/log/user-data.log`:
+
+> No entry for c6i.xlarge in /etc/eks/eni-max-pods.txt
+
+This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).

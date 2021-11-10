@@ -109,7 +109,9 @@ func (c *Controller) updateNodeCounts(ctx context.Context, provisioner *v1alpha5
 	for _, instanceType := range instanceTypes {
 		archValues.Insert(instanceType.Architecture())
 		instanceTypeValues.Insert(instanceType.Name())
-		zoneValues.Insert(instanceType.Zones().UnsortedList()...)
+		for _, offering := range instanceType.Offerings() {
+			zoneValues.Insert(offering.Zone)
+		}
 	}
 	knownValuesForNodeLabels := map[string]sets.String{
 		nodeLabelArch:         archValues,

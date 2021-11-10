@@ -128,8 +128,8 @@ var _ = Describe("Allocation", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
 				// Ignored, invalid architecture
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
-				// Ignored, invalid operating system
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
+				// Ignored, invalid capacity type
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: "unknown"}}),
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -138,15 +138,14 @@ var _ = Describe("Allocation", func() {
 
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
-			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 			for _, pod := range schedulable {
 				scheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
 				ExpectNodeExists(env.Client, scheduled.Spec.NodeName)
 			}
 			for _, pod := range unschedulable {
-				unscheduled := ExpectPodExists(env.Client, pod.GetName(), pod.GetNamespace())
-				Expect(unscheduled.Spec.NodeName).To(Equal(""))
+				ExpectNotScheduled(env.Client, pod.GetName(), pod.GetNamespace())
 			}
+			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
 		})
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)

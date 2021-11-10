@@ -72,7 +72,15 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	// Convert to cloudprovider.InstanceType
 	result := []cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		instanceType.ZoneOptions = subnetZones.Intersection(instanceTypeZones[instanceType.Name()])
+		//TODO filter out possible zones and capacity types using an ICE cache https://github.com/awslabs/karpenter/issues/371
+		offerings := []cloudprovider.Offering{}
+		for zone := range subnetZones.Intersection(instanceTypeZones[instanceType.Name()]) {
+			// while usage classes should be a distinct set, there's no guarantee of that
+			for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
+				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: capacityType})
+			}
+		}
+		instanceType.AvailableOfferings = offerings
 		result = append(result, instanceType)
 	}
 	return result, nil

@@ -20,7 +20,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
 )
@@ -53,10 +52,9 @@ type Options struct {
 // or supported options in the case of arrays)
 type InstanceType interface {
 	Name() string
-	Zones() sets.String
-	CapacityTypes() sets.String
+	// Note that though this is an array it is expected that all the Offerings are unique from one another
+	Offerings() []Offering
 	Architecture() string
-	OperatingSystems() sets.String
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity
 	Pods() *resource.Quantity
@@ -64,4 +62,11 @@ type InstanceType interface {
 	AMDGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
 	Overhead() v1.ResourceList
+}
+
+// An Offering describes where an InstanceType is available to be used, with the expectation that its properties
+// may be tightly coupled (e.g. the availability of an instance type in some zone is scoped to a capacity type)
+type Offering struct {
+	CapacityType string
+	Zone         string
 }

@@ -22,7 +22,7 @@ The following tools are required for contributing to the Karpenter project.
 Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
 
 ```
-make apply # Install Karpenter
+CLOUD_PROVIDER=<YOUR_PROVIDER> make apply # Install Karpenter
 make delete # Uninstall Karpenter
 ```
 
@@ -35,12 +35,12 @@ make delete # Uninstall Karpenter
     * `$KO_DOCKER_REPO` must point to your development repository
     * Your cluster must have permissions to read from the repository
 * If you created your cluster on version 1.19 or above, you may need to tag your subnets as mentioned [here]({{< ref "/docs/getting-started/_index.md#tag-subnets" >}}). This is a temporary problem with our subnet discovery system, and is being tracked [here](https://github.com/awslabs/karpenter/issues/404#issuecomment-845283904).
+* It's also a good idea to persist `$CLOUD_PROVIDER` in your environment variables to simplify the `make apply` command.
 
 ### Build and Deploy
 ```
 make dev                                  # build and test code
 kubectl create namespace karpenter        # create target namespace for deployment
-make apply                                # deploy local changes to cluster
 CLOUD_PROVIDER=<YOUR_PROVIDER> make apply # deploy for your cloud provider
 ```
 
@@ -64,6 +64,13 @@ open http://localhost:8080/metrics && kubectl port-forward service/karpenter-met
 Linux:
 ```bash
 gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter-metrics -n karpenter 8080
+```
+
+### Tailing Logs
+While you can tail Karpenter's logs with kubectl, there's a number of tools out there that enhance the experience. We recommend [Stern](https://pkg.go.dev/github.com/planetscale/stern#section-readme):
+
+```bash
+stern -l karpenter=controller -n karpenter
 ```
 
 ## Environment specific setup

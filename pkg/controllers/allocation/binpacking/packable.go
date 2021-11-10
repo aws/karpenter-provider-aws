@@ -24,6 +24,7 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -52,7 +53,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateZones(schedule),
 			packable.validateInstanceType(schedule),
 			packable.validateArchitecture(schedule),
-			packable.validateOperatingSystem(schedule),
+			packable.validateCapacityTypes(schedule),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
@@ -164,16 +165,24 @@ func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
 	return nil
 }
 
-func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if schedule.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
-		return fmt.Errorf("operating system %s is not in %v", p.OperatingSystems(), schedule.Requirements.OperatingSystems().List())
+func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
+	zones := sets.String{}
+	for _, offering := range p.Offerings() {
+		zones.Insert(offering.Zone)
+	}
+	if schedule.Requirements.Zones().Intersection(zones).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", zones, schedule.Requirements.Zones().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if schedule.Requirements.Zones().Intersection(p.Zones()).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", p.Zones(), schedule.Requirements.Zones().List())
+func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
+	capacityTypes := sets.String{}
+	for _, offering := range p.Offerings() {
+		capacityTypes.Insert(offering.CapacityType)
+	}
+	if schedule.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, schedule.Requirements.CapacityTypes().List())
 	}
 	return nil
 }

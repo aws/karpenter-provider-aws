@@ -34,14 +34,14 @@ func (c *Constraints) Default(ctx context.Context) {
 }
 
 func (c *Constraints) defaultCapacityTypes() {
-	if _, ok := c.Labels[CapacityTypeLabel]; ok {
+	if _, ok := c.Labels[v1alpha5.LabelCapacityType]; ok {
 		return
 	}
-	if functional.ContainsString(c.Requirements.Keys(), CapacityTypeLabel) {
+	if functional.ContainsString(c.Requirements.Keys(), v1alpha5.LabelCapacityType) {
 		return
 	}
 	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
-		Key:      CapacityTypeLabel,
+		Key:      v1alpha5.LabelCapacityType,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{CapacityTypeOnDemand},
 	})

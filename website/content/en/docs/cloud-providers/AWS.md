@@ -70,11 +70,10 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
   - `on-demand` (default)
   - `spot`
 
-Karpenter supports specifying capacity type and defaults to on-demand.
+Karpenter supports specifying capacity type, which is analogous to EC2 usage classes (aka "market types") and defaults to on-demand.
 
-Specify this value on the provisioner to enable spot instances. [Spot
-instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not
-be used for critical workloads.
+Specify this value on the provisioner to enable spot instances. [Spot instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not
+be used for critical workloads that do not tolerate interruptions.
 
 **Example**
 
@@ -128,8 +127,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
 ```
-
-### Operating System
+ ### Operating System
 
 - key: `kubernetes.io/os`
 - values

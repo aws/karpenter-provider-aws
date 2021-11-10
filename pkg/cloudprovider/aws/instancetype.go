@@ -19,12 +19,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
@@ -32,19 +31,15 @@ const EC2VMAvailableMemoryFactor = .925
 
 type InstanceType struct {
 	ec2.InstanceTypeInfo
-	ZoneOptions sets.String
+	AvailableOfferings []cloudprovider.Offering
 }
 
 func (i *InstanceType) Name() string {
 	return aws.StringValue(i.InstanceType)
 }
 
-func (i *InstanceType) Zones() sets.String {
-	return i.ZoneOptions
-}
-
-func (i *InstanceType) CapacityTypes() sets.String {
-	return sets.NewString(aws.StringValueSlice(i.SupportedUsageClasses)...)
+func (i *InstanceType) Offerings() []cloudprovider.Offering {
+	return i.AvailableOfferings
 }
 
 func (i *InstanceType) Architecture() string {
@@ -54,10 +49,6 @@ func (i *InstanceType) Architecture() string {
 		}
 	}
 	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
-}
-
-func (i *InstanceType) OperatingSystems() sets.String {
-	return sets.NewString(v1alpha5.OperatingSystemLinux)
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {

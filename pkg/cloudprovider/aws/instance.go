@@ -110,7 +110,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
 	// or using nodeSelectors, required node affinity, or preferred node affinity.
 	capacityType := v1alpha1.CapacityTypeOnDemand
-	if capacityTypes := constraints.Requirements.Requirement(v1alpha1.CapacityTypeLabel); len(capacityTypes) == 0 {
+	if capacityTypes := constraints.Requirements.CapacityTypes(); len(capacityTypes) == 0 {
 		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
 	} else if len(capacityTypes) == 1 {
 		capacityType = capacityTypes.UnsortedList()[0]
@@ -153,7 +153,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, map[string]string{v1alpha1.CapacityTypeLabel: capacityType})
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
@@ -172,9 +172,13 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
-		for zone := range instanceType.Zones() {
+		for _, offering := range instanceType.Offerings() {
+			// we can't assume that all zones will be available for all capacity types, hence this check
+			if offering.CapacityType != capacityType {
+				continue
+			}
 			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) == zone {
+				if aws.StringValue(subnet.AvailabilityZone) == offering.Zone {
 					override := &ec2.FleetLaunchTemplateOverridesRequest{
 						InstanceType: aws.String(instanceType.Name()),
 						SubnetId:     subnet.SubnetId,
@@ -227,7 +231,7 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
-						v1alpha1.CapacityTypeLabel: getCapacityType(instance),
+						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},
 				},
 				Spec: v1.NodeSpec{
