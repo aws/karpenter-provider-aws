@@ -156,8 +156,10 @@ eksctl. Thus, we don't need the helm chart to do that.
 ```bash
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
-helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
+helm upgrade --install --skip-crds karpenter karpenter/karpenter --namespace karpenter \
   --create-namespace --set serviceAccount.create=false --version 0.4.1 \
+  --set controller.clusterName=${CLUSTER_NAME} \
+  --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
   --wait # for the defaulting webhook to install before creating a Provisioner
 ```
 
@@ -195,9 +197,6 @@ spec:
       values: ["spot"]
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-    cluster:
-      name: ${CLUSTER_NAME}
-      endpoint: $(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json)
   ttlSecondsAfterEmpty: 30
 EOF
 ```
