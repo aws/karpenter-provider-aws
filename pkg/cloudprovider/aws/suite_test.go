@@ -54,7 +54,7 @@ var env *test.Environment
 var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
-var opts *options.Options
+var opts options.Options
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -63,11 +63,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	opts = &options.Options{
+	opts = options.Options{
 		ClusterName:     "test-cluster",
 		ClusterEndpoint: "https://test-cluster",
 	}
-	ctx = opts.Inject(ctx)
+	ctx = options.Inject(ctx, opts)
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider := NewSubnetProvider(fakeEC2API)

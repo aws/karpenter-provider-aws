@@ -83,7 +83,7 @@ func main() {
 	ctx = restconfig.Inject(ctx, config)
 
 	// Put CLI args into context for access across code base
-	ctx = opts.Inject(ctx)
+	ctx = options.Inject(ctx, opts)
 
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})

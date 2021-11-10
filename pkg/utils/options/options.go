@@ -38,8 +38,8 @@ func Get(ctx context.Context) Options {
 	return ctx.Value(optionsKey{}).(Options)
 }
 
-func (o Options) Inject(ctx context.Context) context.Context {
-	return context.WithValue(ctx, optionsKey{}, o)
+func Inject(ctx context.Context, options Options) context.Context {
+	return context.WithValue(ctx, optionsKey{}, options)
 }
 
 func (o Options) Validate() (err error) {

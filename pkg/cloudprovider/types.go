@@ -46,9 +46,7 @@ type CloudProvider interface {
 
 // Options are injected into cloud providers' factories
 type Options struct {
-	ClientSet       *kubernetes.Clientset
-	ClusterName     string
-	ClusterEndpoint string
+	ClientSet *kubernetes.Clientset
 }
 
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type
