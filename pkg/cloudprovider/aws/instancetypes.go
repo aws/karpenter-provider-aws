@@ -88,7 +88,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (result map[string]sets.String, err error) {
+func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[string]sets.String, error) {
 	if cached, ok := p.cache.Get(instanceTypeZonesCacheKey); ok {
 		return cached.(map[string]sets.String), nil
 	}
@@ -111,7 +111,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (result
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (result map[string]*InstanceType, err error) {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*InstanceType, error) {
 	if cached, ok := p.cache.Get(instanceTypesCacheKey); ok {
 		return cached.(map[string]*InstanceType), nil
 	}
