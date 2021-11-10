@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"

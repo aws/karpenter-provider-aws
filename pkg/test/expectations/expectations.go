@@ -17,6 +17,7 @@ package expecations
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	//nolint:revive,stylecheck
@@ -30,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
 )
 
 const (
@@ -60,18 +61,25 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectScheduled(c client.Client, name string, namespace string) {
-	pod := ExpectPodExists(c, name, namespace)
-	Eventually(pod.Spec.NodeName).ShouldNot(BeEmpty(), func() string {
-		return fmt.Sprintf("expected pod to scheduled, but it wasn't: %s", pretty.Concise(pod.Spec))
-	})
+func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
+	p := ExpectPodExists(c, pod.Name, pod.Namespace)
+	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to scheduled", pod.Namespace, pod.Name))
+	return ExpectNodeExists(c, p.Spec.NodeName)
 }
 
-func ExpectNotScheduled(c client.Client, name string, namespace string) {
-	pod := ExpectPodExists(c, name, namespace)
-	Eventually(pod.Spec.NodeName).Should(BeEmpty(), func() string {
-		return fmt.Sprintf("expected pod to not be scheduled, but it was: %s", pretty.Concise(pod.Spec))
-	})
+func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) {
+	p := ExpectPodExists(c, pod.Name, pod.Namespace)
+	Eventually(p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
+}
+
+func ExpectApplied(c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		if object.GetResourceVersion() == "" {
+			Expect(c.Create(context.Background(), object)).To(Succeed())
+		} else {
+			Expect(c.Update(context.Background(), object)).To(Succeed())
+		}
+	}
 }
 
 func ExpectCreated(c client.Client, objects ...client.Object) {
@@ -84,7 +92,7 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		// Preserve a copy of the status, which is overriden by create
 		status := object.DeepCopyObject().(client.Object)
-		ExpectCreated(c, object)
+		ExpectApplied(c, object)
 		Expect(c.Status().Update(context.Background(), status)).To(Succeed())
 	}
 }
@@ -127,12 +135,24 @@ func ExpectCleanedUp(c client.Client) {
 	}
 }
 
-func ExpectProvisioningSucceeded(ctx context.Context, c client.Client, reconciler reconcile.Reconciler, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) []*v1.Pod {
+func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *provisioning.Scheduler, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+	// Persist objects
+	ExpectApplied(c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
-	ExpectReconcileSucceeded(ctx, reconciler, client.ObjectKeyFromObject(provisioner))
-	result := []*v1.Pod{}
+	// Wait for reconcile
+	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+	wg := sync.WaitGroup{}
+	for _, pod := range pods {
+		wg.Add(1)
+		go func(pod *v1.Pod) {
+			ExpectReconcileSucceeded(ctx, scheduler, client.ObjectKeyFromObject(pod))
+			wg.Done()
+		}(pod)
+	}
+	wg.Wait()
+	// Return updated pods
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
 	}
