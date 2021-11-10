@@ -49,6 +49,10 @@ spec:
               path: /healthz
               port: 8081
           env:
+            - name: CLUSTER_NAME
+              value: {{ .Values.controller.clusterName }}
+            - name: CLUSTER_ENDPOINT
+              value: {{ .Values.controller.clusterEndpoint }}
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:

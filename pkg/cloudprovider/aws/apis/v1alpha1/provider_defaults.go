@@ -20,6 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -29,8 +30,8 @@ var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 func (c *Constraints) Default(ctx context.Context) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultSubnets()
-	c.defaultSecurityGroups()
+	c.defaultSubnets(options.Get(ctx).ClusterName)
+	c.defaultSecurityGroups(options.Get(ctx).ClusterName)
 }
 
 func (c *Constraints) defaultCapacityTypes() {
@@ -61,16 +62,16 @@ func (c *Constraints) defaultArchitecture() {
 	})
 }
 
-func (c *Constraints) defaultSubnets() {
+func (c *Constraints) defaultSubnets(clusterName string) {
 	if c.SubnetSelector != nil {
 		return
 	}
-	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
+	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
 }
 
-func (c *Constraints) defaultSecurityGroups() {
+func (c *Constraints) defaultSecurityGroups(clusterName string) {
 	if c.SecurityGroupSelector != nil {
 		return
 	}
-	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, c.Cluster.Name): "*"}
+	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
 }

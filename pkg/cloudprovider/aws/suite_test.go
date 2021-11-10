@@ -30,6 +30,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
@@ -53,6 +54,7 @@ var env *test.Environment
 var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
+var opts options.Options
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -61,6 +63,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	opts = options.Options{
+		ClusterName:     "test-cluster",
+		ClusterEndpoint: "https://test-cluster",
+	}
+	ctx = options.Inject(ctx, opts)
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider := NewSubnetProvider(fakeEC2API)
@@ -109,10 +116,6 @@ var _ = Describe("Allocation", func() {
 
 	BeforeEach(func() {
 		provider = &v1alpha1.AWS{
-			Cluster: v1alpha1.Cluster{
-				Name:     "test-cluster",
-				Endpoint: "https://test-cluster",
-			},
 			InstanceProfile: "test-instance-profile",
 		}
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
@@ -361,33 +364,6 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Validation", func() {
-		Context("Cluster", func() {
-			It("should fail if fields are empty", func() {
-				for _, cluster := range []v1alpha1.Cluster{
-					{Endpoint: "https://test-cluster"},
-					{Name: "test-cluster"},
-					{},
-				} {
-					provisioner = ProvisionerWithProvider(provisioner, &v1alpha1.AWS{Cluster: cluster})
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
-			})
-			It("should fail for invalid endpoint", func() {
-				for _, endpoint := range []string{
-					"http",
-					"http:",
-					"http://",
-					"https",
-					"https:",
-					"https://",
-					"I am a meat popsicle",
-					"$(echo foo)",
-				} {
-					provisioner = ProvisionerWithProvider(provisioner, &v1alpha1.AWS{Cluster: v1alpha1.Cluster{Name: "test-cluster", Endpoint: endpoint}})
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
-			})
-		})
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
 				for key, value := range map[string]string{

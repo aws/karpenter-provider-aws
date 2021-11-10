@@ -33,9 +33,6 @@ type AWS struct {
 	// TypeMeta includes version and kind of the extensions, inferred if not provided.
 	// +optional
 	metav1.TypeMeta `json:",inline"`
-	// Cluster is used to connect Nodes to the Kubernetes cluster.
-	// +required
-	Cluster Cluster `json:"cluster"`
 	// InstanceProfile is the AWS identity that instances use.
 	// +required
 	InstanceProfile string `json:"instanceProfile"`
@@ -51,16 +48,6 @@ type AWS struct {
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
-}
-
-// Cluster configures the cluster that the provisioner operates against.
-type Cluster struct {
-	// Name is required to authenticate with the API Server.
-	// +required
-	Name string `json:"name"`
-	// Endpoint is required for nodes to connect to the API Server.
-	// +required
-	Endpoint string `json:"endpoint"`
 }
 
 func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {

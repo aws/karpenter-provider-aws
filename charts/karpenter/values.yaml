@@ -12,6 +12,8 @@ controller:
   tolerations: []
   affinity: {}
   image: "public.ecr.aws/karpenter/controller:v0.4.2@sha256:51d9bcca109b1b1839b0a3052a448af9168f7fd52246bf27402cb38f8a7799e2"
+  clusterName: ""
+  clusterEndpoint: ""
 webhook:
   env: []
   nodeSelector: {}
