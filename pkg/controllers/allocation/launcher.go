@@ -105,7 +105,7 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 
 var bindTimeHistogram = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
-		Namespace: metrics.KarpenterNamespace,
+		Namespace: metrics.Namespace,
 		Subsystem: "allocation_controller",
 		Name:      "bind_duration_seconds",
 		Help:      "Duration of bind process in seconds. Broken down by result.",
