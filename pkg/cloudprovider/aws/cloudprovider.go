@@ -48,7 +48,7 @@ const (
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
 	// resources. Cache hits enable faster provisioning and reduced API load on
-	// AWS APIs, which can have a serious import on performance and scalability.
+	// AWS APIs, which can have a serious impact on performance and scalability.
 	// DO NOT CHANGE THIS VALUE WITHOUT DUE CONSIDERATION
 	CacheTTL = 60 * time.Second
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.

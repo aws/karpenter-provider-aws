@@ -155,7 +155,7 @@ func (r Requirements) WithPod(pod *v1.Pod) Requirements {
 // Consolidate combines In and NotIn requirements for each unique key, producing
 // an equivalent minimal representation of the requirements. This is useful as
 // requirements may be appended from a variety of sources and then consolidated.
-// Caution: If a key has contains a `NotIn` operator without a corresponding
+// Caution: If a key contains a `NotIn` operator without a corresponding
 // `In` operator, the requirement will permanently be [] after consolidation. To
 // avoid this, include the broadest `In` requirements before consolidating.
 func (r Requirements) Consolidate() (requirements Requirements) {
