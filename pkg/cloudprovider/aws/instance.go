@@ -171,13 +171,11 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
-	zonesUsed := sets.String{}
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
 			zone := offering.Zone
 			// we can't assume that all zones will be available for all capacity types, hence this check
-			// (we shouldn't ever have duplicate zones, just being paranoid to create a well-formed set of overrides)
-			if offering.CapacityType != capacityType || zonesUsed.Has(zone) {
+			if offering.CapacityType != capacityType {
 				continue
 			}
 			for _, subnet := range subnets {
@@ -193,7 +191,6 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 						override.Priority = aws.Float64(float64(i))
 					}
 					overrides = append(overrides, override)
-					zonesUsed.Insert(zone)
 					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
 					break
 				}
