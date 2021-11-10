@@ -30,6 +30,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
@@ -53,8 +54,7 @@ var env *test.Environment
 var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller reconcile.Reconciler
-var clusterName string
-var clusterEndpoint string
+var opts *options.Options
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -63,8 +63,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	clusterName = "test-cluster"
-	clusterEndpoint = "https://test-cluster"
+	opts = &options.Options{
+		ClusterName:     "test-cluster",
+		ClusterEndpoint: "https://test-cluster",
+	}
+	ctx = opts.Inject(ctx)
 	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 	fakeEC2API = &fake.EC2API{}
 	subnetProvider := NewSubnetProvider(fakeEC2API)
@@ -80,12 +83,9 @@ var _ = BeforeSuite(func() {
 					NewAMIProvider(&fake.SSMAPI{}, clientSet),
 					NewSecurityGroupProvider(fakeEC2API),
 					launchTemplateCache,
-					clusterName,
-					clusterEndpoint,
 				},
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
-			clusterName:   clusterName,
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = &allocation.Controller{

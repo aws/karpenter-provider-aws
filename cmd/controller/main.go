@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/url"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
@@ -29,9 +28,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/utils/env"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
-	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -50,7 +49,7 @@ import (
 
 var (
 	scheme    = runtime.NewScheme()
-	options   = Options{}
+	opts      = options.Options{}
 	component = "controller"
 )
 
@@ -59,67 +58,42 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 }
 
-// Options for running this binary
-type Options struct {
-	ClusterName     string
-	ClusterEndpoint string
-	MetricsPort     int
-	HealthProbePort int
-	KubeClientQPS   int
-	KubeClientBurst int
-}
-
-func (o Options) Validate() (err error) {
-	multierr.Append(err, o.validateEndpoint())
-	if o.ClusterName == "" {
-		multierr.Append(err, fmt.Errorf("CLUSTER_NAME is required"))
-	}
-	return err
-}
-
-func (o Options) validateEndpoint() error {
-	endpoint, err := url.Parse(o.ClusterEndpoint)
-	// url.Parse() will accept a lot of input without error; make
-	// sure it's a real URL
-	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-		return fmt.Errorf("%s not a valid URL", o.ClusterEndpoint)
-	}
-	return nil
-}
-
 func main() {
-	flag.StringVar(&options.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The cluster name to lookup CA bundles")
-	flag.StringVar(&options.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external cluster endpoint for new nodes to connect with")
-	flag.IntVar(&options.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
-	flag.IntVar(&options.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
-	flag.IntVar(&options.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
-	flag.IntVar(&options.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
+	flag.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The cluster name for resource discovery")
+	flag.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external cluster endpoint for new nodes to connect with")
+	flag.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
+	flag.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
+	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
+	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	flag.Parse()
 
-	if err := options.Validate(); err != nil {
+	if err := opts.Validate(); err != nil {
 		panic(fmt.Sprintf("Input parameter validation failed, %s", err.Error()))
 	}
 
 	config := controllerruntime.GetConfigOrDie()
-	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(options.KubeClientQPS), options.KubeClientBurst)
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
-	// 1. Set up logger and watch for changes to log level
+	// Set up logger and watch for changes to log level
 	ctx := LoggingContextOrDie(config, clientSet)
 
-	// 2. Put REST config in context, as it can be used by arbitrary
+	// Put REST config in context, as it can be used by arbitrary
 	// parts of the code base
 	ctx = restconfig.Inject(ctx, config)
 
-	// 3. Set up controller runtime controller
-	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, ClusterName: options.ClusterName, ClusterEndpoint: options.ClusterEndpoint})
+	// Put CLI args into context for access across code base
+	ctx = opts.Inject(ctx)
+
+	// Set up controller runtime controller
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	manager := controllers.NewManagerOrDie(config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
 		LeaderElectionID:       "karpenter-leader-election",
 		Scheme:                 scheme,
-		MetricsBindAddress:     fmt.Sprintf(":%d", options.MetricsPort),
-		HealthProbeBindAddress: fmt.Sprintf(":%d", options.HealthProbePort),
+		MetricsBindAddress:     fmt.Sprintf(":%d", opts.MetricsPort),
+		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 	if err := manager.RegisterControllers(ctx,
 		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),

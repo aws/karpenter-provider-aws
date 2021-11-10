@@ -20,17 +20,18 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	v1 "k8s.io/api/core/v1"
 )
 
 var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
-func (c *Constraints) Default(ctx context.Context, clusterName string) {
+func (c *Constraints) Default(ctx context.Context) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultSubnets(clusterName)
-	c.defaultSecurityGroups(clusterName)
+	c.defaultSubnets(options.Get(ctx).ClusterName)
+	c.defaultSecurityGroups(options.Get(ctx).ClusterName)
 }
 
 func (c *Constraints) defaultCapacityTypes() {
