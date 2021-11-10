@@ -27,6 +27,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ctx context.Context
@@ -72,13 +73,13 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 		It("should fail for restricted labels", func() {
-			for _, label := range RestrictedLabels {
+			for label := range RestrictedLabels {
 				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
 		It("should fail for restricted label domains", func() {
-			for _, label := range RestrictedLabelDomains {
+			for label := range RestrictedLabelDomains {
 				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
@@ -114,14 +115,26 @@ var _ = Describe("Validation", func() {
 	Context("Requirements", func() {
 		It("should allow supported ops", func() {
 			provisioner.Spec.Requirements = Requirements{
-				{Key: "test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				{Key: "test", Operator: v1.NodeSelectorOpNotIn, Values: []string{"bar"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"bar"}},
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail for unsupported ops", func() {
 			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt} {
-				provisioner.Spec.Requirements = Requirements{{Key: "test", Operator: op, Values: []string{"test"}}}
+				provisioner.Spec.Requirements = Requirements{{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}}}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow well known labels", func() {
+			for label := range WellKnownLabels {
+				provisioner.Spec.Requirements = Requirements{{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
+		It("should fail for unknown labels", func() {
+			for label := range sets.NewString("unknown", "invalid", "rejected") {
+				provisioner.Spec.Requirements = Requirements{{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})

@@ -60,10 +60,17 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 	}
 }
 
+func ExpectScheduled(c client.Client, name string, namespace string) {
+	pod := ExpectPodExists(c, name, namespace)
+	Eventually(pod.Spec.NodeName).ShouldNot(BeEmpty(), func() string {
+		return fmt.Sprintf("expected pod to scheduled, but it wasn't: %s", pretty.Concise(pod.Spec))
+	})
+}
+
 func ExpectNotScheduled(c client.Client, name string, namespace string) {
 	pod := ExpectPodExists(c, name, namespace)
 	Eventually(pod.Spec.NodeName).Should(BeEmpty(), func() string {
-		return fmt.Sprintf("expected pod to not be scheduled, but it was: %s", pretty.Concise(pod))
+		return fmt.Sprintf("expected pod to not be scheduled, but it was: %s", pretty.Concise(pod.Spec))
 	})
 }
 

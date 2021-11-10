@@ -87,24 +87,12 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Combining Constraints", func() {
 	Context("Custom Labels", func() {
-		It("should schedule pods that have matching node selectors", func() {
+		It("should schedule unconstrained pods that don't have matching node selectors", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
 			ExpectCreated(env.Client, provisioner)
 			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
-		})
-		It("should generate custom labels", func() {
-			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
-			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: "test-key-2", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value-2"}}}
-			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{
-				NodeSelector: map[string]string{"another-key": "another-value"},
-			}))
-			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
-			Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-			Expect(node.Labels).To(HaveKeyWithValue("another-key", "another-value"))
 		})
 		It("should not schedule pods that have conflicting node selectors", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
@@ -135,16 +123,6 @@ var _ = Describe("Combining Constraints", func() {
 			))
 			Expect(pods[0].Spec.NodeName).To(BeEmpty())
 		})
-		It("should generate custom labels for requirements", func() {
-			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
-				}},
-			))
-			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", Or(Equal("test-value"), Equal("another-value"))))
-		})
 		It("should schedule pods that have matching preferences", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
 			ExpectCreated(env.Client, provisioner)
@@ -165,31 +143,6 @@ var _ = Describe("Combining Constraints", func() {
 				}},
 			))
 			Expect(pods[0].Spec.NodeName).To(BeEmpty())
-		})
-		It("should generate custom labels for preferences", func() {
-			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
-					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
-				}},
-			))
-			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", Or(Equal("test-value"), Equal("another-value"))))
-		})
-		It("should generate custom labels with both requirements and preferences", func() {
-			ExpectCreated(env.Client, provisioner)
-			pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
-				test.PodOptions{
-					NodeRequirements: []v1.NodeSelectorRequirement{
-						{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}},
-					},
-					NodePreferences: []v1.NodeSelectorRequirement{
-						{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
-					},
-				},
-			))
-			node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", "another-value"))
 		})
 	})
 	Context("Well Known Labels", func() {
@@ -838,7 +791,7 @@ func ExpectSkew(c client.Client, topologyKey string) Assertion {
 		for _, node := range nodes.Items {
 			if pod.Spec.NodeName == node.Name {
 				if topologyKey == v1.LabelHostname {
-					skew[node.Name]++ // Check node name, since we strip placeholder hostname label
+					skew[node.Name]++ // Check node name since hostname labels aren't applied
 				} else if key, ok := node.Labels[topologyKey]; ok {
 					skew[key]++
 				}

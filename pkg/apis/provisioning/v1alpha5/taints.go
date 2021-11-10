@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling
+package v1alpha5
 
 import (
 	"fmt"
@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+// Taints is a decorated alias type for []v1.Taint
 type Taints []v1.Taint
 
 func (ts Taints) WithPod(pod *v1.Pod) Taints {

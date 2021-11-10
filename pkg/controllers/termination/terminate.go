@@ -24,9 +24,8 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
@@ -66,7 +65,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// 2. Separate pods as non-critical and critical
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	for _, pod := range pods {
-		if val := pod.Annotations[provisioning.DoNotEvictPodAnnotationKey]; val == "true" {
+		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
 			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, pod.Name)
 			return false, nil
 		}
@@ -89,7 +88,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	}
 	// 2. Remove finalizer from node in APIServer
 	persisted := node.DeepCopy()
-	node.Finalizers = functional.StringSliceWithout(node.Finalizers, provisioning.TerminationFinalizer)
+	node.Finalizers = functional.StringSliceWithout(node.Finalizers, v1alpha5.TerminationFinalizer)
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -113,7 +112,7 @@ func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 	evictable := []*v1.Pod{}
 	for _, pod := range pods {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if (scheduling.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(pod) == nil {
+		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(pod) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window

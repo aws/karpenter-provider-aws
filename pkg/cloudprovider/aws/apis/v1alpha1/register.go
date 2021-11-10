@@ -23,7 +23,6 @@ import (
 )
 
 var (
-	AWSLabelPrefix         = "node.k8s.aws/"
 	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
 	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
 	AWSToKubeArchitectures = map[string]string{
@@ -42,6 +41,5 @@ var (
 
 func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
-	v1alpha5.RestrictedLabels = append(v1alpha5.RestrictedLabels, AWSLabelPrefix)
-	v1alpha5.RestrictedLabelDomains = append(v1alpha5.RestrictedLabelDomains, AWSRestrictedLabelDomains...)
+	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(AWSRestrictedLabelDomains...)
 }

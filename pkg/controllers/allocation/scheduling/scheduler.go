@@ -25,7 +25,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,7 +73,11 @@ func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudPro
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (schedules []*Schedule, err error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
 
-	requirements := globalRequirements(instanceTypes).WithProvisioner(*provisioner).Consolidate()
+	constraints := provisioner.Spec.Constraints.DeepCopy()
+	constraints.Requirements = provisioner.Spec.Requirements.
+		With(globalRequirements(instanceTypes)).
+		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels)).
+		With(v1alpha5.LabelRequirements(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}))
 
 	// Relax preferences if pods have previously failed to schedule.
 	s.Preferences.Relax(ctx, pods)
@@ -82,17 +85,13 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, requirements, pods); err != nil {
+	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err = s.getSchedules(ctx, &provisioner.Spec.Constraints, requirements, pods)
+	schedules, err = s.getSchedules(ctx, constraints, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
-	}
-	// Remove labels injected by TopologySpreadConstraints.
-	for _, schedule := range schedules {
-		delete(schedule.Labels, v1.LabelHostname)
 	}
 	return schedules, nil
 }
@@ -121,28 +120,30 @@ func globalRequirements(instanceTypes []cloudprovider.InstanceType) (requirement
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, requirements v1alpha5.Requirements, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		constraints, err := NewConstraints(ctx, constraints, requirements, pod)
-		if err != nil {
-			logging.FromContext(ctx).Infof("Ignored pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
+		// Verify that the pod is within the constraints
+		if err := constraints.Supports(pod); err != nil {
+			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		// Combine the pod and constraint requirements
+		tightened := constraints.Tighten(pod)
+		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
-			daemons, err := s.getDaemons(ctx, constraints)
+			daemons, err := s.getDaemons(ctx, tightened)
 			if err != nil {
 				return nil, fmt.Errorf("computing node overhead, %w", err)
 			}
 			schedules[key] = &Schedule{
-				Constraints: constraints,
+				Constraints: tightened,
 				Pods:        []*v1.Pod{},
 				Daemons:     daemons,
 			}
@@ -169,23 +170,9 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constr
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if DaemonWillSchedule(constraints, pod) {
+		if constraints.Supports(pod) != nil {
 			pods = append(pods, pod)
 		}
 	}
 	return pods, nil
-}
-
-// DaemonWillSchedule returns true if the pod can schedule to the node
-func DaemonWillSchedule(constraints *v1alpha5.Constraints, pod *v1.Pod) bool {
-	// Tolerate Taints
-	if err := Taints(constraints.Taints).Tolerates(pod); err != nil {
-		return false
-	}
-	// Match Node Selector labels
-	if !labels.SelectorFromSet(pod.Spec.NodeSelector).Matches(labels.Set(constraints.Labels)) {
-		return false
-	}
-	// TODO support node affinity for daemonset
-	return true
 }
