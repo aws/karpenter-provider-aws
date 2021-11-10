@@ -173,13 +173,12 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
-			zone := offering.Zone
 			// we can't assume that all zones will be available for all capacity types, hence this check
 			if offering.CapacityType != capacityType {
 				continue
 			}
 			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) == zone {
+				if aws.StringValue(subnet.AvailabilityZone) == offering.Zone {
 					override := &ec2.FleetLaunchTemplateOverridesRequest{
 						InstanceType: aws.String(instanceType.Name()),
 						SubnetId:     subnet.SubnetId,

@@ -42,6 +42,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 				if constraints.Requirements.Zones().Has(o.Zone) {
 					zone = o.Zone
 					capacityType = o.CapacityType
+					break
 				}
 			}
 		}

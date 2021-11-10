@@ -166,23 +166,23 @@ func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	packableZones := sets.String{}
+	zones := sets.String{}
 	for _, offering := range p.Offerings() {
-		packableZones.Insert(offering.Zone)
+		zones.Insert(offering.Zone)
 	}
-	if schedule.Requirements.Zones().Intersection(packableZones).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", packableZones, schedule.Requirements.Zones().List())
+	if schedule.Requirements.Zones().Intersection(zones).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", zones, schedule.Requirements.Zones().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
-	packableCapacityTypes := sets.String{}
+	capacityTypes := sets.String{}
 	for _, offering := range p.Offerings() {
-		packableCapacityTypes.Insert(offering.CapacityType)
+		capacityTypes.Insert(offering.CapacityType)
 	}
-	if schedule.Requirements.CapacityTypes().Intersection(packableCapacityTypes).Len() == 0 {
-		return fmt.Errorf("capacity types %v are not in %v", packableCapacityTypes, schedule.Requirements.CapacityTypes().List())
+	if schedule.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, schedule.Requirements.CapacityTypes().List())
 	}
 	return nil
 }

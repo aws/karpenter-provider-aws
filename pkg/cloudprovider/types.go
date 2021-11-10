@@ -52,6 +52,7 @@ type Options struct {
 // or supported options in the case of arrays)
 type InstanceType interface {
 	Name() string
+	// Note that though this is an array it is expected that all the Offerings are unique from one another
 	Offerings() []Offering
 	Architecture() string
 	CPU() *resource.Quantity
