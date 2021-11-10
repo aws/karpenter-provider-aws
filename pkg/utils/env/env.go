@@ -19,7 +19,7 @@ import (
 	"strconv"
 )
 
-// WithDefaultInt returns the int value of the supplied environ variable or, if not present,
+// WithDefaultInt returns the int value of the supplied environment variable or, if not present,
 // the supplied default value. If the int conversion fails, returns the default
 func WithDefaultInt(key string, def int) int {
 	val, ok := os.LookupEnv(key)
@@ -33,7 +33,7 @@ func WithDefaultInt(key string, def int) int {
 	return i
 }
 
-// WithDefaultString returns the string value of the supplied environ variable or, if not present,
+// WithDefaultString returns the string value of the supplied environment variable or, if not present,
 // the supplied default value.
 func WithDefaultString(key string, def string) string {
 	val, ok := os.LookupEnv(key)
