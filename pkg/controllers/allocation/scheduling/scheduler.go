@@ -124,12 +124,10 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		// Verify that the pod is within the constraints
 		if err := constraints.Supports(pod); err != nil {
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		// Combine the pod and constraint requirements
 		tightened := constraints.Tighten(pod)
 		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {

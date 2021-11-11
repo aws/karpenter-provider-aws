@@ -56,7 +56,8 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha5
 func (f *Filter) isProvisionable(pod *v1.Pod, provisioner *v1alpha5.Provisioner) error {
 	return multierr.Combine(
 		f.isUnschedulable(pod),
-		f.hasSupportedSchedulingConstraints(pod),
+		f.validateAffinity(pod),
+		f.validateTopology(pod),
 		f.matchesProvisioner(pod, provisioner),
 	)
 }
@@ -85,14 +86,7 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha5.Provision
 	return fmt.Errorf("matched another provisioner, %s", name)
 }
 
-func (f *Filter) hasSupportedSchedulingConstraints(pod *v1.Pod) error {
-	return multierr.Combine(
-		validateAffinity(pod),
-		validateTopology(pod),
-	)
-}
-
-func validateTopology(pod *v1.Pod) (errs error) {
+func (f *Filter) validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
 		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone); !supported.Has(constraint.TopologyKey) {
 			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
@@ -101,7 +95,7 @@ func validateTopology(pod *v1.Pod) (errs error) {
 	return errs
 }
 
-func validateAffinity(pod *v1.Pod) (errs error) {
+func (f *Filter) validateAffinity(pod *v1.Pod) (errs error) {
 	if pod.Spec.Affinity == nil {
 		return nil
 	}
