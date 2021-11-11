@@ -30,7 +30,11 @@ Please contribute to our meeting notes by opening a PR.
   - CPU/GPU/Memory
   - What about storage? Should we support all resource requests?
   - spec.limits.resources vs spec.maxResources
-
+- This should support folks running separate provisioners per team. 
+   - Helps a cluster admin enforce a limit on each team.
+   - Setting GPU limits to 0 can help enforce that no GPU instances are launched at all. 
+- Discussed resource quotas and why that doesn't help us implement limits in this form. 
+   - With quotas you can limit resourceCounts (number of PVs) but not resource properties (say size of a PV)  
 # Meeting notes (10/28/21)
 ## Attendees
 - Brandon Wagner
