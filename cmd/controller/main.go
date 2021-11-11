@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis"
@@ -27,7 +26,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/metrics"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
-	"github.com/awslabs/karpenter/pkg/utils/env"
 	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
@@ -49,7 +47,7 @@ import (
 
 var (
 	scheme    = runtime.NewScheme()
-	opts      = options.Options{}
+	opts      = options.MustParse()
 	component = "controller"
 )
 
@@ -59,14 +57,6 @@ func init() {
 }
 
 func main() {
-	flag.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
-	flag.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
-	flag.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
-	flag.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
-	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
-	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
-	flag.Parse()
-
 	if err := opts.Validate(); err != nil {
 		panic(fmt.Sprintf("Input parameter validation failed, %s", err.Error()))
 	}
@@ -77,12 +67,7 @@ func main() {
 
 	// Set up logger and watch for changes to log level
 	ctx := LoggingContextOrDie(config, clientSet)
-
-	// Put REST config in context, as it can be used by arbitrary
-	// parts of the code base
 	ctx = restconfig.Inject(ctx, config)
-
-	// Put CLI args into context for access across code base
 	ctx = options.Inject(ctx, opts)
 
 	// Set up controller runtime controller

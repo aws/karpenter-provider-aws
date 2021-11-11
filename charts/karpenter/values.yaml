@@ -23,9 +23,8 @@ webhook:
 defaultProvisioner:
   create: true
   ttlSecondsAfterEmpty: 300
-  #ttlSecondsUntilExpired: 86400 
+  #ttlSecondsUntilExpired: 86400
   provider: {}
   requirements: []
   taints: []
   labels: {}
-

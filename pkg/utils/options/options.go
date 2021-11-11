@@ -16,11 +16,29 @@ package options
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/url"
 
+	"github.com/awslabs/karpenter/pkg/utils/env"
 	"go.uber.org/multierr"
 )
+
+func MustParse() Options {
+	opts := Options{}
+	flag.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
+	flag.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
+	flag.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
+	flag.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
+	flag.IntVar(&opts.WebhookPort, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
+	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
+	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
+	flag.Parse()
+	if err := opts.Validate(); err != nil {
+		panic(err)
+	}
+	return opts
+}
 
 // Options for running this binary
 type Options struct {
@@ -28,6 +46,7 @@ type Options struct {
 	ClusterEndpoint string
 	MetricsPort     int
 	HealthProbePort int
+	WebhookPort     int
 	KubeClientQPS   int
 	KubeClientBurst int
 }
@@ -38,8 +57,8 @@ func Get(ctx context.Context) Options {
 	return ctx.Value(optionsKey{}).(Options)
 }
 
-func Inject(ctx context.Context, options Options) context.Context {
-	return context.WithValue(ctx, optionsKey{}, options)
+func Inject(ctx context.Context, opts Options) context.Context {
+	return context.WithValue(ctx, optionsKey{}, opts)
 }
 
 func (o Options) Validate() (err error) {
