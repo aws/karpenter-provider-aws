@@ -79,10 +79,10 @@ var _ = BeforeSuite(func() {
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
-					fakeEC2API,
-					NewAMIProvider(&fake.SSMAPI{}, clientSet),
-					NewSecurityGroupProvider(fakeEC2API),
-					launchTemplateCache,
+					ec2api:                fakeEC2API,
+					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
+					securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
+					cache:                 launchTemplateCache,
 				},
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
