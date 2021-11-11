@@ -10,6 +10,27 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (11/11/21)
+
+## Attendees
+- Jerad Cramp
+- Ellis Tarn
+- Jason Haugen
+- Felix Huang
+- Suket Sharma
+- Jacob Gabrielson
+- Elton Pinto
+
+## Notes
+- Limits are great, what about auto repair?
+  - How do nodes recover from disk/memory pressure? (kubernetes has mechanisms for this: eviction)
+  - If nodes come online and then become unhealthy later
+  - Let's address liveness after the limits problem
+- What are the dimensions of limits that we want to introduce?
+  - CPU/GPU/Memory
+  - What about storage? Should we support all resource requests?
+  - spec.limits.resources vs spec.maxResources
+
 # Meeting notes (10/28/21)
 ## Attendees
 - Brandon Wagner
