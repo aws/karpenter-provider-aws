@@ -42,12 +42,6 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		// This validation is on the ProvisionerSpec despite the fact that
-		// labels are a property of Constraints. This is necessary because
-		// validation is applied to constraints that include pod overrides.
-		// These labels are restricted when creating provisioners, but are not
-		// restricted for pods since they're necessary to override constraints.
-		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
 }
@@ -61,17 +55,6 @@ func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldErro
 func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError) {
 	if ptr.Int64Value(s.TTLSecondsAfterEmpty) < 0 {
 		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsAfterEmpty"))
-	}
-	return errs
-}
-
-func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
-	for key := range s.Labels {
-		for _, restricted := range RestrictedLabels {
-			if strings.HasPrefix(key, restricted) {
-				errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
-			}
-		}
 	}
 	return errs
 }
@@ -94,6 +77,9 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
+		if RestrictedLabels.Has(key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label is restricted"))
+		}
 		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label domain not allowed"))
 		}
@@ -103,7 +89,7 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 
 func IsRestrictedLabelDomain(key string) bool {
 	labelDomain := getLabelDomain(key)
-	for _, restrictedLabelDomain := range RestrictedLabelDomains {
+	for restrictedLabelDomain := range RestrictedLabelDomains {
 		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
 			return true
 		}
@@ -152,16 +138,10 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 	return errs
 }
 
-func (r Requirements) Validate() (errs *apis.FieldError) {
-	for _, label := range r.Keys() {
-		if r.Requirement(label).Len() == 0 {
-			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s is too constrained", label)))
-		}
-	}
-	return errs
-}
-
 func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
+	if !WellKnownLabels.Has(requirement.Key) {
+		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
+	}
 	for _, err := range validation.IsQualifiedName(requirement.Key) {
 		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
 	}

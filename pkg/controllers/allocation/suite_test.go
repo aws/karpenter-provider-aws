@@ -114,10 +114,6 @@ var _ = Describe("Allocation", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"}}),
 				// Constrained by architecture
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}),
-				// Constrained by operating system
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "windows"}}),
-				// Constrained by arbitrary label
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
 			unschedulable := []client.Object{
 				// Ignored, matches another provisioner
@@ -130,6 +126,8 @@ var _ = Describe("Allocation", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
 				// Ignored, invalid capacity type
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: "unknown"}}),
+				// Ignored, label selector does not match
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
 			ExpectCreated(env.Client, provisioner)
 			ExpectCreatedWithStatus(env.Client, schedulable...)
@@ -145,7 +143,7 @@ var _ = Describe("Allocation", func() {
 			for _, pod := range unschedulable {
 				ExpectNotScheduled(env.Client, pod.GetName(), pod.GetNamespace())
 			}
-			Expect(len(nodes.Items)).To(Equal(6)) // 5 schedulable -> 5 node, 2 coschedulable -> 1 node
+			Expect(len(nodes.Items)).To(Equal(4))
 		})
 		It("should provision nodes for accelerators", func() {
 			ExpectCreated(env.Client, provisioner)
@@ -217,7 +215,6 @@ var _ = Describe("Allocation", func() {
 				node := ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
 				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
-				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))
 				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 			})

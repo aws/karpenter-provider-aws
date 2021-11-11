@@ -41,18 +41,18 @@ var (
 
 var (
 	// RestrictedLabels are injected by Cloud Providers
-	RestrictedLabels = []string{
+	RestrictedLabels = sets.NewString(
 		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
-	}
+	)
 	// These are either prohibited by the kubelet or reserved by karpenter
 	KarpenterLabelDomain   = "karpenter.sh"
-	RestrictedLabelDomains = []string{
+	RestrictedLabelDomains = sets.NewString(
 		"kubernetes.io",
 		"k8s.io",
 		KarpenterLabelDomain,
-	}
+	)
 	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
 	// WellKnownLabels supported by karpenter
 	WellKnownLabels = sets.NewString(
@@ -60,6 +60,7 @@ var (
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
 		LabelCapacityType,
+		v1.LabelHostname, // Used internally for hostname topology spread
 	)
 	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
 	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }

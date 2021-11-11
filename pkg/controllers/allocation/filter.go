@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/utils/ptr"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -55,6 +56,8 @@ func (f *Filter) GetProvisionablePods(ctx context.Context, provisioner *v1alpha5
 func (f *Filter) isProvisionable(pod *v1.Pod, provisioner *v1alpha5.Provisioner) error {
 	return multierr.Combine(
 		f.isUnschedulable(pod),
+		f.validateAffinity(pod),
+		f.validateTopology(pod),
 		f.matchesProvisioner(pod, provisioner),
 	)
 }
@@ -81,4 +84,50 @@ func (f *Filter) matchesProvisioner(pod *v1.Pod, provisioner *v1alpha5.Provision
 		return nil
 	}
 	return fmt.Errorf("matched another provisioner, %s", name)
+}
+
+func (f *Filter) validateTopology(pod *v1.Pod) (errs error) {
+	for _, constraint := range pod.Spec.TopologySpreadConstraints {
+		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone); !supported.Has(constraint.TopologyKey) {
+			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
+		}
+	}
+	return errs
+}
+
+func (f *Filter) validateAffinity(pod *v1.Pod) (errs error) {
+	if pod.Spec.Affinity == nil {
+		return nil
+	}
+	if pod.Spec.Affinity.PodAffinity != nil {
+		errs = multierr.Append(errs, fmt.Errorf("pod affinity is not supported"))
+	}
+	if pod.Spec.Affinity.PodAntiAffinity != nil {
+		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity is not supported"))
+	}
+	if pod.Spec.Affinity.NodeAffinity != nil {
+		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
+		}
+		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
+			}
+		}
+	}
+	return errs
+}
+
+func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
+	if term.MatchFields != nil {
+		errs = multierr.Append(errs, fmt.Errorf("matchFields is not supported"))
+	}
+	if term.MatchExpressions != nil {
+		for _, requirement := range term.MatchExpressions {
+			if !sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)).Has(string(requirement.Operator)) {
+				errs = multierr.Append(errs, fmt.Errorf("unsupported operator, %s", requirement.Operator))
+			}
+		}
+	}
+	return errs
 }
