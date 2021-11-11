@@ -45,11 +45,11 @@ const (
 )
 
 type LaunchTemplateProvider struct {
+	sync.Mutex
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
-	mutex                 sync.Mutex
 }
 
 func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
@@ -125,8 +125,8 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
