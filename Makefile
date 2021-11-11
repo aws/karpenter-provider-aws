@@ -67,7 +67,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		object:headerFile="hack/boilerplate.go.txt" \
 		crd \
 		paths="./pkg/..." \
-		output:crd:artifacts:config=charts/karpenter/templates
+		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
