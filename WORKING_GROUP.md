@@ -10,6 +10,31 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (11/11/21)
+
+## Attendees
+- Jerad Cramp
+- Ellis Tarn
+- Jason Haugen
+- Felix Huang
+- Suket Sharma
+- Jacob Gabrielson
+- Elton Pinto
+
+## Notes
+- Limits are great, what about auto repair?
+  - How do nodes recover from disk/memory pressure? (kubernetes has mechanisms for this: eviction)
+  - If nodes come online and then become unhealthy later
+  - Let's address liveness after the limits problem
+- What are the dimensions of limits that we want to introduce?
+  - CPU/GPU/Memory
+  - What about storage? Should we support all resource requests?
+  - spec.limits.resources vs spec.maxResources
+- This should support folks running separate provisioners per team. 
+   - Helps a cluster admin enforce a limit on each team.
+   - Setting GPU limits to 0 can help enforce that no GPU instances are launched at all. 
+- Discussed resource quotas and why that doesn't help us implement limits in this form. 
+   - With quotas you can limit resourceCounts (number of PVs) but not resource properties (say size of a PV)  
 # Meeting notes (10/28/21)
 ## Attendees
 - Brandon Wagner
