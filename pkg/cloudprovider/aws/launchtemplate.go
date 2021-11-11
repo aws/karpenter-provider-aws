@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -44,6 +45,7 @@ const (
 )
 
 type LaunchTemplateProvider struct {
+	sync.Mutex
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
@@ -122,17 +124,21 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	// Ensure that multiple threads don't attempt to create the same launch template
+	p.Lock()
+	defer p.Unlock()
+
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
-	// 1. Read from cache
+	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
-	// 2. Attempt to find an existing LT.
+	// Attempt to find an existing LT.
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
-	// 3. Create LT if one doesn't exist
+	// Create LT if one doesn't exist
 	if isNotFound(err) {
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
