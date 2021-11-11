@@ -16,11 +16,11 @@ package main
 
 import (
 	"context"
-	"flag"
 
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
@@ -37,20 +37,13 @@ import (
 )
 
 var (
-	options = Options{}
+	opts = options.MustParse()
 )
 
-type Options struct {
-	Port int
-}
-
 func main() {
-	flag.IntVar(&options.Port, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
-	flag.Parse()
-
 	config := injection.ParseAndGetRESTConfigOrDie()
 	ctx := webhook.WithOptions(injection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
-		Port:        options.Port,
+		Port:        opts.WebhookPort,
 		ServiceName: "karpenter-webhook",
 		SecretName:  "karpenter-webhook-cert",
 	})
@@ -97,4 +90,6 @@ func newConfigValidationController(ctx context.Context, cmw configmap.Watcher) *
 	)
 }
 
-func InjectContext(ctx context.Context) context.Context { return ctx }
+func InjectContext(ctx context.Context) context.Context {
+	return options.Inject(ctx, opts)
+}
