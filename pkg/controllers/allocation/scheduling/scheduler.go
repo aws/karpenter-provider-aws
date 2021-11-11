@@ -21,6 +21,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -74,10 +75,10 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
 
 	constraints := provisioner.Spec.Constraints.DeepCopy()
+	constraints.Labels = functional.UnionStringMaps(constraints.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	constraints.Requirements = provisioner.Spec.Requirements.
 		With(globalRequirements(instanceTypes)).
-		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels)).
-		With(v1alpha5.LabelRequirements(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}))
+		With(v1alpha5.LabelRequirements(constraints.Labels))
 
 	// Relax preferences if pods have previously failed to schedule.
 	s.Preferences.Relax(ctx, pods)
