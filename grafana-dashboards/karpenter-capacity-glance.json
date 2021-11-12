@@ -64,20 +64,20 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1636562665282,
+  "iteration": 1636732245770,
   "links": [],
   "panels": [
     {
       "datasource": null,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 24,
         "x": 0,
         "y": 0
       },
       "id": 39,
       "options": {
-        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays current counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.",
+        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays current counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/awslabs/karpenter/issues/new?labels=dashboard).",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.6",
@@ -90,7 +90,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 5
       },
       "id": 29,
       "title": "Overview",
@@ -129,7 +129,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "id": 2,
       "options": {
@@ -185,7 +185,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 5
+        "y": 6
       },
       "id": 4,
       "options": {
@@ -249,7 +249,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 15
       },
       "id": 12,
       "options": {
@@ -311,7 +311,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 15
       },
       "id": 14,
       "options": {
@@ -357,7 +357,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 24
       },
       "id": 8,
       "panels": [],
@@ -389,7 +389,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 25
       },
       "id": 6,
       "options": {
@@ -455,7 +455,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 25
       },
       "id": 15,
       "options": {
@@ -565,5 +565,5 @@
   "timezone": "",
   "title": "Capacity / At a Glance",
   "uid": "ffLnEKv7k",
-  "version": 4
+  "version": 6
 }

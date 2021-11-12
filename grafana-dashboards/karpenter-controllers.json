@@ -64,11 +64,12 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1635538225040,
+  "iteration": 1636733515850,
   "links": [],
   "panels": [
     {
       "datasource": null,
+      "description": "",
       "gridPos": {
         "h": 4,
         "w": 24,
@@ -77,137 +78,12 @@
       },
       "id": 99,
       "options": {
-        "content": "Displays information collected by the Kubernetes controller-runtime.  A row pertaining to an individual controller will automatically be added for each observed controller within the selected time range.\n\nSee the information icon of each panel for a description.",
+        "content": "Displays information collected by the Kubernetes controller-runtime.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/awslabs/karpenter/issues/new?labels=dashboard).",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.6",
       "title": "About this dashboard",
       "type": "text"
-    },
-    {
-      "collapsed": false,
-      "datasource": null,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 4
-      },
-      "id": 6,
-      "panels": [],
-      "repeat": "controller",
-      "title": "$controller Controller",
-      "type": "row"
-    },
-    {
-      "aliasColors": {
-        "maximum": "red"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
-      "description": "",
-      "fill": 1,
-      "fillGradient": 1,
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
-      "hiddenSeries": false,
-      "id": 2,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.1.6",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "repeat": null,
-      "repeatDirection": "v",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "controller_runtime_active_workers{controller=\"$controller\"}",
-          "hide": false,
-          "instant": false,
-          "interval": "",
-          "legendFormat": "active",
-          "queryType": "randomWalk",
-          "refId": "Active Workers"
-        },
-        {
-          "exemplar": true,
-          "expr": "controller_runtime_max_concurrent_reconciles{controller=\"$controller\"}",
-          "hide": false,
-          "instant": false,
-          "interval": "",
-          "legendFormat": "maximum",
-          "queryType": "randomWalk",
-          "refId": "Maximum Workers"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Workers",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "transformations": [],
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": 0,
-          "format": "short",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
     },
     {
       "aliasColors": {
@@ -224,7 +100,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 13
+        "y": 4
       },
       "hiddenSeries": false,
       "id": 14,
@@ -306,165 +182,6 @@
     },
     {
       "aliasColors": {
-        "items": "purple"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
-      "description": "",
-      "fill": 1,
-      "fillGradient": 2,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 13
-      },
-      "hiddenSeries": false,
-      "id": 25,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.1.6",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "rate(workqueue_adds_total{name=\"$controller\"}[$trailing]) * 60",
-          "interval": "",
-          "legendFormat": "items",
-          "queryType": "randomWalk",
-          "refId": "New Work Rate"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Items added to Work Queue per minute",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": 1,
-          "format": "short",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "#b4ff00",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateMagma",
-        "exponent": 0.5,
-        "mode": "spectrum"
-      },
-      "dataFormat": "tsbuckets",
-      "datasource": "${DS_PROMETHEUS}",
-      "description": "Aggregates the time that items remained in the Work Queue before being requested.\n\nThe color of each \"bucket\" is a visual clue to the number of items that remained in the queue for that time range.\n\nMouse-over a bucket to display exact values.",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 13
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 101,
-      "legend": {
-        "show": true
-      },
-      "maxDataPoints": 25,
-      "reverseYBuckets": false,
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "sum(increase(workqueue_queue_duration_seconds_bucket{name=\"$controller\"}[$__interval])) by (le)",
-          "format": "heatmap",
-          "interval": "",
-          "legendFormat": "{{le}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Item in Work Queue duration",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": 0,
-        "format": "s",
-        "logBase": 1,
-        "max": null,
-        "min": "0",
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
-    },
-    {
-      "aliasColors": {
         "error": "red",
         "requeue": "orange",
         "requeue_after": "semi-dark-purple",
@@ -479,9 +196,9 @@
       "fillGradient": 1,
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 21
+        "w": 8,
+        "x": 8,
+        "y": 4
       },
       "hiddenSeries": false,
       "id": 76,
@@ -579,9 +296,9 @@
       "description": "Aggregates the duration of the reconciliation process.\n\nThe color of each \"bucket\" is a visual clue to the number of reconciliations that completed within that time range.\n\nMouse-over a bucket to display exact values.",
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 21
+        "w": 8,
+        "x": 16,
+        "y": 4
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -596,7 +313,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(increase(controller_runtime_reconcile_time_seconds_bucket{controller=\"Allocation\"}[$__interval])) by (le)",
+          "expr": "sum(increase(controller_runtime_reconcile_time_seconds_bucket{controller=\"$controller\"}[$__interval])) by (le)",
           "format": "heatmap",
           "hide": false,
           "interval": "",
@@ -645,8 +362,8 @@
         "definition": "label_values(controller_runtime_reconcile_errors_total, controller)",
         "description": "Kubernetes controller",
         "error": null,
-        "hide": 2,
-        "includeAll": true,
+        "hide": 0,
+        "includeAll": false,
         "label": "Controller",
         "multi": false,
         "name": "controller",
@@ -725,5 +442,5 @@
   "timezone": "",
   "title": "Controllers",
   "uid": "-Yw9ShDnz",
-  "version": 11
+  "version": 15
 }

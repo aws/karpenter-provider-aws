@@ -58,20 +58,20 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1636562751886,
+  "iteration": 1636732344860,
   "links": [],
   "panels": [
     {
       "datasource": null,
       "gridPos": {
-        "h": 4,
+        "h": 5,
         "w": 24,
         "x": 0,
         "y": 0
       },
       "id": 39,
       "options": {
-        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays historic counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.",
+        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays historic counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/awslabs/karpenter/issues/new?labels=dashboard).",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.6",
@@ -84,7 +84,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 5
       },
       "id": 29,
       "title": "Overview",
@@ -109,7 +109,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "hiddenSeries": false,
       "id": 2,
@@ -203,7 +203,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 5
+        "y": 6
       },
       "hiddenSeries": false,
       "id": 4,
@@ -298,7 +298,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 15
       },
       "hiddenSeries": false,
       "id": 12,
@@ -390,7 +390,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 15
       },
       "hiddenSeries": false,
       "id": 14,
@@ -477,7 +477,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 24
       },
       "id": 8,
       "panels": [],
@@ -498,7 +498,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 25
       },
       "hiddenSeries": false,
       "id": 6,
@@ -594,7 +594,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 25
       },
       "hiddenSeries": false,
       "id": 15,
@@ -745,5 +745,5 @@
   "timezone": "",
   "title": "Capacity / History",
   "uid": "ffLnEKv71",
-  "version": 3
+  "version": 4
 }
