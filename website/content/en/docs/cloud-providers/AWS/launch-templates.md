@@ -6,7 +6,7 @@ weight: 80
 
 By default, Karpenter generates launch templates that use [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template. 
 
-Note: By customizing the image, you are taking responsibility for maintianing the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. 
+Note: By customizing the image, you are taking responsibility for maintaining the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. 
 
 
 ## Introduction
@@ -15,6 +15,8 @@ Karpenter follows existing AWS patterns for customizing the base image of
 instances. More specifically, Karpenter uses [EC2 launch templates](https://docs.aws.amazon.com/autoscaling/ec2/userguide/LaunchTemplates.html). Launch
 templates may specify many values. The pivotal value is the base image (AMI).
 Launch templates further specify many different parameters related to networking, authorization, instance type, and more. 
+
+Launch Templates and AMIs are unique to AWS regions, similar to EKS clusters. IAM resources are global. 
 
 **Karpenter only implementes a subset of launch template fields, and some fields should not be set.**  
 
@@ -26,7 +28,7 @@ The Launch Template resource includes a large number of fields. AWS accepts laun
 
 Certain fields are obviously critical, such as AMI and User Data. Some fields are useful for particular workloads, such as storage and IAM Instance Profile. 
 
-Finally, **the majority of Launch Template fields should not be set** (or will have no effect). If it's not documented below, you should assume that the field should not be set.
+Finally, **the majority of Launch Template fields should not be set** (or will have no effect), such as network interfaces and instance type. 
 
 ## Important Fields
 
@@ -44,7 +46,7 @@ AMI (Amazon Machine Image), is the base image/VM for a launch template.
 Importantly, the AMI must support automatically connecting to a cluster based
 on "user data", or a base64 encoded string passed to the instance at startup.
 The syntax and purpose of the user data varies between images. The Karpenter
-default OS, Amazon Linux 2 (AL2), accepts shell scripts (e.g. bash commands). 
+default OS, Amazon Linux 2 (AL2), accepts shell scripts (bash commands). 
 
 [AWS calls data passed to an instance at launch time "user
 data".](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-data-shell-scripts)
@@ -68,7 +70,7 @@ when building a custom base image.
 Note, you must populate this command with live values. Karpenter will
 not change the user data in the launch template. 
 
-You can encode your user data using yaml function `!Base64` yaml function or shell command `cat userdata.sh | base64 > userdata-encoded.txt` . 
+Encode using yaml function `!Base64` yaml function or `cat userdata.sh | base64 > userdata-encoded.txt` shell command. 
 
 **Bootstrap Script Parameters**
 
@@ -76,8 +78,7 @@ The sample bootstrap script requires information to join the cluster.
 
 These values may be found using:
 ```
-aws eks describe-cluster --name <MyKarpenterCluster>
-
+aws eks describe-cluster --name MyKarpenterCluster 
 ```
 
 **Kubelet Arguments**
@@ -92,8 +93,7 @@ Configure these values in response to a particular use case, such as nodes inter
 
 The launch template must include an "instance profile" -- a set of IAM roles. 
 
-The instance profile must include *at least* the permissions of the default Karpenter node instance profile. See the default role, `KarpenterNodeRole`, in the [full example below](#cloudformation) for more information. 
-
+The instance profile must include *at least* the permissions of the default Karpenter node instance profile. See the default role, `KarpenterNodeRole`, in the full example below for more information. 
 
 See also, [the managed policy "AmazonEKSWorkerNodePolicy"](https://docs.aws.amazon.com/eks/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonEKSWorkerNodePolicy) which includes permission to describe clusters and subnets.
 
@@ -106,11 +106,7 @@ image.
 
 The launch template must include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster.
 
-The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: 
-- HTTPS on port 443
-- DNS (UDP and TCP) on port 53
-- Your subnet's network access control list (network ACL). 
-
+The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet's network access control list (network ACL). 
 
 ## Fields with Undefined Behavior
 
