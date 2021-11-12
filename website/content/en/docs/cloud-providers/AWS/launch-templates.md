@@ -104,7 +104,7 @@ image.
 
 ### Security Groups - Firewall
 
-The launch template must include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster.
+The launch template may include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster. If none is specified, the default security group of the cluster VPC is used. 
 
 The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet's network access control list (network ACL). 
 
@@ -184,18 +184,16 @@ Resources:
         IamInstanceProfile:
           # Get ARN of InstanceProfile defined above
           Arn: !GetAtt
-            - KarpenterInstanceProfile
+            - KarpenterNodeInstanceProfile
             - Arn
         ImageId: ami-074cce78125f09d61
         # UserData is Base64 Encoded
         UserData: !Base64 > 
             #!/bin/bash
-            /etc/eks/bootstrap.sh <my-cluster-name> \
-            --kubelet-extra-args <'--max-pods=40'> \
-            --b64-cluster-ca <certificateAuthority> \
-            --apiserver-endpoint <endpoint> 
-            --dns-cluster-ip <serviceIpv4Cidr>
-            --use-max-pods false
+            /etc/eks/bootstrap.sh 'MyClusterName' \
+            --kubelet-extra-args '--node-labels=node.k8s.aws/capacity-type=spot' \
+            --b64-cluster-ca 'LS0t....0tCg==' \
+            --apiserver-endpoint 'https://B0385BE29EA792E811CB5866D23C856E.gr7.us-east-2.eks.amazonaws.com' 
         BlockDeviceMappings: 
           - Ebs:
               VolumeSize: 80
