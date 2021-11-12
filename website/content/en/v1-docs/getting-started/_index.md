@@ -3,9 +3,6 @@
 title: "Getting Started with Karpenter on AWS"
 linkTitle: "Getting Started"
 weight: 10
-menu:
-  main:
-    weight: 10
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable
