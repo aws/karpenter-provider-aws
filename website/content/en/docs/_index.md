@@ -1,7 +1,7 @@
 
 ---
 title: "v2 Documentation"
-linkTitle: "v2 Docs"
+linkTitle: "Docs"
 weight: 20
 menu:
   main:

@@ -3,10 +3,6 @@
 title: "v1 Documentation"
 linkTitle: "v1 Docs"
 weight: 20
-menu:
-  main:
-    weight: 20
-    pre: <i class='fas fa-book'></i>
 cascade:
 - type: "docs"
 ---
