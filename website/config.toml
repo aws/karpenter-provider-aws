@@ -127,3 +127,16 @@ name = "GitHub"
 weight = 99
 url = "https://github.com/awslabs/karpenter"
 pre = "<i class='fab fa-github'></i>"
+
+# Add your release versions here
+[[params.versions]]
+  version = "latest"
+  url = "https://karpenter-versions.gcline.us/docs/"
+
+[[params.versions]]
+  version = "v2"
+  url = "https://karpenter-versions.gcline.us/docs/"
+
+[[params.versions]]
+  version = "v0.3"
+  url = "https://karpenter-versions.gcline.us/v1-docs/"
