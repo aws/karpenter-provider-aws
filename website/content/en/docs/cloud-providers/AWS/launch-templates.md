@@ -62,8 +62,8 @@ when building a custom base image.
 /etc/eks/bootstrap.sh <my-cluster-name> \
 --kubelet-extra-args <'--max-pods=40'> \
 --b64-cluster-ca <certificateAuthority> \
---apiserver-endpoint <endpoint> 
---dns-cluster-ip <serviceIpv4Cidr>
+--apiserver-endpoint <endpoint> \
+--dns-cluster-ip <serviceIpv4Cidr> \
 --use-max-pods false
 ```
 
@@ -83,7 +83,7 @@ aws eks describe-cluster --name MyKarpenterCluster
 
 **Kubelet Arguments**
 
-Specifying max-pods can break Karpenter's binpacking logic (it has no way to know what this setting is). If karpenter attempts to pack more than this number of pods, the instance may be oversized, and additional pods will reschedule.
+Specifying max-pods can break Karpenter's binpacking logic (it has no way to know what this setting is). If Karpenter attempts to pack more than this number of pods, the instance may be oversized, and additional pods will reschedule.
 
 ## Situational Fields 
 
@@ -91,7 +91,7 @@ Configure these values in response to a particular use case, such as nodes inter
 
 ### Instance Profile - IAM
 
-The launch template must include an "instance profile" -- a set of IAM roles. 
+The launch template must include an "instance profile" -- an IAM role. 
 
 The instance profile must include *at least* the permissions of the default Karpenter node instance profile. See the default role, `KarpenterNodeRole`, in the full example below for more information. 
 
@@ -137,7 +137,7 @@ The procedure, in summary, is to:
 An example yaml cloudformation definition of a launch template for Karpenter is
 provided below. 
 
-Cloudformation yaml is suited for the moderately high configuration density of
+CloudFormation yaml is suited for the moderately high configuration density of
 launch templates, and creating the unusual InstanceProfile resource. 
 
 You must manually replace these values in the template:
