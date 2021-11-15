@@ -97,7 +97,7 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 	// Bind pods
 	errs := make([]error, len(pods))
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
-		l.CoreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{})
+		errs[i] = l.CoreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{})
 	})
 	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(multierr.Combine(errs...))), node.Name)
 	return multierr.Combine(errs...)
