@@ -1,0 +1,34 @@
+<script>
+
+    //create the html element with the version string
+    function WarningElement(version) {
+        let RawElement = `
+        <div class="content deprecation-warning">
+            <h3>
+                You are viewing documentation for Karpenter version: ${version}
+            </h3>
+            <p> Karpenter ${version} documentation is no longer actively maintained. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
+                <a href="https://karpenter.sh/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+    
+    //determine if path is /v1-docs/ (archived) or /docs/ (latest)
+    let re = new RegExp ('/(.*)\-docs')
+    const result = window.location.pathname.match(re)
+    const ArchiveStatus = result.length > 0
+
+    if (ArchiveStatus) {
+        //get version string from match result
+        let Version = result[1]
+
+        //insert new element before h1 of main content element
+        const target = document.querySelector(".td-content > h1")
+        target.parentNode.insertBefore(WarningElement(Version), target)
+    }
+</script>
