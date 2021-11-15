@@ -65,7 +65,7 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 ### Capacity Type
 
-- key: `node.k8s.aws/capacity-type`
+- key: `karpenter.sh/capacity-type`
 - values
   - `on-demand` (default)
   - `spot`
@@ -82,7 +82,7 @@ be used for critical workloads that do not tolerate interruptions.
 ```yaml
 spec:
   requirements:
-    - key: node.k8s.aws/capacity-type
+    - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot", "on-demand"]
 ```
@@ -94,7 +94,7 @@ spec:
   template:
     spec:
       nodeSelector:
-        node.k8s.aws/capacity-type: spot
+        karpenter.sh/capacity-type: spot
 ```
 
 ### Architecture
