@@ -48,6 +48,10 @@ spec:
             httpGet:
               path: /healthz
               port: 8081
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
           env:
             - name: CLUSTER_NAME
               value: {{ .Values.controller.clusterName }}
