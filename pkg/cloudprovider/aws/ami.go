@@ -78,7 +78,7 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 		return "", fmt.Errorf("getting ssm parameter, %w", err)
 	}
 	ami := aws.StringValue(output.Parameter.Value)
-	p.cache.Set(query, ami, CacheTTL)
+	p.cache.SetDefault(query, ami)
 	logging.FromContext(ctx).Debugf("Discovered ami %s for query %s", ami, query)
 	return ami, nil
 }
@@ -102,7 +102,7 @@ func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
 		return "", err
 	}
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.cache.Set(kubernetesVersionCacheKey, version, CacheTTL)
+	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
 	return version, nil
 }
