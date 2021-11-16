@@ -41,20 +41,27 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 }
 
 func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
-	// Get subnets
-	subnets, err := s.getSubnets(ctx, constraints)
+	filters := getFilters(constraints)
+	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Fail if no subnets found
-	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets exist given constraints")
+	if subnets, ok := s.cache.Get(fmt.Sprint(hash)); ok {
+		return subnets.([]*ec2.Subnet), nil
 	}
-	// Return subnets
-	return subnets, nil
+	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+	}
+	if len(output.Subnets) == 0 {
+		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
+	}
+	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
+	logging.FromContext(ctx).Debugf("Discovered subnets: %s", prettySubnets(output.Subnets))
+	return output.Subnets, nil
 }
 
-func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
+func getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by zone
 	if zones := constraints.Requirements.Zones(); zones != nil {
@@ -80,28 +87,7 @@ func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Fi
 	return filters
 }
 
-func (s *SubnetProvider) getSubnets(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
-	filters := s.getFilters(constraints)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
-	if err != nil {
-		return nil, err
-	}
-	if subnets, ok := s.cache.Get(fmt.Sprint(hash)); ok {
-		return subnets.([]*ec2.Subnet), nil
-	}
-	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
-	}
-	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
-	}
-	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
-	logging.FromContext(ctx).Debugf("Discovered subnets: %s", s.prettySubnets(output.Subnets))
-	return output.Subnets, nil
-}
-
-func (s *SubnetProvider) prettySubnets(subnets []*ec2.Subnet) []string {
+func prettySubnets(subnets []*ec2.Subnet) []string {
 	names := []string{}
 	for _, subnet := range subnets {
 		names = append(names, fmt.Sprintf("%s (%s)", aws.StringValue(subnet.SubnetId), aws.StringValue(subnet.AvailabilityZone)))
