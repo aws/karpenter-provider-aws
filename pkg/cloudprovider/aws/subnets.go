@@ -42,7 +42,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 
 func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
 	// Get subnets
-	subnets, err := s.getSubnets(ctx, s.getFilters(constraints))
+	subnets, err := s.getSubnets(ctx, constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,8 @@ func (s *SubnetProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Fi
 	return filters
 }
 
-func (s *SubnetProvider) getSubnets(ctx context.Context, filters []*ec2.Filter) ([]*ec2.Subnet, error) {
+func (s *SubnetProvider) getSubnets(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
+	filters := s.getFilters(constraints)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -93,7 +94,7 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, filters []*ec2.Filter) 
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
 	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets found via %s", pretty.Concise(filters))
+		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
 	}
 	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
 	logging.FromContext(ctx).Debugf("Discovered subnets: %s", s.prettySubnets(output.Subnets))
