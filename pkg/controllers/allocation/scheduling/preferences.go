@@ -52,13 +52,13 @@ func (p *Preferences) Relax(ctx context.Context, pods []*v1.Pod) {
 		affinity, ok := p.cache.Get(string(pod.UID))
 		// Add to cache if we've never seen it before
 		if !ok {
-			p.cache.Set(string(pod.UID), pod.Spec.Affinity, ExpirationTTL)
+			p.cache.SetDefault(string(pod.UID), pod.Spec.Affinity)
 			continue
 		}
 		// Attempt to relax the pod and update the cache
 		pod.Spec.Affinity = affinity.(*v1.Affinity)
 		if relaxed := p.relax(ctx, pod); relaxed {
-			p.cache.Set(string(pod.UID), pod.Spec.Affinity, ExpirationTTL)
+			p.cache.SetDefault(string(pod.UID), pod.Spec.Affinity)
 		}
 	}
 }

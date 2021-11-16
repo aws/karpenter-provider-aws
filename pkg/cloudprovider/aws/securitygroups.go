@@ -87,7 +87,7 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	if err != nil {
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	s.cache.Set(fmt.Sprint(hash), output.SecurityGroups, CacheTTL)
+	s.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
 }

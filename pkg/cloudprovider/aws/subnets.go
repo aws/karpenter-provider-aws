@@ -56,7 +56,7 @@ func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constrai
 	if len(output.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
 	}
-	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
+	s.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	logging.FromContext(ctx).Debugf("Discovered subnets: %s", prettySubnets(output.Subnets))
 	return output.Subnets, nil
 }

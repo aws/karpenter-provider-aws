@@ -153,7 +153,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		launchTemplate = output.LaunchTemplates[0]
 	}
 	// 4. Save in cache to reduce API calls
-	p.cache.Set(name, launchTemplate, CacheTTL)
+	p.cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil
 }
 
