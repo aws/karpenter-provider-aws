@@ -70,7 +70,7 @@ func getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 			Values: aws.StringSlice(zones.UnsortedList()),
 		})
 	}
-	// Filter by selector
+	// Filter by subnet
 	for key, value := range constraints.SubnetSelector {
 		if value == "*" {
 			filters = append(filters, &ec2.Filter{
