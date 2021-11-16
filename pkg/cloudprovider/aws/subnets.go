@@ -90,10 +90,10 @@ func (s *SubnetProvider) getSubnets(ctx context.Context, filters []*ec2.Filter) 
 	}
 	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
-		return nil, fmt.Errorf("describing subnets %+v, %w", filters, err)
+		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
 	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets found via %+v", pretty.Concise(filters))
+		return nil, fmt.Errorf("no subnets found via %s", pretty.Concise(filters))
 	}
 	s.cache.Set(fmt.Sprint(hash), output.Subnets, CacheTTL)
 	logging.FromContext(ctx).Debugf("Discovered subnets: %s", s.prettySubnets(output.Subnets))
