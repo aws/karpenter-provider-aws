@@ -39,22 +39,24 @@ Here are some things to know about the Karpenter provisioner:
 
 * **Unschedulable pods**: Karpenter only attempts to provision pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
 
-* **Provisioner CRD**: Provisioner CRDs define how the provisioner controller behaves.
+* **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes.
-Each CRD contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioner CRD](/docs/provisioner-crd/) for a description of settings and the [Provisioning](/docs/tasks/provisioner.md) task for of provisioner examples. 
+A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
+See [Provisioner](/docs/provisioner-crd/) for a description of settings and the [Provisioning](/docs/tasks/provisioner.md) task for of provisioner examples. 
 
-* **Well-known labels**: The CRD can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
+* **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
 Keep in mind that only a subset of these labels are supported in Karpenter, as described later.
 
-* **Time to live**: A provisioner can also include time-to-live values to indicate when nodes should be decommissioned after a set amount of time from when it was created or after it becomes empty of deployed pods.
+* **Deprovisioning nodes**: A provisioner can also include time-to-live values to indicate when nodes should be deprovisioned after a set amount of time from when they were created or after they becomes empty of deployed pods.
 
-* **Multiple provisioner CRDs**: An important feature of Karpenter is that it allows multiple provisioner CRDs on the same cluster.
+* **Multiple provisioners**: Multiple provisioners can be configured on the same cluster.
 For example, you might want to configure different teams on the same cluster to run on completely separate capacity.
 One team could run on GPU nodes while another uses storage nodes, with each having a different set of defaults.
-Although you can address the needs of multiple teams in one CRD in some ways, having separate ones lets you isolate nodes for billing, use different defaults (such as no GPUs for a team), or use different expiration and scale-down values.
-Having multiple CRDs could some day lead Karpenter to allow provisioners with different cloud providers on the same cluster or a control plane on one cloud and data plane on another.
+
+Although some use cases are addressed witha single provisioner for multiple teams, multiple provisioners are useful to isolate nodes for billing, use different defaults (such as no GPUs for a team), or use different deprovisioning settings.
+
+In the future, multiple provisioners would enable to provision nodes from different cloud providers on the same cluster or even a control plane on one cloud and data plane on another.
 
 ### Deprovisioning nodes
 
@@ -94,7 +96,7 @@ Refer to the description of Karpenter constraints in the Application Developer s
 
 To avoid conflicts, Karpenter only schedules pods that the Kubernetes scheduler has marked unschedulable.
 Karpenter optimistically creates the Node object and binds the pod.
-This stateless approach avoids race conditions and improves performance.
+This stateless approach helps to avoid race conditions and improves performance.
 If something is wrong with the launched node, Kubernetes will automatically migrate the pods to a new node.
 
 Once Karpenter brings up a node, that node is available for the Kubernetes scheduler to schedule pods on it as well.
@@ -108,8 +110,8 @@ Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to
 While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
 So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
 
-Choosing spot instances is one feature that is specific to AWS.
-Cloud providers may choose to implement support for additional vendor specific labels like `node.k8s.aws/capacity-type`.
+Choosing spot instances is one feature that is currently specific to AWS, but one that could be generalized to other providers.
+Furhter, cloud providers may choose to implement support for additional vendor specific labels like `node.k8s.aws/capacity-type`.
 See [AWS labels](/docs/cloud-providers/aws/) for details.
 
 #### Kubernetes cluster autoscaler
