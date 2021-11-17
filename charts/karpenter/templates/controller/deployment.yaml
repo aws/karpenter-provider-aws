@@ -50,7 +50,7 @@ spec:
               port: 8081
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: 8081
           env:
             - name: CLUSTER_NAME
