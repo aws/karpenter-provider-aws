@@ -3,6 +3,9 @@ apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: default
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/resource-policy": keep
 spec:
   {{ if .Values.defaultProvisioner.ttlSecondsAfterEmpty }}
     ttlSecondsAfterEmpty: {{ .Values.defaultProvisioner.ttlSecondsAfterEmpty }}

@@ -50,7 +50,10 @@ func (m *GenericControllerManager) RegisterControllers(ctx context.Context, cont
 		}
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		panic(fmt.Sprintf("Failed to add readiness probe, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to add health probe, %s", err.Error()))
+	}
+	if err := m.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		panic(fmt.Sprintf("Failed to add ready probe, %s", err.Error()))
 	}
 	return m
 }
