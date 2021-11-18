@@ -21,7 +21,6 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -51,7 +50,6 @@ type Scheduler struct {
 	CloudProvider cloudprovider.CloudProvider
 	KubeClient    client.Client
 	Topology      *Topology
-	Preferences   *Preferences
 }
 
 type Schedule struct {
@@ -67,37 +65,27 @@ func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudPro
 		CloudProvider: cloudProvider,
 		KubeClient:    kubeClient,
 		Topology:      &Topology{kubeClient: kubeClient},
-		Preferences:   NewPreferences(),
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (schedules []*Schedule, err error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
-
-	constraints := provisioner.Spec.Constraints.DeepCopy()
-	constraints.Labels = functional.UnionStringMaps(constraints.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-	constraints.Requirements = provisioner.Spec.Requirements.
-		With(globalRequirements(instanceTypes)).
-		With(v1alpha5.LabelRequirements(constraints.Labels))
-
-	// Relax preferences if pods have previously failed to schedule.
-	s.Preferences.Relax(ctx, pods)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
+	if err := s.Topology.Inject(ctx, &provisioner.Spec.Constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err = s.getSchedules(ctx, constraints, pods)
+	schedules, err = s.getSchedules(ctx, &provisioner.Spec.Constraints, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
 	return schedules, nil
 }
 
-func globalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
+func GlobalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
 	supported := map[string]sets.String{
 		v1.LabelInstanceTypeStable: sets.NewString(),
 		v1.LabelTopologyZone:       sets.NewString(),

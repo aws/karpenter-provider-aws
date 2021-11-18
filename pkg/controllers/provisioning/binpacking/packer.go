@@ -21,7 +21,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -97,14 +97,13 @@ func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 			if mainPack, ok := packs[key]; ok {
 				mainPack.NodeQuantity++
 				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
-				logging.FromContext(ctx).Debugf("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
 				continue
 			} else {
 				packs[key] = packing
 			}
 		}
 		packings = append(packings, packing)
-		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", flattenedLen(packing.Pods...), instanceTypeNames(packing.InstanceTypeOptions))
+		logging.FromContext(ctx).Infof("Computed packing of %d nodes for %d pod(s) with instance type option(s) %s", packing.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }

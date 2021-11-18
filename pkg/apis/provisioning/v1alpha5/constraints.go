@@ -49,14 +49,14 @@ func (c *Constraints) Supports(pod *v1.Pod) error {
 	podRequirements := PodRequirements(pod)
 	for _, key := range podRequirements.Keys() {
 		if c.Requirements.Requirement(key).Len() == 0 {
-			return fmt.Errorf("%s is too constrained", key)
+			return fmt.Errorf("invalid constraint %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
 	}
 	// The combined requirements are not compatible
 	combined := c.Requirements.With(podRequirements)
 	for _, key := range podRequirements.Keys() {
 		if combined.Requirement(key).Len() == 0 {
-			return fmt.Errorf("%s is too constrained", key)
+			return fmt.Errorf("invalid constraint %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
 	}
 	return nil

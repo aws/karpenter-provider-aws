@@ -12,16 +12,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package allocation
+package provisioning
 
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"github.com/prometheus/client_golang/prometheus"
@@ -95,12 +96,18 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 		}
 	}
 	// Bind pods
-	errs := make([]error, len(pods))
+	var bound int64
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
-		errs[i] = l.CoreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{})
+		pod := pods[i]
+		binding := &v1.Binding{TypeMeta: pod.TypeMeta, ObjectMeta: pod.ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}
+		if err := l.CoreV1Client.Pods(pods[i].Namespace).Bind(ctx, binding, metav1.CreateOptions{}); err != nil {
+			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pod.Namespace, pod.Name, node.Name, err.Error())
+		} else {
+			atomic.AddInt64(&bound, 1)
+		}
 	})
-	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", len(pods)-len(multierr.Errors(multierr.Combine(errs...))), node.Name)
-	return multierr.Combine(errs...)
+	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", bound, node.Name)
+	return nil
 }
 
 var bindTimeHistogram = prometheus.NewHistogram(

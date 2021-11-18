@@ -22,9 +22,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation"
 	"github.com/awslabs/karpenter/pkg/controllers/metrics"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
 	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
@@ -81,9 +81,14 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
+	terminator := termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
+	provisioner := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
+	scheduler := provisioning.NewScheduler(manager.GetClient(), provisioner)
+
 	if err := manager.RegisterControllers(ctx,
-		allocation.NewController(manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		provisioner,
+		scheduler,
+		terminator,
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),
 	).Start(ctx); err != nil {
