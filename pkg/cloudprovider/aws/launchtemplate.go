@@ -169,24 +169,20 @@ func needsDocker(is []cloudprovider.InstanceType) bool {
 }
 
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	tags := tagsFor(options)
+	managedTags := v1alpha1.ManagedTagsFor(options.ClusterName)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
-			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         tags,
-			}},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-			Tags:         tags,
+			Tags:         v1alpha1.MergeTagsFor(managedTags, options.Tags),
 		}},
 	})
 	if err != nil {
@@ -311,18 +307,4 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
-}
-
-func tagsFor(options *launchTemplateOptions) []*ec2.Tag {
-	var tags []*ec2.Tag
-	for key, value := range functional.UnionStringMaps(
-		options.Tags,
-		v1alpha1.ManagedTagsFor(options.ClusterName),
-	) {
-		tags = append(tags, &ec2.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	return tags
 }
