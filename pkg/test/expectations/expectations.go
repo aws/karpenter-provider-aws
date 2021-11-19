@@ -22,6 +22,7 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -132,6 +133,11 @@ func ExpectCleanedUp(c client.Client) {
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
 	for i := range provisioners.Items {
 		ExpectDeleted(c, &provisioners.Items[i])
+	}
+	daemonsets := appsv1.DaemonSetList{}
+	Expect(c.List(ctx, &daemonsets)).To(Succeed())
+	for i := range daemonsets.Items {
+		ExpectDeleted(c, &daemonsets.Items[i])
 	}
 }
 
