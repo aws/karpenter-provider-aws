@@ -15,16 +15,14 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"context"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// SetDefaults for the provisioner
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-	p.Spec.Constraints.Default(ctx)
-	p.Spec.Limits.Default(ctx)
-}
-
-// Default the constraints
-func (c *Constraints) Default(ctx context.Context) {
-	DefaultHook(ctx, c)
+// Resources contains a list of all the allocatable resources that can be used to define a bound on penter's
+// scaling actions.
+type Resources struct {
+	// CPU, in cores. (500m = .5 cores)
+	CPU *resource.Quantity `json:"cpu,omitempty"`
+	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	Memory *resource.Quantity `json:"memory,omitempty"`
 }

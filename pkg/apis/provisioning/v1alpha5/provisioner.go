@@ -46,6 +46,8 @@ type ProvisionerSpec struct {
 	// Termination due to expiration is disabled if this field is not set.
 	// +optional
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
+	// Defines a set of bounds that Karpenter obeys when provisioning capacity.
+	Limits `json:"limits,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

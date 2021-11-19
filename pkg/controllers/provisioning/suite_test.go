@@ -71,6 +71,7 @@ var _ = Describe("Provisioning", func() {
 			},
 			Spec: v1alpha5.ProvisionerSpec{},
 		}
+		provisioner.SetDefaults(ctx)
 	})
 
 	AfterEach(func() {

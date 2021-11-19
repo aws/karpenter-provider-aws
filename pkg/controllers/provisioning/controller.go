@@ -53,7 +53,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 		kubeClient:    kubeClient,
 		cloudProvider: cloudProvider,
 		scheduler:     scheduling.NewScheduler(kubeClient, cloudProvider),
-		launcher:      &Launcher{KubeClient: kubeClient, CoreV1Client: coreV1Client, CloudProvider: cloudProvider, Packer: &binpacking.Packer{}},
+		launcher:      &Launcher{KubeClient: kubeClient, CoreV1Client: coreV1Client, CloudProvider: cloudProvider, Packer: &binpacking.Packer{}, ResourceCounter: NewResourceCounter(kubeClient)},
 	}
 }
 

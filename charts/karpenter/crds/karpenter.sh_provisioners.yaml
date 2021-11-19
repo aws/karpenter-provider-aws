@@ -50,6 +50,31 @@ spec:
                 description: Labels are layered with Requirements and applied to every
                   node.
                 type: object
+              limits:
+                description: Defines a set of bounds that Karpenter obeys when provisioning
+                  capacity.
+                properties:
+                  resources:
+                    description: Resources contains all the allocatable resources
+                      that Karpenter supports for limiting.
+                    properties:
+                      cpu:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: CPU, in cores. (500m = .5 cores)
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      memory:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Memory, in bytes. (500Gi = 500GiB = 500 * 1024
+                          * 1024 * 1024)
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                type: object
               provider:
                 description: Provider contains fields specific to your cloudprovider.
                 type: object

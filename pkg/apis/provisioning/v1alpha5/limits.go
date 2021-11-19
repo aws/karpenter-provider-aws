@@ -16,15 +16,22 @@ package v1alpha5
 
 import (
 	"context"
+	"math"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// SetDefaults for the provisioner
-func (p *Provisioner) SetDefaults(ctx context.Context) {
-	p.Spec.Constraints.Default(ctx)
-	p.Spec.Limits.Default(ctx)
+// Limits define bounds on the resources being provisioned by Karpenter
+type Limits struct {
+	// Resources contains all the allocatable resources that Karpenter supports for limiting.
+	Resources Resources `json:"resources,omitempty"`
 }
 
-// Default the constraints
-func (c *Constraints) Default(ctx context.Context) {
-	DefaultHook(ctx, c)
+func (l *Limits) Default(ctx context.Context) {
+	if l.Resources.CPU == nil {
+		l.Resources.CPU = resource.NewScaledQuantity(math.MaxInt64, 0)
+	}
+	if l.Resources.Memory == nil {
+		l.Resources.Memory = resource.NewScaledQuantity(math.MaxInt64, 0)
+	}
 }

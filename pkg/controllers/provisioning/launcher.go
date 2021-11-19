@@ -38,17 +38,28 @@ import (
 )
 
 type Launcher struct {
-	Packer        *binpacking.Packer
-	KubeClient    client.Client
-	CoreV1Client  corev1.CoreV1Interface
-	CloudProvider cloudprovider.CloudProvider
+	Packer          *binpacking.Packer
+	KubeClient      client.Client
+	CoreV1Client    corev1.CoreV1Interface
+	CloudProvider   cloudprovider.CloudProvider
+	ResourceCounter *ResourceCounter
 }
 
-func (l *Launcher) Launch(ctx context.Context, schedules []*scheduling.Schedule, instanceTypes []cloudprovider.InstanceType) error {
+func (l *Launcher) Launch(ctx context.Context, schedules []*scheduling.Schedule,
+	instanceTypes []cloudprovider.InstanceType, provisioner v1alpha5.Provisioner) error {
+
 	// Pack and bind pods
 	errs := make([]error, len(schedules))
+	remainingResources, err := l.ResourceCounter.remainingResourceCounts(ctx, provisioner.Spec.Limits, provisioner.Name)
+	if err != nil {
+		return fmt.Errorf("cannot determine remaining resources, not launching instances: %w", err)
+	}
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range l.Packer.Pack(ctx, schedules[index], instanceTypes) {
+			if remainingResources.isInsufficient(ctx) {
+				errs[index] = multierr.Append(errs[index], fmt.Errorf("provisioner limits exceeded"))
+				return
+			}
 			// Create thread safe channel to pop off packed pod slices
 			packedPods := make(chan []*v1.Pod, len(packing.Pods))
 			for _, pods := range packing.Pods {
@@ -56,6 +67,7 @@ func (l *Launcher) Launch(ctx context.Context, schedules []*scheduling.Schedule,
 			}
 			close(packedPods)
 			if err := <-l.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
+				remainingResources.updateCountsFor(node)
 				node.Labels = functional.UnionStringMaps(node.Labels, packing.Constraints.Labels)
 				node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
 				return l.bind(ctx, node, <-packedPods)
