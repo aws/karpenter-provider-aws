@@ -58,15 +58,14 @@ Although most use cases are addressed with a single provisioner for multiple tea
 
 ### Deprovisioning nodes
 
-Karpenter not only manages the creation of nodes to add cluster capacity, but also will delete nodes when that capacity is no longer needed.
-There are several things you should know about how Karpenter deprovisions nodes:
+Karpenter deletes nodes when they are no longer needed.
 
+* **Finalizer**: Karpenter places a finalizer bit on each node it creates.
+When a request comes in to delete one of those nodes (such as a TTL or a manual `kubectl delete node`), Karpenter will cordon the node, drain all the pods, terminate the EC2 instance, and delete the node object.
+Karpenter handles all clean-up work needed to properly delete the node.
 * **Node Expiry**: If a node expiry time-to-live value (`ttlSecondsUntilExpired`) is reached, that node is drained of pods and deleted (even if it is still running workloads).
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
-Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, that node is deleted.
-* **Finalizer**: Karpenter places a finalizer bit on each node it creates.
-When a request comes in to delete one of those nodes (such as a TTL or a manual `kubectl delete node`), Karpenter will drain all the pods, terminate the EC2 instance, and delete the node object.
-Karpenter handles all clean-up work needed to properly delete the node.
+Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 
 For more details on how Karpenter deletes nodes, see [Deleting nodes with Karpenter](/docs/tasks/delete-nodes.md) for details.
 
