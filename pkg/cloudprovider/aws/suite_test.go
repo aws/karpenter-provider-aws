@@ -307,6 +307,11 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Validation", func() {
+		It("should not panic if provider undefined", func() {
+			provisioner.Spec.Provider = nil
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
 				for key, value := range map[string]string{
