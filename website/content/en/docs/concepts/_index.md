@@ -116,7 +116,7 @@ By taking a fresh look at provisioning, Karpenter offers the following improveme
 Karpenter has the ability to efficiently address the full range of instance types available through AWS.
 Cluster autoscaler was not originally built with the flexibility to handle hundreds of instance types, zones, and purchase options.
 
-**Group-less node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups.
+* **Group-less node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups.
 This enables it to retry in milliseconds instead of minutes when capacity is unavailable.
 It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.
 
