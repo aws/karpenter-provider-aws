@@ -42,24 +42,22 @@ func NewPreferences() *Preferences {
 	}
 }
 
-// Relax removes soft preferences from pods to enable scheduling if the cloud
+// Relax removes soft preferences from pod to enable scheduling if the cloud
 // provider's capacity is constrained. For example, this can be leveraged to
 // prefer a specific zone, but relax the preferences if the pod cannot be
 // scheduled to that zone. Preferences are removed iteratively until only hard
 // constraints remain. Pods relaxation is reset (forgotten) after 5 minutes.
-func (p *Preferences) Relax(ctx context.Context, pods []*v1.Pod) {
-	for _, pod := range pods {
-		affinity, ok := p.cache.Get(string(pod.UID))
-		// Add to cache if we've never seen it before
-		if !ok {
-			p.cache.Set(string(pod.UID), pod.Spec.Affinity, ExpirationTTL)
-			continue
-		}
-		// Attempt to relax the pod and update the cache
-		pod.Spec.Affinity = affinity.(*v1.Affinity)
-		if relaxed := p.relax(ctx, pod); relaxed {
-			p.cache.Set(string(pod.UID), pod.Spec.Affinity, ExpirationTTL)
-		}
+func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) {
+	affinity, ok := p.cache.Get(string(pod.UID))
+	// Add to cache if we've never seen it before
+	if !ok {
+		p.cache.SetDefault(string(pod.UID), pod.Spec.Affinity)
+		return
+	}
+	// Attempt to relax the pod and update the cache
+	pod.Spec.Affinity = affinity.(*v1.Affinity)
+	if relaxed := p.relax(ctx, pod); relaxed {
+		p.cache.SetDefault(string(pod.UID), pod.Spec.Affinity)
 	}
 }
 

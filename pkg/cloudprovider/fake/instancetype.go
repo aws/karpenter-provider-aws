@@ -15,22 +15,23 @@ limitations under the License.
 package fake
 
 import (
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {
-	if len(options.zones) == 0 {
-		options.zones = []string{"test-zone-1", "test-zone-2", "test-zone-3"}
-	}
-	if len(options.capacityTypes) == 0 {
-		options.capacityTypes = []string{"spot", "on-demand"}
+	if len(options.offerings) == 0 {
+		options.offerings = []cloudprovider.Offering{
+			{CapacityType: "spot", Zone: "test-zone-1"},
+			{CapacityType: "spot", Zone: "test-zone-2"},
+			{CapacityType: "on-demand", Zone: "test-zone-1"},
+			{CapacityType: "on-demand", Zone: "test-zone-2"},
+			{CapacityType: "on-demand", Zone: "test-zone-3"}}
 	}
 	if len(options.architecture) == 0 {
 		options.architecture = "amd64"
-	}
-	if len(options.operatingSystems) == 0 {
-		options.operatingSystems = []string{"linux"}
 	}
 	if options.cpu.IsZero() {
 		options.cpu = resource.MustParse("4")
@@ -43,33 +44,29 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 	return &InstanceType{
 		InstanceTypeOptions: InstanceTypeOptions{
-			name:             options.name,
-			zones:            options.zones,
-			capacityTypes:    options.capacityTypes,
-			architecture:     options.architecture,
-			operatingSystems: options.operatingSystems,
-			cpu:              options.cpu,
-			memory:           options.memory,
-			pods:             options.pods,
-			nvidiaGPUs:       options.nvidiaGPUs,
-			amdGPUs:          options.amdGPUs,
-			awsNeurons:       options.awsNeurons,
+			name:         options.name,
+			offerings:    options.offerings,
+			architecture: options.architecture,
+			cpu:          options.cpu,
+			memory:       options.memory,
+			pods:         options.pods,
+			nvidiaGPUs:   options.nvidiaGPUs,
+			amdGPUs:      options.amdGPUs,
+			awsNeurons:   options.awsNeurons,
 		},
 	}
 }
 
 type InstanceTypeOptions struct {
-	name             string
-	zones            []string
-	capacityTypes    []string
-	architecture     string
-	operatingSystems []string
-	cpu              resource.Quantity
-	memory           resource.Quantity
-	pods             resource.Quantity
-	nvidiaGPUs       resource.Quantity
-	amdGPUs          resource.Quantity
-	awsNeurons       resource.Quantity
+	name         string
+	offerings    []cloudprovider.Offering
+	architecture string
+	cpu          resource.Quantity
+	memory       resource.Quantity
+	pods         resource.Quantity
+	nvidiaGPUs   resource.Quantity
+	amdGPUs      resource.Quantity
+	awsNeurons   resource.Quantity
 }
 
 type InstanceType struct {
@@ -80,20 +77,12 @@ func (i *InstanceType) Name() string {
 	return i.name
 }
 
-func (i *InstanceType) CapacityTypes() []string {
-	return i.capacityTypes
-}
-
-func (i *InstanceType) Zones() []string {
-	return i.zones
+func (i *InstanceType) Offerings() []cloudprovider.Offering {
+	return i.offerings
 }
 
 func (i *InstanceType) Architecture() string {
 	return i.architecture
-}
-
-func (i *InstanceType) OperatingSystems() []string {
-	return i.operatingSystems
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {

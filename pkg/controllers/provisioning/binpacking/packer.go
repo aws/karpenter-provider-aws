@@ -18,11 +18,10 @@ import (
 	"context"
 	"math"
 	"sort"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -39,9 +38,9 @@ var (
 	// MaxInstanceTypes defines the number of instance type options to return to the cloud provider
 	MaxInstanceTypes = 20
 
-	packTimeHistogram = prometheus.NewHistogram(
+	packDuration = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Namespace: metrics.KarpenterNamespace,
+			Namespace: metrics.Namespace,
 			Subsystem: "allocation_controller",
 			Name:      "binpacking_duration_seconds",
 			Help:      "Duration of binpacking process in seconds.",
@@ -51,19 +50,11 @@ var (
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(packTimeHistogram)
+	crmetrics.Registry.MustRegister(packDuration)
 }
 
-type packer struct{}
-
-// Packer helps pack the pods and calculates efficient placement on the instances.
-type Packer interface {
-	Pack(context.Context, *scheduling.Schedule, []cloudprovider.InstanceType) []*Packing
-}
-
-// NewPacker returns a Packer implementation
-func NewPacker() Packer {
-	return &packer{}
+// Packer packs pods and calculates efficient placement on the instances.
+type Packer struct {
 }
 
 // Packing is a binpacking solution of equivalently schedulable pods to a set of
@@ -82,11 +73,8 @@ type Packing struct {
 // Pods provided are all schedulable in the same zone as tightly as possible.
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
-	startTime := time.Now()
-	defer func() {
-		packTimeHistogram.Observe(time.Since(startTime).Seconds())
-	}()
+func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
+	defer metrics.Measure(packDuration)()
 
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
@@ -109,14 +97,13 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 			if mainPack, ok := packs[key]; ok {
 				mainPack.NodeQuantity++
 				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
-				logging.FromContext(ctx).Infof("Incremented node count to %d on packing for %d pod(s) with instance type option(s) %v", mainPack.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(mainPack.InstanceTypeOptions))
 				continue
 			} else {
 				packs[key] = packing
 			}
 		}
 		packings = append(packings, packing)
-		logging.FromContext(ctx).Infof("Computed packing for %d pod(s) with instance type option(s) %s", flattenedLen(packing.Pods...), instanceTypeNames(packing.InstanceTypeOptions))
+		logging.FromContext(ctx).Infof("Computed packing of %d nodes for %d pod(s) with instance type option(s) %s", packing.NodeQuantity, flattenedLen(packing.Pods...), instanceTypeNames(packing.InstanceTypeOptions))
 	}
 	return packings
 }
@@ -124,7 +111,7 @@ func (p *packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 // packWithLargestPod will try to pack max number of pods with largest pod in
 // pods across all available node capacities. It returns Packing: max pod count
 // that fit; with their node capacities and list of leftover pods
-func (p *packer) packWithLargestPod(constraints *v1alpha5.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
+func (p *Packer) packWithLargestPod(constraints *v1alpha5.Constraints, unpackedPods []*v1.Pod, packables []*Packable) (*Packing, []*v1.Pod) {
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
@@ -155,7 +142,7 @@ func (p *packer) packWithLargestPod(constraints *v1alpha5.Constraints, unpackedP
 	return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, Constraints: constraints, InstanceTypeOptions: bestInstances, NodeQuantity: 1}, remainingPods
 }
 
-func (*packer) podsMatch(first, second []*v1.Pod) bool {
+func (*Packer) podsMatch(first, second []*v1.Pod) bool {
 	if len(first) != len(second) {
 		return false
 	}

@@ -17,39 +17,39 @@ package scheduling
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var scheduleTimeHistogramVec = prometheus.NewHistogramVec(
+var schedulingDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
-		Namespace: metrics.KarpenterNamespace,
+		Namespace: metrics.Namespace,
 		Subsystem: "allocation_controller",
 		Name:      "scheduling_duration_seconds",
-		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and result.",
+		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and error.",
 		Buckets:   metrics.DurationBuckets(),
 	},
-	[]string{metrics.ProvisionerLabel, metrics.ResultLabel},
+	[]string{metrics.ProvisionerLabel},
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(scheduleTimeHistogramVec)
+	crmetrics.Registry.MustRegister(schedulingDuration)
 }
 
 type Scheduler struct {
-	KubeClient  client.Client
-	Topology    *Topology
-	Preferences *Preferences
+	CloudProvider cloudprovider.CloudProvider
+	KubeClient    client.Client
+	Topology      *Topology
 }
 
 type Schedule struct {
@@ -60,69 +60,50 @@ type Schedule struct {
 	Daemons []*v1.Pod
 }
 
-func NewScheduler(kubeClient client.Client) *Scheduler {
+func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
 	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology: &Topology{
-			kubeClient: kubeClient,
-		},
-		Preferences: NewPreferences(),
+		CloudProvider: cloudProvider,
+		KubeClient:    kubeClient,
+		Topology:      &Topology{kubeClient: kubeClient},
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
-	startTime := time.Now()
-	schedules, scheduleErr := s.solve(ctx, &provisioner.Spec.Constraints, pods)
-	durationSeconds := time.Since(startTime).Seconds()
-
-	result := "success"
-	if scheduleErr != nil {
-		result = "error"
-	}
-
-	newLabels := prometheus.Labels{
-		metrics.ProvisionerLabel: provisioner.ObjectMeta.Name,
-		metrics.ResultLabel:      result,
-	}
-	observer, promErr := scheduleTimeHistogramVec.GetMetricWith(newLabels)
-	if promErr != nil {
-		logging.FromContext(ctx).Warnf(
-			"Failed to record scheduling duration metric [labels=%s, duration=%f]: error=%s",
-			newLabels,
-			durationSeconds,
-			promErr.Error(),
-		)
-	} else {
-		observer.Observe(durationSeconds)
-	}
-
-	return schedules, scheduleErr
-}
-
-func (s *Scheduler) solve(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
-	// Consolidate requirements in memory before executing scheduling logic.
-	// This is a performance optimization to avoid executing requirement
-	// evaluation logic redundantly for every pod.
-	constraints = constraints.Consolidate()
-	// Relax preferences if pods have previously failed to schedule.
-	s.Preferences.Relax(ctx, pods)
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
+	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints.Requirements, pods); err != nil {
+	if err := s.Topology.Inject(ctx, &provisioner.Spec.Constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err := s.getSchedules(ctx, constraints, pods)
+	schedules, err = s.getSchedules(ctx, &provisioner.Spec.Constraints, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
-	// Remove labels injected by TopologySpreadConstraints.
-	for _, schedule := range schedules {
-		delete(schedule.Labels, v1.LabelHostname)
-	}
 	return schedules, nil
+}
+
+func GlobalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
+	supported := map[string]sets.String{
+		v1.LabelInstanceTypeStable: sets.NewString(),
+		v1.LabelTopologyZone:       sets.NewString(),
+		v1.LabelArchStable:         sets.NewString(),
+		v1alpha5.LabelCapacityType: sets.NewString(),
+	}
+	for _, instanceType := range instanceTypes {
+		for _, offering := range instanceType.Offerings() {
+			supported[v1.LabelTopologyZone].Insert(offering.Zone)
+			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
+		}
+		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
+		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
+	}
+	for key, values := range supported {
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
+	}
+	return requirements
 }
 
 // getSchedules separates pods into a set of schedules. All pods in each group
@@ -132,24 +113,24 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		constraints, err := NewConstraints(ctx, constraints, pod)
-		if err != nil {
-			logging.FromContext(ctx).Debugf("Ignored pod %s/%s due to invalid constraints, %s", pod.Name, pod.Namespace, err.Error())
+		if err := constraints.Supports(pod); err != nil {
+			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		key, err := hashstructure.Hash(constraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		tightened := constraints.Tighten(pod)
+		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
 			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
-			daemons, err := s.getDaemons(ctx, constraints)
+			daemons, err := s.getDaemons(ctx, tightened)
 			if err != nil {
 				return nil, fmt.Errorf("computing node overhead, %w", err)
 			}
 			schedules[key] = &Schedule{
-				Constraints: constraints,
+				Constraints: tightened,
 				Pods:        []*v1.Pod{},
 				Daemons:     daemons,
 			}
@@ -176,23 +157,9 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constr
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if DaemonWillSchedule(constraints, pod) {
+		if constraints.Supports(pod) != nil {
 			pods = append(pods, pod)
 		}
 	}
 	return pods, nil
-}
-
-// DaemonWillSchedule returns true if the pod can schedule to the node
-func DaemonWillSchedule(constraints *v1alpha5.Constraints, pod *v1.Pod) bool {
-	// Tolerate Taints
-	if err := Taints(constraints.Taints).Tolerates(pod); err != nil {
-		return false
-	}
-	// Match Node Selector labels
-	if !labels.SelectorFromSet(pod.Spec.NodeSelector).Matches(labels.Set(constraints.Labels)) {
-		return false
-	}
-	// TODO support node affinity for daemonset
-	return true
 }

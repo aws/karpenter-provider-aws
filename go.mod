@@ -16,6 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	go.uber.org/multierr v1.7.0
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
+	golang.org/x/tools v0.1.8-0.20211014194737-fc98fb2abd48 // indirect
 	k8s.io/api v0.20.7
 	k8s.io/apimachinery v0.20.7
 	k8s.io/client-go v0.20.7
@@ -77,7 +78,6 @@ require (
 	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.6-0.20210908190839-cf92b39a962c // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/api v0.36.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

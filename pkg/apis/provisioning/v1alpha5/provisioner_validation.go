@@ -42,12 +42,6 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		// This validation is on the ProvisionerSpec despite the fact that
-		// labels are a property of Constraints. This is necessary because
-		// validation is applied to constraints that include pod overrides.
-		// These labels are restricted when creating provisioners, but are not
-		// restricted for pods since they're necessary to override constraints.
-		s.validateRestrictedLabels(),
 		s.Constraints.Validate(ctx),
 	)
 }
@@ -65,24 +59,12 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 	return errs
 }
 
-func (s *ProvisionerSpec) validateRestrictedLabels() (errs *apis.FieldError) {
-	for key := range s.Labels {
-		for _, restricted := range RestrictedLabels {
-			if strings.HasPrefix(key, restricted) {
-				errs = errs.Also(apis.ErrInvalidKeyName(key, "labels"))
-			}
-		}
-	}
-	return errs
-}
-
 // Validate the constraints
 func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		c.validateLabels(),
 		c.validateTaints(),
 		c.validateRequirements(),
-		c.Consolidate().Requirements.Validate(),
 		ValidateHook(ctx, c),
 	)
 }
@@ -95,11 +77,31 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
-		if known, ok := WellKnownLabels[key]; ok && !functional.ContainsString(known, value) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, known), fmt.Sprintf("labels[%s]", key)))
+		if RestrictedLabels.Has(key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label is restricted"))
+		}
+		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label domain not allowed"))
 		}
 	}
 	return errs
+}
+
+func IsRestrictedLabelDomain(key string) bool {
+	labelDomain := getLabelDomain(key)
+	for restrictedLabelDomain := range RestrictedLabelDomains {
+		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
+			return true
+		}
+	}
+	return false
+}
+
+func getLabelDomain(key string) string {
+	if parts := strings.SplitN(key, "/", 2); len(parts) == 2 {
+		return parts[0]
+	}
+	return ""
 }
 
 func (c *Constraints) validateTaints() (errs *apis.FieldError) {
@@ -136,27 +138,16 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 	return errs
 }
 
-func (r Requirements) Validate() (errs *apis.FieldError) {
-	for _, label := range r.GetLabels() {
-		if len(r.GetLabelValues(label)) == 0 {
-			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s is too constrained", label)))
-		}
-	}
-	return errs
-}
-
 func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
+	if !WellKnownLabels.Has(requirement.Key) {
+		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
+	}
 	for _, err := range validation.IsQualifiedName(requirement.Key) {
 		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
 	}
 	for i, value := range requirement.Values {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-		}
-		if known, ok := WellKnownLabels[requirement.Key]; ok {
-			if !functional.ContainsString(known, value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s not in %s", value, known), "values", i))
-			}
 		}
 	}
 	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {

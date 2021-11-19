@@ -10,6 +10,65 @@ Please contribute to our meeting notes by opening a PR.
 2. Work Items
 3. Demos
 
+# Meeting notes (11/11/21)
+
+## Attendees
+- Jerad Cramp
+- Ellis Tarn
+- Jason Haugen
+- Felix Huang
+- Suket Sharma
+- Jacob Gabrielson
+- Elton Pinto
+
+## Notes
+- Limits are great, what about auto repair?
+  - How do nodes recover from disk/memory pressure? (kubernetes has mechanisms for this: eviction)
+  - If nodes come online and then become unhealthy later
+  - Let's address liveness after the limits problem
+- What are the dimensions of limits that we want to introduce?
+  - CPU/GPU/Memory
+  - What about storage? Should we support all resource requests?
+  - spec.limits.resources vs spec.maxResources
+- This should support folks running separate provisioners per team. 
+   - Helps a cluster admin enforce a limit on each team.
+   - Setting GPU limits to 0 can help enforce that no GPU instances are launched at all. 
+- Discussed resource quotas and why that doesn't help us implement limits in this form. 
+   - With quotas you can limit resourceCounts (number of PVs) but not resource properties (say size of a PV)  
+# Meeting notes (10/28/21)
+## Attendees
+- Brandon Wagner
+- Suket Sharma
+- Michael Mccune
+- Felix Huang
+- Jason Haugen
+- Jerad Cramp
+- Ellis Tarn
+- Geoffrey Cline
+- Alex Kestner
+- Jacob Gabrielson
+
+## Notes
+- Capi Provider work in progress
+- Inline Launch Templates
+  - What about CAPI?
+    - This corresponds to the machine template
+    - separate template object
+  - We can probably wait and do this backwards compatible
+  - EKS Node Group APIs
+    - Many users use custom launch templates
+    - similar problems to have LTs have unnecessary fields (instance type)
+  - Attribute Based Selection
+- Storage
+  - Supporting persistent volumes
+  - Tricky because of how we create nodes/bind pods
+  - WaitForFirstConsumer creates a chicken and egg problem
+    - Karpenter assigns the pod to the node, but the PV isn't assigned
+    - Scheduler puts a special label on the PV
+  - If the PV already exists, we need to launch the pod in that zone
+  - If multiple volumes are in different zones, it's never going to work
+    - just need to not make it worse
+
 # Meeting notes (09/30/21)
 
 ## Attendees

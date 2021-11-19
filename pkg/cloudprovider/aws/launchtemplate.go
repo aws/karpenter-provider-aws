@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -28,6 +29,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/mitchellh/hashstructure/v2"
 	core "k8s.io/api/core/v1"
@@ -43,6 +45,7 @@ const (
 )
 
 type LaunchTemplateProvider struct {
+	sync.Mutex
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
@@ -77,6 +80,7 @@ type launchTemplateOptions struct {
 	// Level-triggered fields that may change out of sync.
 	SecurityGroupsIds []string
 	AMIID             string
+	Tags              map[string]string
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
@@ -105,10 +109,11 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 			UserData:          userData,
-			ClusterName:       constraints.Cluster.Name,
+			ClusterName:       options.Get(ctx).ClusterName,
 			InstanceProfile:   constraints.InstanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
+			Tags:              constraints.Tags,
 		})
 		if err != nil {
 			return nil, err
@@ -119,17 +124,21 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	// Ensure that multiple threads don't attempt to create the same launch template
+	p.Lock()
+	defer p.Unlock()
+
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
-	// 1. Read from cache
+	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
-	// 2. Attempt to find an existing LT.
+	// Attempt to find an existing LT.
 	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
-	// 3. Create LT if one doesn't exist
+	// Create LT if one doesn't exist
 	if isNotFound(err) {
 		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
@@ -144,7 +153,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 		launchTemplate = output.LaunchTemplates[0]
 	}
 	// 4. Save in cache to reduce API calls
-	p.cache.Set(name, launchTemplate, CacheTTL)
+	p.cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil
 }
 
@@ -166,27 +175,14 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
-			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags: []*ec2.Tag{
-					{
-						Key:   aws.String("Name"),
-						Value: aws.String(fmt.Sprintf("Karpenter/%s", options.ClusterName)),
-					},
-					{
-						Key:   aws.String(fmt.Sprintf(ClusterTagKeyFormat, options.ClusterName)),
-						Value: aws.String("owned"),
-					},
-					{
-						Key:   aws.String(fmt.Sprintf(KarpenterTagKeyFormat, options.ClusterName)),
-						Value: aws.String("owned"),
-					},
-				},
-			}},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
 		},
+		TagSpecifications: []*ec2.TagSpecification{{
+			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
+			Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(options.ClusterName), options.Tags),
+		}},
 	})
 	if err != nil {
 		return nil, err
@@ -238,9 +234,9 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
-		constraints.Cluster.Name,
+		options.Get(ctx).ClusterName,
 		containerRuntimeArg,
-		constraints.Cluster.Endpoint))
+		options.Get(ctx).ClusterEndpoint))
 	caBundle, err := p.GetCABundle(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)

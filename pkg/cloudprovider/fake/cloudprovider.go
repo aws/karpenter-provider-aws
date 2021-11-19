@@ -22,7 +22,6 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
@@ -36,14 +35,17 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
-		// Pick first instance type option
 		instance := instanceTypes[0]
-		// Pick first zone
-		zones := instance.Zones()
-		if len(constraints.Zones()) != 0 {
-			zones = functional.IntersectStringSlice(constraints.Zones(), instance.Zones())
+		var zone, capacityType string
+		for _, o := range instance.Offerings() {
+			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) {
+				if constraints.Requirements.Zones().Has(o.Zone) {
+					zone = o.Zone
+					capacityType = o.CapacityType
+					break
+				}
+			}
 		}
-		zone := zones[0]
 
 		go func() {
 			err <- bind(&v1.Node{
@@ -52,6 +54,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       zone,
 						v1.LabelInstanceTypeStable: instance.Name(),
+						v1alpha5.LabelCapacityType: capacityType,
 					},
 				},
 				Spec: v1.NodeSpec{
@@ -60,7 +63,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 				Status: v1.NodeStatus{
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    instance.Architecture(),
-						OperatingSystem: instance.OperatingSystems()[0],
+						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 					Allocatable: v1.ResourceList{
 						v1.ResourcePods:   *instance.Pods(),
@@ -74,7 +77,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			name: "default-instance-type",
@@ -90,10 +93,6 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 		NewInstanceType(InstanceTypeOptions{
 			name:       "aws-neuron-instance-type",
 			awsNeurons: resource.MustParse("2"),
-		}),
-		NewInstanceType(InstanceTypeOptions{
-			name:             "windows-instance-type",
-			operatingSystems: []string{"windows"},
 		}),
 		NewInstanceType(InstanceTypeOptions{
 			name:         "arm-instance-type",

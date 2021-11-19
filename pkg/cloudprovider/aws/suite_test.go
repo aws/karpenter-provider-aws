@@ -18,23 +18,19 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/binpacking"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -52,7 +48,8 @@ var ctx context.Context
 var env *test.Environment
 var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
-var controller reconcile.Reconciler
+var controller *provisioning.Controller
+var scheduler *provisioning.Scheduler
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -61,33 +58,29 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-	fakeEC2API = &fake.EC2API{}
-	instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API)
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
+		ctx = options.Inject(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
+		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
+		fakeEC2API = &fake.EC2API{}
+		subnetProvider := NewSubnetProvider(fakeEC2API)
+		instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API, subnetProvider)
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
+			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider: &InstanceProvider{fakeEC2API, instanceTypeProvider, &LaunchTemplateProvider{
-				fakeEC2API,
-				NewAMIProvider(&fake.SSMAPI{}, clientSet),
-				NewSecurityGroupProvider(fakeEC2API),
-				launchTemplateCache,
-			},
-				NewSubnetProvider(fakeEC2API),
+			instanceProvider: &InstanceProvider{
+				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+					ec2api:                fakeEC2API,
+					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
+					securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
+					cache:                 launchTemplateCache,
+				},
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = &allocation.Controller{
-			Filter:        &allocation.Filter{KubeClient: e.Client},
-			Binder:        &allocation.Binder{KubeClient: e.Client, CoreV1Client: clientSet.CoreV1()},
-			Batcher:       allocation.NewBatcher(1*time.Millisecond, 1*time.Millisecond),
-			Scheduler:     scheduling.NewScheduler(e.Client),
-			Packer:        binpacking.NewPacker(),
-			CloudProvider: cloudProvider,
-			KubeClient:    e.Client,
-		}
+		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
+		scheduler = provisioning.NewScheduler(e.Client, controller)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -103,10 +96,6 @@ var _ = Describe("Allocation", func() {
 
 	BeforeEach(func() {
 		provider = &v1alpha1.AWS{
-			Cluster: v1alpha1.Cluster{
-				Name:     "test-cluster",
-				Endpoint: "https://test-cluster",
-			},
 			InstanceProfile: "test-instance-profile",
 		}
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
@@ -119,38 +108,29 @@ var _ = Describe("Allocation", func() {
 	Context("Reconciliation", func() {
 		Context("Specialized Hardware", func() {
 			It("should launch instances for Nvidia GPU resource requests", func() {
-				// Setup
-				pod1 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-					},
-				})
-				// Should pack onto same instance
-				pod2 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-					},
-				})
-				// Should pack onto a separate instance
-				pod3 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-					},
-				})
-				ExpectCreated(env.Client, provisioner)
-				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-				// Assertions
-				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
-				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-				scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
-				Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
-				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
-				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						},
+					}),
+					// Should pack onto same instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+						},
+					}),
+					// Should pack onto a separate instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+						},
+					})) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
 				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
 				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
 				for i := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
@@ -161,38 +141,30 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
-				// Setup
-				pod1 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-					},
-				})
-				// Should pack onto same instance
-				pod2 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-					},
-				})
-				// Should pack onto a separate instance
-				pod3 := test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
-						Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
-					},
-				})
-				ExpectCreated(env.Client, provisioner)
-				ExpectCreatedWithStatus(env.Client, pod1, pod2, pod3)
-				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-				// Assertions
-				scheduled1 := ExpectPodExists(env.Client, pod1.GetName(), pod1.GetNamespace())
-				scheduled2 := ExpectPodExists(env.Client, pod2.GetName(), pod2.GetNamespace())
-				scheduled3 := ExpectPodExists(env.Client, pod3.GetName(), pod3.GetNamespace())
-				Expect(scheduled1.Spec.NodeName).To(Equal(scheduled2.Spec.NodeName))
-				Expect(scheduled1.Spec.NodeName).ToNot(Equal(scheduled3.Spec.NodeName))
-				ExpectNodeExists(env.Client, scheduled1.Spec.NodeName)
-				ExpectNodeExists(env.Client, scheduled3.Spec.NodeName)
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+						},
+					}),
+					// Should pack onto same instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+						},
+					}),
+					// Should pack onto a separate instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+						},
+					}),
+				) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
 				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
 				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
 				for input := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
@@ -205,25 +177,19 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("CapacityType", func() {
 			It("should default to on demand", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				Expect(*input.TargetCapacitySpecification.DefaultTargetCapacityType).To(Equal(v1alpha1.CapacityTypeOnDemand))
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
-				// Setup
-				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha1.CapacityTypeLabel, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner,
-					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha1.CapacityTypeLabel: v1alpha1.CapacityTypeSpot}}),
-				)
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}),
+				)[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
@@ -251,34 +217,30 @@ var _ = Describe("Allocation", func() {
 					Effect:   "NoSchedule",
 				}
 
-				ExpectCreated(env.Client, provisioner)
-				pod1 := test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{t1, t2, t3},
-				})
-				pod2 := test.UnschedulablePod(test.PodOptions{
-					Tolerations: []v1.Toleration{t2, t3, t1},
-				})
-				// Ensure it's on its own node
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, pod1)
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod1 := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						Tolerations: []v1.Toleration{t1, t2, t3},
+					}),
+				)[0]
+				ExpectScheduled(ctx, env.Client, pod1)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				name1 := *(input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)
-				// Ensure it's on its own node
-				pods2 := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, pod2)
-				ExpectNodeExists(env.Client, pods2[0].Spec.NodeName)
+				name1 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
+
+				pod2 := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						Tolerations: []v1.Toleration{t2, t3, t1},
+					}),
+				)[0]
+
+				ExpectScheduled(ctx, env.Client, pod2)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
-				input2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				name2 := *(input2.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)
+				name2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 				Expect(name1).To(Equal(name2))
 			})
 
 			It("should default to a generated launch template", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
@@ -286,13 +248,9 @@ var _ = Describe("Allocation", func() {
 				Expect(*launchTemplate.Version).To(Equal("$Default"))
 			})
 			It("should allow a launch template to be specified", func() {
-				// Setup
 				provider.LaunchTemplate = aws.String("test-launch-template")
-				provisioner = ProvisionerWithProvider(provisioner, provider)
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
@@ -303,11 +261,8 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Subnets", func() {
 			It("should default to the cluster's subnets", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
@@ -320,11 +275,8 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Security Groups", func() {
 			It("should default to the clusters security groups", func() {
-				// Setup
-				ExpectCreated(env.Client, provisioner)
-				pods := ExpectProvisioningSucceeded(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
-				// Assertions
-				ExpectNodeExists(env.Client, pods[0].Spec.NodeName)
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
@@ -350,38 +302,11 @@ var _ = Describe("Allocation", func() {
 		})
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(provisioner.Spec.Requirements.GetLabelValues(v1alpha1.CapacityTypeLabel)).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(provisioner.Spec.Requirements.GetLabelValues(v1.LabelArchStable)).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(provisioner.Spec.Requirements.CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements.Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {
-		Context("Cluster", func() {
-			It("should fail if fields are empty", func() {
-				for _, cluster := range []v1alpha1.Cluster{
-					{Endpoint: "https://test-cluster"},
-					{Name: "test-cluster"},
-					{},
-				} {
-					provisioner = ProvisionerWithProvider(provisioner, &v1alpha1.AWS{Cluster: cluster})
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
-			})
-			It("should fail for invalid endpoint", func() {
-				for _, endpoint := range []string{
-					"http",
-					"http:",
-					"http://",
-					"https",
-					"https:",
-					"https://",
-					"I am a meat popsicle",
-					"$(echo foo)",
-				} {
-					provisioner = ProvisionerWithProvider(provisioner, &v1alpha1.AWS{Cluster: v1alpha1.Cluster{Name: "test-cluster", Endpoint: endpoint}})
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
-			})
-		})
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
 				for key, value := range map[string]string{
@@ -413,8 +338,8 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support a capacity type label", func() {
 				for _, value := range []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot} {
-					provisioner.Spec.Labels = map[string]string{v1alpha1.CapacityTypeLabel: value}
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+					provisioner.Spec.Labels = map[string]string{v1alpha5.LabelCapacityType: value}
+					Expect(provisioner.Validate(ctx)).To(Succeed())
 				}
 			})
 		})

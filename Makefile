@@ -8,7 +8,9 @@ WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 
 ## Extra helm options
-HELM_OPTS ?=
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
+CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
+HELM_OPTS ?= --set defaultProvisioner.create=false --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -17,7 +19,7 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: codegen publish helm ## Run all steps in release workflow
+release: verify publish helm ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -48,7 +50,7 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template karpenter charts/karpenter --namespace karpenter \
+	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
 		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
@@ -56,6 +58,7 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm template karpenter charts/karpenter --namespace karpenter \
+		$(HELM_OPTS) \
 		--set serviceAccount.create=false \
 		| kubectl delete -f -
 
@@ -64,7 +67,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		object:headerFile="hack/boilerplate.go.txt" \
 		crd \
 		paths="./pkg/..." \
-		output:crd:artifacts:config=charts/karpenter/templates
+		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
 publish: ## Generate release manifests and publish a versioned container image.

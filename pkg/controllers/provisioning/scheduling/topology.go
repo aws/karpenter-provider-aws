@@ -35,19 +35,17 @@ type Topology struct {
 }
 
 // Inject injects topology rules into pods using supported NodeSelectors
-func (t *Topology) Inject(ctx context.Context, requirements v1alpha5.Requirements, pods []*v1.Pod) error {
-	// 1. Group pods by equivalent topology spread constraints
+func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) error {
+	// Group pods by equivalent topology spread constraints
 	topologyGroups := t.getTopologyGroups(pods)
-	// 2. Compute spread
+	// Compute spread
 	for _, topologyGroup := range topologyGroups {
-		if err := t.computeCurrentTopology(ctx, requirements, topologyGroup); err != nil {
+		if err := t.computeCurrentTopology(ctx, constraints, topologyGroup); err != nil {
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			pod.Spec.NodeSelector = functional.UnionStringMaps(
-				pod.Spec.NodeSelector,
-				map[string]string{topologyGroup.Constraint.TopologyKey: topologyGroup.NextDomain()},
-			)
+			domain := topologyGroup.NextDomain(constraints.Requirements.With(v1alpha5.PodRequirements(pod)).Requirement(topologyGroup.Constraint.TopologyKey))
+			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}
 	return nil
@@ -74,12 +72,12 @@ func (t *Topology) getTopologyGroups(pods []*v1.Pod) []*TopologyGroup {
 	return topologyGroups
 }
 
-func (t *Topology) computeCurrentTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
+func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1alpha5.Constraints, topologyGroup *TopologyGroup) error {
 	switch topologyGroup.Constraint.TopologyKey {
 	case v1.LabelHostname:
-		return t.computeHostnameTopology(topologyGroup)
+		return t.computeHostnameTopology(topologyGroup, constraints)
 	case v1.LabelTopologyZone:
-		return t.computeZonalTopology(ctx, requirements, topologyGroup)
+		return t.computeZonalTopology(ctx, constraints.Requirements, topologyGroup)
 	default:
 		return nil
 	}
@@ -92,11 +90,15 @@ func (t *Topology) computeCurrentTopology(ctx context.Context, requirements v1al
 // the global minimum) by adding pods to the cluster. We will generate
 // len(pods)/MaxSkew number of domains, to ensure that skew is not violated for
 // new instances.
-func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
-	numDomains := math.Ceil(float64(len(topologyGroup.Pods)) / float64(topologyGroup.Constraint.MaxSkew))
-	for i := 0; i < int(numDomains); i++ {
-		topologyGroup.Register(strings.ToLower(randomdata.Alphanumeric(8)))
+func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constraints *v1alpha5.Constraints) error {
+	domains := []string{}
+	for i := 0; i < int(math.Ceil(float64(len(topologyGroup.Pods))/float64(topologyGroup.Constraint.MaxSkew))); i++ {
+		domains = append(domains, strings.ToLower(randomdata.Alphanumeric(8)))
 	}
+	topologyGroup.Register(domains...)
+	// This is a bit of a hack that allows the constraints to recognize viable hostname topologies
+	constraints.Requirements = append(constraints.Requirements,
+		v1.NodeSelectorRequirement{Key: topologyGroup.Constraint.TopologyKey, Operator: v1.NodeSelectorOpIn, Values: domains})
 	return nil
 }
 
@@ -106,7 +108,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup) error {
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
-	topologyGroup.Register(requirements.GetLabelValues(v1.LabelTopologyZone)...)
+	topologyGroup.Register(requirements.Zones().UnsortedList()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}
@@ -142,7 +144,7 @@ func topologyGroupKey(namespace string, constraint v1.TopologySpreadConstraint) 
 	hash, err := hashstructure.Hash(struct {
 		Namespace  string
 		Constraint v1.TopologySpreadConstraint
-	}{Namespace: namespace, Constraint: constraint}, hashstructure.FormatV2, nil)
+	}{namespace, constraint}, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Errorf("unexpected failure hashing topology, %w", err))
 	}

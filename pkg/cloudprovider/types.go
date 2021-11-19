@@ -34,9 +34,9 @@ type CloudProvider interface {
 	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) chan error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
-	// GetInstanceTypes returns the instance types supported by the cloud
-	// provider limited by the provided constraints and daemons.
-	GetInstanceTypes(context.Context) ([]InstanceType, error)
+	// GetInstanceTypes returns instance types supported by the cloudprovider.
+	// Availability of types or zone may vary by provisioner or over time.
+	GetInstanceTypes(context.Context, *v1alpha5.Constraints) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.
@@ -52,10 +52,9 @@ type Options struct {
 // or supported options in the case of arrays)
 type InstanceType interface {
 	Name() string
-	Zones() []string
-	CapacityTypes() []string
+	// Note that though this is an array it is expected that all the Offerings are unique from one another
+	Offerings() []Offering
 	Architecture() string
-	OperatingSystems() []string
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity
 	Pods() *resource.Quantity
@@ -63,4 +62,11 @@ type InstanceType interface {
 	AMDGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
 	Overhead() v1.ResourceList
+}
+
+// An Offering describes where an InstanceType is available to be used, with the expectation that its properties
+// may be tightly coupled (e.g. the availability of an instance type in some zone is scoped to a capacity type)
+type Offering struct {
+	CapacityType string
+	Zone         string
 }

@@ -19,12 +19,12 @@ import (
 	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/allocation/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -53,7 +53,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateZones(schedule),
 			packable.validateInstanceType(schedule),
 			packable.validateArchitecture(schedule),
-			packable.validateOperatingSystem(schedule),
+			packable.validateCapacityTypes(schedule),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
@@ -152,29 +152,37 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if instanceTypes := schedule.InstanceTypes(); !functional.ContainsString(instanceTypes, p.Name()) {
-		return fmt.Errorf("instance type %s is not in %v", p.Name(), instanceTypes)
+	if !schedule.Requirements.InstanceTypes().Has(p.Name()) {
+		return fmt.Errorf("instance type %s is not in %v", p.Name(), schedule.Requirements.InstanceTypes().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if architectures := schedule.Architectures(); !functional.ContainsString(architectures, p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), architectures)
-	}
-	return nil
-}
-
-func (p *Packable) validateOperatingSystem(schedule *scheduling.Schedule) error {
-	if operatingSystems := schedule.OperatingSystems(); len(functional.IntersectStringSlice(p.OperatingSystems(), operatingSystems)) == 0 {
-		return fmt.Errorf("operating system %s is not in %v", operatingSystems, p.OperatingSystems())
+	if !schedule.Requirements.Architectures().Has(p.Architecture()) {
+		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), schedule.Requirements.Architectures().List())
 	}
 	return nil
 }
 
 func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
-	if zones := schedule.Zones(); len(functional.IntersectStringSlice(zones, p.Zones())) == 0 {
-		return fmt.Errorf("zones %v are not in %v", zones, p.Zones())
+	zones := sets.String{}
+	for _, offering := range p.Offerings() {
+		zones.Insert(offering.Zone)
+	}
+	if schedule.Requirements.Zones().Intersection(zones).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", zones, schedule.Requirements.Zones().List())
+	}
+	return nil
+}
+
+func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
+	capacityTypes := sets.String{}
+	for _, offering := range p.Offerings() {
+		capacityTypes.Insert(offering.CapacityType)
+	}
+	if schedule.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, schedule.Requirements.CapacityTypes().List())
 	}
 	return nil
 }
