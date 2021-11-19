@@ -134,7 +134,7 @@ pre = "<i class='fab fa-github'></i>"
   url = "https://karpenter-versions.gcline.us/docs/"
 
 [[params.versions]]
-  version = "v0.2.7"
+  version = "v0.4.3"
   url = "https://karpenter-versions.gcline.us/docs/"
 
 [[params.versions]]
