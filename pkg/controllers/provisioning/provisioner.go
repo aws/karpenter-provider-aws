@@ -29,6 +29,7 @@ import (
 var (
 	MaxBatchDuration = time.Second * 10
 	MinBatchDuration = time.Second * 1
+	MaxPodsPerBatch  = 2_000
 )
 
 // Provisioner waits for enqueued pods, batches them, creates capacity and binds the pods to the capacity.
@@ -122,6 +123,9 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 		case pod := <-p.pods:
 			idle.Reset(MinBatchDuration)
 			pods = append(pods, pod)
+			if len(pods) >= MaxPodsPerBatch {
+				return pods
+			}
 		case <-ctx.Done():
 			return pods
 		case <-timeout.C:
