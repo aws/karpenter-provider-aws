@@ -125,8 +125,20 @@ footer_about_disable = true
 
 # Navigation menu
 [[menu.main]]
-  name = "GitHub"
-  weight = 99
-  url = "https://github.com/awslabs/karpenter"
-  pre = "<i class='fab fa-github'></i>"
+name = "GitHub"
+weight = 99
+url = "https://github.com/awslabs/karpenter"
+pre = "<i class='fab fa-github'></i>"
 
+# Add your release versions here
+[[params.versions]]
+  version = "latest"
+  url = "https://karpenter.sh/docs/"
+
+[[params.versions]]
+  version = "v0.4.3"
+  url = "https://karpenter.sh/docs/"
+
+[[params.versions]]
+  version = "Pre-release"
+  url = "https://karpenter.sh/pre-docs/"
