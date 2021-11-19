@@ -30,7 +30,7 @@ type ResourceCount struct {
 	Memory *inf.Dec
 }
 
-type ResourceCounter struct {
+type Limiter struct {
 	KubeClient client.Client
 }
 
