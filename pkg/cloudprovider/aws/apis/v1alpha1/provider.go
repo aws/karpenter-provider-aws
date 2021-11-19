@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +52,9 @@ type AWS struct {
 }
 
 func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {
+	if constraints.Provider == nil {
+		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
+	}
 	aws := &AWS{}
 	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
 	if err != nil {
@@ -63,6 +67,9 @@ func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {
 }
 
 func (a *AWS) Serialize(constraints *v1alpha5.Constraints) error {
+	if constraints.Provider == nil {
+		return fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
+	}
 	bytes, err := json.Marshal(a)
 	if err != nil {
 		return err
