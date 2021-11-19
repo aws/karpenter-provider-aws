@@ -38,7 +38,7 @@ func ManagedTagsFor(clusterName string) map[string]string {
 	}
 }
 
-func MergeTagsFor(tags ...map[string]string) []*ec2.Tag {
+func MergeTags(tags ...map[string]string) []*ec2.Tag {
 	ec2Tags := []*ec2.Tag{}
 	for key, value := range functional.UnionStringMaps(tags...) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
