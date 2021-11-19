@@ -17,6 +17,24 @@
 
         return TemplateElement
     }
+
+    //create the html element with the version string
+    function PrereleaseElement() {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are Pre-release documentation for Karpenter 
+            </h3>
+            <p> Karpenter Pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the , 
+                <a href="https://karpenter.sh/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
     
     //determine if path is /v1-docs/ (archived) or /docs/ (latest)
     let re = new RegExp ('/(.*)\-docs')
@@ -27,8 +45,14 @@
         //get version string from match result
         let Version = result[1]
 
-        //insert new element before h1 of main content element
         const target = document.querySelector(".td-content > h1")
-        target.parentNode.insertBefore(WarningElement(Version), target)
+
+        if (Version = "pre"){
+            target.parentNode.insertBefore(PrereleaseElement(), target)
+        }
+        else {
+            target.parentNode.insertBefore(WarningElement(Version), target)
+        }
+        
     }
 </script>
