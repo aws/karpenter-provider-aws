@@ -85,7 +85,7 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 		return fmt.Errorf("getting instance types")
 	}
 	// Launch capacity and bind pods
-	if err := p.launcher.Launch(ctx, schedules, instanceTypes, *p.Provisioner); err != nil {
+	if err := p.launcher.Launch(ctx, p.Provisioner, schedules, instanceTypes); err != nil {
 		return fmt.Errorf("launching capacity, %w", err)
 	}
 	return nil
