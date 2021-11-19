@@ -133,12 +133,12 @@ pre = "<i class='fab fa-github'></i>"
 # Add your release versions here
 [[params.versions]]
   version = "latest"
-  url = "https://karpenter-versions.gcline.us/docs/"
+  url = "https://karpenter.sh/docs/"
 
 [[params.versions]]
   version = "v0.4.3"
-  url = "https://karpenter-versions.gcline.us/docs/"
+  url = "https://karpenter.sh/docs/"
 
 [[params.versions]]
   version = "Pre-release"
-  url = "https://karpenter-versions.gcline.us/pre-docs/"
+  url = "https://karpenter.sh/pre-docs/"
