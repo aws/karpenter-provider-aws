@@ -26,7 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -87,27 +86,6 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	return schedules, nil
 }
 
-func GlobalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
-	supported := map[string]sets.String{
-		v1.LabelInstanceTypeStable: sets.NewString(),
-		v1.LabelTopologyZone:       sets.NewString(),
-		v1.LabelArchStable:         sets.NewString(),
-		v1alpha5.LabelCapacityType: sets.NewString(),
-	}
-	for _, instanceType := range instanceTypes {
-		for _, offering := range instanceType.Offerings() {
-			supported[v1.LabelTopologyZone].Insert(offering.Zone)
-			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
-		}
-		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
-		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
-	}
-	for key, values := range supported {
-		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
-	}
-	return requirements
-}
-
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
@@ -153,7 +131,7 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constr
 	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
-	// Include daemonsets that will schedule on this node
+	// Include DaemonSets that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}

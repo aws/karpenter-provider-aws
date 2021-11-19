@@ -25,6 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
 	"github.com/awslabs/karpenter/pkg/utils/injection"
@@ -49,8 +50,8 @@ var ctx context.Context
 var env *test.Environment
 var launchTemplateCache *cache.Cache
 var fakeEC2API *fake.EC2API
-var controller *provisioning.Controller
-var scheduler *provisioning.Scheduler
+var provisioners *provisioning.Controller
+var scheduler *scheduling.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -80,8 +81,8 @@ var _ = BeforeSuite(func() {
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
-		scheduler = provisioning.NewScheduler(e.Client, controller)
+		provisioners = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
+		scheduler = scheduling.NewController(e.Client, provisioners)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -109,7 +110,7 @@ var _ = Describe("Allocation", func() {
 	Context("Reconciliation", func() {
 		Context("Specialized Hardware", func() {
 			It("should launch instances for Nvidia GPU resource requests", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
@@ -142,7 +143,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
@@ -178,7 +179,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("CapacityType", func() {
 			It("should default to on demand", func() {
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -187,7 +188,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
 				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}}),
 				)[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -218,7 +219,7 @@ var _ = Describe("Allocation", func() {
 					Effect:   "NoSchedule",
 				}
 
-				pod1 := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+				pod1 := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						Tolerations: []v1.Toleration{t1, t2, t3},
 					}),
@@ -227,7 +228,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				name1 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 
-				pod2 := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+				pod2 := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						Tolerations: []v1.Toleration{t2, t3, t1},
 					}),
@@ -240,7 +241,7 @@ var _ = Describe("Allocation", func() {
 			})
 
 			It("should default to a generated launch template", func() {
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -250,7 +251,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should allow a launch template to be specified", func() {
 				provider.LaunchTemplate = aws.String("test-launch-template")
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -262,7 +263,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Subnets", func() {
 			It("should default to the cluster's subnets", func() {
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -276,7 +277,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Security Groups", func() {
 			It("should default to the clusters security groups", func() {
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)

@@ -33,6 +33,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 )
 
 const (
@@ -141,14 +142,14 @@ func ExpectCleanedUp(c client.Client) {
 	}
 }
 
-func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *provisioning.Scheduler, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
 	// Wait for reconcile
-	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileSucceeded(ctx, provisioners, client.ObjectKeyFromObject(provisioner))
 	wg := sync.WaitGroup{}
 	for _, pod := range pods {
 		wg.Add(1)
