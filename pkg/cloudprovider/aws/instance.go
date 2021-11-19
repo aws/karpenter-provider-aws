@@ -33,6 +33,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/awslabs/karpenter/pkg/utils/options"
 )
 
 type InstanceProvider struct {
@@ -127,6 +128,12 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(int64(quantity)),
+		},
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String(ec2.ResourceTypeInstance),
+				Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(options.Get(ctx).ClusterName), constraints.Tags),
+			},
 		},
 		// OnDemandOptions are allowed to be specified even when requesting spot
 		OnDemandOptions: &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)},

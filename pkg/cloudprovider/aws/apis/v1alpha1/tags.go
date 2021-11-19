@@ -16,6 +16,10 @@ package v1alpha1
 
 import (
 	"fmt"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/karpenter/pkg/utils/functional"
 )
 
 const (
@@ -32,4 +36,12 @@ func ManagedTagsFor(clusterName string) map[string]string {
 		fmt.Sprintf(ClusterTagKeyFormat, clusterName):   "owned",
 		fmt.Sprintf(KarpenterTagKeyFormat, clusterName): "owned",
 	}
+}
+
+func MergeTags(tags ...map[string]string) []*ec2.Tag {
+	ec2Tags := []*ec2.Tag{}
+	for key, value := range functional.UnionStringMaps(tags...) {
+		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
+	}
+	return ec2Tags
 }
