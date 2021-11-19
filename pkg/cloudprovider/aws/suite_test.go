@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -77,6 +78,7 @@ var _ = BeforeSuite(func() {
 					securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
 					cache:                 launchTemplateCache,
 				},
+				cache.New(5*time.Second, 30*time.Second),
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
@@ -269,9 +271,9 @@ var _ = Describe("Allocation", func() {
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				Expect(input.LaunchTemplateConfigs[0].Overrides).To(ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 				))
 			})
 		})

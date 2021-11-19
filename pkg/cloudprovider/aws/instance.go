@@ -22,12 +22,16 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/patrickmn/go-cache"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -36,11 +40,30 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
+const (
+	iceCacheODTTL           = 15 * time.Second
+	iceCacheSpotTTL         = 45 * time.Second
+	iceCacheCleanupInterval = 5 * time.Minute
+)
+
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
+	iceCache               *cache.Cache
+}
+
+func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, sess *session.Session,
+	clientSet *kubernetes.Clientset) *InstanceProvider {
+	return &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
+		NewLaunchTemplateProvider(
+			ec2api,
+			NewAMIProvider(ssm.New(sess), clientSet),
+			NewSecurityGroupProvider(ec2api),
+		),
+		cache.New(iceCacheSpotTTL, iceCacheCleanupInterval),
+	}
 }
 
 // Create an instance given the constraints.
@@ -105,6 +128,37 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
+// The intention is to remove Offerings from the provided possible InstanceTypes based on recently observed ICEs, which will
+// indirectly impact the packer to keep it from spinning its wheels on packings that are doomed to fail due to EC2 capacity constraints.
+func (p *InstanceProvider) DiscardICEdInstanceTypes(ctx context.Context, instanceTypes []InstanceType) []cloudprovider.InstanceType {
+	var cleanedInstanceTypes = []cloudprovider.InstanceType{}
+	for index, instanceType := range instanceTypes {
+		odIceZones, hasODIces := p.iceCache.Get(createIceCacheKey(instanceType.Name(), v1alpha1.CapacityTypeOnDemand))
+		spotIceZones, hasSpotIces := p.iceCache.Get(createIceCacheKey(instanceType.Name(), v1alpha1.CapacityTypeSpot))
+		if !hasODIces && !hasSpotIces {
+			cleanedInstanceTypes = append(cleanedInstanceTypes, &instanceTypes[index])
+			continue
+		}
+		cleanedOfferings := []cloudprovider.Offering{}
+		for _, offering := range instanceType.Offerings() {
+			if hasODIces && offering.CapacityType == v1alpha1.CapacityTypeOnDemand {
+				if !odIceZones.(sets.String).Has(offering.Zone) {
+					cleanedOfferings = append(cleanedOfferings, offering)
+				}
+			} else if hasSpotIces {
+				if !spotIceZones.(sets.String).Has(offering.Zone) {
+					cleanedOfferings = append(cleanedOfferings, offering)
+				}
+			}
+		}
+		if len(cleanedOfferings) > 0 {
+			instanceType.AvailableOfferings = cleanedOfferings
+			cleanedInstanceTypes = append(cleanedInstanceTypes, &instanceTypes[index])
+		}
+	}
+	return cleanedInstanceTypes
+}
+
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
 	// Default to on-demand unless constrained otherwise or if flexible to spot and
 	// on-demand. This code assumes two options: {spot, on-demand}, which is enforced
@@ -143,6 +197,13 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
+	if len(createFleetOutput.Errors) > 0 {
+		for _, fleetError := range createFleetOutput.Errors {
+			if isInsufficientCapacityCode(*fleetError.ErrorCode) {
+				p.addToIceCache(fleetError.LaunchTemplateAndOverrides.Overrides, capacityType)
+			}
+		}
+	}
 	instanceIds := combineFleetInstances(*createFleetOutput)
 	if len(instanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
@@ -155,7 +216,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, constraints)
+	subnets, err := p.subnetProvider.Get(ctx, constraints.AWS)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
@@ -166,7 +227,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfigs = append(launchTemplateConfigs, &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Default"),
@@ -176,7 +237,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	return launchTemplateConfigs, nil
 }
 
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, constrainedZones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
@@ -185,10 +246,14 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 				continue
 			}
 			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) == offering.Zone {
+				subnetZone := aws.StringValue(subnet.AvailabilityZone)
+				if subnetZone == offering.Zone && (constrainedZones == nil || constrainedZones.Has(subnetZone)) {
 					override := &ec2.FleetLaunchTemplateOverridesRequest{
 						InstanceType: aws.String(instanceType.Name()),
 						SubnetId:     subnet.SubnetId,
+						// This is technically redundant, but is useful if we have to parse ICEs from CreateFleet
+						// in figuring out the zone rather than additional API calls to look up the subnet
+						AvailabilityZone: subnet.AvailabilityZone,
 					}
 					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
 					// to reduce the likelihood of getting an excessively large instance type.
@@ -267,6 +332,22 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 	return nil, fmt.Errorf("unrecognized instance type %s", aws.StringValue(instance.InstanceType))
 }
 
+func (p *InstanceProvider) addToIceCache(overrides *ec2.FleetLaunchTemplateOverrides, capacityType string) {
+	instanceType := aws.StringValue(overrides.InstanceType)
+	zone := aws.StringValue(overrides.AvailabilityZone)
+	cacheTTL := iceCacheSpotTTL
+	if capacityType == v1alpha1.CapacityTypeOnDemand {
+		cacheTTL = iceCacheODTTL
+	}
+	cacheKey := createIceCacheKey(instanceType, capacityType)
+	if zones, exists := p.iceCache.Get(cacheKey); exists {
+		zones.(sets.String).Insert(zone)
+		p.iceCache.Set(cacheKey, zones, cacheTTL)
+	} else {
+		p.iceCache.Set(cacheKey, sets.String{zone: sets.Empty{}}, cacheTTL)
+	}
+}
+
 func getInstanceID(node *v1.Node) (*string, error) {
 	id := strings.Split(node.Spec.ProviderID, "/")
 	if len(id) < 5 {
@@ -308,4 +389,8 @@ func combineReservations(reservations []*ec2.Reservation) []*ec2.Instance {
 		instances = append(instances, reservation.Instances...)
 	}
 	return instances
+}
+
+func createIceCacheKey(instanceType string, capacityType string) string {
+	return fmt.Sprintf("%s-%s", instanceType, capacityType)
 }

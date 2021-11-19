@@ -25,6 +25,7 @@ var (
 		"InvalidInstanceID.NotFound",
 		"InvalidLaunchTemplateName.NotFoundException",
 	}
+	iceErrorCode = "InsufficientInstanceCapacity"
 )
 
 // isNotFound returns true if the err is an AWS error (even if it's
@@ -36,4 +37,8 @@ func isNotFound(err error) bool {
 		return functional.ContainsString(notFoundErrorCodes, awsError.Code())
 	}
 	return false
+}
+
+func isInsufficientCapacityCode(errorCode string) bool {
+	return errorCode == iceErrorCode
 }

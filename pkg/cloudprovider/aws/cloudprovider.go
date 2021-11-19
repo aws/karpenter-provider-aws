@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -80,14 +79,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
-		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
-			NewLaunchTemplateProvider(
-				ec2api,
-				NewAMIProvider(ssm.New(sess), options.ClientSet),
-				NewSecurityGroupProvider(ec2api),
-			),
-		},
-		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
+		instanceProvider:     NewInstanceProvider(ec2api, instanceTypeProvider, subnetProvider, sess, options.ClientSet),
+		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
@@ -132,12 +125,18 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha5.Constr
 	return errs
 }
 
+// Despite accepting a Constraints struct, note that it does not utilize Requirements at all and instead
+// returns all available InstanceTypes.
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
+	allInstanceTypes, err := c.instanceTypeProvider.Get(ctx, vendorConstraints)
+	if err != nil {
+		return nil, err
+	}
+	return c.instanceProvider.DiscardICEdInstanceTypes(ctx, allInstanceTypes), nil
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {

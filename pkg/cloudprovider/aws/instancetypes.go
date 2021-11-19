@@ -50,15 +50,15 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 	}
 }
 
-// Get instance type options given the constraints
-func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]cloudprovider.InstanceType, error) {
+// Get all instance type options (the constraints are only used for tag filtering on subnets, not for Requirements filtering)
+func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Get Viable AZs from subnets
-	subnets, err := p.subnetProvider.Get(ctx, constraints)
+	subnets, err := p.subnetProvider.Get(ctx, constraints.AWS)
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +71,8 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	if err != nil {
 		return nil, err
 	}
-	// Convert to cloudprovider.InstanceType
-	result := []cloudprovider.InstanceType{}
+	result := []InstanceType{}
 	for _, instanceType := range instanceTypes {
-		//TODO filter out possible zones and capacity types using an ICE cache https://github.com/aws/karpenter/issues/371
 		offerings := []cloudprovider.Offering{}
 		for zone := range subnetZones.Intersection(instanceTypeZones[instanceType.Name()]) {
 			// while usage classes should be a distinct set, there's no guarantee of that
@@ -83,7 +81,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 			}
 		}
 		instanceType.AvailableOfferings = offerings
-		result = append(result, instanceType)
+		result = append(result, *instanceType)
 	}
 	return result, nil
 }
