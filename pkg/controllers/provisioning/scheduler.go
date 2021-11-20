@@ -80,7 +80,7 @@ func (s *Scheduler) Schedule(ctx context.Context, pod *v1.Pod) error {
 	var provisioner *Provisioner
 	var errs error
 	for _, candidate := range s.controller.List(ctx) {
-		if err := candidate.Spec.DeepCopy().Supports(pod); err != nil {
+		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
 		} else {
 			provisioner = candidate

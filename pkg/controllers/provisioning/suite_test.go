@@ -152,7 +152,7 @@ var _ = Describe("Provisioning", func() {
 			It("should not schedule if overhead is too large", func() {
 				ExpectCreated(env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10"), v1.ResourceMemory: resource.MustParse("10Gi")}},
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")}},
 					}},
 				))
 				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
@@ -175,7 +175,7 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 			})
-			It("should ignore daemonsets an invalid selector", func() {
+			It("should ignore daemonsets with an invalid selector", func() {
 				ExpectCreated(env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						NodeSelector:         map[string]string{"node": "invalid"},

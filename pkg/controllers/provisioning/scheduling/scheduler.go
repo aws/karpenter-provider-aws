@@ -113,7 +113,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		if err := constraints.Supports(pod); err != nil {
+		if err := constraints.ValidatePod(pod); err != nil {
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
@@ -155,7 +155,7 @@ func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constr
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if constraints.Supports(pod) == nil {
+		if constraints.ValidatePod(pod) == nil {
 			pods = append(pods, pod)
 		}
 	}
