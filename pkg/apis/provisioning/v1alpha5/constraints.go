@@ -39,8 +39,8 @@ type Constraints struct {
 	Provider *runtime.RawExtension `json:"provider,omitempty"`
 }
 
-// Supports returns true if the pod's requirements are met by the constraints
-func (c *Constraints) Supports(pod *v1.Pod) error {
+// ValidatePod returns an error if the pod's requirements are not met by the constraints
+func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	// Tolerate Taints
 	if err := c.Taints.Tolerates(pod); err != nil {
 		return err

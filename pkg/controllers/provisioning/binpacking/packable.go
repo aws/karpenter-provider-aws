@@ -45,7 +45,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 	packables := []*Packable{}
 	for _, instanceType := range instanceTypes {
 		packable := PackableFor(instanceType)
-		// 1. First pass at filtering down to viable instance types;
+		// First pass at filtering down to viable instance types;
 		// additional filtering will be done by later steps (such as
 		// removing instance types that obviously lack resources, such
 		// as GPUs, for the workload being presented).
@@ -63,12 +63,12 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		); err != nil {
 			continue
 		}
-		// 2. Calculate Kubelet Overhead
+		// Calculate Kubelet Overhead
 		if ok := packable.reserve(instanceType.Overhead()); !ok {
 			logging.FromContext(ctx).Debugf("Excluding instance type %s because there are not enough resources for kubelet and system overhead", packable.Name())
 			continue
 		}
-		// 3. Calculate Daemonset Overhead
+		// Calculate Daemonset Overhead
 		if len(packable.Pack(schedule.Daemons).unpacked) > 0 {
 			logging.FromContext(ctx).Debugf("Excluding instance type %s because there are not enough resources for daemons", packable.Name())
 			continue

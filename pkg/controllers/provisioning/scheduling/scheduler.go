@@ -113,7 +113,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		if err := constraints.Supports(pod); err != nil {
+		if err := constraints.ValidatePod(pod); err != nil {
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
@@ -147,17 +147,15 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 }
 
 func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constraints) ([]*v1.Pod, error) {
-	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
-
-	// 2. filter DaemonSets to include those that will schedule on this node
+	// Include daemonsets that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if constraints.Supports(pod) != nil {
+		if constraints.ValidatePod(pod) == nil {
 			pods = append(pods, pod)
 		}
 	}
