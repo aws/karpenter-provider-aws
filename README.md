@@ -5,9 +5,7 @@
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/karpenter/issues)
 
 ![](website/static/banner.png)
-{{% alert title="Note" color="primary" %}}
-Karpenter is in active development and should be considered **pre-production** software. Backwards incompatible API changes are possible in future releases and support is best-effort by the Karpenter community.
-{{% /alert %}}
+> **Note**: Karpenter is in active development and should be considered **pre-production** software. Backwards incompatible API changes are possible in future releases and support is best-effort by the Karpenter community.
 
 Karpenter is an open-source node provisioning project built for Kubernetes.
 Its goal is to improve the efficiency and cost of running workloads on Kubernetes clusters.
