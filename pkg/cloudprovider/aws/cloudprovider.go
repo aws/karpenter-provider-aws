@@ -157,11 +157,11 @@ func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Cons
 func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to deserialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to deserialize provider, %s", err.Error())
 		return
 	}
 	vendorConstraints.Default(ctx)
 	if err := vendorConstraints.Serialize(constraints); err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to serialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err.Error())
 	}
 }
