@@ -294,7 +294,7 @@ kubectl delete node $NODE_NAME
 
 ## Cleanup
 
-To avoid additional charges, remove the demo infrastructure from your AWS account.
+To avoid additional charges, remove the demo infrastructure from your AWS account.  Party.
 
 ```bash
 helm uninstall karpenter --namespace karpenter
@@ -306,3 +306,9 @@ aws ec2 describe-launch-templates \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 eksctl delete cluster --name ${CLUSTER_NAME}
 ```
+
+---
+
+If you liked this demo, star us on GitHub!
+
+{{< github >}}
