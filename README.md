@@ -22,7 +22,7 @@ Karpenter optimizes for scheduling latency and utilization efficiency using two 
 
 Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
 
-Check out the [FAQs](https://karpenter.sh/docs/faqs/) and [Roadmap](ROADMAP.md) to learn more.
+Check out the [FAQs](https://karpenter.sh/docs/faqs/) to learn more.
 
 ## Installation
 
@@ -39,7 +39,6 @@ Follow the setup recommendations of your cloud provider.
 - [Docs](https://karpenter.sh/docs/)
 - [API](README.md)
 - [FAQs](https://karpenter.sh/docs/faqs/)
-- [Roadmap](ROADMAP.md)
 - [Working Group](WORKING_GROUP.md)
 - [Developer Guide](https://karpenter.sh/docs/development-guide/)
 - [Contributing](CONTRIBUTING.md)
