@@ -94,17 +94,15 @@ func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 		}
 		key, err := hashstructure.Hash(packing, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
-			logging.FromContext(ctx).Errorf("Hashing packings to determine node batches")
-			packings = append(packings, packing)
-		} else {
-			if mainPack, ok := packs[key]; ok {
-				mainPack.NodeQuantity++
-				mainPack.Pods = append(mainPack.Pods, packing.Pods...)
-				continue
-			}
-			packs[key] = packing
-			packings = append(packings, packing)
+			panic("Unable to hash packings while binpacking")
 		}
+		if mainPack, ok := packs[key]; ok {
+			mainPack.NodeQuantity++
+			mainPack.Pods = append(mainPack.Pods, packing.Pods...)
+			continue
+		}
+		packs[key] = packing
+		packings = append(packings, packing)
 	}
 	for _, pack := range packings {
 		logging.FromContext(ctx).Infof("Computed packing of %d node(s) for %d pod(s) with instance type option(s) %s", pack.NodeQuantity, flattenedLen(pack.Pods...), instanceTypeNames(pack.InstanceTypeOptions))
