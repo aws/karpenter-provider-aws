@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/logging"
 )
 
@@ -117,6 +118,7 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 	idle := time.NewTimer(MinBatchDuration)
 	start := time.Now()
 	defer func() {
+		pods = p.RemoveScheduled(ctx, pods)
 		logging.FromContext(ctx).Infof("Batched %d pods in %s", len(pods), time.Since(start))
 	}()
 	for {
@@ -135,4 +137,18 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 			return pods
 		}
 	}
+}
+
+func (p *Provisioner) RemoveScheduled(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
+	unscheduledPods := []*v1.Pod{}
+	for _, pod := range pods {
+		candidatePod, err := p.launcher.CoreV1Client.Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		if err != nil {
+			continue
+		}
+		if err := isSchedulable(candidatePod); err == nil {
+			unscheduledPods = append(unscheduledPods, candidatePod)
+		}
+	}
+	return unscheduledPods
 }

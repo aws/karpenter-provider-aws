@@ -59,7 +59,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	// Ensure the pod can be provisioned
-	if err := isUnschedulable(pod); err != nil {
+	if err := isSchedulable(pod); err != nil {
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
@@ -102,7 +102,7 @@ func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
 	return nil
 }
 
-func isUnschedulable(p *v1.Pod) error {
+func isSchedulable(p *v1.Pod) error {
 	if p.Spec.NodeName != "" {
 		return fmt.Errorf("already scheduled")
 	}
