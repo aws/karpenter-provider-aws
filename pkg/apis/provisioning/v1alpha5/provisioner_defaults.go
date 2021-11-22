@@ -22,6 +22,7 @@ import (
 func (p *Provisioner) SetDefaults(ctx context.Context) {
 	p.Spec.Constraints.Default(ctx)
 	p.Spec.Limits.Default(ctx)
+	p.Status.Default(ctx)
 }
 
 // Default the constraints

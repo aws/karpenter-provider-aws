@@ -17,7 +17,7 @@ require (
 	go.uber.org/multierr v1.7.0
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 	golang.org/x/tools v0.1.8-0.20211014194737-fc98fb2abd48 // indirect
-	gopkg.in/inf.v0 v0.9.1
+	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.20.7
 	k8s.io/apimachinery v0.20.7
 	k8s.io/client-go v0.20.7

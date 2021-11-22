@@ -51,28 +51,18 @@ spec:
                   node.
                 type: object
               limits:
-                description: Defines a set of bounds that Karpenter obeys when provisioning
-                  capacity.
+                description: Limits define a set of bounds that Karpenter obeys when
+                  provisioning capacity.
                 properties:
                   resources:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
                     description: Resources contains all the allocatable resources
                       that Karpenter supports for limiting.
-                    properties:
-                      cpu:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        description: CPU, in cores. (500m = .5 cores)
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      memory:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        description: Memory, in bytes. (500Gi = 500GiB = 500 * 1024
-                          * 1024 * 1024)
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
                     type: object
                 type: object
               provider:
@@ -202,6 +192,15 @@ spec:
                   the number of nodes
                 format: date-time
                 type: string
+              resources:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Resources is the list of resources that have been provisioned.
+                type: object
             type: object
         type: object
     served: true

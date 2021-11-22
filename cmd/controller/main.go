@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers"
+	"github.com/awslabs/karpenter/pkg/controllers/counter"
 	"github.com/awslabs/karpenter/pkg/controllers/metrics"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
@@ -91,6 +92,7 @@ func main() {
 		terminator,
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),
+		counter.NewController(ctx, manager.GetClient(), cloudProvider, clientSet.CoreV1()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}
