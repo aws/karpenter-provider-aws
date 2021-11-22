@@ -11,11 +11,29 @@ linkTitle = "Home"
     <a class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="{{< relref "docs/getting-started" >}}">
       Get Started
     </a>
+    <a id="github-counter" class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="https://github.com/awslabs/karpenter">
+      <i class="fab fa-github"></i>
+      GitHub
+    </a>
+    <script>
+      url = "https://api.github.com/repos/awslabs/karpenter"
+      fetch(url).then(function(response) {
+        return response.json();
+      }).then(function(data) {
+        stars = data.stargazers_count;
+        var element = document.getElementById("github-counter");
+        console.log(stars);
+        element.innerHTML = `<i class="fab fa-github"></i> Stars on Github: ${stars}`;
+      })
+    </script>
+    
   </div>
 </div>
 {{< /blocks/cover >}}
 
 {{< blocks/lead color="grey-100" height="med">}}
+
+<script async defer src="https://buttons.github.io/buttons.js"></script>
   <h2 class="mx-auto mt-5 col-sm-9 font-weight-bolder">
     Karpenter simplifies Kubernetes infrastructure with the right nodes at the right time.
   </h2>
