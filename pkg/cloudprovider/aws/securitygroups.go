@@ -50,8 +50,7 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	// https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367
 	// The LoadBalancer Controller expects a single security group with the
 	// cluster tag, but provisioning tools like eksctl and kops create multiple.
-	securityGroups = filterClusterTaggedGroups(ctx, securityGroups)
-
+	securityGroups = s.filterClusterTaggedGroups(ctx, securityGroups)
 	// Fail if no security groups found
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
@@ -95,15 +94,15 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
 	s.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	logging.FromContext(ctx).Debugf("Discovered security groups: %s", securityGroupIds(output.SecurityGroups))
+	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
 }
 
-func filterClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) []*ec2.SecurityGroup {
+func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) []*ec2.SecurityGroup {
 	filtered := []*ec2.SecurityGroup{}
 	foundClusterTag := false
 	for _, securityGroup := range securityGroups {
-		if hasClusterTag(ctx, securityGroup) {
+		if s.hasClusterTag(ctx, securityGroup) {
 			if foundClusterTag {
 				logging.FromContext(ctx).Debugf("Ignoring security group %s, only one group with tag %s is allowed", aws.StringValue(securityGroup.GroupId),
 					fmt.Sprint(v1alpha1.ClusterDiscoveryTagKeyFormat, options.Get(ctx).ClusterName))
@@ -116,7 +115,7 @@ func filterClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.Securi
 	return filtered
 }
 
-func hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
+func (s *SecurityGroupProvider) hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
 	for _, tag := range securityGroup.Tags {
 		if aws.StringValue(tag.Key) == fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, options.Get(ctx).ClusterName) {
 			return true
@@ -125,7 +124,7 @@ func hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
 	return false
 }
 
-func securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+func (s *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {
 		names = append(names, aws.StringValue(securityGroup.GroupId))
