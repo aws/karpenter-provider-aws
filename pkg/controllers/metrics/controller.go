@@ -75,7 +75,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named(controllerName).
+		Named(strings.ToLower(controllerName)).
 		For(&v1alpha5.Provisioner{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 10,

@@ -49,7 +49,7 @@ func (r *Liveness) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1
 	if condition.Reason != "" && condition.Reason != "NodeStatusNeverUpdated" {
 		return reconcile.Result{}, nil
 	}
-	logging.FromContext(ctx).Infof("Triggering termination for node that failed to join %s", n.Name)
+	logging.FromContext(ctx).Infof("Triggering termination for node that failed to join")
 	if err := r.kubeClient.Delete(ctx, n); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting node %s, %w", n.Name, err)
 	}
