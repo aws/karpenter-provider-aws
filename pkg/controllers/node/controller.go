@@ -102,7 +102,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 4. Patch any changes, regardless of errors
 	if !equality.Semantic.DeepEqual(node, stored) {
 		if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(stored)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("patching node %s, %w", node.Name, err)
+			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
 		}
 	}
 	// 5. Requeue if error or if retryAfter is set

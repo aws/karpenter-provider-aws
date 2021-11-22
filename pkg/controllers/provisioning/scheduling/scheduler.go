@@ -21,6 +21,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/utils/reconcilename"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,7 +71,7 @@ func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudPro
 
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
 
-	defer metrics.Measure(schedulingDuration.WithLabelValues(ctx.Value("provisioner").(string)))()
+	defer metrics.Measure(schedulingDuration.WithLabelValues(reconcilename.Get(ctx, "provisioner")))()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It

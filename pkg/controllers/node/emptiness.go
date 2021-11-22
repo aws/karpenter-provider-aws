@@ -75,7 +75,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if injectabletime.Now().After(emptinessTime.Add(ttl)) {
 		logging.FromContext(ctx).Infof("Triggering termination after %s for empty node", ttl)
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting node %s, %w", n.Name, err)
+			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -84,7 +84,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 	pods := &v1.PodList{}
 	if err := r.kubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": n.Name}); err != nil {
-		return false, fmt.Errorf("listing pods for node %s, %w", n.Name, err)
+		return false, fmt.Errorf("listing pods for node, %w", err)
 	}
 	for i := range pods.Items {
 		p := pods.Items[i]

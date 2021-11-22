@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
+	"github.com/awslabs/karpenter/pkg/utils/reconcilename"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -75,7 +76,7 @@ type Packing struct {
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
-	defer metrics.Measure(packDuration.WithLabelValues(ctx.Value("provisioner").(string)))()
+	defer metrics.Measure(packDuration.WithLabelValues(reconcilename.Get(ctx, "provisioner")))()
 
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.

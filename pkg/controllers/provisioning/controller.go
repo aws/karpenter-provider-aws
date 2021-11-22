@@ -33,6 +33,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/reconcilename"
 )
 
 // Controller for the resource
@@ -60,7 +61,8 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisioning").With("provisioner", req.Name))
-	ctx = context.WithValue(ctx, "provisioner", req.Name)
+	ctx = reconcilename.Inject(ctx, "provisioner", req.Name)
+
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if errors.IsNotFound(err) {
