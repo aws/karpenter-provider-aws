@@ -294,7 +294,7 @@ kubectl delete node $NODE_NAME
 
 ## Cleanup
 
-To avoid additional charges, remove the demo infrastructure from your AWS account.  Party.
+To avoid additional charges, remove the demo infrastructure from your AWS account.
 
 ```bash
 helm uninstall karpenter --namespace karpenter
