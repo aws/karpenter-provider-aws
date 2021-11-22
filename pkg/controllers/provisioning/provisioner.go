@@ -23,8 +23,9 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -44,6 +45,7 @@ type Provisioner struct {
 	Stop    context.CancelFunc
 	// Dependencies
 	cloudProvider cloudprovider.CloudProvider
+	kubeClient    client.Client
 	scheduler     *scheduling.Scheduler
 	launcher      *Launcher
 }
@@ -139,16 +141,21 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 	}
 }
 
+// RemoveScheduled removes pods that have been assigned a node.
+// This check is needed to prevent duplicate binds when a pod is scheduled to a node
+// between the time it was ingested into the scheduler and the time it is included
+// in a provisioner batch.
 func (p *Provisioner) RemoveScheduled(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
-	unscheduledPods := []*v1.Pod{}
+	unscheduled := []*v1.Pod{}
 	for _, pod := range pods {
-		candidatePod, err := p.launcher.CoreV1Client.Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-		if err != nil {
+		candidate := pod
+		if err := p.kubeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, candidate); err != nil {
+			logging.FromContext(ctx).Errorf("Checking if pod \"%s\" is provisionable", pod)
+		}
+		if !isProvisionable(candidate) {
 			continue
 		}
-		if err := isSchedulable(candidatePod); err == nil {
-			unscheduledPods = append(unscheduledPods, candidatePod)
-		}
+		unscheduled = append(unscheduled, candidate)
 	}
-	return unscheduledPods
+	return unscheduled
 }

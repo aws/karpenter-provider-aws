@@ -59,7 +59,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	// Ensure the pod can be provisioned
-	if err := isSchedulable(pod); err != nil {
+	if !isProvisionable(pod) {
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
@@ -102,20 +102,11 @@ func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
 	return nil
 }
 
-func isSchedulable(p *v1.Pod) error {
-	if p.Spec.NodeName != "" {
-		return fmt.Errorf("already scheduled")
+func isProvisionable(p *v1.Pod) bool {
+	if p.Spec.NodeName != "" || !pod.FailedToSchedule(p) || pod.IsOwnedByDaemonSet(p) || pod.IsOwnedByNode(p) {
+		return false
 	}
-	if !pod.FailedToSchedule(p) {
-		return fmt.Errorf("awaiting scheduling")
-	}
-	if pod.IsOwnedByDaemonSet(p) {
-		return fmt.Errorf("owned by daemonset")
-	}
-	if pod.IsOwnedByNode(p) {
-		return fmt.Errorf("owned by node")
-	}
-	return nil
+	return true
 }
 
 func validate(p *v1.Pod) error {

@@ -105,6 +105,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		done:          ctx.Done(),
 		Stop:          cancelFunc,
 		cloudProvider: c.cloudProvider,
+		kubeClient:    c.kubeClient,
 		scheduler:     c.scheduler,
 		launcher:      c.launcher,
 	}
