@@ -94,7 +94,7 @@ func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instan
 		}
 		key, err := hashstructure.Hash(packing, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
-			logging.FromContext(ctx).Fatal("Unable to hash packings while binpacking")
+			logging.FromContext(ctx).Fatalf("Unable to hash packings while binpacking: %s", err.Error())
 		}
 		if mainPack, ok := packs[key]; ok {
 			mainPack.NodeQuantity++
