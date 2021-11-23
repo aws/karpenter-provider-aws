@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
 )
 
 // Controller for the resource
@@ -61,7 +60,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
-		logging.FromContext(ctx).Infof("not found")
 		return reconcile.Result{}, nil
 	}
 	persisted := provisioner.DeepCopy()
@@ -72,21 +70,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	fmt.Printf("Total cpu usage %v and mem %v\n", resourceCounts[v1alpha5.ResourceLimitsCPU], resourceCounts[v1alpha5.ResourceLimitsMemory])
-
 	provisioner.Status.Resources = resourceCounts
-
-	logging.FromContext(ctx).Info("before", pretty.Concise(provisioner.Status), pretty.Concise(persisted.Status))
-	// //
-	// if err := c.kubeClient.Status().Update(ctx, provisioner); err != nil {
-	// 	return reconcile.Result{}, fmt.Errorf("updating provisioner %s, %w", provisioner.Name, err)
-	// }
-
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
-
-	logging.FromContext(ctx).Info("after", pretty.Concise(provisioner.Status))
 
 	// Refresh the reconciler state values every 5 minutes irrespective of node events
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
@@ -128,11 +115,13 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			// Reconcile provisioner state when a node managed by it is created or deleted.
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
-				provisionerName := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]
-				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisionerName}})
-				return requests
+				if provisionerName, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]; ok {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisionerName}})
+					return requests
+				}
+				return nil
 			}),
 		).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
 }

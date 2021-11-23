@@ -14,8 +14,6 @@ specific language governing permissions and limitations under the License.
 package v1alpha5
 
 import (
-	"context"
-
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
@@ -49,11 +47,4 @@ func (p *Provisioner) GetConditions() apis.Conditions {
 
 func (p *Provisioner) SetConditions(conditions apis.Conditions) {
 	p.Status.Conditions = conditions
-}
-
-func (p *ProvisionerStatus) Default(ctx context.Context) {
-	// p.Resources = v1.ResourceList{
-	// 	ResourceLimitsCPU:    *resource.NewScaledQuantity(0, 0),
-	// 	ResourceLimitsMemory: *resource.NewScaledQuantity(0, 0),
-	// }
 }
