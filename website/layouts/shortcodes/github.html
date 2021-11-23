@@ -1,16 +1,15 @@
 <a id="github-counter" class="btn btn-lg btn-dark font-weight-bold" href="https://github.com/awslabs/karpenter">
     <i class="fab fa-github"></i>
     GitHub
-  </a>
-  <script>
-    url = "https://api.github.com/repos/awslabs/karpenter"
-    fetch(url).then(function(response) {
-      return response.json();
-    }).then(function(data) {
-      stars = data.stargazers_count;
-      var element = document.getElementById("github-counter");
-      console.log(stars);
-      element.innerHTML = `<i class="fab fa-github"></i> Stars on Github: ${stars}`;
-    })
-  </script>
+</a>
+<script>
+  url = "https://api.github.com/repos/awslabs/karpenter"
+  fetch(url).then(function(response) {
+    return response.json();
+  }).then(function(data) {
+    stars = data.stargazers_count;
+    var element = document.getElementById("github-counter");
+    element.innerHTML = `<i class="fab fa-github"></i> Stars on Github: ${stars}`;
+  })
+</script>
   
