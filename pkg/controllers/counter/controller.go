@@ -25,8 +25,6 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -37,25 +35,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/utils/pretty"
 )
 
 // Controller for the resource
 type Controller struct {
-	ctx           context.Context
-	kubeClient    client.Client
-	cloudProvider cloudprovider.CloudProvider
-	coreV1Client  corev1.CoreV1Interface
+	ctx        context.Context
+	kubeClient client.Client
 }
 
 // NewController is a constructor
-func NewController(ctx context.Context, kubeClient client.Client, cloudProvider cloudprovider.CloudProvider, coreV1Client corev1.CoreV1Interface) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client) *Controller {
 	return &Controller{
-		ctx:           ctx,
-		kubeClient:    kubeClient,
-		cloudProvider: cloudProvider,
-		coreV1Client:  coreV1Client,
+		ctx:        ctx,
+		kubeClient: kubeClient,
 	}
 }
 
@@ -68,8 +61,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
+		logging.FromContext(ctx).Infof("not found")
 		return reconcile.Result{}, nil
 	}
+	persisted := provisioner.DeepCopy()
 
 	// Determine resource usage and update provisioner.status.resources
 	resourceCounts, err := c.resourceCountsFor(ctx, provisioner.Name)
@@ -81,27 +76,32 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	provisioner.Status.Resources = resourceCounts
 
-	logging.FromContext(ctx).Info(pretty.Concise(provisioner))
+	logging.FromContext(ctx).Info("before", pretty.Concise(provisioner.Status), pretty.Concise(persisted.Status))
+	// //
+	// if err := c.kubeClient.Status().Update(ctx, provisioner); err != nil {
+	// 	return reconcile.Result{}, fmt.Errorf("updating provisioner %s, %w", provisioner.Name, err)
+	// }
 
-	if err := c.kubeClient.Update(ctx, provisioner); err != nil {
-		return reconcile.Result{}, fmt.Errorf("updating provisioner %s, %w", provisioner.Name, err)
+	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
+
+	logging.FromContext(ctx).Info("after", pretty.Concise(provisioner.Status))
 
 	// Refresh the reconciler state values every 5 minutes irrespective of node events
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName string) (v1.ResourceList, error) {
-	nodeList := v1.NodeList{}
-	withProvisionerName := client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: provisionerName}
-	if err := c.kubeClient.List(ctx, &nodeList, withProvisionerName); err != nil {
+	nodes := v1.NodeList{}
+	if err := c.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: provisionerName}); err != nil {
 		return nil, err
 	}
 
 	var cpu = resource.NewScaledQuantity(0, 0)
 	var memory = resource.NewScaledQuantity(0, 0)
 
-	for _, node := range nodeList.Items {
+	for _, node := range nodes.Items {
 		cpu.Add(*node.Status.Capacity.Cpu())
 		memory.Add(*node.Status.Capacity.Memory())
 	}
@@ -133,6 +133,6 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 				return requests
 			}),
 		).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
 		Complete(c)
 }
