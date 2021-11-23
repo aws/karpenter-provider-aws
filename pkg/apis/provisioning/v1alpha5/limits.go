@@ -27,15 +27,10 @@ type Limits struct {
 }
 
 func (p *Provisioner) HasExceededResources() error {
-	var currentResource = p.Status.Resources
-	var currentLimits = p.Spec.Limits.Resources
-
-	for resourceName, usage := range currentResource {
-		fmt.Printf("resourceName %v resourceUsage %v\n", resourceName, usage)
-		if limit, ok := currentLimits[resourceName]; ok {
-			fmt.Printf("limitName %v limitUsage %v\n", resourceName, limit)
+	for resourceName, usage := range  p.Status.Resources {
+		if limit, ok := p.Spec.Limits.Resources[resourceName]; ok {
 			if usage.Cmp(limit) >= 0 {
-				return fmt.Errorf("%v limits exceeded", resourceName)
+				return fmt.Errorf("resource limit %s exceeded", resourceName)
 			}
 		}
 	}

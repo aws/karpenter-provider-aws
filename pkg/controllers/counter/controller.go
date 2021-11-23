@@ -37,14 +37,12 @@ import (
 
 // Controller for the resource
 type Controller struct {
-	ctx        context.Context
 	kubeClient client.Client
 }
 
 // NewController is a constructor
-func NewController(ctx context.Context, kubeClient client.Client) *Controller {
+func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
-		ctx:        ctx,
 		kubeClient: kubeClient,
 	}
 }
@@ -110,9 +108,9 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		Watches(
 			// Reconcile provisioner state when a node managed by it is created or deleted.
 			&source.Kind{Type: &v1.Node{}},
-			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
-				if provisionerName, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]; ok {
-					return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisionerName}}}
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+				if name, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]; ok {
+					return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: name}}}
 				}
 				return nil
 			}),

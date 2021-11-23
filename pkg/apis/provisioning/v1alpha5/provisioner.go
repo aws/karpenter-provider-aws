@@ -47,7 +47,7 @@ type ProvisionerSpec struct {
 	// +optional
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds that Karpenter obeys when provisioning capacity.
-	Limits `json:"limits,omitempty"`
+	Limits Limits `json:"limits,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API
