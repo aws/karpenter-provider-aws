@@ -176,6 +176,6 @@ func (s *Scheduler) Register(_ context.Context, m manager.Manager) error {
 		NewControllerManagedBy(m).
 		Named("scheduling").
 		For(&v1.Pod{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10000}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
 		Complete(s)
 }
