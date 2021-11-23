@@ -27,6 +27,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
 	"github.com/awslabs/karpenter/pkg/test"
 	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/awslabs/karpenter/pkg/utils/options"
 	"github.com/awslabs/karpenter/pkg/utils/parallel"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
@@ -59,7 +60,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		ctx = options.Inject(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
+		ctx = injection.WithOptions(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := NewSubnetProvider(fakeEC2API)

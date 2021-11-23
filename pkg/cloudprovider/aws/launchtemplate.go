@@ -29,8 +29,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/options"
-	"github.com/awslabs/karpenter/pkg/utils/restconfig"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
@@ -109,7 +108,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 			UserData:          userData,
-			ClusterName:       options.Get(ctx).ClusterName,
+			ClusterName:       injection.GetOptions(ctx).ClusterName,
 			InstanceProfile:   constraints.InstanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
@@ -234,9 +233,9 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
-		options.Get(ctx).ClusterName,
+		injection.GetOptions(ctx).ClusterName,
 		containerRuntimeArg,
-		options.Get(ctx).ClusterEndpoint))
+		injection.GetOptions(ctx).ClusterEndpoint))
 	caBundle, err := p.GetCABundle(ctx)
 	if err != nil {
 		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
@@ -290,7 +289,7 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
-	restConfig := restconfig.Get(ctx)
+	restConfig := injection.GetConfig(ctx)
 	if restConfig == nil {
 		return nil, nil
 	}

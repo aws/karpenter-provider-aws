@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/apiobject"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,7 +39,7 @@ var (
 	// MaxInstanceTypes defines the number of instance type options to return to the cloud provider
 	MaxInstanceTypes = 20
 
-	packDuration = prometheus.NewHistogram(
+	packDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: "allocation_controller",
@@ -46,6 +47,7 @@ var (
 			Help:      "Duration of binpacking process in seconds.",
 			Buckets:   metrics.DurationBuckets(),
 		},
+		[]string{metrics.ProvisionerLabel},
 	)
 )
 
@@ -74,7 +76,7 @@ type Packing struct {
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *Packer) Pack(ctx context.Context, schedule *scheduling.Schedule, instances []cloudprovider.InstanceType) []*Packing {
-	defer metrics.Measure(packDuration)()
+	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.

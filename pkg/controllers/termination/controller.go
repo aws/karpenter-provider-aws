@@ -58,7 +58,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Termination"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("termination").With("node", req.String()))
 
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}
@@ -95,7 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("Termination").
+		Named("termination").
 		For(&v1.Node{}).
 		WithOptions(
 			controller.Options{

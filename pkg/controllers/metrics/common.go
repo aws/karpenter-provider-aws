@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	controllerName = "Metrics"
+	controllerName = "metrics"
 
 	metricSubsystemCapacity = "capacity"
 	metricSubsystemPods     = "pods"
