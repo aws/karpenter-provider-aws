@@ -33,7 +33,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/options"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 )
 
 type InstanceProvider struct {
@@ -132,7 +132,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(options.Get(ctx).ClusterName), constraints.Tags),
+				Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(injection.GetOptions(ctx).ClusterName), constraints.Tags),
 			},
 		},
 		// OnDemandOptions are allowed to be specified even when requesting spot

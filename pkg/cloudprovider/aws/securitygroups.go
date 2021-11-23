@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/options"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -105,7 +105,7 @@ func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, s
 		if s.hasClusterTag(ctx, securityGroup) {
 			if foundClusterTag {
 				logging.FromContext(ctx).Debugf("Ignoring security group %s, only one group with tag %s is allowed", aws.StringValue(securityGroup.GroupId),
-					fmt.Sprint(v1alpha1.ClusterDiscoveryTagKeyFormat, options.Get(ctx).ClusterName))
+					fmt.Sprint(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName))
 				continue
 			}
 			foundClusterTag = true
@@ -117,7 +117,7 @@ func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, s
 
 func (s *SecurityGroupProvider) hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
 	for _, tag := range securityGroup.Tags {
-		if aws.StringValue(tag.Key) == fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, options.Get(ctx).ClusterName) {
+		if aws.StringValue(tag.Key) == fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName) {
 			return true
 		}
 	}

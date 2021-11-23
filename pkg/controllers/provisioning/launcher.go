@@ -25,7 +25,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/metrics"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/reconcilename"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -69,7 +69,7 @@ func (l *Launcher) Launch(ctx context.Context, schedules []*scheduling.Schedule,
 }
 
 func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
-	defer metrics.Measure(bindTimeHistogram.WithLabelValues(reconcilename.Get(ctx, "provisioner")))()
+	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha5.TerminationFinalizer)

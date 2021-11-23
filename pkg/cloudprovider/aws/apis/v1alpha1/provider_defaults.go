@@ -20,7 +20,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/options"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -30,8 +30,8 @@ var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 func (c *Constraints) Default(ctx context.Context) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultSubnets(options.Get(ctx).ClusterName)
-	c.defaultSecurityGroups(options.Get(ctx).ClusterName)
+	c.defaultSubnets(injection.GetOptions(ctx).ClusterName)
+	c.defaultSecurityGroups(injection.GetOptions(ctx).ClusterName)
 }
 
 func (c *Constraints) defaultCapacityTypes() {
