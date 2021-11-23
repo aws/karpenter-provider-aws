@@ -42,6 +42,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
+		s.validateResourceLimits(),
 		s.Constraints.Validate(ctx),
 	)
 }
@@ -52,9 +53,17 @@ func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldErro
 	}
 	return errs
 }
+
 func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError) {
 	if ptr.Int64Value(s.TTLSecondsAfterEmpty) < 0 {
 		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsAfterEmpty"))
+	}
+	return errs
+}
+
+func (s *ProvisionerSpec) validateResourceLimits() (errs *apis.FieldError) {
+	if s.Limits.Resources == nil || len(s.Limits.Resources) == 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be empty", "limits"))
 	}
 	return errs
 }

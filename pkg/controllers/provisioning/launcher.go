@@ -30,6 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -49,9 +50,13 @@ func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner
 
 	// Pack and bind pods
 	errs := make([]error, len(schedules))
+	provisioner, err := l.updateState(ctx, provisioner)
+	if err != nil {
+		return fmt.Errorf("unable to determine status of provisioner")
+	}
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range l.Packer.Pack(ctx, schedules[index], instanceTypes) {
-			if ok, err := provisioner.HasExceededResources(); ok {
+			if err := provisioner.HasExceededResources(); err != nil {
 				errs[index] = multierr.Append(errs[index], err)
 				continue
 			}
@@ -114,6 +119,14 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 	})
 	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", bound, node.Name)
 	return nil
+}
+
+func (l *Launcher) updateState(ctx context.Context, provisioner *v1alpha5.Provisioner) (*v1alpha5.Provisioner, error) {
+	provisionerCopy := &v1alpha5.Provisioner{}
+	if err := l.KubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}, provisionerCopy); err != nil {
+		return nil, err
+	}
+	return provisionerCopy, nil
 }
 
 var bindTimeHistogram = prometheus.NewHistogram(

@@ -16,13 +16,11 @@ package counter
 import (
 	"context"
 	"fmt"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +51,6 @@ func NewController(ctx context.Context, kubeClient client.Client) *Controller {
 
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logging.FromContext(ctx).Infof("Updating resource counts on provisioner")
 	// Retrieve the provisioner
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
@@ -75,8 +72,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, fmt.Errorf("failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
 
-	// Refresh the reconciler state values every 5 minutes irrespective of node events
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName string) (v1.ResourceList, error) {
@@ -93,8 +89,8 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 		memory.Add(*node.Status.Capacity.Memory())
 	}
 	return v1.ResourceList{
-		v1alpha5.ResourceLimitsCPU:    *cpu,
-		v1alpha5.ResourceLimitsMemory: *memory,
+		v1.ResourceCPU:    *cpu,
+		v1.ResourceMemory: *memory,
 	}, nil
 
 }
@@ -116,8 +112,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				if provisionerName, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]; ok {
-					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: provisionerName}})
-					return requests
+					return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: provisionerName}}}
 				}
 				return nil
 			}),

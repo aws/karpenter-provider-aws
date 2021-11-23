@@ -15,22 +15,10 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
-
-const (
-	// CPU limit, in cores. (500m = .5 cores)
-	ResourceLimitsCPU v1.ResourceName = "cpu"
-	// Memory limit, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
-	ResourceLimitsMemory v1.ResourceName = "memory"
-)
-
-var DefaultCPULimits *resource.Quantity = resource.NewScaledQuantity(100, 0)
-var DefaultMemoryLimits *resource.Quantity = resource.NewScaledQuantity(400, resource.Giga)
 
 // Limits define bounds on the resources being provisioned by Karpenter
 type Limits struct {
@@ -38,34 +26,18 @@ type Limits struct {
 	Resources v1.ResourceList `json:"resources,omitempty"`
 }
 
-func (l *Limits) Default(ctx context.Context) {
-	if l.Resources == nil {
-		l.Resources = v1.ResourceList{
-			ResourceLimitsCPU:    *DefaultCPULimits,
-			ResourceLimitsMemory: *DefaultMemoryLimits,
-		}
-		return
-	}
-	if _, ok := l.Resources[ResourceLimitsCPU]; !ok {
-		l.Resources[ResourceLimitsCPU] = *DefaultCPULimits
-	}
-	if _, ok := l.Resources[ResourceLimitsMemory]; !ok {
-		l.Resources[ResourceLimitsMemory] = *DefaultMemoryLimits
-	}
-}
-
-func (p *Provisioner) HasExceededResources() (bool, error) {
+func (p *Provisioner) HasExceededResources() error {
 	var currentResource = p.Status.Resources
 	var currentLimits = p.Spec.Limits.Resources
 
-	var CPUUsage = currentResource[ResourceLimitsCPU]
-	if CPUUsage.Cmp(currentLimits[ResourceLimitsCPU]) >= 0 {
-		return true, fmt.Errorf("cpu limits exceeded")
+	for resourceName, usage := range currentResource {
+		fmt.Printf("resourceName %v resourceUsage %v\n", resourceName, usage)
+		if limit, ok := currentLimits[resourceName]; ok {
+			fmt.Printf("limitName %v limitUsage %v\n", resourceName, limit)
+			if usage.Cmp(limit) >= 0 {
+				return fmt.Errorf("%v limits exceeded", resourceName)
+			}
+		}
 	}
-
-	var MemoryUsage = currentResource[ResourceLimitsCPU]
-	if MemoryUsage.Cmp(currentLimits[ResourceLimitsCPU]) >= 0 {
-		return true, fmt.Errorf("memory limits exceeded")
-	}
-	return false, nil
+	return nil
 }
