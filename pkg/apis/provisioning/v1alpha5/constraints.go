@@ -17,6 +17,8 @@ package v1alpha5
 import (
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/utils/pretty"
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -39,34 +41,39 @@ type Constraints struct {
 	Provider *runtime.RawExtension `json:"provider,omitempty"`
 }
 
-// ValidatePod returns an error if the pod's requirements are not met by the constraints
-func (c *Constraints) ValidatePod(pod *v1.Pod) error {
+// Tighten the constraints to include the pod or an error if invalid
+func (c *Constraints) Tighten(pod *v1.Pod) (*Constraints, error) {
 	// Tolerate Taints
 	if err := c.Taints.Tolerates(pod); err != nil {
-		return err
+		return nil, err
 	}
 	// The constraints do not support this requirement
 	podRequirements := PodRequirements(pod)
 	for _, key := range podRequirements.Keys() {
 		if c.Requirements.Requirement(key).Len() == 0 {
-			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
+			return nil, fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
 	}
 	// The combined requirements are not compatible
-	combined := c.Requirements.With(podRequirements)
+	combined := c.Requirements.With(podRequirements).Consolidate()
 	for _, key := range podRequirements.Keys() {
 		if combined.Requirement(key).Len() == 0 {
-			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
+			return nil, fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
 	}
-	return nil
-}
-
-func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
+	// Tightened constraints
 	return &Constraints{
 		Labels:       c.Labels,
-		Requirements: c.Requirements.With(PodRequirements(pod)).Consolidate().WellKnown(),
+		Requirements: combined.WellKnown(),
 		Taints:       c.Taints,
 		Provider:     c.Provider,
+	}, nil
+}
+
+func (c *Constraints) MustHash() string {
+	key, err := hashstructure.Hash(c, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		panic(fmt.Errorf("hashing constraints %s, %w", pretty.Concise(c), err))
 	}
+	return fmt.Sprint(key)
 }

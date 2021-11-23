@@ -32,8 +32,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
@@ -42,9 +40,8 @@ import (
 // Controller for the resource
 type Controller struct {
 	ctx           context.Context
-	provisioners  *sync.Map
-	scheduler     *scheduling.Scheduler
-	launcher      *Launcher
+	provisioners  sync.Map
+	coreV1Client  corev1.CoreV1Interface
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
 }
@@ -53,11 +50,9 @@ type Controller struct {
 func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		ctx:           ctx,
-		provisioners:  &sync.Map{},
 		kubeClient:    kubeClient,
+		coreV1Client:  coreV1Client,
 		cloudProvider: cloudProvider,
-		scheduler:     scheduling.NewScheduler(kubeClient, cloudProvider),
-		launcher:      &Launcher{KubeClient: kubeClient, CoreV1Client: coreV1Client, CloudProvider: cloudProvider, Packer: &binpacking.Packer{}},
 	}
 }
 
@@ -69,7 +64,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if errors.IsNotFound(err) {
-			c.Delete(ctx, req.Name)
+			c.provisioners.Delete(req.Name)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -79,13 +74,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	// Requeue in order to discover any changes from GetInstanceTypes.
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
-}
-
-// Delete stops and removes a provisioner. Enqueued pods will be provisioned.
-func (c *Controller) Delete(ctx context.Context, name string) {
-	if p, ok := c.provisioners.LoadAndDelete(name); ok {
-		p.(*Provisioner).Stop()
-	}
 }
 
 // Apply creates or updates the provisioner to the latest configuration
@@ -104,24 +92,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
 		return nil
 	}
-	ctx, cancelFunc := context.WithCancel(ctx)
-	p := &Provisioner{
-		Provisioner:   provisioner,
-		pods:          make(chan *v1.Pod),
-		results:       make(chan error),
-		done:          ctx.Done(),
-		Stop:          cancelFunc,
-		cloudProvider: c.cloudProvider,
-		kubeClient:    c.kubeClient,
-		scheduler:     c.scheduler,
-		launcher:      c.launcher,
-	}
-	p.Start(ctx)
-	// Update the provisioner; stop and drain an existing provisioner if exists.
-	if existing, ok := c.provisioners.LoadOrStore(provisioner.Name, p); ok {
-		c.provisioners.Store(provisioner.Name, p)
-		existing.(*Provisioner).Stop()
-	}
+	// Update the provisioner
+	c.provisioners.Store(provisioner.Name, NewProvisioner(ctx, provisioner, c.kubeClient, c.coreV1Client, c.cloudProvider))
 	return nil
 }
 

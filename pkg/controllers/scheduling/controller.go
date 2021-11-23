@@ -20,8 +20,11 @@ import (
 	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/go-logr/zapr"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -32,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -39,6 +43,7 @@ import (
 type Controller struct {
 	kubeClient   client.Client
 	provisioners *provisioning.Controller
+	topology     *Topology
 	preferences  *Preferences
 }
 
@@ -48,6 +53,7 @@ func NewController(kubeClient client.Client, provisioners *provisioning.Controll
 		kubeClient:   kubeClient,
 		provisioners: provisioners,
 		preferences:  NewPreferences(),
+		topology:     NewTopology(),
 	}
 }
 
@@ -70,37 +76,35 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
-	provisioner, err := c.selectProvisioner(ctx, pod)
-	if err != nil {
+	if err := c.schedule(ctx, pod); err != nil {
 		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err.Error())
 		return reconcile.Result{}, err
 	}
-	provisioner.Add(ctx, pod)
 	return reconcile.Result{RequeueAfter: time.Second * 1}, nil
 }
 
-func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (*provisioning.Provisioner, error) {
+func (c *Controller) schedule(ctx context.Context, pod *v1.Pod) error {
+	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
-	// Pick provisioner
-	var provisioner *provisioning.Provisioner
+	// Inject topological constraints
+	if err := c.topology.Inject(ctx, pod); err != nil {
+		return fmt.Errorf("injecting topology, %w", err)
+	}
+	// Try provisioners until one of them accepts the pod.
 	var errs error
-	for _, candidate := range c.provisioners.List(ctx) {
-		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
+	for _, provisioner := range c.provisioners.List(ctx) {
+		if constraints, err := provisioner.Spec.Constraints.Tighten(pod); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("tried %q: %w", provisioner.Name, err))
 		} else {
-			provisioner = candidate
-			break
+			provisioner.Add(ctx, pod, constraints)
+			return nil
 		}
 	}
-	if provisioner == nil {
-		err := fmt.Errorf("matched 0/%d provisioners", len(multierr.Errors(errs)))
-		if errs != nil {
-			err = fmt.Errorf("%s, %w", err, errs)
-		}
-		return nil, err
+	if errs != nil {
+		return fmt.Errorf("matched 0/%d provisioners, %w", len(multierr.Errors(errs)), errs)
 	}
-	return provisioner, nil
+	return nil
 }
 
 func isProvisionable(p *v1.Pod) bool {
@@ -158,6 +162,21 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 		}
 	}
 	return errs
+}
+
+var schedulingDuration = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Namespace: metrics.Namespace,
+		Subsystem: "allocation_controller",
+		Name:      "scheduling_duration_seconds",
+		Help:      "Duration of scheduling process in seconds. Broken down by provisioner.",
+		Buckets:   metrics.DurationBuckets(),
+	},
+	[]string{metrics.ProvisionerLabel},
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(schedulingDuration)
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

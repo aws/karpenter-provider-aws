@@ -66,7 +66,7 @@ func (i *InstanceType) Memory() *resource.Quantity {
 func (i *InstanceType) Pods() *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+	// https://github.com/aws/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 	return resources.Quantity(fmt.Sprint(*i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
 }
 
