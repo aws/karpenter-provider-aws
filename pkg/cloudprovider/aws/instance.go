@@ -348,18 +348,18 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 
 	for instanceType, zones := range offerings {
 		cacheKey := unavailableOfferingsCacheKey(instanceType, capacityType)
-		logging.FromContext(ctx).Debugf("Saw %s for offering { instanceType: %s, zones: %s, capacityType: %s }, avoiding it for %s",
+		logging.FromContext(ctx).Debugf("Saw %s for offering(s) { instanceType: %s, zone(s): %s, capacityType: %s }, avoiding for %s",
 			InsufficientCapacityErrorCode,
 			instanceType,
 			zones,
 			capacityType,
 			cacheTTL)
 		// because we don't track a cache TTL for each zone and don't remove individual zones from the cache we need to mitigate the risk of a zone
-		// staying in the cache forever, so we will only add to an existing cached entry within a certain time period (after expiry, we just replace the cache
-		// entry and reset the clock on it)
+		// staying in the cache indefinitely, so we will only append a zone to an existing cached entry within a certain time period (after expiry,
+		// we replace the whole cache entry and reset the clock on it)
 		if existingZones, exists := p.unavailableOfferings.Get(cacheKey); exists && existingZones.(CachedZones).initialCacheTime.UTC().Add(InsufficientCapacityErrorCacheCleanupInterval).Before(injectabletime.Now()) {
 			existingZones.(CachedZones).zones.Insert(zones.UnsortedList()...)
-			// though we're updating existingZones already, we still need to call Set to update the cached entry's TTL
+			// though we're updating existingZones already, we still need to call Set to extend the cached entry's TTL
 			p.unavailableOfferings.Set(cacheKey, existingZones, cacheTTL)
 		} else {
 			p.unavailableOfferings.Set(cacheKey, CachedZones{zones: zones, initialCacheTime: injectabletime.Now()}, cacheTTL)
