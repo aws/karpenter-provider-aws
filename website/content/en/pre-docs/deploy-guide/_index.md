@@ -25,9 +25,9 @@ The getting started guide covers [configuring EKS to accept newly provisioned in
 Karpenter supports the [same set of Kubernetes versions as EKS supports](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) for new clusters. Karpenter strongly encourages a posture of promptly adopting new versions of Kubernetes.
 
 ### Service Account
-    - `Karpenter`
+    - `Karpenter` Service Account
 
-The `Karpenter` service account needs sufficient cluster permissions to, for example, add new nodes and bind pods to nodes. Review the ["karpenter-controller" `role` and `ClusterRole`](rbac.yaml) from the default helm chart to understand what permissions the Karpenter service account needs. The Karpenter helm chart includes many other roles, but the "karpenter-controller" resources require uniquely broad access.
+The `Karpenter` service account needs sufficient cluster permissions to, for example, add new nodes and bind pods to nodes. Review the ["karpenter-controller" `role` and `ClusterRole`](rbac.yaml) from the default helm chart to understand what permissions the Karpenter service account needs. The Karpenter helm chart includes other roles (`karpenter-webhook`), but the "karpenter-controller" resources require uniquely broad access.
 
 In part:
 
@@ -64,7 +64,7 @@ Karpenter needs to discover VPC (virtual private cloud) subnets on AWS, such tha
 
 The tags must have this form:
 - key: `kubernetes.io/cluster/${CLUSTER_NAME}`
-- value: ""
+- value: "" (empty string)
 
 In some situations, EKS may automatically apply this tag to subnets. Do not rely on EKS to do this. 
 
