@@ -30,7 +30,7 @@ const (
 )
 
 var DefaultCPULimits *resource.Quantity = resource.NewScaledQuantity(100, 0)
-var DefaultMemoryLimits *resource.Quantity = resource.NewScaledQuantity(100, 0)
+var DefaultMemoryLimits *resource.Quantity = resource.NewScaledQuantity(400, resource.Giga)
 
 // Limits define bounds on the resources being provisioned by Karpenter
 type Limits struct {

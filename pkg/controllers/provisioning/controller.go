@@ -25,7 +25,9 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -129,6 +131,19 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		NewControllerManagedBy(m).
 		Named("provisioning").
 		For(&v1alpha5.Provisioner{}).
+		WithEventFilter(predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// If the only change to the provisioner resource has been in the status field, then we shouldn't be reconciling.
+				// This is important because otherwise you can end up in an odd loop. Consider this -
+				// 1. The launcher adds new nodes -> which leads to provisioner.status.resources being updated.
+				// 2. We then think a new provisioner is needed and cancel the context for the old provisioner.
+				// 3. If the old provisioner was doing things (say binding pods after the node was spun up) - it might then fail.
+				//
+				// When there's a change in just the status field (and not the spec), the generation values will remain the same so use that to
+				// determine if we need to reconcile.
+				return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration()
+			},
+		}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
 }

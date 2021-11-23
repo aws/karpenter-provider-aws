@@ -86,7 +86,7 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 	}
 
 	var cpu = resource.NewScaledQuantity(0, 0)
-	var memory = resource.NewScaledQuantity(0, 0)
+	var memory = resource.NewScaledQuantity(0, resource.Giga)
 
 	for _, node := range nodes.Items {
 		cpu.Add(*node.Status.Capacity.Cpu())
