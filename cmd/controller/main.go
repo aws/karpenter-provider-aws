@@ -92,7 +92,7 @@ func main() {
 		terminator,
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),
-		counter.NewController(ctx, manager.GetClient(), cloudProvider, clientSet.CoreV1()),
+		counter.NewController(ctx, manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
 	}

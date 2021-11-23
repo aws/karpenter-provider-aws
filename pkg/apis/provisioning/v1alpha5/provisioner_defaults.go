@@ -16,13 +16,17 @@ package v1alpha5
 
 import (
 	"context"
+
+	"github.com/awslabs/karpenter/pkg/utils/pretty"
+	"knative.dev/pkg/logging"
 )
 
 // SetDefaults for the provisioner
 func (p *Provisioner) SetDefaults(ctx context.Context) {
+	logging.FromContext(ctx).Info("Calling Defauling webhook w/ status", pretty.Concise(p.Name), pretty.Concise(p.Status))
 	p.Spec.Constraints.Default(ctx)
 	p.Spec.Limits.Default(ctx)
-	p.Status.Default(ctx)
+	// p.Status.Default(ctx)
 }
 
 // Default the constraints

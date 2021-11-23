@@ -17,7 +17,6 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
 
@@ -53,8 +52,8 @@ func (p *Provisioner) SetConditions(conditions apis.Conditions) {
 }
 
 func (p *ProvisionerStatus) Default(ctx context.Context) {
-	p.Resources = v1.ResourceList{
-		ResourceLimitsCPU:    *resource.NewScaledQuantity(0, 0),
-		ResourceLimitsMemory: *resource.NewScaledQuantity(0, 0),
-	}
+	// p.Resources = v1.ResourceList{
+	// 	ResourceLimitsCPU:    *resource.NewScaledQuantity(0, 0),
+	// 	ResourceLimitsMemory: *resource.NewScaledQuantity(0, 0),
+	// }
 }
