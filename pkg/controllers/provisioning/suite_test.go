@@ -22,10 +22,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +39,7 @@ import (
 
 var ctx context.Context
 var controller *provisioning.Controller
-var scheduler *provisioning.Scheduler
+var scheduler *scheduling.Controller
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
@@ -53,7 +53,7 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
-		scheduler = provisioning.NewScheduler(e.Client, controller)
+		scheduler = scheduling.NewController(e.Client, controller)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -141,33 +141,81 @@ var _ = Describe("Provisioning", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 			}
 		})
-		It("should account for daemonsets", func() {
-			ExpectCreated(env.Client, &appsv1.DaemonSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "daemons", Namespace: "default"},
-				Spec: appsv1.DaemonSetSpec{
-					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "test"}},
-					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "test"}},
-						Spec: test.UnschedulablePod(test.PodOptions{
-							ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-						}).Spec,
+		Context("Daemonsets and Node Overhead", func() {
+			It("should account for overhead", func() {
+				ExpectCreated(env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
-			})
-			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
-				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-				}),
-				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-				}),
-				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-				}),
-			) {
+				))
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+					test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					},
+				))[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
-			}
+			})
+			It("should not schedule if overhead is too large", func() {
+				ExpectCreated(env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")}},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should ignore daemonsets without matching tolerations", func() {
+				provisioner.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoSchedule}}
+				ExpectCreated(env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+					test.PodOptions{
+						Tolerations:          []v1.Toleration{{Operator: v1.TolerationOperator(v1.NodeSelectorOpExists)}},
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					},
+				))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+			})
+			It("should ignore daemonsets with an invalid selector", func() {
+				ExpectCreated(env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						NodeSelector:         map[string]string{"node": "invalid"},
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+					test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					},
+				))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+			})
+			It("should ignore daemonsets that don't match pod constraints", func() {
+				ExpectCreated(env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}},
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+					test.PodOptions{
+						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}},
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					},
+				))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+			})
 		})
 		Context("Labels", func() {
 			It("should label nodes", func() {

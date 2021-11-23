@@ -22,6 +22,7 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 )
 
 const (
@@ -133,16 +135,21 @@ func ExpectCleanedUp(c client.Client) {
 	for i := range provisioners.Items {
 		ExpectDeleted(c, &provisioners.Items[i])
 	}
+	daemonsets := appsv1.DaemonSetList{}
+	Expect(c.List(ctx, &daemonsets)).To(Succeed())
+	for i := range daemonsets.Items {
+		ExpectDeleted(c, &daemonsets.Items[i])
+	}
 }
 
-func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *provisioning.Scheduler, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}
 	// Wait for reconcile
-	ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileSucceeded(ctx, provisioners, client.ObjectKeyFromObject(provisioner))
 	wg := sync.WaitGroup{}
 	for _, pod := range pods {
 		wg.Add(1)

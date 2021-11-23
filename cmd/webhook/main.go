@@ -20,11 +20,12 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/awslabs/karpenter/pkg/utils/options"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
-	"knative.dev/pkg/injection"
+	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
@@ -41,8 +42,8 @@ var (
 )
 
 func main() {
-	config := injection.ParseAndGetRESTConfigOrDie()
-	ctx := webhook.WithOptions(injection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
+	config := knativeinjection.ParseAndGetRESTConfigOrDie()
+	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 		Port:        opts.WebhookPort,
 		ServiceName: "karpenter-webhook",
 		SecretName:  "karpenter-webhook-cert",
@@ -91,5 +92,5 @@ func newConfigValidationController(ctx context.Context, cmw configmap.Watcher) *
 }
 
 func InjectContext(ctx context.Context) context.Context {
-	return options.Inject(ctx, opts)
+	return injection.WithOptions(ctx, opts)
 }

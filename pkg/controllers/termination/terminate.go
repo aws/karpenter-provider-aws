@@ -50,7 +50,7 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 	if err := t.KubeClient.Patch(ctx, node, client.MergeFrom(persisted)); err != nil {
 		return fmt.Errorf("patching node %s, %w", node.Name, err)
 	}
-	logging.FromContext(ctx).Infof("Cordoned node %s", node.Name)
+	logging.FromContext(ctx).Infof("Cordoned node")
 	return nil
 }
 
@@ -59,14 +59,14 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// 1. Get pods on node
 	pods, err := t.getPods(ctx, node)
 	if err != nil {
-		return false, fmt.Errorf("listing pods for node %s, %w", node.Name, err)
+		return false, fmt.Errorf("listing pods for node, %w", err)
 	}
 
 	// 2. Separate pods as non-critical and critical
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	for _, pod := range pods {
 		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
-			logging.FromContext(ctx).Debugf("Unable to drain node %s, pod %s has do-not-evict annotation", node.Name, pod.Name)
+			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s has do-not-evict annotation", pod.Name)
 			return false, nil
 		}
 	}
@@ -93,9 +93,9 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("removing finalizer from node %s, %w", node.Name, err)
+		return fmt.Errorf("removing finalizer from node, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Deleted node %s", node.Name)
+	logging.FromContext(ctx).Infof("Deleted node")
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	pods := &v1.PodList{}
 	if err := t.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
-		return nil, fmt.Errorf("listing pods on node %s, %w", node.Name, err)
+		return nil, fmt.Errorf("listing pods on node, %w", err)
 	}
 	return ptr.PodListToSlice(pods), nil
 }

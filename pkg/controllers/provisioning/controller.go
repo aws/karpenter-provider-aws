@@ -20,6 +20,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -33,6 +34,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 )
 
@@ -61,6 +63,8 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisioning").With("provisioner", req.Name))
+	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
+
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if errors.IsNotFound(err) {
@@ -92,7 +96,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
-		With(scheduling.GlobalRequirements(instanceTypes)). // TODO(etarn) move GlobalRequirements to this file
+		With(requirements(instanceTypes)).
 		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
 	if currentProvisioner, ok := c.provisioners.Load(provisioner.Name); ok && c.areEqual(currentProvisioner.(*Provisioner).Spec, provisioner.Spec) {
 		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
@@ -132,6 +136,27 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 		return true
 	})
 	return provisioners
+}
+
+func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
+	supported := map[string]sets.String{
+		v1.LabelInstanceTypeStable: sets.NewString(),
+		v1.LabelTopologyZone:       sets.NewString(),
+		v1.LabelArchStable:         sets.NewString(),
+		v1alpha5.LabelCapacityType: sets.NewString(),
+	}
+	for _, instanceType := range instanceTypes {
+		for _, offering := range instanceType.Offerings() {
+			supported[v1.LabelTopologyZone].Insert(offering.Zone)
+			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
+		}
+		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
+		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
+	}
+	for key, values := range supported {
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
+	}
+	return requirements
 }
 
 // Register the controller to the manager

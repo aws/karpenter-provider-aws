@@ -17,7 +17,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -48,7 +47,7 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 }
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	loggerName := fmt.Sprintf("%s.provisioner/%s", strings.ToLower(controllerName), req.Name)
+	loggerName := fmt.Sprintf("%s.provisioner/%s", controllerName, req.Name)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(loggerName))
 
 	// Does the provisioner exist?

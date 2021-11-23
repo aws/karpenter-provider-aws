@@ -110,5 +110,8 @@ func (i *InstanceType) AWSNeurons() *resource.Quantity {
 }
 
 func (i *InstanceType) Overhead() v1.ResourceList {
-	return v1.ResourceList{}
+	return v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse("100m"),
+		v1.ResourceMemory: resource.MustParse("10Mi"),
+	}
 }

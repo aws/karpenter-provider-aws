@@ -21,11 +21,11 @@ import (
 	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/awslabs/karpenter/pkg/cloudprovider"
 	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -69,7 +69,8 @@ func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudPro
 }
 
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
-	defer metrics.Measure(schedulingDuration.WithLabelValues(provisioner.Name))()
+
+	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
@@ -85,27 +86,6 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	return schedules, nil
 }
 
-func GlobalRequirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
-	supported := map[string]sets.String{
-		v1.LabelInstanceTypeStable: sets.NewString(),
-		v1.LabelTopologyZone:       sets.NewString(),
-		v1.LabelArchStable:         sets.NewString(),
-		v1alpha5.LabelCapacityType: sets.NewString(),
-	}
-	for _, instanceType := range instanceTypes {
-		for _, offering := range instanceType.Offerings() {
-			supported[v1.LabelTopologyZone].Insert(offering.Zone)
-			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
-		}
-		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
-		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
-	}
-	for key, values := range supported {
-		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
-	}
-	return requirements
-}
-
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
@@ -113,7 +93,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		if err := constraints.Supports(pod); err != nil {
+		if err := constraints.ValidatePod(pod); err != nil {
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
@@ -147,17 +127,15 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 }
 
 func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constraints) ([]*v1.Pod, error) {
-	// 1. Get DaemonSets
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
-
-	// 2. filter DaemonSets to include those that will schedule on this node
+	// Include DaemonSets that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
 		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if constraints.Supports(pod) != nil {
+		if constraints.ValidatePod(pod) == nil {
 			pods = append(pods, pod)
 		}
 	}

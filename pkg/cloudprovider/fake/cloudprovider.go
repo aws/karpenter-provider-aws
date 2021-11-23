@@ -83,6 +83,11 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constrai
 			name: "default-instance-type",
 		}),
 		NewInstanceType(InstanceTypeOptions{
+			name:   "small-instance-type",
+			cpu:    resource.MustParse("2"),
+			memory: resource.MustParse("2Gi"),
+		}),
+		NewInstanceType(InstanceTypeOptions{
 			name:       "nvidia-gpu-instance-type",
 			nvidiaGPUs: resource.MustParse("2"),
 		}),
