@@ -59,7 +59,7 @@ type Controller struct {
 
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("Node"))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("node").With("node", req.String()))
 	// 1. Retrieve Node, ignore if not provisioned or terminating
 	stored := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
@@ -102,7 +102,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 4. Patch any changes, regardless of errors
 	if !equality.Semantic.DeepEqual(node, stored) {
 		if err := c.kubeClient.Patch(ctx, node, client.MergeFrom(stored)); err != nil {
-			return reconcile.Result{}, fmt.Errorf("patching node %s, %w", node.Name, err)
+			return reconcile.Result{}, fmt.Errorf("patching node, %w", err)
 		}
 	}
 	// 5. Requeue if error or if retryAfter is set
@@ -115,7 +115,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("Node").
+		Named("node").
 		For(&v1.Node{}).
 		Watches(
 			// Reconcile all nodes related to a provisioner when it changes.

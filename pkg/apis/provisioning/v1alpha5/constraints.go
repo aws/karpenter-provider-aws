@@ -66,7 +66,7 @@ func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
 	return &Constraints{
 		Labels:       c.Labels,
 		Requirements: c.Requirements.With(PodRequirements(pod)).Consolidate().WellKnown(),
-		Taints:       c.Taints.WithPod(pod),
+		Taints:       c.Taints,
 		Provider:     c.Provider,
 	}
 }

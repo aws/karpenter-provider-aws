@@ -25,9 +25,10 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/metrics"
 	"github.com/awslabs/karpenter/pkg/controllers/node"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 	"github.com/awslabs/karpenter/pkg/controllers/termination"
+	"github.com/awslabs/karpenter/pkg/utils/injection"
 	"github.com/awslabs/karpenter/pkg/utils/options"
-	"github.com/awslabs/karpenter/pkg/utils/restconfig"
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,7 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/flowcontrol"
 	"knative.dev/pkg/configmap/informer"
-	"knative.dev/pkg/injection"
+	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
@@ -67,8 +68,8 @@ func main() {
 
 	// Set up logger and watch for changes to log level
 	ctx := LoggingContextOrDie(config, clientSet)
-	ctx = restconfig.Inject(ctx, config)
-	ctx = options.Inject(ctx, opts)
+	ctx = injection.WithConfig(ctx, config)
+	ctx = injection.WithOptions(ctx, opts)
 
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
@@ -81,14 +82,12 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
-	terminator := termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
-	provisioner := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
-	scheduler := provisioning.NewScheduler(manager.GetClient(), provisioner)
+	provisioners := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
 
 	if err := manager.RegisterControllers(ctx,
-		provisioner,
-		scheduler,
-		terminator,
+		provisioners,
+		scheduling.NewController(manager.GetClient(), provisioners),
+		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),
 	).Start(ctx); err != nil {
@@ -99,7 +98,7 @@ func main() {
 // LoggingContextOrDie injects a logger into the returned context. The logger is
 // configured by the ConfigMap `config-logging` and live updates the level.
 func LoggingContextOrDie(config *rest.Config, clientSet *kubernetes.Clientset) context.Context {
-	ctx, startinformers := injection.EnableInjectionOrDie(signals.NewContext(), config)
+	ctx, startinformers := knativeinjection.EnableInjectionOrDie(signals.NewContext(), config)
 	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, component)
 	ctx = logging.WithLogger(ctx, logger)
 	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})

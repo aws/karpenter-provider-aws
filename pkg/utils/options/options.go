@@ -15,7 +15,6 @@ limitations under the License.
 package options
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"net/url"
@@ -49,16 +48,6 @@ type Options struct {
 	WebhookPort     int
 	KubeClientQPS   int
 	KubeClientBurst int
-}
-
-type optionsKey struct{}
-
-func Get(ctx context.Context) Options {
-	return ctx.Value(optionsKey{}).(Options)
-}
-
-func Inject(ctx context.Context, opts Options) context.Context {
-	return context.WithValue(ctx, optionsKey{}, opts)
 }
 
 func (o Options) Validate() (err error) {
