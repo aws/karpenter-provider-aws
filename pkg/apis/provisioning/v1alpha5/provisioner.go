@@ -15,7 +15,6 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"github.com/mitchellh/hashstructure/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,11 +68,4 @@ type ProvisionerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provisioner `json:"items"`
-}
-
-
-func (p *ProvisionerSpec) EqualTo(provisionerSpec *ProvisionerSpec) bool {
-	key1, _ := hashstructure.Hash(provisionerSpec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key2, _ := hashstructure.Hash(p, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	return key1 == key2
 }

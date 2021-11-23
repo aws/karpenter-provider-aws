@@ -26,6 +26,7 @@ import (
 	"knative.dev/pkg/ptr"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -46,7 +47,13 @@ var _ = Describe("Validation", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: strings.ToLower(randomdata.SillyName()),
 			},
-			Spec: ProvisionerSpec{},
+			Spec: ProvisionerSpec{
+				Limits: Limits{
+					Resources: v1.ResourceList{
+						v1.ResourceCPU: *resource.NewScaledQuantity(10, 0),
+					},
+				},
+			},
 		}
 	})
 
@@ -59,6 +66,18 @@ var _ = Describe("Validation", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
+
+	Context("Limits", func() {
+		It("should not allow undefined limits", func() {
+			provisioner.Spec.Limits = Limits{}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should not allow empty limits", func() {
+			provisioner.Spec.Limits = Limits{Resources: v1.ResourceList{}}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+	})
+
 	Context("Labels", func() {
 		It("should allow unrecognized labels", func() {
 			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}

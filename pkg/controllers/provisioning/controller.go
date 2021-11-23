@@ -33,6 +33,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 // Controller for the resource
@@ -93,7 +94,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		With(scheduling.GlobalRequirements(instanceTypes)). // TODO(etarn) move GlobalRequirements to this file
 		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
-	if currentProvisioner, ok := c.provisioners.Load(provisioner.Name); ok && currentProvisioner.(*Provisioner).Spec.EqualTo(&provisioner.Spec) {
+	if currentProvisioner, ok := c.provisioners.Load(provisioner.Name); ok && c.areEqual(currentProvisioner.(*Provisioner).Spec, provisioner.Spec) {
 		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
 		return nil
 	}
@@ -115,6 +116,12 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		existing.(*Provisioner).Stop()
 	}
 	return nil
+}
+
+func (c *Controller) areEqual(provisionerSpecOld v1alpha5.ProvisionerSpec, provisionerSpecNew v1alpha5.ProvisionerSpec) bool {
+	hashKeyOld, _ := hashstructure.Hash(provisionerSpecOld, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	hashKeyNew, _ := hashstructure.Hash(provisionerSpecNew, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	return hashKeyOld == hashKeyNew
 }
 
 // List the active provisioners

@@ -350,6 +350,8 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 	raw, err := json.Marshal(provider)
 	Expect(err).ToNot(HaveOccurred())
 	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}
+	provisioner.Spec.Limits.Resources = v1.ResourceList{}
+	provisioner.Spec.Limits.Resources[v1.ResourceCPU] = *resource.NewScaledQuantity(10, 0)
 	return provisioner
 }
 

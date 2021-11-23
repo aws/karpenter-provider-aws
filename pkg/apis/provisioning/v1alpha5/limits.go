@@ -27,7 +27,7 @@ type Limits struct {
 }
 
 func (p *Provisioner) HasExceededResources() error {
-	for resourceName, usage := range  p.Status.Resources {
+	for resourceName, usage := range p.Status.Resources {
 		if limit, ok := p.Spec.Limits.Resources[resourceName]; ok {
 			if usage.Cmp(limit) >= 0 {
 				return fmt.Errorf("resource limit %s exceeded", resourceName)

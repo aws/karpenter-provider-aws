@@ -69,7 +69,13 @@ var _ = Describe("Provisioning", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: v1alpha5.DefaultProvisioner.Name,
 			},
-			Spec: v1alpha5.ProvisionerSpec{},
+			Spec: v1alpha5.ProvisionerSpec{
+				Limits: v1alpha5.Limits{
+					Resources: v1.ResourceList{
+						v1.ResourceCPU: *resource.NewScaledQuantity(10, 0),
+					},
+				},
+			},
 		}
 		provisioner.SetDefaults(ctx)
 	})
