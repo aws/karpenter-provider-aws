@@ -12,13 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provisioning
+package scheduling
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
 	"github.com/awslabs/karpenter/pkg/utils/pod"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -33,26 +33,26 @@ import (
 )
 
 // Controller for the resource
-type Scheduler struct {
-	kubeClient  client.Client
-	controller  *Controller
-	preferences *scheduling.Preferences
+type Controller struct {
+	kubeClient   client.Client
+	provisioners *provisioning.Controller
+	preferences  *Preferences
 }
 
-// NewScheduler constructs a controller instance
-func NewScheduler(kubeClient client.Client, controller *Controller) *Scheduler {
-	return &Scheduler{
-		kubeClient:  kubeClient,
-		controller:  controller,
-		preferences: scheduling.NewPreferences(),
+// NewController constructs a controller instance
+func NewController(kubeClient client.Client, provisioners *provisioning.Controller) *Controller {
+	return &Controller{
+		kubeClient:   kubeClient,
+		provisioners: provisioners,
+		preferences:  NewPreferences(),
 	}
 }
 
 // Reconcile the resource
-func (s *Scheduler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("scheduling").With("pod", req.String()))
 	pod := &v1.Pod{}
-	if err := s.kubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -67,19 +67,19 @@ func (s *Scheduler) Reconcile(ctx context.Context, req reconcile.Request) (recon
 		return reconcile.Result{}, nil
 	}
 	// Schedule and requeue. If successful, will terminate in the unschedulable check above
-	if err := s.Schedule(ctx, pod); err != nil {
+	if err := c.Schedule(ctx, pod); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to schedule, %s", err.Error())
 	}
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func (s *Scheduler) Schedule(ctx context.Context, pod *v1.Pod) error {
+func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
 	// Relax preferences if pod has previously failed to schedule.
-	s.preferences.Relax(ctx, pod)
+	c.preferences.Relax(ctx, pod)
 	// Pick provisioner
-	var provisioner *Provisioner
+	var provisioner *provisioning.Provisioner
 	var errs error
-	for _, candidate := range s.controller.List(ctx) {
+	for _, candidate := range c.provisioners.List(ctx) {
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
 		} else {
@@ -171,11 +171,11 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 	return errs
 }
 
-func (s *Scheduler) Register(_ context.Context, m manager.Manager) error {
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("scheduling").
 		For(&v1.Pod{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
-		Complete(s)
+		Complete(c)
 }

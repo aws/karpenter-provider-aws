@@ -22,6 +22,7 @@ import (
 	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
 	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
 	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
+	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
 	"github.com/awslabs/karpenter/pkg/test"
 	"github.com/awslabs/karpenter/pkg/utils/resources"
 
@@ -38,7 +39,7 @@ import (
 
 var ctx context.Context
 var controller *provisioning.Controller
-var scheduler *provisioning.Scheduler
+var scheduler *scheduling.Controller
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
@@ -52,7 +53,7 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
-		scheduler = provisioning.NewScheduler(e.Client, controller)
+		scheduler = scheduling.NewController(e.Client, controller)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
