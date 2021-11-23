@@ -132,11 +132,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alp
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	instanceTypes, err := c.instanceTypeProvider.Get(ctx, vendorConstraints)
-	if err != nil {
-		return nil, err
-	}
-	return c.instanceProvider.WithoutUnavailableOfferings(ctx, instanceTypes), nil
+	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -156,11 +152,11 @@ func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Cons
 func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to deserialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to deserialize provider, %s", err.Error())
 		return
 	}
 	vendorConstraints.Default(ctx)
 	if err := vendorConstraints.Serialize(constraints); err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to serialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err.Error())
 	}
 }

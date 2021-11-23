@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -78,7 +77,6 @@ var _ = BeforeSuite(func() {
 					securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
 					cache:                 launchTemplateCache,
 				},
-				cache.New(5*time.Second, 30*time.Second),
 			},
 			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}

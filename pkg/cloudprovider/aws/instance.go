@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/patrickmn/go-cache"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,27 +35,14 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
-
-const (
-	InsufficientCapacityErrorCacheOnDemandTTL     = 15 * time.Second
-	InsufficientCapacityErrorCacheSpotTTL         = 45 * time.Second
-	InsufficientCapacityErrorCacheCleanupInterval = 5 * time.Minute
-)
-
-type CachedZones struct {
-	zones            sets.String
-	initialCacheTime time.Time
-}
 
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
-	unavailableOfferings   *cache.Cache
 }
 
 func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, ssm *ssm.SSM,
@@ -67,7 +53,6 @@ func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceT
 			NewAMIProvider(ssm, clientSet),
 			NewSecurityGroupProvider(ec2api),
 		),
-		cache.New(-1, InsufficientCapacityErrorCacheCleanupInterval),
 	}
 }
 
@@ -133,40 +118,6 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// WithoutUnavailableOfferings will remove Offerings from the provided possible InstanceTypes based on recently observed
-// insufficient capacity errors, which will indirectly impact the packer to keep it from spending time on packings that are
-// likely to fail due to short-term EC2 capacity constraints.
-func (p *InstanceProvider) WithoutUnavailableOfferings(ctx context.Context, instanceTypes []InstanceType) []cloudprovider.InstanceType {
-	var cleanedInstanceTypes = []cloudprovider.InstanceType{}
-	for _, instanceType := range instanceTypes {
-		currInstanceType := instanceType
-		cpInstanceType := cloudprovider.InstanceType(&currInstanceType)
-		odIceZones, hasODIces := p.unavailableOfferings.Get(unavailableOfferingsCacheKey(instanceType.Name(), v1alpha1.CapacityTypeOnDemand))
-		spotIceZones, hasSpotIces := p.unavailableOfferings.Get(unavailableOfferingsCacheKey(instanceType.Name(), v1alpha1.CapacityTypeSpot))
-		if !hasODIces && !hasSpotIces {
-			cleanedInstanceTypes = append(cleanedInstanceTypes, cpInstanceType)
-			continue
-		}
-		cleanedOfferings := []cloudprovider.Offering{}
-		for _, offering := range currInstanceType.Offerings() {
-			if offering.CapacityType == v1alpha1.CapacityTypeOnDemand {
-				if !hasODIces || !odIceZones.(CachedZones).zones.Has(offering.Zone) {
-					cleanedOfferings = append(cleanedOfferings, offering)
-				}
-			} else {
-				if !hasSpotIces || !spotIceZones.(CachedZones).zones.Has(offering.Zone) {
-					cleanedOfferings = append(cleanedOfferings, offering)
-				}
-			}
-		}
-		if len(cleanedOfferings) > 0 {
-			instanceType.AvailableOfferings = cleanedOfferings
-			cleanedInstanceTypes = append(cleanedInstanceTypes, cpInstanceType)
-		}
-	}
-	return cleanedInstanceTypes
-}
-
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
 	// Default to on-demand unless constrained otherwise or if flexible to spot and
 	// on-demand. This code assumes two options: {spot, on-demand}, which is enforced
@@ -205,13 +156,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	insufficientCapacityOfferings := map[string]sets.String{}
-	for _, err := range createFleetOutput.Errors {
-		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
-			createOrAppendToMapValue(insufficientCapacityOfferings, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone))
-		}
-	}
-	p.updateUnavailableOfferingsCache(ctx, insufficientCapacityOfferings, capacityType)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
 	instanceIds := combineFleetInstances(*createFleetOutput)
 	if len(instanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
@@ -245,7 +190,9 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	return launchTemplateConfigs, nil
 }
 
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, constrainedZones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+// getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
+// zones and the offerings in instanceTypeOptions)
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
@@ -255,24 +202,25 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 			}
 			for _, subnet := range subnets {
 				subnetZone := aws.StringValue(subnet.AvailabilityZone)
-				if subnetZone == offering.Zone && constrainedZones.Has(subnetZone) {
-					override := &ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String(instanceType.Name()),
-						SubnetId:     subnet.SubnetId,
-						// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
-						// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
-						AvailabilityZone: subnet.AvailabilityZone,
-					}
-					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-					// to reduce the likelihood of getting an excessively large instance type.
-					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-					if capacityType == v1alpha1.CapacityTypeSpot {
-						override.Priority = aws.Float64(float64(i))
-					}
-					overrides = append(overrides, override)
-					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
-					break
+				if subnetZone != offering.Zone || !zones.Has(offering.Zone) {
+					continue
 				}
+				override := &ec2.FleetLaunchTemplateOverridesRequest{
+					InstanceType: aws.String(instanceType.Name()),
+					SubnetId:     subnet.SubnetId,
+					// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
+					// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
+					AvailabilityZone: subnet.AvailabilityZone,
+				}
+				// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+				// to reduce the likelihood of getting an excessively large instance type.
+				// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+				if capacityType == v1alpha1.CapacityTypeSpot {
+					override.Priority = aws.Float64(float64(i))
+				}
+				overrides = append(overrides, override)
+				// FleetAPI cannot span subnets from the same AZ, so break after the first one.
+				break
 			}
 		}
 	}
@@ -340,30 +288,15 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 	return nil, fmt.Errorf("unrecognized instance type %s", aws.StringValue(instance.InstanceType))
 }
 
-func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, offerings map[string]sets.String, capacityType string) {
-	cacheTTL := InsufficientCapacityErrorCacheSpotTTL
-	if capacityType == v1alpha1.CapacityTypeOnDemand {
-		cacheTTL = InsufficientCapacityErrorCacheOnDemandTTL
-	}
-
-	for instanceType, zones := range offerings {
-		cacheKey := unavailableOfferingsCacheKey(instanceType, capacityType)
-		logging.FromContext(ctx).Debugf("Saw %s for offering(s) { instanceType: %s, zone(s): %s, capacityType: %s }, avoiding for %s",
-			InsufficientCapacityErrorCode,
-			instanceType,
-			zones,
-			capacityType,
-			cacheTTL)
-		// because we don't track a cache TTL for each zone and don't remove individual zones from the cache we need to mitigate the risk of a zone
-		// staying in the cache indefinitely, so we will only append a zone to an existing cached entry within a certain time period (after expiry,
-		// we replace the whole cache entry and reset the clock on it)
-		if existingZones, exists := p.unavailableOfferings.Get(cacheKey); exists && existingZones.(CachedZones).initialCacheTime.UTC().Add(InsufficientCapacityErrorCacheCleanupInterval).Before(injectabletime.Now()) {
-			existingZones.(CachedZones).zones.Insert(zones.UnsortedList()...)
-			// though we're updating existingZones already, we still need to call Set to extend the cached entry's TTL
-			p.unavailableOfferings.Set(cacheKey, existingZones, cacheTTL)
-		} else {
-			p.unavailableOfferings.Set(cacheKey, CachedZones{zones: zones, initialCacheTime: injectabletime.Now()}, cacheTTL)
+func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
+	insufficientCapacityOfferings := map[string]sets.String{}
+	for _, err := range errors {
+		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
+			createOrAppendToMapValue(insufficientCapacityOfferings, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone))
 		}
+	}
+	if len(insufficientCapacityOfferings) > 0 {
+		p.instanceTypeProvider.TrackUnavailableOfferings(ctx, insufficientCapacityOfferings, capacityType)
 	}
 }
 
@@ -410,15 +343,11 @@ func combineReservations(reservations []*ec2.Reservation) []*ec2.Instance {
 	return instances
 }
 
-func unavailableOfferingsCacheKey(instanceType string, capacityType string) string {
-	return fmt.Sprintf("%s:%s", instanceType, capacityType)
-}
-
 func createOrAppendToMapValue(mapToUpdate map[string]sets.String, key string, newValue string) {
 	existingValueSet, hasValue := mapToUpdate[key]
 	if hasValue {
 		existingValueSet.Insert(newValue)
 	} else {
-		mapToUpdate[key] = sets.String{newValue: sets.Empty{}}
+		mapToUpdate[key] = sets.NewString(newValue)
 	}
 }
