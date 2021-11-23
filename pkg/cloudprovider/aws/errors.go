@@ -25,8 +25,11 @@ var (
 		"InvalidInstanceID.NotFound",
 		"InvalidLaunchTemplateName.NotFoundException",
 	}
-	iceErrorCode = "InsufficientInstanceCapacity"
 )
+
+// InsufficientCapacityErrorCode indicates that EC2 is temporarily lacking capacity for this
+// instance type and availability zone combination
+const InsufficientCapacityErrorCode = "InsufficientInstanceCapacity"
 
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
@@ -37,8 +40,4 @@ func isNotFound(err error) bool {
 		return functional.ContainsString(notFoundErrorCodes, awsError.Code())
 	}
 	return false
-}
-
-func isInsufficientCapacityCode(errorCode string) bool {
-	return errorCode == iceErrorCode
 }
