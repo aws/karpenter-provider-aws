@@ -49,7 +49,6 @@ func NewController(kubeClient client.Client) *Controller {
 
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	// Retrieve the provisioner
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
 		if !errors.IsNotFound(err) {
