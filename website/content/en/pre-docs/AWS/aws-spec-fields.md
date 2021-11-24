@@ -9,7 +9,7 @@ The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides tw
 - [`spec.requirements`](#specrequirements)
   - This section includues generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
 - [`spec.provider`](#specprovider)
-- This section defines constraints that are unique to AWS, such as SecurityGroups.
+  - This section defines constraints that are unique to AWS, such as SecurityGroups.
 
 Consider this requirement:
 ```
