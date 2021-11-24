@@ -31,11 +31,10 @@ import (
 )
 
 const (
-	instanceTypesCacheKey                         = "types"
-	instanceTypeZonesCacheKey                     = "zones"
-	instanceTypesAndZonesCacheTTL                 = 5 * time.Minute
-	InsufficientCapacityErrorCacheOnDemandTTL     = 15 * time.Second
-	InsufficientCapacityErrorCacheSpotTTL         = 45 * time.Second
+	InstanceTypesCacheKey                         = "types"
+	InstanceTypeZonesCacheKey                     = "zones"
+	InstanceTypesAndZonesCacheTTL                 = 5 * time.Minute
+	InsufficientCapacityErrorCacheTTL             = 45 * time.Second
 	InsufficientCapacityErrorCacheCleanupInterval = 5 * time.Minute
 )
 
@@ -53,8 +52,8 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 	return &InstanceTypeProvider{
 		ec2api:               ec2api,
 		subnetProvider:       subnetProvider,
-		cache:                cache.New(instanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-		unavailableOfferings: cache.New(-1, InsufficientCapacityErrorCacheCleanupInterval),
+		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+		unavailableOfferings: cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval),
 	}
 }
 
@@ -105,7 +104,7 @@ func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, subne
 }
 
 func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[string]sets.String, error) {
-	if cached, ok := p.cache.Get(instanceTypeZonesCacheKey); ok {
+	if cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
 		return cached.(map[string]sets.String), nil
 	}
 	zones := map[string]sets.String{}
@@ -122,13 +121,13 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[st
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered EC2 instance types zonal offerings")
-	p.cache.SetDefault(instanceTypeZonesCacheKey, zones)
+	p.cache.SetDefault(InstanceTypeZonesCacheKey, zones)
 	return zones, nil
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
 func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*InstanceType, error) {
-	if cached, ok := p.cache.Get(instanceTypesCacheKey); ok {
+	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
 		return cached.(map[string]*InstanceType), nil
 	}
 	instanceTypes := map[string]*InstanceType{}
@@ -150,7 +149,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
-	p.cache.SetDefault(instanceTypesCacheKey, instanceTypes)
+	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }
 
@@ -173,11 +172,6 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 // TrackUnavailableOfferings allows the InstanceProvider to communicate recently observed temporary capacity shortages in
 // the provided offerings
 func (p *InstanceTypeProvider) TrackUnavailableOfferings(ctx context.Context, offerings map[string]sets.String, capacityType string) {
-	cacheTTL := InsufficientCapacityErrorCacheSpotTTL
-	if capacityType == v1alpha1.CapacityTypeOnDemand {
-		cacheTTL = InsufficientCapacityErrorCacheOnDemandTTL
-	}
-
 	for instanceType, zones := range offerings {
 		for zone := range zones {
 			cacheKey := unavailableOfferingsCacheKey(capacityType, instanceType, zone)
@@ -186,9 +180,9 @@ func (p *InstanceTypeProvider) TrackUnavailableOfferings(ctx context.Context, of
 				instanceType,
 				zone,
 				capacityType,
-				cacheTTL)
+				InsufficientCapacityErrorCacheTTL)
 			// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-			p.unavailableOfferings.Set(cacheKey, struct{}{}, cacheTTL)
+			p.unavailableOfferings.SetDefault(cacheKey, struct{}{})
 		}
 	}
 }
