@@ -17,7 +17,7 @@ requirements:
   - key: "topology.kubernetes.io/zone"
     operator: In
     values: ["us-west-2a", "us-west-2b"]
-  ```
+```
 
 In response, Karpenter will provision nodes in only those availability zones. A podspec may *further specify* this with a NodeSelector requesting a specifically a label with the key of "topology.kubernetes.io/zone" and a value of "us-west-2b". However, the podspec (or another deployment resource) may not *override* the requiremnets set at the provisioner. 
 
