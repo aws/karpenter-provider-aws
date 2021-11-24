@@ -100,7 +100,6 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			},
 		}).
 		Watches(
-			// Reconcile provisioner state when a node managed by it is created or deleted.
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
 				if name, ok := o.GetLabels()[v1alpha5.ProvisionerNameLabelKey]; ok {
