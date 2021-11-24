@@ -17,6 +17,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/utils/pod"
@@ -70,7 +71,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := c.Schedule(ctx, pod); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to schedule, %s", err.Error())
 	}
-	return reconcile.Result{Requeue: true}, nil
+	return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 }
 
 func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
