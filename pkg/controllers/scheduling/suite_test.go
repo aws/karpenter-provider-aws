@@ -702,6 +702,39 @@ var _ = Describe("Taints", func() {
 	})
 })
 
+var _ = Describe("Multiple Provisioners", func() {
+	It("should schedule to an explicitly selected provisioner", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "provisioner2"
+		ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+			test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner2.Name}}),
+		)[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
+	It("should schedule to a provisioner by labels", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "provisioner2"
+		provisioner2.Spec.Labels = map[string]string{"foo": "bar"}
+		provisioner.Spec.Labels = map[string]string{"foo": "baz"}
+		ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+			test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
+		)[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
+	It("should prioritize provisioners alphabetically if multiple match", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "aaaaaaaaa"
+		ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
+})
+
 func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
 	for i := 0; i < count; i++ {
 		pods = append(pods, test.UnschedulablePod(options))

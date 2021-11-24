@@ -15,6 +15,7 @@ package provisioning
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -140,13 +141,14 @@ func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Pr
 	return hashKeyOld != hashKeyNew
 }
 
-// List the active provisioners
+// List active provisioners in order of priority
 func (c *Controller) List(ctx context.Context) []*Provisioner {
 	provisioners := []*Provisioner{}
 	c.provisioners.Range(func(key, value interface{}) bool {
 		provisioners = append(provisioners, value.(*Provisioner))
 		return true
 	})
+	sort.Slice(provisioners, func(i, j int) bool { return provisioners[i].Name < provisioners[j].Name })
 	return provisioners
 }
 
