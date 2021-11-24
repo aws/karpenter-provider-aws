@@ -22,7 +22,7 @@ The getting started guide covers [configuring EKS to accept newly provisioned in
 
 ### Minimum Kubernetes Version
 
-Karpenter supports the [same set of Kubernetes versions as EKS supports](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) for new clusters. Karpenter strongly encourages a posture of promptly adopting new versions of Kubernetes.
+Karpenter supports the [same set of Kubernetes versions as EKS supports](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) for new clusters. Karpenter strongly encourages promptly adopting new versions of Kubernetes.
 
 ### Service Account
     - `Karpenter` Service Account
@@ -56,7 +56,7 @@ Generally, Karpenter needs to authenticate with the AWS EC2 API to create new in
 
 Karpenter may alternatively be configured to authenticate with AWS using the `kube2iam` package, or with locally stored Access Keys. Both practices are discouraged. 
 
-The provisioned instances must comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the cloudformation template](../getting-started/cloudformation.yaml).
+The provisioned instances must have comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the cloudformation template](../getting-started/cloudformation.yaml).
 
 ### Tagged Subnets
 
