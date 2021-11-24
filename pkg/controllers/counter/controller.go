@@ -58,18 +58,15 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	persisted := provisioner.DeepCopy()
-
 	// Determine resource usage and update provisioner.status.resources
 	resourceCounts, err := c.resourceCountsFor(ctx, provisioner.Name)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
 	provisioner.Status.Resources = resourceCounts
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to persist changes to %s, %w", req.NamespacedName, err)
 	}
-
 	return reconcile.Result{}, nil
 }
 
@@ -78,10 +75,8 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 	if err := c.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: provisionerName}); err != nil {
 		return nil, err
 	}
-
 	var cpu = resource.NewScaledQuantity(0, 0)
 	var memory = resource.NewScaledQuantity(0, resource.Giga)
-
 	for _, node := range nodes.Items {
 		cpu.Add(*node.Status.Capacity.Cpu())
 		memory.Add(*node.Status.Capacity.Memory())
@@ -90,7 +85,6 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 		v1.ResourceCPU:    *cpu,
 		v1.ResourceMemory: *memory,
 	}, nil
-
 }
 
 // Register the controller to the manager

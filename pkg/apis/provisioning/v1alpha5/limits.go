@@ -15,8 +15,6 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"fmt"
-
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -24,15 +22,4 @@ import (
 type Limits struct {
 	// Resources contains all the allocatable resources that Karpenter supports for limiting.
 	Resources v1.ResourceList `json:"resources,omitempty"`
-}
-
-func (p *Provisioner) HasExceededResources() error {
-	for resourceName, usage := range p.Status.Resources {
-		if limit, ok := p.Spec.Limits.Resources[resourceName]; ok {
-			if usage.Cmp(limit) >= 0 {
-				return fmt.Errorf("resource limit %s exceeded", resourceName)
-			}
-		}
-	}
-	return nil
 }

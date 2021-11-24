@@ -98,7 +98,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		With(requirements(instanceTypes)).
 		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
-	if currentProvisioner, ok := c.provisioners.Load(provisioner.Name); ok && c.areEqual(currentProvisioner.(*Provisioner).Spec, provisioner.Spec) {
+	if !c.hasChanged(ctx, provisioner) {
 		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
 		return nil
 	}
@@ -122,10 +122,21 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	return nil
 }
 
-func (c *Controller) areEqual(provisionerSpecOld v1alpha5.ProvisionerSpec, provisionerSpecNew v1alpha5.ProvisionerSpec) bool {
-	hashKeyOld, _ := hashstructure.Hash(provisionerSpecOld, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	hashKeyNew, _ := hashstructure.Hash(provisionerSpecNew, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	return hashKeyOld == hashKeyNew
+// Returns true if the new candidate provisioner is different than the provisioner in memory.
+func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Provisioner) bool {
+	oldProvisioner, _ := c.provisioners.Load(provisionerNew.Name)
+	if oldProvisioner == nil {
+		return true
+	}
+	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err.Error())
+	}
+	hashKeyNew, err := hashstructure.Hash(provisionerNew.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err.Error())
+	}
+	return hashKeyOld != hashKeyNew
 }
 
 // List the active provisioners

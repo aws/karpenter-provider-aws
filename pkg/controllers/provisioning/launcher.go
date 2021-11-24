@@ -51,13 +51,9 @@ func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner
 
 	// Pack and bind pods
 	errs := make([]error, len(schedules))
-	provisioner, err := l.updateState(ctx, provisioner)
-	if err != nil {
-		return fmt.Errorf("unable to determine status of provisioner")
-	}
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range l.Packer.Pack(ctx, schedules[index], instanceTypes) {
-			if err := provisioner.HasExceededResources(); err != nil {
+			if err := l.verifyResourceLimits(ctx, provisioner); err != nil {
 				errs[index] = multierr.Append(errs[index], err)
 				continue
 			}
@@ -122,12 +118,19 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 	return nil
 }
 
-func (l *Launcher) updateState(ctx context.Context, provisioner *v1alpha5.Provisioner) (*v1alpha5.Provisioner, error) {
-	provisionerCopy := &v1alpha5.Provisioner{}
-	if err := l.KubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}, provisionerCopy); err != nil {
-		return nil, err
+func (l *Launcher) verifyResourceLimits(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
+	provisionerLatest := &v1alpha5.Provisioner{}
+	if err := l.KubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}, provisionerLatest); err != nil {
+		return err
 	}
-	return provisionerCopy, nil
+	for resourceName, usage := range provisionerLatest.Status.Resources {
+		if limit, ok := provisionerLatest.Spec.Limits.Resources[resourceName]; ok {
+			if usage.Cmp(limit) >= 0 {
+				return fmt.Errorf("%s resource usage of %v exceeds limit of %v", resourceName, usage.AsDec(), limit.AsDec())
+			}
+		}
+	}
+	return nil
 }
 
 var bindTimeHistogram = prometheus.NewHistogramVec(
