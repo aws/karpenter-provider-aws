@@ -63,8 +63,6 @@ spec:
         node.kubernetes.io/instance-type: m5.large
 ```
 
-[[confirm: can this value not be in the set defined in the provisioner?]]
-
 ### Availability Zones
 
 `topology.kubernetes.io/zone=us-east-1c`
