@@ -125,8 +125,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 
 // Returns true if the new candidate provisioner is different than the provisioner in memory.
 func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Provisioner) bool {
-	oldProvisioner, _ := c.provisioners.Load(provisionerNew.Name)
-	if oldProvisioner == nil {
+	oldProvisioner, ok := c.provisioners.Load(provisionerNew.Name)
+	if !ok {
 		return true
 	}
 	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})

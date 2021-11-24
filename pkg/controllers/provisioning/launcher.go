@@ -47,13 +47,12 @@ type Launcher struct {
 
 func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner, schedules []*scheduling.Schedule,
 	instanceTypes []cloudprovider.InstanceType) error {
-
 	// Pack and bind pods
 	errs := make([]error, len(schedules))
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range l.Packer.Pack(ctx, schedules[index], instanceTypes) {
 			if err := l.verifyResourceLimits(ctx, provisioner); err != nil {
-				errs[index] = multierr.Append(errs[index], err)
+				errs[index] = multierr.Append(errs[index], fmt.Errorf("verifying limits, %w", err))
 				continue
 			}
 			// Create thread safe channel to pop off packed pod slices
@@ -120,7 +119,7 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 func (l *Launcher) verifyResourceLimits(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
 	latest := &v1alpha5.Provisioner{}
 	if err := l.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), latest); err != nil {
-		return err
+		return fmt.Errorf("getting current resource usage, %w", err)
 	}
 	return provisioner.Spec.Limits.ExceededBy(latest.Status.Resources)
 }
