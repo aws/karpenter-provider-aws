@@ -54,7 +54,7 @@ data".](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-
 In the default configuration, Karpenter uses an EKS optimized version of AL2 and passes the hostname of the Kubernetes API server, and a certificate. The EKS Optimized AMI includes a `bootstrap.sh` script which connects the instance to the cluster, based on the passed data.
 
 Alternatively, you may reference AWS's [`bootstrap.sh`
-file](https://github.com/aws/amazon-eks-ami/blob/master/files/bootstrap.sh)
+file](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh)
 when building a custom base image.
 
 ```
