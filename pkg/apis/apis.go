@@ -16,7 +16,7 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/webhook/resourcesemantics"

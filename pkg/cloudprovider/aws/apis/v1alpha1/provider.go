@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

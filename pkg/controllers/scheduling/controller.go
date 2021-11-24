@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
-	"github.com/awslabs/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

@@ -17,7 +17,7 @@ package injection
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/options"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 )

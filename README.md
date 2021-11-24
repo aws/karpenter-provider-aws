@@ -1,8 +1,8 @@
-![Build Status](https://img.shields.io/github/workflow/status/awslabs/karpenter/CI/main)
-![GitHub stars](https://img.shields.io/github/stars/awslabs/karpenter)
-![GitHub forks](https://img.shields.io/github/forks/awslabs/karpenter)
-[![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/awslabs/karpenter/blob/main/LICENSE)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/awslabs/karpenter/issues)
+![Build Status](https://img.shields.io/github/workflow/status/aws/karpenter/CI/main)
+![GitHub stars](https://img.shields.io/github/stars/aws/karpenter)
+![GitHub forks](https://img.shields.io/github/forks/aws/karpenter)
+[![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/aws/karpenter/blob/main/LICENSE)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/aws/karpenter/issues)
 
 ![](website/static/banner.png)
 > **Note**: Karpenter is in active development and should be considered **pre-production** software. Backwards incompatible API changes are possible in future releases and support is best-effort by the Karpenter community.
@@ -38,7 +38,7 @@ Follow the setup recommendations of your cloud provider.
 - [AWS](https://karpenter.sh/docs/getting-started/)
 
 > ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
-> - Check the [release notes](https://github.com/awslabs/karpenter/releases)
+> - Check the [release notes](https://github.com/aws/karpenter/releases)
 > - Uninstall Karpenter
 > - Remove all nodes launched by karpenter
 > - Reinstall Karpenter

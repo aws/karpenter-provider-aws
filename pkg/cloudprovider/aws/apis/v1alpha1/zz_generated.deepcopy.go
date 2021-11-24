@@ -20,7 +20,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

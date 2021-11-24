@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/awslabs/karpenter/pkg/utils/env"
+	"github.com/aws/karpenter/pkg/utils/env"
 	"go.uber.org/multierr"
 )
 

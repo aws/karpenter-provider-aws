@@ -17,7 +17,7 @@ package metrics
 import (
 	"strings"
 
-	"github.com/awslabs/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"

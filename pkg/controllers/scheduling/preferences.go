@@ -20,7 +20,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
