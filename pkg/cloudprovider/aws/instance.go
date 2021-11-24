@@ -250,6 +250,11 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 						v1.ResourceCPU:    *instanceType.CPU(),
 						v1.ResourceMemory: *instanceType.Memory(),
 					},
+					Capacity: v1.ResourceList{
+						v1.ResourcePods:   *instanceType.Pods(),
+						v1.ResourceCPU:    *instanceType.CPU(),
+						v1.ResourceMemory: *instanceType.Memory(),
+					},
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),

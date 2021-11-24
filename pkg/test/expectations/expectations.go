@@ -84,6 +84,12 @@ func ExpectApplied(c client.Client, objects ...client.Object) {
 	}
 }
 
+func ExpectStatusUpdated(c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
+	}
+}
+
 func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
@@ -103,7 +109,7 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		persisted := object.DeepCopyObject()
 		object.SetFinalizers([]string{})
-		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted))).To(Succeed())
+		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
 		if err := c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			Expect(err).To(BeNil())
 		}
@@ -145,6 +151,7 @@ func ExpectCleanedUp(c client.Client) {
 func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(c, provisioner)
+	ExpectStatusUpdated(c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}

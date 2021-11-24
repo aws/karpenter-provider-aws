@@ -35,6 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 // Controller for the resource
@@ -97,6 +98,10 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		With(requirements(instanceTypes)).
 		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
+	if !c.hasChanged(ctx, provisioner) {
+		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
+		return nil
+	}
 	ctx, cancelFunc := context.WithCancel(ctx)
 	p := &Provisioner{
 		Provisioner:   provisioner,
@@ -116,6 +121,23 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		existing.(*Provisioner).Stop()
 	}
 	return nil
+}
+
+// Returns true if the new candidate provisioner is different than the provisioner in memory.
+func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Provisioner) bool {
+	oldProvisioner, ok := c.provisioners.Load(provisionerNew.Name)
+	if !ok {
+		return true
+	}
+	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err.Error())
+	}
+	hashKeyNew, err := hashstructure.Hash(provisionerNew.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err.Error())
+	}
+	return hashKeyOld != hashKeyNew
 }
 
 // List the active provisioners
