@@ -103,10 +103,7 @@ func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
 }
 
 func isProvisionable(p *v1.Pod) bool {
-	if p.Spec.NodeName != "" || !pod.FailedToSchedule(p) || pod.IsOwnedByDaemonSet(p) || pod.IsOwnedByNode(p) {
-		return false
-	}
-	return true
+	return p.Spec.NodeName == "" && pod.FailedToSchedule(p) && !pod.IsOwnedByDaemonSet(p) && !pod.IsOwnedByNode(p)
 }
 
 func validate(p *v1.Pod) error {

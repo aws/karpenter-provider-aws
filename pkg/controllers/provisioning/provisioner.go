@@ -120,7 +120,7 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 	idle := time.NewTimer(MinBatchDuration)
 	start := time.Now()
 	defer func() {
-		pods = p.RemoveScheduled(ctx, pods)
+		pods = p.FilterProvisionable(ctx, pods)
 		logging.FromContext(ctx).Infof("Batched %d pods in %s", len(pods), time.Since(start))
 	}()
 	for {
@@ -141,16 +141,16 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 	}
 }
 
-// RemoveScheduled removes pods that have been assigned a node.
+// FilterProvisionable removes pods that have been assigned a node.
 // This check is needed to prevent duplicate binds when a pod is scheduled to a node
 // between the time it was ingested into the scheduler and the time it is included
 // in a provisioner batch.
-func (p *Provisioner) RemoveScheduled(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
+func (p *Provisioner) FilterProvisionable(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
 	unscheduled := []*v1.Pod{}
 	for _, pod := range pods {
 		candidate := pod
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, candidate); err != nil {
-			logging.FromContext(ctx).Errorf("Checking if pod \"%s\" is provisionable", pod)
+			logging.FromContext(ctx).Errorf("Unexpected error retrieving pod \"%s/%s\" while checking if it is provisionable", pod.Namespace, pod.Name)
 		}
 		if !isProvisionable(candidate) {
 			continue
