@@ -1,4 +1,4 @@
-module github.com/awslabs/karpenter
+module github.com/aws/karpenter
 
 go 1.17
 

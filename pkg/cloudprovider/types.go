@@ -17,7 +17,7 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"

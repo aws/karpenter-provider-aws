@@ -1,7 +1,7 @@
 # See https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 run:
   tests: false
-  
+
   timeout: 5m
 
   build-tags:
@@ -30,4 +30,4 @@ linters:
 
   linters-settings:
     gci:
-      local-prefixes: github.com/awslabs/karpenter
+      local-prefixes: github.com/aws/karpenter

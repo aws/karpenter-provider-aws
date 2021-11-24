@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/awslabs/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"knative.dev/pkg/apis"
 )
 

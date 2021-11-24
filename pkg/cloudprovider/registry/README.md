@@ -5,7 +5,7 @@ This package enables cloud providers to embed themselves into the Karpenter bina
 ```
 // +build <YOUR_PROVIDER_NAME>
 import (
-	"github.com/awslabs/karpenter/pkg/cloudprovider/<YOUR_PROVIDER_NAME>"
+	"github.com/aws/karpenter/pkg/cloudprovider/<YOUR_PROVIDER_NAME>"
 )
 
 func NewCloudProvider() cloudprovider.CloudProvider {

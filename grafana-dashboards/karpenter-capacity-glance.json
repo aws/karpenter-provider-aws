@@ -77,7 +77,7 @@
       },
       "id": 39,
       "options": {
-        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays current counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/awslabs/karpenter/issues/new?labels=dashboard).",
+        "content": "Displays information about the Nodes associated with provisioner \"$provisioner\".  The *Overview* row displays current counts across all zones.  Rows with zone specific counts will automatically be added for each observed zone within the selected time range.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/aws/karpenter/issues/new?labels=dashboard).",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.6",

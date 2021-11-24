@@ -16,7 +16,7 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 var (

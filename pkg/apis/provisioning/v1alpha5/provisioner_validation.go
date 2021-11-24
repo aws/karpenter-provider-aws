@@ -23,8 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
 
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var (

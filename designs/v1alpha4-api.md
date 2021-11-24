@@ -15,7 +15,7 @@ Cloud Providers are currently limited to using well known `spec.labels` for conf
 One benefit of this approach is that pods may use corresponding `spec.nodeSelector[...]` to request additional constraints on provisioned nodes. This information must be communicated through Kubernetes label values, which is awkward for the following use cases:
 1. Parameters are a list (e.g. `subnets: ["subneta", "subnetb", "subnetc"]`)
 2. Parameters are a struct (e.g. `tags: { "foo" : "bar" }`)
-3. Parameters do not comply with [the label value character set](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set). See: [#646](https://github.com/awslabs/karpenter/issues/646).
+3. Parameters do not comply with [the label value character set](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set). See: [#646](https://github.com/aws/karpenter/issues/646).
 
 We introduce a new `provider` field that enables strongly typed vendor specific parameters without violating vendor neutrality principles in the Karpenter codebase. We leverage Kubernetes `runtime.RawExtensions` to encapsulate these fields as raw bytes, which are then unmarshaled in vendor specific code. Vendors may implement arbitrary validation, defaulting, and provisioning behavior over the entire structure of these extensions. These structures are versioned separately from the Provisioner GVK to enable Cloud Providers to make backwards incompatible changes to provider specific configuration without requiring a version bump to the Provisioner CRD. If versioning is not specified by the user, it will be inferred and defaulted.
 
