@@ -81,7 +81,7 @@ In some situations, EKS may automatically apply this tag to subnets. Do not rely
 
 ### `eksctl`
 
-The getting started guide uses `eksctl`. This tool is officially supported and sponsored by AWS. However, equivalent EKS clusters may be created using CloudFormation, Terraform, or even the web console. 
+The getting started guide uses [`eksctl`](https://eksctl.io). This tool is officially supported and sponsored by AWS. However, equivalent EKS clusters may be created using CloudFormation, Terraform, or even the web console. 
 
 
 The ["cluster.yaml" file](../getting-started/#create-a-cluster) provides a suitable `eksctl` cluster configuration for Karpenter, including an OIDC provider for IAM (a requirement for IRSA). 
