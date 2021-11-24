@@ -12,7 +12,9 @@ This guide describes how Karpenter interacts with external resources, and modifi
 
 ### Cluster on AWS
 
-Currently, Karpenter creates nodes (EC2 Instances) through the AWS cloud provider module, the only such module implemented. Clusters on other cloud providers are contemplated, but are not currently supported. 
+Karpenter creates nodes (EC2 Instances) through the AWS cloud provider, the only such module implemented.
+Node provisioning on other providers is not currently supported.
+If you would like to use Karpenter with other infrastructure providers please open an issue to let us know your use case.
 
 Theoretically, a control plane could be hosted separately from Karpenter provisioned AWS instances. However, this complicates identity and authorization substantially. The Karpenter controller (i.e., agent) would need authorization with AWS APIs to provision new instances, and permissions with the control plane to add the new nodes. 
 
@@ -22,7 +24,10 @@ The getting started guide covers [configuring EKS to accept newly provisioned in
 
 ### Minimum Kubernetes Version
 
-Karpenter supports the [same set of Kubernetes versions as EKS supports](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) for new clusters. Karpenter strongly encourages promptly adopting new versions of Kubernetes.
+Karpenter supports the [same versions of Kubernetes as EKS](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html).
+You can also use Karpenter with non-EKS clusters so long as you configure the correct IAM permissions and use a supported Kubernetes version.
+Karpenter strongly encourages promptly adopting new versions of Kubernetes as new constraints and node features are added regularly.
+
 
 ### Service Account
     - `Karpenter` Service Account
@@ -52,11 +57,19 @@ rules:
 - `Karpenter` Role
 - `KarpenterNode` Role
 
-Generally, Karpenter needs to authenticate with the AWS EC2 API to create new instances. This is best done with IRSA, IAM Roles for Service Accounts. IRSA naturally extends the `Karpenter` service account to handle interacting with AWS APIs. The getting started guide describes creating a cluster service account mapped to an IAM role with sufficient permissions. 
+Karpenter needs to authenticate with the AWS EC2 API to create and delete instances.
+It is recommended to do this with [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+The getting started guide describes creating a cluster service account mapped to an IAM role with sufficient permissions. 
+
 
 Karpenter may alternatively be configured to authenticate with AWS using the `kube2iam` package, or with locally stored Access Keys. Both practices are discouraged. 
 
+<<<<<<< HEAD:website/content/en/pre-docs/deployment-guide/_index.md
 The provisioned instances must have comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the cloudformation template](../getting-started/cloudformation.yaml).
+=======
+The provisioned instances must comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the CloudFormation template](../getting-started/cloudformation.yaml).
+
+>>>>>>> 886d3a1 (Apply suggestions from code review):website/content/en/pre-docs/deploy-guide/_index.md
 
 ### Tagged Subnets
 
@@ -70,9 +83,11 @@ In some situations, EKS may automatically apply this tag to subnets. Do not rely
 
 ### `eksctl`
 
-The getting started guide uses `eksctl`. This tool is officially supported and sponsored by AWS. However, equivalent EKS clusters may be created using CloudFormation, or even the web console. 
+The getting started guide uses `eksctl`. This tool is officially supported and sponsored by AWS. However, equivalent EKS clusters may be created using CloudFormation, Terraform, or even the web console. 
 
-The ["cluster.yaml" file](../getting-started/#create-a-cluster) provides does succinctly describe a suitable EKS cluster for Karpenter, including an OIDC provider for IAM (the infrastructure for IRSA). 
+
+The ["cluster.yaml" file](../getting-started/#create-a-cluster) provides a suitable `eksctl` cluster configuration for Karpenter, including an OIDC provider for IAM (a requirement for IRSA). 
+
 
 `eksctl` also handles interconnecting Kubernetes RBAC and AWS IAM. For example, associating the `karpenter` service account with an IAM role for creating instances. 
 
@@ -133,7 +148,8 @@ Some important fields are:
 ## Mutations of Kubernetes Behavior
 Note: This section is an incomplete draft.
 
-- `k delete node`
+- `kubectl delete node`
+
     - Deleting a karpenter managed node triggers deprovisioning of the cloud instance.
 - High amount of pods on a single node
     - Karpenter often decides to use a large instance, and pack many pods onto the instance. 
