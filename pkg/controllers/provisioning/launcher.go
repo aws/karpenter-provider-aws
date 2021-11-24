@@ -31,7 +31,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -119,18 +118,11 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 }
 
 func (l *Launcher) verifyResourceLimits(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
-	provisionerLatest := &v1alpha5.Provisioner{}
-	if err := l.KubeClient.Get(ctx, types.NamespacedName{Name: provisioner.Name, Namespace: provisioner.Namespace}, provisionerLatest); err != nil {
+	latest := &v1alpha5.Provisioner{}
+	if err := l.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), latest); err != nil {
 		return err
 	}
-	for resourceName, usage := range provisionerLatest.Status.Resources {
-		if limit, ok := provisioner.Spec.Limits.Resources[resourceName]; ok {
-			if usage.Cmp(limit) >= 0 {
-				return fmt.Errorf("%s resource usage of %v exceeds limit of %v", resourceName, usage.AsDec(), limit.AsDec())
-			}
-		}
-	}
-	return nil
+	return provisioner.Spec.Limits.ExceededBy(latest.Status.Resources)
 }
 
 var bindTimeHistogram = prometheus.NewHistogramVec(

@@ -15,6 +15,8 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
@@ -30,4 +32,15 @@ func (l *Limits) validateResourceLimits() (errs *apis.FieldError) {
 		return errs.Also(apis.ErrInvalidValue("cannot be empty", "limits"))
 	}
 	return errs
+}
+
+func (l *Limits) ExceededBy(resources v1.ResourceList) error {
+	for resourceName, usage := range resources {
+		if limit, ok := l.Resources[resourceName]; ok {
+			if usage.Cmp(limit) >= 0 {
+				return fmt.Errorf("%s resource usage of %v exceeds limit of %v", resourceName, usage.AsDec(), limit.AsDec())
+			}
+		}
+	}
+	return nil
 }
