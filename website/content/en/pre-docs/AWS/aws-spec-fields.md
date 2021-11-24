@@ -4,14 +4,12 @@ linkTitle: "Constraints"
 weight: 10
 ---
 
-The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) supports defining general node properties, like lables or taints. For certain well-known labels (documented below), Karpenter controls AWS behavior. 
+The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides two sections for constraining nodes. 
 
-Provisioner CRD sections:
-* labels/taints (not desc here, don't require cloud provider implementation)
-* [spec.requirements](#specrequirements)
-* [spec.provider](#specprovider)
-
-[[revise preceeding content]]
+- [`spec.requirements`](#specrequirements)
+  - This section includues generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
+- [`spec.provider`](#specprovider)
+- This section defines constraints that are unique to AWS, such as SecurityGroups.
 
 Consider this requirement:
 ```
