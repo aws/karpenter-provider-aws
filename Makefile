@@ -2,7 +2,7 @@ RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
+LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
@@ -52,8 +52,8 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
-		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
+		--set controller.image=ko://github.com/aws/karpenter/cmd/controller \
+		--set webhook.image=ko://github.com/aws/karpenter/cmd/webhook \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster

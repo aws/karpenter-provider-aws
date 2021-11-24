@@ -66,7 +66,7 @@ anchor = "smart"
 [params]
 copyright = "Amazon.com, Inc. or its affiliates."
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
-github_repo = "https://github.com/awslabs/karpenter"
+github_repo = "https://github.com/aws/karpenter"
 # Specify a value here if your content directory is not in your repo's root directory
 github_subdir = "website"
 github_branch= "main"
@@ -114,7 +114,7 @@ footer_about_disable = true
 # Developer relevant links. These will show up on right side of footer and in the community page if you have one.
 [[params.links.developer]]
   name = "GitHub"
-  url = "https://github.com/awslabs/karpenter"
+  url = "https://github.com/aws/karpenter"
   icon = "fab fa-github"
   desc = "Development takes place here!"
 [[params.links.developer]]
@@ -127,7 +127,7 @@ footer_about_disable = true
 [[menu.main]]
 name = "GitHub"
 weight = 99
-url = "https://github.com/awslabs/karpenter"
+url = "https://github.com/aws/karpenter"
 pre = "<i class='fab fa-github'></i>"
 
 # Add your release versions here

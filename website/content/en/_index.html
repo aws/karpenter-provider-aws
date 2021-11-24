@@ -11,12 +11,12 @@ linkTitle = "Home"
     <a class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="{{< relref "docs/getting-started" >}}">
       Get Started
     </a>
-    <a id="github-counter" class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="https://github.com/awslabs/karpenter">
+    <a id="github-counter" class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="https://github.com/aws/karpenter">
       <i class="fab fa-github"></i>
       GitHub
     </a>
     <script>
-      url = "https://api.github.com/repos/awslabs/karpenter"
+      url = "https://api.github.com/repos/aws/karpenter"
       fetch(url).then(function(response) {
         return response.json();
       }).then(function(data) {
@@ -26,7 +26,7 @@ linkTitle = "Home"
         element.innerHTML = `<i class="fab fa-github"></i> Stars on Github: ${stars}`;
       })
     </script>
-    
+
   </div>
 </div>
 {{< /blocks/cover >}}
@@ -66,14 +66,14 @@ linkTitle = "Home"
     Karpenter is Open Source Software
   </h2>
   <p class="mx-auto mt-5 col-sm-10 lead">
-    Karpenter is licensed under the permissive <a href="https://github.com/awslabs/karpenter/blob/main/LICENSE">Apache License 2.0</a>.
+    Karpenter is licensed under the permissive <a href="https://github.com/aws/karpenter/blob/main/LICENSE">Apache License 2.0</a>.
     It is designed to work with any Kubernetes cluster running in any environment, including all major cloud providers and on-premises environments.
   </p>
   <p class="mx-auto mt-5 col-sm-10 lead">
     Have an idea for a feature or found something that could work better?
-    Create a <a href="https://github.com/awslabs/karpenter/issues/new/choose">GitHub issue</a> and tell us about it.
+    Create a <a href="https://github.com/aws/karpenter/issues/new/choose">GitHub issue</a> and tell us about it.
   </p>
-  <a class="btn btn-lg btn-dark col-sm-3 mt-3 mr-sm-3 font-weight-bold" href="https://github.com/awslabs/karpenter">
+  <a class="btn btn-lg btn-dark col-sm-3 mt-3 mr-sm-3 font-weight-bold" href="https://github.com/aws/karpenter">
     <i class="fab fa-github pr-3"></i> Get involved
   </a>
 {{< /blocks/lead >}}

@@ -22,9 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -74,7 +74,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, constraints *v1alpha1.Co
 	// Convert to cloudprovider.InstanceType
 	result := []cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		//TODO filter out possible zones and capacity types using an ICE cache https://github.com/awslabs/karpenter/issues/371
+		//TODO filter out possible zones and capacity types using an ICE cache https://github.com/aws/karpenter/issues/371
 		offerings := []cloudprovider.Offering{}
 		for zone := range subnetZones.Intersection(instanceTypeZones[instanceType.Name()]) {
 			// while usage classes should be a distinct set, there's no guarantee of that

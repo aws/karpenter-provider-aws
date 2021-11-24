@@ -51,8 +51,7 @@ spec:
                   node.
                 type: object
               limits:
-                description: Limits define a set of bounds that Karpenter obeys when
-                  provisioning capacity.
+                description: Limits define a set of bounds for provisioning capacity.
                 properties:
                   resources:
                     additionalProperties:

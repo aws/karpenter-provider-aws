@@ -2,6 +2,8 @@
 title: "FAQs"
 linkTitle: "FAQs"
 weight: 30
+description: >
+  Frequently Asked Questions about Karpenter
 ---
 
 ## General

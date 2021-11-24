@@ -1,8 +1,10 @@
 ---
-title: "Provisioner CRD"
-linkTitle: "Provisioner CRD"
+title: "API (Provisioner CRD)"
+linkTitle: "API (Provisioner CRD)"
 weight: 40
 date: 2017-01-05
+description: >
+  Provisioner CRD reference page
 ---
 
 ## Example Provisioner Resource
