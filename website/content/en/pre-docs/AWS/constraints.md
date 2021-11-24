@@ -155,8 +155,6 @@ be used for critical workloads that do not tolerate interruptions.
 
 Set this value to "on-demand" to prevent critical workloads from being interrupted.
 
-[[note: I'm still very uneasy with this policy. I thought the AWS offical line was that spot is not for "cheaper EC2" but only for "workloads that are only feasible reasonable to run at lower prices" and "you shouldn't expect to get a new on-demand EC2 instance when a spot one is terminated, because we just told you capacity is constrained".]]
-
 **Example**
 
 *Set Default with provisioner.yaml*
@@ -229,14 +227,21 @@ spec:
 
 Select subnets by name:
 ```
- subnetSelector:
-   Name: subnet-0fcd7006b3754e95e
+  subnetSelector:
+    Name: subnet-0fcd7006b3754e95e
 ```
 
-Select subnets by name using a wildcard:
+Select subnets by an arbitary AWS tag key/value pair:
 ```
- subnetSelector:
-   Name: *public*
+  subnetSelector:
+    MySubnetTag: value
+
+Select subnets using wildcards:
+```
+  subnetSelector:
+    Name: *public* 
+    MySubnetTag: '' # all resources with this tag
+
 ```
 
 ### SecurityGroupSelector
@@ -244,6 +249,8 @@ Select subnets by name using a wildcard:
 Karpenter uses the EKS default security group, unless another is specified. The security group of an instance is comperable to a set of firewall rules.
 
 EKS creates at least two security groups, review the documentation for more info.
+
+Security Groups may be specified by AWS tag, or by name. Either approach supports wildcards. 
 
 Each instance gets *all* of the listed security groups.
 
@@ -257,10 +264,11 @@ spec:
       kubernetes.io/cluster/MyKarpenterSecurityGroups: '*'
 ```
 
-Select security groups by name:
+Select security groups by name, or another tag:
 ```
- subnetSelector:
+ securityGroupSSelector:
    Name: sg-01077157b7cf4f5a8
+   MySecurityTag: '' # matches all resources with the tag
 ```
 
 Select security groups by name using a wildcard:
