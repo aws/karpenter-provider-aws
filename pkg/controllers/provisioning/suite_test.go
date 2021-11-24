@@ -149,9 +149,7 @@ var _ = Describe("Provisioning", func() {
 					},
 				}
 				provisioner.Spec.Limits.Resources[v1.ResourceCPU] = resource.MustParse("20")
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
-					test.PodOptions{},
-				))[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 		})
