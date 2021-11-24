@@ -141,6 +141,20 @@ var _ = Describe("Provisioning", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 			}
 		})
+		Context("Resource Limits", func() {
+			It("should not schedule when limits are exceeded", func() {
+				provisioner.Status = v1alpha5.ProvisionerStatus{
+					Resources: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("100"),
+					},
+				}
+				provisioner.Spec.Limits.Resources[v1.ResourceCPU] = resource.MustParse("20")
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+					test.PodOptions{},
+				))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+		})
 		Context("Daemonsets and Node Overhead", func() {
 			It("should account for overhead", func() {
 				ExpectCreated(env.Client, test.DaemonSet(
