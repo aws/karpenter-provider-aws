@@ -16,10 +16,18 @@ package v1alpha5
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/apis"
 )
 
 // Limits define bounds on the resources being provisioned by Karpenter
 type Limits struct {
 	// Resources contains all the allocatable resources that Karpenter supports for limiting.
 	Resources v1.ResourceList `json:"resources,omitempty"`
+}
+
+func (l *Limits) validateResourceLimits() (errs *apis.FieldError) {
+	if l.Resources == nil || len(l.Resources) == 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be empty", "limits"))
+	}
+	return errs
 }

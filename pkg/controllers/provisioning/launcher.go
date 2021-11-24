@@ -124,7 +124,7 @@ func (l *Launcher) verifyResourceLimits(ctx context.Context, provisioner *v1alph
 		return err
 	}
 	for resourceName, usage := range provisionerLatest.Status.Resources {
-		if limit, ok := provisionerLatest.Spec.Limits.Resources[resourceName]; ok {
+		if limit, ok := provisioner.Spec.Limits.Resources[resourceName]; ok {
 			if usage.Cmp(limit) >= 0 {
 				return fmt.Errorf("%s resource usage of %v exceeds limit of %v", resourceName, usage.AsDec(), limit.AsDec())
 			}
