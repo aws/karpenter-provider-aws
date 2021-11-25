@@ -25,6 +25,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.7
 )
 
+require go.uber.org/zap v1.19.1
+
 require (
 	cloud.google.com/go v0.97.0 // indirect
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect
@@ -67,7 +69,6 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.4.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/net v0.0.0-20211101193420-4a448f8816b3 // indirect
 	golang.org/x/oauth2 v0.0.0-20211028175245-ba495a64dcb5 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
