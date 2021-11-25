@@ -140,15 +140,19 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	for i := range daemonsets.Items {
 		ExpectDeleted(ctx, c, &daemonsets.Items[i])
 	}
-}
-
-// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
-func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
-	ExpectCleanedUp(ctx, c)
 	provisioners := v1alpha5.ProvisionerList{}
 	Expect(c.List(ctx, &provisioners)).To(Succeed())
 	for i := range provisioners.Items {
 		ExpectDeleted(ctx, c, &provisioners.Items[i])
+	}
+}
+
+// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
+func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	ExpectCleanedUp(ctx, c)
+	for i := range provisioners.Items {
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(&provisioners.Items[i]))
 	}
 }
