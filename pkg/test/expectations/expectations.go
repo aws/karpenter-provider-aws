@@ -105,7 +105,7 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectDeleted(c client.Client, objects ...client.Object) {
+func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		persisted := object.DeepCopyObject()
 		object.SetFinalizers([]string{})
@@ -123,27 +123,33 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
 	for i := range pdbs.Items {
-		ExpectDeleted(c, &pdbs.Items[i])
+		ExpectDeleted(ctx, c, &pdbs.Items[i])
 	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
 	for i := range pods.Items {
-		ExpectDeleted(c, &pods.Items[i])
+		ExpectDeleted(ctx, c, &pods.Items[i])
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
 	for i := range nodes.Items {
-		ExpectDeleted(c, &nodes.Items[i])
-	}
-	provisioners := v1alpha5.ProvisionerList{}
-	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for i := range provisioners.Items {
-		ExpectDeleted(c, &provisioners.Items[i])
+		ExpectDeleted(ctx, c, &nodes.Items[i])
 	}
 	daemonsets := appsv1.DaemonSetList{}
 	Expect(c.List(ctx, &daemonsets)).To(Succeed())
 	for i := range daemonsets.Items {
-		ExpectDeleted(c, &daemonsets.Items[i])
+		ExpectDeleted(ctx, c, &daemonsets.Items[i])
+	}
+}
+
+// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
+func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
+	ExpectCleanedUp(ctx, c)
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	for i := range provisioners.Items {
+		ExpectDeleted(ctx, c, &provisioners.Items[i])
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(&provisioners.Items[i]))
 	}
 }
 

@@ -103,8 +103,11 @@ var _ = Describe("Allocation", func() {
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
-		ExpectCleanedUp(ctx, env.Client)
 		launchTemplateCache.Flush()
+	})
+
+	AfterEach(func() {
+		ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 	})
 
 	Context("Reconciliation", func() {
