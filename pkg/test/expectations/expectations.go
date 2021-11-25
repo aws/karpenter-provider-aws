@@ -65,7 +65,7 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 
 func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
 	p := ExpectPodExists(c, pod.Name, pod.Namespace)
-	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to scheduled", pod.Namespace, pod.Name))
+	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
 	return ExpectNodeExists(c, p.Spec.NodeName)
 }
 

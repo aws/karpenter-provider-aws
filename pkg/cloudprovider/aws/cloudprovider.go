@@ -132,12 +132,13 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha5.Constr
 	return errs
 }
 
+// GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
+	return c.instanceTypeProvider.Get(ctx, vendorConstraints.AWS)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {

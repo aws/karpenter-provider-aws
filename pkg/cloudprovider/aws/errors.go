@@ -27,6 +27,10 @@ var (
 	}
 )
 
+// InsufficientCapacityErrorCode indicates that EC2 is temporarily lacking capacity for this
+// instance type and availability zone combination
+const InsufficientCapacityErrorCode = "InsufficientInstanceCapacity"
+
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
