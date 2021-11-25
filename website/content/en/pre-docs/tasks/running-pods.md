@@ -9,29 +9,39 @@ However, by taking advantage of Karpenter's model of layered constraints, you ca
 Reasons for constraining where your pods run could include:
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 * Saving money by running in ways that are more efficient
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+>>>>>>> 96872f0 (Responded to PR comments)
 * Needing to run in zones where dependent applications or storage are available
 * Requiring certain kinds of processors or other hardware
 * Wanting to use techniques like topology spread to help insure high availability
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 96872f0 (Responded to PR comments)
 Your Cloud Provider defines the first layer of constraints, including all instance types, architectures, zones, and purchase types available to its cloud.
 The cluster operator adds the next layer of constraints by creating one or more provisioners.
 The final layer comes from you adding specifications to your Kubernetes pod deployments.
 Pod scheduling constraints must fall within a provisioner's constraints or the pods will not deploy.
 For example, if the provisioner sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.
+<<<<<<< HEAD
 =======
 Your Kubernetes cluster operator adds the first layer of constraints by creating one or more provisioners.
 The next layer comes from you adding specifications to your Kubernetes pod deployments.
 When you request constraints, those constraints must fall within the provisioner constraints or the pods will not deploy.
 For example, if the provisioner sets limits that allow only a particular zone to be used, and a pod asks for a different zone, deployment will fail.
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+>>>>>>> 96872f0 (Responded to PR comments)
 
 Constraints you can request include:
 
 * **Resource requests**: Request that certain amount of memory or CPU be available.
+<<<<<<< HEAD
 <<<<<<< HEAD
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
@@ -46,19 +56,24 @@ Karpenter supports specific [Well-Known Labels, Annotations and Taints](Well-Kno
 =======
 * **Disruption budget**: Limit the disruptions that an application can experience.
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`) or name (`nodeName`).
+=======
+* **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
+* **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
+>>>>>>> 96872f0 (Responded to PR comments)
 * **Topology spread**: Use topology spread to help insure availability of the application.
-* **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity) or that don't have those attributes (antiaffinity).
-* **Persistent volumes**: Insures the availability of selected persistent volumes.
 
-The constraints that Karpenter supports are based mostly on features built into Kubernetes and a few that are specific to the cloud provider.
-In fact, you the exact same constraints can be used on clusters by Cluster Autoscaler or even just by the Kubernetes scheduler to pre-provision capacity.
-Keep in mind, however, that not all Kubernetes constraints are supported or recommended with Karpenter.
-This section steps through examples of those that are supported.
+Karpenter supports standard Kubernetes scheduling constraints.
+This allows you to define a single set of rules that apply to both existing and provisioned capacity.
+Pod affinity is a key exception to this rule.
 
 {{% alert title="Note" color="primary" %}}
+<<<<<<< HEAD
 The constraints you identify through affinity and node selection include a subset of Kubernetes [Well-Known Labels, Annotations and Taints](Well-Known Labels, Annotations and Taints).
 See [Specifying Values to Control AWS Provisioning](/docs/cloud-providers/aws/aws-spec-fields) for a listing and descriptions of those values.
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+Karpenter supports specific [Well-Known Labels, Annotations and Taints](Well-Known Labels, Annotations and Taints) that are useful for scheduling.
+>>>>>>> 96872f0 (Responded to PR comments)
 {{% /alert %}}
 
 ## Resource requests (`resources`)
@@ -86,13 +101,18 @@ spec:
 In this example, the container is requesting 128MiB of memory and .5 CPU.
 Its limits are set to 256MiB of memory and 1 CPU.
 <<<<<<< HEAD
+<<<<<<< HEAD
 Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 =======
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+Instance tpe selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
+>>>>>>> 96872f0 (Responded to PR comments)
 
 
 See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Specifying Values to Control AWS Provisioning](/docs/cloud-providers/aws/aws-spec-fields) for a list of supported resources.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 ## Selecting nodes (`nodeSelector` and `nodeAffinity`)
 =======
@@ -121,6 +141,9 @@ See [Specifying a Disruption Budget for your Application](https://kubernetes.io/
 
 ## Node selection (`nodeSelector` and `nodeName`)
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+## Selecting selection (`nodeSelector` and `nodeAffinity`)
+>>>>>>> 96872f0 (Responded to PR comments)
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
 This can include well-known labels or custom labels you create yourself.
@@ -128,19 +151,26 @@ This can include well-known labels or custom labels you create yourself.
 While `nodeSelector` is like node affinity, it doesn't have the same "and/or" matchExpressions that affinity has.
 So all key-value pairs must match if you use `nodeSelector`.
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 96872f0 (Responded to PR comments)
 Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusions and exclusions (`In` and `NotIn`).
 
 ### Node selector (`nodeSelector`)
 
 Here is an example of a `nodeSelector` for selecting nodes:
+<<<<<<< HEAD
 =======
 Also, `nodeSelector` can do only do inclusions, while `affinity can do inclusions and exclusions (`In` and `NotIn`).
 Here is an example:
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+>>>>>>> 96872f0 (Responded to PR comments)
 
 ```
 nodeSelector:
   topology.kubernetes.io/zone: us-west-2a
+<<<<<<< HEAD
 <<<<<<< HEAD
   karpenter.sh/capacity-type: spot
 ```
@@ -158,18 +188,21 @@ Examples below illustrate how to use Node affinity to include (`In`) and exclude
 =======
   node.k8.aws/capacity-type: spot
   jones.dev: john
+=======
+  karpenter.sh/capacity-type: spot
+>>>>>>> 96872f0 (Responded to PR comments)
 ```
-This example features a well-known label (`topology.kubernetes.io/zone`), a label that is specific to the AWS cloud provider (`node.k8.aws/capacity-type`), and a custom label (`jonees.dev`).
-Use a command like the following to set a custom label:
+This example features a well-known label (`topology.kubernetes.io/zone`) and a label that is well known to Karpenter (`karpenter.sh/capacity-type`).
 
-```
-kubectl label nodes <node_name> <label_key>=<label_value>
-```
+If you want to create a custom label, you should do that at the provisioner level.
+Then the pod can declare that custom label.
+
 
 See [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) in the Kubernetes documentation for details.
 
-To select a node by name, use the `nodeName` object:
+### Node affinity (`nodeAffinity`)
 
+<<<<<<< HEAD
 ```
 apiVersion: v1
 kind: Pod
@@ -208,6 +241,9 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 
 Examples below illustrate how to use Node affinity (`In`) and anti-affinity (`NotIn`).
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+Examples below illustrate how to use Node affinity to include (`In`) and exclude (`NotIn`) objects.
+>>>>>>> 96872f0 (Responded to PR comments)
 See [Node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for details.
 When setting rules, the following Node affinity types define how hard or soft each rule is:
 
@@ -216,9 +252,13 @@ When setting rules, the following Node affinity types define how hard or soft ea
 
 The `IgnoredDuringExecution` part of each tells the pod to keep running, even if conditions change on the node so the rules no longer matched.
 <<<<<<< HEAD
+<<<<<<< HEAD
 You can think of these concepts as `required` and `preferred`, since Kubernetes never implemented other variants of these rules.
 =======
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+You can think of these concepts as `required` and `preferred`, since Kubernetes never implemented other variants of these rules.
+>>>>>>> 96872f0 (Responded to PR comments)
 
 All examples below assume that the provisioner doesn't have constraints to prevent those zones from being used.
 The first constraint says you could use `us-west-2a` or `us-west-2b`, the second constraint makes it so only `us-west-2b` can be used.
@@ -238,10 +278,14 @@ The first constraint says you could use `us-west-2a` or `us-west-2b`, the second
 ```
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 Changing the second operator to `NotIn` would allow the pod to run in `us-west-2a` only:
 =======
 Changing the second operator to anti-affinity (`NotIn`) would allow the pod to run in `us-west-2a` only:
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+Changing the second operator to `NotIn` would allow the pod to run in `us-west-2a` only:
+>>>>>>> 96872f0 (Responded to PR comments)
 
 ```
            - key: "topology.kubernetes.io/zone"
@@ -275,10 +319,14 @@ Here, if `us-west-2a` is not available, the pod can go to the East zone and run 
              values: ["us-west-2b"]
          - matchExpressions: # OR
 <<<<<<< HEAD
+<<<<<<< HEAD
            - key: "karpenter.sh/capacity-type" # AND
 =======
            - key: "node.k8.aws/capacity-type" # AND
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+           - key: "karpenter.sh/capacity-type" # AND
+>>>>>>> 96872f0 (Responded to PR comments)
              operator: "In"
              values: ["spot"]
            - key: "topology.kubernetes.io/zone" # AND
@@ -377,12 +425,47 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 =======
              values: ["us-east-2a"]
 ```
-Karpenter will go through each of the matchExpressions in order and take the first one that works.
-However, if Karpenter fails to provision on the first matchExpression, it will delete it and try to use the second one.
-If they all fail, Karpenter will fail to provision for and deploy the pod.
+Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
+However, if Karpenter fails to provision on the first `nodeSelectorTerms`, it will try again using the second one.
+If they all fail, Karpenter will fail to provision the pod.
+Karpenter will backoff and retry over time.
+So if capacity becomes available, it will schedule the pod without user intervention.
 
-## Persistent volumes (`VolumeNodeAffinity`)
+## Topology spread (`topologySpreadConstraints`)
 
-How does a pod request to run on a node that a particular persistent volume present?
+By using the Kubernetes `topologySpreadConstraints` you can ask the provisioner to have pods push away from each other to limit the blast radius of an outage.
+Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
+For example:
 
+<<<<<<< HEAD
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+```
+spec:
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: "topology.kubernetes.io/zone"
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          dev: jjones
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: "topology.kubernetes.io/node"
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          dev: jjones
+
+```
+Adding this to your podspec would result in:
+
+* Pods being spread across both zones and hosts (`topologyKey`).
+* Nodes must have a `dev` label of `jjones`.
+* No more than one pod difference in the number of pods on each host (`maxSkew`).
+For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
+If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
+* Karpenter is always able to improve skew by launching new nodes in the right zones. Therefore, `whenUnsatisfiable` does not change provisioning behavior.
+
+See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
+>>>>>>> 96872f0 (Responded to PR comments)
