@@ -15,6 +15,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.11.0
 	go.uber.org/multierr v1.7.0
+	go.uber.org/zap v1.19.1
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	golang.org/x/tools v0.1.8-0.20211014194737-fc98fb2abd48 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -24,8 +25,6 @@ require (
 	knative.dev/pkg v0.0.0-20211120133512-d016976f2567
 	sigs.k8s.io/controller-runtime v0.9.7
 )
-
-require go.uber.org/zap v1.19.1
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
