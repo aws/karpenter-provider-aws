@@ -63,7 +63,6 @@ func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]
 
 func getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-
 	// Filter by subnet
 	for key, value := range constraints.SubnetSelector {
 		if value == "*" {

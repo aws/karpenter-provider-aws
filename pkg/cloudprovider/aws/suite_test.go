@@ -55,9 +55,6 @@ var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
 var scheduler *scheduling.Controller
 
-const InstanceTypeLabel = "node.kubernetes.io/instance-type"
-const ZoneLabel = "topology.kubernetes.io/zone"
-
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -116,6 +113,7 @@ var _ = Describe("Allocation", func() {
 		fakeEC2API.Reset()
 		ExpectCleanedUp(env.Client)
 		launchTemplateCache.Flush()
+		unavailableOfferingsCache.Flush()
 	})
 
 	Context("Reconciliation", func() {
@@ -144,7 +142,7 @@ var _ = Describe("Allocation", func() {
 						},
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "p3.8xlarge"))
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -174,7 +172,7 @@ var _ = Describe("Allocation", func() {
 					}),
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.6xlarge"))
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -204,7 +202,7 @@ var _ = Describe("Allocation", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
 					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.2xlarge"))
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.2xlarge"))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -242,8 +240,8 @@ var _ = Describe("Allocation", func() {
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(SatisfyAll(
-						HaveKeyWithValue(InstanceTypeLabel, "p3.8xlarge"),
-						HaveKeyWithValue(ZoneLabel, "test-zone-1b")))
+						HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
+						HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -274,7 +272,7 @@ var _ = Describe("Allocation", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
 					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.6xlarge"))
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(len(nodeNames)).To(Equal(1))
