@@ -35,13 +35,13 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "node.kubernetes.io/instance-type" # If not included, all instance types are considered
+    - key: "node.kubernetes.io/instance-type" # If not included, reference cloud provider
       operator: In
       values: ["m5.large", "m5.2xlarge"]
     - key: "topology.kubernetes.io/zone" # If not included, all zones are considered
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch" # If not included, all architectures are considered
+    - key: "kubernetes.io/arch" # If not included, reference cloud provider
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
@@ -55,13 +55,17 @@ spec:
 
 Kubernetes defines the following [well known labels]([[link]]), and cloud providers (e.g., AWS) merely implement them. They are defined at the "spec.requirements" section of the provisioner CRD. 
 
+These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). If the two conflict, the provisioner controls. In other words, a podspec may not override the provisioner with respect to constraints. 
+
+For example, Instance type may also be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (e.g., pod) level is not included in the provisioner list, karpenter will not create a node or schedule the pod. 
+
 ### Instance Types
 
-Generally, instance types should be a list. Leaving this field undefined is reccommended, as it maximizes choices for efficently placing pods. 
+- key: `topology.kubernetes.io/instance-type`
 
-Instance type may also be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (e.g., pod) level is not included in the provisioner list, karpenter will not create a node or schedule the pod. 
+Generally, instance types should be a list and not a single value. Leaving this field undefined is reccommended, as it maximizes choices for efficently placing pods. 
 
-☁️ AWS
+☁️ **AWS**
 
 Review [AWS instance types](https://aws.amazon.com/ec2/instance-types/).
 
@@ -99,7 +103,7 @@ spec:
 - key: `topology.kubernetes.io/zone`
 - value example: `us-east-1c`
 
-☁️ AWS
+☁️ **AWS**
 
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
@@ -107,30 +111,6 @@ Karpenter can be configured to create nodes in a particular zone. Note that the 
 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
-
-**Example**
-
-```
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-spec:
-  requirements:
-    # If not included, all instance types are considered
-    - key: "topology.kubernetes.io/zone"
-      operator: In
-      values: ["us-west-2a", "us-west-2b"]
-
-```
-
-**Override**
-
-```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        topology.kubernetes.io/zone: us-west-2a
-```
 
 ### Architecture
 
@@ -141,41 +121,19 @@ spec:
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
-**Example**
-
-*Set Default with provisioner.yaml*
-
-```yaml
-spec:
-  requirements:
-    - key: kubernetes.io/arch
-      operator: In
-      values: ["arm64", "amd64"]
-```
-
-*Override with workload manifest (e.g., pod)*
-
-```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        kubernetes.io/arch: amd64
-```
-
 ### Operating System
 
 - key: `kubernetes.io/os`
 - values
   - `linux` (default)
 
-At this time, Karpenter on AWS only supports Linux OS nodes.
+At this time, Karpenter only supports Linux OS nodes.
 
 ### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
 
-☁️ AWS
+☁️ **AWS**
 
 - values
   - `spot` (default)
@@ -187,25 +145,10 @@ Karpenter defaults to spot instances. [Spot instances](https://aws.amazon.com/ec
 
 Set this value to "on-demand" to prevent critical workloads from being interrupted.
 
-**Example**
+## spec.provider
 
-*Set Default with provisioner.yaml*
+This section is cloud provider specific. Reference the appropriate documentation:
 
-```yaml
-spec:
-  requirements:
-    - key: karpenter.sh/capacity-type
-      operator: In
-      values: ["spot", "on-demand"]
-```
+- [AWS](../AWS/constraints.md)
 
-*Override with workload manifest (e.g., pod)*
-
-```yaml
-spec:
-  template:
-    spec:
-      nodeSelector:
-        karpenter.sh/capacity-type: spot
-```
 
