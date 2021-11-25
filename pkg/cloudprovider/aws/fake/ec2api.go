@@ -30,6 +30,11 @@ import (
 	set "github.com/deckarep/golang-set"
 )
 
+type CapacityPool struct {
+	InstanceType string
+	Zone         string
+}
+
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
@@ -44,7 +49,7 @@ type EC2Behavior struct {
 	CalledWithCreateLaunchTemplateInput set.Set
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
-	ShouldTriggerInsufficientCapacity   bool
+	InsufficientCapacityPools           []CapacityPool
 }
 
 type EC2API struct {
@@ -55,8 +60,6 @@ type EC2API struct {
 // DefaultSupportedUsageClasses is a var because []*string can't be a const
 var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"})
 
-const InsufficientCapacityInstanceType = "inf1.6xlarge"
-
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
@@ -65,7 +68,7 @@ func (e *EC2API) Reset() {
 		CalledWithCreateLaunchTemplateInput: set.NewSet(),
 		Instances:                           sync.Map{},
 		LaunchTemplates:                     sync.Map{},
-		ShouldTriggerInsufficientCapacity:   false,
+		InsufficientCapacityPools:           []CapacityPool{},
 	}
 }
 
@@ -76,8 +79,18 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	}
 	instances := []*ec2.Instance{}
 	instanceIds := []*string{}
+	skippedPools := []CapacityPool{}
 	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
-		if e.ShouldTriggerInsufficientCapacity && aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) == InsufficientCapacityInstanceType {
+		skipInstance := false
+		for _, pool := range e.InsufficientCapacityPools {
+			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
+				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) {
+				skippedPools = append(skippedPools, pool)
+				skipInstance = true
+				break
+			}
+		}
+		if skipInstance {
 			continue
 		}
 		instances = append(instances, &ec2.Instance{
@@ -92,18 +105,22 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 
 	result := &ec2.CreateFleetOutput{
 		Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
-	if e.ShouldTriggerInsufficientCapacity {
-		result.Errors = []*ec2.CreateFleetError{{
-			ErrorCode: aws.String("InsufficientInstanceCapacity"),
-			LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
-				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
-					LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
-					LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName},
-				Overrides: &ec2.FleetLaunchTemplateOverrides{
-					InstanceType:     aws.String(InsufficientCapacityInstanceType),
-					AvailabilityZone: aws.String("test-zone-1a"),
-					SubnetId:         aws.String("test-subnet-1")},
-			}}}
+	if len(skippedPools) > 0 {
+		for _, pool := range skippedPools {
+			result.Errors = append(result.Errors, &ec2.CreateFleetError{
+				ErrorCode: aws.String("InsufficientInstanceCapacity"),
+				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
+					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+						LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
+						LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
+					},
+					Overrides: &ec2.FleetLaunchTemplateOverrides{
+						InstanceType:     aws.String(pool.InstanceType),
+						AvailabilityZone: aws.String(pool.Zone),
+					},
+				},
+			})
+		}
 	}
 	return result, nil
 }

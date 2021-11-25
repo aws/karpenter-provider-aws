@@ -80,8 +80,14 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
-		instanceProvider:     NewInstanceProvider(ec2api, instanceTypeProvider, subnetProvider, ssm.New(sess), options.ClientSet),
-		creationQueue:        parallel.NewWorkQueue(CreationQPS, CreationBurst),
+		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
+			NewLaunchTemplateProvider(
+				ec2api,
+				NewAMIProvider(ssm.New(sess), options.ClientSet),
+				NewSecurityGroupProvider(ec2api),
+			),
+		},
+		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
@@ -132,7 +138,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alp
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
+	return c.instanceTypeProvider.Get(ctx, vendorConstraints.AWS)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {

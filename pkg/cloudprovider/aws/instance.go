@@ -24,12 +24,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -43,17 +41,6 @@ type InstanceProvider struct {
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
-}
-
-func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, ssm *ssm.SSM,
-	clientSet *kubernetes.Clientset) *InstanceProvider {
-	return &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
-		NewLaunchTemplateProvider(
-			ec2api,
-			NewAMIProvider(ssm, clientSet),
-			NewSecurityGroupProvider(ec2api),
-		),
-	}
 }
 
 // Create an instance given the constraints.
@@ -197,12 +184,14 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
 			// we can't assume that all zones will be available for all capacity types, hence this check
-			if offering.CapacityType != capacityType {
+			if capacityType != offering.CapacityType {
+				continue
+			}
+			if !zones.Has(offering.Zone) {
 				continue
 			}
 			for _, subnet := range subnets {
-				subnetZone := aws.StringValue(subnet.AvailabilityZone)
-				if subnetZone != offering.Zone || !zones.Has(offering.Zone) {
+				if aws.StringValue(subnet.AvailabilityZone) != offering.Zone {
 					continue
 				}
 				override := &ec2.FleetLaunchTemplateOverridesRequest{
@@ -289,14 +278,10 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 }
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
-	insufficientCapacityOfferings := map[string]sets.String{}
 	for _, err := range errors {
 		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
-			createOrAppendToMapValue(insufficientCapacityOfferings, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone))
+			p.instanceTypeProvider.CacheUnavailable(ctx, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone), capacityType)
 		}
-	}
-	if len(insufficientCapacityOfferings) > 0 {
-		p.instanceTypeProvider.TrackUnavailableOfferings(ctx, insufficientCapacityOfferings, capacityType)
 	}
 }
 
@@ -341,13 +326,4 @@ func combineReservations(reservations []*ec2.Reservation) []*ec2.Instance {
 		instances = append(instances, reservation.Instances...)
 	}
 	return instances
-}
-
-func createOrAppendToMapValue(mapToUpdate map[string]sets.String, key string, newValue string) {
-	existingValueSet, hasValue := mapToUpdate[key]
-	if hasValue {
-		existingValueSet.Insert(newValue)
-	} else {
-		mapToUpdate[key] = sets.NewString(newValue)
-	}
 }

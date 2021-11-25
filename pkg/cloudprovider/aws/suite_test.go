@@ -177,7 +177,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Insufficient Capacity Error Cache", func() {
 			It("should launch instances on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
-				fakeEC2API.ShouldTriggerInsufficientCapacity = true
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
 				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
@@ -203,7 +203,7 @@ var _ = Describe("Allocation", func() {
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 			It("should launch instances on later recon attempt with Insufficient Capacity Error Cache expiry", func() {
-				fakeEC2API.ShouldTriggerInsufficientCapacity = true
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
 				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
@@ -223,7 +223,7 @@ var _ = Describe("Allocation", func() {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				}
 				// capacity shortage is over - wait for expiry (N.B. the Karpenter logging will not show the overridden cache expiry in this test context)
-				fakeEC2API.ShouldTriggerInsufficientCapacity = false
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
 				Eventually(func(g Gomega) int {
 					nodeNames := sets.NewString()
 					for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
