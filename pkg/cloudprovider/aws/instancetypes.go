@@ -172,7 +172,6 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 // CacheUnavailable allows the InstanceProvider to communicate recently observed temporary capacity shortages in
 // the provided offerings
 func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, instanceType string, zone string, capacityType string) {
-	cacheKey := UnavailableOfferingsCacheKey(capacityType, instanceType, zone)
 	logging.FromContext(ctx).Debugf("Saw %s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
 		InsufficientCapacityErrorCode,
 		instanceType,
@@ -180,7 +179,7 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, instanceTyp
 		capacityType,
 		InsufficientCapacityErrorCacheTTL)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-	p.unavailableOfferings.SetDefault(cacheKey, struct{}{})
+	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(capacityType, instanceType, zone), struct{}{})
 }
 
 func UnavailableOfferingsCacheKey(capacityType string, instanceType string, zone string) string {
