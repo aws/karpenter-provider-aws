@@ -275,10 +275,4 @@ eksctl delete cluster --name ${CLUSTER_NAME}
 
 ---
 
-If you liked this demo, star us on GitHub!
-
-{{< github >}}
-
----
-
 ## Next Steps:
