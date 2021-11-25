@@ -725,14 +725,14 @@ var _ = Describe("Multiple Provisioners", func() {
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
 	})
-	// It("should prioritize provisioners alphabetically if multiple match", func() {
-	// 	provisioner2 := provisioner.DeepCopy()
-	// 	provisioner2.Name = "aaaaaaaaa"
-	// 	ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner2)
-	// 	pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())[0]
-	// 	node := ExpectScheduled(ctx, env.Client, pod)
-	// 	Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
-	// })
+	It("should prioritize provisioners alphabetically if multiple match", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "aaaaaaaaa"
+		ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
 })
 
 func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
