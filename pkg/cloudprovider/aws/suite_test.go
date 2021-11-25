@@ -179,16 +179,18 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
-			It("should launch instances of different type on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
+			It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
 				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
 							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
 						},
 					}),
 					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
 							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
@@ -207,75 +209,49 @@ var _ = Describe("Allocation", func() {
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
-			It("should launch instances of different type on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
+			It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}}
-				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-						},
-					}),
-					// Should pack onto same instance
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-						},
-					}),
-					// Should pack onto a separate instance
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-						},
-					}),
-				)
-				// it should've tried to pack them in test-zone-1a on p3.8xlages then hit ICEs, so the next attempt will avoid that pool and try test-zone-1b
-				for _, pod := range pods {
-					ExpectNotScheduled(ctx, env.Client, pod)
-				}
+				pod := test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+					},
+				})
+				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+					{
+						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
+					},
+				}}}
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+				ExpectNotScheduled(ctx, env.Client, pod)
 
-				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(SatisfyAll(
-						HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
-						HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
-					nodeNames.Insert(node.Name)
-				}
-				Expect(nodeNames.Len()).To(Equal(2))
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(SatisfyAll(
+					HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
+					HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
 			})
-			It("should launch instances on later recon attempt with Insufficient Capacity Error Cache expiry", func() {
+			It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
-				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
 							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
 						},
 					}),
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-						},
-					}),
-				)
-				// it should've tried to pack them on a single inf1.6xlarge then hit an insufficient capacity error
-				for _, pod := range pods {
-					ExpectNotScheduled(ctx, env.Client, pod)
-				}
+				)[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
 				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
 				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
-				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					nodeNames.Insert(node.Name)
-				}
-				Expect(len(nodeNames)).To(Equal(1))
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 		})
 		Context("CapacityType", func() {
