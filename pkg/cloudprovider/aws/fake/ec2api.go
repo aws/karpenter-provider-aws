@@ -95,7 +95,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		}
 		instances = append(instances, &ec2.Instance{
 			InstanceId:     aws.String(randomdata.SillyName()),
-			Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
+			Placement:      &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
 			PrivateDnsName: aws.String(randomdata.IpV4Address()),
 			InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 		})
@@ -387,6 +387,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			{
 				InstanceType: aws.String("p3.8xlarge"),
 				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
 			},
 			{
 				InstanceType: aws.String("inf1.2xlarge"),

@@ -55,6 +55,9 @@ var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
 var scheduler *scheduling.Controller
 
+const InstanceTypeLabel = "node.kubernetes.io/instance-type"
+const ZoneLabel = "topology.kubernetes.io/zone"
+
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -140,8 +143,9 @@ var _ = Describe("Allocation", func() {
 							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
 						},
 					})) {
-					ExpectScheduled(ctx, env.Client, pod)
-					nodeNames.Insert(ExpectScheduledWithInstanceType(ctx, env.Client, pod, "p3.8xlarge").Name)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "p3.8xlarge"))
+					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
@@ -169,13 +173,15 @@ var _ = Describe("Allocation", func() {
 						},
 					}),
 				) {
-					nodeNames.Insert(ExpectScheduledWithInstanceType(ctx, env.Client, pod, "inf1.6xlarge").Name)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.6xlarge"))
+					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
-			It("should launch instances on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
+			It("should launch instances of different type on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
 				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
@@ -197,7 +203,48 @@ var _ = Describe("Allocation", func() {
 				}
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
-					nodeNames.Insert(ExpectScheduledWithInstanceType(ctx, env.Client, pod, "inf1.2xlarge").Name)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.2xlarge"))
+					nodeNames.Insert(node.Name)
+				}
+				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should launch instances of different type on second recon attempt with Insufficient Capacity Error Cache fallback", func() {
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}}
+				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						},
+					}),
+					// Should pack onto same instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+						},
+					}),
+					// Should pack onto a separate instance
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+						},
+					}),
+				)
+				// it should've tried to pack them in test-zone-1a on p3.8xlages then hit ICEs, so the next attempt will avoid that pool and try test-zone-1b
+				for _, pod := range pods {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+
+				nodeNames := sets.NewString()
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(SatisfyAll(
+						HaveKeyWithValue(InstanceTypeLabel, "p3.8xlarge"),
+						HaveKeyWithValue(ZoneLabel, "test-zone-1b")))
+					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
@@ -226,7 +273,9 @@ var _ = Describe("Allocation", func() {
 				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
-					nodeNames = nodeNames.Insert(ExpectScheduledWithInstanceType(ctx, env.Client, pod, "inf1.6xlarge").Name)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(InstanceTypeLabel, "inf1.6xlarge"))
+					nodeNames.Insert(node.Name)
 				}
 				Expect(len(nodeNames)).To(Equal(1))
 			})

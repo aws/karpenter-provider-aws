@@ -69,15 +69,6 @@ func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node
 	return ExpectNodeExists(c, p.Spec.NodeName)
 }
 
-func ExpectScheduledWithInstanceType(ctx context.Context, c client.Client, pod *v1.Pod, instanceType string) *v1.Node {
-	p := ExpectPodExists(c, pod.Name, pod.Namespace)
-	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
-	node := ExpectNodeExists(c, p.Spec.NodeName)
-	Expect(node.Labels["node.kubernetes.io/instance-type"]).To(Equal(instanceType),
-		fmt.Sprintf("expected %s/%s to be scheduled to a node with instance type %s", pod.Namespace, pod.Name, instanceType))
-	return node
-}
-
 func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) {
 	p := ExpectPodExists(c, pod.Name, pod.Namespace)
 	Eventually(p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
