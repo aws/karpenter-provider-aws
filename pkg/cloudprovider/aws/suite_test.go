@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -51,11 +50,10 @@ import (
 var ctx context.Context
 var env *test.Environment
 var launchTemplateCache *cache.Cache
+var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
 var scheduler *scheduling.Controller
-
-const shortenedUnavailableOfferingsTTL = 2 * time.Second
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -67,13 +65,14 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		ctx = injection.WithOptions(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
+		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := NewSubnetProvider(fakeEC2API)
 		instanceTypeProvider := &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-			unavailableOfferings: cache.New(shortenedUnavailableOfferingsTTL, InsufficientCapacityErrorCacheCleanupInterval),
+			unavailableOfferings: unavailableOfferingsCache,
 		}
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
@@ -222,15 +221,14 @@ var _ = Describe("Allocation", func() {
 				for _, pod := range pods {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				}
-				// capacity shortage is over - wait for expiry (N.B. the Karpenter logging will not show the overridden cache expiry in this test context)
+				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
-				Eventually(func(g Gomega) int {
-					nodeNames := sets.NewString()
-					for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
-						nodeNames = nodeNames.Insert(ExpectScheduledWithInstanceTypeAndGomega(ctx, env.Client, pod, "inf1.6xlarge", g).Name)
-					}
-					return len(nodeNames)
-				}, shortenedUnavailableOfferingsTTL*2, RequestInterval).Should(Equal(1))
+				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
+				nodeNames := sets.NewString()
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
+					nodeNames = nodeNames.Insert(ExpectScheduledWithInstanceType(ctx, env.Client, pod, "inf1.6xlarge").Name)
+				}
+				Expect(len(nodeNames)).To(Equal(1))
 			})
 		})
 		Context("CapacityType", func() {

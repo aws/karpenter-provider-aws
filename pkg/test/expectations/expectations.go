@@ -41,30 +41,15 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func defaultGomegaIfNil(g Gomega) Gomega {
-	if g != nil {
-		return g
-	}
-	return Default
-}
-
 func ExpectPodExists(c client.Client, name string, namespace string) *v1.Pod {
-	return ExpectPodExistsWithGomega(c, name, namespace, nil)
-}
-
-func ExpectPodExistsWithGomega(c client.Client, name string, namespace string, g Gomega) *v1.Pod {
 	pod := &v1.Pod{}
-	defaultGomegaIfNil(g).Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
+	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
 	return pod
 }
 
 func ExpectNodeExists(c client.Client, name string) *v1.Node {
-	return ExpectNodeExistsWithGomega(c, name, nil)
-}
-
-func ExpectNodeExistsWithGomega(c client.Client, name string, g Gomega) *v1.Node {
 	node := &v1.Node{}
-	defaultGomegaIfNil(g).Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
+	Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node
 }
 
@@ -85,14 +70,10 @@ func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node
 }
 
 func ExpectScheduledWithInstanceType(ctx context.Context, c client.Client, pod *v1.Pod, instanceType string) *v1.Node {
-	return ExpectScheduledWithInstanceTypeAndGomega(ctx, c, pod, instanceType, nil)
-}
-
-func ExpectScheduledWithInstanceTypeAndGomega(ctx context.Context, c client.Client, pod *v1.Pod, instanceType string, g Gomega) *v1.Node {
-	p := ExpectPodExistsWithGomega(c, pod.Name, pod.Namespace, defaultGomegaIfNil(g))
-	defaultGomegaIfNil(g).Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
-	node := ExpectNodeExistsWithGomega(c, p.Spec.NodeName, defaultGomegaIfNil(g))
-	defaultGomegaIfNil(g).Expect(node.Labels["node.kubernetes.io/instance-type"]).To(Equal(instanceType),
+	p := ExpectPodExists(c, pod.Name, pod.Namespace)
+	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
+	node := ExpectNodeExists(c, p.Spec.NodeName)
+	Expect(node.Labels["node.kubernetes.io/instance-type"]).To(Equal(instanceType),
 		fmt.Sprintf("expected %s/%s to be scheduled to a node with instance type %s", pod.Namespace, pod.Name, instanceType))
 	return node
 }
