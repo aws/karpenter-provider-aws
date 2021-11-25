@@ -119,8 +119,7 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectCleanedUp(c client.Client) {
-	ctx := context.Background()
+func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
 	for i := range pdbs.Items {

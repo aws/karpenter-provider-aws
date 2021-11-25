@@ -81,7 +81,7 @@ var _ = Describe("Provisioning", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Client)
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
 	Context("Reconcilation", func() {

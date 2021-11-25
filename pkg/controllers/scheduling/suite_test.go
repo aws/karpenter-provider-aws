@@ -45,7 +45,7 @@ var env *test.Environment
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controllers/Allocation/Scheduling")
+	RunSpecs(t, "Controllers/Scheduling")
 }
 
 var _ = BeforeSuite(func() {
@@ -71,7 +71,7 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	ExpectCleanedUp(env.Client)
+	ExpectCleanedUp(ctx, env.Client)
 })
 
 var _ = Describe("Combined Constraints", func() {

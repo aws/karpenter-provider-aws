@@ -81,7 +81,7 @@ var _ = Describe("Termination", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Client)
+		ExpectCleanedUp(ctx, env.Client)
 		injectabletime.Now = time.Now
 	})
 
