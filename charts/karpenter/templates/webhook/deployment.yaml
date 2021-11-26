@@ -46,6 +46,10 @@ spec:
             httpGet:
               scheme: HTTPS
               port: 8443
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              port: 8443
           env:
             - name: CLUSTER_NAME
               value: {{ .Values.controller.clusterName }}

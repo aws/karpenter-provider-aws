@@ -74,7 +74,6 @@ rules:
   - patch
   - get
   - list
-  - patch
   - watch
 - apiGroups:
   - coordination.k8s.io
