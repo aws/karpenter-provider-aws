@@ -41,7 +41,7 @@ type task struct {
 }
 
 // Add work to the queue, returns a channel that signals when the work is done.
-func (c *WorkQueue) Add(do func() error) chan error {
+func (c *WorkQueue) Add(do func() error) <-chan error {
 	c.once.Do(c.start)
 	done := make(chan error)
 	c.AddRateLimited(&task{do: do, done: done})
