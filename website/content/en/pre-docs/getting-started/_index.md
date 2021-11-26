@@ -199,7 +199,6 @@ spec:
   limits:
     resources:
       cpu: 1000
-      memory: 1000Gi
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
