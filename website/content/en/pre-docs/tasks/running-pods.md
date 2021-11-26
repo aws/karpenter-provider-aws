@@ -62,7 +62,7 @@ Instance type selection math only uses `requests`, but `limits` may be configure
 
 See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Specifying Values to Control AWS Provisioning](/docs/cloud-providers/aws/aws-spec-fields) for a list of supported resources.
 
-## Selecting selection (`nodeSelector` and `nodeAffinity`)
+## Selecting nodes (`nodeSelector` and `nodeAffinity`)
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
 This can include well-known labels or custom labels you create yourself.
@@ -152,7 +152,7 @@ Here, if `us-west-2a` is not available, the pod can go to the East zone and run 
              operator: "In"
              values: ["us-west-2d"]
 ```
-Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
+In general, Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
 However, if Karpenter fails to provision on the first `nodeSelectorTerms`, it will try again using the second one.
 If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
@@ -231,7 +231,7 @@ spec:
 Adding this to your podspec would result in:
 
 * Pods being spread across both zones and hosts (`topologyKey`).
-* Nodes must have a `dev` label of `jjones`.
+* The `dev` `labelSelector` will include all pods with the label of `dev=jjones` in topology calculations. It is recommended to use a selector to match all pods in a deployment.
 * No more than one pod difference in the number of pods on each host (`maxSkew`).
 For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
 If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
