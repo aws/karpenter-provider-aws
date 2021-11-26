@@ -28,3 +28,6 @@ defaultProvisioner:
   requirements: []
   taints: []
   labels: {}
+  limits:
+    resources:
+      cpu: 1000
