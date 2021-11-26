@@ -40,7 +40,7 @@ type Provisioner struct {
 	// State
 	*v1alpha5.Provisioner
 	pods    chan *v1.Pod
-	results chan error
+	results chan struct{}
 	done    <-chan struct{}
 	Stop    context.CancelFunc
 	// Dependencies
@@ -74,7 +74,7 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	defer func() {
 		for i := 0; i < len(pods); i++ {
 			select {
-			case p.results <- err: // Block until result is communicated
+			case p.results <- struct{}{}: // Block until result is communicated
 			case <-p.done: // Leave if closed
 			}
 		}
@@ -99,16 +99,15 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 // Add a pod to the provisioner and block until it's processed. The caller
 // is responsible for verifying that the pod was scheduled correctly. In the
 // future, this may be expanded to include concepts such as retriable errors.
-func (p *Provisioner) Add(ctx context.Context, pod *v1.Pod) (err error) {
+func (p *Provisioner) Add(ctx context.Context, pod *v1.Pod) {
 	select {
 	case p.pods <- pod: // Block until pod is enqueued
 	case <-p.done: // Leave if closed
 	}
 	select {
-	case err = <-p.results: // Block until result is sent
+	case <-p.results: // Block until result is sent
 	case <-p.done: // Leave if closed
 	}
-	return err
 }
 
 // Batch returns a slice of enqueued pods after idle or timeout
