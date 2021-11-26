@@ -308,6 +308,7 @@ Changing the second operator to `NotIn` would allow the pod to run in `us-west-2
 <<<<<<< HEAD
 Continuing to add to the example, `nodeAffinity` lets you define terms so if one term doesn't work it goes to the next one.
 Here, if `us-west-2a` is not available, the second term will cause the pod to run on a spot instance in us-west-2d.
+<<<<<<< HEAD
 =======
 Continuing to add to the example, nodeAffinity lets you match expressions so if one key-value pair doesn't work, you can go on to the next one.
 =======
@@ -315,6 +316,8 @@ Continuing to add to the example, `nodeAffinity` lets you define terms so if one
 >>>>>>> 2304484 (Added taints and tolerations)
 Here, if `us-west-2a` is not available, the pod can go to the East zone and run on a spot instance (notice the AWS-specific key).
 >>>>>>> b05c290 (Add Running Pods task to docs)
+=======
+>>>>>>> e470a4e (A few more fixes from comments)
 
 
 ```
@@ -454,7 +457,7 @@ So if capacity becomes available, it will schedule the pod without user interven
 
 Taints are the opposite of affinity.
 Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint.
-This example shows a Provisioner that was set up with a taint for only running pods that require a graphics processing unit, such as the following:
+This example shows a Provisioner that was set up with a taint for only running pods that require a GPU, such as the following:
 
 
 ```
@@ -468,7 +471,7 @@ spec:
     operator: In
     values: [   p3.2xlarge, p3.8xlarge, p3.16xlarge ] 
   taints:
-  - key: nvidia.com/gpu (http://nvidia.com/gpu)
+  - key: nvidia.com/gpu
     value: true
     effect: “NoSchedule”
 ```
@@ -516,7 +519,7 @@ spec:
           dev: jjones
   topologySpreadConstraints:
     - maxSkew: 1
-      topologyKey: "topology.kubernetes.io/node"
+      topologyKey: "kubernetes.io/hostname"
       whenUnsatisfiable: ScheduleAnyway
       labelSelector:
         matchLabels:
