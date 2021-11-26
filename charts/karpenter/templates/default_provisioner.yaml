@@ -29,4 +29,8 @@ spec:
     labels:
       {{- toYaml . | nindent 6 }}
   {{- end }}
+  {{- with .Values.defaultProvisioner.limits }}
+    limits:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
 {{- end }}
