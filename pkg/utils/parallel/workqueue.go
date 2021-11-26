@@ -36,8 +36,7 @@ func NewWorkQueue(qps int, burst int) *WorkQueue {
 
 type task struct {
 	do   func() error
-	done chan error
-	err  error
+	done chan<- error
 }
 
 // Add work to the queue, returns a channel that signals when the work is done.
@@ -57,10 +56,11 @@ func (c *WorkQueue) start() {
 			}
 			t := item.(*task)
 			go func() {
-				t.err = t.do()
+				defer close(t.done)
+				err := t.do()
 				c.Forget(t)
 				c.Done(t)
-				t.done <- t.err
+				t.done <- err
 			}()
 		}
 	}()
