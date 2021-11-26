@@ -102,12 +102,16 @@ In this example, the container is requesting 128MiB of memory and .5 CPU.
 Its limits are set to 256MiB of memory and 1 CPU.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 =======
 >>>>>>> b05c290 (Add Running Pods task to docs)
 =======
 Instance tpe selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 >>>>>>> 96872f0 (Responded to PR comments)
+=======
+Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
+>>>>>>> 5e148cb (Small typo)
 
 
 See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Specifying Values to Control AWS Provisioning](/docs/cloud-providers/aws/aws-spec-fields) for a list of supported resources.
