@@ -78,6 +78,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 2. Retrieve Provisioner
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: stored.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, err
 	}
 
