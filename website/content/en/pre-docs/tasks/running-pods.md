@@ -118,6 +118,7 @@ See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/conf
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## Selecting nodes (`nodeSelector` and `nodeAffinity`)
 =======
 ## Disruption budget (`PodDisruptionBudget`)
@@ -148,6 +149,9 @@ See [Specifying a Disruption Budget for your Application](https://kubernetes.io/
 =======
 ## Selecting selection (`nodeSelector` and `nodeAffinity`)
 >>>>>>> 96872f0 (Responded to PR comments)
+=======
+## Selecting nodes (`nodeSelector` and `nodeAffinity`)
+>>>>>>> fbffa73 (Responded to a few more review comments)
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
 This can include well-known labels or custom labels you create yourself.
@@ -344,6 +348,7 @@ Here, if `us-west-2a` is not available, the pod can go to the East zone and run 
              values: ["us-west-2d"]
 ```
 In general, Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
+<<<<<<< HEAD
 However, if Karpenter fails to provision on the first `nodeSelectorTerms`, it will try again using the second one.
 If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
@@ -438,6 +443,8 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 >>>>>>> 2304484 (Added taints and tolerations)
 ```
 Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
+=======
+>>>>>>> fbffa73 (Responded to a few more review comments)
 However, if Karpenter fails to provision on the first `nodeSelectorTerms`, it will try again using the second one.
 If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
@@ -519,7 +526,7 @@ spec:
 Adding this to your podspec would result in:
 
 * Pods being spread across both zones and hosts (`topologyKey`).
-* Nodes must have a `dev` label of `jjones`.
+* The `dev` `labelSelector` will include all pods with the label of `dev=jjones` in topology calculations. It is recommended to use a selector to match all pods in a deployment.
 * No more than one pod difference in the number of pods on each host (`maxSkew`).
 For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
 If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
