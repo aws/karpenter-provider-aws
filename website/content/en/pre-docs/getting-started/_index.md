@@ -183,6 +183,8 @@ This behavior can be disabled by leaving the value undefined.
 Review the [provisioner CRD](/docs/provisioner-crd) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
+Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
+
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: karpenter.sh/v1alpha5
@@ -194,6 +196,9 @@ spec:
     - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot"]
+  limits:
+    resources:
+      cpu: 1000
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
