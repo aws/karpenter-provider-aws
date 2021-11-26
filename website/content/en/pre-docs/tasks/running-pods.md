@@ -297,10 +297,14 @@ Changing the second operator to `NotIn` would allow the pod to run in `us-west-2
 ```
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 Continuing to add to the example, `nodeAffinity` lets you define terms so if one term doesn't work it goes to the next one.
 Here, if `us-west-2a` is not available, the second term will cause the pod to run on a spot instance in us-west-2d.
 =======
 Continuing to add to the example, nodeAffinity lets you match expressions so if one key-value pair doesn't work, you can go on to the next one.
+=======
+Continuing to add to the example, `nodeAffinity` lets you define terms so if one term doesn't work it goes to the next one.
+>>>>>>> 2304484 (Added taints and tolerations)
 Here, if `us-west-2a` is not available, the pod can go to the East zone and run on a spot instance (notice the AWS-specific key).
 >>>>>>> b05c290 (Add Running Pods task to docs)
 
@@ -331,6 +335,7 @@ Here, if `us-west-2a` is not available, the pod can go to the East zone and run 
              values: ["spot"]
            - key: "topology.kubernetes.io/zone" # AND
              operator: "In"
+<<<<<<< HEAD
 <<<<<<< HEAD
              values: ["us-west-2d"]
 ```
@@ -424,12 +429,61 @@ If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and s
 See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
 =======
              values: ["us-east-2a"]
+=======
+             values: ["us-west-2d"]
+>>>>>>> 2304484 (Added taints and tolerations)
 ```
 Karpenter will go through each of the `nodeSelectorTerms` in order and take the first one that works.
 However, if Karpenter fails to provision on the first `nodeSelectorTerms`, it will try again using the second one.
 If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
 So if capacity becomes available, it will schedule the pod without user intervention.
+
+## Taints and tolerations
+
+Taints are the opposite of affinity.
+Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint.
+This example shows a Provisioner that was set up with a taint for only running pods that require a graphics processing unit, such as the following:
+
+
+```
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: gpu
+spec:
+  requirements: 
+  - key: node.kubernetes.io/instance-type (http://node.kubernetes.io/instance-type)
+    operator: In
+    values: [   p3.2xlarge, p3.8xlarge, p3.16xlarge ] 
+  taints:
+  - key: nvidia.com/gpu (http://nvidia.com/gpu)
+    value: true
+    effect: “NoSchedule”
+```
+
+For a pod to request to run on a node that has provisioner, it could set a toleration as follows:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mygpupod
+spec:
+  containers:
+  - name: gpuapp
+    resources:
+      requests:
+        nvidia.com/gpu: 1
+      limits:
+        nvidia.com/gpu: 1
+    image: mygpucontainer
+  tolerations:
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"
+```
+See Taints and Tolerations (https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
 
 ## Topology spread (`topologySpreadConstraints`)
 
