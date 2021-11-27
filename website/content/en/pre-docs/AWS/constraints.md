@@ -10,7 +10,7 @@ The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides tw
   - Cloud Provider Agnostic 
   - Kubernetes Well Known Labels
   - This section includes generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
-  - Reference the Providioner CRD for more information. 
+  - Reference the Provisioner CRD for more information. 
 - [`spec.provider`](#specprovider)
   - Cloud Provider Specific
   - This section defines constraints that are unique to AWS, such as SecurityGroups.
@@ -70,7 +70,7 @@ Select subnets by name:
     Name: subnet-0fcd7006b3754e95e
 ```
 
-Select subnets by an arbitary AWS tag key/value pair:
+Select subnets by an arbitrary AWS tag key/value pair:
 ```
   subnetSelector:
     MySubnetTag: value
@@ -85,7 +85,7 @@ Select subnets using wildcards:
 
 ### SecurityGroupSelector
 
-Karpenter uses the EKS default security group, unless another is specified. The security group of an instance is comperable to a set of firewall rules.
+Karpenter uses the EKS default security group, unless another is specified. The security group of an instance is comparable to a set of firewall rules.
 
 EKS creates at least two security groups, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
 
@@ -145,7 +145,7 @@ well known label selector](#instance-types).
 
 Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
 
-*accelerator resource in workload manifest (e.g., pod)*
+*Accelerator resource in workload manifest (e.g., pod)*
 
 ```yaml
 spec:

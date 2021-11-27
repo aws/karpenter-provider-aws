@@ -65,7 +65,7 @@ For example, the instance type may be specified using a nodeSelector in a worklo
 
 - key: `topology.kubernetes.io/instance-type`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is reccommended, as it maximizes choices for efficently placing pods. 
+Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods. 
 
 ☁️ **AWS**
 
@@ -152,5 +152,6 @@ Set this value to "on-demand" to prevent critical workloads from being interrupt
 This section is cloud provider specific. Reference the appropriate documentation:
 
 - [AWS](../AWS/constraints.md)
+
 
 
