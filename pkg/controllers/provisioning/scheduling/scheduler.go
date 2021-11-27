@@ -69,17 +69,17 @@ func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudPro
 }
 
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
-
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+	constraints := provisioner.Spec.Constraints.DeepCopy()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, &provisioner.Spec.Constraints, pods); err != nil {
+	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err = s.getSchedules(ctx, &provisioner.Spec.Constraints, pods)
+	schedules, err = s.getSchedules(ctx, constraints, pods)
 	if err != nil {
 		return nil, fmt.Errorf("getting schedules, %w", err)
 	}
