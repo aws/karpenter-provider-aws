@@ -229,6 +229,7 @@ spec:
       labels:
         app: inflate
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
         - name: inflate
           image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
