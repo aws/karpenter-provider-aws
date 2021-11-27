@@ -107,7 +107,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	p := &Provisioner{
 		Provisioner:   provisioner,
 		pods:          make(chan *v1.Pod),
-		results:       make(chan struct{}),
+		results:       make(chan error),
 		done:          ctx.Done(),
 		Stop:          cancelFunc,
 		cloudProvider: c.cloudProvider,
