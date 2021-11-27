@@ -68,13 +68,13 @@ var _ = Describe("Validation", func() {
 	})
 
 	Context("Limits", func() {
-		It("should not allow undefined limits", func() {
+		It("should allow undefined limits", func() {
 			provisioner.Spec.Limits = Limits{}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-		It("should not allow empty limits", func() {
+		It("should allow empty limits", func() {
 			provisioner.Spec.Limits = Limits{Resources: v1.ResourceList{}}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 	})
 
