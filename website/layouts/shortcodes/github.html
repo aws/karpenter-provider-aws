@@ -1,9 +1,9 @@
-<a id="github-counter" class="btn btn-lg btn-dark font-weight-bold" href="https://github.com/awslabs/karpenter">
+<a id="github-counter" class="btn btn-lg btn-dark font-weight-bold" href="https://github.com/aws/karpenter">
     <i class="fab fa-github"></i>
     GitHub
 </a>
 <script>
-  url = "https://api.github.com/repos/awslabs/karpenter"
+  url = "https://api.github.com/repos/aws/karpenter"
   fetch(url).then(function(response) {
     return response.json();
   }).then(function(data) {
@@ -12,4 +12,3 @@
     element.innerHTML = `<i class="fab fa-github"></i> Stars on Github: ${stars}`;
   })
 </script>
-  

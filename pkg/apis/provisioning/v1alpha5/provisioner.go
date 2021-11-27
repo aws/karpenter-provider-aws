@@ -46,6 +46,8 @@ type ProvisionerSpec struct {
 	// Termination due to expiration is disabled if this field is not set.
 	// +optional
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
+	// Limits define a set of bounds for provisioning capacity.
+	Limits Limits `json:"limits,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/controllers/node"
-	"github.com/awslabs/karpenter/pkg/test"
-	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/node"
+	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
 
-	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -68,7 +68,7 @@ var _ = Describe("Controller", func() {
 
 	AfterEach(func() {
 		injectabletime.Now = time.Now
-		ExpectCleanedUp(env.Client)
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
 	Context("Expiration", func() {

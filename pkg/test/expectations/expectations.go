@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
-	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/scheduling"
 )
 
 const (
@@ -65,7 +65,7 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 
 func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
 	p := ExpectPodExists(c, pod.Name, pod.Namespace)
-	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to scheduled", pod.Namespace, pod.Name))
+	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
 	return ExpectNodeExists(c, p.Spec.NodeName)
 }
 
@@ -84,6 +84,12 @@ func ExpectApplied(c client.Client, objects ...client.Object) {
 	}
 }
 
+func ExpectStatusUpdated(c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
+	}
+}
+
 func ExpectCreated(c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
@@ -99,12 +105,12 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectDeleted(c client.Client, objects ...client.Object) {
+func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		persisted := object.DeepCopyObject()
 		object.SetFinalizers([]string{})
-		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted))).To(Succeed())
-		if err := c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
+		Expect(c.Patch(ctx, object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
+		if err := c.Delete(ctx, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			Expect(err).To(BeNil())
 		}
 	}
@@ -113,38 +119,48 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectCleanedUp(c client.Client) {
-	ctx := context.Background()
+func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
 	for i := range pdbs.Items {
-		ExpectDeleted(c, &pdbs.Items[i])
+		ExpectDeleted(ctx, c, &pdbs.Items[i])
 	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
 	for i := range pods.Items {
-		ExpectDeleted(c, &pods.Items[i])
+		ExpectDeleted(ctx, c, &pods.Items[i])
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
 	for i := range nodes.Items {
-		ExpectDeleted(c, &nodes.Items[i])
-	}
-	provisioners := v1alpha5.ProvisionerList{}
-	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for i := range provisioners.Items {
-		ExpectDeleted(c, &provisioners.Items[i])
+		ExpectDeleted(ctx, c, &nodes.Items[i])
 	}
 	daemonsets := appsv1.DaemonSetList{}
 	Expect(c.List(ctx, &daemonsets)).To(Succeed())
 	for i := range daemonsets.Items {
-		ExpectDeleted(c, &daemonsets.Items[i])
+		ExpectDeleted(ctx, c, &daemonsets.Items[i])
+	}
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	for i := range provisioners.Items {
+		ExpectDeleted(ctx, c, &provisioners.Items[i])
+	}
+}
+
+// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
+func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	ExpectCleanedUp(ctx, c)
+	for i := range provisioners.Items {
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(&provisioners.Items[i]))
 	}
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(c, provisioner)
+	ExpectStatusUpdated(c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(c, pod)
 	}

@@ -14,6 +14,7 @@ specific language governing permissions and limitations under the License.
 package v1alpha5
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
 
@@ -29,6 +30,9 @@ type ProvisionerStatus struct {
 	// its target, and indicates whether or not those conditions are met.
 	// +optional
 	Conditions apis.Conditions `json:"conditions,omitempty"`
+
+	// Resources is the list of resources that have been provisioned.
+	Resources v1.ResourceList `json:"resources,omitempty"`
 }
 
 func (p *Provisioner) StatusConditions() apis.ConditionManager {

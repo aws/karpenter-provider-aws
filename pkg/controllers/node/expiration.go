@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
-	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"

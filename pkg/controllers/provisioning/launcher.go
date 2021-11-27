@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
-	"github.com/awslabs/karpenter/pkg/metrics"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -45,11 +45,16 @@ type Launcher struct {
 	CloudProvider cloudprovider.CloudProvider
 }
 
-func (l *Launcher) Launch(ctx context.Context, schedules []*scheduling.Schedule, instanceTypes []cloudprovider.InstanceType) error {
+func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner, schedules []*scheduling.Schedule,
+	instanceTypes []cloudprovider.InstanceType) error {
 	// Pack and bind pods
 	errs := make([]error, len(schedules))
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(index int) {
 		for _, packing := range l.Packer.Pack(ctx, schedules[index], instanceTypes) {
+			if err := l.verifyResourceLimits(ctx, provisioner); err != nil {
+				errs[index] = multierr.Append(errs[index], fmt.Errorf("verifying limits, %w", err))
+				continue
+			}
 			// Create thread safe channel to pop off packed pod slices
 			packedPods := make(chan []*v1.Pod, len(packing.Pods))
 			for _, pods := range packing.Pods {
@@ -109,6 +114,14 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 	})
 	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", bound, node.Name)
 	return nil
+}
+
+func (l *Launcher) verifyResourceLimits(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
+	latest := &v1alpha5.Provisioner{}
+	if err := l.KubeClient.Get(ctx, client.ObjectKeyFromObject(provisioner), latest); err != nil {
+		return fmt.Errorf("getting current resource usage, %w", err)
+	}
+	return provisioner.Spec.Limits.ExceededBy(latest.Status.Resources)
 }
 
 var bindTimeHistogram = prometheus.NewHistogramVec(

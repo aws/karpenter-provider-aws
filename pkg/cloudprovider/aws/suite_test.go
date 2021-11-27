@@ -20,18 +20,18 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning"
-	"github.com/awslabs/karpenter/pkg/controllers/scheduling"
-	"github.com/awslabs/karpenter/pkg/test"
-	. "github.com/awslabs/karpenter/pkg/test/expectations"
-	"github.com/awslabs/karpenter/pkg/utils/injection"
-	"github.com/awslabs/karpenter/pkg/utils/options"
-	"github.com/awslabs/karpenter/pkg/utils/parallel"
-	"github.com/awslabs/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/scheduling"
+	"github.com/aws/karpenter/pkg/test"
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/parallel"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
 )
@@ -49,6 +50,7 @@ import (
 var ctx context.Context
 var env *test.Environment
 var launchTemplateCache *cache.Cache
+var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
 var scheduler *scheduling.Controller
@@ -63,9 +65,15 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		ctx = injection.WithOptions(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
+		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := NewSubnetProvider(fakeEC2API)
-		instanceTypeProvider := NewInstanceTypeProvider(fakeEC2API, subnetProvider)
+		instanceTypeProvider := &InstanceTypeProvider{
+			ec2api:               fakeEC2API,
+			subnetProvider:       subnetProvider,
+			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+			unavailableOfferings: unavailableOfferingsCache,
+		}
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
 			subnetProvider:       subnetProvider,
@@ -103,13 +111,18 @@ var _ = Describe("Allocation", func() {
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
-		ExpectCleanedUp(env.Client)
 		launchTemplateCache.Flush()
+		unavailableOfferingsCache.Flush()
+	})
+
+	AfterEach(func() {
+		ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 	})
 
 	Context("Reconciliation", func() {
 		Context("Specialized Hardware", func() {
 			It("should launch instances for Nvidia GPU resource requests", func() {
+				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
@@ -131,18 +144,14 @@ var _ = Describe("Allocation", func() {
 							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
 						},
 					})) {
-					ExpectScheduled(ctx, env.Client, pod)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
+					nodeNames.Insert(node.Name)
 				}
-				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
-				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
-				for i := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
-					overrides = append(overrides, i.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
-				}
-				for _, override := range overrides {
-					Expect(*override.InstanceType).To(Equal("p3.8xlarge"))
-				}
+				Expect(nodeNames.Len()).To(Equal(2))
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
+				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
@@ -165,16 +174,87 @@ var _ = Describe("Allocation", func() {
 						},
 					}),
 				) {
-					ExpectScheduled(ctx, env.Client, pod)
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+					nodeNames.Insert(node.Name)
 				}
-				Expect(InstancesLaunchedFrom(fakeEC2API.CalledWithCreateFleetInput.Iter())).To(Equal(2))
-				overrides := []*ec2.FleetLaunchTemplateOverridesRequest{}
-				for input := range fakeEC2API.CalledWithCreateFleetInput.Iter() {
-					overrides = append(overrides, input.(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].Overrides...)
+				Expect(nodeNames.Len()).To(Equal(2))
+			})
+		})
+		Context("Insufficient Capacity Error Cache", func() {
+			It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
+				pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+						},
+					}),
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+						},
+					}),
+				)
+				// it should've tried to pack them on a single inf1.6xlarge then hit an insufficient capacity error
+				for _, pod := range pods {
+					ExpectNotScheduled(ctx, env.Client, pod)
 				}
-				for _, override := range overrides {
-					Expect(*override.InstanceType).To(Equal("inf1.6xlarge"))
+				nodeNames := sets.NewString()
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pods...) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.2xlarge"))
+					nodeNames.Insert(node.Name)
 				}
+				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}}
+				pod := test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+					},
+				})
+				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+					{
+						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
+					},
+				}}}
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
+				ExpectNotScheduled(ctx, env.Client, pod)
+
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(SatisfyAll(
+					HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
+					HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
+			})
+			It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+						},
+					}),
+				)[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+				// capacity shortage is over - expire the item from the cache and try again
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
+				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
+				pod = ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, pod)[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 		})
 		Context("CapacityType", func() {
@@ -269,9 +349,9 @@ var _ = Describe("Allocation", func() {
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				Expect(input.LaunchTemplateConfigs[0].Overrides).To(ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 				))
 			})
 		})
@@ -357,6 +437,8 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 	raw, err := json.Marshal(provider)
 	Expect(err).ToNot(HaveOccurred())
 	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}
+	provisioner.Spec.Limits.Resources = v1.ResourceList{}
+	provisioner.Spec.Limits.Resources[v1.ResourceCPU] = *resource.NewScaledQuantity(10, 0)
 	return provisioner
 }
 

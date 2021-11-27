@@ -19,7 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 const (

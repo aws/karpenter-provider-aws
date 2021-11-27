@@ -15,6 +15,7 @@ package provisioning
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -29,12 +30,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/binpacking"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 // Controller for the resource
@@ -97,6 +99,10 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		With(requirements(instanceTypes)).
 		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
+	if !c.hasChanged(ctx, provisioner) {
+		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
+		return nil
+	}
 	ctx, cancelFunc := context.WithCancel(ctx)
 	p := &Provisioner{
 		Provisioner:   provisioner,
@@ -105,6 +111,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		done:          ctx.Done(),
 		Stop:          cancelFunc,
 		cloudProvider: c.cloudProvider,
+		kubeClient:    c.kubeClient,
 		scheduler:     c.scheduler,
 		launcher:      c.launcher,
 	}
@@ -117,13 +124,31 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	return nil
 }
 
-// List the active provisioners
+// Returns true if the new candidate provisioner is different than the provisioner in memory.
+func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Provisioner) bool {
+	oldProvisioner, ok := c.provisioners.Load(provisionerNew.Name)
+	if !ok {
+		return true
+	}
+	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err.Error())
+	}
+	hashKeyNew, err := hashstructure.Hash(provisionerNew.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err.Error())
+	}
+	return hashKeyOld != hashKeyNew
+}
+
+// List active provisioners in order of priority
 func (c *Controller) List(ctx context.Context) []*Provisioner {
 	provisioners := []*Provisioner{}
 	c.provisioners.Range(func(key, value interface{}) bool {
 		provisioners = append(provisioners, value.(*Provisioner))
 		return true
 	})
+	sort.Slice(provisioners, func(i, j int) bool { return provisioners[i].Name < provisioners[j].Name })
 	return provisioners
 }
 

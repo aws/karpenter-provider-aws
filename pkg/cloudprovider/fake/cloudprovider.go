@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"

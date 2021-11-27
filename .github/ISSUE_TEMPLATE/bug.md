@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 ## Version
-<!-- https://github.com/awslabs/karpenter/releases -->
+<!-- https://github.com/aws/karpenter/releases -->
 **Karpenter**: v0.0.0
 <!-- kubectl version | grep Server -->
 **Kubernetes**: v1.0.0

@@ -50,6 +50,20 @@ spec:
                 description: Labels are layered with Requirements and applied to every
                   node.
                 type: object
+              limits:
+                description: Limits define a set of bounds for provisioning capacity.
+                properties:
+                  resources:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: Resources contains all the allocatable resources
+                      that Karpenter supports for limiting.
+                    type: object
+                type: object
               provider:
                 description: Provider contains fields specific to your cloudprovider.
                 type: object
@@ -177,6 +191,15 @@ spec:
                   the number of nodes
                 format: date-time
                 type: string
+              resources:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Resources is the list of resources that have been provisioned.
+                type: object
             type: object
         type: object
     served: true

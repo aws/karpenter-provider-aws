@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	provisioning "github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	provisioning "github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 // Controller for the resource
@@ -58,7 +58,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("termination").With("node", req.String()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("termination").With("node", req.Name))
 
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}

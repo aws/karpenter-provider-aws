@@ -16,12 +16,12 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -47,9 +47,7 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 }
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	loggerName := fmt.Sprintf("%s.provisioner/%s", controllerName, req.Name)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(loggerName))
-
+	ctx = logging.WithLogger(ctx, zap.NewNop().Sugar())
 	// Does the provisioner exist?
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {

@@ -14,7 +14,7 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
 
 ### Unable to delete nodes after uninstalling Karpenter
-Karpenter adds a [finalizer](https://github.com/awslabs/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
+Karpenter adds a [finalizer](https://github.com/aws/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
 
 You can fix this by patching the node objects:
 - `kubectl edit node <node_name>` and remove the line that says `karpenter.sh/termination` in the finalizers field.
@@ -25,13 +25,13 @@ kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{
 ```
 
 ### Nil issues with Karpenter reallocation
-If you create a Karpenter Provisioner while the webhook to default it is unavailable, it's possible to get unintentionally nil fields. [Related Issue](https://github.com/awslabs/karpenter/issues/463).
+If you create a Karpenter Provisioner while the webhook to default it is unavailable, it's possible to get unintentionally nil fields. [Related Issue](https://github.com/aws/karpenter/issues/463).
 
    You may see some logs like this.
 ```{bash}
-github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/utilization.go:84 +0x688
-github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation.(*Controller).Reconcile(0xc000b004c0, 0x23354c0, 0xc000e209f0, 0x235e640, 0xc002566c40, 0x200c786, 0x5, 0xc00259c1b0, 0x1)        github.com/awslabs/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/controller.go:72 +0x65
-github.com/awslabs/karpenter/pkg/controllers.(*GenericController).Reconcile(0xc000b00720, 0x23354c0, 0xc000e209f0, 0xc001db9be0, 0x7, 0xc001db9bd0, 0x7, 0xc000e209f0, 0x7fc864172d20, 0xc0000be2a0, ...)
+github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/utilization.go:84 +0x688
+github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation.(*Controller).Reconcile(0xc000b004c0, 0x23354c0, 0xc000e209f0, 0x235e640, 0xc002566c40, 0x200c786, 0x5, 0xc00259c1b0, 0x1)        github.com/aws/karpenter/pkg/controllers/provisioning/v1alpha1/reallocation/controller.go:72 +0x65
+github.com/aws/karpenter/pkg/controllers.(*GenericController).Reconcile(0xc000b00720, 0x23354c0, 0xc000e209f0, 0xc001db9be0, 0x7, 0xc001db9bd0, 0x7, 0xc000e209f0, 0x7fc864172d20, 0xc0000be2a0, ...)
 ```
 This is fixed in Karpenter v0.2.7+. Reinstall Karpenter on the latest version.
 

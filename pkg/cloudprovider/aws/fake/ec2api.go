@@ -25,10 +25,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	set "github.com/deckarep/golang-set"
 )
+
+type CapacityPool struct {
+	InstanceType string
+	Zone         string
+}
 
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
@@ -44,6 +49,7 @@ type EC2Behavior struct {
 	CalledWithCreateLaunchTemplateInput set.Set
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
+	InsufficientCapacityPools           []CapacityPool
 }
 
 type EC2API struct {
@@ -51,12 +57,18 @@ type EC2API struct {
 	EC2Behavior
 }
 
+// DefaultSupportedUsageClasses is a var because []*string can't be a const
+var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"})
+
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
 	e.EC2Behavior = EC2Behavior{
 		CalledWithCreateFleetInput:          set.NewSet(),
 		CalledWithCreateLaunchTemplateInput: set.NewSet(),
+		Instances:                           sync.Map{},
+		LaunchTemplates:                     sync.Map{},
+		InsufficientCapacityPools:           []CapacityPool{},
 	}
 }
 
@@ -67,10 +79,23 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	}
 	instances := []*ec2.Instance{}
 	instanceIds := []*string{}
+	skippedPools := []CapacityPool{}
 	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
+		skipInstance := false
+		for _, pool := range e.InsufficientCapacityPools {
+			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
+				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) {
+				skippedPools = append(skippedPools, pool)
+				skipInstance = true
+				break
+			}
+		}
+		if skipInstance {
+			continue
+		}
 		instances = append(instances, &ec2.Instance{
 			InstanceId:     aws.String(randomdata.SillyName()),
-			Placement:      &ec2.Placement{AvailabilityZone: aws.String("test-zone-1a")},
+			Placement:      &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
 			PrivateDnsName: aws.String(randomdata.IpV4Address()),
 			InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 		})
@@ -78,7 +103,26 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		instanceIds = append(instanceIds, instances[i].InstanceId)
 	}
 
-	return &ec2.CreateFleetOutput{Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}, nil
+	result := &ec2.CreateFleetOutput{
+		Instances: []*ec2.CreateFleetInstance{{InstanceIds: instanceIds}}}
+	if len(skippedPools) > 0 {
+		for _, pool := range skippedPools {
+			result.Errors = append(result.Errors, &ec2.CreateFleetError{
+				ErrorCode: aws.String("InsufficientInstanceCapacity"),
+				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
+					LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
+						LaunchTemplateId:   input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateId,
+						LaunchTemplateName: input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName,
+					},
+					Overrides: &ec2.FleetLaunchTemplateOverrides{
+						InstanceType:     aws.String(pool.InstanceType),
+						AvailabilityZone: aws.String(pool.Zone),
+					},
+				},
+			})
+		}
+	}
+	return result, nil
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
@@ -166,7 +210,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 		InstanceTypes: []*ec2.InstanceTypeInfo{
 			{
 				InstanceType:                  aws.String("m5.large"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -186,7 +230,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("m5.xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -206,7 +250,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("p3.8xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -232,7 +276,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 			},
 			{
 				InstanceType:                  aws.String("c6g.large"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -251,8 +295,33 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				},
 			},
 			{
+				InstanceType:                  aws.String("inf1.2xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(8),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
+					Accelerators: []*ec2.InferenceDeviceInfo{{
+						Manufacturer: aws.String("AWS"),
+						Count:        aws.Int64(1),
+					}}},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(60),
+				},
+			},
+			{
 				InstanceType:                  aws.String("inf1.6xlarge"),
-				SupportedUsageClasses:         []*string{aws.String("on-demand"), aws.String("spot")},
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
@@ -317,6 +386,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("inf1.2xlarge"),
 				Location:     aws.String("test-zone-1a"),
 			},
 			{

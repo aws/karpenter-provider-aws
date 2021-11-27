@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -43,6 +45,7 @@ type Provisioner struct {
 	Stop    context.CancelFunc
 	// Dependencies
 	cloudProvider cloudprovider.CloudProvider
+	kubeClient    client.Client
 	scheduler     *scheduling.Scheduler
 	launcher      *Launcher
 }
@@ -87,7 +90,7 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 		return fmt.Errorf("getting instance types")
 	}
 	// Launch capacity and bind pods
-	if err := p.launcher.Launch(ctx, schedules, instanceTypes); err != nil {
+	if err := p.launcher.Launch(ctx, p.Provisioner, schedules, instanceTypes); err != nil {
 		return fmt.Errorf("launching capacity, %w", err)
 	}
 	return nil
@@ -117,6 +120,7 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 	idle := time.NewTimer(MinBatchDuration)
 	start := time.Now()
 	defer func() {
+		pods = p.FilterProvisionable(ctx, pods)
 		logging.FromContext(ctx).Infof("Batched %d pods in %s", len(pods), time.Since(start))
 	}()
 	for {
@@ -135,4 +139,24 @@ func (p *Provisioner) Batch(ctx context.Context) (pods []*v1.Pod) {
 			return pods
 		}
 	}
+}
+
+// FilterProvisionable removes pods that have been assigned a node.
+// This check is needed to prevent duplicate binds when a pod is scheduled to a node
+// between the time it was ingested into the scheduler and the time it is included
+// in a provisioner batch.
+func (p *Provisioner) FilterProvisionable(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
+	provisionable := []*v1.Pod{}
+	for _, pod := range pods {
+		// the original pod should be returned rather than the newly fetched pod in case the scheduler relaxed constraints
+		original := pod
+		candidate := &v1.Pod{}
+		if err := p.kubeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, candidate); err != nil {
+			logging.FromContext(ctx).Errorf("Unexpected error retrieving pod \"%s/%s\" while checking if it is provisionable", pod.Namespace, pod.Name)
+		}
+		if candidate.Spec.NodeName == "" {
+			provisionable = append(provisionable, original)
+		}
+	}
+	return provisionable
 }

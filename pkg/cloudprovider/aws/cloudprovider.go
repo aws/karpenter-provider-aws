@@ -25,11 +25,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/parallel"
-	"github.com/awslabs/karpenter/pkg/utils/project"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/parallel"
+	"github.com/aws/karpenter/pkg/utils/project"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -132,12 +132,13 @@ func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha5.Constr
 	return errs
 }
 
+// GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints)
+	return c.instanceTypeProvider.Get(ctx, vendorConstraints.AWS)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {

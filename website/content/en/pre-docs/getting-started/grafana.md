@@ -5,7 +5,7 @@ linkTitle: "Grafana Dashboards"
 weight: 10
 ---
 
-The Karpenter repo contains multiple [importable dashboards](https://github.com/awslabs/karpenter/tree/main/grafana-dashboards) for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
+The Karpenter repo contains multiple [importable dashboards](https://github.com/aws/karpenter/tree/main/grafana-dashboards) for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 

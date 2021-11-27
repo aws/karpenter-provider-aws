@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/utils/result"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/result"
 )
 
 // NewController constructs a controller instance
@@ -59,7 +59,7 @@ type Controller struct {
 
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("node").With("node", req.String()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("node").With("node", req.Name))
 	// 1. Retrieve Node, ignore if not provisioned or terminating
 	stored := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
@@ -78,6 +78,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 2. Retrieve Provisioner
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: stored.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, err
 	}
 

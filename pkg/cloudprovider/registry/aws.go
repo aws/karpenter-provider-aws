@@ -19,8 +19,8 @@ package registry
 import (
 	"context"
 
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 )
 
 func newCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {

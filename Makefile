@@ -2,7 +2,7 @@ RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/awslabs/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
+LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
@@ -10,7 +10,7 @@ WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set defaultProvisioner.create=false --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
+HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -52,8 +52,8 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 apply: ## Deploy the controller into your ~/.kube/config cluster
 	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=ko://github.com/awslabs/karpenter/cmd/controller \
-		--set webhook.image=ko://github.com/awslabs/karpenter/cmd/webhook \
+		--set controller.image=ko://github.com/aws/karpenter/cmd/controller \
+		--set webhook.image=ko://github.com/aws/karpenter/cmd/webhook \
 		| $(WITH_GOFLAGS) ko apply -B -f -
 
 delete: ## Delete the controller from your ~/.kube/config cluster

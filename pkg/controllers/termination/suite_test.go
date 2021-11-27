@@ -21,16 +21,16 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/fake"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/registry"
-	"github.com/awslabs/karpenter/pkg/controllers/termination"
-	"github.com/awslabs/karpenter/pkg/test"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/controllers/termination"
+	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/awslabs/karpenter/pkg/test/expectations"
+	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -81,7 +81,7 @@ var _ = Describe("Termination", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Client)
+		ExpectCleanedUp(ctx, env.Client)
 		injectabletime.Now = time.Now
 	})
 
@@ -114,7 +114,7 @@ var _ = Describe("Termination", func() {
 
 			// Expect podEvict to be evicting, and delete it
 			ExpectEvicted(env.Client, podEvict)
-			ExpectDeleted(env.Client, podEvict)
+			ExpectDeleted(ctx, env.Client, podEvict)
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -141,7 +141,7 @@ var _ = Describe("Termination", func() {
 			ExpectNodeDraining(env.Client, node.Name)
 
 			// Delete do-not-evict pod
-			ExpectDeleted(env.Client, podNoEvict)
+			ExpectDeleted(ctx, env.Client, podNoEvict)
 
 			// Reconcile node to evict pod
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -152,7 +152,7 @@ var _ = Describe("Termination", func() {
 			ExpectEvicted(env.Client, podEvict)
 
 			// Delete pod to simulate successful eviction
-			ExpectDeleted(env.Client, podEvict)
+			ExpectDeleted(ctx, env.Client, podEvict)
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -189,7 +189,7 @@ var _ = Describe("Termination", func() {
 			// ExpectNotEvicted(env.Client, evictionQueue, podNoEvict) // TODO(etarn) reenable this after upgrading testenv apiserver
 
 			// Delete pod to simulate successful eviction
-			ExpectDeleted(env.Client, podNoEvict)
+			ExpectDeleted(ctx, env.Client, podNoEvict)
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)
@@ -213,14 +213,14 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNodeDraining(env.Client, node.Name)
 
-			ExpectDeleted(env.Client, pods[1])
+			ExpectDeleted(ctx, env.Client, pods[1])
 
 			// Expect node to exist and be draining, but not deleted
 			node = ExpectNodeExists(env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNodeDraining(env.Client, node.Name)
 
-			ExpectDeleted(env.Client, pods[0])
+			ExpectDeleted(ctx, env.Client, pods[0])
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(env.Client, node.Name)

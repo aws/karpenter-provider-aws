@@ -30,11 +30,11 @@ Please contribute to our meeting notes by opening a PR.
   - CPU/GPU/Memory
   - What about storage? Should we support all resource requests?
   - spec.limits.resources vs spec.maxResources
-- This should support folks running separate provisioners per team. 
+- This should support folks running separate provisioners per team.
    - Helps a cluster admin enforce a limit on each team.
-   - Setting GPU limits to 0 can help enforce that no GPU instances are launched at all. 
-- Discussed resource quotas and why that doesn't help us implement limits in this form. 
-   - With quotas you can limit resourceCounts (number of PVs) but not resource properties (say size of a PV)  
+   - Setting GPU limits to 0 can help enforce that no GPU instances are launched at all.
+- Discussed resource quotas and why that doesn't help us implement limits in this form.
+   - With quotas you can limit resourceCounts (number of PVs) but not resource properties (say size of a PV)
 # Meeting notes (10/28/21)
 ## Attendees
 - Brandon Wagner
@@ -105,7 +105,7 @@ Please contribute to our meeting notes by opening a PR.
 - Shaun
 
 ## Announcements:
-- v1alpha4 Proposal is in [PR - MERGED](https://github.com/awslabs/karpenter/pull/676)
+- v1alpha4 Proposal is in [PR - MERGED](https://github.com/aws/karpenter/pull/676)
 
 ## Notes:
 - [EL] Working on Cluster API provider for Karpenter. We have a management cluster and a workload cluster. Need to get a kubeconfig for the cloud provider to use in order to create Cluster API resources like MachineSets.
@@ -116,7 +116,7 @@ Please contribute to our meeting notes by opening a PR.
 - [EL] Is the CloudProvider interface for returning Zones specifically for AWS or can any freeform string be returned to support other cloud provider concepts?
 - [ET] The Zones func is meant to be cloud provider agnostic, so the return string could be whatever makes sense for the cloud provider.
 - [EL] ClusterAPI cloud provider would increment a MachineSet right now. There might be some issues with multiple things touching the replica count of the sets, but starting with a simple model and see what breaks.
-- [READING v1alpha4 proposal](https://github.com/awslabs/karpenter/pull/676)
+- [READING v1alpha4 proposal](https://github.com/aws/karpenter/pull/676)
 - [BW] How would the pluralization of Arch and OS work and why would we want to support Linux and Windows in the same provisioner?
 - [ET] We would default to Linux and AMD64 most likely and then allow the user to configure if they'd like to expand the constraints to use both Arch's or OS.
 - [BW] I don't think Windows would be a popular or practical choice if the pod could be run on Linux. But I can see how the semantics make it nice and uniform. I'm okay with the pluralization approach here.
@@ -231,7 +231,7 @@ Notes:
 - [KM]: It worked well after I removed the custom launch template ID.
 - [ET]: We've been playing with the idea of not even allowing custom launch templates because they're tricky to get right due to bad configurations that are hard to validate and won't work at runtime.
 - [KM]: What is the intention around deleting LTs when you delete the cluster?
-- [ET]: We'd like to not have to use launch templates with the EC2 fleet api. The best we have today is the command in the [karpenter repo demo](https://github.com/awslabs/karpenter/blob/f202d3e68fcdf583717245763b0338a478649bc2/docs/aws/README.md#cleanup) to find resources created by karpenter based on tags. The Launch Templates are tied to a provisioner since it's a hash of the constraints. We could add a k8s finalizer on the provisioner to clean up the resources in AWS.
+- [ET]: We'd like to not have to use launch templates with the EC2 fleet api. The best we have today is the command in the [karpenter repo demo](https://github.com/aws/karpenter/blob/f202d3e68fcdf583717245763b0338a478649bc2/docs/aws/README.md#cleanup) to find resources created by karpenter based on tags. The Launch Templates are tied to a provisioner since it's a hash of the constraints. We could add a k8s finalizer on the provisioner to clean up the resources in AWS.
 - [KM]: It's hard to use the vpc-cni because of the flags you have to pass to the kubelet for max pods.
 - [ET]: We use bottlerocket by default in karpenter. In an ipv6 world,  the pod limit is basically infinite. So you (KM) don't work with the defaults?
 - [KM]: If we use karpenter, we'd probably just use the defaults. We're also looking at calico, which requires changing the max pods (increasing instead of decreasing).
@@ -248,7 +248,7 @@ Notes:
 - [VS]: There are agents that companies will want to install on all of their nodes for security or monitoring purposes. So there definitely needs to be a mechanism to change AMIs or add user-data.
 - [ET]: How was your (KM) experience with karpenter's use of label selectors?
 - [KM]: It depends on how many fields users are overriding. When I specified no label selectors it just worked. But I understand that you'll need to customize stuff at some point and that can be a little tricky. For example, the LaunchTemplate version didn't accept Default because of the $. Maybe a CRD or configmap would work on syntax limited fields.
-- [ET]: Security groups at the pod level would simplify this a lot. For the LT version problem (https://github.com/awslabs/karpenter/issues/434), if you don't specify the version, we'd just use DEFAULT. And for LATEST, maybe we just don't support it and tell users to set DEFAULT to the LATEST. It's also generally a bad practice to use LATEST in docker registries since you might update containers without realizing it.
+- [ET]: Security groups at the pod level would simplify this a lot. For the LT version problem (https://github.com/aws/karpenter/issues/434), if you don't specify the version, we'd just use DEFAULT. And for LATEST, maybe we just don't support it and tell users to set DEFAULT to the LATEST. It's also generally a bad practice to use LATEST in docker registries since you might update containers without realizing it.
 - [KM]: I think DEFAULT support would be fine. Just using the ID would be tedious.
 - [Elmiko]: Still going over the karpenter code. Would still like to build a cloud provider for karpenter to get it working with OpenShift and Cluster API stuff.  But it's hard w/ the cluster api machine sets. Need to create a bunch of MachineSets to size 0 and then pick one. Which seems kind of clunky.
 - [ET]: Would the machine template work in cluster API?
@@ -274,7 +274,7 @@ Notes:
 
 ## Notes
 - [PG] Made a release for 0.2.5
-- [PG] We're working on termination design [here](https://github.com/awslabs/karpenter/blob/main/docs/designs/termination.md)
+- [PG] We're working on termination design [here](https://github.com/aws/karpenter/blob/main/docs/designs/termination.md)
 - [VS] I was using a launch template to specify instance types but it wasn't working
 - [BW] Launch templates only allow one instance type, so we don't use launch templates to get instance types, but rather use the EC2 API to get that information
 - [BW] Is there a use case to use launch templates?
@@ -424,7 +424,7 @@ Notes:
 - [BW] CAPI moving from run instances API to fleet API in the next release
 - [ET] How does the preemption work?
     - [El] They are planning to change the way to its done today and need to go deep dive to understand
-- Reading [AWS Provisioner Launch Template Options](https://github.com/awslabs/karpenter/pull/330/files?short_path=3078f76) Proposal from Jacob
+- Reading [AWS Provisioner Launch Template Options](https://github.com/aws/karpenter/pull/330/files?short_path=3078f76) Proposal from Jacob
 - [JG] Its hard to specify if LT is arch specific? Hard to know what arch LT supports? If LT doesn't specify an AMI its not going to work.
 - [El] Depends some people like webhook pattern, some don't, CAPI has this pattern
 - [El] You can return an error in validating webhook or have an error when the request hit cloud provider. Could potentially just resolve this via validation at pod and provisioner level

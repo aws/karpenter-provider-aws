@@ -23,8 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
 
-	"github.com/awslabs/karpenter/pkg/utils/functional"
-	"github.com/awslabs/karpenter/pkg/utils/ptr"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var (
@@ -42,6 +42,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
+		s.Limits.validateResourceLimits(),
 		s.Constraints.Validate(ctx),
 	)
 }
@@ -52,6 +53,7 @@ func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldErro
 	}
 	return errs
 }
+
 func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError) {
 	if ptr.Int64Value(s.TTLSecondsAfterEmpty) < 0 {
 		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsAfterEmpty"))

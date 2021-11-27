@@ -16,7 +16,7 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/awslabs/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 var (
@@ -26,6 +26,10 @@ var (
 		"InvalidLaunchTemplateName.NotFoundException",
 	}
 )
+
+// InsufficientCapacityErrorCode indicates that EC2 is temporarily lacking capacity for this
+// instance type and availability zone combination
+const InsufficientCapacityErrorCode = "InsufficientInstanceCapacity"
 
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more

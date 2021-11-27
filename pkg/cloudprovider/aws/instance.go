@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/awslabs/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/awslabs/karpenter/pkg/cloudprovider"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type InstanceProvider struct {
@@ -143,6 +143,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
 	instanceIds := combineFleetInstances(*createFleetOutput)
 	if len(instanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
@@ -155,7 +156,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, constraints)
+	subnets, err := p.subnetProvider.Get(ctx, constraints.AWS)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
@@ -166,7 +167,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfigs = append(launchTemplateConfigs, &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Default"),
@@ -176,30 +177,39 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	return launchTemplateConfigs, nil
 }
 
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+// getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
+// zones and the offerings in instanceTypeOptions)
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
 			// we can't assume that all zones will be available for all capacity types, hence this check
-			if offering.CapacityType != capacityType {
+			if capacityType != offering.CapacityType {
+				continue
+			}
+			if !zones.Has(offering.Zone) {
 				continue
 			}
 			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) == offering.Zone {
-					override := &ec2.FleetLaunchTemplateOverridesRequest{
-						InstanceType: aws.String(instanceType.Name()),
-						SubnetId:     subnet.SubnetId,
-					}
-					// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-					// to reduce the likelihood of getting an excessively large instance type.
-					// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-					if capacityType == v1alpha1.CapacityTypeSpot {
-						override.Priority = aws.Float64(float64(i))
-					}
-					overrides = append(overrides, override)
-					// FleetAPI cannot span subnets from the same AZ, so break after the first one.
-					break
+				if aws.StringValue(subnet.AvailabilityZone) != offering.Zone {
+					continue
 				}
+				override := &ec2.FleetLaunchTemplateOverridesRequest{
+					InstanceType: aws.String(instanceType.Name()),
+					SubnetId:     subnet.SubnetId,
+					// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
+					// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
+					AvailabilityZone: subnet.AvailabilityZone,
+				}
+				// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+				// to reduce the likelihood of getting an excessively large instance type.
+				// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+				if capacityType == v1alpha1.CapacityTypeSpot {
+					override.Priority = aws.Float64(float64(i))
+				}
+				overrides = append(overrides, override)
+				// FleetAPI cannot span subnets from the same AZ, so break after the first one.
+				break
 			}
 		}
 	}
@@ -250,6 +260,11 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 						v1.ResourceCPU:    *instanceType.CPU(),
 						v1.ResourceMemory: *instanceType.Memory(),
 					},
+					Capacity: v1.ResourceList{
+						v1.ResourcePods:   *instanceType.Pods(),
+						v1.ResourceCPU:    *instanceType.CPU(),
+						v1.ResourceMemory: *instanceType.Memory(),
+					},
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
@@ -260,6 +275,14 @@ func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes 
 		}
 	}
 	return nil, fmt.Errorf("unrecognized instance type %s", aws.StringValue(instance.InstanceType))
+}
+
+func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
+	for _, err := range errors {
+		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
+			p.instanceTypeProvider.CacheUnavailable(ctx, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone), capacityType)
+		}
+	}
 }
 
 func getInstanceID(node *v1.Node) (*string, error) {

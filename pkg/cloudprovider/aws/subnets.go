@@ -21,8 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/awslabs/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/awslabs/karpenter/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -40,7 +40,7 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]*ec2.Subnet, error) {
+func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
 	filters := getFilters(constraints)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
@@ -61,15 +61,8 @@ func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.Constrai
 	return output.Subnets, nil
 }
 
-func getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
+func getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	// Filter by zone
-	if zones := constraints.Requirements.Zones(); zones != nil {
-		filters = append(filters, &ec2.Filter{
-			Name:   aws.String("availability-zone"),
-			Values: aws.StringSlice(zones.UnsortedList()),
-		})
-	}
 	// Filter by subnet
 	for key, value := range constraints.SubnetSelector {
 		if value == "*" {

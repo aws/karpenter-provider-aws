@@ -78,7 +78,7 @@
       },
       "id": 99,
       "options": {
-        "content": "Displays information collected by the Kubernetes controller-runtime.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/awslabs/karpenter/issues/new?labels=dashboard).",
+        "content": "Displays information collected by the Kubernetes controller-runtime.\n\nSee the information icon of each panel for a description.\n\nSuggest improvements and additions [here](https://github.com/aws/karpenter/issues/new?labels=dashboard).",
         "mode": "markdown"
       },
       "pluginVersion": "8.1.6",
