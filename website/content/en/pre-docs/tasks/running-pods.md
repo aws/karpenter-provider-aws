@@ -467,9 +467,12 @@ metadata:
   name: gpu
 spec:
   requirements: 
-  - key: node.kubernetes.io/instance-type (http://node.kubernetes.io/instance-type)
+  - key: node.kubernetes.io/instance-type
     operator: In
-    values: [   p3.2xlarge, p3.8xlarge, p3.16xlarge ] 
+    values:
+      - p3.2xlarge
+      - p3.8xlarge
+      - p3.16xlarge
   taints:
   - key: nvidia.com/gpu
     value: true
@@ -517,7 +520,6 @@ spec:
       labelSelector:
         matchLabels:
           dev: jjones
-  topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: "kubernetes.io/hostname"
       whenUnsatisfiable: ScheduleAnyway
