@@ -53,11 +53,13 @@ spec:
 
 ## spec.requirements
 
-Kubernetes defines the following [well known labels]([[link]]), and cloud providers (e.g., AWS) merely implement them. They are defined at the "spec.requirements" section of the provisioner CRD. 
+Kubernetes defines the following [well known labels]([[link]]), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the provisioner CRD. 
 
 These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). If the two conflict, the provisioner controls. In other words, a podspec may not override the provisioner with respect to constraints. 
 
-For example, Instance type may also be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (e.g., pod) level is not included in the provisioner list, karpenter will not create a node or schedule the pod. 
+For example, the instance type may be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (e.g., pod) level is not included in the provisioner list, karpenter will not create a node or schedule the pod. 
+
+📝 None of these values are required. 
 
 ### Instance Types
 
@@ -139,9 +141,9 @@ At this time, Karpenter only supports Linux OS nodes.
   - `spot` (default)
   - `on-demand` 
 
-Karpenter supports specifying capacity type, which is analogous to EC2 usage classes (aka "market types").
+Karpenter supports specifying capacity type, which is analogous to EC2 usage classes.
 
-Karpenter defaults to spot instances. [Spot instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not be used for critical workloads that do not tolerate interruptions.
+🔶 *Karpenter defaults to spot instances.* [Spot instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not be used for critical workloads that do not tolerate interruptions.
 
 Set this value to "on-demand" to prevent critical workloads from being interrupted.
 

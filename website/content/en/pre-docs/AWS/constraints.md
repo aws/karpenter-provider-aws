@@ -9,7 +9,7 @@ The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides tw
 - [`spec.requirements`](../reference/provisioner-crd#specrequirements)
   - Cloud Provider Agnostic 
   - Kubernetes Well Known Labels
-  - This section includues generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
+  - This section includes generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
   - Reference the Providioner CRD for more information. 
 - [`spec.provider`](#specprovider)
   - Cloud Provider Specific
@@ -23,7 +23,7 @@ cloud provider specific constrains
 [Review these fields in the code.](https://github.com/awslabs/karpenter/blob/main/pkg/cloudprovider/aws/apis/v1alpha1/provider.go#L33)
 
 ### InstanceProfile
-An `InstanceProfile` is a region specific EC2 resource that is comprised of a reference to a single global IAM role.
+An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance.
 
 It is required, and specified by name. A suitable `KarpenterNodeRole` is created in the getting started guide.
 
@@ -35,9 +35,9 @@ spec:
 
 ### LaunchTemplate
 
-A launch template is a set of configuration values sufficent for launching an EC2 instance (e.g., AMI, storage spec).
+A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
 
-A custom launch templay *may optionally* be specified by name. If none is specified, Karpenter will automatically create a launch template.
+A custom launch template be specified by name. If none is specified, Karpenter will automatically create a launch template.
 
 Review the [Launch Template documentation](launch-templates.md) to learn how to create a custom one.
 
@@ -48,11 +48,11 @@ spec:
 ```
 
 ### SubnetSelector
-By default, Karpenter discovers subnets by tags. Alternatively, cluster subnets may be directly enumerated. 
+By default, Karpenter discovers subnets by tags. Alternatively, cluster subnets may list specific subnets.
 
 Subnets may be specified by AWS tag, or by name. Either approach supports wildcards. 
 
-Each instance gets *one* subnet *chosen* from this list.
+When creating an instance, Karpenter picks a single subnet from this this. 
 
 **Examples**
 
@@ -87,7 +87,7 @@ Select subnets using wildcards:
 
 Karpenter uses the EKS default security group, unless another is specified. The security group of an instance is comperable to a set of firewall rules.
 
-EKS creates at least two security groups, review the documentation for more info.
+EKS creates at least two security groups, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
 
 Security Groups may be specified by AWS tag, or by name. Either approach supports wildcards. 
 
@@ -143,8 +143,7 @@ Karpenter supports accelerators, such as GPUs.
 To enable instances with accelerators, use the [instance type
 well known label selector](#instance-types).
 
-Additionally, include a resource requirement in the workload manifest. Thus,
-accelerator dependent pod will be scheduled onto the appropriate node.
+Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
 
 *accelerator resource in workload manifest (e.g., pod)*
 
