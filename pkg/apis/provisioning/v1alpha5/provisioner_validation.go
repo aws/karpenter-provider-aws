@@ -42,7 +42,6 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		s.Limits.validateResourceLimits(),
 		s.Constraints.Validate(ctx),
 	)
 }
