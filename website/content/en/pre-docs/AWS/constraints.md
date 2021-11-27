@@ -4,13 +4,14 @@ linkTitle: "Provisioning"
 weight: 10
 ---
 
-The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides two sections for constraining nodes. 
+The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides two sections for configuring node provisioning. 
 
 - [`spec.requirements`](../reference/provisioner-crd#specrequirements)
   - Cloud Provider Agnostic 
   - Kubernetes Well Known Labels
   - This section includes generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
   - Reference the Provisioner CRD for more information. 
+  - Review how [pod node selction](../tasks/running-pods/#selecting-nodes-nodeselector-and-nodeaffinity) works.
 - [`spec.provider`](#specprovider)
   - Cloud Provider Specific
   - This section defines constraints that are unique to AWS, such as SecurityGroups.
@@ -18,7 +19,7 @@ The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides tw
 
 ## spec.provider
 
-cloud provider specific constrains
+This section covers parameters of the AWS Cloud Provider.
 
 [Review these fields in the code.](https://github.com/awslabs/karpenter/blob/main/pkg/cloudprovider/aws/apis/v1alpha1/provider.go#L33)
 
@@ -37,7 +38,7 @@ spec:
 
 A launch template is a set of configuration values sufficient for launching an EC2 instance (e.g., AMI, storage spec).
 
-A custom launch template be specified by name. If none is specified, Karpenter will automatically create a launch template.
+A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
 
 Review the [Launch Template documentation](launch-templates.md) to learn how to create a custom one.
 
@@ -48,11 +49,12 @@ spec:
 ```
 
 ### SubnetSelector
-By default, Karpenter discovers subnets by tags. Alternatively, cluster subnets may list specific subnets.
 
-Subnets may be specified by AWS tag, or by name. Either approach supports wildcards. 
+Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). Alternatively, provisioners may list specific subnets.
 
-When creating an instance, Karpenter picks a single subnet from this this. 
+Subnets may be specified by any AWS tag, including "name". Selecting tags using wildcards ("*") is supported.
+
+When launching nodes, Karpenter automatically chooses a subnet that matches the desired zone. If multiple subnets exist for a zone, one is chosen randomly.
 
 **Examples**
 
@@ -79,19 +81,19 @@ Select subnets using wildcards:
 ```
   subnetSelector:
     Name: *public* 
-    MySubnetTag: '' # all resources with this tag
 
 ```
 
 ### SecurityGroupSelector
 
-Karpenter uses the EKS default security group, unless another is specified. The security group of an instance is comparable to a set of firewall rules.
+The security group of an instance is comparable to a set of firewall rules.
+If no security groups are explicitly listed, Karpenter discovers them using the tag "kubernetes.io/cluster/MyClusterName", similar to subnet discovery.
 
-EKS creates at least two security groups, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
+EKS creates at least two security groups by default, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
 
-Security Groups may be specified by AWS tag, or by name. Either approach supports wildcards. 
+Security groups may be specified by any AWS tag, including "name". Selecting tags using wildcards ("*") is supported.
 
-Each instance gets *all* of the listed security groups.
+‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. The only exception to this is security groups tagged with the label `kubernets.io/cluster/MyClusterName`. The AWS Load Balancer controller requires that *only a single security group with this tag may be attached to a node*. In this case, Karpenter selects randomly.
 
 **Examples**
 
@@ -118,7 +120,7 @@ Select security groups by name using a wildcard:
 
 ### Tags
 
-All listed tags will be added to every node created by this provisioner.
+Tags will be added to every EC2 Instance launched by this provisioner.
 
 ```
 spec:
