@@ -21,16 +21,9 @@ For most use cases, a cluster’s capacity can be managed by a single Karpenter 
 However, you can define multiple Provisioners, enabling use cases like isolation, entitlements, and sharding.
 Using a combination of defaults and overrides, Karpenter determines the availability zone, instance type, capacity type, machine image, and scheduling constraints for pods it manages.
 
-Karpenter optimizes for scheduling latency and utilization efficiency using two complementary control loops:
-
-* The *allocator* is a fast-acting latency-sensitive controller that is responsible for ensuring that incoming pods are scheduled as quickly as possible.
-* The *reallocator* is a slow-acting cost-sensitive controller that replaces nodes as pod requests and capacity prices shift over time.
-
-Together, the allocator and reallocator maximize the availability and efficiency of your cluster.
-
 Come discuss Karpenter in the [#provider-aws channel](https://kubernetes.slack.com/archives/C0LRMHZ1T) in the [Kubernetes slack](https://slack.k8s.io/)!
 
-Check out the [FAQs](https://karpenter.sh/docs/faqs/) to learn more.
+Check out the [Docs](https://karpenter.sh/) to learn more.
 
 ## Installation
 
