@@ -4,7 +4,8 @@ linkTitle: "Provisioning"
 weight: 10
 ---
 
-The [Provisioner CRD]({{< ref "../reference/provisioner-crd.md" >}}) provides two sections for configuring node provisioning. 
+The [API Reference]({{< ref "../provisioner-crd.md" >}}) provides two sections for configuring node provisioning. 
+
 
 - [`spec.requirements`](../reference/provisioner-crd#specrequirements)
   - Cloud Provider Agnostic 
@@ -50,9 +51,10 @@ spec:
 
 ### SubnetSelector
 
-Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). Alternatively, provisioners may list specific subnets.
+Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
-Subnets may be specified by any AWS tag, including "name". Selecting tags using wildcards ("*") is supported.
+Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("*") is supported.
+
 
 When launching nodes, Karpenter automatically chooses a subnet that matches the desired zone. If multiple subnets exist for a zone, one is chosen randomly.
 
@@ -142,8 +144,6 @@ Accelerator (e.g., GPU) values include
 
 Karpenter supports accelerators, such as GPUs.
 
-To enable instances with accelerators, use the [instance type
-well known label selector](#instance-types).
 
 Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
 

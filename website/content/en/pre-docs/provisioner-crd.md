@@ -53,17 +53,17 @@ spec:
 
 ## spec.requirements
 
-Kubernetes defines the following [well known labels]([[link]]), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the provisioner CRD. 
+Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API. 
 
 These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). If the two conflict, the provisioner controls. In other words, a podspec may not override the provisioner with respect to constraints. 
 
-For example, the instance type may be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (e.g., pod) level is not included in the provisioner list, karpenter will not create a node or schedule the pod. 
+For example, the instance type may be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (i.e., pod) level is not included in the provisioner list, Karpenter will not create a node or schedule the pod. 
 
 📝 None of these values are required. 
 
 ### Instance Types
 
-- key: `topology.kubernetes.io/instance-type`
+- key: `node.kubernetes.io/instance-type`
 
 Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods. 
 
@@ -109,7 +109,7 @@ spec:
 
 - value list: `aws ec2 describe-availability-zones --region <region-name>`
 
-Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone us-east-1a for your AWS account might not have the same location as us-east-1a for another AWS account.
+Karpenter can be configured to create nodes in a particular zone. Note that the Availability Zone `us-east-1a` for your AWS account might not have the same location as `us-east-1a` for another AWS account.
 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
@@ -123,13 +123,6 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
-### Operating System
-
-- key: `kubernetes.io/os`
-- values
-  - `linux` (default)
-
-At this time, Karpenter only supports Linux OS nodes.
 
 ### Capacity Type
 
@@ -141,7 +134,7 @@ At this time, Karpenter only supports Linux OS nodes.
   - `spot` (default)
   - `on-demand` 
 
-Karpenter supports specifying capacity type, which is analogous to EC2 usage classes.
+Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
 🔶 *Karpenter defaults to spot instances.* [Spot instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not be used for critical workloads that do not tolerate interruptions.
 
