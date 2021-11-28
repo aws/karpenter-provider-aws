@@ -98,7 +98,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		With(requirements(instanceTypes)).
-		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
+		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels)).
+		Consolidate()
 	if !c.hasChanged(ctx, provisioner) {
 		// If the provisionerSpecs haven't changed, we don't need to stop and drain the current Provisioner.
 		return nil
