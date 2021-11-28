@@ -4,20 +4,6 @@ linkTitle: "Provisioning"
 weight: 10
 ---
 
-The [API Reference]({{< ref "../provisioner-crd.md" >}}) provides two sections for configuring node provisioning. 
-
-
-- [`spec.requirements`](../reference/provisioner-crd#specrequirements)
-  - Cloud Provider Agnostic 
-  - Kubernetes Well Known Labels
-  - This section includes generally applicable constraints (zone, instance type) that each cloud provider is expected to implement. 
-  - Reference the Provisioner CRD for more information. 
-  - Review how [pod node selction](../tasks/running-pods/#selecting-nodes-nodeselector-and-nodeaffinity) works.
-- [`spec.provider`](#specprovider)
-  - Cloud Provider Specific
-  - This section defines constraints that are unique to AWS, such as SecurityGroups.
-  - Defined below. 
-
 ## spec.provider
 
 This section covers parameters of the AWS Cloud Provider.
@@ -62,10 +48,8 @@ When launching nodes, Karpenter automatically chooses a subnet that matches the 
 
 Select all subnets with a specified tag:
 ```
-spec:
-  provider:
-    subnetSelector:
-      kubernetes.io/cluster/MyCluster: '*'
+  subnetSelector:
+    kubernetes.io/cluster/MyCluster: '*'
 ```
 
 Select subnets by name:

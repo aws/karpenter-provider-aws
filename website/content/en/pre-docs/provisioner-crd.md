@@ -35,13 +35,13 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "node.kubernetes.io/instance-type" # If not included, reference cloud provider
+    - key: "node.kubernetes.io/instance-type" 
       operator: In
       values: ["m5.large", "m5.2xlarge"]
-    - key: "topology.kubernetes.io/zone" # If not included, all zones are considered
+    - key: "topology.kubernetes.io/zone" 
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch" # If not included, reference cloud provider
+    - key: "kubernetes.io/arch" 
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
@@ -136,9 +136,6 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
-🔶 *Karpenter defaults to spot instances.* [Spot instances](https://aws.amazon.com/ec2/spot/) may be preempted, and should not be used for critical workloads that do not tolerate interruptions.
-
-Set this value to "on-demand" to prevent critical workloads from being interrupted.
 
 ## spec.provider
 
