@@ -4,7 +4,7 @@ linkTitle: "Spec Fields"
 weight: 10
 ---
 
-The [Provisioner CRD]({{< ref "../../reference/provisioner-crd.md" >}}) supports defining
+The [Provisioner CRD]({{< ref "../../provisioner-crd.md" >}}) supports defining
 node properties like instance type and zone. For certain well-known labels (documented below), Karpenter will provision
 nodes accordingly. For example, in response to a label of
 `topology.kubernetes.io/zone=us-east-1c`, Karpenter will provision nodes in
