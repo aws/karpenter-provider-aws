@@ -1,6 +1,6 @@
 ---
-title: "Deprovision nodes"
-linkTitle: "Deprovision nodes"
+title: "Deprovisioning nodes"
+linkTitle: "Deprovisioning nodes"
 weight: 20
 ---
 
