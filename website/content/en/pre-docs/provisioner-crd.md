@@ -55,7 +55,7 @@ spec:
 
 Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API. 
 
-These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). If the two conflict, the provisioner controls. In other words, a podspec may not override the provisioner with respect to constraints. 
+These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). Nodes are chosen using the both the provisioner's and pod's requirements. If there is no overlap, nodes will not be launched. In other words, a pod's requirements must be within the provisioner's requirements. If a requirement is not defined for a well known label, any value available to the cloud provider may be chosen.
 
 For example, the instance type may be specified using a nodeSelector in a workload definition. If the instance type requested at the workload (i.e., pod) level is not included in the provisioner list, Karpenter will not create a node or schedule the pod. 
 
