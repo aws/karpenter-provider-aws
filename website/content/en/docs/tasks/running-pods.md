@@ -60,7 +60,8 @@ Its limits are set to 256MiB of memory and 1 CPU.
 Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 
 
-See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioning COnfiguration](../aws/constraints) for a list of supported resources.
+See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioning Configuration](../../aws/constraints) for a list of supported resources.
+
 
 ## Selecting nodes (`nodeSelector` and `nodeAffinity`)
 
