@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/apis"
 )
 
 // Limits define bounds on the resources being provisioned by Karpenter
@@ -27,14 +26,10 @@ type Limits struct {
 	Resources v1.ResourceList `json:"resources,omitempty"`
 }
 
-func (l *Limits) validateResourceLimits() (errs *apis.FieldError) {
-	if l.Resources == nil || len(l.Resources) == 0 {
-		return errs.Also(apis.ErrInvalidValue("cannot be empty", "limits"))
-	}
-	return errs
-}
-
 func (l *Limits) ExceededBy(resources v1.ResourceList) error {
+	if l.Resources == nil {
+		return nil
+	}
 	for resourceName, usage := range resources {
 		if limit, ok := l.Resources[resourceName]; ok {
 			if usage.Cmp(limit) >= 0 {

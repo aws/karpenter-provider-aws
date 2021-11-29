@@ -31,7 +31,7 @@ type CloudProvider interface {
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request. This API
 	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) chan error
+	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) <-chan error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.

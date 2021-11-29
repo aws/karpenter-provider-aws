@@ -60,11 +60,11 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Determine resource usage and update provisioner.status.resources
 	resourceCounts, err := c.resourceCountsFor(ctx, provisioner.Name)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("computing resource usage, %w", err)
 	}
 	provisioner.Status.Resources = resourceCounts
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to persist changes to %s, %w", req.NamespacedName, err)
+		return reconcile.Result{}, fmt.Errorf("patching provisioner, %w", err)
 	}
 	return reconcile.Result{}, nil
 }

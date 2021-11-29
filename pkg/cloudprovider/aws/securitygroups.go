@@ -105,7 +105,7 @@ func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, s
 		if s.hasClusterTag(ctx, securityGroup) {
 			if foundClusterTag {
 				logging.FromContext(ctx).Debugf("Ignoring security group %s, only one group with tag %s is allowed", aws.StringValue(securityGroup.GroupId),
-					fmt.Sprint(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName))
+					fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName))
 				continue
 			}
 			foundClusterTag = true

@@ -68,7 +68,7 @@ var _ = Describe("Controller", func() {
 
 	AfterEach(func() {
 		injectabletime.Now = time.Now
-		ExpectCleanedUp(env.Client)
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
 	Context("Expiration", func() {

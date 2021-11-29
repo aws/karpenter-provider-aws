@@ -21,7 +21,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -67,14 +69,17 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err.Error())
 		return reconcile.Result{}, nil
 	}
-	// Schedule and requeue. If successful, will terminate in the unschedulable check above
-	if err := c.Schedule(ctx, pod); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to schedule, %s", err.Error())
+	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
+	provisioner, err := c.selectProvisioner(ctx, pod)
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err.Error())
+		return reconcile.Result{}, err
 	}
+	provisioner.Add(ctx, pod)
 	return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 }
 
-func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
+func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (*provisioning.Provisioner, error) {
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
 	// Pick provisioner
@@ -93,14 +98,9 @@ func (c *Controller) Schedule(ctx context.Context, pod *v1.Pod) error {
 		if errs != nil {
 			err = fmt.Errorf("%s, %w", err, errs)
 		}
-		return err
+		return nil, err
 	}
-	// Enqueue and wait for provisioning
-	logging.FromContext(ctx).Debugf("Scheduling pod to provisioner %q", provisioner.Name)
-	if err := provisioner.Add(ctx, pod); err != nil {
-		return fmt.Errorf("provisioner %q failed", provisioner.Name)
-	}
-	return nil
+	return provisioner, nil
 }
 
 func isProvisionable(p *v1.Pod) bool {
@@ -166,5 +166,6 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Named("scheduling").
 		For(&v1.Pod{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
+		WithLogger(zapr.NewLogger(zap.NewNop())).
 		Complete(c)
 }

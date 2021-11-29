@@ -38,22 +38,22 @@ import (
 )
 
 var ctx context.Context
-var controller *provisioning.Controller
+var provisioners *provisioning.Controller
 var scheduler *scheduling.Controller
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controllers/Allocation")
+	RunSpecs(t, "Controllers/Provisioning")
 }
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
-		scheduler = scheduling.NewController(e.Client, controller)
+		provisioners = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
+		scheduler = scheduling.NewController(e.Client, provisioners)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -81,12 +81,12 @@ var _ = Describe("Provisioning", func() {
 	})
 
 	AfterEach(func() {
-		ExpectCleanedUp(env.Client)
+		ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 	})
 
 	Context("Reconcilation", func() {
 		It("should provision nodes", func() {
-			pods := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())
+			pods := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())
 			nodes := &v1.NodeList{}
 			Expect(env.Client.List(ctx, nodes)).To(Succeed())
 			Expect(len(nodes.Items)).To(Equal(1))
@@ -119,15 +119,15 @@ var _ = Describe("Provisioning", func() {
 				// Ignored, label selector does not match
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
-			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, schedulable...) {
+			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, schedulable...) {
 				ExpectScheduled(ctx, env.Client, pod)
 			}
-			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, unschedulable...) {
+			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, unschedulable...) {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
 		})
 		It("should provision nodes for accelerators", func() {
-			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner,
+			for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
 				test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
 				}),
@@ -149,7 +149,7 @@ var _ = Describe("Provisioning", func() {
 					},
 				}
 				provisioner.Spec.Limits.Resources[v1.ResourceCPU] = resource.MustParse("20")
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 		})
@@ -160,7 +160,7 @@ var _ = Describe("Provisioning", func() {
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod(
 					test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					},
@@ -175,7 +175,7 @@ var _ = Describe("Provisioning", func() {
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should ignore daemonsets without matching tolerations", func() {
@@ -185,7 +185,7 @@ var _ = Describe("Provisioning", func() {
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod(
 					test.PodOptions{
 						Tolerations:          []v1.Toleration{{Operator: v1.TolerationOperator(v1.NodeSelectorOpExists)}},
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -202,7 +202,7 @@ var _ = Describe("Provisioning", func() {
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod(
 					test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					},
@@ -218,7 +218,7 @@ var _ = Describe("Provisioning", func() {
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod(
+				pod := ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod(
 					test.PodOptions{
 						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}},
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -232,7 +232,7 @@ var _ = Describe("Provisioning", func() {
 		Context("Labels", func() {
 			It("should label nodes", func() {
 				provisioner.Spec.Labels = map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod()) {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod()) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 					Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
@@ -245,7 +245,7 @@ var _ = Describe("Provisioning", func() {
 		Context("Taints", func() {
 			It("should apply unready taints", func() {
 				ExpectCreated(env.Client, provisioner)
-				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, controller, provisioner, test.UnschedulablePod()) {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod()) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
 				}

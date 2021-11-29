@@ -31,7 +31,7 @@ import (
 
 type CloudProvider struct{}
 
-func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) chan error {
+func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) <-chan error {
 	err := make(chan error)
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())

@@ -45,6 +45,16 @@ type Launcher struct {
 	CloudProvider cloudprovider.CloudProvider
 }
 
+// Thread safe channel to pop off packed pod slices
+func queueFor(pods [][]*v1.Pod) <-chan []*v1.Pod {
+	queue := make(chan []*v1.Pod, len(pods))
+	defer close(queue)
+	for _, ps := range pods {
+		queue <- ps
+	}
+	return queue
+}
+
 func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner, schedules []*scheduling.Schedule,
 	instanceTypes []cloudprovider.InstanceType) error {
 	// Pack and bind pods
@@ -55,12 +65,7 @@ func (l *Launcher) Launch(ctx context.Context, provisioner *v1alpha5.Provisioner
 				errs[index] = multierr.Append(errs[index], fmt.Errorf("verifying limits, %w", err))
 				continue
 			}
-			// Create thread safe channel to pop off packed pod slices
-			packedPods := make(chan []*v1.Pod, len(packing.Pods))
-			for _, pods := range packing.Pods {
-				packedPods <- pods
-			}
-			close(packedPods)
+			packedPods := queueFor(packing.Pods)
 			if err := <-l.CloudProvider.Create(ctx, packing.Constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
 				node.Labels = functional.UnionStringMaps(node.Labels, packing.Constraints.Labels)
 				node.Spec.Taints = append(node.Spec.Taints, packing.Constraints.Taints...)
@@ -78,7 +83,7 @@ func (l *Launcher) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err
 
 	// Add the Karpenter finalizer to the node to enable the termination workflow
 	node.Finalizers = append(node.Finalizers, v1alpha5.TerminationFinalizer)
-	// 2. Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
+	// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
 	// from scheduling pods before we're able to bind them ourselves. The kube
 	// scheduler has an eventually consistent cache of nodes and pods, so it's
 	// possible for it to see a provisioned node before it sees the pods bound

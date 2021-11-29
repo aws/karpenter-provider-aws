@@ -105,12 +105,12 @@ func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectDeleted(c client.Client, objects ...client.Object) {
+func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		persisted := object.DeepCopyObject()
 		object.SetFinalizers([]string{})
-		Expect(c.Patch(context.Background(), object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
-		if err := c.Delete(context.Background(), object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
+		Expect(c.Patch(ctx, object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
+		if err := c.Delete(ctx, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			Expect(err).To(BeNil())
 		}
 	}
@@ -119,32 +119,41 @@ func ExpectDeleted(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectCleanedUp(c client.Client) {
-	ctx := context.Background()
+func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	pdbs := v1beta1.PodDisruptionBudgetList{}
 	Expect(c.List(ctx, &pdbs)).To(Succeed())
 	for i := range pdbs.Items {
-		ExpectDeleted(c, &pdbs.Items[i])
+		ExpectDeleted(ctx, c, &pdbs.Items[i])
 	}
 	pods := v1.PodList{}
 	Expect(c.List(ctx, &pods)).To(Succeed())
 	for i := range pods.Items {
-		ExpectDeleted(c, &pods.Items[i])
+		ExpectDeleted(ctx, c, &pods.Items[i])
 	}
 	nodes := v1.NodeList{}
 	Expect(c.List(ctx, &nodes)).To(Succeed())
 	for i := range nodes.Items {
-		ExpectDeleted(c, &nodes.Items[i])
-	}
-	provisioners := v1alpha5.ProvisionerList{}
-	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for i := range provisioners.Items {
-		ExpectDeleted(c, &provisioners.Items[i])
+		ExpectDeleted(ctx, c, &nodes.Items[i])
 	}
 	daemonsets := appsv1.DaemonSetList{}
 	Expect(c.List(ctx, &daemonsets)).To(Succeed())
 	for i := range daemonsets.Items {
-		ExpectDeleted(c, &daemonsets.Items[i])
+		ExpectDeleted(ctx, c, &daemonsets.Items[i])
+	}
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	for i := range provisioners.Items {
+		ExpectDeleted(ctx, c, &provisioners.Items[i])
+	}
+}
+
+// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
+func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
+	provisioners := v1alpha5.ProvisionerList{}
+	Expect(c.List(ctx, &provisioners)).To(Succeed())
+	ExpectCleanedUp(ctx, c)
+	for i := range provisioners.Items {
+		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(&provisioners.Items[i]))
 	}
 }
 
@@ -161,7 +170,7 @@ func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduli
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			ExpectReconcileSucceeded(ctx, scheduler, client.ObjectKeyFromObject(pod))
+			scheduler.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 			wg.Done()
 		}(pod)
 	}
