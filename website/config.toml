@@ -141,5 +141,5 @@ pre = "<i class='fab fa-github'></i>"
 
 [[params.versions]]
   version = "v0.4.3"
-  url = "https://karpenter.sh/v4-docs/"
+  url = "https://karpenter.sh/v0.4.3-docs/"
 
