@@ -1,6 +1,10 @@
 # Karpenter re:Invent 2021 Builders Session
 ​
 ![](https://github.com/aws/karpenter/raw/main/website/static/banner.png)
+
+## Login
+- Get an ID from your table's speaker
+- https://dashboard.eventengine.run/login
 ​
 ## Prerequisites
 Please install the following tools before starting:
