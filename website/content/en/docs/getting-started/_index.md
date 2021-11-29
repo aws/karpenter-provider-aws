@@ -3,9 +3,6 @@
 title: "Getting Started with Karpenter on AWS"
 linkTitle: "Getting Started"
 weight: 10
-menu:
-  main:
-    weight: 10
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable
@@ -157,50 +154,15 @@ eksctl. Thus, we don't need the helm chart to do that.
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version 0.4.3 \
+  --create-namespace --set serviceAccount.create=false --version 0.5.0 \
   --set controller.clusterName=${CLUSTER_NAME} \
   --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
-  --set defaultProvisioner.create=false \
   --wait # for the defaulting webhook to install before creating a Provisioner
 ```
 
 ### Enable Debug Logging (optional)
 ```sh
 kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
-```
-
-### Create Grafana dashboards (optional)
-
-The Karpenter repo contains multiple [importable dashboards](https://github.com/aws/karpenter/tree/main/grafana-dashboards) for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
-
-#### Deploy a temporary Prometheus and Grafana stack (optional)
-
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
-
-```sh
-helm repo add grafana-charts https://grafana.github.io/helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-kubectl create namespace monitoring
-
-curl -fsSL https://karpenter.sh/docs/getting-started/prometheus-values.yaml
-helm install --namespace monitoring prometheus prometheus-community/prometheus --values prometheus-values.yaml
-
-curl -fsSL https://karpenter.sh/docs/getting-started/grafana-values.yaml
-helm install --namespace monitoring grafana grafana-charts/grafana --values grafana-values.yaml
-```
-
-The Grafana instance may be accessed using port forwarding.
-
-```sh
-kubectl port-forward --namespace monitoring svc/grafana 3000:80
-```
-
-The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
-
-```sh
-kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode
 ```
 
 ### Provisioner
@@ -220,6 +182,8 @@ This behavior can be disabled by leaving the value undefined.
 Review the [provisioner CRD](/docs/provisioner-crd) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
+Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
+
 ```bash
 cat <<EOF | kubectl apply -f -
 apiVersion: karpenter.sh/v1alpha5
@@ -231,6 +195,9 @@ spec:
     - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot"]
+  limits:
+    resources:
+      cpu: 1000
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
@@ -262,6 +229,7 @@ spec:
       labels:
         app: inflate
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
         - name: inflate
           image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
@@ -309,3 +277,7 @@ aws ec2 describe-launch-templates \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 eksctl delete cluster --name ${CLUSTER_NAME}
 ```
+
+---
+
+## Next Steps:
