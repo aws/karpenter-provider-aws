@@ -17,7 +17,7 @@ Review how to [safely drain a node](https://kubernetes.io/docs/tasks/administer-
 
 ## Delete Node
 
-Karpenter changes the behavior of `kubernetes delete node`. Nodes will be drained, and then the underlying instance will be deleted.
+Karpenter changes the behavior of `kubectl delete node`. Nodes will be drained, and then the underlying instance will be deleted.
 
 ## Disruption Budget
 
