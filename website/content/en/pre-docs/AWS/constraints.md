@@ -62,6 +62,7 @@ Select subnets by an arbitrary AWS tag key/value pair:
 ```
   subnetSelector:
     MySubnetTag: value
+```
 
 Select subnets using wildcards:
 ```

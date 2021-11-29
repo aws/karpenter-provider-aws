@@ -1,10 +1,10 @@
 ---
-title: "Provisioning"
-linkTitle: "Provisioning"
+title: "Provisioning nodes"
+linkTitle: "Provisioning nodes"
 weight: 5
 ---
 
-When you first installed Karpenter, you set up a default [Provisioner](../getting-started/#provisioner).
+When you first installed Karpenter, you set up a default Provisioner.
 The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
 The Provisioner can be set to do things like:
 
@@ -23,14 +23,15 @@ Here are things you should know about Provisioners:
 If you want to modify or add provisioners to Karpenter, do the following:
 
 1. Review the following Provisioner documents:
+
   * [Provisioner](../getting-started/#provisioner) in the Getting Started guide for a sample default Provisioner
-  * [Provisioner API](../provisioner-crd) for descriptions Provisioner API values
+  * [Provisioner API](../provisioner-crd) for descriptions of Provisioner API values
   * [Provisioning Configuration](../AWS/constraints) for cloud-specific settings
 
-1. Apply the new or modified Provisioner to the cluster.
+2. Apply the new or modified Provisioner to the cluster.
 
 The following examples illustrate different aspects of Provisioners.
-Refer to [Running pods](../tasks/running-pods) to see how the same features are used in Pod specs to determine where pods run.
+Refer to [Running pods](running-pods) to see how the same features are used in Pod specs to determine where pods run.
 
 ## Example: Requirements
 
