@@ -42,7 +42,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioner](/docs/provisioner-crd/) for a description of settings and the [Provisioning](/docs/tasks/provisioner.md) task for of provisioner examples. 
+See [Provisioner API](/docs/provisioner-crd/) for a description of settings and the [Provisioning](../tasks/provisioning-task) task for provisioner examples. 
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
@@ -67,15 +67,12 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 
-For more details on how Karpenter deletes nodes, see [Deleting nodes with Karpenter](/docs/tasks/delete-nodes.md) for details.
+For more details on how Karpenter deletes nodes, see [Deleting nodes with Karpenter](../tasks/deprov-nodes.md) for details.
 
 ### Upgrading nodes
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
 Nodes will be terminated after a set period of time and will be replaced with newer nodes.
-
-For details on upgrading nodes with Karpenter, see [Upgrading nodes with Karpenter](/docs/tasks/upgrade-nodes.md) for details.
-
 
 Understanding the following concepts will help you in carrying out the tasks just described.
 
@@ -109,7 +106,7 @@ So, for example, to include a certain instance type, you could use the Kubernete
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is
 designed to add nodes when requests come in to run pods that cannot be met by current capacity.
-Cluster autoscaler is part of the Kubenetes project, with implementations by most major Kubernetes cloud providers.
+Cluster autoscaler is part of the Kubernetes project, with implementations by most major Kubernetes cloud providers.
 By taking a fresh look at provisioning, Karpenter offers the following improvements:
 
 * **Designed to handle the full flexibility of the cloud**:
@@ -134,11 +131,11 @@ Karpenter's job is to efficiently assess and choose compute assets based on requ
 These can include basic Kubernetes features or features that are specific to the cloud provider (such as AWS).
 
 Layered *constraints* are applied when a pod makes requests for compute resources that cannot be met by current capacity.
-A pod can specify `nodeAffinity` (to run in a particular zone or instance type) or a `topologySpreadConstraints` spread (to cause a set of pods be balanced across multiple nodes).
+A pod can specify `nodeAffinity` (to run in a particular zone or instance type) or a `topologySpreadConstraints` spread (to cause a set of pods to be balanced across multiple nodes).
 The pod can specify a `nodeSelector` to run only on nodes with a particular label and  `resource.requests` to ensure that the node has enough available memory.
 
 The Kubernetes scheduler tries to match those constraints with available nodes.
-If the pod is unschedulable, Karpenter created compute resources that match its needs.
+If the pod is unschedulable, Karpenter creates compute resources that match its needs.
 When Karpenter tries to provision a node, it analyzes scheduling constraints before choosing the node to create.
 
 As long as the requests are not outside of the provisioner's constraints, 
@@ -147,12 +144,12 @@ Note that if the constraints are such that a match is not possible, the pod will
 
 So, what constraints can you use as an application developer deploying pods that could be managed by Karpenter?
 
-Kubernetes features that Karpenters supports for scheduling nodes include node affinity based on [persistant volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity) and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
+Kubernetes features that Karpenters supports for scheduling nodes include nodeAffinity and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
 It also supports [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) and [topologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
 
 From the Kubernetes [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) page,
 you can see a full list of Kubernetes labels, annotations and taints that determine scheduling.
-Only a small set of them are implemented in Karpenter, including:
+Those that are implemented in Karpenter include:
 
 * **kubernetes.io/arch**: For example, kubernetes.io/arch=amd64
 * **node.kubernetes.io/instance-type**: For example, node.kubernetes.io/instance-type=m3.medium
@@ -164,4 +161,4 @@ Kubernetes SIG scalability recommends against these features and Karpenter doesn
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](/docs/tasks/running-pods.md) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods.md) for details.

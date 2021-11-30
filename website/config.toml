@@ -136,9 +136,10 @@ pre = "<i class='fab fa-github'></i>"
   url = "https://karpenter.sh/docs/"
 
 [[params.versions]]
-  version = "v0.4.3"
+  version = "v0.5.0"
   url = "https://karpenter.sh/docs/"
 
 [[params.versions]]
-  version = "Pre-release"
-  url = "https://karpenter.sh/pre-docs/"
+  version = "v0.4.3"
+  url = "https://karpenter.sh/v0.4.3-docs/"
+
