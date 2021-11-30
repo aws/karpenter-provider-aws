@@ -1,10 +1,8 @@
 ---
-title: "Provisioner API"
-linkTitle: "Provisioner API"
-weight: 70
+title: "Provisioner CRD"
+linkTitle: "Provisioner CRD"
+weight: 40
 date: 2017-01-05
-description: >
-  Provisioner API reference page
 ---
 
 ## Example Provisioner Resource
@@ -44,6 +42,9 @@ spec:
     - key: "kubernetes.io/arch" # If not included, all architectures are considered
       operator: In
       values: ["arm64", "amd64"]
+    - key: "kubernetes.io/os" # If not included, all operating systems are considered
+      operator: In
+      values: ["linux"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
       operator: In
       values: ["spot", "on-demand"]

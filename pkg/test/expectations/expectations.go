@@ -170,7 +170,7 @@ func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduli
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			ExpectReconcileSucceeded(ctx, scheduler, client.ObjectKeyFromObject(pod))
+			scheduler.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 			wg.Done()
 		}(pod)
 	}
