@@ -31,6 +31,6 @@ Karpenter will delete nodes (and the instance) that are considered empty of pods
 
 ## Expiry
 
-Nodes may be configured to expire. That is, a maximum lifetime in seconds starting with the node joining the cluster. Review the `ttlSecondsUntilExpired` field of the [provisioner API](../provisioner-crd.md).
+Nodes may be configured to expire. That is, a maximum lifetime in seconds starting with the node joining the cluster. Review the `ttlSecondsUntilExpired` field of the [provisioner API]({{< ref "/docs/provisioner-crd.md" >}}).
 
 Note that newly created nodes have a Kubernetes version matching the control plane. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version) are deleted, and replaced with nodes on the current version. 

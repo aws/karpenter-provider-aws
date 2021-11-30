@@ -27,7 +27,7 @@ A launch template is a set of configuration values sufficient for launching an E
 
 A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
 
-Review the [Launch Template documentation](launch-templates.md) to learn how to create a custom one.
+Review the [Launch Template documentation]({{< ref "/docs/AWS/launch-templates.md" >}}) to learn how to create a custom one.
 
 ```
 spec:
