@@ -39,8 +39,7 @@ spec:
 
 Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
-Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("*") is supported.
-
+Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
 
 When launching nodes, Karpenter automatically chooses a subnet that matches the desired zone. If multiple subnets exist for a zone, one is chosen randomly.
 
