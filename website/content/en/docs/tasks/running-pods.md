@@ -30,7 +30,7 @@ This allows you to define a single set of rules that apply to both existing and 
 Pod affinity is a key exception to this rule.
 
 {{% alert title="Note" color="primary" %}}
-Karpenter supports specific [Well-Known Labels, Annotations and Taints](Well-Known Labels, Annotations and Taints) that are useful for scheduling.
+Karpenter supports specific [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) that are useful for scheduling.
 {{% /alert %}}
 
 ## Resource requests (`resources`)
@@ -130,7 +130,7 @@ Changing the second operator to `NotIn` would allow the pod to run in `us-west-2
 ```
 
 Continuing to add to the example, `nodeAffinity` lets you define terms so if one term doesn't work it goes to the next one.
-Here, if `us-west-2a` is not available, the second term will cause the pod to run on a spot instance in us-west-2d.
+Here, if `us-west-2a` is not available, the second term will cause the pod to run on a spot instance in `us-west-2d`.
 
 
 ```
@@ -206,7 +206,7 @@ spec:
     operator: "Exists"
     effect: "NoSchedule"
 ```
-See Taints and Tolerations (https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
+See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
 
 ## Topology spread (`topologySpreadConstraints`)
 
