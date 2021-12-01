@@ -161,4 +161,4 @@ Kubernetes SIG scalability recommends against these features and Karpenter doesn
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods.md) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods) for details.
