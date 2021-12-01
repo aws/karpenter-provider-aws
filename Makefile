@@ -1,5 +1,6 @@
 RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
+SHORT_GIT_COMMIT=$(shell git rev-parse HEAD | head -c 8)
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
@@ -17,7 +18,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify licenses battletest ## Run all steps used by continuous integration
+ci: verify licenses publish-ci-image battletest ## Run all steps used by continuous integration
 
 release: verify publish helm ## Run all steps in release workflow
 
@@ -69,6 +70,10 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
+
+publish-ci-image: ## publish container image with short git commit as tag
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(SHORT_GIT_COMMIT) --platform all ./cmd/controller
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(SHORT_GIT_COMMIT) --platform all ./cmd/webhook
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
