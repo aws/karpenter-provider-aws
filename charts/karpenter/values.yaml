@@ -20,3 +20,5 @@ webhook:
   tolerations: []
   affinity: {}
   image: "public.ecr.aws/karpenter/webhook:v0.5.0@sha256:bc639160d55a15e1f9362a06d42e4133e692d3c81e96d87e2672bd9c53c98958"
+  # set to true if using custom CNI on EKS
+  hostNetwork: false

@@ -67,7 +67,7 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 
-For more details on how Karpenter deletes nodes, see [Deleting nodes with Karpenter](../tasks/deprov-nodes.md) for details.
+For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprov-nodes/) for details.
 
 ### Upgrading nodes
 
@@ -161,4 +161,4 @@ Kubernetes SIG scalability recommends against these features and Karpenter doesn
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods.md) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods/) for details.

@@ -84,6 +84,9 @@ spec:
               - key: karpenter.sh/provisioner-name
                 operator: DoesNotExist
         {{- end }}
+      {{- if .Values.webhook.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
       {{- with .Values.webhook.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}

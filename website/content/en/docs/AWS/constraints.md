@@ -27,7 +27,7 @@ A launch template is a set of configuration values sufficient for launching an E
 
 A custom launch template is specified by name. If none is specified, Karpenter will automatically create a launch template.
 
-Review the [Launch Template documentation](launch-templates.md) to learn how to create a custom one.
+Review the [Launch Template documentation](../launch-templates/) to learn how to create a custom one.
 
 ```
 spec:
@@ -39,8 +39,7 @@ spec:
 
 Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
-Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("*") is supported.
-
+Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
 
 When launching nodes, Karpenter automatically chooses a subnet that matches the desired zone. If multiple subnets exist for a zone, one is chosen randomly.
 
