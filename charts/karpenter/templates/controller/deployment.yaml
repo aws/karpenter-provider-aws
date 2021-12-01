@@ -32,13 +32,9 @@ spec:
       containers:
         - name: manager
           image: {{ .Values.controller.image }}
-          resources:
-            requests:
-              cpu: 1
-              memory: 1Gi
-            limits:
-              cpu: 1
-              memory: 1Gi
+        {{- if .Values.controller.resources }}
+          resources: {{ toYaml .Values.controller.resources | nindent 12 }}
+        {{- end }}
           ports:
             - name: metrics
               containerPort: 8080
