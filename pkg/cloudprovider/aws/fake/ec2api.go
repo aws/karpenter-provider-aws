@@ -32,6 +32,7 @@ import (
 )
 
 type CapacityPool struct {
+	CapacityType string
 	InstanceType string
 	Zone         string
 }
@@ -91,7 +92,8 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		skipInstance := false
 		for _, pool := range e.InsufficientCapacityPools {
 			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
-				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) {
+				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) &&
+				pool.CapacityType == aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
 				skippedPools = append(skippedPools, pool)
 				skipInstance = true
 				break

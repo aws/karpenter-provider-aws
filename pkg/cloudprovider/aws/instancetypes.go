@@ -179,7 +179,7 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, instanceTyp
 		capacityType,
 		InsufficientCapacityErrorCacheTTL)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
-	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(capacityType, instanceType, zone), sets.Empty{})
+	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(capacityType, instanceType, zone), struct{}{})
 }
 
 func UnavailableOfferingsCacheKey(capacityType string, instanceType string, zone string) string {
