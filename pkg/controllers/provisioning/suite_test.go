@@ -155,7 +155,7 @@ var _ = Describe("Provisioning", func() {
 		})
 		Context("Daemonsets and Node Overhead", func() {
 			It("should account for overhead", func() {
-				ExpectCreated(env.Client, test.DaemonSet(
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
@@ -170,7 +170,7 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 			})
 			It("should not schedule if overhead is too large", func() {
-				ExpectCreated(env.Client, test.DaemonSet(
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")}},
 					}},
@@ -180,7 +180,7 @@ var _ = Describe("Provisioning", func() {
 			})
 			It("should ignore daemonsets without matching tolerations", func() {
 				provisioner.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoSchedule}}
-				ExpectCreated(env.Client, test.DaemonSet(
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
@@ -196,7 +196,7 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 			})
 			It("should ignore daemonsets with an invalid selector", func() {
-				ExpectCreated(env.Client, test.DaemonSet(
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						NodeSelector:         map[string]string{"node": "invalid"},
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -212,7 +212,7 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 			})
 			It("should ignore daemonsets that don't match pod constraints", func() {
-				ExpectCreated(env.Client, test.DaemonSet(
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
 						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}},
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -244,7 +244,7 @@ var _ = Describe("Provisioning", func() {
 		})
 		Context("Taints", func() {
 			It("should apply unready taints", func() {
-				ExpectCreated(env.Client, provisioner)
+				ExpectCreated(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner, test.UnschedulablePod()) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
