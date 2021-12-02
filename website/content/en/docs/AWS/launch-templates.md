@@ -101,6 +101,14 @@ aws eks describe-cluster --name MyKarpenterCluster
 
 Specifying max-pods can break Karpenter's binpacking logic (it has no way to know what this setting is). If Karpenter attempts to pack more than this number of pods, the instance may be oversized, and additional pods will reschedule.
 
+### Security Groups - Firewall
+
+The launch template must include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster. If none is specified, the default security group of the cluster VPC is used.
+
+The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet's network access control list (network ACL). 
+
+If using EKS, review the [security group guidelines](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html).
+
 ## Situational Fields
 
 Configure these values in response to a particular use case, such as nodes interacting with another AWS service, or using EBS storage on the node.
@@ -110,11 +118,6 @@ Configure these values in response to a particular use case, such as nodes inter
 Karpenter expects nothing of node storage. Configure as needed for your base
 image.
 
-### Security Groups - Firewall
-
-The launch template may include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster. If none is specified, the default security group of the cluster VPC is used.
-
-The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet's network access control list (network ACL).
 
 ## Fields with Undefined Behavior
 
