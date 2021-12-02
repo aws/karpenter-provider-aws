@@ -22,6 +22,11 @@ jobs:
         make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Run helm-docs to check if chart README is staled
+        uses: buttahtoast/helm-release-action@v2.0.1
+        with:
+          charts: "${{ steps.list-changed.outputs.changed_charts }}"
+        if: steps.list-changed.outputs.changed == 'true'
     - uses: actions/upload-artifact@v2
       with:
         name: coverage

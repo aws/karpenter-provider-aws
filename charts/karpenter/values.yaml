@@ -1,18 +1,26 @@
 serviceAccount:
+  # -- Create a service account for the application controller
   create: true
+  # -- Service account name
   name: karpenter
-  # Annotations to add to the service account (like the ARN of the IRSA role)
+  # -- Annotations to add to the service account (like the ARN of the IRSA role)
   annotations: {}
 controller:
-  # List of environment items to add to the controller, for example
-  # - name: AWS_REGION
-  #   value: eu-west-1
+  # -- List of environment items to add to the controller, for example
+  ## - name: AWS_REGION
+  ## - value: eu-west-1
   env: []
+  # -- Node selectors for server scheduling to nodes with taints.
   nodeSelector: {}
+  # -- Tolerations for server scheduling to nodes with taints.
   tolerations: []
+  # -- Assign custom affinity rules to the controller deployment
   affinity: {}
+  # -- Image to use for the Karpenter controller
   image: "public.ecr.aws/karpenter/controller:v0.5.0@sha256:76fab69a5a2b1f5736c8beea349e60174d8903b26b65c4cc5009c6528f9aea72"
+  # -- Cluster name
   clusterName: ""
+  # -- Cluster endpoint
   clusterEndpoint: ""
   resources:
     requests:
@@ -23,11 +31,17 @@ controller:
       memory: 1Gi
   replicas: 1
 webhook:
+  # -- List of environment items to add to the webhook
   env: []
+  # -- Node selectors for server scheduling to nodes with taints.
   nodeSelector: {}
+  # -- Tolerations for server scheduling to nodes with taints.
   tolerations: []
+  # -- Assign custom affinity rules to the webhook deployment
   affinity: {}
+  # -- Image to use for the Karpenter webhook
   image: "public.ecr.aws/karpenter/webhook:v0.5.0@sha256:bc639160d55a15e1f9362a06d42e4133e692d3c81e96d87e2672bd9c53c98958"
+  # -- Set to true if using custom CNI on EKS
   hostNetwork: false
   resources:
     limits:
