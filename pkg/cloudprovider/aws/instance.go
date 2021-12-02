@@ -276,10 +276,10 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 	}
 }
 
+// getCapacityType selects spot if both constraints are flexible and there is an
+// available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
+// must be explicitly included in capacity type requirements.
 func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) string {
-	// Use spot if constraints are flexible to it and there is an offering for
-	// it. The AWS Cloud Provider defaults to [ on-demand ], so spot must be
-	// explicitly included in capacity type requirements.
 	if constraints.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings() {
