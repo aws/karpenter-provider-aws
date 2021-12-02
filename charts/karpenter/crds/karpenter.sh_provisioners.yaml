@@ -35,14 +35,10 @@ spec:
             type: object
           spec:
             description: ProvisionerSpec is the top level provisioner specification.
-              Provisioners launch nodes in response to pods where status.conditions[type=unschedulable,
-              status=true]. Node configuration is driven by through a combination
-              of provisioner specification (defaults) and pod scheduling constraints
-              (overrides). A single provisioner is capable of managing highly diverse
-              capacity within a single cluster and in most cases, only one should
-              be necessary. It's possible to define multiple provisioners. These provisioners
-              may have different defaults and can be specifically targeted by pods
-              using pod.spec.nodeSelector["karpenter.sh/provisioner-name"]=$PROVISIONER_NAME.
+              Provisioners launch nodes in response to pods that are unschedulable.
+              A single provisioner is capable of managing diverse set of nodes. Node
+              properties are determined from a combination of provisioner and pod
+              scheduling constraints.
             properties:
               labels:
                 additionalProperties:
