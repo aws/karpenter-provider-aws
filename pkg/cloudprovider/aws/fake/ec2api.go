@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	set "github.com/deckarep/golang-set"
 )
@@ -80,6 +81,12 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	instances := []*ec2.Instance{}
 	instanceIds := []*string{}
 	skippedPools := []CapacityPool{}
+	var spotInstanceRequestID *string
+
+	if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == v1alpha1.CapacityTypeSpot {
+		spotInstanceRequestID = aws.String(randomdata.SillyName())
+	}
+
 	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 		skipInstance := false
 		for _, pool := range e.InsufficientCapacityPools {
@@ -94,10 +101,11 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 			continue
 		}
 		instances = append(instances, &ec2.Instance{
-			InstanceId:     aws.String(randomdata.SillyName()),
-			Placement:      &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
-			PrivateDnsName: aws.String(randomdata.IpV4Address()),
-			InstanceType:   input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+			InstanceId:            aws.String(randomdata.SillyName()),
+			Placement:             &ec2.Placement{AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone},
+			PrivateDnsName:        aws.String(randomdata.IpV4Address()),
+			InstanceType:          input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
+			SpotInstanceRequestId: spotInstanceRequestID,
 		})
 		e.Instances.Store(*instances[i].InstanceId, instances[i])
 		instanceIds = append(instanceIds, instances[i].InstanceId)

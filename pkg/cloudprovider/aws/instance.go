@@ -106,16 +106,8 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
-	// Default to on-demand unless constrained otherwise or if flexible to spot and
-	// on-demand. This code assumes two options: {spot, on-demand}, which is enforced
-	// by constraints.Constrain(). Spot may be selected by constraining the provisioner,
-	// or using nodeSelectors, required node affinity, or preferred node affinity.
-	capacityType := v1alpha1.CapacityTypeOnDemand
-	if capacityTypes := constraints.Requirements.CapacityTypes(); len(capacityTypes) == 0 {
-		return nil, fmt.Errorf("invariant violated, must contain at least one capacity type")
-	} else if len(capacityTypes) == 1 {
-		capacityType = capacityTypes.UnsortedList()[0]
-	}
+	capacityType := p.getCapacityType(constraints, instanceTypes)
+
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
 	if err != nil {
@@ -183,7 +175,6 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
-			// we can't assume that all zones will be available for all capacity types, hence this check
 			if capacityType != offering.CapacityType {
 				continue
 			}
@@ -285,6 +276,22 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 	}
 }
 
+func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) string {
+	// Use spot if constraints are flexible to it and there is an offering for
+	// it. The AWS Cloud Provider defaults to [ on-demand ], so spot must be
+	// explicitly included in capacity type requirements.
+	if constraints.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
+		for _, instanceType := range instanceTypes {
+			for _, offering := range instanceType.Offerings() {
+				if offering.CapacityType == v1alpha1.CapacityTypeSpot {
+					return v1alpha1.CapacityTypeSpot
+				}
+			}
+		}
+	}
+	return v1alpha1.CapacityTypeOnDemand
+}
+
 func getInstanceID(node *v1.Node) (*string, error) {
 	id := strings.Split(node.Spec.ProviderID, "/")
 	if len(id) < 5 {
@@ -305,11 +312,10 @@ func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
 }
 
 func getCapacityType(instance *ec2.Instance) string {
-	capacityType := v1alpha1.CapacityTypeOnDemand
 	if instance.SpotInstanceRequestId != nil {
-		capacityType = v1alpha1.CapacityTypeSpot
+		return v1alpha1.CapacityTypeSpot
 	}
-	return capacityType
+	return v1alpha1.CapacityTypeOnDemand
 }
 
 func combineFleetInstances(createFleetOutput ec2.CreateFleetOutput) []*string {
