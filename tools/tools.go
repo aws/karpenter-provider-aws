@@ -1,3 +1,4 @@
+//go:build tools
 // +build tools
 
 package tools
@@ -8,6 +9,7 @@ import (
 	_ "github.com/google/ko"
 	_ "github.com/mikefarah/yq/v4"
 	_ "github.com/mitchellh/golicense"
+	_ "github.com/norwoodj/helm-docs/cmd/helm-docs"
 	_ "github.com/onsi/ginkgo/ginkgo"
 	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
