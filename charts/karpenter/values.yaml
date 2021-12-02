@@ -14,6 +14,7 @@ controller:
   image: "public.ecr.aws/karpenter/controller:v0.5.0@sha256:76fab69a5a2b1f5736c8beea349e60174d8903b26b65c4cc5009c6528f9aea72"
   clusterName: ""
   clusterEndpoint: ""
+  replicas: 1
 webhook:
   env: []
   nodeSelector: {}
@@ -22,3 +23,4 @@ webhook:
   image: "public.ecr.aws/karpenter/webhook:v0.5.0@sha256:bc639160d55a15e1f9362a06d42e4133e692d3c81e96d87e2672bd9c53c98958"
   # set to true if using custom CNI on EKS
   hostNetwork: false
+  replicas: 1
