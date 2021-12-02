@@ -79,18 +79,18 @@ var _ = Describe("Controller", func() {
 					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 				},
 			})
-			ExpectCreated(env.Client, provisioner, n)
+			ExpectCreated(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 		It("should ignore nodes without a provisioner", func() {
 			n := test.Node(test.NodeOptions{Finalizers: []string{v1alpha5.TerminationFinalizer}})
-			ExpectCreated(env.Client, provisioner, n)
+			ExpectCreated(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 		It("should delete nodes after expiry", func() {
@@ -101,11 +101,11 @@ var _ = Describe("Controller", func() {
 					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 				},
 			})
-			ExpectCreated(env.Client, provisioner, n)
+			ExpectCreated(ctx, env.Client, provisioner, n)
 
 			// Should still exist
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing
@@ -113,7 +113,7 @@ var _ = Describe("Controller", func() {
 				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
 			}
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 	})
@@ -128,11 +128,11 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
 		It("should remove the readiness taint if ready", func() {
@@ -144,11 +144,11 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).ToNot(Equal([]v1.Taint{n.Spec.Taints[1]}))
 		})
 		It("should do nothing if ready and the readiness taint does not exist", func() {
@@ -157,11 +157,11 @@ var _ = Describe("Controller", func() {
 				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Taints:      []v1.Taint{{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule}},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
 		It("should do nothing if not owned by a provisioner", func() {
@@ -172,11 +172,11 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
 	})
@@ -188,20 +188,20 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
 			// Expect node not be deleted
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
 			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 		It("should delete nodes if we never hear anything after 5 minutes", func() {
@@ -211,19 +211,19 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "",
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
 			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 	})
@@ -235,11 +235,11 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionUnknown,
 			})
 
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			node = ExpectNodeExists(env.Client, node.Name)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.Annotations).ToNot(HaveKey(v1alpha5.EmptinessTimestampAnnotationKey))
 		})
 		It("should not TTL nodes that have ready status false", func() {
@@ -249,11 +249,11 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionFalse,
 			})
 
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			node = ExpectNodeExists(env.Client, node.Name)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.Annotations).ToNot(HaveKey(v1alpha5.EmptinessTimestampAnnotationKey))
 		})
 		It("should label nodes as underutilized and add TTL", func() {
@@ -261,11 +261,11 @@ var _ = Describe("Controller", func() {
 			node := test.Node(test.NodeOptions{
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, node)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			node = ExpectNodeExists(env.Client, node.Name)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.Annotations).To(HaveKey(v1alpha5.EmptinessTimestampAnnotationKey))
 		})
 		It("should remove labels from non-empty nodes", func() {
@@ -276,9 +276,9 @@ var _ = Describe("Controller", func() {
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
 				},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, node)
-			ExpectCreatedWithStatus(env.Client, test.Pod(test.PodOptions{
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, node)
+			ExpectCreatedWithStatus(ctx, env.Client, test.Pod(test.PodOptions{
 				Name:       strings.ToLower(randomdata.SillyName()),
 				Namespace:  provisioner.Namespace,
 				NodeName:   node.Name,
@@ -286,7 +286,7 @@ var _ = Describe("Controller", func() {
 			}))
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			node = ExpectNodeExists(env.Client, node.Name)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.Annotations).ToNot(HaveKey(v1alpha5.EmptinessTimestampAnnotationKey))
 		})
 		It("should delete empty nodes past their TTL", func() {
@@ -298,10 +298,10 @@ var _ = Describe("Controller", func() {
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
 				},
 			})
-			ExpectCreated(env.Client, provisioner, node)
+			ExpectCreated(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			node = ExpectNodeExists(env.Client, node.Name)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
 		})
 	})
@@ -311,11 +311,11 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(ConsistOf(n.Finalizers[0], v1alpha5.TerminationFinalizer))
 		})
 		It("should do nothing if terminating", func() {
@@ -323,12 +323,12 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			Expect(env.Client.Delete(ctx, n)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
 		It("should do nothing if the termination finalizer already exists", func() {
@@ -336,22 +336,22 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{v1alpha5.TerminationFinalizer, "fake.com/finalizer"},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
 		It("should do nothing if the not owned by a provisioner", func() {
 			n := test.Node(test.NodeOptions{
 				Finalizers: []string{"fake.com/finalizer"},
 			})
-			ExpectCreated(env.Client, provisioner)
-			ExpectCreatedWithStatus(env.Client, n)
+			ExpectCreated(ctx, env.Client, provisioner)
+			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
-			n = ExpectNodeExists(env.Client, n.Name)
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
 	})

@@ -463,7 +463,7 @@ var _ = Describe("Topology", func() {
 			firstNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
 			secondNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
-			ExpectCreated(env.Client, provisioner, firstNode, secondNode, thirdNode)
+			ExpectCreated(ctx, env.Client, provisioner, firstNode, secondNode, thirdNode)
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
 				WhenUnsatisfiable: v1.DoNotSchedule,

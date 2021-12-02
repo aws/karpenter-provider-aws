@@ -41,19 +41,19 @@ const (
 	RequestInterval           = 1 * time.Second
 )
 
-func ExpectPodExists(c client.Client, name string, namespace string) *v1.Pod {
+func ExpectPodExists(ctx context.Context, c client.Client, name string, namespace string) *v1.Pod {
 	pod := &v1.Pod{}
 	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
 	return pod
 }
 
-func ExpectNodeExists(c client.Client, name string) *v1.Node {
+func ExpectNodeExists(ctx context.Context, c client.Client, name string) *v1.Node {
 	node := &v1.Node{}
 	Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node
 }
 
-func ExpectNotFound(c client.Client, objects ...client.Object) {
+func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Eventually(func() bool {
 			return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
@@ -64,17 +64,17 @@ func ExpectNotFound(c client.Client, objects ...client.Object) {
 }
 
 func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
-	p := ExpectPodExists(c, pod.Name, pod.Namespace)
+	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
 	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))
-	return ExpectNodeExists(c, p.Spec.NodeName)
+	return ExpectNodeExists(ctx, c, p.Spec.NodeName)
 }
 
 func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) {
-	p := ExpectPodExists(c, pod.Name, pod.Namespace)
+	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
 	Eventually(p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
 }
 
-func ExpectApplied(c client.Client, objects ...client.Object) {
+func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		if object.GetResourceVersion() == "" {
 			Expect(c.Create(context.Background(), object)).To(Succeed())
@@ -84,23 +84,23 @@ func ExpectApplied(c client.Client, objects ...client.Object) {
 	}
 }
 
-func ExpectStatusUpdated(c client.Client, objects ...client.Object) {
+func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectCreated(c client.Client, objects ...client.Object) {
+func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Expect(c.Create(context.Background(), object)).To(Succeed())
 	}
 }
 
-func ExpectCreatedWithStatus(c client.Client, objects ...client.Object) {
+func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		// Preserve a copy of the status, which is overriden by create
 		status := object.DeepCopyObject().(client.Object)
-		ExpectApplied(c, object)
+		ExpectApplied(ctx, c, object)
 		Expect(c.Status().Update(context.Background(), status)).To(Succeed())
 	}
 }
@@ -115,7 +115,7 @@ func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Objec
 		}
 	}
 	for _, object := range objects {
-		ExpectNotFound(c, object)
+		ExpectNotFound(ctx, c, object)
 	}
 }
 
@@ -159,10 +159,10 @@ func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controlle
 
 func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
-	ExpectApplied(c, provisioner)
-	ExpectStatusUpdated(c, provisioner)
+	ExpectApplied(ctx, c, provisioner)
+	ExpectStatusUpdated(ctx, c, provisioner)
 	for _, pod := range pods {
-		ExpectCreatedWithStatus(c, pod)
+		ExpectCreatedWithStatus(ctx, c, pod)
 	}
 	// Wait for reconcile
 	ExpectReconcileSucceeded(ctx, provisioners, client.ObjectKeyFromObject(provisioner))
@@ -177,7 +177,7 @@ func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduli
 	wg.Wait()
 	// Return updated pods
 	for _, pod := range pods {
-		result = append(result, ExpectPodExists(c, pod.GetName(), pod.GetNamespace()))
+		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
 	}
 	return result
 }
