@@ -16,7 +16,7 @@ metadata:
   name: karpenter-controller
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.controller.replicas }}
   strategy:
     type: Recreate
   selector:
