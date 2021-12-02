@@ -49,9 +49,11 @@ The instance profile must include *at least* the permissions of the default Karp
 
 See also, [the managed policy "AmazonEKSWorkerNodePolicy"](https://docs.aws.amazon.com/eks/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonEKSWorkerNodePolicy) which includes permission to describe clusters and subnets.
 
-### Tags
+### Tags 
 
-Instances must have the tag `kubernetes.io/cluster/EksClusterName` and value `owned` to successfully join the EKS cluster. 
+ ✳️ Note: this requirement only applies to EKS clusters. 
+
+Instances must have the tag `kubernetes.io/cluster/EksClusterName` and value `owned` to successfully join an EKS cluster. 
 
 Note that launch templates have two resource tag sections, one for the launch template itself, and another for the instances it creates. Check that the instances are tagged. 
 
