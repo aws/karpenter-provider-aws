@@ -32,13 +32,9 @@ spec:
       containers:
         - name: webhook
           image: {{ .Values.webhook.image }}
-          resources:
-            limits:
-              cpu: 100m
-              memory: 50Mi
-            requests:
-              cpu: 100m
-              memory: 50Mi
+        {{- if .Values.webhook.resources }}
+          resources: {{ toYaml .Values.webhook.resources | nindent 12 }}
+        {{- end }}
           ports:
             - name: webhook
               containerPort: 8443
