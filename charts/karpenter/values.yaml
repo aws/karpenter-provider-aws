@@ -21,6 +21,7 @@ controller:
     limits:
       cpu: 1
       memory: 1Gi
+  replicas: 1
 webhook:
   env: []
   nodeSelector: {}
@@ -35,3 +36,4 @@ webhook:
     requests:
       cpu: 100m
       memory: 50Mi
+  replicas: 1
