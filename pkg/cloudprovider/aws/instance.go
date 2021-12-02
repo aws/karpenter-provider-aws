@@ -283,7 +283,7 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 	if constraints.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings() {
-				if offering.CapacityType == v1alpha1.CapacityTypeSpot {
+				if constraints.Requirements.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
 			}
