@@ -8,6 +8,7 @@ require (
 	github.com/google/ko v0.9.3
 	github.com/mikefarah/yq/v4 v4.6.1
 	github.com/mitchellh/golicense v0.2.0
+	github.com/norwoodj/helm-docs v1.6.0
 	github.com/onsi/ginkgo v1.16.4
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20210822142959-0a9a7778cdb6
 	sigs.k8s.io/controller-tools v0.7.0
@@ -148,7 +149,6 @@ require (
 	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354 // indirect
 	github.com/nishanths/exhaustive v0.1.0 // indirect
 	github.com/nishanths/predeclared v0.2.1 // indirect
-	github.com/norwoodj/helm-docs v1.6.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
