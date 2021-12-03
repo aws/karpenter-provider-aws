@@ -20,7 +20,7 @@ import (
 
 // ProvisionerSpec is the top level provisioner specification. Provisioners
 // launch nodes in response to pods that are unschedulable. A single provisioner
-// is capable of managing diverse set of nodes. Node properties are determined
+// is capable of managing a diverse set of nodes. Node properties are determined
 // from a combination of provisioner and pod scheduling constraints.
 type ProvisionerSpec struct {
 	// Constraints are applied to all nodes launched by this provisioner.
