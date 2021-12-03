@@ -17,7 +17,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify licenses battletest ## Run all steps used by continuous integration
+ci: verify licenses check-helm-docs battletest ## Run all steps used by continuous integration
 
 release: verify publish helm ## Run all steps in release workflow
 
@@ -84,5 +84,8 @@ website: ## Generate Docs Website
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
+
+check-helm-docs: ## Check if chart README is staled
+	./hack/check-helm-docs.sh
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
