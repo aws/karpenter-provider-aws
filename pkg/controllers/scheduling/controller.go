@@ -76,7 +76,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	provisioner.Add(ctx, pod)
-	return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+	return reconcile.Result{RequeueAfter: time.Second * 1}, nil
 }
 
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (*provisioning.Provisioner, error) {
