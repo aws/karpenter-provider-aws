@@ -31,12 +31,12 @@ type GenericControllerManager struct {
 }
 
 // NewManagerOrDie instantiates a controller manager or panics
-func NewManagerOrDie(config *rest.Config, options controllerruntime.Options) Manager {
+func NewManagerOrDie(ctx context.Context, config *rest.Config, options controllerruntime.Options) Manager {
 	newManager, err := controllerruntime.NewManager(config, options)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create controller newManager, %s", err.Error()))
 	}
-	if err := newManager.GetFieldIndexer().IndexField(context.Background(), &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
+	if err := newManager.GetFieldIndexer().IndexField(ctx, &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
 		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err.Error()))
 	}
 	return &GenericControllerManager{Manager: newManager}
