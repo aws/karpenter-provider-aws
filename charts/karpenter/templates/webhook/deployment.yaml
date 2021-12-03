@@ -32,20 +32,22 @@ spec:
       containers:
         - name: webhook
           image: {{ .Values.webhook.image }}
+          args:
+            - -port={{ .Values.webhook.port }}
         {{- if .Values.webhook.resources }}
           resources: {{ toYaml .Values.webhook.resources | nindent 12 }}
         {{- end }}
           ports:
             - name: webhook
-              containerPort: 8443
+              containerPort: {{ .Values.webhook.port }}
           livenessProbe:
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: {{ .Values.webhook.port }}
           readinessProbe:
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: {{ .Values.webhook.port }}
           env:
             - name: CLUSTER_NAME
               value: {{ .Values.controller.clusterName }}
