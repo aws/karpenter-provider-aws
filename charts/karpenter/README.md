@@ -44,6 +44,7 @@ You can follow the detailed installation instruction [here](https://karpenter.sh
 | webhook.hostNetwork | bool | `false` | Set to true if using custom CNI on EKS |
 | webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.5.0@sha256:bc639160d55a15e1f9362a06d42e4133e692d3c81e96d87e2672bd9c53c98958"` | Image to use for the webhook |
 | webhook.nodeSelector | object | `{}` | Node selectors to schedule to nodes with labels. |
+| webhook.port | int | `8443` |  |
 | webhook.replicas | int | `1` |  |
 | webhook.resources.limits.cpu | string | `"100m"` |  |
 | webhook.resources.limits.memory | string | `"50Mi"` |  |
