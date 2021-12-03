@@ -17,7 +17,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify licenses check-helm-docs battletest ## Run all steps used by continuous integration
+ci: verify licenses battletest ## Run all steps used by continuous integration
 
 release: verify publish helm ## Run all steps in release workflow
 
@@ -62,7 +62,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 		--set serviceAccount.create=false \
 		| kubectl delete -f -
 
-codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
+codegen: check-helm-docs ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
 		crd \
