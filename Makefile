@@ -39,7 +39,6 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	go vet ./...
 	go fmt ./...
 	golangci-lint run
-	git diff
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
 		if [ $(MAKECMDGOALS) = 'ci' ]; then\
