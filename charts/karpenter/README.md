@@ -18,7 +18,7 @@ $ helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
   --wait # for the defaulting webhook to install before creating a Provisioner 
 ```
 
-You can follow the details installation instruction [here](https://karpenter.sh/docs/getting-started/#install).
+You can follow the detailed installation instruction [here](https://karpenter.sh/docs/getting-started/#install).
 
 ## Values
 
