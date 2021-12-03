@@ -62,13 +62,14 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 		--set serviceAccount.create=false \
 		| kubectl delete -f -
 
-codegen: check-helm-docs ## Generate code. Must be run if changes are made to ./pkg/apis/...
+codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
 		object:headerFile="hack/boilerplate.go.txt" \
 		crd \
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
+	hack/check-helm-docs.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
@@ -84,8 +85,5 @@ website: ## Generate Docs Website
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
-
-check-helm-docs: ## Check if chart README is staled
-	./hack/check-helm-docs.sh
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
