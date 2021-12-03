@@ -16,7 +16,7 @@ metadata:
   name: karpenter-controller
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.controller.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -32,13 +32,9 @@ spec:
       containers:
         - name: manager
           image: {{ .Values.controller.image }}
-          resources:
-            requests:
-              cpu: 1
-              memory: 1Gi
-            limits:
-              cpu: 1
-              memory: 1Gi
+        {{- if .Values.controller.resources }}
+          resources: {{ toYaml .Values.controller.resources | nindent 12 }}
+        {{- end }}
           ports:
             - name: metrics
               containerPort: 8080
@@ -64,7 +60,7 @@ spec:
             {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
+      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074 - not needed in k8s versions 1.19+
       securityContext:
         fsGroup: 1000
       {{- with .Values.controller.nodeSelector }}

@@ -16,7 +16,7 @@ metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.webhook.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -32,24 +32,22 @@ spec:
       containers:
         - name: webhook
           image: {{ .Values.webhook.image }}
-          resources:
-            limits:
-              cpu: 100m
-              memory: 50Mi
-            requests:
-              cpu: 100m
-              memory: 50Mi
+          args:
+            - -port={{ .Values.webhook.port }}
+        {{- if .Values.webhook.resources }}
+          resources: {{ toYaml .Values.webhook.resources | nindent 12 }}
+        {{- end }}
           ports:
             - name: webhook
-              containerPort: 8443
+              containerPort: {{ .Values.webhook.port }}
           livenessProbe:
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: {{ .Values.webhook.port }}
           readinessProbe:
             httpGet:
               scheme: HTTPS
-              port: 8443
+              port: {{ .Values.webhook.port }}
           env:
             - name: CLUSTER_NAME
               value: {{ .Values.controller.clusterName }}
@@ -62,7 +60,7 @@ spec:
           {{- with .Values.webhook.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
-      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074
+      # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074 - not needed in k8s versions 1.19+
       securityContext:
         fsGroup: 1000
       {{- with .Values.webhook.nodeSelector }}
@@ -84,6 +82,9 @@ spec:
               - key: karpenter.sh/provisioner-name
                 operator: DoesNotExist
         {{- end }}
+      {{- if .Values.webhook.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
       {{- with .Values.webhook.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
