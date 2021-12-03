@@ -69,6 +69,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		paths="./pkg/..." \
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
+	hack/check-helm-docs.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)

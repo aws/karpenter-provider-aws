@@ -1,0 +1,26 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Installing the Chart
+
+To install the chart with the release name `karpenter`:
+
+```console
+$ helm repo add karpenter https://charts.karpenter.sh
+$ helm repo update
+$ helm upgrade --install karpenter karpenter/{{ template "chart.name" . }} --namespace karpenter \
+  --create-namespace --set serviceAccount.create=false --version {{ template "chart.version" . }} \
+  --set controller.clusterName=${CLUSTER_NAME} \
+  --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
+  --wait # for the defaulting webhook to install before creating a Provisioner  
+```
+
+You can follow the detailed installation instruction [here](https://karpenter.sh/docs/getting-started/#install).
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
