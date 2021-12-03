@@ -1,4 +1,5 @@
 #!/bin/bash
+# Extract from helm-testing-action: https://github.com/buttahtoast/helm-testing-action/blob/v2.0.1/scripts/docs.sh#L24
 
 set -eu -o pipefail
 
