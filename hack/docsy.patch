@@ -1,0 +1,21 @@
+diff --git a/layouts/partials/navbar-version-selector.html b/layouts/partials/navbar-version-selector.html
+index 6ac1ef6..c48d403 100644
+--- a/layouts/partials/navbar-version-selector.html
++++ b/layouts/partials/navbar-version-selector.html
+@@ -1,7 +1,14 @@
++{{ $pageDir := index (split (path.Dir .Page.RelPermalink) "/") 1 }}
++{{ $currentDocVer := $pageDir }}
++{{ range .Site.Params.versions }}
++	{{ if eq .url (printf "/%s/" $pageDir)  }}
++    	{{ $currentDocVer = .version }}
++	{{ end }}
++{{ end }}
+ <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+-	{{ .Site.Params.version_menu }}
++	{{ $currentDocVer }}
+ </a>
+-<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
++<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
+ 	{{ range .Site.Params.versions }}
+ 	<a class="dropdown-item" href="{{ .url }}">{{ .version }}</a>
+ 	{{ end }}
