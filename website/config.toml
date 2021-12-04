@@ -76,7 +76,7 @@ images = ["banner.png"]
 # Version configuration
 # Menu title if your navbar has a versions selector to access old versions of your site.
 # This menu appears only if you have at least one [params.versions] set.
-version_menu = "v0.5.0"
+version_menu = "Releases"
 
 # Flag used in the "version-banner" partial to decide whether to display a
 # banner on every page indicating that this is an archived version of the docs.
@@ -134,12 +134,8 @@ pre = "<i class='fab fa-github'></i>"
 # Add your release versions here
 [[params.versions]]
   version = "v0.5.0"
-  url = "https://karpenter.sh/docs/"
+  url = "/docs/"
 
 [[params.versions]]
   version = "v0.4.3"
-  url = "https://karpenter.sh/v0.4.3-docs/"
-
-[[params.versions]]
-  version = "(Pre-release)"
-  url = "https://karpenter.sh/docs/"
+  url = "/v0.4.3-docs/"

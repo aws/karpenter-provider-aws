@@ -1,13 +1,17 @@
 diff --git a/layouts/partials/navbar-version-selector.html b/layouts/partials/navbar-version-selector.html
-index 6ac1ef6..c48d403 100644
+index 6ac1ef6..e8ca0f5 100644
 --- a/layouts/partials/navbar-version-selector.html
 +++ b/layouts/partials/navbar-version-selector.html
-@@ -1,7 +1,14 @@
+@@ -1,7 +1,18 @@
 +{{ $pageDir := index (split (path.Dir .Page.RelPermalink) "/") 1 }}
++<!-- special treatment for the homepage. we treat it same as latest docs //-->
++{{ if eq $pageDir "" }}
++	{{ $pageDir = "docs" }}
++{{ end }}
 +{{ $currentDocVer := $pageDir }}
 +{{ range .Site.Params.versions }}
 +	{{ if eq .url (printf "/%s/" $pageDir)  }}
-+    	{{ $currentDocVer = .version }}
++		{{ $currentDocVer = .version }}
 +	{{ end }}
 +{{ end }}
  <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
