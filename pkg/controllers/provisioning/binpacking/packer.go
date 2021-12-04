@@ -17,7 +17,6 @@ package binpacking
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -25,12 +24,11 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -95,13 +93,21 @@ func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, po
 	}
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
-	sort.Sort(sort.Reverse(ByResourcesRequested{SortablePods: pods}))
+	sort.Sort(sort.Reverse(pod.ByResourcesRequested{SortablePods: pods}))
 	packs := map[uint64]*Packing{}
 	var packings []*Packing
 	var packing *Packing
 	remainingPods := pods
+	emptyPackables := PackablesFor(ctx, instanceTypes, constraints, pods, daemons)
 	for len(remainingPods) > 0 {
-		packables := PackablesFor(ctx, instanceTypes, constraints, pods, daemons)
+		packables := []*Packable{}
+		for _, packable := range emptyPackables {
+			packables = append(packables, packable.DeepCopy())
+		}
+		if len(packables) == 0 {
+			logging.FromContext(ctx).Errorf("Failed to find instance type option(s) for %v", apiobject.PodNamespacedNames(remainingPods))
+			return packings, nil
+		}
 		packing, remainingPods = p.packWithLargestPod(remainingPods, packables)
 		// checked all instance types and found no packing option
 		if flattenedLen(packing.Pods...) == 0 {
@@ -150,81 +156,28 @@ func (p *Packer) packWithLargestPod(unpackedPods []*v1.Pod, packables []*Packabl
 	bestPackedPods := []*v1.Pod{}
 	bestInstances := []cloudprovider.InstanceType{}
 	remainingPods := unpackedPods
-	for _, packable := range packables {
+
+	// Try to pack the largest instance type to get an upper bound on efficiency
+	maxPodsPacked := len(packables[len(packables)-1].DeepCopy().Pack(unpackedPods).packed)
+	if maxPodsPacked == 0 {
+		return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, InstanceTypeOptions: bestInstances}, remainingPods
+	}
+
+	for i, packable := range packables {
 		// check how many pods we can fit with the available capacity
-		result := packable.Pack(unpackedPods)
-		if len(result.packed) == 0 {
-			continue
-		}
-		// If the pods packed are the same as before, this instance type can be
-		// considered as a backup option in case we get ICE
-		if p.podsMatch(bestPackedPods, result.packed) {
-			bestInstances = append(bestInstances, packable.InstanceType)
-		} else if len(result.packed) > len(bestPackedPods) {
-			// If pods packed are more than compared to what we got in last
-			// iteration, consider using this instance type
+		if result := packable.Pack(unpackedPods); len(result.packed) == maxPodsPacked {
+			// Add all packable nodes that have more resources than this one
+			// Trim the bestInstances so that provisioning APIs in cloud providers are not overwhelmed by the number of instance type options
+			// For example, the AWS EC2 Fleet API only allows the request to be 145kb which equates to about 130 instance type options.
+			for j := i; j < len(packables) && j-i < MaxInstanceTypes; j++ {
+				bestInstances = append(bestInstances, packables[j])
+			}
 			bestPackedPods = result.packed
 			remainingPods = result.unpacked
-			bestInstances = []cloudprovider.InstanceType{packable.InstanceType}
+			break
 		}
-	}
-	sortByResources(bestInstances)
-	// Trim the bestInstances so that provisioning APIs in cloud providers are not overwhelmed by the number of instance type options
-	// For example, the AWS EC2 Fleet API only allows the request to be 145kb which equates to about 130 instance type options.
-	if len(bestInstances) > MaxInstanceTypes {
-		bestInstances = bestInstances[:MaxInstanceTypes]
 	}
 	return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, InstanceTypeOptions: bestInstances, NodeQuantity: 1}, remainingPods
-}
-
-func (*Packer) podsMatch(first, second []*v1.Pod) bool {
-	if len(first) != len(second) {
-		return false
-	}
-	podSeen := map[string]int{}
-	for _, pod := range first {
-		podSeen[client.ObjectKeyFromObject(pod).String()]++
-	}
-	for _, pod := range second {
-		podSeen[client.ObjectKeyFromObject(pod).String()]--
-	}
-	for _, value := range podSeen {
-		if value != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// sortByResources sorts instance types, selecting smallest first. Instance are
-// ordered using a weighted euclidean, a useful algorithm for reducing a high
-// dimesional space into a single heuristic value. In the future, we may explore
-// pricing APIs to explicitly order what the euclidean is estimating.
-func sortByResources(instanceTypes []cloudprovider.InstanceType) {
-	sort.Slice(instanceTypes, func(i, j int) bool { return weightOf(instanceTypes[i]) < weightOf(instanceTypes[j]) })
-}
-
-// weightOf uses a euclidean distance function to compare the instance types.
-// Units are normalized such that 1cpu = 1gb mem. Additionally, accelerators
-// carry an arbitrarily large weight such that they will dominate the priority,
-// but if equal, will still fall back to the weight of other dimensions.
-func weightOf(instanceType cloudprovider.InstanceType) float64 {
-	return euclidean(
-		float64(instanceType.CPU().Value()),
-		float64(instanceType.Memory().ScaledValue(resource.Giga)), // 1 gb = 1 cpu
-		float64(instanceType.NvidiaGPUs().Value())*1000,           // Heavily weigh gpus x 1000
-		float64(instanceType.AMDGPUs().Value())*1000,              // Heavily weigh gpus x 1000
-		float64(instanceType.AWSNeurons().Value())*1000,           // Heavily weigh neurons x 1000
-	)
-}
-
-// euclidean measures the n-dimensional distance from the origin.
-func euclidean(values ...float64) float64 {
-	sum := float64(0)
-	for _, value := range values {
-		sum += math.Pow(value, 2)
-	}
-	return math.Pow(sum, .5)
 }
 
 func instanceTypeNames(instanceTypes []cloudprovider.InstanceType) []string {
@@ -241,26 +194,4 @@ func flattenedLen(pods ...[]*v1.Pod) int {
 		length += len(ps)
 	}
 	return length
-}
-
-type SortablePods []*v1.Pod
-
-func (pods SortablePods) Len() int {
-	return len(pods)
-}
-
-func (pods SortablePods) Swap(i, j int) {
-	pods[i], pods[j] = pods[j], pods[i]
-}
-
-type ByResourcesRequested struct{ SortablePods }
-
-func (r ByResourcesRequested) Less(a, b int) bool {
-	resourcePodA := resources.RequestsForPods(r.SortablePods[a])
-	resourcePodB := resources.RequestsForPods(r.SortablePods[b])
-	if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
-		// check for memory
-		return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == -1
-	}
-	return resourcePodA.Cpu().Cmp(*resourcePodB.Cpu()) == -1
 }

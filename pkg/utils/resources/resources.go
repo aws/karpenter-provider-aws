@@ -37,6 +37,16 @@ func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	return Merge(resources...)
 }
 
+func GPURequestsFor(pod *v1.Pod) v1.ResourceList {
+	resources := v1.ResourceList{}
+	for key, value := range RequestsForPods(pod) {
+		if key == AMDGPU || key == AWSNeuron || key == NvidiaGPU {
+			resources[key] = value
+		}
+	}
+	return resources
+}
+
 // Merge the resources from the variadic into a single v1.ResourceList
 func Merge(resources ...v1.ResourceList) v1.ResourceList {
 	result := v1.ResourceList{}

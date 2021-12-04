@@ -15,6 +15,8 @@ limitations under the License.
 package fake
 
 import (
+	"fmt"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	v1 "k8s.io/api/core/v1"
@@ -23,106 +25,124 @@ import (
 )
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {
-	if len(options.offerings) == 0 {
-		options.offerings = []cloudprovider.Offering{
+	if len(options.Offerings) == 0 {
+		options.Offerings = []cloudprovider.Offering{
 			{CapacityType: "spot", Zone: "test-zone-1"},
 			{CapacityType: "spot", Zone: "test-zone-2"},
 			{CapacityType: "on-demand", Zone: "test-zone-1"},
 			{CapacityType: "on-demand", Zone: "test-zone-2"},
 			{CapacityType: "on-demand", Zone: "test-zone-3"}}
 	}
-	if len(options.architecture) == 0 {
-		options.architecture = "amd64"
+	if len(options.Architecture) == 0 {
+		options.Architecture = "amd64"
 	}
-	if len(options.operatingSystems) == 0 {
-		options.operatingSystems = sets.NewString("linux", "windows", "darwin")
+	if len(options.OperatingSystems) == 0 {
+		options.OperatingSystems = sets.NewString("linux", "windows", "darwin")
 	}
-	if options.cpu.IsZero() {
-		options.cpu = resource.MustParse("4")
+	if options.CPU.IsZero() {
+		options.CPU = resource.MustParse("4")
 	}
-	if options.memory.IsZero() {
-		options.memory = resource.MustParse("4Gi")
+	if options.Memory.IsZero() {
+		options.Memory = resource.MustParse("4Gi")
 	}
-	if options.pods.IsZero() {
-		options.pods = resource.MustParse("5")
+	if options.Pods.IsZero() {
+		options.Pods = resource.MustParse("5")
 	}
 	return &InstanceType{
-		InstanceTypeOptions: InstanceTypeOptions{
-			name:             options.name,
-			offerings:        options.offerings,
-			architecture:     options.architecture,
-			operatingSystems: options.operatingSystems,
-			cpu:              options.cpu,
-			memory:           options.memory,
-			pods:             options.pods,
-			nvidiaGPUs:       options.nvidiaGPUs,
-			amdGPUs:          options.amdGPUs,
-			awsNeurons:       options.awsNeurons,
-			awsPodENI:        options.awsPodENI,
+		options: InstanceTypeOptions{
+			Name:             options.Name,
+			Offerings:        options.Offerings,
+			Architecture:     options.Architecture,
+			OperatingSystems: options.OperatingSystems,
+			CPU:              options.CPU,
+			Memory:           options.Memory,
+			Pods:             options.Pods,
+			NvidiaGPUs:       options.NvidiaGPUs,
+			AMDGPUs:          options.AMDGPUs,
+			AWSNeurons:       options.AWSNeurons,
+			AWSPodENI:        options.AWSPodENI,
 		},
 	}
 }
 
+// InstanceTypes creates instance types with incrementing resources
+// 2Gi of RAM and 10 pods for every 1vcpu
+// i.e. 1vcpu, 2Gi mem, 10 pods
+//      2vcpu, 4Gi mem, 20 pods
+//      3vcpu, 6Gi mem, 30 pods
+func InstanceTypes(total int) []cloudprovider.InstanceType {
+	instanceTypes := []cloudprovider.InstanceType{}
+	for i := 0; i < total; i++ {
+		instanceTypes = append(instanceTypes, NewInstanceType(InstanceTypeOptions{
+			Name:   fmt.Sprintf("fake-it-%d", i),
+			CPU:    resource.MustParse(fmt.Sprintf("%d", i+1)),
+			Memory: resource.MustParse(fmt.Sprintf("%dGi", (i+1)*2)),
+			Pods:   resource.MustParse(fmt.Sprintf("%d", (i+1)*10)),
+		}))
+	}
+	return instanceTypes
+}
+
 type InstanceTypeOptions struct {
-	name             string
-	offerings        []cloudprovider.Offering
-	architecture     string
-	operatingSystems sets.String
-	cpu              resource.Quantity
-	memory           resource.Quantity
-	pods             resource.Quantity
-	nvidiaGPUs       resource.Quantity
-	amdGPUs          resource.Quantity
-	awsNeurons       resource.Quantity
-	awsPodENI        resource.Quantity
+	Name             string
+	Offerings        []cloudprovider.Offering
+	Architecture     string
+	OperatingSystems sets.String
+	CPU              resource.Quantity
+	Memory           resource.Quantity
+	Pods             resource.Quantity
+	NvidiaGPUs       resource.Quantity
+	AMDGPUs          resource.Quantity
+	AWSNeurons       resource.Quantity
+	AWSPodENI        resource.Quantity
 }
 
 type InstanceType struct {
-	InstanceTypeOptions
+	options InstanceTypeOptions
 }
 
 func (i *InstanceType) Name() string {
-	return i.name
+	return i.options.Name
 }
 
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
-	return i.offerings
+	return i.options.Offerings
 }
 
 func (i *InstanceType) Architecture() string {
-	return i.architecture
+	return i.options.Architecture
 }
 
 func (i *InstanceType) OperatingSystems() sets.String {
-	return i.operatingSystems
+	return i.options.OperatingSystems
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {
-	return &i.cpu
+	return &i.options.CPU
 }
 
 func (i *InstanceType) Memory() *resource.Quantity {
-	return &i.memory
+	return &i.options.Memory
 }
 
 func (i *InstanceType) Pods() *resource.Quantity {
-	return &i.pods
+	return &i.options.Pods
 }
 
 func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
-	return &i.nvidiaGPUs
+	return &i.options.NvidiaGPUs
 }
 
 func (i *InstanceType) AMDGPUs() *resource.Quantity {
-	return &i.amdGPUs
+	return &i.options.AMDGPUs
 }
 
 func (i *InstanceType) AWSNeurons() *resource.Quantity {
-	return &i.awsNeurons
+	return &i.options.AWSNeurons
 }
 
 func (i *InstanceType) AWSPodENI() *resource.Quantity {
-	return &i.awsPodENI
+	return &i.options.AWSPodENI
 }
 
 func (i *InstanceType) Overhead() v1.ResourceList {

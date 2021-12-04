@@ -22,6 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
@@ -51,9 +52,16 @@ type Scheduler struct {
 }
 
 type Schedule struct {
-	*v1alpha5.Constraints
+	*RuntimeConstraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
+}
+
+type RuntimeConstraints struct {
+	*v1alpha5.Constraints
+	// Resources are used to construct pod scheduling groups
+	// and are primarily to accomadate GPU resource requests
+	Resources v1.ResourceList
 }
 
 func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
@@ -92,14 +100,15 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		tightened := constraints.Tighten(pod)
+		tightened := &RuntimeConstraints{Constraints: constraints.Tighten(pod), Resources: resources.GPURequestsFor(pod)}
+
 		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
-			schedules[key] = &Schedule{Constraints: tightened, Pods: []*v1.Pod{}}
+			schedules[key] = &Schedule{RuntimeConstraints: tightened, Pods: []*v1.Pod{}}
 		}
 		// Append pod to schedule, guaranteed to exist
 		schedules[key].Pods = append(schedules[key].Pods, pod)
