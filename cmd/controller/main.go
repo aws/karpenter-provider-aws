@@ -74,7 +74,7 @@ func main() {
 
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
-	manager := controllers.NewManagerOrDie(config, controllerruntime.Options{
+	manager := controllers.NewManagerOrDie(ctx, config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
 		LeaderElectionID:       "karpenter-leader-election",

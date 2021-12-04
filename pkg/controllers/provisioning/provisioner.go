@@ -152,7 +152,8 @@ func (p *Provisioner) FilterProvisionable(ctx context.Context, pods []*v1.Pod) [
 		original := pod
 		candidate := &v1.Pod{}
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, candidate); err != nil {
-			logging.FromContext(ctx).Errorf("Unexpected error retrieving pod \"%s/%s\" while checking if it is provisionable", pod.Namespace, pod.Name)
+			logging.FromContext(ctx).Errorf("Could not verify pod \"%s/%s\" is provisionable, %s", pod.Namespace, pod.Name, err.Error())
+			continue
 		}
 		if candidate.Spec.NodeName == "" {
 			provisionable = append(provisionable, original)

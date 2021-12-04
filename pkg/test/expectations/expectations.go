@@ -43,20 +43,20 @@ const (
 
 func ExpectPodExists(ctx context.Context, c client.Client, name string, namespace string) *v1.Pod {
 	pod := &v1.Pod{}
-	Expect(c.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
+	Expect(c.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, pod)).To(Succeed())
 	return pod
 }
 
 func ExpectNodeExists(ctx context.Context, c client.Client, name string) *v1.Node {
 	node := &v1.Node{}
-	Expect(c.Get(context.Background(), client.ObjectKey{Name: name}, node)).To(Succeed())
+	Expect(c.Get(ctx, client.ObjectKey{Name: name}, node)).To(Succeed())
 	return node
 }
 
 func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		Eventually(func() bool {
-			return errors.IsNotFound(c.Get(context.Background(), types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
+			return errors.IsNotFound(c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object))
 		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), func() string {
 			return fmt.Sprintf("expected %s to be deleted, but it still exists", object.GetSelfLink())
 		})
@@ -77,22 +77,22 @@ func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) {
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
 		if object.GetResourceVersion() == "" {
-			Expect(c.Create(context.Background(), object)).To(Succeed())
+			Expect(c.Create(ctx, object)).To(Succeed())
 		} else {
-			Expect(c.Update(context.Background(), object)).To(Succeed())
+			Expect(c.Update(ctx, object)).To(Succeed())
 		}
 	}
 }
 
 func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Expect(c.Status().Update(context.Background(), object)).To(Succeed())
+		Expect(c.Status().Update(ctx, object)).To(Succeed())
 	}
 }
 
 func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		Expect(c.Create(context.Background(), object)).To(Succeed())
+		Expect(c.Create(ctx, object)).To(Succeed())
 	}
 }
 
@@ -101,7 +101,7 @@ func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...cl
 		// Preserve a copy of the status, which is overriden by create
 		status := object.DeepCopyObject().(client.Object)
 		ExpectApplied(ctx, c, object)
-		Expect(c.Status().Update(context.Background(), status)).To(Succeed())
+		Expect(c.Status().Update(ctx, status)).To(Succeed())
 	}
 }
 
