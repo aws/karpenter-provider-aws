@@ -2,6 +2,19 @@ RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 RELEASE_PLATFORM ?= --platform=linux/amd64,linux/arm64
 
+GIT_VERSION ?= $(shell git describe --tags --always --dirty)
+GIT_HASH ?= $(shell git rev-parse HEAD)
+DATE_FMT = +'%Y-%m-%dT%H:%M:%SZ'
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
+ifdef SOURCE_DATE_EPOCH
+    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
+else
+    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
+endif
+
+## Inject these annotations to cosign signing
+COSIGN_SIGN_FLAGS ?= -a GIT_HASH=${GIT_HASH} -a GIT_VERSION=${GIT_VERSION} -a BUILD_DATE=${BUILD_DATE}
+
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
@@ -21,6 +34,7 @@ dev: verify test ## Run all steps in the developer loop
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
 release: verify publish helm ## Run all steps in release workflow
+release-test: publish-test sign-container-test ## Run publish-test and sign-container-test release with dummy key
 
 test: ## Run tests
 	ginkgo -r
@@ -77,6 +91,10 @@ publish: ## Generate release manifests and publish a versioned container image.
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
 
+publish-test: ## Test publish so we don't want to do for all platforms
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/controller
+	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/webhook
+
 helm: ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 	helm-docs
@@ -86,5 +104,10 @@ website: ## Generate Docs Website
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
+
+
+sign-container-test: ## cosign generate-key-pair to create a test key pair
+	cosign sign --force --key cosign.key ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
+	cosign sign --force --key cosign.key ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
