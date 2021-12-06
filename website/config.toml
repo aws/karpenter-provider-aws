@@ -64,6 +64,9 @@ anchor = "smart"
 
 ## Site Params
 [params]
+
+latest_release_version = "0.5.1"
+
 copyright = "Amazon.com, Inc. or its affiliates."
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
 github_repo = "https://github.com/aws/karpenter"
