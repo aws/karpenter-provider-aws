@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -39,9 +39,9 @@ type Result struct {
 	unpacked []*v1.Pod
 }
 
-// PackablesFor creates viable packables for the provided schedule, excluding
-// those that can't fit resources or violate schedule.
-func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceType, schedule *scheduling.Schedule) []*Packable {
+// PackablesFor creates viable packables for the provided constraints, excluding
+// those that can't fit resources or violate constraints.
+func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceType, constraints *v1alpha5.Constraints, pods []*v1.Pod, daemons []*v1.Pod) []*Packable {
 	packables := []*Packable{}
 	for _, instanceType := range instanceTypes {
 		packable := PackableFor(instanceType)
@@ -50,16 +50,16 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		// removing instance types that obviously lack resources, such
 		// as GPUs, for the workload being presented).
 		if err := multierr.Combine(
-			packable.validateZones(schedule),
-			packable.validateInstanceType(schedule),
-			packable.validateArchitecture(schedule),
-			packable.validateCapacityTypes(schedule),
+			packable.validateZones(constraints),
+			packable.validateInstanceType(constraints),
+			packable.validateArchitecture(constraints),
+			packable.validateCapacityTypes(constraints),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
-			packable.validateNvidiaGpus(schedule),
-			packable.validateAMDGpus(schedule),
-			packable.validateAWSNeurons(schedule),
+			packable.validateNvidiaGpus(pods),
+			packable.validateAMDGpus(pods),
+			packable.validateAWSNeurons(pods),
 		); err != nil {
 			continue
 		}
@@ -69,7 +69,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			continue
 		}
 		// Calculate Daemonset Overhead
-		if len(packable.Pack(schedule.Daemons).unpacked) > 0 {
+		if len(packable.Pack(daemons).unpacked) > 0 {
 			logging.FromContext(ctx).Debugf("Excluding instance type %s because there are not enough resources for daemons", packable.Name())
 			continue
 		}
@@ -151,47 +151,47 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 	return p.reserve(requests)
 }
 
-func (p *Packable) validateInstanceType(schedule *scheduling.Schedule) error {
-	if !schedule.Requirements.InstanceTypes().Has(p.Name()) {
-		return fmt.Errorf("instance type %s is not in %v", p.Name(), schedule.Requirements.InstanceTypes().List())
+func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
+	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
+		return fmt.Errorf("instance type %s is not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateArchitecture(schedule *scheduling.Schedule) error {
-	if !schedule.Requirements.Architectures().Has(p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), schedule.Requirements.Architectures().List())
+func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
+	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
+		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), constraints.Requirements.Architectures().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateZones(schedule *scheduling.Schedule) error {
+func (p *Packable) validateZones(constraints *v1alpha5.Constraints) error {
 	zones := sets.String{}
 	for _, offering := range p.Offerings() {
 		zones.Insert(offering.Zone)
 	}
-	if schedule.Requirements.Zones().Intersection(zones).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", zones, schedule.Requirements.Zones().List())
+	if constraints.Requirements.Zones().Intersection(zones).Len() == 0 {
+		return fmt.Errorf("zones %v are not in %v", zones, constraints.Requirements.Zones().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateCapacityTypes(schedule *scheduling.Schedule) error {
+func (p *Packable) validateCapacityTypes(constraints *v1alpha5.Constraints) error {
 	capacityTypes := sets.String{}
 	for _, offering := range p.Offerings() {
 		capacityTypes.Insert(offering.CapacityType)
 	}
-	if schedule.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
-		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, schedule.Requirements.CapacityTypes().List())
+	if constraints.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
+		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, constraints.Requirements.CapacityTypes().List())
 	}
 	return nil
 }
 
-func (p *Packable) validateNvidiaGpus(schedule *scheduling.Schedule) error {
+func (p *Packable) validateNvidiaGpus(pods []*v1.Pod) error {
 	if p.InstanceType.NvidiaGPUs().IsZero() {
 		return nil
 	}
-	for _, pod := range schedule.Pods {
+	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			if _, ok := container.Resources.Requests[resources.NvidiaGPU]; ok {
 				return nil
@@ -201,11 +201,11 @@ func (p *Packable) validateNvidiaGpus(schedule *scheduling.Schedule) error {
 	return fmt.Errorf("nvidia gpu is not required")
 }
 
-func (p *Packable) validateAMDGpus(schedule *scheduling.Schedule) error {
+func (p *Packable) validateAMDGpus(pods []*v1.Pod) error {
 	if p.InstanceType.AMDGPUs().IsZero() {
 		return nil
 	}
-	for _, pod := range schedule.Pods {
+	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			if _, ok := container.Resources.Requests[resources.AMDGPU]; ok {
 				return nil
@@ -215,11 +215,11 @@ func (p *Packable) validateAMDGpus(schedule *scheduling.Schedule) error {
 	return fmt.Errorf("amd gpu is not required")
 }
 
-func (p *Packable) validateAWSNeurons(schedule *scheduling.Schedule) error {
+func (p *Packable) validateAWSNeurons(pods []*v1.Pod) error {
 	if p.InstanceType.AWSNeurons().IsZero() {
 		return nil
 	}
-	for _, pod := range schedule.Pods {
+	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			if _, ok := container.Resources.Requests[resources.AWSNeuron]; ok {
 				return nil
