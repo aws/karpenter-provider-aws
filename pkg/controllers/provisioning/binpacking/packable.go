@@ -53,6 +53,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateZones(constraints),
 			packable.validateInstanceType(constraints),
 			packable.validateArchitecture(constraints),
+			packable.validateOperatingSystems(constraints),
 			packable.validateCapacityTypes(constraints),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
@@ -153,7 +154,7 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 
 func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
-		return fmt.Errorf("instance type %s is not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
+		return fmt.Errorf("instance type %s not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
 	}
 	return nil
 }
@@ -161,6 +162,13 @@ func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error
 func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
 		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), constraints.Requirements.Architectures().List())
+	}
+	return nil
+}
+
+func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
+	if constraints.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
+		return fmt.Errorf("operating systems %s not in %v", p.OperatingSystems(), constraints.Requirements.OperatingSystems().List())
 	}
 	return nil
 }

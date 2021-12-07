@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
@@ -40,6 +41,10 @@ func (i *InstanceType) Name() string {
 
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
 	return i.AvailableOfferings
+}
+
+func (i *InstanceType) OperatingSystems() sets.String {
+	return sets.NewString("linux")
 }
 
 func (i *InstanceType) Architecture() string {

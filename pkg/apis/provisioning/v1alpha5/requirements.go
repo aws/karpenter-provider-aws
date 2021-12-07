@@ -36,6 +36,10 @@ func (r Requirements) Architectures() sets.String {
 	return r.Requirement(v1.LabelArchStable)
 }
 
+func (r Requirements) OperatingSystems() sets.String {
+	return r.Requirement(v1.LabelOSStable)
+}
+
 func (r Requirements) CapacityTypes() sets.String {
 	return r.Requirement(LabelCapacityType)
 }

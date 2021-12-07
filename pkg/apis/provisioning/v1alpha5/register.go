@@ -59,6 +59,7 @@ var (
 		v1.LabelTopologyZone,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
+		v1.LabelOSStable,
 		LabelCapacityType,
 		v1.LabelHostname, // Used internally for hostname topology spread
 	)

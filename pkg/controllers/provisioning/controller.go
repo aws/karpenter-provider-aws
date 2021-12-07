@@ -140,6 +140,7 @@ func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1al
 		v1.LabelInstanceTypeStable: sets.NewString(),
 		v1.LabelTopologyZone:       sets.NewString(),
 		v1.LabelArchStable:         sets.NewString(),
+		v1.LabelOSStable:           sets.NewString(),
 		v1alpha5.LabelCapacityType: sets.NewString(),
 	}
 	for _, instanceType := range instanceTypes {
@@ -149,6 +150,7 @@ func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1al
 		}
 		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
 		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
+		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().List()...)
 	}
 	for key, values := range supported {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
