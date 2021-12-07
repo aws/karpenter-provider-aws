@@ -21,7 +21,12 @@ kubebuilder() {
     KUBEBUILDER_ASSETS="/usr/local/kubebuilder"
     sudo rm -rf $KUBEBUILDER_ASSETS
     sudo mkdir -p $KUBEBUILDER_ASSETS
-    sudo mv "$(setup-envtest use -p path 1.19.x)" $KUBEBUILDER_ASSETS/bin
+    arch=$(go env GOARCH)
+    ## Kubebuilder does not support darwin/arm64, so use amd64 through Rosetta instead 
+    if [[ $(go env GOOS) == "darwin" ]] && [[ $(go env GOARCH) == "arm64" ]]; then
+        arch="amd64"
+    fi
+    sudo mv "$(setup-envtest use -p path 1.21.x --arch=${arch})" $KUBEBUILDER_ASSETS/bin
     find $KUBEBUILDER_ASSETS
 }
 
