@@ -12,6 +12,9 @@ else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
 
+# The command to generate key: cosign generate-key-pair --kms awskms:///cosign
+COSIGN_KEY_PATH ?= "awskms:///alias/cosign"
+
 ## Inject these annotations to cosign signing
 COSIGN_SIGN_FLAGS ?= -a GIT_HASH=${GIT_HASH} -a GIT_VERSION=${GIT_VERSION} -a BUILD_DATE=${BUILD_DATE}
 
@@ -34,7 +37,7 @@ dev: verify test ## Run all steps in the developer loop
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
 release: verify publish helm ## Run all steps in release workflow
-release-test: publish-test sign-container-test ## Run publish-test and sign-container-test release with dummy key
+release-test: publish-test sign-container-test ## Run publish-test and sign-container-test release with a test key
 
 test: ## Run tests
 	ginkgo -r
@@ -107,7 +110,7 @@ toolchain: ## Install developer toolchain
 
 
 sign-container-test: ## cosign generate-key-pair to create a test key pair
-	cosign sign --force --key cosign.key ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	cosign sign --force --key cosign.key ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
+	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
+	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
