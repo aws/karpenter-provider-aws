@@ -93,7 +93,7 @@ spec:
 
 Select security groups by name, or another tag:
 ```
- securityGroupSSelector:
+ securityGroupSelector:
    Name: sg-01077157b7cf4f5a8
    MySecurityTag: '' # matches all resources with the tag
 ```
