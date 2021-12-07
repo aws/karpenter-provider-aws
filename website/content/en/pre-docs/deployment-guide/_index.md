@@ -62,12 +62,7 @@ The getting started guide describes creating a cluster service account mapped to
 
 Karpenter may alternatively be configured to authenticate with AWS using the `kube2iam` package, or with locally stored Access Keys. Both practices are discouraged. IRSA avoids storing/rotating secrets, and is fully supported by AWS. 
 
-<<<<<<< HEAD:website/content/en/pre-docs/deployment-guide/_index.md
 The provisioned instances must have comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the cloudformation template](../getting-started/cloudformation.yaml).
-=======
-The provisioned instances must comparable permissions to a standard EKS self-managed node. For example, permission to configure instance networking interfaces. The getting started guide again provides a useful starting point in [the CloudFormation template](../getting-started/cloudformation.yaml).
-
->>>>>>> 886d3a1 (Apply suggestions from code review):website/content/en/pre-docs/deploy-guide/_index.md
 
 ### Tagged Subnets
 
