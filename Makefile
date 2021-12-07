@@ -89,7 +89,8 @@ publish: ## Generate release manifests and publish a versioned container image.
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	make sign-container
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 publish-test: ## Same as Make publish but just 1 platform to make it faster to test
 	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/controller
@@ -104,9 +105,5 @@ website: ## Generate Docs Website
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
-
-sign-container:
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
