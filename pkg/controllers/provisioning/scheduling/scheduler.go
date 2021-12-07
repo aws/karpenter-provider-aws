@@ -24,7 +24,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,7 +47,6 @@ func init() {
 
 type Scheduler struct {
 	CloudProvider cloudprovider.CloudProvider
-	KubeClient    client.Client
 	Topology      *Topology
 }
 
@@ -56,14 +54,11 @@ type Schedule struct {
 	*v1alpha5.Constraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
-	// Daemons are a set of daemons that will schedule to the node; used for overhead.
-	Daemons []*v1.Pod
 }
 
 func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
 	return &Scheduler{
 		CloudProvider: cloudProvider,
-		KubeClient:    kubeClient,
 		Topology:      &Topology{kubeClient: kubeClient},
 	}
 }
@@ -104,16 +99,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 		}
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
-			// Uses a theoretical node object to compute schedulablility of daemonset overhead.
-			daemons, err := s.getDaemons(ctx, tightened)
-			if err != nil {
-				return nil, fmt.Errorf("computing node overhead, %w", err)
-			}
-			schedules[key] = &Schedule{
-				Constraints: tightened,
-				Pods:        []*v1.Pod{},
-				Daemons:     daemons,
-			}
+			schedules[key] = &Schedule{Constraints: tightened, Pods: []*v1.Pod{}}
 		}
 		// Append pod to schedule, guaranteed to exist
 		schedules[key].Pods = append(schedules[key].Pods, pod)
@@ -124,20 +110,4 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 		result = append(result, schedule)
 	}
 	return result, nil
-}
-
-func (s *Scheduler) getDaemons(ctx context.Context, constraints *v1alpha5.Constraints) ([]*v1.Pod, error) {
-	daemonSetList := &appsv1.DaemonSetList{}
-	if err := s.KubeClient.List(ctx, daemonSetList); err != nil {
-		return nil, fmt.Errorf("listing daemonsets, %w", err)
-	}
-	// Include DaemonSets that will schedule on this node
-	pods := []*v1.Pod{}
-	for _, daemonSet := range daemonSetList.Items {
-		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-		if constraints.ValidatePod(pod) == nil {
-			pods = append(pods, pod)
-		}
-	}
-	return pods, nil
 }
