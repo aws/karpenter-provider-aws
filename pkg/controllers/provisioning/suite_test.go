@@ -104,6 +104,8 @@ var _ = Describe("Provisioning", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"}}),
 				// Constrained by architecture
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}),
+				// Constrained by operatingSystem
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "linux"}}),
 			}
 			unschedulable := []*v1.Pod{
 				// Ignored, matches another provisioner
@@ -114,6 +116,8 @@ var _ = Describe("Provisioning", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "unknown"}}),
 				// Ignored, invalid architecture
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "unknown"}}),
+				// Ignored, invalid operating system
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
 				// Ignored, invalid capacity type
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: "unknown"}}),
 				// Ignored, label selector does not match
