@@ -12,8 +12,8 @@ else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
 
-# The command to generate key: cosign generate-key-pair --kms awskms:///cosign
-COSIGN_KEY_PATH ?= "awskms:///alias/cosign"
+# The command to generate key: cosign generate-key-pair --kms awskms:///karpenter-cosign
+COSIGN_KEY_PATH ?= "awskms:///alias/karpenter-cosign"
 
 ## Inject these annotations to cosign signing
 COSIGN_SIGN_FLAGS ?= -a GIT_HASH=${GIT_HASH} -a GIT_VERSION=${GIT_VERSION} -a BUILD_DATE=${BUILD_DATE}
@@ -36,8 +36,8 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: verify publish helm ## Run all steps in release workflow
-release-test: publish-test sign-container-test ## Run publish-test and sign-container-test release with a test key
+release: verify publish sign-container helm ## Run all steps in release workflow
+release-test: publish-test sign-container ## Run publish-test and sign-container
 
 test: ## Run tests
 	ginkgo -r
@@ -94,7 +94,7 @@ publish: ## Generate release manifests and publish a versioned container image.
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
 
-publish-test: ## Test publish so we don't want to do for all platforms
+publish-test: ## Same as Make publish but just 1 platform to make it faster to test
 	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/controller
 	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/webhook
 
@@ -108,8 +108,7 @@ website: ## Generate Docs Website
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-
-sign-container-test: ## cosign generate-key-pair to create a test key pair
+sign-container: ## cosign generate-key-pair --kms awskms:///alias/<myalias> to create a key pair
 	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
 	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
