@@ -85,7 +85,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	hack/boilerplate.sh
 
 publish: ## Generate release manifests and publish a versioned container image.
-	## @aws ecr-public get-login-password --region ap-southest-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
+	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
