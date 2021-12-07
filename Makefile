@@ -12,9 +12,6 @@ else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
 
-# The command to generate key: cosign generate-key-pair --kms awskms:///karpenter-cosign
-COSIGN_KEY_PATH ?= "awskms:///alias/karpenter-cosign"
-
 ## Inject these annotations to cosign signing
 COSIGN_SIGN_FLAGS ?= -a GIT_HASH=${GIT_HASH} -a GIT_VERSION=${GIT_VERSION} -a BUILD_DATE=${BUILD_DATE}
 
@@ -36,8 +33,7 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: verify publish sign-container helm ## Run all steps in release workflow
-release-test: publish-test sign-container ## Run publish-test and sign-container
+release: verify publish helm ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -88,7 +84,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
-publish: ## Generate release manifests and publish a versioned container image.
+publish: sign-container ## Generate release manifests and publish a versioned container image.
 	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
@@ -108,8 +104,8 @@ website: ## Generate Docs Website
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
-sign-container: ## cosign generate-key-pair --kms awskms:///alias/<myalias> to create a key pair
-	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	cosign sign --force --key ${COSIGN_KEY_PATH} ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
+sign-container:
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} {RELEASE_REPO}/controller:${RELEASE_VERSION}
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} {RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
