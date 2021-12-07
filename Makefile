@@ -82,9 +82,7 @@ helm: ## Generate Helm Chart
 	helm-docs
 
 website: ## Generate Docs Website
-	cd website; npm install; git submodule update --init --recursive;
-	./hack/patch-docsy.sh;
-	cd website; hugo
+	cd website; npm install; git submodule update --init --recursive; hugo
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
