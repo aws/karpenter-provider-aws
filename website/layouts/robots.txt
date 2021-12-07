@@ -1,0 +1,8 @@
+User-agent: *
+
+Disallow: /v0.4.3-docs/
+
+Allow: /docs/
+Allow: /index.html
+
+SITEMAP: https://karpenter.sh/sitemap.xml

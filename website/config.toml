@@ -6,6 +6,7 @@ baseURL = "/"
 disableKinds = ["taxonomy", "taxonomyTerm"]
 
 # Language settings
+enableRobotsTXT = true
 contentDir = "content/en"
 defaultContentLanguage = "en"
 defaultContentLanguageInSubdir = false
