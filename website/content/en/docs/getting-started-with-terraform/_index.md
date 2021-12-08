@@ -30,7 +30,7 @@ Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+3. `terraform` - [infrastructure-as-code tool made by HashiCorp](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 Login to the AWS CLI with a user that has sufficient privileges to create a
@@ -222,15 +222,6 @@ Then, apply the changes.
 ```bash
 terraform init
 terraform apply -var cluster_name=$CLUSTER_NAME
-```
-
-### Create the EC2 Spot Service Linked Role
-
-This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
-```bash
-aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
-# If the role has already been successfully created, you will see:
-# An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
 ```
 
 ### Install Karpenter Helm Chart
