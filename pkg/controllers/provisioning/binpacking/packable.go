@@ -55,6 +55,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateArchitecture(constraints),
 			packable.validateOperatingSystems(constraints),
 			packable.validateCapacityTypes(constraints),
+			packable.validateAWSPodENI(pods),
 			// Although this will remove instances that have GPUs when
 			// not required, removal of instance types that *lack*
 			// GPUs will be done later.
@@ -88,6 +89,7 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 			resources.NvidiaGPU: *i.NvidiaGPUs(),
 			resources.AMDGPU:    *i.AMDGPUs(),
 			resources.AWSNeuron: *i.AWSNeurons(),
+			resources.AWSPodENI: *i.AWSPodENI(),
 			v1.ResourcePods:     *i.Pods(),
 		},
 	}
@@ -235,6 +237,20 @@ func (p *Packable) validateAWSNeurons(pods []*v1.Pod) error {
 		}
 	}
 	return fmt.Errorf("aws neuron is not required")
+}
+
+func (p *Packable) validateAWSPodENI(pods []*v1.Pod) error {
+	for _, pod := range pods {
+		for _, container := range pod.Spec.Containers {
+			if _, ok := container.Resources.Requests[resources.AWSPodENI]; ok {
+				if p.InstanceType.AWSPodENI().IsZero() {
+					return fmt.Errorf("aws pod eni is required")
+				}
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func packableNames(instanceTypes []*Packable) []string {

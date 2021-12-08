@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
@@ -121,6 +122,37 @@ var _ = Describe("Allocation", func() {
 
 	Context("Reconciliation", func() {
 		Context("Specialized Hardware", func() {
+			It("should not launch AWS Pod ENI on a t3", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{
+							v1.LabelInstanceTypeStable: "t3.large",
+						},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+						},
+					})) {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+			})
+			It("should launch AWS Pod ENI on a compatible instance type", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+						},
+					})) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+					supportsPodENI := func() bool {
+						limits, ok := vpc.Limits[node.Labels[v1.LabelInstanceTypeStable]]
+						return ok && limits.IsTrunkingCompatible
+					}
+					Expect(supportsPodENI()).To(Equal(true))
+				}
+			})
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, scheduler, provisioners, provisioner,

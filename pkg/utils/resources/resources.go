@@ -23,6 +23,7 @@ const (
 	NvidiaGPU = "nvidia.com/gpu"
 	AMDGPU    = "amd.com/gpu"
 	AWSNeuron = "aws.amazon.com/neuron"
+	AWSPodENI = "vpc.amazonaws.com/pod-eni"
 )
 
 // RequestsForPods returns the total resources of a variadic list of podspecs.

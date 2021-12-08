@@ -63,6 +63,7 @@ type InstanceType interface {
 	NvidiaGPUs() *resource.Quantity
 	AMDGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
+	AWSPodENI() *resource.Quantity
 	Overhead() v1.ResourceList
 }
 
