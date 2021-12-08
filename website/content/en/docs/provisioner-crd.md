@@ -141,7 +141,7 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 
 This section is cloud provider specific. Reference the appropriate documentation:
 
-- [AWS](../aws/constraints/)
+- [AWS](../aws/provisioning/)
 
 
 
