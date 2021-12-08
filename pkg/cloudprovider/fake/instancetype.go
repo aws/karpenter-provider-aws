@@ -35,7 +35,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 		options.architecture = "amd64"
 	}
 	if len(options.operatingSystems) == 0 {
-		options.operatingSystems = sets.NewString("linux", "windows", "mac")
+		options.operatingSystems = sets.NewString("linux", "windows", "darwin")
 	}
 	if options.cpu.IsZero() {
 		options.cpu = resource.MustParse("4")
