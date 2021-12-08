@@ -157,7 +157,7 @@ Those that are implemented in Karpenter include:
 
 {{% alert title="Note" color="primary" %}}
 Don't use `podAffinity` and `podAntiAffinity` to schedule pods on the same or different nodes as other pods.
-Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see [Motivation](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#motivation)) and Karpenter doesn't support them.
+Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see [KEP 895](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#impact-to-other-features)) and Karpenter doesn't support them.
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
