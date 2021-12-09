@@ -2,7 +2,8 @@ RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 RELEASE_PLATFORM ?= --platform=linux/amd64,linux/arm64
 
-## Inject these annotations to cosign signing
+GIT_VERSION ?= $(shell git describe --tags --always --dirty)
+GIT_HASH ?= $(shell git rev-parse HEAD)
 DATE_FMT = +'%Y-%m-%dT%H:%M:%SZ'
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
 ifdef SOURCE_DATE_EPOCH
@@ -10,7 +11,9 @@ ifdef SOURCE_DATE_EPOCH
 else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
-COSIGN_FLAGS ?= -a GIT_HASH=$(shell git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}
+
+## Inject these annotations to cosign signing
+COSIGN_SIGN_FLAGS ?= -a GIT_HASH=${GIT_HASH} -a GIT_VERSION=${GIT_VERSION} -a BUILD_DATE=${BUILD_DATE}
 
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
@@ -30,7 +33,7 @@ dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
 
-release: verify publish helm website ## Run all steps in release workflow
+release: verify publish helm ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -86,15 +89,15 @@ publish: ## Generate release manifests and publish a versioned container image.
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 helm: ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 	helm-docs
 
 website: ## Generate Docs Website
-	rsync -a website/content/en/docs/ website/content/en/${RELEASE_VERSION}-docs
+	cd website; npm install; git submodule update --init --recursive; hugo
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
