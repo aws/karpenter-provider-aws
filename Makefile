@@ -92,10 +92,6 @@ publish: ## Generate release manifests and publish a versioned container image.
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
 	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_SIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
-publish-test: ## Same as Make publish but just 1 platform to make it faster to test
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/controller
-	$(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t ${RELEASE_VERSION} ./cmd/webhook
-
 helm: ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
 	helm-docs

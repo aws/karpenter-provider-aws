@@ -11,7 +11,6 @@ import (
 	_ "github.com/mitchellh/golicense"
 	_ "github.com/norwoodj/helm-docs/cmd/helm-docs"
 	_ "github.com/onsi/ginkgo/ginkgo"
-	_ "github.com/sigstore/cosign/cmd/cosign"
 	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 )
