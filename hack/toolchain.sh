@@ -22,7 +22,7 @@ kubebuilder() {
     sudo rm -rf $KUBEBUILDER_ASSETS
     sudo mkdir -p $KUBEBUILDER_ASSETS
     arch=$(go env GOARCH)
-    ## Kubebuilder does not support darwin/arm64, so use amd64 through Rosetta instead 
+    ## Kubebuilder does not support darwin/arm64, so use amd64 through Rosetta instead
     if [[ $(go env GOOS) == "darwin" ]] && [[ $(go env GOARCH) == "arm64" ]]; then
         arch="amd64"
     fi
