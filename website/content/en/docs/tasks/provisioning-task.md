@@ -25,7 +25,7 @@ If you want to modify or add provisioners to Karpenter, do the following:
 1. Review the following Provisioner documents:
 
   * [Provisioner](../../getting-started/#provisioner) in the Getting Started guide for a sample default Provisioner
-  * [Provisioner API](../../provisioner-crd) for descriptions of Provisioner API values
+  * [Provisioner API](../../provisioner/) for descriptions of Provisioner API values
   * [Provisioning Configuration](../../AWS/provisioning) for cloud-specific settings
 
 2. Apply the new or modified Provisioner to the cluster.
