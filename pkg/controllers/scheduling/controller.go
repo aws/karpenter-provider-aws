@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const controllerName = "scheduling"
+
 // Controller for the resource
 type Controller struct {
 	kubeClient   client.Client
@@ -53,7 +55,7 @@ func NewController(kubeClient client.Client, provisioners *provisioning.Controll
 
 // Reconcile the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("scheduling").With("pod", req.String()))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("pod", req.String()))
 	pod := &v1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
 		if errors.IsNotFound(err) {
@@ -163,7 +165,7 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("scheduling").
+		Named(controllerName).
 		For(&v1.Pod{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
 		WithLogger(zapr.NewLogger(zap.NewNop())).

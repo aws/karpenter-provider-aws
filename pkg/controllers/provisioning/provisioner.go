@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	cpmetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
@@ -54,10 +55,10 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		results:       make(chan error),
 		done:          c.Done(),
 		Stop:          stop,
-		cloudProvider: cloudProvider,
+		cloudProvider: cpmetrics.WithComponentName(cloudProvider, "provisioner"),
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
-		scheduler:     scheduling.NewScheduler(kubeClient, cloudProvider),
+		scheduler:     scheduling.NewScheduler(kubeClient),
 		packer:        binpacking.NewPacker(kubeClient, cloudProvider),
 	}
 	go func() {

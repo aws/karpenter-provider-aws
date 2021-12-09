@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
@@ -46,8 +45,8 @@ func init() {
 }
 
 type Scheduler struct {
-	CloudProvider cloudprovider.CloudProvider
-	Topology      *Topology
+	KubeClient client.Client
+	Topology   *Topology
 }
 
 type Schedule struct {
@@ -56,10 +55,10 @@ type Schedule struct {
 	Pods []*v1.Pod
 }
 
-func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
+func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
-		CloudProvider: cloudProvider,
-		Topology:      &Topology{kubeClient: kubeClient},
+		KubeClient: kubeClient,
+		Topology:   &Topology{kubeClient: kubeClient},
 	}
 }
 

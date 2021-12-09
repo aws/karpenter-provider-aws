@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	cpmetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -57,7 +58,10 @@ func init() {
 }
 
 func NewPacker(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Packer {
-	return &Packer{kubeClient: kubeClient, cloudProvider: cloudProvider}
+	return &Packer{
+		kubeClient:    kubeClient,
+		cloudProvider: cpmetrics.WithComponentName(cloudProvider, "packer"),
+	}
 }
 
 // Packer packs pods and calculates efficient placement on the instances.
