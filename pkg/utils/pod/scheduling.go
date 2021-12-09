@@ -28,8 +28,8 @@ func FailedToSchedule(pod *v1.Pod) bool {
 	return false
 }
 
-func HasFailed(pod *v1.Pod) bool {
-	return pod.Status.Phase == "Failed"
+func HasFinished(pod *v1.Pod) bool {
+	return pod.Status.Phase == v1.PodFailed || pod.Status.Phase == v1.PodSucceeded
 }
 
 func IsOwnedByDaemonSet(pod *v1.Pod) bool {
