@@ -15,8 +15,6 @@ limitations under the License.
 package metrics
 
 import (
-	"strings"
-
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/multierr"
@@ -161,7 +159,7 @@ func filterReadyNodes(consume nodeListConsumerFunc) nodeListConsumerFunc {
 		readyNodes := make([]v1.Node, 0, len(nodes))
 		for _, node := range nodes {
 			for _, condition := range node.Status.Conditions {
-				if condition.Type == nodeConditionTypeReady && strings.ToLower(string(condition.Status)) == "true" {
+				if condition.Type == nodeConditionTypeReady && condition.Status == v1.ConditionTrue {
 					readyNodes = append(readyNodes, node)
 				}
 			}
