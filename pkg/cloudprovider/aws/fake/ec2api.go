@@ -219,11 +219,33 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 	fn(&ec2.DescribeInstanceTypesOutput{
 		InstanceTypes: []*ec2.InstanceTypeInfo{
 			{
+				InstanceType:                  aws.String("t3.large"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(true),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(2),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(8 * 1024),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(3),
+					Ipv4AddressesPerInterface: aws.Int64(12),
+				},
+			},
+			{
 				InstanceType:                  aws.String("m5.large"),
 				SupportedUsageClasses:         DefaultSupportedUsageClasses,
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -244,6 +266,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -264,6 +287,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -290,6 +314,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{v1alpha5.ArchitectureArm64}),
 				},
@@ -310,6 +335,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -335,6 +361,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("nitro"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},
@@ -400,6 +427,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("p3.8xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("t3.large"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("t3.large"),
 				Location:     aws.String("test-zone-1b"),
 			},
 			{

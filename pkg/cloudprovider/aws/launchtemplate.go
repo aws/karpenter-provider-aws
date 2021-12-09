@@ -157,7 +157,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 }
 
 // needsDocker returns true if the instance type is unable to use
-// conatinerd directly
+// containerd directly
 func needsDocker(is []cloudprovider.InstanceType) bool {
 	for _, i := range is {
 		if !i.AWSNeurons().IsZero() || !i.NvidiaGPUs().IsZero() {
