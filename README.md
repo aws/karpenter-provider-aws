@@ -37,8 +37,8 @@ Follow the setup recommendations of your cloud provider.
 
 ## References
 - [Docs](https://karpenter.sh/docs/)
-- [API](README.md)
-- [FAQs](https://karpenter.sh/docs/faqs/)
+- [Concepts](https://karpenter.sh/docs/concepts/)
+- [API](https://karpenter.sh/docs/provisioner/)
 - [Working Group](WORKING_GROUP.md)
 - [Developer Guide](https://karpenter.sh/docs/development-guide/)
 - [Contributing](CONTRIBUTING.md)
