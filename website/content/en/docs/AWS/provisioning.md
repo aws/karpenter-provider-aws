@@ -116,7 +116,8 @@ spec:
       dev.corp.net/app: Calculator
       dev.corp.net/team: MyTeam
 ```
-Note: If the "Name" tag is not spplied in the above spec, the following default tag will be applied: `Name: karpenter.sh/<cluster-name>`
+Note: If the "Name" tag is not supplied in the above spec, the following default tag will be applied: `Name: karpenter.sh/<cluster-name>`
+
 
 ## Other Resources
 
