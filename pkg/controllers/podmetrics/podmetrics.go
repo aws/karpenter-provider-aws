@@ -101,8 +101,6 @@ func NewController(kubeClient client.Client, coreV1Client corev1.CoreV1Interface
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("podmetrics").With("pod", req.Name))
 
-	logging.FromContext(ctx).Infof("=================== Monitoring Pods %s ====================", req.NamespacedName)
-
 	// Retrieve pod from reconcile request
 	pod := &v1.Pod{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
@@ -133,7 +131,6 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	logging.FromContext(ctx).Infof("Pod Phase: %s, Pod Condition: %s", string(pod.Status.Phase), &pod.Status.Conditions)
 	gauge.Set(float64(1))
 	c.LabelsMap[req.NamespacedName] = newlabels
 
