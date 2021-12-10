@@ -51,9 +51,9 @@ See also, [the managed policy "AmazonEKSWorkerNodePolicy"](https://docs.aws.amaz
 
 ### Tags 
 
- ✳️ Note: this requirement only applies to EKS clusters. 
+Instances must have the tag `kubernetes.io/cluster/<EksClusterName>` and value `owned`. 
 
-Instances must have the tag `kubernetes.io/cluster/EksClusterName` and value `owned` to successfully join an EKS cluster. 
+Cluster management tools, such as EKS and kOps, use this tag to identify instances. 
 
 Note that launch templates have two resource tag sections, one for the launch template itself, and another for the instances it creates. Check that the instances are tagged. 
 
