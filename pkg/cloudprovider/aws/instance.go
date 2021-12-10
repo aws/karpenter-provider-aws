@@ -124,7 +124,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(injection.GetOptions(ctx).ClusterName), constraints.Tags),
+				Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(injection.GetOptions(ctx).ClusterName, constraints.Tags), constraints.Tags),
 			},
 		},
 		// OnDemandOptions are allowed to be specified even when requesting spot

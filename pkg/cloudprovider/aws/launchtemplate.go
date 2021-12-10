@@ -180,7 +180,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-			Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(options.ClusterName), options.Tags),
+			Tags:         v1alpha1.MergeTags(v1alpha1.ManagedTagsFor(options.ClusterName, options.Tags), options.Tags),
 		}},
 	})
 	if err != nil {

@@ -29,13 +29,17 @@ const (
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
-func ManagedTagsFor(clusterName string) map[string]string {
-	// tags to be applied on AWS resources created by Karpenter (instances, launchTemplates..)
-	return map[string]string{
-		"Name": fmt.Sprintf("karpenter.sh/%s", clusterName),
+func ManagedTagsFor(clusterName string, customTags map[string]string) map[string]string {
+	managedTags := map[string]string{
 		fmt.Sprintf(ClusterTagKeyFormat, clusterName):   "owned",
 		fmt.Sprintf(KarpenterTagKeyFormat, clusterName): "owned",
 	}
+	// If the provisioner spec includes the Name tag, honor that value. Otherwise, use the default.
+	if _, exists := customTags["Name"]; !exists {
+		managedTags["Name"] = fmt.Sprintf("karpenter.sh/%s", clusterName)
+	}
+	// tags to be applied on AWS resources created by Karpenter (instances, launchTemplates..)
+	return managedTags
 }
 
 func MergeTags(tags ...map[string]string) []*ec2.Tag {

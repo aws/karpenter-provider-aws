@@ -75,7 +75,7 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 func (a *AWS) validateTags(ctx context.Context) (errs *apis.FieldError) {
 	// Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
 	// defined and Karpenter tags, and the latter could change over time.
-	managedTags := ManagedTagsFor(injection.GetOptions(ctx).ClusterName)
+	managedTags := ManagedTagsFor(injection.GetOptions(ctx).ClusterName, a.Tags)
 	for tagKey, tagValue := range a.Tags {
 		if tagKey == "" {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf(
