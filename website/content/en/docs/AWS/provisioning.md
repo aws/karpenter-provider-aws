@@ -132,6 +132,24 @@ karpenter.sh/cluster/<cluster-name>: owned
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
+### Metadata Options
+
+Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this provisioner using a generated launch template.
+
+Refer to [recommended, security best practices](https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node) for limiting exposure of Instance Metadata and User Data to pods.
+
+If metadataOptions are omitted from this provisioner, the following default settings will be used.
+
+```
+spec:
+  provider:
+    metadataOptions:
+      httpEndpoint: enabled
+      httpProtocolIpv6: disabled
+      httpPutResponseHopLimit: 2
+      httpTokens: required
+```
+
 
 ## Other Resources
 

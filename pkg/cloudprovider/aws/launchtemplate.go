@@ -81,6 +81,14 @@ type launchTemplateOptions struct {
 	SecurityGroupsIds []string
 	AMIID             string
 	Tags              map[string]string
+	MetadataOptions   launchTemplateMetadataOptions
+}
+
+type launchTemplateMetadataOptions struct {
+	HTTPEndpoint            *string
+	HTTPProtocolIpv6        *string
+	HTTPPutResponseHopLimit *int64
+	HTTPTokens              *string
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
@@ -98,6 +106,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
+	metadataOptions := p.getMetadataOptions(constraints.MetadataOptions)
 	// Construct launch templates
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
 	for amiID, instanceTypes := range amis {
@@ -114,6 +123,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
 			Tags:              constraints.Tags,
+			MetadataOptions:   metadataOptions,
 		})
 		if err != nil {
 			return nil, err
@@ -121,6 +131,30 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		launchTemplates[aws.StringValue(launchTemplate.LaunchTemplateName)] = instanceTypes
 	}
 	return launchTemplates, nil
+}
+
+const (
+	defaultMetadataOptionsHTTPEndpoint            = ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled
+	defaultMetadataOptionsHTTPProtocolIpv6        = ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled
+	defaultMetadataOptionsHTTPPutResponseHopLimit = 2
+	defaultMetadataOptionsHTTPTokens              = ec2.LaunchTemplateHttpTokensStateRequired
+)
+
+func (p *LaunchTemplateProvider) getMetadataOptions(options *v1alpha1.MetadataOptions) launchTemplateMetadataOptions {
+	if options == nil {
+		return launchTemplateMetadataOptions{
+			HTTPEndpoint:            aws.String(defaultMetadataOptionsHTTPEndpoint),
+			HTTPProtocolIpv6:        aws.String(defaultMetadataOptionsHTTPProtocolIpv6),
+			HTTPPutResponseHopLimit: aws.Int64(defaultMetadataOptionsHTTPPutResponseHopLimit),
+			HTTPTokens:              aws.String(defaultMetadataOptionsHTTPTokens),
+		}
+	}
+	return launchTemplateMetadataOptions{
+		HTTPEndpoint:            options.HTTPEndpoint,
+		HTTPProtocolIpv6:        options.HTTPProtocolIpv6,
+		HTTPPutResponseHopLimit: options.HTTPPutResponseHopLimit,
+		HTTPTokens:              options.HTTPTokens,
+	}
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
@@ -178,6 +212,12 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
+			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
+				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
+				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIpv6,
+				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
+				HttpTokens:              options.MetadataOptions.HTTPTokens,
+			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
