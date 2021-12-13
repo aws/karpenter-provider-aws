@@ -31,19 +31,14 @@ const (
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
-func ManagedTagsFor(clusterName string) map[string]string {
-	// tags to be applied on AWS resources created by Karpenter (instances, launchTemplates..)
-	return map[string]string{
-		fmt.Sprintf(ClusterTagKeyFormat, clusterName):   "owned",
-		fmt.Sprintf(KarpenterTagKeyFormat, clusterName): "owned",
-	}
-}
-
 func MergeTags(ctx context.Context, customTags map[string]string) []*ec2.Tag {
-	managedTags := ManagedTagsFor(injection.GetOptions(ctx).ClusterName)
-	// We'll set the default Name tag, but allow it to be overridden in the merge
-	managedTags["Name"] = fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s",
-		injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name)
+	// We'll set some default tags, but allow them to be overridden in the merge
+	managedTags := map[string]string{
+		"Name": fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s",
+			injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name),
+		fmt.Sprintf(ClusterTagKeyFormat, injection.GetOptions(ctx).ClusterName):   "owned",
+		fmt.Sprintf(KarpenterTagKeyFormat, injection.GetOptions(ctx).ClusterName): "owned",
+	}
 	ec2Tags := []*ec2.Tag{}
 	for key, value := range functional.UnionStringMaps(managedTags, customTags) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
