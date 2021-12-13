@@ -22,6 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
@@ -93,7 +94,19 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 			continue
 		}
 		tightened := constraints.Tighten(pod)
-		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+
+		// schedulingConstraints applies the provisioner constraints
+		// and any inferred constraints such as GPU resource requests from the pods
+		// and is then hashed to compute the schedules
+		schedulingConstraints := struct {
+			*v1alpha5.Constraints
+			GPURequests v1.ResourceList
+		}{
+			Constraints: tightened,
+			GPURequests: resources.GPULimitsFor(pod),
+		}
+
+		key, err := hashstructure.Hash(schedulingConstraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}

@@ -96,6 +96,17 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	}
 }
 
+// Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
+func Pods(total int, options ...PodOptions) []*v1.Pod {
+	pods := []*v1.Pod{}
+	for _, opts := range options {
+		for i := 0; i < total/len(options); i++ {
+			pods = append(pods, Pod(opts))
+		}
+	}
+	return pods
+}
+
 // UnschedulablePod creates a test pod with a pending scheduling status condition
 func UnschedulablePod(options ...PodOptions) *v1.Pod {
 	return Pod(append(options, PodOptions{

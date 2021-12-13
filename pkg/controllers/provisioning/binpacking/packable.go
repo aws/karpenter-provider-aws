@@ -16,7 +16,9 @@ package binpacking
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -56,13 +58,11 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateOperatingSystems(constraints),
 			packable.validateCapacityTypes(constraints),
 			packable.validateAWSPodENI(pods),
-			// Although this will remove instances that have GPUs when
-			// not required, removal of instance types that *lack*
-			// GPUs will be done later.
 			packable.validateNvidiaGpus(pods),
 			packable.validateAMDGpus(pods),
 			packable.validateAWSNeurons(pods),
 		); err != nil {
+			logging.FromContext(ctx).Debugf("Excluding instance type %s because %v", packable.Name(), err.Error())
 			continue
 		}
 		// Calculate Kubelet Overhead
@@ -77,6 +77,22 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		}
 		packables = append(packables, packable)
 	}
+	// Sort in ascending order so that the packer can short circuit bin-packing for larger instance types
+	sort.Slice(packables, func(i, j int) bool {
+		// Check GPU equality assuming GPU classes are mutually exclusive
+		if packables[i].AMDGPUs().Equal(*packables[j].AMDGPUs()) ||
+			packables[i].NvidiaGPUs().Equal(*packables[j].NvidiaGPUs()) ||
+			packables[i].AWSNeurons().Equal(*packables[j].AWSNeurons()) {
+			if packables[i].CPU().Equal(*packables[j].CPU()) {
+				// check for memory
+				return packables[i].Memory().Cmp(*packables[j].Memory()) == -1
+			}
+			return packables[i].CPU().Cmp(*packables[j].CPU()) == -1
+		}
+		return packables[i].AMDGPUs().Cmp(*packables[j].AMDGPUs()) == -1 ||
+			packables[i].NvidiaGPUs().Cmp(*packables[j].NvidiaGPUs()) == -1 ||
+			packables[i].AWSNeurons().Cmp(*packables[j].AWSNeurons()) == -1
+	})
 	return packables
 }
 
@@ -117,6 +133,14 @@ func (p *Packable) Pack(pods []*v1.Pod) *Result {
 		result.unpacked = append(result.unpacked, pod)
 	}
 	return result
+}
+
+func (p *Packable) DeepCopy() *Packable {
+	return &Packable{
+		InstanceType: p.InstanceType,
+		reserved:     p.reserved.DeepCopy(),
+		total:        p.total.DeepCopy(),
+	}
 }
 
 // fits checks if adding the pod would overflow the total resources
@@ -198,45 +222,44 @@ func (p *Packable) validateCapacityTypes(constraints *v1alpha5.Constraints) erro
 }
 
 func (p *Packable) validateNvidiaGpus(pods []*v1.Pod) error {
-	if p.InstanceType.NvidiaGPUs().IsZero() {
-		return nil
+	if p.requiresResource(pods, resources.NvidiaGPU) && p.InstanceType.NvidiaGPUs().IsZero() {
+		return errors.New("nvidia gpu is required")
+	} else if !p.requiresResource(pods, resources.NvidiaGPU) && !p.InstanceType.NvidiaGPUs().IsZero() {
+		return errors.New("nvidia gpu is not required")
 	}
-	for _, pod := range pods {
-		for _, container := range pod.Spec.Containers {
-			if _, ok := container.Resources.Requests[resources.NvidiaGPU]; ok {
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("nvidia gpu is not required")
+	return nil
 }
 
 func (p *Packable) validateAMDGpus(pods []*v1.Pod) error {
-	if p.InstanceType.AMDGPUs().IsZero() {
-		return nil
+	if p.requiresResource(pods, resources.AMDGPU) && p.InstanceType.AMDGPUs().IsZero() {
+		return errors.New("amd gpu is required")
+	} else if !p.requiresResource(pods, resources.AMDGPU) && !p.InstanceType.AMDGPUs().IsZero() {
+		return errors.New("amd gpu is not required")
 	}
-	for _, pod := range pods {
-		for _, container := range pod.Spec.Containers {
-			if _, ok := container.Resources.Requests[resources.AMDGPU]; ok {
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("amd gpu is not required")
+	return nil
 }
 
 func (p *Packable) validateAWSNeurons(pods []*v1.Pod) error {
-	if p.InstanceType.AWSNeurons().IsZero() {
-		return nil
+	if p.requiresResource(pods, resources.AWSNeuron) && p.InstanceType.AWSNeurons().IsZero() {
+		return errors.New("aws neuron is required")
+	} else if !p.requiresResource(pods, resources.AWSNeuron) && !p.InstanceType.AWSNeurons().IsZero() {
+		return errors.New("aws neuron is not required")
 	}
+	return nil
+}
+
+func (p *Packable) requiresResource(pods []*v1.Pod, resource v1.ResourceName) bool {
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
-			if _, ok := container.Resources.Requests[resources.AWSNeuron]; ok {
-				return nil
+			if _, ok := container.Resources.Requests[resource]; ok {
+				return true
+			}
+			if _, ok := container.Resources.Limits[resource]; ok {
+				return true
 			}
 		}
 	}
-	return fmt.Errorf("aws neuron is not required")
+	return false
 }
 
 func (p *Packable) validateAWSPodENI(pods []*v1.Pod) error {
