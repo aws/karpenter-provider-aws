@@ -52,12 +52,12 @@ type Scheduler struct {
 }
 
 type Schedule struct {
-	*RuntimeConstraints
+	*Constraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
 }
 
-type RuntimeConstraints struct {
+type Constraints struct {
 	*v1alpha5.Constraints
 	// Resources are used to construct pod scheduling groups
 	// and are primarily to accomadate GPU resource requests
@@ -100,7 +100,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		tightened := &RuntimeConstraints{Constraints: constraints.Tighten(pod), Resources: resources.GPURequestsFor(pod)}
+		tightened := &Constraints{Constraints: constraints.Tighten(pod), Resources: resources.GPURequestsFor(pod)}
 
 		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
@@ -108,7 +108,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 		}
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
-			schedules[key] = &Schedule{RuntimeConstraints: tightened, Pods: []*v1.Pod{}}
+			schedules[key] = &Schedule{Constraints: tightened, Pods: []*v1.Pod{}}
 		}
 		// Append pod to schedule, guaranteed to exist
 		schedules[key].Pods = append(schedules[key].Pods, pod)

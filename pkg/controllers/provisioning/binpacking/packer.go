@@ -24,7 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -93,7 +93,15 @@ func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, po
 	}
 	// Sort pods in decreasing order by the amount of CPU requested, if
 	// CPU requested is equal compare memory requested.
-	sort.Sort(sort.Reverse(pod.ByResourcesRequested{SortablePods: pods}))
+	sort.Slice(pods, func(a, b int) bool {
+		resourcePodA := resources.RequestsForPods(pods[a])
+		resourcePodB := resources.RequestsForPods(pods[b])
+		if resourcePodA.Cpu().Equal(*resourcePodB.Cpu()) {
+			// check for memory
+			return resourcePodA.Memory().Cmp(*resourcePodB.Memory()) == 1
+		}
+		return resourcePodA.Cpu().Cmp(*resourcePodB.Cpu()) == 1
+	})
 	packs := map[uint64]*Packing{}
 	var packings []*Packing
 	var packing *Packing

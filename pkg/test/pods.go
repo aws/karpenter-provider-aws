@@ -99,10 +99,8 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 // Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
 func Pods(total int, options ...PodOptions) []*v1.Pod {
 	pods := []*v1.Pod{}
-	count := 0
 	for _, opts := range options {
 		for i := 0; i < total/len(options); i++ {
-			opts.Name = fmt.Sprintf("fake-test-pod-%d", count)
 			pods = append(pods, Pod(opts))
 		}
 	}
