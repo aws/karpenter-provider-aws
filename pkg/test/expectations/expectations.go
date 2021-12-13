@@ -33,7 +33,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/selection"
 )
 
 const (
@@ -157,7 +157,7 @@ func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controlle
 	}
 }
 
-func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+func ExpectProvisioned(ctx context.Context, c client.Client, selectionController *selection.Controller, provisioningController *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(ctx, c, provisioner)
 	ExpectStatusUpdated(ctx, c, provisioner)
@@ -165,12 +165,12 @@ func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduli
 		ExpectCreatedWithStatus(ctx, c, pod)
 	}
 	// Wait for reconcile
-	ExpectReconcileSucceeded(ctx, provisioners, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileSucceeded(ctx, provisioningController, client.ObjectKeyFromObject(provisioner))
 	wg := sync.WaitGroup{}
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			scheduler.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
+			selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 			wg.Done()
 		}(pod)
 	}
