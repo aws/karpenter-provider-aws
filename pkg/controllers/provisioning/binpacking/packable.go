@@ -16,7 +16,6 @@ package binpacking
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -227,9 +226,9 @@ func (p *Packable) validateGPUs(pods []*v1.Pod) error {
 	}
 	for resourceName, instanceTypeResourceQuantity := range gpuResources {
 		if p.requiresResource(pods, resourceName) && instanceTypeResourceQuantity.IsZero() {
-			return errors.New(fmt.Sprintf("%s is required", resourceName))
+			return fmt.Errorf("%s is required", resourceName)
 		} else if !p.requiresResource(pods, resourceName) && !instanceTypeResourceQuantity.IsZero() {
-			return errors.New(fmt.Sprintf("%s is not required", resourceName))
+			return fmt.Errorf("%s is not required", resourceName)
 		}
 	}
 	return nil
