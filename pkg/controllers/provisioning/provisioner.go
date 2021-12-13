@@ -119,12 +119,12 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	}
 	// Launch capacity and bind pods
 	for _, schedule := range schedules {
-		packings, err := p.packer.Pack(ctx, schedule.Constraints.Constraints, schedule.Pods)
+		packings, err := p.packer.Pack(ctx, schedule.Constraints, schedule.Pods)
 		if err != nil {
 			return fmt.Errorf("binpacking pods, %w", err)
 		}
 		for _, packing := range packings {
-			if err := p.launch(ctx, schedule.Constraints.Constraints, packing); err != nil {
+			if err := p.launch(ctx, schedule.Constraints, packing); err != nil {
 				logging.FromContext(ctx).Errorf("Could not launch node, %s", err.Error())
 				continue
 			}

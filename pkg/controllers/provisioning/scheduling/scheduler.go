@@ -52,16 +52,9 @@ type Scheduler struct {
 }
 
 type Schedule struct {
-	*Constraints
+	*v1alpha5.Constraints
 	// Pods is a set of pods that may schedule to the node; used for binpacking.
 	Pods []*v1.Pod
-}
-
-type Constraints struct {
-	*v1alpha5.Constraints
-	// Resources are used to construct pod scheduling groups
-	// and are primarily to accomadate GPU resource requests
-	Resources v1.ResourceList
 }
 
 func NewScheduler(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Scheduler {
@@ -100,9 +93,21 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
 			continue
 		}
-		tightened := &Constraints{Constraints: constraints.Tighten(pod), Resources: resources.GPURequestsFor(pod)}
+		tightened := constraints.Tighten(pod)
+		gpuRequests := resources.GPURequestsFor(pod)
 
-		key, err := hashstructure.Hash(tightened, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		// schedulingConstraints applies the provisioner constraints
+		// and any inferred constraints such as GPU resource requests from the pods
+		// and is then hashed to compute the schedules
+		schedulingConstraints := struct {
+			*v1alpha5.Constraints
+			gpuRequests v1.ResourceList
+		}{
+			Constraints: tightened,
+			gpuRequests: gpuRequests,
+		}
+
+		key, err := hashstructure.Hash(schedulingConstraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
