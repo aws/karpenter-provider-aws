@@ -171,11 +171,15 @@ func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) (*promethe
 	nodename := types.NamespacedName{Name: pod.Spec.NodeName}
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, nodename, node); err != nil {
-		return nil, fmt.Errorf("getting node for pod, %w", err)
+		metricLabels[podhostzone] = "N/A"
+		metricLabels[podhostarchitecture] = "N/A"
+		metricLabels[podhostcapacitype] = "N/A"
+		metricLabels[podhostinstancetype] = "N/A"
+	} else {
+		metricLabels[podhostzone] = node.Labels[v1.LabelTopologyZone]
+		metricLabels[podhostarchitecture] = node.Labels[v1.LabelArchStable]
+		metricLabels[podhostcapacitype] = node.Labels[v1alpha5.LabelCapacityType]
+		metricLabels[podhostinstancetype] = node.Labels[v1.LabelInstanceTypeStable]
 	}
-	metricLabels[podhostzone] = node.Labels[v1.LabelTopologyZone]
-	metricLabels[podhostarchitecture] = node.Labels[v1.LabelArchStable]
-	metricLabels[podhostcapacitype] = node.Labels[v1alpha5.LabelCapacityType]
-	metricLabels[podhostinstancetype] = node.Labels[v1.LabelInstanceTypeStable]
 	return &metricLabels, nil
 }
