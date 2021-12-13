@@ -42,7 +42,8 @@ func ManagedTagsFor(clusterName string) map[string]string {
 func MergeTags(ctx context.Context, customTags map[string]string) []*ec2.Tag {
 	managedTags := ManagedTagsFor(injection.GetOptions(ctx).ClusterName)
 	// We'll set the default Name tag, but allow it to be overridden in the merge
-	managedTags["Name"] = fmt.Sprintf("karpenter.sh/cluster/%s", injection.GetOptions(ctx).ClusterName)
+	managedTags["Name"] = fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s",
+		injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name)
 	ec2Tags := []*ec2.Tag{}
 	for key, value := range functional.UnionStringMaps(managedTags, customTags) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
