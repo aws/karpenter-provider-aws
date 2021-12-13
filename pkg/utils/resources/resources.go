@@ -37,9 +37,23 @@ func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	return Merge(resources...)
 }
 
-func GPURequestsFor(pod *v1.Pod) v1.ResourceList {
+// LimitsForPods returns the total resources of a variadic list of podspecs
+func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
+	resources := []v1.ResourceList{}
+	for _, pod := range pods {
+		for _, container := range pod.Spec.Containers {
+			resources = append(resources, container.Resources.Limits)
+		}
+	}
+	return Merge(resources...)
+}
+
+// GPULimitsFor returns a resource list of GPU limits from a pod
+// GPUs must be specified in the Limits section of the pod resources per
+//   https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
+func GPULimitsFor(pod *v1.Pod) v1.ResourceList {
 	resources := v1.ResourceList{}
-	for key, value := range RequestsForPods(pod) {
+	for key, value := range LimitsForPods(pod) {
 		if key == AMDGPU || key == AWSNeuron || key == NvidiaGPU {
 			resources[key] = value
 		}

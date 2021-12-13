@@ -94,17 +94,16 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 			continue
 		}
 		tightened := constraints.Tighten(pod)
-		gpuRequests := resources.GPURequestsFor(pod)
 
 		// schedulingConstraints applies the provisioner constraints
 		// and any inferred constraints such as GPU resource requests from the pods
 		// and is then hashed to compute the schedules
 		schedulingConstraints := struct {
 			*v1alpha5.Constraints
-			gpuRequests v1.ResourceList
+			GPURequests v1.ResourceList
 		}{
 			Constraints: tightened,
-			gpuRequests: gpuRequests,
+			GPURequests: resources.GPULimitsFor(pod),
 		}
 
 		key, err := hashstructure.Hash(schedulingConstraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})

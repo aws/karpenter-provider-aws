@@ -254,6 +254,9 @@ func (p *Packable) requiresResource(pods []*v1.Pod, resource v1.ResourceName) bo
 			if _, ok := container.Resources.Requests[resource]; ok {
 				return true
 			}
+			if _, ok := container.Resources.Limits[resource]; ok {
+				return true
+			}
 		}
 	}
 	return false
