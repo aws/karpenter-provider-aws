@@ -16,7 +16,6 @@ package binpacking
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -58,9 +57,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateOperatingSystems(constraints),
 			packable.validateCapacityTypes(constraints),
 			packable.validateAWSPodENI(pods),
-			packable.validateNvidiaGpus(pods),
-			packable.validateAMDGpus(pods),
-			packable.validateAWSNeurons(pods),
+			packable.validateGPUs(pods),
 		); err != nil {
 			logging.FromContext(ctx).Debugf("Excluding instance type %s because %v", packable.Name(), err.Error())
 			continue
@@ -221,29 +218,18 @@ func (p *Packable) validateCapacityTypes(constraints *v1alpha5.Constraints) erro
 	return nil
 }
 
-func (p *Packable) validateNvidiaGpus(pods []*v1.Pod) error {
-	if p.requiresResource(pods, resources.NvidiaGPU) && p.InstanceType.NvidiaGPUs().IsZero() {
-		return errors.New("nvidia gpu is required")
-	} else if !p.requiresResource(pods, resources.NvidiaGPU) && !p.InstanceType.NvidiaGPUs().IsZero() {
-		return errors.New("nvidia gpu is not required")
+func (p *Packable) validateGPUs(pods []*v1.Pod) error {
+	gpuResources := map[v1.ResourceName]*resource.Quantity{
+		resources.NvidiaGPU: p.InstanceType.NvidiaGPUs(),
+		resources.AMDGPU:    p.InstanceType.AMDGPUs(),
+		resources.AWSNeuron: p.InstanceType.AWSNeurons(),
 	}
-	return nil
-}
-
-func (p *Packable) validateAMDGpus(pods []*v1.Pod) error {
-	if p.requiresResource(pods, resources.AMDGPU) && p.InstanceType.AMDGPUs().IsZero() {
-		return errors.New("amd gpu is required")
-	} else if !p.requiresResource(pods, resources.AMDGPU) && !p.InstanceType.AMDGPUs().IsZero() {
-		return errors.New("amd gpu is not required")
-	}
-	return nil
-}
-
-func (p *Packable) validateAWSNeurons(pods []*v1.Pod) error {
-	if p.requiresResource(pods, resources.AWSNeuron) && p.InstanceType.AWSNeurons().IsZero() {
-		return errors.New("aws neuron is required")
-	} else if !p.requiresResource(pods, resources.AWSNeuron) && !p.InstanceType.AWSNeurons().IsZero() {
-		return errors.New("aws neuron is not required")
+	for resourceName, instanceTypeResourceQuantity := range gpuResources {
+		if p.requiresResource(pods, resourceName) && instanceTypeResourceQuantity.IsZero() {
+			return fmt.Errorf("%s is required", resourceName)
+		} else if !p.requiresResource(pods, resourceName) && !instanceTypeResourceQuantity.IsZero() {
+			return fmt.Errorf("%s is not required", resourceName)
+		}
 	}
 	return nil
 }
