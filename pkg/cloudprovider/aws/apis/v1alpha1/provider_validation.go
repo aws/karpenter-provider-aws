@@ -15,23 +15,22 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
 	"fmt"
 
 	"knative.dev/pkg/apis"
 )
 
-func (a *AWS) Validate(ctx context.Context) (errs *apis.FieldError) {
-	return a.validate(ctx).ViaField("provider")
+func (a *AWS) Validate() (errs *apis.FieldError) {
+	return a.validate().ViaField("provider")
 }
 
-func (a *AWS) validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWS) validate() (errs *apis.FieldError) {
 	return errs.Also(
 		a.validateInstanceProfile(),
 		a.validateLaunchTemplate(),
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
-		a.validateTags(ctx),
+		a.validateTags(),
 	)
 }
 
@@ -71,7 +70,7 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	return errs
 }
 
-func (a *AWS) validateTags(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWS) validateTags() (errs *apis.FieldError) {
 	// Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
 	// defined and Karpenter tags, and the latter could change over time.
 	for tagKey, tagValue := range a.Tags {
