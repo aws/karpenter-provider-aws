@@ -65,6 +65,7 @@ func main() {
 
 	config := controllerruntime.GetConfigOrDie()
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
+	config.UserAgent = "karpenter"
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// Set up logger and watch for changes to log level
