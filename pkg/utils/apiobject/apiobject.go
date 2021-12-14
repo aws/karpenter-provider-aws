@@ -16,9 +16,6 @@ package apiobject
 
 import (
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,20 +26,4 @@ func PodNamespacedNames(pods []*v1.Pod) []types.NamespacedName {
 		namespacedNames = append(namespacedNames, client.ObjectKeyFromObject(pod))
 	}
 	return namespacedNames
-}
-
-func MatchingLabelsSelector(labelSelector *metav1.LabelSelector) client.ListOption {
-	listOption := client.MatchingLabelsSelector{Selector: labels.NewSelector()}
-	if labelSelector == nil {
-		return listOption
-	}
-	for key, value := range labelSelector.MatchLabels {
-		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
-		listOption.Selector.Add(*requirement)
-	}
-	for _, expression := range labelSelector.MatchExpressions {
-		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
-		listOption.Selector.Add(*requirement)
-	}
-	return listOption
 }
