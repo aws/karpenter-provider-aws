@@ -43,6 +43,8 @@ type PodOptions struct {
 	Annotations               map[string]string
 	Labels                    map[string]string
 	Finalizers                []string
+	DeletionTimestamp         *metav1.Time
+	Phase                     v1.PodPhase
 }
 
 type PDBOptions struct {
@@ -73,12 +75,13 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            options.Name,
-			Namespace:       options.Namespace,
-			OwnerReferences: options.OwnerReferences,
-			Annotations:     options.Annotations,
-			Labels:          options.Labels,
-			Finalizers:      options.Finalizers,
+			Name:              options.Name,
+			Namespace:         options.Namespace,
+			OwnerReferences:   options.OwnerReferences,
+			Annotations:       options.Annotations,
+			Labels:            options.Labels,
+			Finalizers:        options.Finalizers,
+			DeletionTimestamp: options.DeletionTimestamp,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
@@ -92,7 +95,10 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			}},
 			NodeName: options.NodeName,
 		},
-		Status: v1.PodStatus{Conditions: options.Conditions},
+		Status: v1.PodStatus{
+			Conditions: options.Conditions,
+			Phase:      options.Phase,
+		},
 	}
 }
 

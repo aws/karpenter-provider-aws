@@ -98,10 +98,14 @@ func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Objec
 
 func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		// Preserve a copy of the status, which is overriden by create
-		status := object.DeepCopyObject().(client.Object)
+		updatecopy := object.DeepCopyObject().(client.Object)
+		deletecopy := object.DeepCopyObject().(client.Object)
 		ExpectApplied(ctx, c, object)
-		Expect(c.Status().Update(ctx, status)).To(Succeed())
+		Expect(c.Status().Update(ctx, updatecopy)).To(Succeed())
+		if deletecopy.GetDeletionTimestamp() != nil {
+			Expect(c.Delete(ctx, deletecopy, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(int64(time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds()))})).ToNot(HaveOccurred())
+			// logging.FromContext(ctx).Info("yoooooooooooo", deletecopy.GetDeletionTimestamp(), " ", time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds())
+		}
 	}
 }
 

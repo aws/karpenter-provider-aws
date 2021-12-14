@@ -16,12 +16,16 @@ package scheduling_test
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -441,7 +445,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1, 2))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 2))
 		})
 		It("should respect provisioner zonal constraints", func() {
 			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
@@ -457,13 +461,14 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2))
 		})
-		It("should only count scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
+		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
+			wrongNamespace := strings.ToLower(randomdata.SillyName())
 			firstNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
 			secondNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
-			ExpectCreated(ctx, env.Client, provisioner, firstNode, secondNode, thirdNode)
+			ExpectCreated(ctx, env.Client, provisioner, firstNode, secondNode, thirdNode, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: wrongNamespace}})
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -471,18 +476,22 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.Pod(test.PodOptions{Labels: labels}), // ignored, pending
-				test.Pod(test.PodOptions{}),               // ignored, missing labels
+				test.Pod(test.PodOptions{NodeName: firstNode.Name}),                                                                                          // ignored, missing labels
+				test.Pod(test.PodOptions{Labels: labels}),                                                                                                    // ignored, pending
+				test.Pod(test.PodOptions{Labels: labels, NodeName: thirdNode.Name}),                                                                          // ignored, no domain on node
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Namespace: wrongNamespace}),                                               // ignored, wrong namespace
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, DeletionTimestamp: &metav1.Time{Time: time.Now().Add(10 * time.Second)}}), // ignored, terminating
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Phase: v1.PodFailed}),                                                     // ignored, phase=Failed
+				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Phase: v1.PodSucceeded}),                                                  // ignored, phase=Succeeded
 				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
 				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
 				test.Pod(test.PodOptions{Labels: labels, NodeName: secondNode.Name}),
-				test.Pod(test.PodOptions{Labels: labels, NodeName: thirdNode.Name}), //ignored, no domain
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
 			nodes := v1.NodeList{}
 			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2, 1))
 		})
 	})
 
@@ -500,7 +509,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
-			ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(1, 1, 1, 1))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 1, 1))
 		})
 		It("should balance pods on the same hostname up to maxskew", func() {
 			topology := []v1.TopologySpreadConstraint{{
@@ -515,7 +524,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
 			)
-			ExpectSkew(env.Client, v1.LabelHostname).To(ConsistOf(4))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4))
 		})
 	})
 
@@ -535,26 +544,26 @@ var _ = Describe("Topology", func() {
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(2, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(1, 1))
-			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(3, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(2, 2, 1))
-			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2, 1))
+			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(5, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3, 3))
-			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 3, 3))
+			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(11, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(7, 7, 7))
-			ExpectSkew(env.Client, v1.LabelHostname).ToNot(ContainElements(BeNumerically(">", 3)))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(7, 7, 7))
+			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 		})
 	})
 
@@ -581,7 +590,7 @@ var _ = Describe("Topology", func() {
 					})...,
 				)...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(5, 5))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(5, 5))
 		})
 		It("should limit spread options by node affinity", func() {
 			topology := []v1.TopologySpreadConstraint{{
@@ -606,14 +615,14 @@ var _ = Describe("Topology", func() {
 					}}},
 				})...,
 			)...)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 3))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 3))
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(5, test.PodOptions{
 					Labels:                    labels,
 					TopologySpreadConstraints: topology,
 				})...,
 			)
-			ExpectSkew(env.Client, v1.LabelTopologyZone).To(ConsistOf(4, 4, 4))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 4, 4))
 		})
 	})
 })
@@ -709,19 +718,25 @@ func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
 	return pods
 }
 
-func ExpectSkew(c client.Client, topologyKey string) Assertion {
+func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
 	nodes := &v1.NodeList{}
 	Expect(c.List(ctx, nodes)).To(Succeed())
 	pods := &v1.PodList{}
-	Expect(c.List(ctx, pods)).To(Succeed())
+	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint))).To(Succeed())
 	skew := map[string]int{}
-	for _, pod := range pods.Items {
+	for i, pod := range pods.Items {
+		if scheduling.IgnoredForTopology(&pods.Items[i]) {
+			continue
+		}
 		for _, node := range nodes.Items {
 			if pod.Spec.NodeName == node.Name {
-				if topologyKey == v1.LabelHostname {
+				if constraint.TopologyKey == v1.LabelHostname {
 					skew[node.Name]++ // Check node name since hostname labels aren't applied
-				} else if key, ok := node.Labels[topologyKey]; ok {
-					skew[key]++
+				}
+				if constraint.TopologyKey == v1.LabelTopologyZone {
+					if key, ok := node.Labels[constraint.TopologyKey]; ok {
+						skew[key]++
+					}
 				}
 			}
 		}
