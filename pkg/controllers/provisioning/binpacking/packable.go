@@ -59,7 +59,6 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 			packable.validateAWSPodENI(pods),
 			packable.validateGPUs(pods),
 		); err != nil {
-			logging.FromContext(ctx).Debugf("Excluding instance type %s because %v", packable.Name(), err.Error())
 			continue
 		}
 		// Calculate Kubelet Overhead
