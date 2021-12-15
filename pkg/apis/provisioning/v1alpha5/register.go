@@ -46,7 +46,16 @@ var (
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
 	)
+
+	// AllowedLabelDomains are domains that may be restricted, but that is allowed because
+	// they are not used in a context where they may be passed as argument to kubelet.
+	// AllowedLabelDomains are evaluated before RestrictedLabelDomains
+	AllowedLabelDomains = sets.NewString(
+		"kops.k8s.io",
+	)
+
 	// These are either prohibited by the kubelet or reserved by karpenter
+	// They are evaluated after AllowedLabelDomains
 	KarpenterLabelDomain   = "karpenter.sh"
 	RestrictedLabelDomains = sets.NewString(
 		"kubernetes.io",
