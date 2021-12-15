@@ -40,8 +40,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/component: karpenter
 app.kubernetes.io/part-of: {{ template "karpenter.name" . }}
 {{- include "karpenter.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- if .Chart.Version }}
+app.kubernetes.io/version: {{ .Chart.Version | quote }}
 {{- end }}
 {{- if .Values.additionalLabels }}
 {{ toYaml .Values.additionalLabels }}
