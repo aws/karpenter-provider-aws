@@ -21,3 +21,6 @@ assignees: ''
 
 ## Steps to Reproduce the Problem
 <!-- How can a maintainer reproduce this issue (be detailed) -->
+
+## Resource Specs and Logs
+<!-- Include configurations you had while experiencing the bug -->
