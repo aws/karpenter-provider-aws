@@ -3,18 +3,23 @@ kind: Service
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   ports:
     - port: 443
       targetPort: webhook
   selector:
     karpenter: webhook
+    {{- include "karpenter.selectorLabels" . | indent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.webhook.replicas }}
   strategy:
@@ -22,13 +27,15 @@ spec:
   selector:
     matchLabels:
       karpenter: webhook
+      {{- include "karpenter.selectorLabels" . | indent 6 }}
   template:
     metadata:
       labels:
         karpenter: webhook
+        {{- include "karpenter.labels" . | indent 8 }}
     spec:
       priorityClassName: system-cluster-critical
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ template "karpenter.serviceAccountName" . }}
       containers:
         - name: webhook
           image: {{ .Values.webhook.image }}
@@ -95,4 +102,6 @@ kind: Secret
 metadata:
   name: karpenter-webhook-cert
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 data: {} # Injected by karpenter-webhook
