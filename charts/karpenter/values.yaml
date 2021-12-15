@@ -1,6 +1,6 @@
 # -- Additional labels to add into metadata
-additionalLabels: #{}
-  app: karpenter
+additionalLabels: {}
+  # app: karpenter
 
 serviceAccount:
   # -- Create a service account for the application controller
