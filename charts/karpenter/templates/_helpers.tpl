@@ -37,7 +37,7 @@ Generate basic labels
 {{- define "karpenter.labels" }}
 helm.sh/chart: {{ include "karpenter.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: node-provisionning-controller
+app.kubernetes.io/component: karpenter
 app.kubernetes.io/part-of: {{ template "karpenter.name" . }}
 {{- include "karpenter.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
