@@ -42,6 +42,8 @@ type CloudProvider interface {
 	Default(context.Context, *v1alpha5.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.
 	Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError
+	// Name returns the CloudProvider implementation name.
+	Name() string
 }
 
 // Options are injected into cloud providers' factories

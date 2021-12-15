@@ -22,7 +22,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	cpmetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -60,7 +59,7 @@ func init() {
 func NewPacker(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Packer {
 	return &Packer{
 		kubeClient:    kubeClient,
-		cloudProvider: cpmetrics.WithComponentName(cloudProvider, "packer"),
+		cloudProvider: cloudProvider,
 	}
 }
 
@@ -86,7 +85,10 @@ type Packing struct {
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Packing, error) {
+	ctx = injection.WithComponentName(ctx, "packer")
+
 	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, constraints)
 	if err != nil {

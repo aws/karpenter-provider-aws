@@ -32,7 +32,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -58,7 +57,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 		provisioners:  &sync.Map{},
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
-		cloudProvider: metrics.WithComponentName(cloudProvider, controllerName),
+		cloudProvider: cloudProvider,
 		scheduler:     scheduling.NewScheduler(kubeClient),
 	}
 }
@@ -67,6 +66,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
 	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
+	ctx = injection.WithComponentName(ctx, controllerName)
 
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {

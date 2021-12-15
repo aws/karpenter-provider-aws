@@ -22,7 +22,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	cpmetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
@@ -55,7 +54,7 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		results:       make(chan error),
 		done:          c.Done(),
 		Stop:          stop,
-		cloudProvider: cpmetrics.WithComponentName(cloudProvider, "provisioner"),
+		cloudProvider: cloudProvider,
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
 		scheduler:     scheduling.NewScheduler(kubeClient),
@@ -94,6 +93,8 @@ type Provisioner struct {
 }
 
 func (p *Provisioner) provision(ctx context.Context) (err error) {
+	ctx = injection.WithComponentName(ctx, "provisioner")
+
 	// Wait for a batch of pods
 	pods := p.Batch(ctx)
 	// Communicate the result of the provisioning loop to each of the pods.

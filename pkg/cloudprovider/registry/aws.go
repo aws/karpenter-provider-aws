@@ -21,9 +21,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
-	"github.com/aws/karpenter/pkg/cloudprovider/metrics"
 )
 
 func newCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-	return metrics.WithProviderName(aws.NewCloudProvider(ctx, options), "aws")
+	return aws.NewCloudProvider(ctx, options)
 }

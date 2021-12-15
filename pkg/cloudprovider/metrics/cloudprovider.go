@@ -21,6 +21,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
@@ -56,41 +57,19 @@ func init() {
 
 type decorator struct {
 	cloudprovider.CloudProvider
-	componentName string
-	providerName  string
 }
 
-// newDecorator returns a new `CloudProvider` that delegates calls to `cloudProvider` and will publish
-// method call durations attributed to the component and provider names.
-func newDecorator(cloudProvider cloudprovider.CloudProvider) *decorator {
+// PublishLatency returns a new `CloudProvider` instance that will delegate all method
+// calls to the argument, `cloudProvider`, and publish aggregated latency metrics. The
+// value used for the metric label, "component", is taken from the `Context` object
+// passed to the methods of `CloudProvider`.
+func PublishLatency(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProvider {
 	switch c := cloudProvider.(type) {
 	case *decorator:
-		return &decorator{
-			CloudProvider: c.CloudProvider,
-			componentName: c.componentName,
-			providerName:  c.providerName,
-		}
+		return c
 	default:
-		return &decorator{
-			CloudProvider: c,
-			componentName: "unknown",
-			providerName:  "unknown",
-		}
+		return &decorator{cloudProvider}
 	}
-}
-
-// WithComponentName returns a new `CloudProvider` that will publish metrics using the given component name.
-func WithComponentName(cloudProvider cloudprovider.CloudProvider, name string) cloudprovider.CloudProvider {
-	d := newDecorator(cloudProvider)
-	d.componentName = name
-	return d
-}
-
-// WithProviderName returns a new `CloudProvider` that will publish metrics using the given provider name.
-func WithProviderName(cloudProvider cloudprovider.CloudProvider, name string) cloudprovider.CloudProvider {
-	d := newDecorator(cloudProvider)
-	d.providerName = name
-	return d
 }
 
 func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
@@ -138,10 +117,13 @@ func (d *decorator) observe(ctx context.Context, methodName string, duration tim
 	durationSeconds := duration.Seconds()
 
 	labels := prometheus.Labels{
-		metricLabelComponent: d.componentName,
+		metricLabelComponent: "unknown",
 		metricLabelMethod:    methodName,
-		metricLabelProvider:  d.providerName,
+		metricLabelProvider:  d.Name(),
 		metricLabelResult:    "success",
+	}
+	if componentName := injection.GetComponentName(ctx); componentName != "" {
+		labels[metricLabelComponent] = componentName
 	}
 	if err != nil {
 		labels[metricLabelResult] = "error"

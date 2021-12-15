@@ -63,3 +63,19 @@ func GetConfig(ctx context.Context) *rest.Config {
 	}
 	return retval.(*rest.Config)
 }
+
+type componentNameKeyType struct{}
+
+var componentNameKey = componentNameKeyType{}
+
+func WithComponentName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, componentNameKey, name)
+}
+
+func GetComponentName(ctx context.Context) string {
+	name := ctx.Value(componentNameKey)
+	if name == nil {
+		return ""
+	}
+	return name.(string)
+}
