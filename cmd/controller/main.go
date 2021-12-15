@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/counter"
+	"github.com/aws/karpenter/pkg/controllers/metrics/nodemetrics"
 	"github.com/aws/karpenter/pkg/controllers/metrics/podmetrics"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -94,6 +95,7 @@ func main() {
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
 		podmetrics.NewController(manager.GetClient(), clientSet.CoreV1()),
+		nodemetrics.NewController(manager.GetClient(), clientSet.CoreV1()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))

@@ -1,0 +1,655 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 5,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 0,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (karpenter_nodes_allocatable_cpu) - sum (karpenter_nodes_overheads_cpu) - sum (karpenter_nodes_totalrequests_cpu)",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "CPU Available"
+        }
+      ],
+      "title": "Cluster Residual CPU Capacity",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 5,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (karpenter_nodes_allocatable_memory) - sum (karpenter_nodes_overheads_memory) - sum (karpenter_nodes_totalrequests_memory)",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "CPU Available"
+        }
+      ],
+      "title": "Cluster Residual Memory Capacity",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Value #A"
+          }
+        ]
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_allocatable_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "Allocatable CPU",
+          "refId": "Allocatable CPU"
+        },
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_totalrequests_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Requests CPU",
+          "refId": "Requests CPU"
+        },
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_totallimits_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Limits CPU",
+          "refId": "Limits CPU"
+        },
+        {
+          "exemplar": false,
+          "expr": "karpenter_nodes_overheads_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Overhead CPU",
+          "refId": "Overhead CPU"
+        },
+        {
+          "exemplar": true,
+          "expr": "((karpenter_nodes_totalrequests_cpu{} + karpenter_nodes_overheads_cpu{}) *100) / karpenter_nodes_allocatable_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Utilization CPU",
+          "refId": "Utilization CPU"
+        },
+        {
+          "exemplar": true,
+          "expr": "((karpenter_nodes_totallimits_cpu{} + karpenter_nodes_overheads_cpu{}) *100) / karpenter_nodes_allocatable_cpu{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Overcommitment CPU",
+          "refId": "Overcommitment CPU"
+        }
+      ],
+      "title": "CPU Utilization",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Value #A": false,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "__name__ 3": true,
+              "__name__ 4": true,
+              "arch 1": true,
+              "arch 2": true,
+              "arch 3": true,
+              "arch 4": true,
+              "arch 5": true,
+              "arch 6": true,
+              "capacitytype 1": true,
+              "capacitytype 2": true,
+              "capacitytype 3": true,
+              "capacitytype 4": true,
+              "instance 1": true,
+              "instance 2": true,
+              "instance 3": true,
+              "instance 4": true,
+              "instance 5": true,
+              "instance 6": true,
+              "instancetype 1": true,
+              "instancetype 2": true,
+              "instancetype 3": true,
+              "instancetype 4": true,
+              "instancetype 5": true,
+              "instancetype 6": true,
+              "job 1": true,
+              "job 2": true,
+              "job 3": true,
+              "job 4": true,
+              "job 5": true,
+              "job 6": true,
+              "provisioner 1": true,
+              "provisioner 2": true,
+              "provisioner 3": true,
+              "provisioner 4": true,
+              "zone 1": true,
+              "zone 2": true,
+              "zone 3": true,
+              "zone 4": true,
+              "zone 5": true,
+              "zone 6": true
+            },
+            "indexByName": {
+              "Time 1": 7,
+              "Time 2": 16,
+              "Time 3": 25,
+              "Time 4": 32,
+              "Time 5": 41,
+              "Time 6": 49,
+              "Value #Allocatable CPU": 3,
+              "Value #Limits CPU": 5,
+              "Value #Overcommitment CPU": 2,
+              "Value #Overhead CPU": 6,
+              "Value #Requests CPU": 4,
+              "Value #Utilization CPU": 1,
+              "__name__ 1": 8,
+              "__name__ 2": 17,
+              "__name__ 3": 26,
+              "__name__ 4": 33,
+              "arch 1": 9,
+              "arch 2": 18,
+              "arch 3": 27,
+              "arch 4": 34,
+              "arch 5": 42,
+              "arch 6": 50,
+              "capacitytype 1": 10,
+              "capacitytype 2": 19,
+              "capacitytype 3": 35,
+              "capacitytype 4": 43,
+              "instance 1": 11,
+              "instance 2": 20,
+              "instance 3": 28,
+              "instance 4": 36,
+              "instance 5": 44,
+              "instance 6": 51,
+              "instancetype 1": 12,
+              "instancetype 2": 21,
+              "instancetype 3": 29,
+              "instancetype 4": 37,
+              "instancetype 5": 45,
+              "instancetype 6": 52,
+              "job 1": 13,
+              "job 2": 22,
+              "job 3": 30,
+              "job 4": 38,
+              "job 5": 46,
+              "job 6": 53,
+              "name": 0,
+              "provisioner 1": 14,
+              "provisioner 2": 23,
+              "provisioner 3": 39,
+              "provisioner 4": 47,
+              "zone 1": 15,
+              "zone 2": 24,
+              "zone 3": 31,
+              "zone 4": 40,
+              "zone 5": 48,
+              "zone 6": 54
+            },
+            "renameByName": {
+              "Value #A": "Allocatable CPU",
+              "Value #Allocatable CPU": "Allocatable CPU",
+              "Value #B": "Requests CPU",
+              "Value #C": "Limits CPU",
+              "Value #D": "Overhead CPU",
+              "Value #Limits CPU": "Limits CPU",
+              "Value #Overcommitment CPU": "Overcommitment CPU %",
+              "Value #Overhead CPU": "Overhead CPU",
+              "Value #Requests CPU": "Requests CPU",
+              "Value #U": "",
+              "Value #Utilization CPU": "Utilization CPU %",
+              "name": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 3,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Value #A"
+          }
+        ]
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_allocatable_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "Allocatable Memory",
+          "refId": "Allocatable Memory"
+        },
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_totalrequests_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Requests Memory",
+          "refId": "Requests Memory"
+        },
+        {
+          "exemplar": true,
+          "expr": "karpenter_nodes_totallimits_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Limits Memory",
+          "refId": "Limits Memory"
+        },
+        {
+          "exemplar": false,
+          "expr": "karpenter_nodes_overheads_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Overhead Memory",
+          "refId": "Overhead Memory"
+        },
+        {
+          "exemplar": true,
+          "expr": "((karpenter_nodes_totalrequests_memory{} + karpenter_nodes_overheads_memory{}) *100) / karpenter_nodes_allocatable_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Utilization Memory",
+          "refId": "Utilization Memory"
+        },
+        {
+          "exemplar": true,
+          "expr": "((karpenter_nodes_totallimits_memory{} + karpenter_nodes_overheads_memory{}) *100) / karpenter_nodes_allocatable_memory{}",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Overcommitment Memory",
+          "refId": "Overcommitment Memory"
+        }
+      ],
+      "title": "Memory Utilization",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "name"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Value #A": false,
+              "__name__ 1": true,
+              "__name__ 2": true,
+              "__name__ 3": true,
+              "__name__ 4": true,
+              "arch 1": true,
+              "arch 2": true,
+              "arch 3": true,
+              "arch 4": true,
+              "arch 5": true,
+              "arch 6": true,
+              "capacitytype 1": true,
+              "capacitytype 2": true,
+              "capacitytype 3": true,
+              "capacitytype 4": true,
+              "instance 1": true,
+              "instance 2": true,
+              "instance 3": true,
+              "instance 4": true,
+              "instance 5": true,
+              "instance 6": true,
+              "instancetype 1": true,
+              "instancetype 2": true,
+              "instancetype 3": true,
+              "instancetype 4": true,
+              "instancetype 5": true,
+              "instancetype 6": true,
+              "job 1": true,
+              "job 2": true,
+              "job 3": true,
+              "job 4": true,
+              "job 5": true,
+              "job 6": true,
+              "provisioner 1": true,
+              "provisioner 2": true,
+              "provisioner 3": true,
+              "provisioner 4": true,
+              "zone 1": true,
+              "zone 2": true,
+              "zone 3": true,
+              "zone 4": true,
+              "zone 5": true,
+              "zone 6": true
+            },
+            "indexByName": {
+              "Time 1": 7,
+              "Time 2": 16,
+              "Time 3": 25,
+              "Time 4": 32,
+              "Time 5": 39,
+              "Time 6": 45,
+              "Value #Allocatable Memory": 3,
+              "Value #Limits Memory": 5,
+              "Value #Overcommitment Memory": 2,
+              "Value #Overhead Memory": 6,
+              "Value #Requests Memory": 4,
+              "Value #Utilization Memory": 1,
+              "__name__ 1": 8,
+              "__name__ 2": 17,
+              "__name__ 3": 26,
+              "__name__ 4": 33,
+              "arch 1": 9,
+              "arch 2": 18,
+              "arch 3": 27,
+              "arch 4": 34,
+              "arch 5": 40,
+              "arch 6": 46,
+              "capacitytype 1": 10,
+              "capacitytype 2": 19,
+              "instance 1": 11,
+              "instance 2": 20,
+              "instance 3": 28,
+              "instance 4": 35,
+              "instance 5": 41,
+              "instance 6": 47,
+              "instancetype 1": 12,
+              "instancetype 2": 21,
+              "instancetype 3": 29,
+              "instancetype 4": 36,
+              "instancetype 5": 42,
+              "instancetype 6": 48,
+              "job 1": 13,
+              "job 2": 22,
+              "job 3": 30,
+              "job 4": 37,
+              "job 5": 43,
+              "job 6": 49,
+              "name": 0,
+              "provisioner 1": 14,
+              "provisioner 2": 23,
+              "zone 1": 15,
+              "zone 2": 24,
+              "zone 3": 31,
+              "zone 4": 38,
+              "zone 5": 44,
+              "zone 6": 50
+            },
+            "renameByName": {
+              "Value #A": "Allocatable CPU",
+              "Value #Allocatable CPU": "Allocatable CPU",
+              "Value #Allocatable Memory": "Allocatable Memory",
+              "Value #B": "Requests CPU",
+              "Value #C": "Limits CPU",
+              "Value #D": "Overhead CPU",
+              "Value #Limits CPU": "Limits Memory",
+              "Value #Limits Memory": "Limits Memory",
+              "Value #Overcommitment CPU": "Overcommitment Memory %",
+              "Value #Overcommitment Memory": "Overcommitment Memory %",
+              "Value #Overhead CPU": "Overhead Memory",
+              "Value #Overhead Memory": "Overhead Memory",
+              "Value #Requests CPU": "Requests CPU",
+              "Value #Requests Memory": "Requests Memory",
+              "Value #Requests memory": "Requests Memory",
+              "Value #U": "",
+              "Value #Utilization CPU": "Utilization Memory %",
+              "Value #Utilization Memory": "Utilization Memory %",
+              "name": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 32,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Cluster Capacity",
+  "uid": "GwdOTionz",
+  "version": 21
+}
