@@ -42,4 +42,4 @@ GitHub provides additional documents on [forking a repository](https://help.gith
 Karpenter has adopted the [CNCF Community Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Licensing
-Karpenter is licensed under [Apache 2.0](../LICENSE).
+Karpenter is licensed under [Apache 2.0](../main/LICENSE).
