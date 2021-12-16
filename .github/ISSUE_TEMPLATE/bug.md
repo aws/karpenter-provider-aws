@@ -23,4 +23,4 @@ assignees: ''
 <!-- How can a maintainer reproduce this issue (be detailed) -->
 
 ## Resource Specs and Logs
-<!-- Include configurations you had while experiencing the bug -->
+<!-- Include Provisioner spec(s), pod spec(s), and Karpenter controller logs when you experienced the bug  -->
