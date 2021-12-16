@@ -34,7 +34,7 @@ type Constraints struct {
 	Taints Taints `json:"taints,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
 	Requirements Requirements `json:"requirements,omitempty"`
-	// KubeletArgs define args to be used when configuring kubelet on provisioned nodes
+	// KubeletArgs are passed to the kubelet when provisioning nodes
 	//+optional
 	KubeletArgs KubeletArgs `json:"kubeletArgs,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
