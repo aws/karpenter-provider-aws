@@ -103,6 +103,13 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
+		It("should allow labels kOps require", func() {
+			provisioner.Spec.Labels = map[string]string{
+				"kops.k8s.io/instancegroup": "karpenter-nodes",
+				"kops.k8s.io/gpu":           "1",
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
 	})
 	Context("Taints", func() {
 		It("should succeed for valid taints", func() {

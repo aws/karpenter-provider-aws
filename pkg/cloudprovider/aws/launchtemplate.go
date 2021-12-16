@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
@@ -247,19 +248,18 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	}
 
 	nodeLabels := functional.UnionStringMaps(additionalLabels, constraints.Labels)
-	var nodeLabelArgs bytes.Buffer
+	nodeLabelArgs := ""
 	if len(nodeLabels) > 0 {
-		nodeLabelArgs.WriteString("--node-labels=")
-		first := true
+		labelStrings := []string{}
 		// Must be in sorted order or else equivalent options won't
 		// hash the same
 		for _, k := range sortedKeys(nodeLabels) {
-			if !first {
-				nodeLabelArgs.WriteString(",")
+			if v1alpha5.AllowedLabelDomains.Has(k) {
+				continue
 			}
-			first = false
-			nodeLabelArgs.WriteString(fmt.Sprintf("%s=%v", k, nodeLabels[k]))
+			labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", k, nodeLabels[k]))
 		}
+		nodeLabelArgs = fmt.Sprintf("--node-labels=%s", strings.Join(labelStrings, ","))
 	}
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
@@ -276,7 +276,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs.String(), nodeTaintsArgs.String()}, " "), " ")
+	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
 	if len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))

@@ -90,6 +90,9 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 
 func IsRestrictedLabelDomain(key string) bool {
 	labelDomain := getLabelDomain(key)
+	if AllowedLabelDomains.Has(labelDomain) {
+		return false
+	}
 	for restrictedLabelDomain := range RestrictedLabelDomains {
 		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
 			return true
