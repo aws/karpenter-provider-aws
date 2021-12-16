@@ -23,6 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 5,
+  "iteration": 1639692661348,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -51,8 +52,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 5,
+        "h": 8,
+        "w": 22,
         "x": 0,
         "y": 0
       },
@@ -74,70 +75,21 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum (karpenter_nodes_allocatable_cpu) - sum (karpenter_nodes_overheads_cpu) - sum (karpenter_nodes_totalrequests_cpu)",
+          "expr": "sum by (resource_type)(karpenter_nodes_allocatable{resource_type!=\"pods\"} or karpenter_nodes_total_overhead{resource_type!=\"pods\"}*0 or karpenter_nodes_total_requests{resource_type!=\"pods\"}*0)- sum by (resource_type)(karpenter_nodes_total_overhead{resource_type!=\"pods\"} or karpenter_nodes_allocatable{resource_type!=\"pods\"}*0 or karpenter_nodes_total_requests{resource_type!=\"pods\"}*0) - sum by (resource_type)(karpenter_nodes_total_requests{resource_type!=\"pods\"} or karpenter_nodes_allocatable{resource_type!=\"pods\"}*0 or karpenter_nodes_total_overhead{resource_type!=\"pods\"}*0)",
           "interval": "",
-          "legendFormat": "",
-          "refId": "CPU Available"
-        }
-      ],
-      "title": "Cluster Residual CPU Capacity",
-      "type": "gauge"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
+          "legendFormat": "{{resource_type}}",
+          "refId": "Residual"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 5,
-        "y": 0
-      },
-      "id": 6,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
         {
           "exemplar": true,
-          "expr": "sum (karpenter_nodes_allocatable_memory) - sum (karpenter_nodes_overheads_memory) - sum (karpenter_nodes_totalrequests_memory)",
+          "expr": "sum (karpenter_nodes_allocatable{resource_type=\"pods\"}) - sum (karpenter_pods_state{})",
+          "hide": false,
           "interval": "",
-          "legendFormat": "",
-          "refId": "CPU Available"
+          "legendFormat": "pods",
+          "refId": "Number of Pods"
         }
       ],
-      "title": "Cluster Residual Memory Capacity",
+      "title": "Cluster Residual Capacity",
       "type": "gauge"
     },
     {
@@ -172,7 +124,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 8
       },
       "id": 2,
       "options": {
@@ -188,64 +140,64 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "karpenter_nodes_allocatable_cpu{}",
+          "expr": "karpenter_nodes_allocatable{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Allocatable CPU",
-          "refId": "Allocatable CPU"
+          "refId": "Allocatable"
         },
         {
           "exemplar": true,
-          "expr": "karpenter_nodes_totalrequests_cpu{}",
+          "expr": "karpenter_nodes_total_requests{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "legendFormat": "Requests CPU",
-          "refId": "Requests CPU"
+          "refId": "Requests"
         },
         {
           "exemplar": true,
-          "expr": "karpenter_nodes_totallimits_cpu{}",
+          "expr": "karpenter_nodes_total_limits{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "legendFormat": "Limits CPU",
-          "refId": "Limits CPU"
+          "refId": "Limits"
         },
         {
           "exemplar": false,
-          "expr": "karpenter_nodes_overheads_cpu{}",
+          "expr": "karpenter_nodes_total_overhead{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "legendFormat": "Overhead CPU",
-          "refId": "Overhead CPU"
+          "refId": "Overhead"
         },
         {
           "exemplar": true,
-          "expr": "((karpenter_nodes_totalrequests_cpu{} + karpenter_nodes_overheads_cpu{}) *100) / karpenter_nodes_allocatable_cpu{}",
+          "expr": "((karpenter_nodes_total_requests{resource_type=\"$resource_type\"} + karpenter_nodes_total_overhead{resource_type=\"$resource_type\"}) *100) / karpenter_nodes_allocatable{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "legendFormat": "Utilization CPU",
-          "refId": "Utilization CPU"
+          "refId": "Utilization"
         },
         {
           "exemplar": true,
-          "expr": "((karpenter_nodes_totallimits_cpu{} + karpenter_nodes_overheads_cpu{}) *100) / karpenter_nodes_allocatable_cpu{}",
+          "expr": "((karpenter_nodes_total_limits{resource_type=\"$resource_type\"} + karpenter_nodes_total_overhead{resource_type=\"$resource_type\"}) *100) / karpenter_nodes_allocatable{resource_type=\"$resource_type\"}",
           "format": "table",
           "hide": false,
           "instant": true,
           "interval": "",
           "legendFormat": "Overcommitment CPU",
-          "refId": "Overcommitment CPU"
+          "refId": "Overcommitment"
         }
       ],
       "title": "CPU Utilization",
@@ -266,7 +218,6 @@
               "Time 4": true,
               "Time 5": true,
               "Time 6": true,
-              "Value #A": false,
               "__name__ 1": true,
               "__name__ 2": true,
               "__name__ 3": true,
@@ -277,38 +228,44 @@
               "arch 4": true,
               "arch 5": true,
               "arch 6": true,
-              "capacitytype 1": true,
-              "capacitytype 2": true,
-              "capacitytype 3": true,
-              "capacitytype 4": true,
+              "capacity_type 1": true,
+              "capacity_type 2": true,
+              "capacity_type 3": true,
+              "capacity_type 4": true,
               "instance 1": true,
               "instance 2": true,
               "instance 3": true,
               "instance 4": true,
               "instance 5": true,
               "instance 6": true,
-              "instancetype 1": true,
-              "instancetype 2": true,
-              "instancetype 3": true,
-              "instancetype 4": true,
-              "instancetype 5": true,
-              "instancetype 6": true,
+              "instance_type 1": true,
+              "instance_type 2": true,
+              "instance_type 3": true,
+              "instance_type 4": true,
+              "instance_type 5": true,
+              "instance_type 6": true,
               "job 1": true,
               "job 2": true,
               "job 3": true,
               "job 4": true,
               "job 5": true,
               "job 6": true,
-              "nodeLabels 1": true,
-              "nodeLabels 2": true,
-              "nodeLabels 3": true,
-              "nodeLabels 4": true,
-              "nodeLabels 5": true,
-              "nodeLabels 6": true,
+              "node_labels 1": true,
+              "node_labels 2": true,
+              "node_labels 3": true,
+              "node_labels 4": true,
+              "node_labels 5": true,
+              "node_labels 6": true,
               "provisioner 1": true,
               "provisioner 2": true,
               "provisioner 3": true,
               "provisioner 4": true,
+              "resource_type 1": true,
+              "resource_type 2": true,
+              "resource_type 3": true,
+              "resource_type 4": true,
+              "resource_type 5": true,
+              "resource_type 6": true,
               "zone 1": true,
               "zone 2": true,
               "zone 3": true,
@@ -317,330 +274,81 @@
               "zone 6": true
             },
             "indexByName": {
-              "Time 1": 7,
-              "Time 2": 16,
-              "Time 3": 25,
+              "Time 1": 1,
+              "Time 2": 12,
+              "Time 3": 23,
               "Time 4": 32,
-              "Time 5": 41,
-              "Time 6": 49,
-              "Value #Allocatable CPU": 3,
-              "Value #Limits CPU": 5,
-              "Value #Overcommitment CPU": 2,
-              "Value #Overhead CPU": 6,
-              "Value #Requests CPU": 4,
-              "Value #Utilization CPU": 1,
-              "__name__ 1": 8,
-              "__name__ 2": 17,
-              "__name__ 3": 26,
+              "Time 5": 43,
+              "Time 6": 53,
+              "Value #Allocatable": 66,
+              "Value #Limits": 64,
+              "Value #Overcommitment": 62,
+              "Value #Overhead": 65,
+              "Value #Requests": 63,
+              "Value #Utilization": 61,
+              "__name__ 1": 2,
+              "__name__ 2": 13,
+              "__name__ 3": 24,
               "__name__ 4": 33,
-              "arch 1": 9,
-              "arch 2": 18,
-              "arch 3": 27,
+              "arch 1": 3,
+              "arch 2": 14,
+              "arch 3": 25,
               "arch 4": 34,
-              "arch 5": 42,
-              "arch 6": 50,
-              "capacitytype 1": 10,
-              "capacitytype 2": 19,
-              "capacitytype 3": 35,
-              "capacitytype 4": 43,
-              "instance 1": 11,
-              "instance 2": 20,
-              "instance 3": 28,
+              "arch 5": 44,
+              "arch 6": 54,
+              "capacity_type 1": 4,
+              "capacity_type 2": 15,
+              "capacity_type 3": 35,
+              "capacity_type 4": 45,
+              "instance 1": 5,
+              "instance 2": 16,
+              "instance 3": 26,
               "instance 4": 36,
-              "instance 5": 44,
-              "instance 6": 51,
-              "instancetype 1": 12,
-              "instancetype 2": 21,
-              "instancetype 3": 29,
-              "instancetype 4": 37,
-              "instancetype 5": 45,
-              "instancetype 6": 52,
-              "job 1": 13,
-              "job 2": 22,
-              "job 3": 30,
+              "instance 5": 46,
+              "instance 6": 55,
+              "instance_type 1": 6,
+              "instance_type 2": 17,
+              "instance_type 3": 27,
+              "instance_type 4": 37,
+              "instance_type 5": 47,
+              "instance_type 6": 56,
+              "job 1": 7,
+              "job 2": 18,
+              "job 3": 28,
               "job 4": 38,
-              "job 5": 46,
-              "job 6": 53,
+              "job 5": 48,
+              "job 6": 57,
               "name": 0,
-              "provisioner 1": 14,
-              "provisioner 2": 23,
-              "provisioner 3": 39,
-              "provisioner 4": 47,
-              "zone 1": 15,
-              "zone 2": 24,
+              "node_labels 1": 8,
+              "node_labels 2": 19,
+              "node_labels 3": 29,
+              "node_labels 4": 39,
+              "node_labels 5": 49,
+              "node_labels 6": 58,
+              "provisioner 1": 9,
+              "provisioner 2": 20,
+              "provisioner 3": 40,
+              "provisioner 4": 50,
+              "resource_type 1": 10,
+              "resource_type 2": 21,
+              "resource_type 3": 30,
+              "resource_type 4": 41,
+              "resource_type 5": 51,
+              "resource_type 6": 59,
+              "zone 1": 11,
+              "zone 2": 22,
               "zone 3": 31,
-              "zone 4": 40,
-              "zone 5": 48,
-              "zone 6": 54
+              "zone 4": 42,
+              "zone 5": 52,
+              "zone 6": 60
             },
             "renameByName": {
-              "Value #A": "Allocatable CPU",
-              "Value #Allocatable CPU": "Allocatable CPU",
-              "Value #B": "Requests CPU",
-              "Value #C": "Limits CPU",
-              "Value #D": "Overhead CPU",
-              "Value #Limits CPU": "Limits CPU",
-              "Value #Overcommitment CPU": "Overcommitment CPU %",
-              "Value #Overhead CPU": "Overhead CPU",
-              "Value #Requests CPU": "Requests CPU",
-              "Value #U": "",
-              "Value #Utilization CPU": "Utilization CPU %",
-              "name": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "center",
-            "displayMode": "auto"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 11
-      },
-      "id": 3,
-      "options": {
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Value #A"
-          }
-        ]
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "karpenter_nodes_allocatable_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "Allocatable Memory",
-          "refId": "Allocatable Memory"
-        },
-        {
-          "exemplar": true,
-          "expr": "karpenter_nodes_totalrequests_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "legendFormat": "Requests Memory",
-          "refId": "Requests Memory"
-        },
-        {
-          "exemplar": true,
-          "expr": "karpenter_nodes_totallimits_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "legendFormat": "Limits Memory",
-          "refId": "Limits Memory"
-        },
-        {
-          "exemplar": false,
-          "expr": "karpenter_nodes_overheads_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "legendFormat": "Overhead Memory",
-          "refId": "Overhead Memory"
-        },
-        {
-          "exemplar": true,
-          "expr": "((karpenter_nodes_totalrequests_memory{} + karpenter_nodes_overheads_memory{}) *100) / karpenter_nodes_allocatable_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "legendFormat": "Utilization Memory",
-          "refId": "Utilization Memory"
-        },
-        {
-          "exemplar": true,
-          "expr": "((karpenter_nodes_totallimits_memory{} + karpenter_nodes_overheads_memory{}) *100) / karpenter_nodes_allocatable_memory{}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "interval": "",
-          "legendFormat": "Overcommitment Memory",
-          "refId": "Overcommitment Memory"
-        }
-      ],
-      "title": "Memory Utilization",
-      "transformations": [
-        {
-          "id": "seriesToColumns",
-          "options": {
-            "byField": "name"
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time 1": true,
-              "Time 2": true,
-              "Time 3": true,
-              "Time 4": true,
-              "Time 5": true,
-              "Time 6": true,
-              "Value #A": false,
-              "__name__ 1": true,
-              "__name__ 2": true,
-              "__name__ 3": true,
-              "__name__ 4": true,
-              "arch 1": true,
-              "arch 2": true,
-              "arch 3": true,
-              "arch 4": true,
-              "arch 5": true,
-              "arch 6": true,
-              "capacitytype 1": true,
-              "capacitytype 2": true,
-              "capacitytype 3": true,
-              "capacitytype 4": true,
-              "instance 1": true,
-              "instance 2": true,
-              "instance 3": true,
-              "instance 4": true,
-              "instance 5": true,
-              "instance 6": true,
-              "instancetype 1": true,
-              "instancetype 2": true,
-              "instancetype 3": true,
-              "instancetype 4": true,
-              "instancetype 5": true,
-              "instancetype 6": true,
-              "job 1": true,
-              "job 2": true,
-              "job 3": true,
-              "job 4": true,
-              "job 5": true,
-              "job 6": true,
-              "nodeLabels 1": true,
-              "nodeLabels 2": true,
-              "nodeLabels 3": true,
-              "nodeLabels 4": true,
-              "nodeLabels 5": true,
-              "nodeLabels 6": true,
-              "provisioner 1": true,
-              "provisioner 2": true,
-              "provisioner 3": true,
-              "provisioner 4": true,
-              "zone 1": true,
-              "zone 2": true,
-              "zone 3": true,
-              "zone 4": true,
-              "zone 5": true,
-              "zone 6": true
-            },
-            "indexByName": {
-              "Time 1": 7,
-              "Time 2": 16,
-              "Time 3": 25,
-              "Time 4": 32,
-              "Time 5": 39,
-              "Time 6": 45,
-              "Value #Allocatable Memory": 3,
-              "Value #Limits Memory": 5,
-              "Value #Overcommitment Memory": 2,
-              "Value #Overhead Memory": 6,
-              "Value #Requests Memory": 4,
-              "Value #Utilization Memory": 1,
-              "__name__ 1": 8,
-              "__name__ 2": 17,
-              "__name__ 3": 26,
-              "__name__ 4": 33,
-              "arch 1": 9,
-              "arch 2": 18,
-              "arch 3": 27,
-              "arch 4": 34,
-              "arch 5": 40,
-              "arch 6": 46,
-              "capacitytype 1": 10,
-              "capacitytype 2": 19,
-              "instance 1": 11,
-              "instance 2": 20,
-              "instance 3": 28,
-              "instance 4": 35,
-              "instance 5": 41,
-              "instance 6": 47,
-              "instancetype 1": 12,
-              "instancetype 2": 21,
-              "instancetype 3": 29,
-              "instancetype 4": 36,
-              "instancetype 5": 42,
-              "instancetype 6": 48,
-              "job 1": 13,
-              "job 2": 22,
-              "job 3": 30,
-              "job 4": 37,
-              "job 5": 43,
-              "job 6": 49,
-              "name": 0,
-              "provisioner 1": 14,
-              "provisioner 2": 23,
-              "zone 1": 15,
-              "zone 2": 24,
-              "zone 3": 31,
-              "zone 4": 38,
-              "zone 5": 44,
-              "zone 6": 50
-            },
-            "renameByName": {
-              "Value #A": "Allocatable CPU",
-              "Value #Allocatable CPU": "Allocatable CPU",
-              "Value #Allocatable Memory": "Allocatable Memory",
-              "Value #B": "Requests CPU",
-              "Value #C": "Limits CPU",
-              "Value #D": "Overhead CPU",
-              "Value #Limits CPU": "Limits Memory",
-              "Value #Limits Memory": "Limits Memory",
-              "Value #Overcommitment CPU": "Overcommitment Memory %",
-              "Value #Overcommitment Memory": "Overcommitment Memory %",
-              "Value #Overhead CPU": "Overhead Memory",
-              "Value #Overhead Memory": "Overhead Memory",
-              "Value #Requests CPU": "Requests CPU",
-              "Value #Requests Memory": "Requests Memory",
-              "Value #Requests memory": "Requests Memory",
-              "Value #U": "",
-              "Value #Utilization CPU": "Utilization Memory %",
-              "Value #Utilization Memory": "Utilization Memory %",
-              "name": ""
+              "Value #Allocatable": "Allocatable",
+              "Value #Limits": "Limits",
+              "Value #Overcommitment": "Overcommitment %",
+              "Value #Overhead": "Overhead",
+              "Value #Requests": "Requests",
+              "Value #Utilization": "Utilization %"
             }
           }
         }
@@ -653,7 +361,35 @@
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": "cpu",
+          "value": "cpu"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(resource_type)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "resource_type",
+        "options": [],
+        "query": {
+          "query": "label_values(resource_type)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-5m",
@@ -663,5 +399,5 @@
   "timezone": "",
   "title": "Cluster Capacity",
   "uid": "GwdOTionz",
-  "version": 23
+  "version": 33
 }

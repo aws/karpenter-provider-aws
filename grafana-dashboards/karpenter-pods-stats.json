@@ -99,7 +99,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum (karpenter_pods_podstate)",
+          "expr": "sum (karpenter_pods_state)",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -161,7 +161,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (zone)(karpenter_pods_podstate)",
+          "expr": "sum by (zone)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{zone}}",
           "refId": "A"
@@ -223,7 +223,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (instancetype)(karpenter_pods_podstate)",
+          "expr": "sum by (instancetype)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{instancetype}}",
           "refId": "A"
@@ -285,7 +285,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (capacitytype)(karpenter_pods_podstate)",
+          "expr": "sum by (capacitytype)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{phase}}",
           "refId": "A"
@@ -347,7 +347,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (namespace)(karpenter_pods_podstate)",
+          "expr": "sum by (namespace)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{namespace}}",
           "refId": "A"
@@ -409,7 +409,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (phase)(karpenter_pods_podstate)",
+          "expr": "sum by (phase)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{phase}}",
           "refId": "A"
@@ -470,7 +470,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (node)(karpenter_pods_podstate)",
+          "expr": "sum by (node)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{phase}}",
           "refId": "A"
@@ -531,7 +531,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (owner)(karpenter_pods_podstate)",
+          "expr": "sum by (owner)(karpenter_pods_state)",
           "interval": "",
           "legendFormat": "{{phase}}",
           "refId": "A"
@@ -556,5 +556,5 @@
   "timezone": "",
   "title": "Pod Statistic",
   "uid": "jizEPY2nk",
-  "version": 13
+  "version": 16
 }

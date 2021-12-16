@@ -94,8 +94,8 @@ func main() {
 		selection.NewController(manager.GetClient(), provisioningController),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
-		metricspod.NewController(manager.GetClient(), clientSet.CoreV1()),
-		metricsnode.NewController(manager.GetClient(), clientSet.CoreV1()),
+		metricspod.NewController(manager.GetClient()),
+		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))

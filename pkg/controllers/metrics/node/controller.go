@@ -28,10 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -40,18 +38,66 @@ import (
 )
 
 const (
+	resourceType     = "resource_type"
 	nodeName         = "name"
 	nodeProvisioner  = "provisioner"
 	nodeZone         = "zone"
 	nodeArchitecture = "arch"
-	nodeCapacityType = "capacitytype"
-	nodeInstanceType = "instancetype"
+	nodeCapacityType = "capacity_type"
+	nodeInstanceType = "instance_type"
 	nodePhase        = "phase"
-	nodeLabels       = "nodeLabels"
+	nodeLabels       = "node_labels"
 )
+
+var (
+	allocatableGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "allocatable",
+			Help:      "Node allocatable",
+		},
+		getLabelNames(),
+	)
+	requestsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_requests",
+			Help:      "Node total requests",
+		},
+		getLabelNames(),
+	)
+	limitsGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_limits",
+			Help:      "Node total limits",
+		},
+		getLabelNames(),
+	)
+	overheadGaugeVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "karpenter",
+			Subsystem: "nodes",
+			Name:      "total_overhead",
+			Help:      "Node total overhead",
+		},
+		getLabelNames(),
+	)
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(allocatableGaugeVec)
+	crmetrics.Registry.MustRegister(requestsGaugeVec)
+	crmetrics.Registry.MustRegister(limitsGaugeVec)
+	crmetrics.Registry.MustRegister(overheadGaugeVec)
+}
 
 func getLabelNames() []string {
 	return []string{
+		resourceType,
 		nodeName,
 		nodeProvisioner,
 		nodeZone,
@@ -64,45 +110,16 @@ func getLabelNames() []string {
 }
 
 type Controller struct {
-	KubeClient   client.Client
-	CoreV1Client corev1client.CoreV1Interface
-	LabelsMap    map[types.NamespacedName]*prometheus.Labels
-	GaugeVecMap  map[string]*prometheus.GaugeVec
+	KubeClient client.Client
+	LabelsMap  map[types.NamespacedName][]prometheus.Labels
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, coreV1Client corev1client.CoreV1Interface) *Controller {
-	newcontroller := Controller{
-		KubeClient:   kubeClient,
-		CoreV1Client: coreV1Client,
-		LabelsMap:    make(map[types.NamespacedName]*prometheus.Labels),
-		GaugeVecMap:  make(map[string]*prometheus.GaugeVec),
+func NewController(kubeClient client.Client) *Controller {
+	return &Controller{
+		KubeClient: kubeClient,
+		LabelsMap:  make(map[types.NamespacedName][]prometheus.Labels),
 	}
-	numPodGaugeVec := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "nodes",
-			Name:      "numberofpods",
-			Help:      "Auto-generated gauge: numberofpods",
-		},
-		getLabelNames(),
-	)
-	newcontroller.GaugeVecMap["numberofpods"] = numPodGaugeVec
-	crmetrics.Registry.MustRegister(numPodGaugeVec)
-
-	overheadGaugeVec := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "nodes",
-			Name:      "overhead",
-			Help:      "Auto-generated gauge: overhead",
-		},
-		getLabelNames(),
-	)
-	newcontroller.GaugeVecMap["overhead"] = overheadGaugeVec
-	crmetrics.Registry.MustRegister(overheadGaugeVec)
-
-	return &newcontroller
 }
 
 // Reconcile executes a termination control loop for the resource
@@ -114,29 +131,24 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if errors.IsNotFound(err) {
 			// Remove gauge due to node deletion
 			if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
-				c.deleteGaguges(labels)
+				c.deleteGauges(labels)
 			} else {
-				logging.FromContext(ctx).Errorf("Failed to delete gauge: failed to locate labels")
+				logging.FromContext(ctx).Debugf("Failed to delete gauge: failed to locate labels")
 			}
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 	// Remove the previous gauge after node labels are updated
-	if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
-		c.deleteGaguges(labels)
+	if labelSlice, ok := c.LabelsMap[req.NamespacedName]; ok {
+		c.deleteGauges(labelSlice)
 	}
-	newlabels, err := c.generateLabels(node)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate labels: %s", err.Error())
-		return reconcile.Result{}, err
-	}
+	c.LabelsMap[req.NamespacedName] = []prometheus.Labels{}
 
-	if err := c.updateGaguges(ctx, node, newlabels); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to update gauges: %s", err.Error())
+	if err := c.updateGauges(ctx, node); err != nil {
+		logging.FromContext(ctx).Debugf("Failed to update gauges: %s", err.Error())
 		return reconcile.Result{}, err
 	}
-	c.LabelsMap[req.NamespacedName] = newlabels
 
 	return reconcile.Result{}, nil
 }
@@ -152,7 +164,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				nodes := &v1.NodeList{}
 				if err := c.KubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: o.GetName()})); err != nil {
-					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
+					logging.FromContext(ctx).Debugf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
 					return requests
 				}
 				for _, node := range nodes.Items {
@@ -171,21 +183,23 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 				return requests
 			}),
 		).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10000}).
 		Complete(c)
 	return err
 }
 
-func (c *Controller) deleteGaguges(labels *prometheus.Labels) {
-	for _, gaugeVec := range c.GaugeVecMap {
-		gaugeVec.Delete(*labels)
+func (c *Controller) deleteGauges(labelSlice []prometheus.Labels) {
+	for _, labels := range labelSlice {
+		allocatableGaugeVec.Delete(labels)
+		requestsGaugeVec.Delete(labels)
+		limitsGaugeVec.Delete(labels)
+		overheadGaugeVec.Delete(labels)
 	}
 }
 
 // generateLabels creates the labels using the current state of the pod
-func (c *Controller) generateLabels(node *v1.Node) (*prometheus.Labels, error) {
+func (c *Controller) generateLabels(node *v1.Node, resourceTypeName string) (prometheus.Labels, error) {
 	metricLabels := prometheus.Labels{}
-
+	metricLabels[resourceType] = resourceTypeName
 	metricLabels[nodeName] = node.GetName()
 	metricLabels[nodeProvisioner] = node.Labels[v1alpha5.ProvisionerNameLabelKey]
 	metricLabels[nodeZone] = node.Labels[v1.LabelTopologyZone]
@@ -199,10 +213,11 @@ func (c *Controller) generateLabels(node *v1.Node) (*prometheus.Labels, error) {
 		return nil, fmt.Errorf("marshal pod labels: %w", err)
 	}
 	metricLabels[nodeLabels] = string(labels)
-	return &metricLabels, nil
+	return metricLabels, nil
 }
 
-func (c *Controller) updateGaguges(ctx context.Context, node *v1.Node, labels *prometheus.Labels) error {
+func (c *Controller) updateGauges(ctx context.Context, node *v1.Node) error {
+
 	// Calculate total requests and limits from all pods
 	podlist := &v1.PodList{}
 	if err := c.KubeClient.List(ctx, podlist, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
@@ -222,29 +237,46 @@ func (c *Controller) updateGaguges(ctx context.Context, node *v1.Node, labels *p
 	}
 
 	// Populate overhead metrics
-	if err := c.insertGaugeValues(overheads, "overheads", labels); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
+	if err := c.insertGaugeValues(overheads, node, overheadGaugeVec); err != nil {
+		logging.FromContext(ctx).Debugf("Failed to generate gauge: %w", err)
 	}
 	// Populate total request metrics
-	if err := c.insertGaugeValues(reqs, "totalrequests", labels); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
+	if err := c.insertGaugeValues(reqs, node, requestsGaugeVec); err != nil {
+		logging.FromContext(ctx).Debugf("Failed to generate gauge: %w", err)
 	}
 	// Populate total limits metrics
-	if err := c.insertGaugeValues(limits, "totallimits", labels); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
+	if err := c.insertGaugeValues(limits, node, limitsGaugeVec); err != nil {
+		logging.FromContext(ctx).Debugf("Failed to generate gauge: %w", err)
 	}
 	// Populate allocatable metrics
-	if err := c.insertGaugeValues(allocatable, "allocatable", labels); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
+	if err := c.insertGaugeValues(allocatable, node, allocatableGaugeVec); err != nil {
+		logging.FromContext(ctx).Debugf("Failed to generate gauge: %w", err)
 	}
-	// Add total number of pods
-	gaugeVec := c.GaugeVecMap["numberofpods"]
-	gauge, err := gaugeVec.GetMetricWith(*labels)
-	if err != nil {
-		return fmt.Errorf("generate new gauge: %w", err)
-	}
-	gauge.Set(float64(podlist.Size()))
 
+	return nil
+}
+
+func (c *Controller) insertGaugeValues(resources map[v1.ResourceName]resource.Quantity, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
+
+	for resourceName, quantity := range resources {
+		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
+		labels, err := c.generateLabels(node, resourceTypeName)
+		// Register the set of labels that are generated for node
+		nodeNamespacedName := types.NamespacedName{Name: node.Name}
+		c.LabelsMap[nodeNamespacedName] = append(c.LabelsMap[nodeNamespacedName], labels)
+		if err != nil {
+			return fmt.Errorf("generate new labels: %w", err)
+		}
+		gauge, err := gaugeVec.GetMetricWith(labels)
+		if err != nil {
+			return fmt.Errorf("generate new gauge: %w", err)
+		}
+		if resourceName == v1.ResourceCPU {
+			gauge.Set(float64(quantity.MilliValue()))
+		} else {
+			gauge.Set(float64(quantity.Value()))
+		}
+	}
 	return nil
 }
 
@@ -260,36 +292,6 @@ func calculateDaemonSetOverhead(pods []v1.Pod) v1.ResourceList {
 	daemonSetRequests, _ := getPodsTotalRequestsAndLimits(daemonSetPods)
 	addResourceQuantity(daemonSetRequests, overheads)
 	return overheads
-}
-
-func (c *Controller) insertGaugeValues(resources map[v1.ResourceName]resource.Quantity, prefix string, labels *prometheus.Labels) error {
-	for resourceName, quantity := range resources {
-		gaugeVecKey := prefix + "_" + strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
-		gaugeVec, ok := c.GaugeVecMap[gaugeVecKey]
-		if !ok {
-			gaugeVec = prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace: "karpenter",
-					Subsystem: "nodes",
-					Name:      gaugeVecKey,
-					Help:      "Auto-generated gauge: " + gaugeVecKey,
-				},
-				getLabelNames(),
-			)
-			c.GaugeVecMap[gaugeVecKey] = gaugeVec
-			crmetrics.Registry.MustRegister(gaugeVec)
-		}
-		gauge, err := gaugeVec.GetMetricWith(*labels)
-		if err != nil {
-			return fmt.Errorf("generate new gauge: %w", err)
-		}
-		if resourceName == v1.ResourceCPU {
-			gauge.Set(float64(quantity.MilliValue()))
-		} else {
-			gauge.Set(float64(quantity.Value()))
-		}
-	}
-	return nil
 }
 
 // GetPodsTotalRequestsAndLimits calculates the total resource requests and limits for the pods.
