@@ -41,8 +41,8 @@ spec:
               pod scheduling constraints.
             properties:
               kubeletArgs:
-                description: KubeletArgs define args to be used when configuring kubelet
-                  on provisioned nodes
+                description: KubeletArgs are passed to the kubelet when provisioning
+                  nodes
                 properties:
                   clusterDns:
                     description: clusterDNS is a list of IP addresses for the cluster
