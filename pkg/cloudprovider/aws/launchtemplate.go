@@ -281,6 +281,10 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))
 	}
+	if constraints.KubeletArgs.ClusterDNSIP != "" {
+		userData.WriteString(fmt.Sprintf(` \
+    --dns-cluster-ip '%s'`, constraints.KubeletArgs.ClusterDNSIP))
+	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
 

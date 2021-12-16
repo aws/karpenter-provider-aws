@@ -34,6 +34,9 @@ type Constraints struct {
 	Taints Taints `json:"taints,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
 	Requirements Requirements `json:"requirements,omitempty"`
+	// KubeletArgs define args to be used when configuring kubelet on provisioned nodes
+	//+optional
+	KubeletArgs KubeletArgs `json:"kubeletArgs,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *runtime.RawExtension `json:"provider,omitempty"`
@@ -68,5 +71,6 @@ func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
 		Requirements: c.Requirements.With(PodRequirements(pod)).Consolidate().WellKnown(),
 		Taints:       c.Taints,
 		Provider:     c.Provider,
+		KubeletArgs:  c.KubeletArgs,
 	}
 }

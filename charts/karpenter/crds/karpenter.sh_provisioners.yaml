@@ -40,6 +40,14 @@ spec:
               Node properties are determined from a combination of provisioner and
               pod scheduling constraints.
             properties:
+              kubeletArgs:
+                description: KubeletArgs define args to be used when configuring kubelet
+                  on provisioned nodes
+                properties:
+                  clusterDnsIp:
+                    description: The IP address for in-cluster DNS resolution
+                    type: string
+                type: object
               labels:
                 additionalProperties:
                   type: string
