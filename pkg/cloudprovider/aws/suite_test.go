@@ -16,6 +16,7 @@ package aws
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 
@@ -405,6 +406,17 @@ var _ = Describe("Allocation", func() {
 					aws.String("test-security-group-2"),
 					aws.String("test-security-group-3"),
 				))
+			})
+		})
+		Context("Kubelet Args", func() {
+			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
+				provisioner.Spec.KubeletArgs.ClusterDNSIP = "10.0.10.100"
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
 			})
 		})
 	})
