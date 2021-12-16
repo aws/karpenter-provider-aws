@@ -12,10 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package podmetrics
+package pod
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -36,16 +37,17 @@ import (
 )
 
 const (
-	podname             = "name"
-	podnamespace        = "namespace"
-	ownerselflink       = "owner"
-	podhostname         = "node"
-	podprovisioner      = "provisioner"
-	podhostzone         = "zone"
-	podhostarchitecture = "arch"
-	podhostcapacitype   = "capacitytype"
-	podhostinstancetype = "instancetype"
-	podphase            = "phase"
+	podName             = "name"
+	podNameSpace        = "namespace"
+	ownerSelfLink       = "owner"
+	podHostName         = "node"
+	podProvisioner      = "provisioner"
+	podHostZone         = "zone"
+	podHostArchitecture = "arch"
+	podHostCapacityType = "capacitytype"
+	podHostInstanceType = "instancetype"
+	podPhase            = "phase"
+	podLabels           = "podLabels"
 )
 
 var (
@@ -73,16 +75,17 @@ func init() {
 
 func getLabelNames() []string {
 	return []string{
-		podname,
-		podnamespace,
-		ownerselflink,
-		podhostname,
-		podprovisioner,
-		podhostzone,
-		podhostarchitecture,
-		podhostcapacitype,
-		podhostinstancetype,
-		podphase,
+		podName,
+		podNameSpace,
+		ownerSelfLink,
+		podHostName,
+		podProvisioner,
+		podHostZone,
+		podHostArchitecture,
+		podHostCapacityType,
+		podHostInstanceType,
+		podPhase,
+		podLabels,
 	}
 
 }
@@ -121,7 +124,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	newlabels, err := c.generateLabels(ctx, pod)
 	if err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate prometheus labels: %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to generate new labels: %s", err.Error())
 		return reconcile.Result{}, err
 	}
 
@@ -150,8 +153,8 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 // generateLabels creates the labels using the current state of the pod
 func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) (*prometheus.Labels, error) {
 	metricLabels := prometheus.Labels{}
-	metricLabels[podname] = pod.GetName()
-	metricLabels[podnamespace] = pod.GetNamespace()
+	metricLabels[podName] = pod.GetName()
+	metricLabels[podNameSpace] = pod.GetNamespace()
 	// Selflink has been deprecated after v.1.20
 	// Manually generate the selflink for the first owner reference
 	// Currently we do not support multiple over references
@@ -160,26 +163,32 @@ func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) (*promethe
 		ownerreference := pod.GetOwnerReferences()[0]
 		selflink = fmt.Sprintf("/apis/%s/namespaces/%s/%ss/%s", ownerreference.APIVersion, pod.Namespace, strings.ToLower(ownerreference.Kind), ownerreference.Name)
 	}
-	metricLabels[ownerselflink] = selflink
-	metricLabels[podhostname] = pod.Spec.NodeName
-	metricLabels[podphase] = string(pod.Status.Phase)
+	metricLabels[ownerSelfLink] = selflink
+	metricLabels[podHostName] = pod.Spec.NodeName
+	metricLabels[podPhase] = string(pod.Status.Phase)
 	provisioner := v1alpha5.DefaultProvisioner
 	if name, ok := pod.Spec.NodeSelector[v1alpha5.ProvisionerNameLabelKey]; ok {
 		provisioner.Name = name
 	}
-	metricLabels[podprovisioner] = provisioner.Name
+	metricLabels[podProvisioner] = provisioner.Name
 	nodename := types.NamespacedName{Name: pod.Spec.NodeName}
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, nodename, node); err != nil {
-		metricLabels[podhostzone] = "N/A"
-		metricLabels[podhostarchitecture] = "N/A"
-		metricLabels[podhostcapacitype] = "N/A"
-		metricLabels[podhostinstancetype] = "N/A"
+		metricLabels[podHostZone] = "N/A"
+		metricLabels[podHostArchitecture] = "N/A"
+		metricLabels[podHostCapacityType] = "N/A"
+		metricLabels[podHostInstanceType] = "N/A"
 	} else {
-		metricLabels[podhostzone] = node.Labels[v1.LabelTopologyZone]
-		metricLabels[podhostarchitecture] = node.Labels[v1.LabelArchStable]
-		metricLabels[podhostcapacitype] = node.Labels[v1alpha5.LabelCapacityType]
-		metricLabels[podhostinstancetype] = node.Labels[v1.LabelInstanceTypeStable]
+		metricLabels[podHostZone] = node.Labels[v1.LabelTopologyZone]
+		metricLabels[podHostArchitecture] = node.Labels[v1.LabelArchStable]
+		metricLabels[podHostCapacityType] = node.Labels[v1alpha5.LabelCapacityType]
+		metricLabels[podHostInstanceType] = node.Labels[v1.LabelInstanceTypeStable]
 	}
+	// Add pod labels
+	labels, err := json.Marshal(pod.GetLabels())
+	if err != nil {
+		return nil, fmt.Errorf("marshal pod labels: %w", err)
+	}
+	metricLabels[podLabels] = string(labels)
 	return &metricLabels, nil
 }

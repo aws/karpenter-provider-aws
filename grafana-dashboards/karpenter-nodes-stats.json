@@ -299,6 +299,12 @@
               "job 4": true,
               "job 5": true,
               "job 6": true,
+              "nodeLabels 1": true,
+              "nodeLabels 2": true,
+              "nodeLabels 3": true,
+              "nodeLabels 4": true,
+              "nodeLabels 5": true,
+              "nodeLabels 6": true,
               "provisioner 1": true,
               "provisioner 2": true,
               "provisioner 3": true,
@@ -545,6 +551,12 @@
               "job 4": true,
               "job 5": true,
               "job 6": true,
+              "nodeLabels 1": true,
+              "nodeLabels 2": true,
+              "nodeLabels 3": true,
+              "nodeLabels 4": true,
+              "nodeLabels 5": true,
+              "nodeLabels 6": true,
               "provisioner 1": true,
               "provisioner 2": true,
               "provisioner 3": true,
@@ -651,5 +663,5 @@
   "timezone": "",
   "title": "Cluster Capacity",
   "uid": "GwdOTionz",
-  "version": 21
+  "version": 23
 }
