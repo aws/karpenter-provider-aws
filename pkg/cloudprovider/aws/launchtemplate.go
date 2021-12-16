@@ -247,7 +247,22 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 			*caBundle))
 	}
 
-	nodeLabels := functional.UnionStringMaps(additionalLabels, constraints.Labels)
+	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
+	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
+	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
+
+	if len(kubeletExtraArgs) > 0 {
+		userData.WriteString(fmt.Sprintf(` \
+    --kubelet-extra-args '%s'`, kubeletExtraArgs))
+	}
+	if len(constraints.KubeletArgs.ClusterDNS) > 0 {
+		userData.WriteString(fmt.Sprintf(` \
+    --dns-cluster-ip '%s'`, constraints.KubeletArgs.ClusterDNS[0]))
+	}
+	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+}
+
+func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) string {
 	nodeLabelArgs := ""
 	if len(nodeLabels) > 0 {
 		labelStrings := []string{}
@@ -261,6 +276,10 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		}
 		nodeLabelArgs = fmt.Sprintf("--node-labels=%s", strings.Join(labelStrings, ","))
 	}
+	return nodeLabelArgs
+}
+
+func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) bytes.Buffer {
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
@@ -276,16 +295,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
-	if len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --kubelet-extra-args '%s'`, kubeletExtraArgs))
-	}
-	if len(constraints.KubeletArgs.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --dns-cluster-ip '%s'`, constraints.KubeletArgs.ClusterDNS[0]))
-	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+	return nodeTaintsArgs
 }
 
 func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {
