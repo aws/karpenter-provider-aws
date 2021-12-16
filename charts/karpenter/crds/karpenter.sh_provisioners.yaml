@@ -44,9 +44,12 @@ spec:
                 description: KubeletArgs define args to be used when configuring kubelet
                   on provisioned nodes
                 properties:
-                  clusterDnsIp:
-                    description: The IP address for in-cluster DNS resolution
-                    type: string
+                  clusterDns:
+                    description: clusterDNS is a list of IP addresses for the cluster
+                      DNS server. Note that not all providers may use all addresses.
+                    items:
+                      type: string
+                    type: array
                 type: object
               labels:
                 additionalProperties:

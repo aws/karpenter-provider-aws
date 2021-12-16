@@ -145,7 +145,7 @@ additional customization and use cases. Adjust these only if you know you need t
 ```yaml
 spec:
   kubeletArgs:
-    clusterDNSIP: 10.0.1.100
+    clusterDNS: ["10.0.1.100"]
 ```
 
 
