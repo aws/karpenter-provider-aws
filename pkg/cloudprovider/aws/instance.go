@@ -33,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 type InstanceProvider struct {
@@ -73,9 +74,8 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 			aws.StringValue(instance.Placement.AvailabilityZone),
 			getCapacityType(instance),
 		)
-
 		// Convert Instance to Node
-		node, err := p.instanceToNode(instance, instanceTypes)
+		node, err := p.instanceToNode(ctx, instance, instanceTypes)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err.Error())
 			continue
@@ -229,12 +229,16 @@ func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*
 	return instances, err
 }
 
-func (p *InstanceProvider) instanceToNode(instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
+			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
+			if injection.GetOptions(ctx).AWSNodeNameConvention == "resource-name" {
+				nodeName = aws.StringValue(instance.InstanceId)
+			}
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: aws.StringValue(instance.PrivateDnsName),
+					Name: nodeName,
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
