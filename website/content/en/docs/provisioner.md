@@ -137,14 +137,14 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
 
-## spec.kubeletArgs
+## spec.kubeletConfiguration
 
 Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for 
 additional customization and use cases. Adjust these only if you know you need to do so.
 
 ```yaml
 spec:
-  kubeletArgs:
+  kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
 ```
 

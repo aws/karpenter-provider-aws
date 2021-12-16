@@ -255,9 +255,9 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))
 	}
-	if len(constraints.KubeletArgs.ClusterDNS) > 0 {
+	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(` \
-    --dns-cluster-ip '%s'`, constraints.KubeletArgs.ClusterDNS[0]))
+    --dns-cluster-ip '%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }

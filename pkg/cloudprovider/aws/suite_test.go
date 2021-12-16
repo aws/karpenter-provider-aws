@@ -410,7 +410,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-				provisioner.Spec.KubeletArgs.ClusterDNS = []string{"10.0.10.100"}
+				provisioner.Spec.KubeletConfiguration.ClusterDNS = []string{"10.0.10.100"}
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))

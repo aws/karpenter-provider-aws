@@ -40,9 +40,9 @@ spec:
               Node properties are determined from a combination of provisioner and
               pod scheduling constraints.
             properties:
-              kubeletArgs:
-                description: KubeletArgs are passed to the kubelet when provisioning
-                  nodes
+              kubeletConfiguration:
+                description: KubeletConfiguration are options passed to the kubelet
+                  when provisioning nodes
                 properties:
                   clusterDns:
                     description: clusterDNS is a list of IP addresses for the cluster
