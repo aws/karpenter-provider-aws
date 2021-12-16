@@ -22,10 +22,12 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -116,20 +118,17 @@ func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alph
 }
 
 func (t *Topology) countMatchingPods(ctx context.Context, topologyGroup *TopologyGroup) error {
-	podList := &v1.PodList{}
-	if err := t.kubeClient.List(ctx, podList,
-		client.InNamespace(topologyGroup.Pods[0].Namespace),
-		apiobject.MatchingLabelsSelector(topologyGroup.Constraint.LabelSelector),
-	); err != nil {
+	pods := &v1.PodList{}
+	if err := t.kubeClient.List(ctx, pods, TopologyListOptions(topologyGroup.Pods[0].Namespace, &topologyGroup.Constraint)); err != nil {
 		return fmt.Errorf("listing pods, %w", err)
 	}
-	for _, pod := range podList.Items {
-		if len(pod.Spec.NodeName) == 0 {
-			continue // Don't include pods that aren't scheduled
+	for i, p := range pods.Items {
+		if IgnoredForTopology(&pods.Items[i]) {
+			continue
 		}
 		node := &v1.Node{}
-		if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, node); err != nil {
-			return fmt.Errorf("getting node %s, %w", pod.Spec.NodeName, err)
+		if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: p.Spec.NodeName}, node); err != nil {
+			return fmt.Errorf("getting node %s, %w", p.Spec.NodeName, err)
 		}
 		domain, ok := node.Labels[topologyGroup.Constraint.TopologyKey]
 		if !ok {
@@ -138,6 +137,23 @@ func (t *Topology) countMatchingPods(ctx context.Context, topologyGroup *Topolog
 		topologyGroup.Increment(domain)
 	}
 	return nil
+}
+
+func TopologyListOptions(namespace string, constraint *v1.TopologySpreadConstraint) *client.ListOptions {
+	selector := labels.Everything()
+	for key, value := range constraint.LabelSelector.MatchLabels {
+		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
+		selector = selector.Add(*requirement)
+	}
+	for _, expression := range constraint.LabelSelector.MatchExpressions {
+		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+		selector = selector.Add(*requirement)
+	}
+	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+}
+
+func IgnoredForTopology(p *v1.Pod) bool {
+	return !pod.IsScheduled(p) || pod.IsTerminal(p) || pod.IsTerminating(p)
 }
 
 func topologyGroupKey(namespace string, constraint v1.TopologySpreadConstraint) uint64 {

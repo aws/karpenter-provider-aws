@@ -15,11 +15,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
@@ -29,18 +31,16 @@ const (
 	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
 )
 
-func ManagedTagsFor(clusterName string) map[string]string {
-	// tags to be applied on AWS resources created by Karpenter (instances, launchTemplates..)
-	return map[string]string{
-		"Name": fmt.Sprintf("karpenter.sh/%s", clusterName),
-		fmt.Sprintf(ClusterTagKeyFormat, clusterName):   "owned",
-		fmt.Sprintf(KarpenterTagKeyFormat, clusterName): "owned",
+func MergeTags(ctx context.Context, customTags map[string]string) []*ec2.Tag {
+	// We'll set some default tags, but allow them to be overridden in the merge
+	managedTags := map[string]string{
+		"Name": fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s",
+			injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name),
+		fmt.Sprintf(ClusterTagKeyFormat, injection.GetOptions(ctx).ClusterName):   "owned",
+		fmt.Sprintf(KarpenterTagKeyFormat, injection.GetOptions(ctx).ClusterName): "owned",
 	}
-}
-
-func MergeTags(tags ...map[string]string) []*ec2.Tag {
 	ec2Tags := []*ec2.Tag{}
-	for key, value := range functional.UnionStringMaps(tags...) {
+	for key, value := range functional.UnionStringMaps(managedTags, customTags) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
 	}
 	return ec2Tags

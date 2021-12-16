@@ -116,6 +116,13 @@ spec:
       dev.corp.net/app: Calculator
       dev.corp.net/team: MyTeam
 ```
+Note: Karpenter will set the default AWS tags listed below, but these can be overridden in the tags section above.
+```
+Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
+karpenter.sh/cluster/<cluster-name>: owned
+kubernetes.io/cluster/<cluster-name>: owned
+```
+
 
 ## Other Resources
 

@@ -43,6 +43,8 @@ type PodOptions struct {
 	Annotations               map[string]string
 	Labels                    map[string]string
 	Finalizers                []string
+	DeletionTimestamp         *metav1.Time
+	Phase                     v1.PodPhase
 }
 
 type PDBOptions struct {
@@ -73,12 +75,13 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            options.Name,
-			Namespace:       options.Namespace,
-			OwnerReferences: options.OwnerReferences,
-			Annotations:     options.Annotations,
-			Labels:          options.Labels,
-			Finalizers:      options.Finalizers,
+			Name:              options.Name,
+			Namespace:         options.Namespace,
+			OwnerReferences:   options.OwnerReferences,
+			Annotations:       options.Annotations,
+			Labels:            options.Labels,
+			Finalizers:        options.Finalizers,
+			DeletionTimestamp: options.DeletionTimestamp,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
@@ -92,8 +95,22 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			}},
 			NodeName: options.NodeName,
 		},
-		Status: v1.PodStatus{Conditions: options.Conditions},
+		Status: v1.PodStatus{
+			Conditions: options.Conditions,
+			Phase:      options.Phase,
+		},
 	}
+}
+
+// Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
+func Pods(total int, options ...PodOptions) []*v1.Pod {
+	pods := []*v1.Pod{}
+	for _, opts := range options {
+		for i := 0; i < total/len(options); i++ {
+			pods = append(pods, Pod(opts))
+		}
+	}
+	return pods
 }
 
 // UnschedulablePod creates a test pod with a pending scheduling status condition

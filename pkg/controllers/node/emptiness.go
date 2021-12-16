@@ -88,7 +88,7 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 	}
 	for i := range pods.Items {
 		p := pods.Items[i]
-		if pod.HasFinished(&p) {
+		if pod.IsTerminal(&p) {
 			continue
 		}
 		if !pod.IsOwnedByDaemonSet(&p) && !pod.IsOwnedByNode(&p) {

@@ -29,7 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type CloudProvider struct{}
+type CloudProvider struct {
+	InstanceTypes []cloudprovider.InstanceType
+}
 
 func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) <-chan error {
 	err := make(chan error)
@@ -78,34 +80,37 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 }
 
 func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
+	if c.InstanceTypes != nil {
+		return c.InstanceTypes, nil
+	}
 	return []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
-			name: "default-instance-type",
+			Name: "default-instance-type",
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:      "pod-eni-instance-type",
-			awsPodENI: resource.MustParse("1"),
+			Name:      "pod-eni-instance-type",
+			AWSPodENI: resource.MustParse("1"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:   "small-instance-type",
-			cpu:    resource.MustParse("2"),
-			memory: resource.MustParse("2Gi"),
+			Name:   "small-instance-type",
+			CPU:    resource.MustParse("2"),
+			Memory: resource.MustParse("2Gi"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:       "nvidia-gpu-instance-type",
-			nvidiaGPUs: resource.MustParse("2"),
+			Name:       "nvidia-gpu-instance-type",
+			NvidiaGPUs: resource.MustParse("2"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:    "amd-gpu-instance-type",
-			amdGPUs: resource.MustParse("2"),
+			Name:    "amd-gpu-instance-type",
+			AMDGPUs: resource.MustParse("2"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:       "aws-neuron-instance-type",
-			awsNeurons: resource.MustParse("2"),
+			Name:       "aws-neuron-instance-type",
+			AWSNeurons: resource.MustParse("2"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			name:         "arm-instance-type",
-			architecture: "arm64",
+			Name:         "arm-instance-type",
+			Architecture: "arm64",
 		}),
 	}, nil
 }

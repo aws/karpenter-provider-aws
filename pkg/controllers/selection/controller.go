@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling
+package selection
 
 import (
 	"context"
@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const controllerName = "scheduling"
+const controllerName = "selection"
 
 // Controller for the resource
 type Controller struct {
@@ -72,21 +72,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
-	provisioner, err := c.selectProvisioner(ctx, pod)
-	if err != nil {
+	if err := c.selectProvisioner(ctx, pod); err != nil {
 		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err.Error())
 		return reconcile.Result{}, err
 	}
-	provisioner.Add(ctx, pod)
 	return reconcile.Result{RequeueAfter: time.Second * 1}, nil
 }
 
-func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (*provisioning.Provisioner, error) {
+func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
 	// Pick provisioner
 	var provisioner *provisioning.Provisioner
-	var errs error
+	provisioners := c.provisioners.List(ctx)
+	if len(provisioners) == 0 {
+		return nil
+	}
 	for _, candidate := range c.provisioners.List(ctx) {
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
@@ -96,13 +97,10 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (*provi
 		}
 	}
 	if provisioner == nil {
-		err := fmt.Errorf("matched 0/%d provisioners", len(multierr.Errors(errs)))
-		if errs != nil {
-			err = fmt.Errorf("%s, %w", err, errs)
-		}
-		return nil, err
+		return fmt.Errorf("matched 0/%d provisioners, %w", len(multierr.Errors(errs)), errs)
 	}
-	return provisioner, nil
+	provisioner.Add(ctx, pod)
+	return nil
 }
 
 func isProvisionable(p *v1.Pod) bool {

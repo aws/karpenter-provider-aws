@@ -2,6 +2,9 @@ RELEASE_REPO ?= public.ecr.aws/karpenter
 RELEASE_VERSION ?= $(shell git describe --tags --always)
 RELEASE_PLATFORM ?= --platform=linux/amd64,linux/arm64
 
+## Inject these annotations to cosign signing
+COSIGN_FLAGS ?= -a GIT_HASH=$(shell git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(shell date +'%Y-%m-%dT%H:%M:%SZ')
+
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
@@ -76,6 +79,8 @@ publish: ## Generate release manifests and publish a versioned container image.
 	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
 	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
 	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
 
 helm: ## Generate Helm Chart
 	cd charts;helm lint karpenter;helm package karpenter;helm repo index .

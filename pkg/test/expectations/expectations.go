@@ -33,7 +33,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/selection"
 )
 
 const (
@@ -98,10 +98,13 @@ func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Objec
 
 func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		// Preserve a copy of the status, which is overriden by create
-		status := object.DeepCopyObject().(client.Object)
+		updatecopy := object.DeepCopyObject().(client.Object)
+		deletecopy := object.DeepCopyObject().(client.Object)
 		ExpectApplied(ctx, c, object)
-		Expect(c.Status().Update(ctx, status)).To(Succeed())
+		Expect(c.Status().Update(ctx, updatecopy)).To(Succeed())
+		if deletecopy.GetDeletionTimestamp() != nil {
+			Expect(c.Delete(ctx, deletecopy, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(int64(time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds()))})).ToNot(HaveOccurred())
+		}
 	}
 }
 
@@ -157,7 +160,7 @@ func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controlle
 	}
 }
 
-func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduling.Controller, provisioners *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+func ExpectProvisioned(ctx context.Context, c client.Client, selectionController *selection.Controller, provisioningController *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	ExpectApplied(ctx, c, provisioner)
 	ExpectStatusUpdated(ctx, c, provisioner)
@@ -165,12 +168,12 @@ func ExpectProvisioned(ctx context.Context, c client.Client, scheduler *scheduli
 		ExpectCreatedWithStatus(ctx, c, pod)
 	}
 	// Wait for reconcile
-	ExpectReconcileSucceeded(ctx, provisioners, client.ObjectKeyFromObject(provisioner))
+	ExpectReconcileSucceeded(ctx, provisioningController, client.ObjectKeyFromObject(provisioner))
 	wg := sync.WaitGroup{}
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			scheduler.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
+			selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 			wg.Done()
 		}(pod)
 	}

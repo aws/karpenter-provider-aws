@@ -151,7 +151,7 @@ func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Cons
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return vendorConstraints.AWS.Validate(ctx)
+	return vendorConstraints.AWS.Validate()
 }
 
 // Default the provisioner

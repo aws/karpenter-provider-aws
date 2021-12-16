@@ -27,7 +27,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/metrics"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -66,6 +66,7 @@ func main() {
 
 	config := controllerruntime.GetConfigOrDie()
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
+	config.UserAgent = "karpenter"
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	// Set up logger and watch for changes to log level
@@ -85,11 +86,11 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
-	provisioners := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
+	provisioningController := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
 
 	if err := manager.RegisterControllers(ctx,
-		provisioners,
-		scheduling.NewController(manager.GetClient(), provisioners),
+		provisioningController,
+		selection.NewController(manager.GetClient(), provisioningController),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),
