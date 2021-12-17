@@ -21,5 +21,5 @@ type KubeletConfiguration struct {
 	// clusterDNS is a list of IP addresses for the cluster DNS server.
 	// Note that not all providers may use all addresses.
 	//+optional
-	ClusterDNS []string `json:"clusterDns,omitempty"`
+	ClusterDNS []string `json:"clusterDNS,omitempty"`
 }
