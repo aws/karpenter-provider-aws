@@ -33,7 +33,6 @@ const (
 	metricLabelComponent = "component"
 	metricLabelMethod    = "method"
 	metricLabelProvider  = "provider"
-	metricLabelResult    = "result"
 )
 
 var methodDurationHistogramVec = prometheus.NewHistogramVec(
@@ -47,7 +46,6 @@ var methodDurationHistogramVec = prometheus.NewHistogramVec(
 		metricLabelComponent,
 		metricLabelMethod,
 		metricLabelProvider,
-		metricLabelResult,
 	},
 )
 
@@ -75,7 +73,7 @@ func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraint
 	go func(startTime time.Time, in <-chan error) {
 		select {
 		case err := <-in:
-			d.observe(ctx, "Create", time.Since(startTime), err)
+			d.observe(ctx, "Create", time.Since(startTime))
 			out <- err
 		case <-ctx.Done():
 		}
@@ -87,44 +85,40 @@ func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraint
 func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
 	startTime := time.Now()
 	err := d.CloudProvider.Delete(ctx, node)
-	d.observe(ctx, "Delete", time.Since(startTime), err)
+	d.observe(ctx, "Delete", time.Since(startTime))
 	return err
 }
 
 func (d *decorator) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	startTime := time.Now()
 	instanceTypes, err := d.CloudProvider.GetInstanceTypes(ctx, constraints)
-	d.observe(ctx, "GetInstanceTypes", time.Since(startTime), err)
+	d.observe(ctx, "GetInstanceTypes", time.Since(startTime))
 	return instanceTypes, err
 }
 
 func (d *decorator) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
 	startTime := time.Now()
 	d.CloudProvider.Default(ctx, constraints)
-	d.observe(ctx, "Default", time.Since(startTime), nil)
+	d.observe(ctx, "Default", time.Since(startTime))
 }
 
 func (d *decorator) Validate(ctx context.Context, constraints *v1alpha5.Constraints) *apis.FieldError {
 	startTime := time.Now()
 	fieldErr := d.CloudProvider.Validate(ctx, constraints)
-	d.observe(ctx, "Validate", time.Since(startTime), fieldErr)
+	d.observe(ctx, "Validate", time.Since(startTime))
 	return fieldErr
 }
 
-func (d *decorator) observe(ctx context.Context, methodName string, duration time.Duration, err interface{}) {
+func (d *decorator) observe(ctx context.Context, methodName string, duration time.Duration) {
 	durationSeconds := duration.Seconds()
 
 	labels := prometheus.Labels{
 		metricLabelComponent: "unknown",
 		metricLabelMethod:    methodName,
 		metricLabelProvider:  d.Name(),
-		metricLabelResult:    "success",
 	}
 	if componentName := injection.GetComponentName(ctx); componentName != "" {
 		labels[metricLabelComponent] = componentName
-	}
-	if err != nil {
-		labels[metricLabelResult] = "error"
 	}
 	observer, promErr := methodDurationHistogramVec.GetMetricWith(labels)
 	if promErr != nil {
