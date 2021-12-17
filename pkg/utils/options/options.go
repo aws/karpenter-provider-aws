@@ -32,6 +32,7 @@ func MustParse() Options {
 	flag.IntVar(&opts.WebhookPort, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
 	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
+	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", "ip-name"), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
 	flag.Parse()
 	if err := opts.Validate(); err != nil {
 		panic(err)
@@ -41,19 +42,23 @@ func MustParse() Options {
 
 // Options for running this binary
 type Options struct {
-	ClusterName     string
-	ClusterEndpoint string
-	MetricsPort     int
-	HealthProbePort int
-	WebhookPort     int
-	KubeClientQPS   int
-	KubeClientBurst int
+	ClusterName           string
+	ClusterEndpoint       string
+	MetricsPort           int
+	HealthProbePort       int
+	WebhookPort           int
+	KubeClientQPS         int
+	KubeClientBurst       int
+	AWSNodeNameConvention string
 }
 
 func (o Options) Validate() (err error) {
 	err = multierr.Append(err, o.validateEndpoint())
 	if o.ClusterName == "" {
 		err = multierr.Append(err, fmt.Errorf("CLUSTER_NAME is required"))
+	}
+	if o.AWSNodeNameConvention != "ip-name" && o.AWSNodeNameConvention != "resource-name" {
+		err = multierr.Append(err, fmt.Errorf("aws-node-name-convention may only be either ip-name or resource-name"))
 	}
 	return err
 }

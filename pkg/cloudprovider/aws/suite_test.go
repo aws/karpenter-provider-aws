@@ -65,7 +65,13 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		ctx = injection.WithOptions(ctx, options.Options{ClusterName: "test-cluster", ClusterEndpoint: "https://test-cluster"})
+		opts := options.Options{
+			ClusterName:           "test-cluster",
+			ClusterEndpoint:       "https://test-cluster",
+			AWSNodeNameConvention: "ip-name",
+		}
+		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
+		ctx = injection.WithOptions(ctx, opts)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
