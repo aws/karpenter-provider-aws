@@ -63,13 +63,11 @@ type decorator struct {
 // calls to the argument, `cloudProvider`, and publish aggregated latency metrics. The
 // value used for the metric label, "component", is taken from the `Context` object
 // passed to the methods of `CloudProvider`.
+//
+// Do not decorate a `CloudProvider` multiple times or published metrics will contain
+// duplicated method call counts and latencies.
 func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProvider {
-	switch c := cloudProvider.(type) {
-	case *decorator:
-		return c
-	default:
-		return &decorator{cloudProvider}
-	}
+	return &decorator{cloudProvider}
 }
 
 func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
