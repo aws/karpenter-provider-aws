@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
@@ -120,7 +121,7 @@ var _ = Describe("Allocation", func() {
 		provider = &v1alpha1.AWS{
 			InstanceProfile: "test-instance-profile",
 		}
-		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name}}, provider)
+		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
 		launchTemplateCache.Flush()

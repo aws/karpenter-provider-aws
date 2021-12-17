@@ -68,7 +68,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	provisioner = &v1alpha5.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
 	provisioner.SetDefaults(ctx)

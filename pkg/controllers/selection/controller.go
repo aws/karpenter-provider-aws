@@ -39,17 +39,19 @@ const controllerName = "selection"
 
 // Controller for the resource
 type Controller struct {
-	kubeClient   client.Client
-	provisioners *provisioning.Controller
-	preferences  *Preferences
+	kubeClient     client.Client
+	provisioners   *provisioning.Controller
+	preferences    *Preferences
+	volumeTopology *VolumeTopology
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, provisioners *provisioning.Controller) *Controller {
 	return &Controller{
-		kubeClient:   kubeClient,
-		provisioners: provisioners,
-		preferences:  NewPreferences(),
+		kubeClient:     kubeClient,
+		provisioners:   provisioners,
+		preferences:    NewPreferences(),
+		volumeTopology: NewVolumeTopology(kubeClient),
 	}
 }
 
@@ -82,6 +84,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
+	// Inject volume topological requirements
+	if err := c.volumeTopology.Inject(ctx, pod); err != nil {
+		return fmt.Errorf("getting volume topology requirements, %w", err)
+	}
 	// Pick provisioner
 	var provisioner *provisioning.Provisioner
 	provisioners := c.provisioners.List(ctx)

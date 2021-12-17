@@ -26,6 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/counter"
 	"github.com/aws/karpenter/pkg/controllers/metrics"
 	"github.com/aws/karpenter/pkg/controllers/node"
+	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/controllers/termination"
@@ -87,6 +88,7 @@ func main() {
 	if err := manager.RegisterControllers(ctx,
 		provisioningController,
 		selection.NewController(manager.GetClient(), provisioningController),
+		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
 		metrics.NewController(manager.GetClient(), cloudProvider),

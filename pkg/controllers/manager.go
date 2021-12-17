@@ -36,7 +36,9 @@ func NewManagerOrDie(ctx context.Context, config *rest.Config, options controlle
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create controller newManager, %s", err.Error()))
 	}
-	if err := newManager.GetFieldIndexer().IndexField(ctx, &v1.Pod{}, "spec.nodeName", podSchedulingIndex); err != nil {
+	if err := newManager.GetFieldIndexer().IndexField(ctx, &v1.Pod{}, "spec.nodeName", func(o client.Object) []string {
+		return []string{o.(*v1.Pod).Spec.NodeName}
+	}); err != nil {
 		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err.Error()))
 	}
 	return &GenericControllerManager{Manager: newManager}
@@ -56,12 +58,4 @@ func (m *GenericControllerManager) RegisterControllers(ctx context.Context, cont
 		panic(fmt.Sprintf("Failed to add ready probe, %s", err.Error()))
 	}
 	return m
-}
-
-func podSchedulingIndex(object client.Object) []string {
-	pod, ok := object.(*v1.Pod)
-	if !ok {
-		return nil
-	}
-	return []string{pod.Spec.NodeName}
 }

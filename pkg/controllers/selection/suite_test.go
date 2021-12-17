@@ -16,8 +16,10 @@ package selection_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
@@ -25,6 +27,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
@@ -62,7 +65,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	provisioner = &v1alpha5.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
 	provisioner.SetDefaults(ctx)
@@ -70,6 +73,114 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
+})
+
+var _ = Describe("Volume Topology", func() {
+})
+
+var _ = Describe("Preferential Fallback", func() {
+	Context("Required", func() {
+		It("should not relax the final term", func() {
+			provisioner.Spec.Requirements = v1alpha5.Requirements{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"default-instance-type"}},
+			}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}}, // Should not be relaxed
+				}},
+			}}}}
+			// Don't relax
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+
+			// Don't relax
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should relax multiple terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+				}},
+				{MatchExpressions: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}, // OR operator, never get to this one
+				}},
+			}}}}
+			// Remove first term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1"))
+		})
+	})
+	Context("Preferred", func() {
+		It("should relax all terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+			}}}
+			// Remove first term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should relax to use lighter weights", func() {
+			provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 100, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-3"}},
+					}},
+				},
+				{
+					Weight: 50, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{ // OR operator, never get to this one
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+					}},
+				},
+			}}}
+			// Remove heaviest term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
+		})
+	})
 })
 
 var _ = Describe("Multiple Provisioners", func() {

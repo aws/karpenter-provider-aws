@@ -39,6 +39,7 @@ type PodOptions struct {
 	NodePreferences           []v1.NodeSelectorRequirement
 	TopologySpreadConstraints []v1.TopologySpreadConstraint
 	Tolerations               []v1.Toleration
+	PersistentVolumeClaims    []string
 	Conditions                []v1.PodCondition
 	Annotations               map[string]string
 	Labels                    map[string]string
@@ -73,6 +74,13 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	if options.Image == "" {
 		options.Image = "k8s.gcr.io/pause"
 	}
+	volumes := []v1.Volume{}
+	for _, pvc := range options.PersistentVolumeClaims {
+		volumes = append(volumes, v1.Volume{
+			Name:         strings.ToLower(randomdata.SillyName()),
+			VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: pvc}},
+		})
+	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              options.Name,
@@ -94,6 +102,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 				Resources: options.ResourceRequirements,
 			}},
 			NodeName: options.NodeName,
+			Volumes: volumes,
 		},
 		Status: v1.PodStatus{
 			Conditions: options.Conditions,

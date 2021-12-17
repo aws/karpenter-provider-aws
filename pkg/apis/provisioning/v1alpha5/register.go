@@ -17,61 +17,13 @@ package v1alpha5
 import (
 	"context"
 
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/apis"
 )
 
 var (
-	ArchitectureAmd64    = "amd64"
-	ArchitectureArm64    = "arm64"
-	OperatingSystemLinux = "linux"
-
-	ProvisionerNameLabelKey         = SchemeGroupVersion.Group + "/provisioner-name"
-	NotReadyTaintKey                = SchemeGroupVersion.Group + "/not-ready"
-	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
-	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
-	TerminationFinalizer            = SchemeGroupVersion.Group + "/termination"
-	DefaultProvisioner              = types.NamespacedName{Name: "default"}
-)
-
-var (
-	// RestrictedLabels are injected by Cloud Providers
-	RestrictedLabels = sets.NewString(
-		// Used internally by provisioning logic
-		EmptinessTimestampAnnotationKey,
-		v1.LabelHostname,
-	)
-
-	// AllowedLabelDomains are domains that may be restricted, but that is allowed because
-	// they are not used in a context where they may be passed as argument to kubelet.
-	// AllowedLabelDomains are evaluated before RestrictedLabelDomains
-	AllowedLabelDomains = sets.NewString(
-		"kops.k8s.io",
-	)
-
-	// These are either prohibited by the kubelet or reserved by karpenter
-	// They are evaluated after AllowedLabelDomains
-	KarpenterLabelDomain   = "karpenter.sh"
-	RestrictedLabelDomains = sets.NewString(
-		"kubernetes.io",
-		"k8s.io",
-		KarpenterLabelDomain,
-	)
-	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
-	// WellKnownLabels supported by karpenter
-	WellKnownLabels = sets.NewString(
-		v1.LabelTopologyZone,
-		v1.LabelInstanceTypeStable,
-		v1.LabelArchStable,
-		v1.LabelOSStable,
-		LabelCapacityType,
-		v1.LabelHostname, // Used internally for hostname topology spread
-	)
 	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
 	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
 )
@@ -88,6 +40,11 @@ var (
 		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 		return nil
 	})
+	ProvisionerNameLabelKey         = SchemeGroupVersion.Group + "/provisioner-name"
+	NotReadyTaintKey                = SchemeGroupVersion.Group + "/not-ready"
+	DoNotEvictPodAnnotationKey      = SchemeGroupVersion.Group + "/do-not-evict"
+	EmptinessTimestampAnnotationKey = SchemeGroupVersion.Group + "/emptiness-timestamp"
+	TerminationFinalizer            = SchemeGroupVersion.Group + "/termination"
 )
 
 const (
