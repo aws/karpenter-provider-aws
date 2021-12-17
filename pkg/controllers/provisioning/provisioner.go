@@ -57,7 +57,7 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		cloudProvider: cloudProvider,
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
-		scheduler:     scheduling.NewScheduler(kubeClient, cloudProvider),
+		scheduler:     scheduling.NewScheduler(kubeClient),
 		packer:        binpacking.NewPacker(kubeClient, cloudProvider),
 	}
 	go func() {

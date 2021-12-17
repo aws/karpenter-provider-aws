@@ -38,6 +38,8 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 )
 
+const controllerName = "provisioning"
+
 // Controller for the resource
 type Controller struct {
 	ctx           context.Context
@@ -56,14 +58,15 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
 		cloudProvider: cloudProvider,
-		scheduler:     scheduling.NewScheduler(kubeClient, cloudProvider),
+		scheduler:     scheduling.NewScheduler(kubeClient),
 	}
 }
 
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisioning").With("provisioner", req.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
 	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
+	ctx = injection.WithControllerName(ctx, controllerName)
 
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
@@ -162,7 +165,7 @@ func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1al
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("provisioning").
+		Named(controllerName).
 		For(&v1alpha5.Provisioner{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)

@@ -166,3 +166,8 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err.Error())
 	}
 }
+
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "aws"
+}

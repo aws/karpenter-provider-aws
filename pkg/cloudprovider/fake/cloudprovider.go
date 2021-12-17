@@ -125,3 +125,8 @@ func (c *CloudProvider) Default(context.Context, *v1alpha5.Constraints) {
 func (c *CloudProvider) Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError {
 	return nil
 }
+
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "fake"
+}
