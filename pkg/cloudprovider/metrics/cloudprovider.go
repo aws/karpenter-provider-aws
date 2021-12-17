@@ -59,11 +59,11 @@ type decorator struct {
 	cloudprovider.CloudProvider
 }
 
-// PublishLatency returns a new `CloudProvider` instance that will delegate all method
+// Decorate returns a new `CloudProvider` instance that will delegate all method
 // calls to the argument, `cloudProvider`, and publish aggregated latency metrics. The
 // value used for the metric label, "component", is taken from the `Context` object
 // passed to the methods of `CloudProvider`.
-func PublishLatency(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProvider {
+func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProvider {
 	switch c := cloudProvider.(type) {
 	case *decorator:
 		return c

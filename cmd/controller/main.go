@@ -20,7 +20,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	cpmetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
+	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/counter"
@@ -76,7 +76,7 @@ func main() {
 
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
-	cloudProvider = cpmetrics.PublishLatency(cloudProvider)
+	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 	manager := controllers.NewManagerOrDie(ctx, config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
