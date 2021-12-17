@@ -66,7 +66,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
 	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
-	ctx = injection.WithComponentName(ctx, controllerName)
+	ctx = injection.WithControllerName(ctx, controllerName)
 
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {

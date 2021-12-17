@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	metricLabelComponent = "component"
-	metricLabelMethod    = "method"
-	metricLabelProvider  = "provider"
+	metricLabelController = "controller"
+	metricLabelMethod     = "method"
+	metricLabelProvider   = "provider"
 )
 
 var methodDurationHistogramVec = prometheus.NewHistogramVec(
@@ -41,7 +41,7 @@ var methodDurationHistogramVec = prometheus.NewHistogramVec(
 		Help:      "Duration of cloud provider method calls.",
 	},
 	[]string{
-		metricLabelComponent,
+		metricLabelController,
 		metricLabelMethod,
 		metricLabelProvider,
 	},
@@ -57,7 +57,7 @@ type decorator struct {
 
 // Decorate returns a new `CloudProvider` instance that will delegate all method
 // calls to the argument, `cloudProvider`, and publish aggregated latency metrics. The
-// value used for the metric label, "component", is taken from the `Context` object
+// value used for the metric label, "controller", is taken from the `Context` object
 // passed to the methods of `CloudProvider`.
 //
 // Do not decorate a `CloudProvider` multiple times or published metrics will contain
@@ -69,7 +69,7 @@ func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProv
 func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
 	out := make(chan error)
 	go func(in <-chan error) {
-		defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Create", d.Name()))()
+		defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Create", d.Name()))()
 		select {
 		case err := <-in:
 			out <- err
@@ -81,27 +81,27 @@ func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraint
 }
 
 func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
-	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Delete", d.Name()))()
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Delete", d.Name()))()
 	return d.CloudProvider.Delete(ctx, node)
 }
 
 func (d *decorator) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
-	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "GetInstanceTypes", d.Name()))()
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "GetInstanceTypes", d.Name()))()
 	return d.CloudProvider.GetInstanceTypes(ctx, constraints)
 }
 
 func (d *decorator) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
-	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Default", d.Name()))()
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Default", d.Name()))()
 	d.CloudProvider.Default(ctx, constraints)
 }
 
 func (d *decorator) Validate(ctx context.Context, constraints *v1alpha5.Constraints) *apis.FieldError {
-	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Validate", d.Name()))()
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Validate", d.Name()))()
 	return d.CloudProvider.Validate(ctx, constraints)
 }
 
-func getComponentName(ctx context.Context) string {
-	name := injection.GetComponentName(ctx)
+func getControllerName(ctx context.Context) string {
+	name := injection.GetControllerName(ctx)
 	if name == "" {
 		return "unknown"
 	}

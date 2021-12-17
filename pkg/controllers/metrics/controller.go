@@ -49,7 +49,7 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, zap.NewNop().Sugar())
-	ctx = injection.WithComponentName(ctx, controllerName)
+	ctx = injection.WithControllerName(ctx, controllerName)
 
 	// Does the provisioner exist?
 	provisioner := &v1alpha5.Provisioner{}
