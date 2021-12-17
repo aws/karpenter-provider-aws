@@ -83,8 +83,6 @@ type Packing struct {
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Packing, error) {
-	ctx = injection.WithComponentName(ctx, "packer")
-
 	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Get instance type options

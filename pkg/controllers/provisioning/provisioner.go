@@ -100,8 +100,6 @@ func (p *Provisioner) Add(ctx context.Context, pod *v1.Pod) {
 }
 
 func (p *Provisioner) provision(ctx context.Context) (err error) {
-	ctx = injection.WithComponentName(ctx, "provisioner")
-
 	// Wait for a batch of pods, release when done
 	pods := p.batch(ctx)
 	defer func() {
