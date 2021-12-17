@@ -16,7 +16,6 @@ package metrics
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -25,7 +24,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
-	"knative.dev/pkg/logging"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -70,66 +68,42 @@ func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProv
 
 func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
 	out := make(chan error)
-	go func(startTime time.Time, in <-chan error) {
+	go func(in <-chan error) {
+		defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Create", d.Name()))()
 		select {
 		case err := <-in:
-			d.observe(ctx, "Create", time.Since(startTime))
 			out <- err
 		case <-ctx.Done():
 		}
 		close(out)
-	}(time.Now(), d.CloudProvider.Create(ctx, constraints, instanceTypes, quantity, callback))
+	}(d.CloudProvider.Create(ctx, constraints, instanceTypes, quantity, callback))
 	return out
 }
 
 func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
-	startTime := time.Now()
-	err := d.CloudProvider.Delete(ctx, node)
-	d.observe(ctx, "Delete", time.Since(startTime))
-	return err
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Delete", d.Name()))()
+	return d.CloudProvider.Delete(ctx, node)
 }
 
 func (d *decorator) GetInstanceTypes(ctx context.Context, constraints *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
-	startTime := time.Now()
-	instanceTypes, err := d.CloudProvider.GetInstanceTypes(ctx, constraints)
-	d.observe(ctx, "GetInstanceTypes", time.Since(startTime))
-	return instanceTypes, err
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "GetInstanceTypes", d.Name()))()
+	return d.CloudProvider.GetInstanceTypes(ctx, constraints)
 }
 
 func (d *decorator) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
-	startTime := time.Now()
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Default", d.Name()))()
 	d.CloudProvider.Default(ctx, constraints)
-	d.observe(ctx, "Default", time.Since(startTime))
 }
 
 func (d *decorator) Validate(ctx context.Context, constraints *v1alpha5.Constraints) *apis.FieldError {
-	startTime := time.Now()
-	fieldErr := d.CloudProvider.Validate(ctx, constraints)
-	d.observe(ctx, "Validate", time.Since(startTime))
-	return fieldErr
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getComponentName(ctx), "Validate", d.Name()))()
+	return d.CloudProvider.Validate(ctx, constraints)
 }
 
-func (d *decorator) observe(ctx context.Context, methodName string, duration time.Duration) {
-	durationSeconds := duration.Seconds()
-
-	labels := prometheus.Labels{
-		metricLabelComponent: "unknown",
-		metricLabelMethod:    methodName,
-		metricLabelProvider:  d.Name(),
+func getComponentName(ctx context.Context) string {
+	name := injection.GetComponentName(ctx)
+	if name == "" {
+		return "unknown"
 	}
-	if componentName := injection.GetComponentName(ctx); componentName != "" {
-		labels[metricLabelComponent] = componentName
-	}
-	observer, promErr := methodDurationHistogramVec.GetMetricWith(labels)
-	if promErr != nil {
-		logging.FromContext(ctx).Warnf(
-			"Failed to record CloudProvider method duration metric [labels=%s, duration=%f]: error=%q",
-			labels,
-			durationSeconds,
-			promErr.Error(),
-		)
-		return
-	}
-
-	observer.Observe(durationSeconds)
+	return name
 }
