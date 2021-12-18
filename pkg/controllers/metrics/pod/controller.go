@@ -16,7 +16,6 @@ package pod
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -45,7 +44,6 @@ const (
 	podHostCapacityType = "capacity_type"
 	podHostInstanceType = "instance_type"
 	podPhase            = "phase"
-	podLabels           = "pod_labels"
 )
 
 var (
@@ -56,7 +54,7 @@ var (
 			Name:      "state",
 			Help:      "Pod state.",
 		},
-		getLabelNames(),
+		labelNames(),
 	)
 )
 
@@ -70,7 +68,7 @@ func init() {
 	crmetrics.Registry.MustRegister(podGaugeVec)
 }
 
-func getLabelNames() []string {
+func labelNames() []string {
 	return []string{
 		podName,
 		podNameSpace,
@@ -82,7 +80,6 @@ func getLabelNames() []string {
 		podHostCapacityType,
 		podHostInstanceType,
 		podPhase,
-		podLabels,
 	}
 
 }
@@ -98,7 +95,6 @@ func NewController(kubeClient client.Client) *Controller {
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("podmetrics").With("pod", req.Name))
-
 	// Retrieve pod from reconcile request
 	pod := &v1.Pod{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
@@ -107,7 +103,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
 				podGaugeVec.Delete(labels)
 			} else {
-				logging.FromContext(ctx).Debugf("Failed to delete gauge: failed to locate labels")
+				logging.FromContext(ctx).Errorf("Failed to delete gauge, failed to locate labels")
 			}
 			return reconcile.Result{}, nil
 		}
@@ -117,22 +113,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
 		podGaugeVec.Delete(labels)
 	}
-	newlabels, err := c.generateLabels(ctx, pod)
-	if err != nil {
-		logging.FromContext(ctx).Debugf("Failed to generate new labels: %s", err.Error())
+	if err := c.updateGauges(ctx, pod); err != nil {
+		logging.FromContext(ctx).Errorf("Failed to record metrics, %s", err.Error())
 		return reconcile.Result{}, err
 	}
+	return reconcile.Result{}, nil
+}
 
+func (c *Controller) updateGauges(ctx context.Context, pod *v1.Pod) error {
+	newlabels := c.generateLabels(ctx, pod)
 	gauge, err := podGaugeVec.GetMetricWith(newlabels)
 	if err != nil {
-		logging.FromContext(ctx).Debugf("Failed to generate new gauge: %s", err.Error())
-		return reconcile.Result{}, err
+		return fmt.Errorf("get gauge, %w", err)
 	}
-
 	gauge.Set(float64(1))
-	c.LabelsMap[req.NamespacedName] = newlabels
-
-	return reconcile.Result{}, nil
+	c.LabelsMap[types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}] = newlabels
+	return nil
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
@@ -145,7 +141,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 }
 
 // generateLabels creates the labels using the current state of the pod
-func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) (prometheus.Labels, error) {
+func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	metricLabels[podName] = pod.GetName()
 	metricLabels[podNameSpace] = pod.GetNamespace()
@@ -162,27 +158,29 @@ func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) (prometheu
 	metricLabels[podPhase] = string(pod.Status.Phase)
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, node); err != nil {
-		metricLabels[podHostZone] = ""
-		metricLabels[podHostArchitecture] = ""
-		metricLabels[podHostCapacityType] = ""
-		metricLabels[podHostInstanceType] = ""
-		if name, ok := pod.Spec.NodeSelector[v1alpha5.ProvisionerNameLabelKey]; ok {
-			metricLabels[podProvisioner] = name
+		metricLabels[podHostZone] = "N/A"
+		metricLabels[podHostArchitecture] = "N/A"
+		metricLabels[podHostCapacityType] = "N/A"
+		metricLabels[podHostInstanceType] = "N/A"
+		if provisionerName, ok := pod.Spec.NodeSelector[v1alpha5.ProvisionerNameLabelKey]; ok {
+			metricLabels[podProvisioner] = provisionerName
 		} else {
-			metricLabels[podProvisioner] = ""
+			metricLabels[podProvisioner] = "N/A"
 		}
 	} else {
 		metricLabels[podHostZone] = node.Labels[v1.LabelTopologyZone]
 		metricLabels[podHostArchitecture] = node.Labels[v1.LabelArchStable]
-		metricLabels[podHostCapacityType] = node.Labels[v1alpha5.LabelCapacityType]
+		if capacityType, ok := node.Labels[v1alpha5.LabelCapacityType]; !ok {
+			metricLabels[podHostCapacityType] = "N/A"
+		} else {
+			metricLabels[podHostCapacityType] = capacityType
+		}
 		metricLabels[podHostInstanceType] = node.Labels[v1.LabelInstanceTypeStable]
-		metricLabels[podProvisioner] = node.Labels[v1alpha5.ProvisionerNameLabelKey]
+		if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; !ok {
+			metricLabels[podProvisioner] = "N/A"
+		} else {
+			metricLabels[podProvisioner] = provisionerName
+		}
 	}
-	// Add pod labels
-	labels, err := json.Marshal(pod.GetLabels())
-	if err != nil {
-		return nil, fmt.Errorf("marshal pod labels: %w", err)
-	}
-	metricLabels[podLabels] = string(labels)
-	return metricLabels, nil
+	return metricLabels
 }
