@@ -2,5 +2,7 @@
 coverage.out
 coverage.html
 *.test
+karpenter-plus-ones-*.csv
+karpenter-labels-*.csv
 website/node_modules
 website/resources
