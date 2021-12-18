@@ -92,4 +92,8 @@ website: ## Generate Docs Website
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
+issues: ## Run GitHub issue analysis scripts
+	./hack/feature_request_reactions.py
+	./hack/feature_request_reactions.py
+
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
