@@ -94,6 +94,6 @@ toolchain: ## Install developer toolchain
 
 issues: ## Run GitHub issue analysis scripts
 	./hack/feature_request_reactions.py
-	./hack/feature_request_reactions.py
+	./hack/label_issue_count.py
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
