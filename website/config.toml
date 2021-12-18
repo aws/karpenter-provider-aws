@@ -66,7 +66,7 @@ anchor = "smart"
 ## Site Params
 [params]
 
-latest_release_version = "0.5.2"
+latest_release_version = "0.5.3"
 
 copyright = "Amazon.com, Inc. or its affiliates."
 # Repository configuration (URLs for in-page links to opening issues and suggesting changes)
@@ -137,8 +137,12 @@ pre = "<i class='fab fa-github'></i>"
 
 # Add your release versions here
 [[params.versions]]
-  version = "v0.5.2"
+  version = "v0.5.3"
   url = "/docs/"
+
+[[params.versions]]
+  version = "v0.5.2"
+  url = "/v0.5.2-docs/"
 
 [[params.versions]]
   version = "v0.5.0"
