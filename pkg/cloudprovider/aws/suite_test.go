@@ -32,7 +32,6 @@ import (
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/parallel"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 
@@ -94,7 +93,6 @@ var _ = BeforeSuite(func() {
 					cache:                 launchTemplateCache,
 				},
 			},
-			creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		provisioners = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)

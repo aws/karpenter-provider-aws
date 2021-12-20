@@ -28,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/parallel"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"go.uber.org/multierr"
@@ -59,7 +58,6 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
-	creationQueue        *parallel.WorkQueue
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -87,7 +85,6 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				NewSecurityGroupProvider(ec2api),
 			),
 		},
-		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
