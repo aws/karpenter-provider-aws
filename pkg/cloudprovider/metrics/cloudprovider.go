@@ -66,19 +66,9 @@ func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProv
 	return &decorator{cloudProvider}
 }
 
-func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
-	recordLatency := metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Create", d.Name()))
-	out := make(chan error)
-	go func(in <-chan error) {
-		defer recordLatency()
-		select {
-		case err := <-in:
-			out <- err
-		case <-ctx.Done():
-		}
-		close(out)
-	}(d.CloudProvider.Create(ctx, constraints, instanceTypes, quantity, callback))
-	return out
+func (d *decorator) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
+	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(getControllerName(ctx), "Create", d.Name()))()
+	return d.CloudProvider.Create(ctx, constraints, instanceTypes, quantity, callback)
 }
 
 func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
