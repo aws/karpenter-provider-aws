@@ -93,7 +93,7 @@ toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
 issues: ## Run GitHub issue analysis scripts
-	./hack/feature_request_reactions.py
-	./hack/label_issue_count.py
+	./hack/feature_request_reactions.py > "karpenter-feature-requests-$(date +"%Y-%m-%d").csv"
+	./hack/label_issue_count.py > "karpenter-labels-$(date +"%Y-%m-%d").csv"
 
 .PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
