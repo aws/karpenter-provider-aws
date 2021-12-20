@@ -38,7 +38,7 @@ import (
 
 const (
 	resourceType     = "resource_type"
-	nodeName         = "name"
+	nodeName         = "node_name"
 	nodeProvisioner  = "provisioner"
 	nodeZone         = "zone"
 	nodeArchitecture = "arch"
@@ -290,7 +290,11 @@ func (c *Controller) insertGaugeValues(resourceList v1.ResourceList, node *v1.No
 		if err != nil {
 			return fmt.Errorf("generate new gauge: %w", err)
 		}
-		gauge.Set(float64(quantity.Value()))
+		if resourceName == v1.ResourceCPU {
+			gauge.Set(float64(quantity.MilliValue()) / float64(1000))
+		} else {
+			gauge.Set(float64(quantity.Value()))
+		}
 	}
 	return nil
 }
