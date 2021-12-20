@@ -2,9 +2,9 @@
 
 import csv
 import os
-from datetime import date
+import sys
 from operator import itemgetter
-from typing import Dict, Set, Union
+from typing import Union
 
 # This script requires the python GitHub client:
 # pip install PyGithub
@@ -13,11 +13,9 @@ from github.Repository import Repository
 
 print('Getting popular feature requests...')
 
-# create a Github instance using an access token
+# To create a GitHub token, see below (the token doesn't need to include any scopes):
+# https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line
 github = Github(os.environ.get('GH_TOKEN'))
-# to create a token
-# see https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line
-# note, the token doesn't need to include any scopes
 
 issue_reaction_count: list[dict[str, Union[int, str]]] = []
 PLUS_ONE_REACTION_STRINGS = ['+1', 'heart', 'hooray', 'rocket', 'eyes']
@@ -49,8 +47,9 @@ for issue in sorted(issue_reaction_count, key=itemgetter('reactions'), reverse=T
     issue['reactions']
   ])
 
-with open(os.path.expanduser('karpenter-plus-ones-%s.csv' % (date.today())), 'w') as file:
-  writer = csv.writer(file)
-  writer.writerows(issue_row_list)
+# Write CSV data to STDOUT, redirect to file to persist, e.g.
+# ./hack/feature_request_reactions.py > "karpenter-feature-requests-$(date +"%Y-%m-%d").csv"
+writer = csv.writer(sys.stdout)
+writer.writerows(issue_row_list)
 
 print('Done!')
