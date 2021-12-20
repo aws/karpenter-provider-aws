@@ -141,13 +141,19 @@ func (t *Topology) countMatchingPods(ctx context.Context, topologyGroup *Topolog
 
 func TopologyListOptions(namespace string, constraint *v1.TopologySpreadConstraint) *client.ListOptions {
 	selector := labels.Everything()
-	for key, value := range constraint.LabelSelector.MatchLabels {
-		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
-		selector = selector.Add(*requirement)
-	}
-	for _, expression := range constraint.LabelSelector.MatchExpressions {
-		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
-		selector = selector.Add(*requirement)
+	if constraint != nil && constraint.LabelSelector != nil {
+		if len(constraint.LabelSelector.MatchLabels) > 0 {
+			for key, value := range constraint.LabelSelector.MatchLabels {
+				requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
+				selector = selector.Add(*requirement)
+			}
+		}
+		if len(constraint.LabelSelector.MatchExpressions) > 0 {
+			for _, expression := range constraint.LabelSelector.MatchExpressions {
+				requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+				selector = selector.Add(*requirement)
+			}
+		}
 	}
 	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 }
