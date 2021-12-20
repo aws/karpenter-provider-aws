@@ -44,6 +44,7 @@ Follow the setup recommendations of your cloud provider.
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks
+- [How To Auto-Scale Kubernetes Clusters With Karpenter](https://youtu.be/C-2v7HT-uSA)
 - [Karpenter vs Kubernetes Cluster Autoscaler](https://youtu.be/3QsVRHVdOnM)
 - [Karpenter @ Container Day, October 2021](https://youtu.be/qxWJRUF6JJc)
 - [Karpenter @ Container Day, May 2021](https://youtu.be/MZ-4HzOC_ac?t=7137)
