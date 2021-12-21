@@ -180,7 +180,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			}),
 		).
 		Watches(
-			// Reconcile node when a pod assigned to it changes.
+			// Reconcile nodes where pods have changed
 			&source.Kind{Type: &v1.Pod{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				if name := o.(*v1.Pod).Spec.NodeName; name != "" {
