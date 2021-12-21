@@ -255,9 +255,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 			*caBundle))
 	}
 
-	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
-	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
-	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
+	kubeletExtraArgs := p.getKubeletExtraArgs(constraints, additionalLabels)
 
 	if len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(` \
@@ -267,7 +265,31 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		userData.WriteString(fmt.Sprintf(` \
     --dns-cluster-ip '%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
 	}
+	if constraints.KubeletConfiguration.MaxPods < 0 {
+		userData.WriteString(` \
+    --use-max-pods=false`)
+	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+}
+
+func (p *LaunchTemplateProvider) getKubeletExtraArgs(constraints *v1alpha1.Constraints, additionalLabels map[string]string) string {
+	var kubeletArgs bytes.Buffer
+
+	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
+	if len(nodeLabelArgs) > 0 {
+		kubeletArgs.WriteString(fmt.Sprintf(" %s", nodeLabelArgs))
+	}
+
+	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
+	if len(nodeTaintsArgs) > 0 {
+		kubeletArgs.WriteString(fmt.Sprintf(" %s", nodeTaintsArgs))
+	}
+
+	if constraints.KubeletConfiguration.MaxPods > 0 {
+		kubeletArgs.WriteString(fmt.Sprintf(" --max-pods=%d", constraints.KubeletConfiguration.MaxPods))
+	}
+
+	return strings.Trim(kubeletArgs.String(), " ")
 }
 
 func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) string {
@@ -287,7 +309,7 @@ func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) 
 	return nodeLabelArgs
 }
 
-func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) bytes.Buffer {
+func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) string {
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
@@ -303,7 +325,7 @@ func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constrai
 			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	return nodeTaintsArgs
+	return nodeTaintsArgs.String()
 }
 
 func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {

@@ -146,7 +146,15 @@ additional customization and use cases. Adjust these only if you know you need t
 spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
+    maxPods: 100
 ```
+
+### spec.kubeletConfiguration.maxPods
+
+According to the Kubelet spec, this value must be a non-negative number. However, since some tools use other flags to 
+indicate when max pods should not be used (such as the AL2 EKS-optimized AMI which uses `--use-max-pods=false`), a 
+negative value can be specified. The Karpenter provider code will catch this case and handle it appropriately, ensuring 
+a negative value isn't passed to the underlying kubelet configuration.
 
 
 ## spec.provider
