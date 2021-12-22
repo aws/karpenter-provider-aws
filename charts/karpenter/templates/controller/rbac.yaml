@@ -46,6 +46,9 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["create", "get", "patch", "update", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -55,7 +58,10 @@ metadata:
     {{- include "karpenter.labels" . | indent 4 }}
 rules:
 - apiGroups: ["karpenter.sh"]
-  resources: ["provisioners", "provisioners/status"]
+  resources: ["provisioners"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["karpenter.sh"]
+  resources: ["provisioners/status"]
   verbs: ["create", "delete", "patch", "get", "list", "watch"]
 - apiGroups: [""]
   resources: ["persistentvolumes", "persistentvolumeclaims"]
@@ -63,15 +69,12 @@ rules:
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
   verbs: ["get", "list", "watch"]
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["leases"]
-  verbs: ["create", "get", "patch", "update", "watch"]
 - apiGroups: [""]
   resources: ["nodes", "pods"]
   verbs: ["get", "list", "watch", "patch", "delete"]
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["get", "list", "watch", "update"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["create"]
