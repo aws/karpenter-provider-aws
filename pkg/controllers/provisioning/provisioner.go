@@ -199,7 +199,7 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 	for _, ps := range packing.Pods {
 		pods <- ps
 	}
-	return <-p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
+	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
 		node.Labels = functional.UnionStringMaps(node.Labels, constraints.Labels)
 		node.Spec.Taints = append(node.Spec.Taints, constraints.Taints...)
 		return p.bind(ctx, node, <-pods)

@@ -30,9 +30,8 @@ type CloudProvider interface {
 	// Create a set of nodes for each of the given constraints. This API uses a
 	// callback pattern to enable cloudproviders to batch capacity creation
 	// requests. The callback must be called with a theoretical node object that
-	// is fulfilled by the cloud providers capacity creation request. This API
-	// is called in parallel and then waits for all channels to return nil or error.
-	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) <-chan error
+	// is fulfilled by the cloud providers capacity creation request.
+	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) error
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
