@@ -31,7 +31,7 @@ Not yet. Karpenter plans to respect `pod.spec.nodeAffinity` by v0.4.0.
 ### Does Karpenter support custom resource like accelerators or HPC?
 Yes. Support for specific custom resources may be implemented by cloud providers. The AWS Cloud Provider supports `nvidia.com/gpu`, `amd.com/gpu`, `aws.amazon.com/neuron`.
 ### Does Karpenter support daemonsets?
-Yes. Karpenter factors in daemonset overhead into all provisioning calculations. Daemonsets are only included in calculations if their scheduling constraints are applicable to the provisoned node.
+Yes. Karpenter factors in daemonset overhead into all provisioning calculations. Daemonsets are only included in calculations if their scheduling constraints are applicable to the provisioned node.
 ### Does Karpenter support multiple Provisioners?
 Each Provisioner is capable of defining heterogenous nodes across multiple availability zones, instance types, and capacity types. This flexibility reduces the need for a large number of Provisioners. However, users may find multiple Provisioners to be useful for more advanced use cases, such as defining multiple sets of provisioning defaults in a single cluster.
 ### If multiple Provisioners are defined, which will my pod use?
