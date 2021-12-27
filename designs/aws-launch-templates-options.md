@@ -124,7 +124,7 @@ we should use `node.k8s.aws/` as the prefix for any node labels we
 choose to use.
 
 In keeping with another Kubernetes convention (such as
-`kubernetes.io/service-name`), we should use `lower-case-with-hypens`,
+`kubernetes.io/service-name`), we should use `lower-case-with-hyphens`,
 not `camelCase` for words following the `/`.
 
 Lastly, using launch template names, rather than ids, will be more
