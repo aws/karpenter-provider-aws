@@ -37,7 +37,7 @@ In the above example - `20%` indicates that if at any point in time, more than 2
 The good bit about this approach is that we don't constrain how many total worker nodes can be spun up by Karpenter, while also making sure that if we keep launching worker nodes that aren't healthy, we stop the scaling and save costs.
 
 The two main problems with this approach though are -
-1. This limit while meant to just constrain the number of unhealthy worker nodes in a cluster, will also inihibit the rate at which Karpenter can respond to pods that aren't schedulable. This somewhat goes against the goal of minimizing launch times of workers.
+1. This limit while meant to just constrain the number of unhealthy worker nodes in a cluster, will also inhibit the rate at which Karpenter can respond to pods that aren't schedulable. This somewhat goes against the goal of minimizing launch times of workers.
 2. While this helps ensure that costs don't increase due to runaway scaling, it won't help those who want a stricter cap on the amount of resources that's being provisioned even when nodes are otherwise healthy.
 
 ### **Absolute limit**
