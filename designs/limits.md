@@ -70,4 +70,4 @@ The list of supported resource types is -
 
 Limits will be defined at the per-provisioner level. We'll rely on the `karpenter.sh/provisioner-name` node label when calculating resource usage by a specific provisioner. This is useful when multiple teams share a single cluster and use separate provisioners since each team's resource consumption will be limited separately.
 
-A global cluster-wide limit for all resources could be configured too. However, since we only expect a finite list of provisioners in the cluster, inferring the global limit from a sum of provisioner specific limits shouldn't be difficult for a cluster adminsistrator to do either. I think this is another knob we should consider adding only if we find other compelling use cases.
+A global cluster-wide limit for all resources could be configured too. However, since we only expect a finite list of provisioners in the cluster, inferring the global limit from a sum of provisioner specific limits shouldn't be difficult for a cluster administrator to do either. I think this is another knob we should consider adding only if we find other compelling use cases.
