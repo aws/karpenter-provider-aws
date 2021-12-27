@@ -109,7 +109,7 @@ So, for example, to include a certain instance type, you could use the Kubernete
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is
 designed to add nodes when requests come in to run pods that cannot be met by current capacity.
-Cluster autoscaler is part of the Kubenetes project, with implementations by most major Kubernetes cloud providers.
+Cluster autoscaler is part of the Kubernetes project, with implementations by most major Kubernetes cloud providers.
 By taking a fresh look at provisioning, Karpenter offers the following improvements:
 
 * **Designed to handle the full flexibility of the cloud**:
