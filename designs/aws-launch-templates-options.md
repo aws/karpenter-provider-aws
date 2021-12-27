@@ -28,7 +28,7 @@ spec:
     -
   ttlSeconds:
   # Labels will be applied to every node launched by the Provisioner unless
-  # overriden by pod node selectors. Well known labels control provisioning
+  # overridden by pod node selectors. Well known labels control provisioning
   # behavior. Additional labels may be supported by your cloudprovider.
   labels:
     # These are AWS-specific
