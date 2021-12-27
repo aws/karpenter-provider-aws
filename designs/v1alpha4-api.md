@@ -5,7 +5,7 @@ These changes recommend:
 1. Cloud Provider specific extensions under `spec.provider`.
 2. Removal of `spec.cluster`.
 3. Pluralization of `spec.architecture` and `spec.operatingSystem`.
-4. Provisoning limits for maximum cpu, memory, etc, under `spec.limits`.
+4. Provisioning limits for maximum cpu, memory, etc, under `spec.limits`.
 
 ## Strongly Typed Vendor Specific Fields
 Cloud Providers are currently limited to using well known `spec.labels` for configuration of vendor specific parameters. For example:
