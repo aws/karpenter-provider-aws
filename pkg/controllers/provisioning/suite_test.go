@@ -84,7 +84,7 @@ var _ = Describe("Provisioning", func() {
 		ExpectProvisioningCleanedUp(ctx, env.Client, provisioningController)
 	})
 
-	Context("Reconcilation", func() {
+	Context("Reconciliation", func() {
 		It("should provision nodes", func() {
 			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod())
 			nodes := &v1.NodeList{}
