@@ -71,7 +71,7 @@ spec:
 
 ### Alternative: Duck Typing
 
-It's possible to follow [Knative's Duck Typing approach](https://www.youtube.com/watch?v=kldVg63Utuw) and build vendor specific CRDs that contain vendor neutral snippets (or ducks) that Karpenter can recognize. Cloud Providers would consume Karpenter generic controllers as libaries, which would behave against the generic API snippets. For example:
+It's possible to follow [Knative's Duck Typing approach](https://www.youtube.com/watch?v=kldVg63Utuw) and build vendor specific CRDs that contain vendor neutral snippets (or ducks) that Karpenter can recognize. Cloud Providers would consume Karpenter generic controllers as libraries, which would behave against the generic API snippets. For example:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1 # Vendor Specific
