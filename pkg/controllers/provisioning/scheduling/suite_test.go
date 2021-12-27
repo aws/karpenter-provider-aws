@@ -665,7 +665,7 @@ var _ = Describe("Taints", func() {
 		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
 	})
 	It("should generate taints for pod tolerations", func() {
-		Skip("until taint generation is reimplmented")
+		Skip("until taint generation is reimplemented")
 		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 			// Matching pods schedule together on a node with a matching taint
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
