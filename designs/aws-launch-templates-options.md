@@ -92,7 +92,7 @@ spec:
 ```
 
 In this case, the provisioner will only launch ARM-based instances,
-which will fail because the AMI is for the other CPU architeture. This
+which will fail because the AMI is for the other CPU architecture. This
 might not come up often enough, in practice, to be worth changing the
 design. But it is worth discussion.
 
