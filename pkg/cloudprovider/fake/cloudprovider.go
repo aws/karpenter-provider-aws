@@ -22,6 +22,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"go.uber.org/multierr"
 	"knative.dev/pkg/apis"
 
 	v1 "k8s.io/api/core/v1"
@@ -33,8 +34,8 @@ type CloudProvider struct {
 	InstanceTypes []cloudprovider.InstanceType
 }
 
-func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) <-chan error {
-	err := make(chan error)
+func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) error {
+	var err error
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
 		instance := instanceTypes[0]
@@ -49,32 +50,30 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 			}
 		}
 
-		go func() {
-			err <- bind(&v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
-					Labels: map[string]string{
-						v1.LabelTopologyZone:       zone,
-						v1.LabelInstanceTypeStable: instance.Name(),
-						v1alpha5.LabelCapacityType: capacityType,
-					},
+		err = multierr.Append(err, bind(&v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					v1.LabelTopologyZone:       zone,
+					v1.LabelInstanceTypeStable: instance.Name(),
+					v1alpha5.LabelCapacityType: capacityType,
 				},
-				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+			},
+			Spec: v1.NodeSpec{
+				ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+			},
+			Status: v1.NodeStatus{
+				NodeInfo: v1.NodeSystemInfo{
+					Architecture:    instance.Architecture(),
+					OperatingSystem: v1alpha5.OperatingSystemLinux,
 				},
-				Status: v1.NodeStatus{
-					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    instance.Architecture(),
-						OperatingSystem: v1alpha5.OperatingSystemLinux,
-					},
-					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *instance.Pods(),
-						v1.ResourceCPU:    *instance.CPU(),
-						v1.ResourceMemory: *instance.Memory(),
-					},
+				Allocatable: v1.ResourceList{
+					v1.ResourcePods:   *instance.Pods(),
+					v1.ResourceCPU:    *instance.CPU(),
+					v1.ResourceMemory: *instance.Memory(),
 				},
-			})
-		}()
+			},
+		}))
 	}
 	return err
 }
@@ -124,4 +123,9 @@ func (c *CloudProvider) Default(context.Context, *v1alpha5.Constraints) {
 
 func (c *CloudProvider) Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError {
 	return nil
+}
+
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "fake"
 }

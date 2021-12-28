@@ -28,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/parallel"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"go.uber.org/multierr"
@@ -59,7 +58,6 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
-	creationQueue        *parallel.WorkQueue
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -87,7 +85,6 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				NewSecurityGroupProvider(ec2api),
 			),
 		},
-		creationQueue: parallel.NewWorkQueue(CreationQPS, CreationBurst),
 	}
 }
 
@@ -108,13 +105,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) <-chan error {
-	return c.creationQueue.Add(func() error {
-		return c.create(ctx, constraints, instanceTypes, quantity, callback)
-	})
-}
-
-func (c *CloudProvider) create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
+func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
 		return err
@@ -165,4 +156,9 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 	if err := vendorConstraints.Serialize(constraints); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err.Error())
 	}
+}
+
+// Name returns the CloudProvider implementation name.
+func (c *CloudProvider) Name() string {
+	return "aws"
 }

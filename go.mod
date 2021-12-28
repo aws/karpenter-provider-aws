@@ -7,7 +7,7 @@ require (
 	github.com/avast/retry-go v2.7.0+incompatible
 	github.com/aws/amazon-vpc-resource-controller-k8s v1.1.0
 	github.com/aws/aws-sdk-go v1.42.22
-	github.com/deckarep/golang-set v1.7.1
+	github.com/deckarep/golang-set v1.8.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/imdario/mergo v0.3.12
 	github.com/mitchellh/hashstructure/v2 v2.0.2

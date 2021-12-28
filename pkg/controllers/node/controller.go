@@ -36,6 +36,8 @@ import (
 	"github.com/aws/karpenter/pkg/utils/result"
 )
 
+const controllerName = "node"
+
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
@@ -59,7 +61,7 @@ type Controller struct {
 
 // Reconcile executes a reallocation control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("node").With("node", req.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("node", req.Name))
 	// 1. Retrieve Node, ignore if not provisioned or terminating
 	stored := &v1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
@@ -118,7 +120,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("node").
+		Named(controllerName).
 		For(&v1.Node{}).
 		Watches(
 			// Reconcile all nodes related to a provisioner when it changes.

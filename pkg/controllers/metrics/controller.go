@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -48,6 +49,8 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, zap.NewNop().Sugar())
+	ctx = injection.WithControllerName(ctx, controllerName)
+
 	// Does the provisioner exist?
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {

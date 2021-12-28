@@ -17,7 +17,7 @@ controller:
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the Karpenter controller
-  image: "public.ecr.aws/karpenter/controller:v0.5.2@sha256:6b08af0fbeab6da8d9b97ebfb0750bc72a3ac4a97dd0337a1607048292425c48"
+  image: "public.ecr.aws/karpenter/controller:v0.5.3@sha256:ddd24d756cb324cf8f91f2274621646f83d6121ed6856312ca672a5f78c57174"
   # -- Cluster name
   clusterName: ""
   # -- Cluster endpoint
@@ -40,7 +40,7 @@ webhook:
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the webhook
-  image: "public.ecr.aws/karpenter/webhook:v0.5.2@sha256:508e6b9110d150dfc57834c6b9a6b4cc39109eaf63e00f9827fcd91fa22b3caa"
+  image: "public.ecr.aws/karpenter/webhook:v0.5.3@sha256:19a1e1f2c8ec6ece1b170584dd6251d2e00f1676503a65d1433f45f46e330ddf"
   # -- Set to true if using custom CNI on EKS
   hostNetwork: false
   port: 8443

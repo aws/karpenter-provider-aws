@@ -55,7 +55,10 @@ func init() {
 }
 
 func NewPacker(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Packer {
-	return &Packer{kubeClient: kubeClient, cloudProvider: cloudProvider}
+	return &Packer{
+		kubeClient:    kubeClient,
+		cloudProvider: cloudProvider,
+	}
 }
 
 // Packer packs pods and calculates efficient placement on the instances.
@@ -81,6 +84,7 @@ type Packing struct {
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
 func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Packing, error) {
 	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, constraints)
 	if err != nil {

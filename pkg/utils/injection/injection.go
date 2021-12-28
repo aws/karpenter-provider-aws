@@ -63,3 +63,19 @@ func GetConfig(ctx context.Context) *rest.Config {
 	}
 	return retval.(*rest.Config)
 }
+
+type controllerNameKeyType struct{}
+
+var controllerNameKey = controllerNameKeyType{}
+
+func WithControllerName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, controllerNameKey, name)
+}
+
+func GetControllerName(ctx context.Context) string {
+	name := ctx.Value(controllerNameKey)
+	if name == nil {
+		return ""
+	}
+	return name.(string)
+}
