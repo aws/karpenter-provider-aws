@@ -104,7 +104,12 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 }
 
 func isProvisionable(p *v1.Pod) bool {
-	return p.Spec.NodeName == "" && pod.FailedToSchedule(p) && !pod.IsOwnedByDaemonSet(p) && !pod.IsOwnedByNode(p)
+	return !pod.IsScheduled(p) &&
+		!pod.IsPreempting(p) &&
+		pod.FailedToSchedule(p) &&
+		!pod.IsOwnedByDaemonSet(p) &&
+		!pod.IsOwnedByNode(p)
+
 }
 
 func validate(p *v1.Pod) error {
