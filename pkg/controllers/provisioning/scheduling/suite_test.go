@@ -280,7 +280,7 @@ var _ = Describe("Combined Constraints", func() {
 						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"default-instance-type", "arm-instance-type"}},
 					},
 					NodePreferences: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"unnknown"}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"unknown"}},
 						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpNotIn, Values: []string{"unknown"}},
 					},
 				},
@@ -665,7 +665,7 @@ var _ = Describe("Taints", func() {
 		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
 	})
 	It("should generate taints for pod tolerations", func() {
-		Skip("until taint generation is reimplmented")
+		Skip("until taint generation is reimplemented")
 		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 			// Matching pods schedule together on a node with a matching taint
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{

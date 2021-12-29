@@ -58,7 +58,7 @@ var _ = Describe("Functional", func() {
 			Expect(UnionStringMaps(original)).To(Equal(original))
 		})
 
-		Specify("2nd arg overrrides 1st", func() {
+		Specify("2nd arg overrides 1st", func() {
 			Expect(UnionStringMaps(original, overwriter)).To(Equal(overwriter))
 		})
 

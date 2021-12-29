@@ -18,7 +18,7 @@ Launch templates further specify many different parameters related to networking
 
 Launch Templates and AMIs are unique to AWS regions, similar to EKS clusters. IAM resources are global.
 
-**Karpenter only implementes a subset of launch template fields, and some fields should not be set.**
+**Karpenter only implements a subset of launch template fields, and some fields should not be set.**
 
 This guide describes requirements for using launch templates with Karpenter, and later an example procedure.
 

@@ -34,7 +34,7 @@ type DaemonSetOptions struct {
 	PodOptions PodOptions
 }
 
-// DaemonSet creates a test pod with defaults that can be overriden by DaemonSetOptions.
+// DaemonSet creates a test pod with defaults that can be overridden by DaemonSetOptions.
 // Overrides are applied in order, with a last write wins semantic.
 func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 	options := DaemonSetOptions{}

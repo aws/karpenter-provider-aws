@@ -82,7 +82,7 @@ Karpenter will provision EC2 instances in your account.
 ### Tag Subnets
 
 Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
-Retreive the subnet IDs and tag them with the cluster name.
+Retrieve the subnet IDs and tag them with the cluster name.
 
 ```bash
 SUBNET_IDS=$(aws cloudformation describe-stacks \

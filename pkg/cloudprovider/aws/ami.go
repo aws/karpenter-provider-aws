@@ -45,7 +45,7 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 	}
 }
 
-// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, acclerator, etc
+// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
 func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {

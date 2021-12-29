@@ -28,7 +28,7 @@ spec:
     -
   ttlSeconds:
   # Labels will be applied to every node launched by the Provisioner unless
-  # overriden by pod node selectors. Well known labels control provisioning
+  # overridden by pod node selectors. Well known labels control provisioning
   # behavior. Additional labels may be supported by your cloudprovider.
   labels:
     # These are AWS-specific
@@ -92,7 +92,7 @@ spec:
 ```
 
 In this case, the provisioner will only launch ARM-based instances,
-which will fail because the AMI is for the other CPU architeture. This
+which will fail because the AMI is for the other CPU architecture. This
 might not come up often enough, in practice, to be worth changing the
 design. But it is worth discussion.
 
@@ -124,7 +124,7 @@ we should use `node.k8s.aws/` as the prefix for any node labels we
 choose to use.
 
 In keeping with another Kubernetes convention (such as
-`kubernetes.io/service-name`), we should use `lower-case-with-hypens`,
+`kubernetes.io/service-name`), we should use `lower-case-with-hyphens`,
 not `camelCase` for words following the `/`.
 
 Lastly, using launch template names, rather than ids, will be more
