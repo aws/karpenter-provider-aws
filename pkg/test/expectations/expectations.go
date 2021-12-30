@@ -111,14 +111,9 @@ func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...cl
 
 func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		persisted := object.DeepCopyObject()
-		object.SetFinalizers([]string{})
-		Expect(c.Patch(ctx, object, client.MergeFrom(persisted.(client.Object)))).To(Succeed())
 		if err := c.Delete(ctx, object, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}); !errors.IsNotFound(err) {
 			Expect(err).To(BeNil())
 		}
-	}
-	for _, object := range objects {
 		ExpectNotFound(ctx, c, object)
 	}
 }
@@ -127,6 +122,12 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg := sync.WaitGroup{}
 	namespaces := &v1.NamespaceList{}
 	Expect(c.List(ctx, namespaces)).To(Succeed())
+	nodes := &v1.NodeList{}
+	Expect(c.List(ctx, nodes))
+	for i := range nodes.Items {
+		nodes.Items[i].SetFinalizers([]string{})
+		Expect(c.Update(ctx, &nodes.Items[i])).To(Succeed())
+	}
 	for _, object := range []client.Object{
 		&v1.Pod{},
 		&v1.Node{},
@@ -135,8 +136,8 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&v1.PersistentVolumeClaim{},
 		&v1alpha5.Provisioner{},
 	} {
-		wg.Add(1)
 		for _, namespace := range namespaces.Items {
+			wg.Add(1)
 			go func(object client.Object, namespace string) {
 				Expect(c.DeleteAllOf(ctx, object, client.InNamespace(namespace))).ToNot(HaveOccurred())
 				wg.Done()
