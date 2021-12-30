@@ -34,6 +34,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	. "knative.dev/pkg/logging/testing"
@@ -195,6 +196,48 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
+		})
+		It("should not evict static pods", func() {
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			ExpectCreated(ctx, env.Client, node, podEvict)
+
+			podNoEvict := test.Pod(test.PodOptions{
+				NodeName: node.Name,
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "v1",
+					Kind:       "Node",
+					Name:       node.Name,
+					UID:        node.UID,
+				}},
+			})
+			ExpectCreated(ctx, env.Client, podNoEvict)
+
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect mirror pod to not be queued for enviction
+			ExpectNotEnqueuedForEviction(evictionQueue, podNoEvict)
+
+			// Expect podEvict to be enqueued for eviction then be successful
+			ExpectEnqueuedForEviction(evictionQueue, podEvict)
+			ExpectEvicted(env.Client, podEvict)
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Reconcile node to evict pod
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Delete pod to simulate successful eviction
+			ExpectDeleted(ctx, env.Client, podEvict)
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+
 		})
 		It("should not delete nodes until all pods are deleted", func() {
 			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}

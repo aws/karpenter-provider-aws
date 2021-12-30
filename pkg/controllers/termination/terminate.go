@@ -28,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
@@ -110,16 +111,20 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 
 func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 	evictable := []*v1.Pod{}
-	for _, pod := range pods {
+	for _, p := range pods {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(pod) == nil {
+		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(p) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
-		if IsStuckTerminating(pod) {
+		if IsStuckTerminating(p) {
 			continue
 		}
-		evictable = append(evictable, pod)
+		// Ignore static mirror pods
+		if pod.IsOwnedByNode(p) {
+			continue
+		}
+		evictable = append(evictable, p)
 	}
 	return evictable
 }
