@@ -125,6 +125,8 @@ func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Objec
 
 func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg := sync.WaitGroup{}
+	namespaces := &v1.NamespaceList{}
+	Expect(c.List(ctx, namespaces)).To(Succeed())
 	for _, object := range []client.Object{
 		&v1.Pod{},
 		&v1.Node{},
@@ -134,10 +136,12 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&v1alpha5.Provisioner{},
 	} {
 		wg.Add(1)
-		go func(object client.Object) {
-			Expect(c.DeleteAllOf(ctx, object, client.InNamespace("default"))).ToNot(HaveOccurred())
-			wg.Done()
-		}(object)
+		for _, namespace := range namespaces.Items {
+			go func(object client.Object, namespace string) {
+				Expect(c.DeleteAllOf(ctx, object, client.InNamespace(namespace))).ToNot(HaveOccurred())
+				wg.Done()
+			}(object, namespace.Name)
+		}
 	}
 	wg.Wait()
 }
