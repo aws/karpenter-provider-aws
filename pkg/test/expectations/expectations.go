@@ -22,6 +22,7 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -123,31 +124,22 @@ func ExpectDeleted(ctx context.Context, c client.Client, objects ...client.Objec
 }
 
 func ExpectCleanedUp(ctx context.Context, c client.Client) {
-	pdbs := v1beta1.PodDisruptionBudgetList{}
-	Expect(c.List(ctx, &pdbs)).To(Succeed())
-	for i := range pdbs.Items {
-		ExpectDeleted(ctx, c, &pdbs.Items[i])
+	wg := sync.WaitGroup{}
+	for _, object := range []client.Object{
+		&v1.Pod{},
+		&v1.Node{},
+		&appsv1.DaemonSet{},
+		&v1beta1.PodDisruptionBudget{},
+		&v1.PersistentVolumeClaim{},
+		&v1alpha5.Provisioner{},
+	} {
+		wg.Add(1)
+		go func(object client.Object) {
+			Expect(c.DeleteAllOf(ctx, object, client.InNamespace("default"))).ToNot(HaveOccurred())
+			wg.Done()
+		}(object)
 	}
-	pods := v1.PodList{}
-	Expect(c.List(ctx, &pods)).To(Succeed())
-	for i := range pods.Items {
-		ExpectDeleted(ctx, c, &pods.Items[i])
-	}
-	nodes := v1.NodeList{}
-	Expect(c.List(ctx, &nodes)).To(Succeed())
-	for i := range nodes.Items {
-		ExpectDeleted(ctx, c, &nodes.Items[i])
-	}
-	daemonsets := appsv1.DaemonSetList{}
-	Expect(c.List(ctx, &daemonsets)).To(Succeed())
-	for i := range daemonsets.Items {
-		ExpectDeleted(ctx, c, &daemonsets.Items[i])
-	}
-	provisioners := v1alpha5.ProvisionerList{}
-	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	for i := range provisioners.Items {
-		ExpectDeleted(ctx, c, &provisioners.Items[i])
-	}
+	wg.Wait()
 }
 
 // ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
@@ -161,6 +153,7 @@ func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controlle
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, selectionController *selection.Controller, provisioningController *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+	provisioning.MaxPodsPerBatch = len(pods)
 	// Persist objects
 	ExpectApplied(ctx, c, provisioner)
 	ExpectStatusUpdated(ctx, c, provisioner)
