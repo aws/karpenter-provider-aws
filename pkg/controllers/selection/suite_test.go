@@ -75,7 +75,29 @@ var _ = AfterEach(func() {
 	ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 })
 
-var _ = Describe("Volume Topology", func() {
+var _ = Describe("Volume Topology Requirements", func() {
+	Describe("PersistentVolume Affinity", func() {
+		It("should schedule to zones supported by the volume", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+		It("should schedule anywhere if the volume has no requirements", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+		It("should not schedule if the zones are incompatible", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+	})
+	Describe("StorageClass Requirements", func() {
+		It("should schedule to zones supported by the storageclass", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+		It("should schedule anywhere if the storageclass has no requirements", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+		It("should not schedule if the zones are incompatible", func() {
+			ExpectCreated(ctx, env.Client, test.PersistentVolumeClaim())
+		})
+	})
 })
 
 var _ = Describe("Preferential Fallback", func() {

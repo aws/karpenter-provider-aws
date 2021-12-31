@@ -74,9 +74,11 @@ var _ = Describe("Controller", func() {
 	Context("Expiration", func() {
 		It("should ignore nodes without TTLSecondsUntilExpired", func() {
 			n := test.Node(test.NodeOptions{
-				Finalizers: []string{v1alpha5.TerminationFinalizer},
-				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels: map[string]string{
+						v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					},
 				},
 			})
 			ExpectCreated(ctx, env.Client, provisioner, n)
@@ -86,7 +88,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 		It("should ignore nodes without a provisioner", func() {
-			n := test.Node(test.NodeOptions{Finalizers: []string{v1alpha5.TerminationFinalizer}})
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{v1alpha5.TerminationFinalizer}}})
 			ExpectCreated(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
@@ -95,12 +97,12 @@ var _ = Describe("Controller", func() {
 		})
 		It("should delete nodes after expiry", func() {
 			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
-			n := test.Node(test.NodeOptions{
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{v1alpha5.TerminationFinalizer},
 				Labels: map[string]string{
 					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 				},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner, n)
 
 			// Should still exist
@@ -122,7 +124,7 @@ var _ = Describe("Controller", func() {
 		It("should not remove the readiness taint if not ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionUnknown,
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints: []v1.Taint{
 					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
@@ -138,7 +140,7 @@ var _ = Describe("Controller", func() {
 		It("should remove the readiness taint if ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints: []v1.Taint{
 					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
@@ -154,7 +156,7 @@ var _ = Describe("Controller", func() {
 		It("should do nothing if ready and the readiness taint does not exist", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints:      []v1.Taint{{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule}},
 			})
 			ExpectCreated(ctx, env.Client, provisioner)
@@ -183,8 +185,10 @@ var _ = Describe("Controller", func() {
 	Context("Liveness", func() {
 		It("should delete nodes if NodeStatusNeverUpdated after 5 minutes", func() {
 			n := test.Node(test.NodeOptions{
-				Finalizers:  []string{v1alpha5.TerminationFinalizer},
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				},
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
 			})
@@ -206,8 +210,10 @@ var _ = Describe("Controller", func() {
 		})
 		It("should delete nodes if we never hear anything after 5 minutes", func() {
 			n := test.Node(test.NodeOptions{
-				Finalizers:  []string{v1alpha5.TerminationFinalizer},
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{v1alpha5.TerminationFinalizer},
+					Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				},
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "",
 			})
@@ -231,7 +237,7 @@ var _ = Describe("Controller", func() {
 		It("should not TTL nodes that have ready status unknown", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
 			node := test.Node(test.NodeOptions{
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				ReadyStatus: v1.ConditionUnknown,
 			})
 
@@ -245,7 +251,7 @@ var _ = Describe("Controller", func() {
 		It("should not TTL nodes that have ready status false", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
 			node := test.Node(test.NodeOptions{
-				Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				ReadyStatus: v1.ConditionFalse,
 			})
 
@@ -258,9 +264,9 @@ var _ = Describe("Controller", func() {
 		})
 		It("should label nodes as underutilized and add TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
-			node := test.Node(test.NodeOptions{
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -270,17 +276,15 @@ var _ = Describe("Controller", func() {
 		})
 		It("should remove labels from non-empty nodes", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
-			node := test.Node(test.NodeOptions{
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Annotations: map[string]string{
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
-				},
+				}},
 			})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, node)
 			ExpectCreatedWithStatus(ctx, env.Client, test.Pod(test.PodOptions{
-				Name:       strings.ToLower(randomdata.SillyName()),
-				Namespace:  provisioner.Namespace,
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
@@ -291,12 +295,12 @@ var _ = Describe("Controller", func() {
 		})
 		It("should delete empty nodes past their TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
-			node := test.Node(test.NodeOptions{
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{v1alpha5.TerminationFinalizer},
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Annotations: map[string]string{
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
-				},
+				}},
 			})
 			ExpectCreated(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -307,10 +311,10 @@ var _ = Describe("Controller", func() {
 	})
 	Context("Finalizer", func() {
 		It("should add the termination finalizer if missing", func() {
-			n := test.Node(test.NodeOptions{
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
@@ -319,10 +323,10 @@ var _ = Describe("Controller", func() {
 			Expect(n.Finalizers).To(ConsistOf(n.Finalizers[0], v1alpha5.TerminationFinalizer))
 		})
 		It("should do nothing if terminating", func() {
-			n := test.Node(test.NodeOptions{
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, n)
 			Expect(env.Client.Delete(ctx, n)).To(Succeed())
@@ -332,10 +336,10 @@ var _ = Describe("Controller", func() {
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
 		It("should do nothing if the termination finalizer already exists", func() {
-			n := test.Node(test.NodeOptions{
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{v1alpha5.TerminationFinalizer, "fake.com/finalizer"},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
@@ -344,9 +348,9 @@ var _ = Describe("Controller", func() {
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
 		It("should do nothing if the not owned by a provisioner", func() {
-			n := test.Node(test.NodeOptions{
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{"fake.com/finalizer"},
-			})
+			}})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))

@@ -28,9 +28,7 @@ import (
 
 // PodOptions customizes a Pod.
 type PodOptions struct {
-	Name                      string
-	Namespace                 string
-	OwnerReferences           []metav1.OwnerReference
+	metav1.ObjectMeta
 	Image                     string
 	NodeName                  string
 	ResourceRequirements      v1.ResourceRequirements
@@ -41,16 +39,11 @@ type PodOptions struct {
 	Tolerations               []v1.Toleration
 	PersistentVolumeClaims    []string
 	Conditions                []v1.PodCondition
-	Annotations               map[string]string
-	Labels                    map[string]string
-	Finalizers                []string
-	DeletionTimestamp         *metav1.Time
 	Phase                     v1.PodPhase
 }
 
 type PDBOptions struct {
-	Name           string
-	Namespace      string
+	metav1.ObjectMeta
 	Labels         map[string]string
 	MinAvailable   *intstr.IntOrString
 	MaxUnavailable *intstr.IntOrString
@@ -65,12 +58,6 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
 		}
 	}
-	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
-	}
-	if options.Namespace == "" {
-		options.Namespace = "default"
-	}
 	if options.Image == "" {
 		options.Image = "k8s.gcr.io/pause"
 	}
@@ -82,27 +69,19 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		})
 	}
 	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              options.Name,
-			Namespace:         options.Namespace,
-			OwnerReferences:   options.OwnerReferences,
-			Annotations:       options.Annotations,
-			Labels:            options.Labels,
-			Finalizers:        options.Finalizers,
-			DeletionTimestamp: options.DeletionTimestamp,
-		},
+		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
 			Affinity:                  buildAffinity(options.NodeRequirements, options.NodePreferences),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
-				Name:      options.Name,
+				Name:      strings.ToLower(randomdata.SillyName()),
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
 			NodeName: options.NodeName,
-			Volumes: volumes,
+			Volumes:  volumes,
 		},
 		Status: v1.PodStatus{
 			Conditions: options.Conditions,
@@ -136,17 +115,8 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
 		}
 	}
-	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
-	}
-	if options.Namespace == "" {
-		options.Namespace = "default"
-	}
 	return &v1beta1.PodDisruptionBudget{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      options.Name,
-			Namespace: options.Namespace,
-		},
+		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1beta1.PodDisruptionBudgetSpec{
 			MinAvailable: options.MinAvailable,
 			Selector: &metav1.LabelSelector{
