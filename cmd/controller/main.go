@@ -60,10 +60,6 @@ func init() {
 }
 
 func main() {
-	if err := opts.Validate(); err != nil {
-		panic(fmt.Sprintf("Input parameter validation failed, %s", err.Error()))
-	}
-
 	config := controllerruntime.GetConfigOrDie()
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
 	config.UserAgent = "karpenter"
