@@ -184,7 +184,7 @@ module "iam_assumable_role_karpenter" {
   oidc_fully_qualified_subjects = ["system:serviceaccount:karpenter:karpenter"]
 }
 
-resource "aws_iam_role_policy" "karpenter_controller" {
+resource "aws_iam_role_policy" "karpenter_contoller" {
   name = "karpenter-policy-${var.cluster_name}"
   role = module.iam_assumable_role_karpenter.iam_role_name
 

@@ -21,7 +21,7 @@ Karpenter works by:
 
 As a cluster operator, you can configure an unconstrained Karpenter provisioner when it is first installed and not change it again.
 Other times, you might continue to tweak the provisioner or create multiple provisioners for a cluster used by different teams.
-On-going cluster operator tasks include upgrading and decommissioning nodes.
+On-going cluster operator tasks include upgrading and decomissioning nodes.
 
 As an application developer, you can make specific requests for capacity and features you want from the nodes running your pods.
 Karpenter is designed to quickly create the best possible nodes to meet those needs and schedule the pods to run on them.

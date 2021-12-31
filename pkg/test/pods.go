@@ -55,7 +55,7 @@ type PDBOptions struct {
 	MaxUnavailable *intstr.IntOrString
 }
 
-// Pod creates a test pod with defaults that can be overridden by PodOptions.
+// Pod creates a test pod with defaults that can be overriden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
 func Pod(overrides ...PodOptions) *v1.Pod {
 	options := PodOptions{}

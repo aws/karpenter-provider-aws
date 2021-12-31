@@ -221,7 +221,7 @@ func sortedKeys(m map[string]string) []string {
 }
 
 // getUserData returns the exact same string for equivalent input,
-// even if elements of those inputs are in differing orders,
+// even if elements of those inputs are in differeing orders,
 // guaranteeing it won't cause spurious hash differences.
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string

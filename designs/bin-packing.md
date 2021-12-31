@@ -33,7 +33,7 @@ taken to bin pack each group individually:
     - If the pod doesn't fit this instance type, skip this instance
       type and select next bigger instance type.
     - If the pod fits this instance type, check all the remaining pods
-      from largest to smallest, and determining how many can also fit on
+      from largest to smallest, and determing how many can also fit on
       this given instance.
     - Compare all the instance types starting with the largest pod in
       step 3 and select the instance type into which the maximal

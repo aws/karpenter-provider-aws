@@ -5,7 +5,7 @@ These changes recommend:
 1. Cloud Provider specific extensions under `spec.provider`.
 2. Removal of `spec.cluster`.
 3. Pluralization of `spec.architecture` and `spec.operatingSystem`.
-4. Provisioning limits for maximum cpu, memory, etc, under `spec.limits`.
+4. Provisoning limits for maximum cpu, memory, etc, under `spec.limits`.
 
 ## Strongly Typed Vendor Specific Fields
 Cloud Providers are currently limited to using well known `spec.labels` for configuration of vendor specific parameters. For example:
@@ -71,7 +71,7 @@ spec:
 
 ### Alternative: Duck Typing
 
-It's possible to follow [Knative's Duck Typing approach](https://www.youtube.com/watch?v=kldVg63Utuw) and build vendor specific CRDs that contain vendor neutral snippets (or ducks) that Karpenter can recognize. Cloud Providers would consume Karpenter generic controllers as libraries, which would behave against the generic API snippets. For example:
+It's possible to follow [Knative's Duck Typing approach](https://www.youtube.com/watch?v=kldVg63Utuw) and build vendor specific CRDs that contain vendor neutral snippets (or ducks) that Karpenter can recognize. Cloud Providers would consume Karpenter generic controllers as libaries, which would behave against the generic API snippets. For example:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1 # Vendor Specific

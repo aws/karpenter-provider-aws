@@ -109,7 +109,7 @@ So, for example, to include a certain instance type, you could use the Kubernete
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is
 designed to add nodes when requests come in to run pods that cannot be met by current capacity.
-Cluster autoscaler is part of the Kubernetes project, with implementations by most major Kubernetes cloud providers.
+Cluster autoscaler is part of the Kubenetes project, with implementations by most major Kubernetes cloud providers.
 By taking a fresh look at provisioning, Karpenter offers the following improvements:
 
 * **Designed to handle the full flexibility of the cloud**:
@@ -147,7 +147,7 @@ Note that if the constraints are such that a match is not possible, the pod will
 
 So, what constraints can you use as an application developer deploying pods that could be managed by Karpenter?
 
-Kubernetes features that Karpenters supports for scheduling nodes include node affinity based on [persistent volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity) and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
+Kubernetes features that Karpenters supports for scheduling nodes include node affinity based on [persistant volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity) and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
 It also supports [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) and [topologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
 
 From the Kubernetes [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) page,

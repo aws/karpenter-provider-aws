@@ -233,14 +233,14 @@
           "interval": "",
           "legendFormat": "{{result}}",
           "queryType": "randomWalk",
-          "refId": "Reconciliations per minute"
+          "refId": "Reconcilitions per minute"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Reconciliations per minute",
+      "title": "Reconcilitions per minute",
       "tooltip": {
         "shared": true,
         "sort": 0,
