@@ -145,13 +145,13 @@ func (p *Provisioner) batch(ctx context.Context) (pods []*v1.Pod) {
 		logging.FromContext(ctx).Infof("Batched %d pods in %s", len(pods), time.Since(start))
 	}()
 	for {
+		if len(pods) >= MaxPodsPerBatch {
+			return pods
+		}
 		select {
 		case pod := <-p.pods:
 			idle.Reset(MinBatchDuration)
 			pods = append(pods, pod)
-			if len(pods) >= MaxPodsPerBatch {
-				return pods
-			}
 		case <-ctx.Done():
 			return pods
 		case <-timeout.C:
