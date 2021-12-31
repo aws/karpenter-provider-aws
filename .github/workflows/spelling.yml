@@ -22,11 +22,7 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v2
-    - name: checkout-merge
-      if: "contains(github.event_name, 'pull_request')"
-      uses: check-spelling/checkout-merge@v0.0.0
     - name: check-spelling
-      if: env.MERGE_FAILED != '1'
       id: spelling
       uses: check-spelling/check-spelling@v0.0.20-alpha4
       with:
