@@ -216,7 +216,7 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			// Expect mirror pod to not be queued for enviction
+			// Expect mirror pod to not be queued for eviction
 			ExpectNotEnqueuedForEviction(evictionQueue, podNoEvict)
 
 			// Expect podEvict to be enqueued for eviction then be successful
