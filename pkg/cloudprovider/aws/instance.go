@@ -34,6 +34,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 type InstanceProvider struct {
@@ -218,6 +219,10 @@ func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*
 	if len(describedInstances) != len(ids) {
 		return nil, fmt.Errorf("expected %d instance(s), but got %d", len(ids), len(describedInstances))
 	}
+	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
+		return describedInstances, nil
+	}
+
 	instances := []*ec2.Instance{}
 	for _, instance := range describedInstances {
 		if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
@@ -233,7 +238,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
-			if injection.GetOptions(ctx).AWSNodeNameConvention == "resource-name" {
+			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 			return &v1.Node{

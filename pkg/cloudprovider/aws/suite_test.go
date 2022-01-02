@@ -67,7 +67,7 @@ var _ = BeforeSuite(func() {
 		opts := options.Options{
 			ClusterName:           "test-cluster",
 			ClusterEndpoint:       "https://test-cluster",
-			AWSNodeNameConvention: "ip-name",
+			AWSNodeNameConvention: string(options.IPName),
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)

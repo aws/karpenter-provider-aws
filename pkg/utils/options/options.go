@@ -23,6 +23,13 @@ import (
 	"go.uber.org/multierr"
 )
 
+type AWSNodeNameConvention string
+
+const (
+	IPName       AWSNodeNameConvention = "ip-name"
+	ResourceName AWSNodeNameConvention = "resource-name"
+)
+
 func MustParse() Options {
 	opts := Options{}
 	flag.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
@@ -32,7 +39,7 @@ func MustParse() Options {
 	flag.IntVar(&opts.WebhookPort, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
 	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
-	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", "ip-name"), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
+	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(ResourceName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
 	flag.Parse()
 	if err := opts.Validate(); err != nil {
 		panic(err)
@@ -57,7 +64,8 @@ func (o Options) Validate() (err error) {
 	if o.ClusterName == "" {
 		err = multierr.Append(err, fmt.Errorf("CLUSTER_NAME is required"))
 	}
-	if o.AWSNodeNameConvention != "ip-name" && o.AWSNodeNameConvention != "resource-name" {
+	awsNodeNameConvention := AWSNodeNameConvention(o.AWSNodeNameConvention)
+	if awsNodeNameConvention != IPName && awsNodeNameConvention != ResourceName {
 		err = multierr.Append(err, fmt.Errorf("aws-node-name-convention may only be either ip-name or resource-name"))
 	}
 	return err
@@ -71,4 +79,8 @@ func (o Options) validateEndpoint() error {
 		return fmt.Errorf("\"%s\" not a valid CLUSTER_ENDPOINT URL", o.ClusterEndpoint)
 	}
 	return nil
+}
+
+func (o Options) GetAWSNodeNameConvention() AWSNodeNameConvention {
+	return AWSNodeNameConvention(o.AWSNodeNameConvention)
 }
