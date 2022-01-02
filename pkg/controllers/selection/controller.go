@@ -99,7 +99,7 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	if provisioner == nil {
 		return fmt.Errorf("matched 0/%d provisioners, %w", len(multierr.Errors(errs)), errs)
 	}
-	provisioner.Add(ctx, pod)
+	<-provisioner.Add(ctx, pod)
 	return nil
 }
 
@@ -109,7 +109,6 @@ func isProvisionable(p *v1.Pod) bool {
 		pod.FailedToSchedule(p) &&
 		!pod.IsOwnedByDaemonSet(p) &&
 		!pod.IsOwnedByNode(p)
-
 }
 
 func validate(p *v1.Pod) error {
