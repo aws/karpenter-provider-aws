@@ -26,6 +26,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
@@ -134,6 +135,8 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&appsv1.DaemonSet{},
 		&v1beta1.PodDisruptionBudget{},
 		&v1.PersistentVolumeClaim{},
+		&v1.PersistentVolume{},
+		&storagev1.StorageClass{},
 		&v1alpha5.Provisioner{},
 	} {
 		for _, namespace := range namespaces.Items {

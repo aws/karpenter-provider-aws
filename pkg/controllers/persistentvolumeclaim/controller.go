@@ -77,19 +77,17 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	if pod == nil {
-		logging.FromContext(ctx).Debugf("Skipping bind, no pod found for persistent volume claim")
 		return reconcile.Result{}, nil
 	}
 	if nodeName, ok := pvc.Annotations[SelectedNodeAnnotation]; ok && nodeName == pod.Spec.NodeName {
 		return reconcile.Result{}, nil
 	}
 	if !c.isBindable(pod) {
-		logging.FromContext(ctx).Debugf("Skipping bind, pod %s/%s is not pending", pod.Namespace, pod.Name)
 		return reconcile.Result{}, nil
 	}
 	pvc.Annotations = functional.UnionStringMaps(pvc.Annotations, map[string]string{SelectedNodeAnnotation: pod.Spec.NodeName})
 	if err := c.kubeClient.Update(ctx, pvc); err != nil {
-		return reconcile.Result{}, fmt.Errorf("binding persistent volume claim to node %q, %w", pod.Spec.NodeName, err)
+		return reconcile.Result{}, fmt.Errorf("binding persistent volume claim for pod %s/%s to node %q, %w", pod.Namespace, pod.Name, pod.Spec.NodeName, err)
 	}
 	logging.FromContext(ctx).Infof("Bound persistent volume claim to node %s", pod.Spec.NodeName)
 	return reconcile.Result{}, nil

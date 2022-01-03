@@ -26,10 +26,12 @@ import (
 
 type PersistentVolumeOptions struct {
 	metav1.ObjectMeta
+	Zones            []string
+	StorageClassName string
 }
 
 func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume {
-	options := PersistentVolumeClaimOptions{}
+	options := PersistentVolumeOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge options: %s", err.Error()))
@@ -37,12 +39,22 @@ func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume
 	}
 	return &v1.PersistentVolume{
 		ObjectMeta: ObjectMeta(metav1.ObjectMeta{}),
-		Spec: v1.PersistentVolumeSpec{},
+		Spec: v1.PersistentVolumeSpec{
+			PersistentVolumeSource: v1.PersistentVolumeSource{CSI: &v1.CSIPersistentVolumeSource{Driver: "test-driver", VolumeHandle: "test-handle"}},
+			StorageClassName:       options.StorageClassName,
+			AccessModes:            []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+			Capacity:               v1.ResourceList{v1.ResourceStorage: resource.MustParse("100Gi")},
+			NodeAffinity: &v1.VolumeNodeAffinity{Required: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: options.Zones},
+			}}}}},
+		},
 	}
 }
 
 type PersistentVolumeClaimOptions struct {
 	metav1.ObjectMeta
+	StorageClassName *string
+	VolumeName       string
 }
 
 func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.PersistentVolumeClaim {
@@ -55,24 +67,35 @@ func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.Persis
 	return &v1.PersistentVolumeClaim{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
-			Resources:   v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: resource.MustParse("1Gi")}},
+			StorageClassName: options.StorageClassName,
+			VolumeName:       options.VolumeName,
+			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+			Resources:        v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: resource.MustParse("1Gi")}},
 		},
 	}
 }
 
 type StorageClassOptions struct {
 	metav1.ObjectMeta
+	Zones []string
 }
 
 func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
-	options := PersistentVolumeClaimOptions{}
+	options := StorageClassOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge options: %s", err.Error()))
 		}
 	}
+
+	var allowedTopologies []v1.TopologySelectorTerm
+	if options.Zones != nil {
+		allowedTopologies = []v1.TopologySelectorTerm{{MatchLabelExpressions: []v1.TopologySelectorLabelRequirement{{Key: v1.LabelTopologyZone, Values: options.Zones}}}}
+	}
+
 	return &storagev1.StorageClass{
-		ObjectMeta: ObjectMeta(options.ObjectMeta),
+		ObjectMeta:        ObjectMeta(options.ObjectMeta),
+		Provisioner:       "test-provisioner",
+		AllowedTopologies: allowedTopologies,
 	}
 }
