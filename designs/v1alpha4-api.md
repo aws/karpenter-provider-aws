@@ -79,7 +79,7 @@ kind: Provisioner
 spec:
   limits: {} # Vendor neutral, recognized by Karpenter generic controllers
   labels: {} # Vendor neutral, recognized by Karpenter generic controllers
-  taints: [] # Vendor netural, recognized by Karpenter generic controllers
+  taints: [] # Vendor neutral, recognized by Karpenter generic controllers
   subnets: [] # Vendor specific, only recognized by AWS Cloud Provider code
 ```
 
