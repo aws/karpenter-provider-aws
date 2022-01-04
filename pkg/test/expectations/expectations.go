@@ -158,7 +158,7 @@ func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controlle
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, selectionController *selection.Controller, provisioningController *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
-	provisioning.MaxPodsPerBatch = len(pods)
+	provisioning.MaxItemsPerBatch = len(pods)
 	// Persist objects
 	ExpectApplied(ctx, c, provisioner)
 	ExpectStatusUpdated(ctx, c, provisioner)

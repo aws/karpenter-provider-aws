@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -27,11 +26,11 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -39,20 +38,11 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var (
-	MaxBatchDuration = time.Second * 10
-	MinBatchDuration = time.Second * 1
-	// MaxPodsPerBatch limits the number of pods we process at one time to avoid using too much memory
-	MaxPodsPerBatch = 2_000
-)
-
 func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Provisioner {
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Provisioner:   provisioner,
-		pods:          make(chan *v1.Pod),
-		wait:          make(chan struct{}),
-		running:       running,
+		batcher:       NewBatcher(running),
 		Stop:          stop,
 		cloudProvider: cloudProvider,
 		kubeClient:    kubeClient,
@@ -61,13 +51,12 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		packer:        binpacking.NewPacker(kubeClient, cloudProvider),
 	}
 	go func() {
-		for p.running.Err() == nil {
-			if err := p.provision(ctx); err != nil {
-				logging.FromContext(ctx).Errorf("Provisioning failed, %s", err.Error())
+		for running.Err() == nil {
+			if err := p.provision(running); err != nil {
+				logging.FromContext(running).Errorf("Provisioning failed, %s", err.Error())
 			}
 		}
-		close(p.wait)
-		logging.FromContext(ctx).Info("Stopping provisioner")
+		logging.FromContext(running).Info("Stopped provisioner")
 	}()
 	return p
 }
@@ -76,9 +65,7 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 type Provisioner struct {
 	// State
 	*v1alpha5.Provisioner
-	pods    chan *v1.Pod
-	wait    chan struct{}
-	running context.Context
+	batcher *Batcher
 	Stop    context.CancelFunc
 	// Dependencies
 	cloudProvider cloudprovider.CloudProvider
@@ -88,29 +75,28 @@ type Provisioner struct {
 	packer        *binpacking.Packer
 }
 
-// Add a pod to the provisioner and block until it's processed. The caller
-// is responsible for verifying that the pod was scheduled correctly. In the
-// future, this may be expanded to include concepts such as retriable errors.
-func (p *Provisioner) Add(ctx context.Context, pod *v1.Pod) {
-	select {
-	case p.pods <- pod: // Block until pod is enqueued
-		<-p.wait
-	case <-p.running.Done(): // Leave if closed
-	}
+// Add a pod to the provisioner and return a channel to block on. The caller is
+// responsible for verifying that the pod was scheduled correctly.
+func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
+	return p.batcher.Add(pod)
 }
 
 func (p *Provisioner) provision(ctx context.Context) (err error) {
-	// Wait for a batch of pods, release when done
-	pods := p.batch(ctx)
-	defer func() {
-		for i := 0; i < len(pods); i++ {
-			p.wait <- struct{}{}
+	// Batch pods
+	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
+	items, window := p.batcher.Wait()
+	defer p.batcher.Flush()
+	logging.FromContext(ctx).Infof("Batched %d pods in %s", len(items), window)
+	// Filter pods
+	pods := []*v1.Pod{}
+	for _, item := range items {
+		provisionable, err := p.isProvisionable(ctx, item.(*v1.Pod))
+		if err != nil {
+			return err
 		}
-	}()
-	// Ensure pods are still provisionable
-	pods, err = p.filter(ctx, pods)
-	if err != nil {
-		return fmt.Errorf("filtering provisionable pods, %w", err)
+		if provisionable {
+			pods = append(pods, item.(*v1.Pod))
+		}
 	}
 	// Separate pods by scheduling constraints
 	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, pods)
@@ -133,55 +119,19 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	return nil
 }
 
-// Batch returns a slice of enqueued pods after idle or timeout
-func (p *Provisioner) batch(ctx context.Context) (pods []*v1.Pod) {
-	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
-	// Start the batching window after the first pod is received
-	pods = append(pods, <-p.pods)
-	timeout := time.NewTimer(MaxBatchDuration)
-	idle := time.NewTimer(MinBatchDuration)
-	start := time.Now()
-	defer func() {
-		logging.FromContext(ctx).Infof("Batched %d pods in %s", len(pods), time.Since(start))
-	}()
-	for {
-		if len(pods) >= MaxPodsPerBatch {
-			return pods
-		}
-		select {
-		case pod := <-p.pods:
-			idle.Reset(MinBatchDuration)
-			pods = append(pods, pod)
-		case <-ctx.Done():
-			return pods
-		case <-timeout.C:
-			return pods
-		case <-idle.C:
-			return pods
-		}
-	}
-}
-
-// filter removes pods that have been assigned a node.
+// isProvisionable ensure that the pod can still be provisioned.
 // This check is needed to prevent duplicate binds when a pod is scheduled to a node
 // between the time it was ingested into the scheduler and the time it is included
 // in a provisioner batch.
-func (p *Provisioner) filter(ctx context.Context, pods []*v1.Pod) ([]*v1.Pod, error) {
-	provisionable := []*v1.Pod{}
-	for _, pod := range pods {
-		// Do not mutate the pod in case the scheduler relaxed constraints
-		stored := &v1.Pod{}
-		if err := p.kubeClient.Get(ctx, types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, stored); err != nil {
-			if errors.IsNotFound(err) {
-				continue
-			}
-			return nil, err
+func (p *Provisioner) isProvisionable(ctx context.Context, candidate *v1.Pod) (bool, error) {
+	stored := &v1.Pod{}
+	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(candidate), stored); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
 		}
-		if stored.Spec.NodeName == "" {
-			provisionable = append(provisionable, pod)
-		}
+		return false, err
 	}
-	return provisionable, nil
+	return !pod.IsScheduled(candidate), nil
 }
 
 func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constraints, packing *binpacking.Packing) error {

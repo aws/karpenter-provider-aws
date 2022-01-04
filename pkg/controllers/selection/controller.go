@@ -76,7 +76,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err.Error())
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{RequeueAfter: time.Second * 1}, nil
+	return reconcile.Result{RequeueAfter: time.Second * 5}, nil
 }
 
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
@@ -99,7 +99,10 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	if provisioner == nil {
 		return fmt.Errorf("matched 0/%d provisioners, %w", len(multierr.Errors(errs)), errs)
 	}
-	provisioner.Add(ctx, pod)
+	select {
+	case <-provisioner.Add(pod):
+	case <-ctx.Done():
+	}
 	return nil
 }
 
@@ -109,7 +112,6 @@ func isProvisionable(p *v1.Pod) bool {
 		pod.FailedToSchedule(p) &&
 		!pod.IsOwnedByDaemonSet(p) &&
 		!pod.IsOwnedByNode(p)
-
 }
 
 func validate(p *v1.Pod) error {
