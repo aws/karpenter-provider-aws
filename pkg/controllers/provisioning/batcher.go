@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	MaxBatchDuration = time.Second * 10
+	MaxBatchDuration  = time.Second * 10
 	BatchIdleDuration = time.Second * 1
 	// MaxItemsPerBatch limits the number of items we process at one time to avoid using too much memory
 	MaxItemsPerBatch = 2_000
@@ -52,17 +52,20 @@ func NewBatcher(running context.Context) *Batcher {
 // Add an item to the batch, returning the next gate which the caller may block
 // on. The gate is protected by a read-write mutex, and may be modified by
 // Flush(), which makes a new gate.
-func (b *Batcher) Add(ctx context.Context, item interface{}) <-chan struct{} {
-	b.RLock()
-	defer b.RUnlock()
+//
+// In rare scenarios, if a goroutine hangs after enqueueing but before acquiring
+// the gate lock, the batch could be flushed, resulting in the pod waiting on
+// the next gate. This will be flushed on the next batch, and may result in
+// delayed retries for the individual pod if the provisioning loop fails. In
+// practice, this won't be encountered because this time window is O(seconds).
+func (b *Batcher) Add(item interface{}) <-chan struct{} {
 	select {
 	case b.queue <- item:
-		return b.gate.Done()
-	case <-b.gate.Done():
-		return b.gate.Done()
-	case <-ctx.Done():
-		return ctx.Done()
+	case <-b.running.Done():
 	}
+	b.RLock()
+	defer b.RUnlock()
+	return b.gate.Done()
 }
 
 // Flush all goroutines blocking on the current gate and create a new gate.
@@ -73,8 +76,8 @@ func (b *Batcher) Flush() {
 	b.gate, b.flush = context.WithCancel(b.running)
 }
 
-// Wait returns a slice of enqueued items after idle or timeout
-func (b *Batcher) Wait(ctx context.Context) (items []interface{}, window time.Duration) {
+// Wait starts a batching window and returns a slice of items when closed.
+func (b *Batcher) Wait() (items []interface{}, window time.Duration) {
 	// Start the batching window after the first item is received
 	items = append(items, <-b.queue)
 	start := time.Now()
@@ -88,11 +91,9 @@ func (b *Batcher) Wait(ctx context.Context) (items []interface{}, window time.Du
 			return
 		}
 		select {
-		case task := <-b.queue:
+		case item := <-b.queue:
 			idle.Reset(BatchIdleDuration)
-			items = append(items, task)
-		case <-ctx.Done():
-			return
+			items = append(items, item)
 		case <-timeout.C:
 			return
 		case <-idle.C:

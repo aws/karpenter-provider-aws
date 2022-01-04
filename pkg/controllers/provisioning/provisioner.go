@@ -51,12 +51,12 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		packer:        binpacking.NewPacker(kubeClient, cloudProvider),
 	}
 	go func() {
-		for ctx.Err() == nil {
-			if err := p.provision(ctx); err != nil {
-				logging.FromContext(ctx).Errorf("Provisioning failed, %s", err.Error())
+		for running.Err() == nil {
+			if err := p.provision(running); err != nil {
+				logging.FromContext(running).Errorf("Provisioning failed, %s", err.Error())
 			}
 		}
-		logging.FromContext(ctx).Info("Stopped provisioner")
+		logging.FromContext(running).Info("Stopped provisioner")
 	}()
 	return p
 }
@@ -75,16 +75,16 @@ type Provisioner struct {
 	packer        *binpacking.Packer
 }
 
-// Add a pod to the provisioner and block until it's processed. The caller
-// is responsible for verifying that the pod was scheduled correctly.
-func (p *Provisioner) Add(ctx context.Context, pod *v1.Pod) <-chan struct{} {
-	return p.batcher.Add(ctx, pod)
+// Add a pod to the provisioner and return a channel to block on. The caller is
+// responsible for verifying that the pod was scheduled correctly.
+func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
+	return p.batcher.Add(pod)
 }
 
 func (p *Provisioner) provision(ctx context.Context) (err error) {
 	// Batch pods
 	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
-	items, window := p.batcher.Wait(ctx)
+	items, window := p.batcher.Wait()
 	defer p.batcher.Flush()
 	logging.FromContext(ctx).Infof("Batched %d pods in %s", len(items), window)
 	// Filter pods
