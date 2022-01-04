@@ -23,3 +23,7 @@ https://www.regexplanet.com/advanced/perl/) yours before committing to verify it
 ../tree/HEAD/README.md) (on whichever branch you're using).
 
 </details>
+
+Otherwise, please add entries into `allow.txt` instead of `expect.txt` -- this makes them part of
+the dictionary for this repository. As this workflow is configured to check files only when they're
+changed, its logic for managing `expect.txt` won't work properly.
