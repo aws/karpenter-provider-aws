@@ -2,6 +2,7 @@ addon
 adfdb
 admissionregistration
 alertmanager
+amazonvpc
 amd
 amdgpu
 amiid
