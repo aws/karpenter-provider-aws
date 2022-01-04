@@ -38,6 +38,8 @@ ignore$
 \.wav$
 \.woff2?$
 \.zip$
+^CODEOWNERS$
+^OWNERS$
 ^THIRD_PARTY_LICENSES$
 ^\.github/
 ^\Q.gitmodules\E$
