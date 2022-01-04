@@ -12,7 +12,7 @@ WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 
 ## Extra helm options
-CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
 HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
 
