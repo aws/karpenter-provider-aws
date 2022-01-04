@@ -100,7 +100,7 @@ Select security groups by name, or another tag:
 
 Select security groups by name using a wildcard:
 ```
- subnetSelector:
+ securityGroupSelector:
    Name: *public*
 ```
 
