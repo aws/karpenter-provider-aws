@@ -90,7 +90,7 @@ spec:
 5. (-) Potential for name collision as duck types evolve or confusion about what fields providers own.
 6. (-) Knative duck typing APIs are alpha, missing documentation, and not widely adopted.
 
-## Pluralizion for all Constraints
+## Pluralization for all Constraints
 We expand the constraints of a Provisioner from a scalar to a vector in all cases. This will apply to both `operatingSystem` and `architecture` enabling the operator to specify greater flexibility. This supports use cases such as heterogenous architectures within a single provisioner, selected dynamically at runtime by the cloud provider. More importantly, this change creates a consistent and predictable semantic for all vendor neutral constraints. Similar to other constraints, the semantic of this change allows cloud providers to choose any value in the constraint slice, e.g. prioritizing arm64 for cost reasons.
 ### Example
 ```yaml
