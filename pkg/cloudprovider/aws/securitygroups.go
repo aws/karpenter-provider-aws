@@ -46,11 +46,14 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	if err != nil {
 		return nil, err
 	}
-	// This hack works around
-	// https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367
 	// The LoadBalancer Controller expects a single security group with the
-	// cluster tag, but provisioning tools like eksctl and kops create multiple.
-	securityGroups = s.filterClusterTaggedGroups(ctx, securityGroups)
+	// cluster tag, but provisioning tools like eksctl and kops create multiple. Until
+	// https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367 is addressed, we will
+	// enforce that only a single security group with the cluster tag can be chosen by the selector.
+	err = s.verifyClusterTaggedGroups(ctx, securityGroups)
+	if err != nil {
+		return nil, err
+	}
 	// Fail if no security groups found
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
@@ -98,21 +101,18 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	return output.SecurityGroups, nil
 }
 
-func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) []*ec2.SecurityGroup {
-	filtered := []*ec2.SecurityGroup{}
+func (s *SecurityGroupProvider) verifyClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) error {
 	foundClusterTag := false
 	for _, securityGroup := range securityGroups {
 		if s.hasClusterTag(ctx, securityGroup) {
 			if foundClusterTag {
-				logging.FromContext(ctx).Debugf("Ignoring security group %s, only one group with tag %s is allowed", aws.StringValue(securityGroup.GroupId),
-					fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName))
-				continue
+				return fmt.Errorf("only one group with tag %s is allowed", fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat,
+					injection.GetOptions(ctx).ClusterName))
 			}
 			foundClusterTag = true
 		}
-		filtered = append(filtered, securityGroup)
 	}
-	return filtered
+	return nil
 }
 
 func (s *SecurityGroupProvider) hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {

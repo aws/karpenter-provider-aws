@@ -51,6 +51,7 @@ import (
 var ctx context.Context
 var env *test.Environment
 var launchTemplateCache *cache.Cache
+var securityGroupCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
@@ -73,6 +74,7 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
+		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := NewSubnetProvider(fakeEC2API)
 		instanceTypeProvider := &InstanceTypeProvider{
@@ -82,6 +84,10 @@ var _ = BeforeSuite(func() {
 			unavailableOfferings: unavailableOfferingsCache,
 		}
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
+		securityGroupProvider := &SecurityGroupProvider{
+			ec2api: fakeEC2API,
+			cache:  securityGroupCache,
+		}
 		cloudProvider := &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
@@ -89,7 +95,7 @@ var _ = BeforeSuite(func() {
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
 					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
-					securityGroupProvider: NewSecurityGroupProvider(fakeEC2API),
+					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
 				},
 			},
@@ -118,6 +124,7 @@ var _ = Describe("Allocation", func() {
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
 		launchTemplateCache.Flush()
+		securityGroupCache.Flush()
 		unavailableOfferingsCache.Flush()
 	})
 
@@ -410,6 +417,14 @@ var _ = Describe("Allocation", func() {
 					aws.String("test-security-group-2"),
 					aws.String("test-security-group-3"),
 				))
+			})
+			It("should disallow multiple security groups with cluster tag", func() {
+				fakeEC2API.DescribeSecurityGroupsOutput = &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{
+					{GroupId: aws.String("test-sg-1"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-1")}}},
+					{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
+				}}
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 		})
 		Context("Kubelet Args", func() {
