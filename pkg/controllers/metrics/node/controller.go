@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	podutil "github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -127,15 +128,15 @@ func labelNames() []string {
 }
 
 type Controller struct {
-	KubeClient    client.Client
-	LabelSliceMap map[types.NamespacedName][]prometheus.Labels
+	KubeClient      client.Client
+	LabelCollection map[types.NamespacedName][]prometheus.Labels
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
-		KubeClient:    kubeClient,
-		LabelSliceMap: make(map[types.NamespacedName][]prometheus.Labels),
+		KubeClient:      kubeClient,
+		LabelCollection: make(map[types.NamespacedName][]prometheus.Labels),
 	}
 }
 
@@ -143,7 +144,7 @@ func NewController(kubeClient client.Client) *Controller {
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodemetrics").With("node", req.Name))
 	// Remove the previous gauge after node labels are updated
-	c.deleteGauges(req.NamespacedName)
+	c.cleanup(req.NamespacedName)
 	// Retrieve node from reconcile request
 	node := &v1.Node{}
 	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
@@ -152,7 +153,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		return reconcile.Result{}, err
 	}
-	if err := c.updateGauges(ctx, node); err != nil {
+	if err := c.record(ctx, node); err != nil {
 		logging.FromContext(ctx).Errorf("Failed to update gauges: %s", err.Error())
 		return reconcile.Result{}, err
 	}
@@ -192,9 +193,9 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) deleteGauges(nodeNamespacedName types.NamespacedName) {
-	if labelSlice, ok := c.LabelSliceMap[nodeNamespacedName]; ok {
-		for _, labels := range labelSlice {
+func (c *Controller) cleanup(nodeNamespacedName types.NamespacedName) {
+	if labelSet, ok := c.LabelCollection[nodeNamespacedName]; ok {
+		for _, labels := range labelSet {
 			allocatableGaugeVec.Delete(labels)
 			podRequestsGaugeVec.Delete(labels)
 			podLimitsGaugeVec.Delete(labels)
@@ -203,12 +204,11 @@ func (c *Controller) deleteGauges(nodeNamespacedName types.NamespacedName) {
 			overheadGaugeVec.Delete(labels)
 		}
 	}
-	c.LabelSliceMap[nodeNamespacedName] = []prometheus.Labels{}
-
+	c.LabelCollection[nodeNamespacedName] = []prometheus.Labels{}
 }
 
-// generateLabels creates the labels using the current state of the pod
-func (c *Controller) generateLabels(node *v1.Node, resourceTypeName string) prometheus.Labels {
+// labels creates the labels using the current state of the pod
+func (c *Controller) labels(node *v1.Node, resourceTypeName string) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	metricLabels[resourceType] = resourceTypeName
 	metricLabels[nodeName] = node.GetName()
@@ -229,21 +229,23 @@ func (c *Controller) generateLabels(node *v1.Node, resourceTypeName string) prom
 	return metricLabels
 }
 
-func (c *Controller) updateGauges(ctx context.Context, node *v1.Node) error {
+func (c *Controller) record(ctx context.Context, node *v1.Node) error {
 	podlist := &v1.PodList{}
 	if err := c.KubeClient.List(ctx, podlist, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 	}
-	var daemonSetPods, pods []*v1.Pod
+	var daemons, pods []*v1.Pod
 	for index := range podlist.Items {
 		if podutil.IsOwnedByDaemonSet(&podlist.Items[index]) {
-			daemonSetPods = append(daemonSetPods, &podlist.Items[index])
+			daemons = append(daemons, &podlist.Items[index])
 		} else {
 			pods = append(pods, &podlist.Items[index])
 		}
 	}
-	podRequest, podLimits := getPodsTotalRequestsAndLimits(pods)
-	daemonRequest, daemonLimits := getPodsTotalRequestsAndLimits(daemonSetPods)
+	podRequest := resources.RequestsForPods(pods...)
+	podLimits := resources.LimitsForPods(pods...)
+	daemonRequest := resources.RequestsForPods(daemons...)
+	daemonLimits := resources.LimitsForPods(daemons...)
 	systemOverhead := getSystemOverhead(node)
 	allocatable := node.Status.Capacity
 	if len(node.Status.Allocatable) > 0 {
@@ -258,7 +260,7 @@ func (c *Controller) updateGauges(ctx context.Context, node *v1.Node) error {
 		daemonLimitsGaugeVec:   daemonLimits,
 		allocatableGaugeVec:    allocatable,
 	} {
-		if err := c.insertGaugeValues(resourceList, node, gaugeVec); err != nil {
+		if err := c.set(resourceList, node, gaugeVec); err != nil {
 			logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
 		}
 	}
@@ -278,14 +280,14 @@ func getSystemOverhead(node *v1.Node) v1.ResourceList {
 	return systemOverheads
 }
 
-func (c *Controller) insertGaugeValues(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
-
+// set sets the value for the node gauge
+func (c *Controller) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *prometheus.GaugeVec) error {
 	for resourceName, quantity := range resourceList {
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
-		labels := c.generateLabels(node, resourceTypeName)
+		labels := c.labels(node, resourceTypeName)
 		// Register the set of labels that are generated for node
 		nodeNamespacedName := types.NamespacedName{Name: node.Name}
-		c.LabelSliceMap[nodeNamespacedName] = append(c.LabelSliceMap[nodeNamespacedName], labels)
+		c.LabelCollection[nodeNamespacedName] = append(c.LabelCollection[nodeNamespacedName], labels)
 		gauge, err := gaugeVec.GetMetricWith(labels)
 		if err != nil {
 			return fmt.Errorf("generate new gauge: %w", err)
@@ -297,49 +299,4 @@ func (c *Controller) insertGaugeValues(resourceList v1.ResourceList, node *v1.No
 		}
 	}
 	return nil
-}
-
-// GetPodsTotalRequestsAndLimits calculates the total resource requests and limits for the pods.
-// If pod overhead is non-nil, the pod overhead is added to the
-// total container resource requests and to the total container limits which have a non-zero quantity.
-func getPodsTotalRequestsAndLimits(pods []*v1.Pod) (reqs v1.ResourceList, limits v1.ResourceList) {
-	reqs, limits = v1.ResourceList{}, v1.ResourceList{}
-	for _, pod := range pods {
-		// Excluding pods that are completed or failed
-		if podutil.IsTerminal(pod) {
-			continue
-		}
-		for _, container := range pod.Spec.Containers {
-			// Calculate Resource Requests
-			addResourceQuantity(container.Resources.Requests, reqs)
-			// Calculate Resource Limits
-			addResourceQuantity(container.Resources.Limits, limits)
-		}
-		// Add overhead for running a pod to the sum of requests and to non-zero limits:
-		if pod.Spec.Overhead != nil {
-			// Calculate Resource Requests
-			addResourceQuantity(pod.Spec.Overhead, reqs)
-			// Calculate Resource Requests
-			// Add to limits only when non-zero
-			for resourceName, quantity := range pod.Spec.Overhead {
-				if value, ok := limits[resourceName]; ok && !value.IsZero() {
-					value.Add(quantity)
-					limits[resourceName] = value
-				}
-			}
-		}
-	}
-	return
-}
-
-func addResourceQuantity(valueResourceList v1.ResourceList, targetResourceList v1.ResourceList) {
-	for resourceName, quantity := range valueResourceList {
-		if value, ok := targetResourceList[resourceName]; !ok {
-			targetResourceList[resourceName] = quantity.DeepCopy()
-		} else {
-			value.Add(quantity)
-			targetResourceList[resourceName] = value
-		}
-	}
-
 }

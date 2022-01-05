@@ -81,7 +81,6 @@ func labelNames() []string {
 		podHostInstanceType,
 		podPhase,
 	}
-
 }
 
 // NewController constructs a controller instance
@@ -95,53 +94,38 @@ func NewController(kubeClient client.Client) *Controller {
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("podmetrics").With("pod", req.Name))
-	// Retrieve pod from reconcile request
-	pod := &v1.Pod{}
-	if err := c.KubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
-		if errors.IsNotFound(err) {
-			// Remove gauge due to pod deletion
-			if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
-				podGaugeVec.Delete(labels)
-			} else {
-				logging.FromContext(ctx).Errorf("Failed to delete gauge, failed to locate labels")
-			}
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
-	}
 	// Remove the previous gauge after pod labels are updated
 	if labels, ok := c.LabelsMap[req.NamespacedName]; ok {
 		podGaugeVec.Delete(labels)
 	}
-	if err := c.updateGauges(ctx, pod); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to record metrics, %s", err.Error())
+	// Retrieve pod from reconcile request
+	pod := &v1.Pod{}
+	if err := c.KubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, err
 	}
+	c.record(ctx, pod)
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) updateGauges(ctx context.Context, pod *v1.Pod) error {
-	newlabels := c.generateLabels(ctx, pod)
-	gauge, err := podGaugeVec.GetMetricWith(newlabels)
-	if err != nil {
-		return fmt.Errorf("get gauge, %w", err)
-	}
-	gauge.Set(float64(1))
-	c.LabelsMap[types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}] = newlabels
-	return nil
+func (c *Controller) record(ctx context.Context, pod *v1.Pod) {
+	labels := c.labels(ctx, pod)
+	podGaugeVec.With(labels).Set(float64(1))
+	c.LabelsMap[client.ObjectKeyFromObject(pod)] = labels
 }
 
 func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
-	err := controllerruntime.
+	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("podmetrics").
 		For(&v1.Pod{}).
 		Complete(c)
-	return err
 }
 
-// generateLabels creates the labels using the current state of the pod
-func (c *Controller) generateLabels(ctx context.Context, pod *v1.Pod) prometheus.Labels {
+// labels creates the labels using the current state of the pod
+func (c *Controller) labels(ctx context.Context, pod *v1.Pod) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	metricLabels[podName] = pod.GetName()
 	metricLabels[podNameSpace] = pod.GetNamespace()
