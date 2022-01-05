@@ -68,7 +68,6 @@ func (e *EC2API) Reset() {
 	e.EC2Behavior = EC2Behavior{
 		CalledWithCreateFleetInput:          set.NewSet(),
 		CalledWithCreateLaunchTemplateInput: set.NewSet(),
-		DescribeSecurityGroupsOutput:        nil,
 		Instances:                           sync.Map{},
 		LaunchTemplates:                     sync.Map{},
 		InsufficientCapacityPools:           []CapacityPool{},

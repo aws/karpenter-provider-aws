@@ -60,17 +60,10 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range constraints.SecurityGroupSelector {
-		if value == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
-			})
-		}
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(value)},
+		})
 	}
 	return filters
 }

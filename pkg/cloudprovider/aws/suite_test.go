@@ -418,7 +418,7 @@ var _ = Describe("Allocation", func() {
 					aws.String("test-security-group-3"),
 				))
 			})
-			It("allow multiple security groups with cluster tag", func() {
+			It("should discover security groups by tag", func() {
 				fakeEC2API.DescribeSecurityGroupsOutput = &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{
 					{GroupId: aws.String("test-sg-1"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-1")}}},
 					{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
