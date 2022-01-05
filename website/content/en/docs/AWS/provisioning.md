@@ -37,7 +37,7 @@ spec:
 
 ### SubnetSelector
 
-Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
 Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
 
@@ -66,7 +66,7 @@ Select subnets by an arbitrary AWS tag key/value pair:
 Select subnets using wildcards:
 ```
   subnetSelector:
-    Name: *public* 
+    Name: *public*
 
 ```
 
@@ -79,7 +79,16 @@ EKS creates at least two security groups by default, [review the documentation](
 
 Security groups may be specified by any AWS tag, including "name". Selecting tags using wildcards ("*") is supported.
 
-‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. The only exception to this is security groups tagged with the label `kubernetes.io/cluster/MyClusterName`. The AWS Load Balancer controller requires that *only a single security group with this tag may be attached to a node*. In this case, Karpenter selects randomly.
+‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `kubernetes.io/cluster/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+
+To verify if this restriction affects you, run the following commands.
+```bash
+CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.resourcesVpcConfig.vpcId --output text)"
+
+aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query SecurityGroups[].[GroupName] --output text
+```
+
+If multiple securityGroups are printed, you will need a more targeted securityGroupSelector.
 
 **Examples**
 

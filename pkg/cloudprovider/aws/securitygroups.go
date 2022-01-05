@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -46,11 +45,6 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	if err != nil {
 		return nil, err
 	}
-	// This hack works around
-	// https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367
-	// The LoadBalancer Controller expects a single security group with the
-	// cluster tag, but provisioning tools like eksctl and kops create multiple.
-	securityGroups = s.filterClusterTaggedGroups(ctx, securityGroups)
 	// Fail if no security groups found
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
@@ -66,17 +60,10 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range constraints.SecurityGroupSelector {
-		if value == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
-			})
-		}
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+			Values: []*string{aws.String(value)},
+		})
 	}
 	return filters
 }
@@ -96,32 +83,6 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	s.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
-}
-
-func (s *SecurityGroupProvider) filterClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) []*ec2.SecurityGroup {
-	filtered := []*ec2.SecurityGroup{}
-	foundClusterTag := false
-	for _, securityGroup := range securityGroups {
-		if s.hasClusterTag(ctx, securityGroup) {
-			if foundClusterTag {
-				logging.FromContext(ctx).Debugf("Ignoring security group %s, only one group with tag %s is allowed", aws.StringValue(securityGroup.GroupId),
-					fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName))
-				continue
-			}
-			foundClusterTag = true
-		}
-		filtered = append(filtered, securityGroup)
-	}
-	return filtered
-}
-
-func (s *SecurityGroupProvider) hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
-	for _, tag := range securityGroup.Tags {
-		if aws.StringValue(tag.Key) == fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
