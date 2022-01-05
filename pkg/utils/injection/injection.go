@@ -79,3 +79,17 @@ func GetControllerName(ctx context.Context) string {
 	}
 	return name.(string)
 }
+
+type testInstanceKey struct{}
+
+func WithTestInstance(ctx context.Context, include bool) context.Context {
+	return context.WithValue(ctx, testInstanceKey{}, include)
+}
+
+func GetTestInstance(ctx context.Context) bool {
+	retval := ctx.Value(testInstanceKey{})
+	if retval == nil {
+		return false
+	}
+	return retval.(bool)
+}

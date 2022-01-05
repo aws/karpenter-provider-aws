@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
 
 	v1 "k8s.io/api/core/v1"
@@ -65,6 +66,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("Provisioning", func() {
 	var provisioner *v1alpha5.Provisioner
 	BeforeEach(func() {
+		ctx = injection.WithTestInstance(ctx, false)
 		provisioner = &v1alpha5.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: v1alpha5.DefaultProvisioner.Name,
@@ -144,6 +146,26 @@ var _ = Describe("Provisioning", func() {
 			) {
 				ExpectScheduled(ctx, env.Client, pod)
 			}
+		})
+		Context("Instance Type Selection", func() {
+			BeforeEach(func() {
+				ctx = injection.WithTestInstance(ctx, true)
+			})
+
+			AfterEach(func() {
+				ctx = injection.WithTestInstance(ctx, false)
+			})
+
+			It("should not select invalid instance types", func() {
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(
+					test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("3"), v1.ResourceMemory: resource.MustParse("3Gi")}},
+					},
+				))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+			})
 		})
 		Context("Resource Limits", func() {
 			It("should not schedule when limits are exceeded", func() {

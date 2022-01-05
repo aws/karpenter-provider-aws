@@ -22,6 +22,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/apis"
 
@@ -39,6 +40,17 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
 		instance := instanceTypes[0]
+		// To create error test cases, pick the zero instance types when they are included
+		for _, instanceType := range instanceTypes {
+			if instanceType.Name() == "invalid-pod-instance-type" {
+				instance = instanceType
+				break
+			}
+			if instanceType.Name() == "invalid-memory-instance-type" {
+				instance = instanceType
+				break
+			}
+		}
 		var zone, capacityType string
 		for _, o := range instance.Offerings() {
 			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) {
@@ -78,11 +90,12 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
-	return []cloudprovider.InstanceType{
+
+	instanceTypes := []cloudprovider.InstanceType{
 		NewInstanceType(InstanceTypeOptions{
 			Name: "default-instance-type",
 		}),
@@ -111,7 +124,29 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constrai
 			Name:         "arm-instance-type",
 			Architecture: "arm64",
 		}),
-	}, nil
+	}
+
+	if injection.GetTestInstance(ctx) {
+		invalidTypes := []cloudprovider.InstanceType{
+			NewInstanceType(InstanceTypeOptions{
+				Name:   "invalid-memory-instance-type",
+				CPU:    resource.MustParse("6"),
+				Memory: resource.MustParse("500Mi"),
+			}),
+			NewInstanceType(InstanceTypeOptions{
+				Name: "invalid-pod-instance-type",
+				CPU:  resource.MustParse("6"),
+				Pods: resource.MustParse("1"),
+			}),
+			NewInstanceType(InstanceTypeOptions{
+				Name:   "large-pod-instance-type",
+				CPU:    resource.MustParse("8"),
+				Memory: resource.MustParse("8Gi"),
+			}),
+		}
+		instanceTypes = append(instanceTypes, invalidTypes...)
+	}
+	return instanceTypes, nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
