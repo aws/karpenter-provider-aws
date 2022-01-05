@@ -68,7 +68,7 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	provisioner = &v1alpha5.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha5.DefaultProvisioner.Name},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
 	provisioner.SetDefaults(ctx)
@@ -421,7 +421,7 @@ var _ = Describe("Topology", func() {
 
 	It("should ignore unknown topology keys", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-			test.PodOptions{Labels: labels, TopologySpreadConstraints: []v1.TopologySpreadConstraint{{
+			test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: []v1.TopologySpreadConstraint{{
 				TopologyKey:       "unknown",
 				WhenUnsatisfiable: v1.DoNotSchedule,
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
@@ -440,10 +440,10 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 2))
 		})
@@ -456,17 +456,17 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
 			wrongNamespace := strings.ToLower(randomdata.SillyName())
-			firstNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
-			secondNode := test.Node(test.NodeOptions{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
+			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}})
+			secondNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-2"}}})
 			thirdNode := test.Node(test.NodeOptions{}) // missing topology domain
 			ExpectCreated(ctx, env.Client, provisioner, firstNode, secondNode, thirdNode, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: wrongNamespace}})
 			topology := []v1.TopologySpreadConstraint{{
@@ -476,18 +476,18 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.Pod(test.PodOptions{NodeName: firstNode.Name}),                                                                                          // ignored, missing labels
-				test.Pod(test.PodOptions{Labels: labels}),                                                                                                    // ignored, pending
-				test.Pod(test.PodOptions{Labels: labels, NodeName: thirdNode.Name}),                                                                          // ignored, no domain on node
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Namespace: wrongNamespace}),                                               // ignored, wrong namespace
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, DeletionTimestamp: &metav1.Time{Time: time.Now().Add(10 * time.Second)}}), // ignored, terminating
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Phase: v1.PodFailed}),                                                     // ignored, phase=Failed
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name, Phase: v1.PodSucceeded}),                                                  // ignored, phase=Succeeded
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
-				test.Pod(test.PodOptions{Labels: labels, NodeName: firstNode.Name}),
-				test.Pod(test.PodOptions{Labels: labels, NodeName: secondNode.Name}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.Pod(test.PodOptions{NodeName: firstNode.Name}),                                                                                                                         // ignored, missing labels
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}}),                                                                                                    // ignored, pending
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: thirdNode.Name}),                                                                          // ignored, no domain on node
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels, Namespace: wrongNamespace}, NodeName: firstNode.Name}),                                               // ignored, wrong namespace
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels, DeletionTimestamp: &metav1.Time{Time: time.Now().Add(10 * time.Second)}}, NodeName: firstNode.Name}), // ignored, terminating
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: firstNode.Name, Phase: v1.PodFailed}),                                                     // ignored, phase=Failed
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: firstNode.Name, Phase: v1.PodSucceeded}),                                                  // ignored, phase=Succeeded
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: firstNode.Name}),
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: firstNode.Name}),
+				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, NodeName: secondNode.Name}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			nodes := v1.NodeList{}
 			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
@@ -504,10 +504,10 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 1, 1))
 		})
@@ -519,10 +519,10 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           4,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
-				test.UnschedulablePod(test.PodOptions{Labels: labels, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4))
 		})
@@ -542,25 +542,25 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           3,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(2, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+				MakePods(2, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
 			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(3, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+				MakePods(3, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2, 1))
 			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(5, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+				MakePods(5, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 3, 3))
 			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(11, test.PodOptions{Labels: labels, TopologySpreadConstraints: topology})...,
+				MakePods(11, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(7, 7, 7))
 			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 3)))
@@ -579,12 +579,12 @@ var _ = Describe("Topology", func() {
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				append(
 					MakePods(5, test.PodOptions{
-						Labels:                    labels,
+						ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 						TopologySpreadConstraints: topology,
 						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-1"},
 					}),
 					MakePods(5, test.PodOptions{
-						Labels:                    labels,
+						ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 						TopologySpreadConstraints: topology,
 						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-2"},
 					})...,
@@ -601,14 +601,14 @@ var _ = Describe("Topology", func() {
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, append(
 				MakePods(6, test.PodOptions{
-					Labels:                    labels,
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 					TopologySpreadConstraints: topology,
 					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{
 						"test-zone-1", "test-zone-2",
 					}}},
 				}),
 				MakePods(1, test.PodOptions{
-					Labels:                    labels,
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 					TopologySpreadConstraints: topology,
 					NodeRequirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{
 						"test-zone-2", "test-zone-3",
@@ -618,7 +618,7 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4, 3))
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(5, test.PodOptions{
-					Labels:                    labels,
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 					TopologySpreadConstraints: topology,
 				})...,
 			)

@@ -99,8 +99,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
-		With(requirements(instanceTypes)).
-		With(v1alpha5.LabelRequirements(provisioner.Spec.Labels)).
+		Add(requirements(instanceTypes)...).
+		Add(v1alpha5.LabelRequirements(provisioner.Spec.Labels)...).
 		Consolidate()
 	// Update the provisioner if anything has changed
 	if c.hasChanged(ctx, provisioner) {

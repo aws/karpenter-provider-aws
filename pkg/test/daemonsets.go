@@ -28,8 +28,7 @@ import (
 
 // DaemonSetOptions customizes a DaemonSet.
 type DaemonSetOptions struct {
-	Name       string
-	Namespace  string
+	metav1.ObjectMeta
 	Selector   map[string]string
 	PodOptions PodOptions
 }
@@ -59,6 +58,7 @@ func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: options.Selector},
 				Spec:       Pod(options.PodOptions).Spec,
-			}},
+			},
+		},
 	}
 }

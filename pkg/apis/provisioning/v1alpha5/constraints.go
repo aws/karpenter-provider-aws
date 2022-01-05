@@ -56,7 +56,7 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 		}
 	}
 	// The combined requirements are not compatible
-	combined := c.Requirements.With(podRequirements)
+	combined := c.Requirements.Add(podRequirements...)
 	for _, key := range podRequirements.Keys() {
 		if combined.Requirement(key).Len() == 0 {
 			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
@@ -68,7 +68,7 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
 	return &Constraints{
 		Labels:               c.Labels,
-		Requirements:         c.Requirements.With(PodRequirements(pod)).Consolidate().WellKnown(),
+		Requirements:         c.Requirements.Add(PodRequirements(pod)...).Consolidate().WellKnown(),
 		Taints:               c.Taints,
 		Provider:             c.Provider,
 		KubeletConfiguration: c.KubeletConfiguration,

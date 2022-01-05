@@ -78,7 +78,7 @@ var _ = Describe("Termination", func() {
 	var node *v1.Node
 
 	BeforeEach(func() {
-		node = test.Node(test.NodeOptions{Finalizers: []string{v1alpha5.TerminationFinalizer}})
+		node = test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{v1alpha5.TerminationFinalizer}}})
 	})
 
 	AfterEach(func() {
@@ -125,8 +125,8 @@ var _ = Describe("Termination", func() {
 		It("should not delete nodes that have a do-not-evict pod", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNoEvict := test.Pod(test.PodOptions{
-				NodeName:    node.Name,
-				Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"},
+				NodeName:   node.Name,
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
 			})
 
 			ExpectCreated(ctx, env.Client, node, podEvict, podNoEvict)
@@ -169,8 +169,8 @@ var _ = Describe("Termination", func() {
 				MinAvailable: &minAvailable,
 			})
 			podNoEvict := test.Pod(test.PodOptions{
-				NodeName: node.Name,
-				Labels:   labelSelector,
+				NodeName:   node.Name,
+				ObjectMeta: metav1.ObjectMeta{Labels: labelSelector},
 			})
 
 			ExpectCreated(ctx, env.Client, node, podNoEvict, pdb)
@@ -203,12 +203,14 @@ var _ = Describe("Termination", func() {
 
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName: node.Name,
-				OwnerReferences: []metav1.OwnerReference{{
-					APIVersion: "v1",
-					Kind:       "Node",
-					Name:       node.Name,
-					UID:        node.UID,
-				}},
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: "v1",
+						Kind:       "Node",
+						Name:       node.Name,
+						UID:        node.UID,
+					}},
+				},
 			})
 			ExpectCreated(ctx, env.Client, podNoEvict)
 

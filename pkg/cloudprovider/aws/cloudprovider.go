@@ -28,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"go.uber.org/multierr"
@@ -53,6 +54,10 @@ const (
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CacheCleanupInterval = 10 * time.Minute
 )
+
+func init() {
+	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+}
 
 type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider

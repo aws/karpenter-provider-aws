@@ -16,25 +16,20 @@ package test
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type NodeOptions struct {
-	Name          string
-	Labels        map[string]string
-	Annotations   map[string]string
+	metav1.ObjectMeta
 	ReadyStatus   v1.ConditionStatus
 	ReadyReason   string
 	Conditions    []v1.NodeCondition
 	Unschedulable bool
 	Taints        []v1.Taint
 	Allocatable   v1.ResourceList
-	Finalizers    []string
 }
 
 func Node(overrides ...NodeOptions) *v1.Node {
@@ -44,28 +39,11 @@ func Node(overrides ...NodeOptions) *v1.Node {
 			panic(fmt.Sprintf("Failed to merge node options: %s", err.Error()))
 		}
 	}
-	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
-	}
 	if options.ReadyStatus == "" {
 		options.ReadyStatus = v1.ConditionTrue
 	}
-	if options.Labels == nil {
-		options.Labels = map[string]string{}
-	}
-	if options.Annotations == nil {
-		options.Annotations = map[string]string{}
-	}
-	if options.Finalizers == nil {
-		options.Finalizers = []string{}
-	}
 	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        options.Name,
-			Labels:      options.Labels,
-			Annotations: options.Annotations,
-			Finalizers:  options.Finalizers,
-		},
+		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.NodeSpec{
 			Unschedulable: options.Unschedulable,
 			Taints:        options.Taints,

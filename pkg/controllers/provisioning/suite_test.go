@@ -16,8 +16,10 @@ package provisioning_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
@@ -66,9 +68,7 @@ var _ = Describe("Provisioning", func() {
 	var provisioner *v1alpha5.Provisioner
 	BeforeEach(func() {
 		provisioner = &v1alpha5.Provisioner{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: v1alpha5.DefaultProvisioner.Name,
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: v1alpha5.ProvisionerSpec{
 				Limits: v1alpha5.Limits{
 					Resources: v1.ResourceList{
