@@ -418,13 +418,19 @@ var _ = Describe("Allocation", func() {
 					aws.String("test-security-group-3"),
 				))
 			})
-			It("should disallow multiple security groups with cluster tag", func() {
+			It("allow multiple security groups with cluster tag", func() {
 				fakeEC2API.DescribeSecurityGroupsOutput = &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{
 					{GroupId: aws.String("test-sg-1"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-1")}}},
 					{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 				}}
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
-				ExpectNotScheduled(ctx, env.Client, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
+					aws.String("test-sg-1"),
+					aws.String("test-sg-2"),
+				))
 			})
 		})
 		Context("Kubelet Args", func() {

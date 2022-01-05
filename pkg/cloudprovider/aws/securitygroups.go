@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
@@ -43,14 +42,6 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
 	// Get SecurityGroups
 	securityGroups, err := s.getSecurityGroups(ctx, s.getFilters(constraints))
-	if err != nil {
-		return nil, err
-	}
-	// The LoadBalancer Controller expects a single security group with the
-	// cluster tag, but provisioning tools like eksctl and kops create multiple. Until
-	// https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367 is addressed, we will
-	// enforce that only a single security group with the cluster tag can be chosen by the selector.
-	err = s.verifyClusterTaggedGroups(ctx, securityGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -99,29 +90,6 @@ func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters [
 	s.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
 	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
-}
-
-func (s *SecurityGroupProvider) verifyClusterTaggedGroups(ctx context.Context, securityGroups []*ec2.SecurityGroup) error {
-	foundClusterTag := false
-	for _, securityGroup := range securityGroups {
-		if s.hasClusterTag(ctx, securityGroup) {
-			if foundClusterTag {
-				return fmt.Errorf("only one group with tag %s is allowed", fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat,
-					injection.GetOptions(ctx).ClusterName))
-			}
-			foundClusterTag = true
-		}
-	}
-	return nil
-}
-
-func (s *SecurityGroupProvider) hasClusterTag(ctx context.Context, securityGroup *ec2.SecurityGroup) bool {
-	for _, tag := range securityGroup.Tags {
-		if aws.StringValue(tag.Key) == fmt.Sprintf(v1alpha1.ClusterDiscoveryTagKeyFormat, injection.GetOptions(ctx).ClusterName) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
