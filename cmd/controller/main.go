@@ -24,7 +24,8 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/counter"
-	"github.com/aws/karpenter/pkg/controllers/metrics"
+	metricsnode "github.com/aws/karpenter/pkg/controllers/metrics/node"
+	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -91,7 +92,8 @@ func main() {
 		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
-		metrics.NewController(manager.GetClient(), cloudProvider),
+		metricspod.NewController(manager.GetClient()),
+		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
