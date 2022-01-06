@@ -497,11 +497,10 @@ var _ = Describe("Topology", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
 				WhenUnsatisfiable: v1.DoNotSchedule,
-				LabelSelector:     nil,
 				MaxSkew:           1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}}),
+				test.UnschedulablePod(),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
 		})
