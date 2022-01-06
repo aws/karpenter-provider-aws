@@ -182,7 +182,12 @@ func (p *Packer) packWithLargestPod(unpackedPods []*v1.Pod, packables []*Packabl
 			// Trim the bestInstances so that provisioning APIs in cloud providers are not overwhelmed by the number of instance type options
 			// For example, the AWS EC2 Fleet API only allows the request to be 145kb which equates to about 130 instance type options.
 			for j := i; j < len(packables) && j-i < MaxInstanceTypes; j++ {
-				bestInstances = append(bestInstances, packables[j])
+				// packable nodes are sorted lexicographically according to the order of [CPU, memory]
+				// It may result in cases where an instance type may have larger index value when it has more CPU but fewer memory
+				// Need to exclude instance type with smaller memory and fewer pods
+				if packables[i].Memory().Cmp(*packables[j].Memory()) <= 0 && packables[i].Pods().Cmp(*packables[j].Pods()) <= 0 {
+					bestInstances = append(bestInstances, packables[j])
+				}
 			}
 			bestPackedPods = result.packed
 			remainingPods = result.unpacked
