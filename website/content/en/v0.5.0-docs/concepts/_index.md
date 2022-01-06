@@ -37,7 +37,7 @@ Karpenter's job is to add nodes to handle unschedulable pods, schedule pods on t
 To configure Karpenter, you create *provisioners* that define how Karpenter manages unschedulable pods and expires nodes.
 Here are some things to know about the Karpenter provisioner:
 
-* **Unschedulable pods**: Karpenter only attempts to provision pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
+* **Unschedulable pods**: Karpenter only attempts to schedule pods that have a status condition `Unschedulable=True`, which the kube scheduler sets when it fails to schedule the pod to existing capacity.
 
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
