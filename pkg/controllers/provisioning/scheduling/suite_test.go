@@ -493,6 +493,17 @@ var _ = Describe("Topology", func() {
 			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2, 1))
 		})
+		It("should match all pods when labelSelector is not specified", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				MaxSkew:           1,
+			}}
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(),
+			)
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+		})
 	})
 
 	Context("Hostname", func() {
