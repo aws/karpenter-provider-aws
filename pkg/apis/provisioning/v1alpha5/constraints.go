@@ -48,17 +48,24 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	if err := c.Taints.Tolerates(pod); err != nil {
 		return err
 	}
-	// The constraints do not support this requirement
 	podRequirements := PodRequirements(pod)
-	for _, key := range podRequirements.Keys() {
-		if c.Requirements.Requirement(key).Len() == 0 {
-			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
-		}
-	}
-	// The combined requirements are not compatible
 	combined := c.Requirements.Add(podRequirements...)
-	for _, key := range podRequirements.Keys() {
-		if combined.Requirement(key).Len() == 0 {
+	for _, podRequirement := range podRequirements {
+		key := podRequirement.Key
+		// The pod contains conflicting requirements
+		// e.g., case 1: label In [A] and label In [B], there is no overlap
+		//		 case 2: label In [A] and label NotIn [A]. Conflicting requirement
+		if podRequirements.Requirement(key).Len() == 0 && podRequirement.Operator == v1.NodeSelectorOpIn {
+			return fmt.Errorf("invalid nodeSelector %q, illy defined pod requirements detected", key)
+		}
+		// The constraints do not specify requirements for provided key
+		// provisioner_validation rules out cases with conflicting constraints
+		if c.Requirements.Requirement(key).Len() == 0 && podRequirement.Operator == v1.NodeSelectorOpIn {
+			return fmt.Errorf("invalid nodeSelector %q, constraints not supported", key)
+		}
+		// The constraint allowed values are cancled out by the pod requirements
+		// Either there is no overlap or excluded by NotIn operator
+		if c.Requirements.Requirement(key).Len() > 0 && combined.Requirement(key).Len() == 0 {
 			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
 	}

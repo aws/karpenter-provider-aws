@@ -164,5 +164,12 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
+		It("should fail for conflicting constraints", func() {
+			provisioner.Spec.Requirements = Requirements{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
 	})
 })

@@ -138,6 +138,11 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 		if err := validateRequirement(requirement); err != nil {
 			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
 		}
+		// The constraints contains conflicting requirements
+		// e.g., label In [A] && label In [B], there is no overlap
+		if c.Requirements.Requirement(requirement.Key).Len() == 0 {
+			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("conflicting, %s", requirement.Key), "requirements", i))
+		}
 	}
 	return errs
 }
