@@ -144,7 +144,7 @@ Note that if the constraints are such that a match is not possible, the pod will
 
 So, what constraints can you use as an application developer deploying pods that could be managed by Karpenter?
 
-Kubernetes features that Karpenters supports for scheduling nodes include nodeAffinity and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
+Kubernetes features that Karpenter supports for scheduling pods include nodeAffinity and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
 It also supports [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) and [topologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
 
 From the Kubernetes [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) page,
