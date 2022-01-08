@@ -1,6 +1,6 @@
 # -- Additional labels to add into metadata
 additionalLabels: {}
-  # app: karpenter
+# app: karpenter
 
 serviceAccount:
   # -- Create a service account for the application controller
@@ -21,7 +21,7 @@ controller:
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the Karpenter controller
-  image: "public.ecr.aws/karpenter/controller:v0.5.3@sha256:ddd24d756cb324cf8f91f2274621646f83d6121ed6856312ca672a5f78c57174"
+  image: "public.ecr.aws/karpenter/controller:v0.5.4@sha256:19ebf83d64fa41d75fb19ae5047f54b1c66423b4ab5ceef36ae99a0daaad1895"
   # -- Cluster name
   clusterName: ""
   # -- Cluster endpoint
@@ -44,7 +44,7 @@ webhook:
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the webhook
-  image: "public.ecr.aws/karpenter/webhook:v0.5.3@sha256:19a1e1f2c8ec6ece1b170584dd6251d2e00f1676503a65d1433f45f46e330ddf"
+  image: "public.ecr.aws/karpenter/webhook:v0.5.4@sha256:fd7dd0a3e155cb08a1c1def31258c654ac6c61b2fa8d8d25b7483688664c7de2"
   # -- Set to true if using custom CNI on EKS
   hostNetwork: false
   port: 8443
