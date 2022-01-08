@@ -2,13 +2,15 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: karpenter-webhook
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: karpenter-webhook
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
+  name: {{ template "karpenter.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -16,13 +18,15 @@ kind: RoleBinding
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: karpenter-webhook
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.serviceAccount.name }}
+  name: {{ template "karpenter.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -30,6 +34,8 @@ kind: Role
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 rules:
 - apiGroups: [""]
   resources: ["configmaps", "namespaces"]
@@ -45,6 +51,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: karpenter-webhook
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 rules:
 - apiGroups: ["admissionregistration.k8s.io"]
   resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]

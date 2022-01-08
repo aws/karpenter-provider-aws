@@ -4,7 +4,7 @@ metadata:
   name: config-logging
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/part-of: karpenter
+    {{- include "karpenter.labels" . | indent 4 }}
 data:
   # https://github.com/uber-go/zap/blob/aa3e73ec0896f8b066ddf668597a02f89628ee50/config.go
   zap-logger-config: |

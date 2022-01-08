@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   ports:
     - port: 443
@@ -15,6 +17,8 @@ kind: Deployment
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.webhook.replicas }}
   strategy:
@@ -26,9 +30,10 @@ spec:
     metadata:
       labels:
         karpenter: webhook
+        {{- include "karpenter.labels" . | indent 8 }}
     spec:
       priorityClassName: system-cluster-critical
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ template "karpenter.serviceAccountName" . }}
       containers:
         - name: webhook
           image: {{ .Values.webhook.image }}
@@ -58,7 +63,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           {{- with .Values.webhook.env }}
-          {{- toYaml . | nindent 10 }}
+          {{- toYaml . | nindent 12 }}
           {{- end }}
       # https://github.com/aws/amazon-eks-pod-identity-webhook/issues/8#issuecomment-636888074 - not needed in k8s versions 1.19+
       securityContext:
@@ -95,4 +100,6 @@ kind: Secret
 metadata:
   name: karpenter-webhook-cert
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 data: {} # Injected by karpenter-webhook

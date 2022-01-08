@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: karpenter-metrics
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   ports:
     - port: 8080
@@ -15,6 +17,8 @@ kind: Deployment
 metadata:
   name: karpenter-controller
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.controller.replicas }}
   strategy:
@@ -26,9 +30,10 @@ spec:
     metadata:
       labels:
         karpenter: controller
+        {{- include "karpenter.labels" . | indent 8 }}
     spec:
       priorityClassName: system-cluster-critical
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: {{ template "karpenter.serviceAccountName" . }}
       containers:
         - name: manager
           image: {{ .Values.controller.image }}
