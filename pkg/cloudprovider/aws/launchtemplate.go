@@ -100,7 +100,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		return nil, err
 	}
 	// Get constrained AMI ID
-	amis, err := p.amiProvider.Get(ctx, instanceTypes)
+	amis, err := p.amiProvider.Get(ctx, instanceTypes, constraints)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,12 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
 	for amiID, instanceTypes := range amis {
 		// Get userData for Node
-		userData, err := p.getUserData(ctx, constraints, instanceTypes, additionalLabels)
+		var userData string
+		if constraints.AMIFamily == "bottlerocket" {
+			userData, err = p.getBottleRocketUserData(ctx, constraints, additionalLabels)
+		} else {
+			userData, err = p.getUserData(ctx, constraints, instanceTypes, additionalLabels)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -238,6 +243,39 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func (p *LaunchTemplateProvider) getBottleRocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string) (string, error) {
+	var userData bytes.Buffer
+	userData.WriteString(fmt.Sprintf(`[settings.kubernetes]
+cluster-name = "%s"
+api-server = "%s"
+`,
+		injection.GetOptions(ctx).ClusterName,
+		injection.GetOptions(ctx).ClusterEndpoint))
+	caBundle, err := p.GetCABundle(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
+	}
+	if caBundle != nil {
+		userData.WriteString(fmt.Sprintf(`cluster-certificate = "%s"
+
+`,
+			*caBundle))
+	}
+
+	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
+	if len(nodeLabelArgs) > 0 {
+		userData.WriteString(`[settings.kubernetes.node-labels]
+`)
+		for key, val := range nodeLabelArgs {
+			userData.WriteString(fmt.Sprintf(`"%s" = "%s"
+`,
+				key, val))
+		}
+	}
+
+	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
 
 // getUserData returns the exact same string for equivalent input,
