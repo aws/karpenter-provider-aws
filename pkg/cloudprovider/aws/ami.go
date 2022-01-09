@@ -55,7 +55,7 @@ func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.Ins
 	// Separate instance types by unique queries
 	amiQueries := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		query := p.getSSMQuery(ctx, constraints.AMIFamily, instanceType, version)
+		query := p.getSSMQuery(ctx, constraints.AWS.AMIFamily, instanceType, version)
 		amiQueries[query] = append(amiQueries[query], instanceType)
 	}
 	// Separate instance types by unique AMIIDs

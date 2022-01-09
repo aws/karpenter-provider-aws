@@ -41,7 +41,7 @@ func (i *InstanceType) Name() string {
 }
 
 func (i *InstanceType) AMIFamily() string {
-	return "bottlerocket"
+	return ""
 }
 
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
