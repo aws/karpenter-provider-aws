@@ -25,6 +25,7 @@ var (
 	ArchitectureAmd64    = "amd64"
 	ArchitectureArm64    = "arm64"
 	OperatingSystemLinux = "linux"
+	BottleRocket         = "bottlerocket"
 
 	// RestrictedLabels are injected by Cloud Providers
 	RestrictedLabels = sets.NewString(

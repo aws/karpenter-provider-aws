@@ -34,6 +34,9 @@ type AWS struct {
 	// TypeMeta includes version and kind of the extensions, inferred if not provided.
 	// +optional
 	metav1.TypeMeta `json:",inline"`
+	// AMIFamily is the AMI family that instances use.
+	// +optional
+	AMIFamily string `json:"amiFamily"`
 	// InstanceProfile is the AWS identity that instances use.
 	// +required
 	InstanceProfile string `json:"instanceProfile"`

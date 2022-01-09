@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -46,7 +47,7 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 }
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
-func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.InstanceType, constraints *v1alpha1.Constraints) (map[string][]cloudprovider.InstanceType, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kube server version, %w", err)
@@ -54,7 +55,7 @@ func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.Ins
 	// Separate instance types by unique queries
 	amiQueries := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		query := p.getSSMQuery(instanceType, version)
+		query := p.getSSMQuery(ctx, constraints.AMIFamily, instanceType, version)
 		amiQueries[query] = append(amiQueries[query], instanceType)
 	}
 	// Separate instance types by unique AMIIDs
@@ -83,12 +84,21 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	return ami, nil
 }
 
-func (p *AMIProvider) getSSMQuery(instanceType cloudprovider.InstanceType, version string) string {
+func (p *AMIProvider) getSSMQuery(ctx context.Context, amiFamily string, instanceType cloudprovider.InstanceType, version string) string {
 	var amiSuffix string
+	var arch string
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-gpu"
 	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
 		amiSuffix = "-arm64"
+		arch = "arm64"
+	} else if instanceType.Architecture() == v1alpha5.ArchitectureAmd64 {
+		arch = "arm64"
+	}
+
+	if amiFamily == v1alpha5.BottleRocket {
+		logging.FromContext(ctx).Debugf("AMIFamily was: %s", amiFamily)
+		return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 }
