@@ -131,7 +131,7 @@ func (p *Provisioner) isProvisionable(ctx context.Context, candidate *v1.Pod) (b
 		}
 		return false, err
 	}
-	return !pod.IsScheduled(candidate), nil
+	return !pod.IsScheduled(stored), nil
 }
 
 func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constraints, packing *binpacking.Packing) error {
