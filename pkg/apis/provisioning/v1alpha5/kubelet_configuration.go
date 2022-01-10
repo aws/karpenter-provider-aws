@@ -22,10 +22,4 @@ type KubeletConfiguration struct {
 	// Note that not all providers may use all addresses.
 	//+optional
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
-	// MaxPods is the maximum number of Pods that can run on the Kubelet. While the value must be
-	// a non-negative integer, some providers might use separate flags to indicate whether a value
-	// will be specified. Therefore, if a negative value is provided, it indicates this field should
-	// not be specified on the underlying kubelet and defaults should be used.
-	//+optional
-	MaxPods int32 `json:"maxPods,omitempty"`
 }
