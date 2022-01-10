@@ -114,7 +114,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	// Create fleet
-	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, &ec2.CreateFleetInput{
+	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
@@ -127,11 +127,13 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 				Tags:         v1alpha1.MergeTags(ctx, constraints.Tags),
 			},
 		},
-		// OnDemandOptions are allowed to be specified even when requesting spot
-		OnDemandOptions: &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)},
-		// SpotOptions are allowed to be specified even when requesting on-demand
-		SpotOptions: &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)},
-	})
+	}
+	if capacityType == v1alpha1.CapacityTypeSpot {
+		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
+	} else {
+		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+	}
+	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
