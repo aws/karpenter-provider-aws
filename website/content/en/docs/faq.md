@@ -17,7 +17,7 @@ See [[Cloud provider]({{< ref "/docs/concepts/#cloud-provider" >}}) for details.
 ### What deployment methods are supported by Karpenter?
 To deploy Karpenter manually, see [[Getting Started]({{< ref "/docs/getting-started/" >}}).
 To deploy using Terraform, see [[Getting Started with Terraform]({{< ref "/docs/getting-started-with-terraform/" >}}).
-To deploy using kOps, see [[Getting Started with Terraform]({{< ref "/docs/getting-started-with-kops/" >}}).
+To deploy using kOps, see [[Getting Started with kOps]({{< ref "/docs/getting-started-with-kops/" >}}).
 
 ### Can I write my own cloud provider for Karpenter?
 !!! NEEDS INFO !!!
