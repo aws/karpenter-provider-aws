@@ -172,7 +172,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 		}
 	}
 	if len(launchTemplateConfigs) == 0 {
-		return nil, fmt.Errorf("no capacity offerings are currently available for the instance types and capacity type requested")
+		return nil, fmt.Errorf("no capacity offerings are currently available given the constraints")
 	}
 	return launchTemplateConfigs, nil
 }
