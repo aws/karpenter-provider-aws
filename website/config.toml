@@ -26,6 +26,14 @@ languageName = "English"
 # Weight used for sorting.
 weight = 1
 
+[languages.ko]
+title = "Karpenter"
+description = "Just-in-time Nodes for Any Kubernetes Cluster"
+languageName = "Korean"
+# Weight used for sorting.
+weight = 2
+contentDir = "website/content/ko"
+
 # Syntax Highlighting config
 pygmentsCodeFences = true
 pygmentsUseClasses = false
