@@ -160,13 +160,19 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
-		launchTemplateConfigs = append(launchTemplateConfigs, &ec2.FleetLaunchTemplateConfigRequest{
+		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
 			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Default"),
 			},
-		})
+		}
+		if len(launchTemplateConfig.Overrides) > 0 {
+			launchTemplateConfigs = append(launchTemplateConfigs, launchTemplateConfig)
+		}
+	}
+	if len(launchTemplateConfigs) == 0 {
+		return nil, fmt.Errorf("no capacity offerings are currently available given the constraints")
 	}
 	return launchTemplateConfigs, nil
 }

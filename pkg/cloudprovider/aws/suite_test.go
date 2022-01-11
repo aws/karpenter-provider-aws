@@ -282,6 +282,37 @@ var _ = Describe("Allocation", func() {
 					HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
 					HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
 			})
+			It("should launch smaller instances than optimal if larger instance launch results in Insufficient Capacity Error", func() {
+				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+				}
+				twoInstanceProvisioner := provisioner.DeepCopy()
+				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Add(v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"m5.large", "m5.xlarge"},
+				})
+				pods := []*v1.Pod{}
+				for i := 0; i < 2; i++ {
+					pods = append(pods, test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+						NodeSelector: map[string]string{
+							v1.LabelTopologyZone: "test-zone-1a",
+						},
+					}))
+				}
+
+				// The first provision will fail with an Insufficient Capacity Exception on 1 m5.xlarge
+				pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, twoInstanceProvisioner, pods...)
+				ExpectNotScheduled(ctx, env.Client, pods[0])
+				ExpectNotScheduled(ctx, env.Client, pods[1])
+				// Provisions 2 m5.large instances since m5.xlarge was ICE'd
+				pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, twoInstanceProvisioner, pods...)
+				ExpectScheduled(ctx, env.Client, pods[0])
+				ExpectScheduled(ctx, env.Client, pods[1])
+			})
 			It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
