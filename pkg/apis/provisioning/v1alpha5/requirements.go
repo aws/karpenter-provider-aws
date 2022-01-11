@@ -158,7 +158,6 @@ func (r Requirements) WellKnown() (requirements Requirements) {
 	for _, requirement := range r {
 		if WellKnownLabels.Has(requirement.Key) {
 			requirements = requirements.Add(requirement)
-
 		}
 	}
 	return requirements
