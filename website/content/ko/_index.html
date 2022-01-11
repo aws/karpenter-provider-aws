@@ -1,0 +1,63 @@
++++
+title = "Karpenter"
+linkTitle = "Home"
++++
+
+{{< blocks/cover image_anchor="top" height="max" color="primary" >}}
+<div class="mx-auto hero">
+  <h1 class="display-1 mt-5">Karpenter</h1>
+  <h3 class="display-4 font-weight-light mt-5">모든 Kubernetes 클러스터를 위한 Just-In-Time 노드</h3>
+  <div class="mt-5">
+    <a class="btn btn-lg btn-dark col-sm-3 mb-3 font-weight-bold get-started" href="{{< relref "docs/getting-started" >}}">
+      시작하기
+    </a>
+  </div>
+</div>
+{{< /blocks/cover >}}
+
+{{< blocks/lead color="grey-100" height="med">}}
+
+  <h2 class="mx-auto mt-5 col-sm-9 font-weight-bolder">
+    Karpenter는 적절한 노드를 적시에 사용하여 Kubernetes 인프라를 단순화합니다.
+  </h2>
+  <p class="mx-auto mt-5 col-sm-10 h4 font-weight-light">
+    Karpenter는 클러스터의 애플리케이션을 처리하는 데 적합한 컴퓨팅 리소스만 자동으로 시작합니다. Kubernetes 클러스터를 위하여, 빠르고 간단한 컴퓨팅 프로비저닝을 통해 클라우드를 최대한 활용할 수 있도록 설계되었습니다.
+  </p>
+{{< /blocks/lead >}}
+
+{{< blocks/section color="primary" >}}
+    {{< blocks/feature title="애플리케이션 가용성 향상" icon="fa-globe" feature_class="feature" >}}
+      <p class="mt-3 font-weight-light h5">Karpenter는 애플리케이션 로드, 스케줄링 및 리소스 요구사항의 변화에 신속하고 자동으로 대응하여 사용 가능한 다양한 컴퓨팅 리소스 용량에 새로운 워크로드를 배치합니다.</p>
+    {{< /blocks/feature >}}
+
+    {{< blocks/feature title="운영 오버헤드 최소화" icon="fa-wrench" feature_class="feature" >}}
+      <p class="mt-3 font-weight-light h5">Karpenter는 쉽게 사용자 정의할 수 있는 선언적인 단일 <code class="font-weight-bold provisioner">Provisioner</code> 리소스에 있는 일련의 독창적인 기본값으로 운영 오버헤드를 최소화합니다. 추가 구성이 필요하지 않습니다!</p> 
+    {{< /blocks/feature >}}
+{{< /blocks/section >}}
+
+{{< blocks/section color="dark" type="section" >}}
+  <h2 class="mx-auto display-2 font-weight-bolder">How It Works</h2>
+  <img class="mx-auto col-sm-10 d-none d-md-block" src="karpenter-overview.png">
+  <div class="mx-auto col-sm-8 text-center">
+    <p class="lead mt-5">
+      Karpenter는 스케쥴 되지 않은 포드의 총 리소스 요청을 지켜보며, 스케줄링 지연 시간과 인프라 비용을 최소화 하기 위해 노드들의 시작 및 종료 결정을 내립니다.
+    </p>
+  </div>
+{{< /blocks/section >}}
+
+{{< blocks/lead color="grey-100" type="section" >}}
+  <h2 class="mx-auto mt-2 col-sm-9 font-weight-bolder">
+    Karpenter는 오픈소스 소프트웨어 입니다.
+  </h2>
+  <p class="mx-auto mt-5 col-sm-10 lead">
+    Karpenter는 Permissive 한 <a href="https://github.com/aws/karpenter/blob/main/LICENSE">Apache License 2.0</a>에 따라 라이선스가 부여됩니다.
+    Karpenter는 모든 주요 클라우드 공급자와 사내 환경을 포함한 환경에서 실행되는 모든 Kubernetes 클러스터와 함께 작동하도록 설계되었습니다.
+  </p>
+  <p class="mx-auto mt-5 col-sm-10 lead">
+    기능에 대한 아이디어가 있거나 더 잘 작동할 수 있는 기능으 찾으셨습니까?
+    <a href="https://github.com/aws/karpenter/issues/new/choose">GitHub issue</a>를 만들어서 우리에게 알려주세요.
+  </p>
+  <a class="btn btn-lg btn-dark col-sm-3 mt-3 mr-sm-3 font-weight-bold" href="https://github.com/aws/karpenter">
+    <i class="fab fa-github pr-3"></i> 참여하기
+  </a>
+{{< /blocks/lead >}}

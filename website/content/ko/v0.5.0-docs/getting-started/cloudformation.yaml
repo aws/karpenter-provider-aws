@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Resources used by https://github.com/aws/karpenter
+Parameters:
+  ClusterName:
+    Type: String
+    Description: "EKS cluster name"
+Resources:
+  KarpenterNodeInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
+      Path: "/"
+      Roles:
+        - Ref: "KarpenterNodeRole"
+  KarpenterNodeRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "KarpenterNodeRole-${ClusterName}"
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                !Sub "ec2.${AWS::URLSuffix}"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  KarpenterControllerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerPolicy-${ClusterName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              # Write Operations
+              - ec2:CreateLaunchTemplate
+              - ec2:CreateFleet
+              - ec2:RunInstances
+              - ec2:CreateTags
+              - iam:PassRole
+              - ec2:TerminateInstances
+              # Read Operations
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeInstances
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeInstanceTypeOfferings
+              - ec2:DescribeAvailabilityZones
+              - ssm:GetParameter
