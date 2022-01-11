@@ -65,3 +65,14 @@ Create the name of the service account to use
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Construct controller and webhook container images
+*/}}
+{{- define "karpenter.controller.image" -}}
+{{- printf "%s:v%s@%s" .Values.controller.image.repository (default .Chart.AppVersion .Values.controller.image.tag) .Values.controller.image.sha }}
+{{- end }}
+
+{{- define "karpenter.webhook.image" -}}i
+{{- printf "%s:v%s@%s" .Values.webhook.image.repository (default .Chart.AppVersion .Values.webhook.image.tag) .Values.webhook.image.sha }}
+{{- end }}

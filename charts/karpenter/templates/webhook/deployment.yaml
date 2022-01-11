@@ -36,7 +36,7 @@ spec:
       serviceAccountName: {{ template "karpenter.serviceAccountName" . }}
       containers:
         - name: webhook
-          image: {{ .Values.webhook.image }}
+          image: {{ include "karpenter.webhook.image" . | quote }}
           args:
             - -port={{ .Values.webhook.port }}
         {{- if .Values.webhook.resources }}

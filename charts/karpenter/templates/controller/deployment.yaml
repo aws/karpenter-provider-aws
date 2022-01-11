@@ -36,7 +36,7 @@ spec:
       serviceAccountName: {{ template "karpenter.serviceAccountName" . }}
       containers:
         - name: manager
-          image: {{ .Values.controller.image }}
+          image: {{ include "karpenter.controller.image" . | quote }}
         {{- if .Values.controller.resources }}
           resources: {{ toYaml .Values.controller.resources | nindent 12 }}
         {{- end }}
