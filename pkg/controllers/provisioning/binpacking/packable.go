@@ -199,7 +199,7 @@ func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("offerings %v are not available for capacity types %v and zones %v", p.Offerings(), constraints.Requirements.CapacityTypes(), constraints.Requirements.Zones())
+	return fmt.Errorf("offerings %v are not available for capacity types %v and zones %v", p.Offerings(), constraints.Requirements.CapacityTypes().List(), constraints.Requirements.Zones().List())
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {
