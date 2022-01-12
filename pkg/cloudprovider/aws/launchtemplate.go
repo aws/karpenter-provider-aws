@@ -151,7 +151,7 @@ func (p *LaunchTemplateProvider) getMetadataOptions(options *v1alpha1.MetadataOp
 	}
 	return launchTemplateMetadataOptions{
 		HTTPEndpoint:            options.HTTPEndpoint,
-		HTTPProtocolIpv6:        options.HTTPProtocolIpv6,
+		HTTPProtocolIpv6:        options.HTTPProtocolIPv6,
 		HTTPPutResponseHopLimit: options.HTTPPutResponseHopLimit,
 		HTTPTokens:              options.HTTPTokens,
 	}

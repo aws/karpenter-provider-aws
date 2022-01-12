@@ -145,7 +145,7 @@ spec:
   provider:
     metadataOptions:
       httpEndpoint: enabled
-      httpProtocolIpv6: disabled
+      httpProtocolIPv6: disabled
       httpPutResponseHopLimit: 2
       httpTokens: required
 ```

@@ -60,7 +60,7 @@ type AWS struct {
 	// Refer to recommended, security best practices
 	// (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
 	// for limiting exposure of Instance Metadata and User Data to pods.
-	// If omitted, defaults to httpEndpoint enabled, with httpProtocolIpv6
+	// If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
 	// disabled, with httpPutResponseLimit of 2, and with httpTokens
 	// required.
 	// +optional
@@ -79,11 +79,11 @@ type MetadataOptions struct {
 	// +optional
 	HTTPEndpoint *string `json:"httpEndpoint,omitempty"`
 
-	// HTTPProtocolIpv6 enables or disables the IPv6 endpoint for the instance metadata
+	// HTTPProtocolIPv6 enables or disables the IPv6 endpoint for the instance metadata
 	// service on provisioned nodes. If metadata options is non-nil, but this parameter
 	// is not specified, the default state is "disabled".
 	// +optional
-	HTTPProtocolIpv6 *string `json:"httpProtocolIpv6,omitempty"`
+	HTTPProtocolIPv6 *string `json:"httpProtocolIPv6,omitempty"`
 
 	// HTTPPutResponseHopLimit is the desired HTTP PUT response hop limit for
 	// instance metadata requests. The larger the number, the further instance

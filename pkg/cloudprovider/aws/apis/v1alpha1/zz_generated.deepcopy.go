@@ -112,8 +112,8 @@ func (in *MetadataOptions) DeepCopyInto(out *MetadataOptions) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.HTTPProtocolIpv6 != nil {
-		in, out := &in.HTTPProtocolIpv6, &out.HTTPProtocolIpv6
+	if in.HTTPProtocolIPv6 != nil {
+		in, out := &in.HTTPProtocolIPv6, &out.HTTPProtocolIPv6
 		*out = new(string)
 		**out = **in
 	}

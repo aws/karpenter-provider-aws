@@ -105,10 +105,10 @@ func (a *AWS) validateHTTPEndpoint() (errs *apis.FieldError) {
 }
 
 func (a *AWS) validateHTTPProtocolIpv6() (errs *apis.FieldError) {
-	if a.MetadataOptions.HTTPProtocolIpv6 == nil {
+	if a.MetadataOptions.HTTPProtocolIPv6 == nil {
 		return nil
 	}
-	return a.validateStringEnum(*a.MetadataOptions.HTTPProtocolIpv6, "httpProtocolIpv6", ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values())
+	return a.validateStringEnum(*a.MetadataOptions.HTTPProtocolIPv6, "httpProtocolIPv6", ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values())
 }
 
 func (a *AWS) validateHTTPPutResponseHopLimit() *apis.FieldError {

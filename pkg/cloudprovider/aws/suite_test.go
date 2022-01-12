@@ -496,7 +496,7 @@ var _ = Describe("Allocation", func() {
 				Expect(err).ToNot(HaveOccurred())
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{
 					HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
-					HTTPProtocolIpv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
+					HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
 					HTTPPutResponseHopLimit: aws.Int64(1),
 					HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
 				}
@@ -615,7 +615,7 @@ var _ = Describe("Allocation", func() {
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
 						provider.MetadataOptions = &v1alpha1.MetadataOptions{
-							HTTPProtocolIpv6: &value,
+							HTTPProtocolIPv6: &value,
 						}
 						provisioner := ProvisionerWithProvider(provisioner, provider)
 						Expect(provisioner.Validate(ctx)).To(Succeed())
@@ -625,7 +625,7 @@ var _ = Describe("Allocation", func() {
 					provider, err := ProviderFromProvisioner(provisioner)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
-						HTTPProtocolIpv6: aws.String(randomdata.SillyName()),
+						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
 					}
 					provisioner := ProvisionerWithProvider(provisioner, provider)
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
