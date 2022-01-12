@@ -18,8 +18,17 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	DefaultMetadataOptionsHTTPEndpoint            = ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled
+	DefaultMetadataOptionsHTTPProtocolIPv6        = ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled
+	DefaultMetadataOptionsHTTPPutResponseHopLimit = 2
+	DefaultMetadataOptionsHTTPTokens              = ec2.LaunchTemplateHttpTokensStateRequired
 )
 
 // Constraints wraps generic constraints with AWS specific parameters
@@ -136,4 +145,16 @@ func (a *AWS) Serialize(constraints *v1alpha5.Constraints) error {
 	}
 	constraints.Provider.Raw = bytes
 	return nil
+}
+
+func (a *AWS) GetMetadataOptions() *MetadataOptions {
+	if a.MetadataOptions == nil {
+		return &MetadataOptions{
+			HTTPEndpoint:            aws.String(DefaultMetadataOptionsHTTPEndpoint),
+			HTTPProtocolIPv6:        aws.String(DefaultMetadataOptionsHTTPProtocolIPv6),
+			HTTPPutResponseHopLimit: aws.Int64(DefaultMetadataOptionsHTTPPutResponseHopLimit),
+			HTTPTokens:              aws.String(DefaultMetadataOptionsHTTPTokens),
+		}
+	}
+	return a.MetadataOptions
 }
