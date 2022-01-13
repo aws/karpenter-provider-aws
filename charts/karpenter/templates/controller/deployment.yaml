@@ -7,7 +7,8 @@ metadata:
     {{- include "karpenter.labels" . | indent 4 }}
 spec:
   ports:
-    - port: 8080
+    - name: metrics
+      port: 8080
       targetPort: metrics
   selector:
     karpenter: controller

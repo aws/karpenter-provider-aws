@@ -100,7 +100,7 @@ spec:
       kubernetes.io/cluster/MyKarpenterSecurityGroups: '*'
 ```
 
-Select security groups by name, or another tag:
+Select security groups by name, or another tag (all criteria must match):
 ```
  securityGroupSelector:
    Name: sg-01077157b7cf4f5a8

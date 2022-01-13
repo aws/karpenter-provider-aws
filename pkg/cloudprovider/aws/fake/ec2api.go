@@ -410,6 +410,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 				Location:     aws.String("test-zone-1a"),
 			},
 			{
+				InstanceType: aws.String("m5.xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
 				InstanceType: aws.String("m5.2xlarge"),
 				Location:     aws.String("test-zone-1a"),
 			},
