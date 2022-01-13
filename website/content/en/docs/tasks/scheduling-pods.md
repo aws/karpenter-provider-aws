@@ -249,8 +249,7 @@ Karpenter automatically detects storage scheduling requirements and includes the
 In the following example, the `StorageClass` defines zonal topologies for `us-west-2a` and `us-west-2b` and binding mode `WaitForFirstConsumer`.
 When the pod is created, Karpenter follows references from the `Pod` to `PersistentVolumeClaim` to `StorageClass` and identifies that this pod requires storage in `us-west-2a` and `us-west-2b`.
 It randomly selects `us-west-2a`, provisions a node in that zone, and binds the pod to the node.
-The CSI driver creates a `PersistentVolume` according to the `PersistentVolumeClaim`, which is attached during pod initialization.
-After it is bound, the `PersistentVolume` will include a node affinity rule that specifies
+The CSI driver creates a `PersistentVolume` according to the `PersistentVolumeClaim` and gives it a node affinity rule for `us-west-2a`.
 
 Later on, the pod is deleted and a new pod is created that requests the same claim. This time, Karpenter identifies that a `PersistentVolume` already exists for the `PersistentVolumeClaim`, and includes its zone `us-west-2a` in the pod's scheduling requirements.
 
