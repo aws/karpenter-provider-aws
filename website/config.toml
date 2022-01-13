@@ -32,7 +32,7 @@ description = "Just-in-time Nodes for Any Kubernetes Cluster"
 languageName = "Korean"
 # Weight used for sorting.
 weight = 2
-contentDir = "website/content/ko"
+contentDir = "content/ko"
 
 # Syntax Highlighting config
 pygmentsCodeFences = true
