@@ -1,6 +1,6 @@
 ---
-title: "Provisioning nodes"
-linkTitle: "Provisioning nodes"
+title: "Provisioning"
+linkTitle: "Provisioning"
 weight: 5
 ---
 
@@ -45,13 +45,13 @@ metadata:
   name: westzones
 spec:
   requirements:
-    - key: "topology.kubernetes.io/zone" 
+    - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b", "us-west-2c"]
     - key: "karpenter.sh/capacity-type"
       operator: In
       values: ["spot", "on-demand"]
-  provider: 
+  provider:
     instanceProfile: myprofile-cluster101
 ```
 With these settings, the provisioner is able to launch nodes in three availability zones and is flexible to both spot and on-demand purchase types.

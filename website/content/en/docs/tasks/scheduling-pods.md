@@ -1,7 +1,7 @@
 ---
-title: "Running pods"
-linkTitle: "Running pods"
-weight: 10
+title: "Scheduling"
+linkTitle: "Scheduling"
+weight: 15
 ---
 
 If your pods have no requirements for how or where to run, you can let Karpenter choose nodes from the full range of available cloud provider resources.
@@ -33,7 +33,7 @@ Pod affinity is a key exception to this rule.
 Karpenter supports specific [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) that are useful for scheduling.
 {{% /alert %}}
 
-## Resource requests (`resources`)
+## Resource requests
 
 Within a Pod spec, you can both make requests and set limits on resources a pod needs, such as CPU and memory.
 For example:
@@ -63,7 +63,7 @@ Instance type selection math only uses `requests`, but `limits` may be configure
 See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioning Configuration](../../aws/provisioning/) for a list of supported resources.
 
 
-## Selecting nodes (`nodeSelector` and `nodeAffinity`)
+## Selecting nodes
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
 This can include well-known labels or custom labels you create yourself.
@@ -72,7 +72,7 @@ While `nodeSelector` is like node affinity, it doesn't have the same "and/or" ma
 So all key-value pairs must match if you use `nodeSelector`.
 Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusions and exclusions (`In` and `NotIn`).
 
-### Node selector (`nodeSelector`)
+### Node selectors
 
 Here is an example of a `nodeSelector` for selecting nodes:
 
@@ -89,7 +89,7 @@ Then the pod can declare that custom label.
 
 See [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) in the Kubernetes documentation for details.
 
-### Node affinity (`nodeAffinity`)
+### Node affinity
 
 Examples below illustrate how to use Node affinity to include (`In`) and exclude (`NotIn`) objects.
 See [Node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for details.
@@ -172,7 +172,7 @@ kind: Provisioner
 metadata:
   name: gpu
 spec:
-  requirements: 
+  requirements:
   - key: node.kubernetes.io/instance-type
     operator: In
     values:
@@ -208,7 +208,7 @@ spec:
 ```
 See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
 
-## Topology spread (`topologySpreadConstraints`)
+## Topology Spread
 
 By using the Kubernetes `topologySpreadConstraints` you can ask the provisioner to have pods push away from each other to limit the blast radius of an outage.
 Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
@@ -241,3 +241,58 @@ If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and s
 * Karpenter is always able to improve skew by launching new nodes in the right zones. Therefore, `whenUnsatisfiable` does not change provisioning behavior.
 
 See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
+
+## Persistent Volume Topology
+
+Karpenter automatically detects storage scheduling requirements and includes them in node launch decisions.
+
+In the following example, the `StorageClass` defines zonal topologies for `us-west-2a` and `us-west-2b` and binding mode `WaitForFirstConsumer`.
+When the pod is created, Karpenter follows references from the `Pod` to `PersistentVolumeClaim` to `StorageClass` and identifies that this pod requires storage in `us-west-2a` and `us-west-2b`.
+It randomly selects `us-west-2a`, provisions a node in that zone, and binds the pod to the node.
+The CSI driver creates a `PersistentVolume` according to the `PersistentVolumeClaim` and gives it a node affinity rule for `us-west-2a`.
+
+Later on, the pod is deleted and a new pod is created that requests the same claim. This time, Karpenter identifies that a `PersistentVolume` already exists for the `PersistentVolumeClaim`, and includes its zone `us-west-2a` in the pod's scheduling requirements.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+spec:
+  containers: ...
+  volumes:
+    - name: storage
+      persistentVolumeClaim:
+        claimName: ebs-claim
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: ebs
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.ebs.csi.aws.com/zone
+    values: ["us-west-2a", "us-west-2b"]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs
+  resources:
+    requests:
+      storage: 4Gi
+```
+
+{{% alert title="Note" color="primary" %}}
+The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory. When configuring a `StorageClass` for the EBS CSI Driver, you must use `topology.ebs.csi.aws.com/zone`.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider.
+{{% /alert %}}
