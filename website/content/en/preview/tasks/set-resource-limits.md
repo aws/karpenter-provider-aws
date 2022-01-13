@@ -22,7 +22,7 @@ Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca
 
 ### Implementation
 
-Karpenter refuses to allocate new resources while at least one resoruce limit is *exceeded*. In other words, resource limits aren't hard limits, they only apply once Karpenter detects that a limit has been crossed.
+Karpenter refuses to allocate new resources while at least one resource limit is *exceeded*. In other words, resource limits aren't hard limits, they only apply once Karpenter detects that a limit has been crossed.
 
 **Example:**
 
