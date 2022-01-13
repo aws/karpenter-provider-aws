@@ -289,7 +289,9 @@ spec:
       storage: 4Gi
 ```
 
-Note: The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory. When configuring a `StorageClass` for the EBS CSI Driver, you must use `topology.ebs.csi.aws.com/zone`.
+{{% alert title="Note" color="primary" %}}
+The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory. When configuring a `StorageClass` for the EBS CSI Driver, you must use `topology.ebs.csi.aws.com/zone`.
+{{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
 The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider.
