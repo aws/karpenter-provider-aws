@@ -4,12 +4,12 @@ linkTitle: "Concepts"
 weight: 35
 ---
 
-Users fall under two basic roles: Kubernetes cluster operators and application developers.
+Users fall under two basic roles: Kubernetes cluster administrators and application developers.
 This document describes Karpenter concepts through the lens of those two types of users.
 
-## Cluster operator
+## Cluster administrator
 
-As a Kubernetes cluster operator, you can engage with Karpenter to:
+As a Kubernetes cluster administrator, you can engage with Karpenter to:
 
 * Install Karpenter 
 * Configure provisioners to set constraints and other features for managing nodes
@@ -82,7 +82,7 @@ The concept of layered constraints is key to using Karpenter.
 With no constraints defined in provisioners and none requested from pods being deployed, Karpenter chooses from the entire universe of features available to your cloud provider.
 Nodes can be created using any instance type and run in any zones.
 
-An application developer can tighten the constraints defined in a provisioner by the cluster operator by defining additional scheduling constraints in their pod spec.
+An application developer can tighten the constraints defined in a provisioner by the cluster administrator by defining additional scheduling constraints in their pod spec.
 Refer to the description of Karpenter constraints in the Application Developer section below for details.
 
 ### Scheduling
