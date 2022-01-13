@@ -246,7 +246,7 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 
 Karpenter automatically detects storage scheduling requirements and includes them in node launch decisions.
 
-In the following example, the `StorageClass` defines zonal topologies for `us-west-2a` and `us-west-2b` and binding mode `WaitForFirstConsumer`.
+In the following example, the `StorageClass` defines zonal topologies for `us-west-2a` and `us-west-2b` and [binding mode `WaitForFirstConsumer`](https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode).
 When the pod is created, Karpenter follows references from the `Pod` to `PersistentVolumeClaim` to `StorageClass` and identifies that this pod requires storage in `us-west-2a` and `us-west-2b`.
 It randomly selects `us-west-2a`, provisions a node in that zone, and binds the pod to the node.
 The CSI driver creates a `PersistentVolume` according to the `PersistentVolumeClaim` and gives it a node affinity rule for `us-west-2a`.
@@ -290,9 +290,11 @@ spec:
 ```
 
 {{% alert title="Note" color="primary" %}}
+☁️ AWS Specific
+
 The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard `topology.kubernetes.io/zone` label. Karpenter is aware of label aliasing and translates this label into `topology.kubernetes.io/zone` in memory. When configuring a `StorageClass` for the EBS CSI Driver, you must use `topology.ebs.csi.aws.com/zone`.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider.
+The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider. [Learn more about moving to CSI providers.](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/#quick-recap-what-is-csi-migration-and-why-migrate)
 {{% /alert %}}
