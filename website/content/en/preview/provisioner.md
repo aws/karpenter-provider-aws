@@ -164,7 +164,7 @@ Presently, Karpenter supports `memory` and `cpu` limits.
 
 CPU limits are described with a `DecimalSI` value, usually a natural integer. 
 
-Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://github.com/kubernetes/apimachinery/blob/4427f8f31dfbac65d3a044d0168f84c51bfda440/pkg/api/resource/quantity.go#L31)
+Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
 
 Karpenter stops allocating resources once at least one resource limit is met/exceeded.
 

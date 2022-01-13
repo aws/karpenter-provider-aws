@@ -18,6 +18,11 @@ CPU limits are described with a `DecimalSI` value, usually a natural integer.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://github.com/kubernetes/apimachinery/blob/4427f8f31dfbac65d3a044d0168f84c51bfda440/pkg/api/resource/quantity.go#L31)
 
+You can view the current consumption of cpu and memory on your cluster by running:
+```
+kubectl get provisioner -o=jsonpath='{.items[0].stat
+```
+
 Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
 
 ### Implementation
