@@ -7,7 +7,7 @@ weight: 35
 Users fall under two basic roles: Kubernetes cluster administrators and application developers.
 This document describes Karpenter concepts through the lens of those two types of users.
 
-## Cluster administrators
+## Cluster administrator
 
 As a Kubernetes cluster administrator, you can engage with Karpenter to:
 
