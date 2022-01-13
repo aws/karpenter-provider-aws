@@ -13,7 +13,7 @@ Reasons for constraining where your pods run could include:
 * Wanting to use techniques like topology spread to help insure high availability
 
 Your Cloud Provider defines the first layer of constraints, including all instance types, architectures, zones, and purchase types available to its cloud.
-The cluster operator adds the next layer of constraints by creating one or more provisioners.
+The cluster administrator adds the next layer of constraints by creating one or more provisioners.
 The final layer comes from you adding specifications to your Kubernetes pod deployments.
 Pod scheduling constraints must fall within a provisioner's constraints or the pods will not deploy.
 For example, if the provisioner sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.
