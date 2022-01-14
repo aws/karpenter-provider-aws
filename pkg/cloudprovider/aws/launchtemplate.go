@@ -189,7 +189,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-			Tags:         v1alpha1.MergeTags(ctx, options.Tags),
+			Tags:         v1alpha1.MergeTags(ctx, options.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"}),
 		}},
 	})
 	if err != nil {
