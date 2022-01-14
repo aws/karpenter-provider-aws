@@ -11,7 +11,7 @@ This document describes Karpenter concepts through the lens of those two types o
 
 As a Kubernetes cluster administrator, you can engage with Karpenter to:
 
-* Install Karpenter 
+* Install Karpenter
 * Configure provisioners to set constraints and other features for managing nodes
 * Deprovision nodes
 * Upgrade nodes
@@ -42,7 +42,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioner API](/docs/provisioner/) for a description of settings and the [Provisioning](../tasks/provisioning-task) task for provisioner examples. 
+See [Provisioner API](/docs/provisioner/) for a description of settings and the [Provisioning](../tasks/provisioning) task for provisioner examples.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
@@ -138,7 +138,7 @@ The Kubernetes scheduler tries to match those constraints with available nodes.
 If the pod is unschedulable, Karpenter creates compute resources that match its needs.
 When Karpenter tries to provision a node, it analyzes scheduling constraints before choosing the node to create.
 
-As long as the requests are not outside of the provisioner's constraints, 
+As long as the requests are not outside of the provisioner's constraints,
 Karpenter will look to best match the request, comparing the same well-known labels defined by the pod's scheduling constraints.
 Note that if the constraints are such that a match is not possible, the pod will remain unscheduled.
 
@@ -161,4 +161,4 @@ Kubernetes SIG scalability recommends against these features due to their negati
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods/) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/scheduling/) for details.
