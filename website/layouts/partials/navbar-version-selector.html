@@ -14,6 +14,6 @@
 </a>
 <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
 	{{ range .Site.Params.versions }}
-	<a class="dropdown-item" href="{{ .url }}">{{ .version }}</a>
+	<a class="dropdown-item" href="/{{ .version }}/">{{ .version }}</a>
 	{{ end }}
 </div>

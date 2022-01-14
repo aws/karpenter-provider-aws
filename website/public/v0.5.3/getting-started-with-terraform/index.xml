@@ -1,0 +1,17 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Karpenter – Getting Started with Terraform</title>
+    <link>/v0.5.3/getting-started-with-terraform/</link>
+    <description>Recent content in Getting Started with Terraform on Karpenter</description>
+    <generator>Hugo -- gohugo.io</generator>
+    
+	  <atom:link href="/v0.5.3/getting-started-with-terraform/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+  </channel>
+</rss>

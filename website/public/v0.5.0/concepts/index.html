@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.85.0" /><link rel="alternate" type="application/rss&#43;xml" href="/v0.5.0/concepts/index.xml">
+<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+<head>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="alternate icon" href="/favicon.ico">
+</head>
+
+<title>Concepts | Karpenter</title>
+<meta name="description" content="Just-in-time Nodes for Any Kubernetes Cluster"><meta property="og:title" content="Concepts" />
+<meta property="og:description" content="Just-in-time Nodes for Any Kubernetes Cluster" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="/v0.5.0/concepts/" /><meta property="og:image" content="/banner.png"/><meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="Concepts">
+<meta itemprop="description" content="Just-in-time Nodes for Any Kubernetes Cluster"><meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="/banner.png"/>
+
+<meta name="twitter:title" content="Concepts"/>
+<meta name="twitter:description" content="Just-in-time Nodes for Any Kubernetes Cluster"/>
+
+
+
+
+<link rel="preload" href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" as="style">
+<link href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+<script
+  src="https://unpkg.com/lunr@2.3.8/lunr.min.js"
+  integrity="sha384-vRQ9bDyE0Wnu+lMfm57BlYLO0/XauFuKpVsZPs7KEDwYKktWi5+Kz3MP8++DFlRY"
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-section">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand-md navbar-dark  td-navbar py-2">
+	<a class="navbar-brand" href="/">
+		<span class="navbar-logo"><svg viewBox="0 0 500 443" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><path d="M237.704918.0C314.662629.0 377.04918 62.3865513 377.04918 139.344262L377.049 336.352 442.622951 336.351852C474.31142 336.351852 5e2 362.040432 5e2 393.728901V443h-7.546066c-18.225271.0-33.094961-14.592764-33.437541-32.814815V401.960534L459.013099 401.553891C458.795948 388.160675 447.871194 377.37037 434.42623 377.37037H106.557377c-58.8500143.0-106.557377-47.707362-106.557377-106.557377L-100611761e-22 139.344262c0-76.9577107 62.3865513-139.344262 139.344262-139.344262zm-8.196721 41.0185185H147.540984L145.778863 41.0327942C87.7415928 41.97378 40.9836066 89.3143814 40.9836066 147.575896V270.778081L40.9923916 271.862464C41.5714598 307.577706 70.7041376 336.351852 106.557377 336.351852H270.491803c36.215394.0 65.573771-29.358377 65.573771-65.573771V147.575896L336.051298 145.813774C335.110312 87.7765047 287.769711 41.0185185 229.508197 41.0185185zM147.868852 106.648148C157.213115 106.648148 164.590164 114.277593 164.590164 123.875926v49.960555l56.803279-58.574444C228.770492 108.370926 238.852459 107.878704 245.983607 114.523704V114.769815C252.868852 121.168704 252.377049 131.751481 244.754098 138.642593l-42.04918 43.315555 48.934426 69.895556C257.540984 260.467593 255.819672 271.296481 247.95082 276.464815 239.344262 281.387037 229.508197 278.679815 223.606557 270.065926l-44.016393-64.481111-15 15.751111v40.362222c0 9.84444500000001-7.377049 17.227778-16.721312 17.227778C138.52459 278.925926 131.147541 271.542593 131.147541 261.698148V123.875926c0-9.59833300000001 7.377049-17.227778 16.721311-17.227778z" id="white_square_logo" fill="#fff"/></g></svg></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main_navbar" aria-controls="main_navbar" aria-expanded="false" aria-label="Toggle navigation">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+	<div class="collapse navbar-collapse ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav ml-auto pt-4 pt-md-0 my-2 my-md-1">
+			
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/" ><i class='fas fa-book'></i><span>Docs</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="https://github.com/aws/karpenter" target="_blank" ><i class='fab fa-github'></i><span>GitHub</span></a>
+			</li>
+			
+			
+      		<li class="nav-item dropdown mt-1 mt-lg-0 mr-2">
+        		
+
+
+
+
+	
+
+	
+
+	
+
+	
+
+	
+
+<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	v0.5.0
+</a>
+<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
+	
+	<a class="dropdown-item" href="/docs/">v0.5.4</a>
+	
+	<a class="dropdown-item" href="/v0.5.3-docs/">v0.5.3</a>
+	
+	<a class="dropdown-item" href="/v0.5.2-docs/">v0.5.2</a>
+	
+	<a class="dropdown-item" href="/v0.5.0-docs/">v0.5.0</a>
+	
+	<a class="dropdown-item" href="/v0.4.3-docs/">v0.4.3</a>
+	
+</div>
+
+			</li>
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+</div>
+</nav>
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+
+
+
+
+  
+
+
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  
+  <form class="td-sidebar__search d-flex align-items-center">
+    
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  
+  <nav class="collapse td-sidebar-nav foldable-nav" id="td-section-nav">
+    
+    
+    
+    
+    
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v050-li">
+    
+      <a href="/v0.5.0/" title="Documentation" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-v050"><span class="">Docs</span></a>
+    
+    
+      
+      <ul class="ul-1">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050getting-started-li">
+    
+      <input type="checkbox" id="m-v050getting-started-check"/>
+      <label for="m-v050getting-started-check"><a href="/v0.5.0/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050getting-started"><span class="">Getting Started</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-v050concepts-li">
+    
+      <input type="checkbox" id="m-v050concepts-check" checked/>
+      <label for="m-v050concepts-check"><a href="/v0.5.0/concepts/" class="align-left pl-0  active td-sidebar-link td-sidebar-link__section" id="m-v050concepts"><span class="td-sidebar-nav-active-item">Concepts</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-v050tasks-li">
+    
+      <input type="checkbox" id="m-v050tasks-check"/>
+      <label for="m-v050tasks-check"><a href="/v0.5.0/tasks/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050tasks"><span class="">Tasks</span></a></label>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050tasksprovisioning-task-li">
+    
+      <input type="checkbox" id="m-v050tasksprovisioning-task-check"/>
+      <label for="m-v050tasksprovisioning-task-check"><a href="/v0.5.0/tasks/provisioning-task/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050tasksprovisioning-task"><span class="">Provisioning nodes</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050tasksrunning-pods-li">
+    
+      <input type="checkbox" id="m-v050tasksrunning-pods-check"/>
+      <label for="m-v050tasksrunning-pods-check"><a href="/v0.5.0/tasks/running-pods/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050tasksrunning-pods"><span class="">Running pods</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050tasksdeprov-nodes-li">
+    
+      <input type="checkbox" id="m-v050tasksdeprov-nodes-check"/>
+      <label for="m-v050tasksdeprov-nodes-check"><a href="/v0.5.0/tasks/deprov-nodes/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050tasksdeprov-nodes"><span class="">Deprovisioning nodes</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050provisioner-li">
+    
+      <input type="checkbox" id="m-v050provisioner-check"/>
+      <label for="m-v050provisioner-check"><a href="/v0.5.0/provisioner/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050provisioner"><span class="">Provisioner API</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-v050aws-li">
+    
+      <input type="checkbox" id="m-v050aws-check"/>
+      <label for="m-v050aws-check"><a href="/v0.5.0/aws/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050aws"><span class="">AWS</span></a></label>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050awsprovisioning-li">
+    
+      <input type="checkbox" id="m-v050awsprovisioning-check"/>
+      <label for="m-v050awsprovisioning-check"><a href="/v0.5.0/aws/provisioning/" title="Provisioning Configuration" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050awsprovisioning"><span class="">Provisioning</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050awslaunch-templates-li">
+    
+      <input type="checkbox" id="m-v050awslaunch-templates-check"/>
+      <label for="m-v050awslaunch-templates-check"><a href="/v0.5.0/aws/launch-templates/" title="Launch Templates and Custom Images" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050awslaunch-templates"><span class="">Launch Templates</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050development-guide-li">
+    
+      <input type="checkbox" id="m-v050development-guide-check"/>
+      <label for="m-v050development-guide-check"><a href="/v0.5.0/development-guide/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050development-guide"><span class="">Development Guide</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050reinvent-li">
+    
+      <input type="checkbox" id="m-v050reinvent-check"/>
+      <label for="m-v050reinvent-check"><a href="/v0.5.0/reinvent/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050reinvent"><span class=""></span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+    </ul>
+  </nav>
+</div>
+
+
+
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+  
+  
+  
+  
+  
+  
+  <div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+  
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    
+
+    <a href="https://github.com/aws/karpenter/edit/main/website/content/en/v0.5.0/concepts/_index.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/aws/karpenter/new/main/website/content/en/v0.5.0/concepts/_index.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/aws/karpenter/issues/new?title=Concepts" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    
+
+  
+  
+  </div>
+
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#cluster-operator">Cluster operator</a>
+      <ul>
+        <li><a href="#installing-karpenter">Installing Karpenter</a></li>
+        <li><a href="#configuring-provisioners">Configuring provisioners</a></li>
+        <li><a href="#deprovisioning-nodes">Deprovisioning nodes</a></li>
+        <li><a href="#upgrading-nodes">Upgrading nodes</a></li>
+        <li><a href="#constraints">Constraints</a></li>
+        <li><a href="#scheduling">Scheduling</a></li>
+        <li><a href="#cloud-provider">Cloud provider</a></li>
+        <li><a href="#kubernetes-cluster-autoscaler">Kubernetes cluster autoscaler</a></li>
+      </ul>
+    </li>
+    <li><a href="#application-developer">Application developer</a></li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+
+
+
+  
+  
+
+	
+		
+
+
+
+  
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.5.0/">Docs</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="/v0.5.0/concepts/">Concepts</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>Concepts</h1>
+  
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+			
+		
+		
+	</header>
+	<p>Users fall under two basic roles: Kubernetes cluster operators and application developers.
+This document describes Karpenter concepts through the lens of those two types of users.</p>
+<h2 id="cluster-operator">Cluster operator</h2>
+<p>As a Kubernetes cluster operator, you can engage with Karpenter to:</p>
+<ul>
+<li>Install Karpenter</li>
+<li>Configure provisioners to set constraints and other features for managing nodes</li>
+<li>Deprovision nodes</li>
+<li>Upgrade nodes</li>
+</ul>
+<p>Concepts associated with this role are described below.</p>
+<h3 id="installing-karpenter">Installing Karpenter</h3>
+<p>Karpenter is designed to run on a node in your Kubernetes cluster.
+As part of the installation process, you need credentials from the underlying cloud provider to allow nodes to be started up and added to the cluster as they are needed.</p>
+<p><a href="https://karpenter.sh/docs/getting-started/">Getting Started with Karpenter on AWS</a>
+describes the process of installing Karpenter on an AWS cloud provider.
+Because requests to add and delete nodes and schedule pods are made through Kubernetes, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
+For example, Karpenter uses AWS IRSA roles to grant the permissions needed to describe EC2 instance types and create EC2 instances.</p>
+<p>Once privileges are in place, Karpenter is deployed with a Helm chart.</p>
+<h3 id="configuring-provisioners">Configuring provisioners</h3>
+<p>Karpenter&rsquo;s job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed.
+To configure Karpenter, you create <em>provisioners</em> that define how Karpenter manages unschedulable pods and expires nodes.
+Here are some things to know about the Karpenter provisioner:</p>
+<ul>
+<li>
+<p><strong>Unschedulable pods</strong>: Karpenter only attempts to schedule pods that have a status condition <code>Unschedulable=True</code>, which the kube scheduler sets when it fails to schedule the pod to existing capacity.</p>
+</li>
+<li>
+<p><strong>Provisioner CR</strong>: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
+Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
+A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
+See <a href="/docs/provisioner/">Provisioner API</a> for a description of settings and the <a href="../tasks/provisioning-task">Provisioning</a> task for provisioner examples.</p>
+</li>
+<li>
+<p><strong>Well-known labels</strong>: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
+See <a href="https://kubernetes.io/docs/reference/labels-annotations-taints/">Well-Known Labels, Annotations and Taints</a> for details.
+Keep in mind that only a subset of these labels are supported in Karpenter, as described later.</p>
+</li>
+<li>
+<p><strong>Deprovisioning nodes</strong>: A provisioner can also include time-to-live values to indicate when nodes should be deprovisioned after a set amount of time from when they were created or after they becomes empty of deployed pods.</p>
+</li>
+<li>
+<p><strong>Multiple provisioners</strong>: Multiple provisioners can be configured on the same cluster.
+For example, you might want to configure different teams on the same cluster to run on completely separate capacity.
+One team could run on nodes nodes using BottleRocket, while another uses EKSOptimizedAMI.</p>
+</li>
+</ul>
+<p>Although most use cases are addressed with a single provisioner for multiple teams, multiple provisioners are useful to isolate nodes for billing, use different node constraints (such as no GPUs for a team), or use different deprovisioning settings.</p>
+<h3 id="deprovisioning-nodes">Deprovisioning nodes</h3>
+<p>Karpenter deletes nodes when they are no longer needed.</p>
+<ul>
+<li><strong>Finalizer</strong>: Karpenter places a finalizer bit on each node it creates.
+When a request comes in to delete one of those nodes (such as a TTL or a manual <code>kubectl delete node</code>), Karpenter will cordon the node, drain all the pods, terminate the EC2 instance, and delete the node object.
+Karpenter handles all clean-up work needed to properly delete the node.</li>
+<li><strong>Node Expiry</strong>: If a node expiry time-to-live value (<code>ttlSecondsUntilExpired</code>) is reached, that node is drained of pods and deleted (even if it is still running workloads).</li>
+<li><strong>Empty nodes</strong>: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
+Once that &ldquo;node empty&rdquo; time-to-live (<code>ttlSecondsAfterEmpty</code>) is reached, finalization is triggered.</li>
+</ul>
+<p>For more details on how Karpenter deletes nodes, see <a href="../tasks/deprov-nodes/">Deprovisioning nodes</a> for details.</p>
+<h3 id="upgrading-nodes">Upgrading nodes</h3>
+<p>A straight-forward way to upgrade nodes is to set <code>ttlSecondsUntilExpired</code>.
+Nodes will be terminated after a set period of time and will be replaced with newer nodes.</p>
+<p>Understanding the following concepts will help you in carrying out the tasks just described.</p>
+<h3 id="constraints">Constraints</h3>
+<p>The concept of layered constraints is key to using Karpenter.
+With no constraints defined in provisioners and none requested from pods being deployed, Karpenter chooses from the entire universe of features available to your cloud provider.
+Nodes can be created using any instance type and run in any zones.</p>
+<p>An application developer can tighten the constraints defined in a provisioner by the cluster operator by defining additional scheduling constraints in their pod spec.
+Refer to the description of Karpenter constraints in the Application Developer section below for details.</p>
+<h3 id="scheduling">Scheduling</h3>
+<p>Karpenter schedules pods that the Kubernetes scheduler has marked unschedulable.
+After solving scheduling constraints and launching capacity, Karpenter optimistically creates the Node object and binds the pod.
+This stateless approach helps to avoid race conditions and improves performance.
+If something is wrong with the launched node, Kubernetes will automatically migrate the pods to a new node.</p>
+<p>Once Karpenter brings up a node, that node is available for the Kubernetes scheduler to schedule pods on it as well.
+This is useful if there is additional room in the node due to imperfect packing shape or because workloads finish over time.</p>
+<h3 id="cloud-provider">Cloud provider</h3>
+<p>Karpenter makes requests to provision new nodes to the associated cloud provider.
+The first supported cloud provider is AWS, although Karpenter is designed to work with other cloud providers.
+Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to integrating with other cloud providers.</p>
+<p>While using Kubernetes well-known labels, the provisioner can set some values that are specific to the cloud provider.
+So, for example, to include a certain instance type, you could use the Kubernetes label <code>node.kubernetes.io/instance-type</code>, but set its value to an AWS instance type (such as <code>m5.large</code> or <code>m5.2xlarge</code>).</p>
+<h3 id="kubernetes-cluster-autoscaler">Kubernetes cluster autoscaler</h3>
+<p>Like Karpenter, <a href="https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler">Kubernetes Cluster Autoscaler</a> is
+designed to add nodes when requests come in to run pods that cannot be met by current capacity.
+Cluster autoscaler is part of the Kubernetes project, with implementations by most major Kubernetes cloud providers.
+By taking a fresh look at provisioning, Karpenter offers the following improvements:</p>
+<ul>
+<li>
+<p><strong>Designed to handle the full flexibility of the cloud</strong>:
+Karpenter has the ability to efficiently address the full range of instance types available through AWS.
+Cluster autoscaler was not originally built with the flexibility to handle hundreds of instance types, zones, and purchase options.</p>
+</li>
+<li>
+<p><strong>Group-less node provisioning</strong>: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups.
+This enables it to retry in milliseconds instead of minutes when capacity is unavailable.
+It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.</p>
+</li>
+<li>
+<p><strong>Scheduling enforcement</strong>: Cluster autoscaler doesn’t bind pods to the nodes it creates.
+Instead, it relies on the kube-scheduler to make the same scheduling decision after the node has come online.
+A node that Karpenter launches has its pods bound immediately.
+The kubelet doesn&rsquo;t have to wait for the scheduler or for the node to become ready.
+It can start preparing the container runtime immediately, including pre-pulling the image.
+This can shave seconds off of node startup latency.</p>
+</li>
+</ul>
+<h2 id="application-developer">Application developer</h2>
+<p>As someone deploying pods that might be evaluated by Karpenter, you should know how to request the properties that your pods need of its compute resources.
+Karpenter&rsquo;s job is to efficiently assess and choose compute assets based on requests from pod deployments.
+These can include basic Kubernetes features or features that are specific to the cloud provider (such as AWS).</p>
+<p>Layered <em>constraints</em> are applied when a pod makes requests for compute resources that cannot be met by current capacity.
+A pod can specify <code>nodeAffinity</code> (to run in a particular zone or instance type) or a <code>topologySpreadConstraints</code> spread (to cause a set of pods to be balanced across multiple nodes).
+The pod can specify a <code>nodeSelector</code> to run only on nodes with a particular label and  <code>resource.requests</code> to ensure that the node has enough available memory.</p>
+<p>The Kubernetes scheduler tries to match those constraints with available nodes.
+If the pod is unschedulable, Karpenter creates compute resources that match its needs.
+When Karpenter tries to provision a node, it analyzes scheduling constraints before choosing the node to create.</p>
+<p>As long as the requests are not outside of the provisioner&rsquo;s constraints,
+Karpenter will look to best match the request, comparing the same well-known labels defined by the pod&rsquo;s scheduling constraints.
+Note that if the constraints are such that a match is not possible, the pod will remain unscheduled.</p>
+<p>So, what constraints can you use as an application developer deploying pods that could be managed by Karpenter?</p>
+<p>Kubernetes features that Karpenter supports for scheduling pods include nodeAffinity and <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector">nodeSelector</a>.
+It also supports <a href="https://kubernetes.io/docs/tasks/run-application/configure-pdb/">PodDisruptionBudget</a> and <a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/">topologySpreadConstraints</a>.</p>
+<p>From the Kubernetes <a href="https://kubernetes.io/docs/reference/labels-annotations-taints/">Well-Known Labels, Annotations and Taints</a> page,
+you can see a full list of Kubernetes labels, annotations and taints that determine scheduling.
+Those that are implemented in Karpenter include:</p>
+<ul>
+<li><strong>kubernetes.io/arch</strong>: For example, kubernetes.io/arch=amd64</li>
+<li><strong>node.kubernetes.io/instance-type</strong>: For example, node.kubernetes.io/instance-type=m3.medium</li>
+<li><strong>topology.kubernetes.io/zone</strong>: For example, topology.kubernetes.io/zone=us-east-1c</li>
+</ul>
+
+
+<div class="alert alert-primary" role="alert">
+<h4 class="alert-heading">Note</h4>
+
+    Don&rsquo;t use <code>podAffinity</code> and <code>podAntiAffinity</code> to schedule pods on the same or different nodes as other pods.
+Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#impact-to-other-features">KEP 895</a>) and Karpenter doesn&rsquo;t support them for the moment (you can follow their consideration by subscribing to the <a href="https://github.com/aws/karpenter/issues/942">issue</a>).&quot;.
+Instead, the Karpenter project recommends <code>topologySpreadConstraints</code> to reduce blast radius and <code>nodeSelectors</code> and <code>taints</code> to implement colocation.
+
+</div>
+
+<p>For more on how, as a developer, you can add constraints to your pod deployment, see <a href="../tasks/running-pods/">Running pods</a> for details.</p>
+
+        <div class="section-index">
+    
+    
+    
+    
+    
+    
+    
+</div>
+
+	
+	
+	<div class="text-muted mt-5 pt-3 border-top">
+
+</div>
+
+</div>
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <p class="mx-auto col-sm-3 text-center text-light">
+        Built with ❤️ at <a class="text-light" href="https://aws.amazon.com/">AWS</a>
+      </p>
+    </div>
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+          
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+          
+            
+  <ul class="list-inline mb-0">
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="GitHub" aria-label="GitHub">
+        <a class="text-white" target="_blank" rel="noopener" href="https://github.com/aws/karpenter" aria-label="GitHub">
+          <i class="fab fa-github"></i>
+        </a>
+      </li>
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Slack" aria-label="Slack">
+        <a class="text-white" target="_blank" rel="noopener" href="https://slack.k8s.io/" aria-label="Slack">
+          <i class="fab fa-slack"></i>
+        </a>
+      </li>
+    
+  </ul>
+
+          
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved</small>
+        
+        
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/main.min.3b172c13b62c2bea8b1c9d2599cddc8cf89718a92d792c680871c81ba43d8c85.js" integrity="sha256-OxcsE7YsK&#43;qLHJ0lmc3cjPiXGKkteSxoCHHIG6Q9jIU=" crossorigin="anonymous"></script>
+
+
+<script>
+
+    
+    function WarningElement(version) {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing documentation for Karpenter version: ${version}
+            </h3>
+            <p> Karpenter ${version} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+
+    //create the html element with the version string
+    function PrereleaseElement() {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing pre-release documentation for Karpenter 
+            </h3>
+            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+    
+    //determine if path is /v1-docs/ (archived) or /docs/ (latest)
+    let re = new RegExp ('/(.*)\-docs')
+    const result = window.location.pathname.match(re)
+    const ArchiveStatus = result.length > 0
+
+    if (ArchiveStatus) {
+        //get version string from match result
+        let Version = result[1]
+
+        const target = document.querySelector(".td-content > h1")
+
+        if (Version == "pre"){
+            target.parentNode.insertBefore(PrereleaseElement(), target)
+        }
+        else {
+            target.parentNode.insertBefore(WarningElement(Version), target)
+        }
+        
+    }
+</script>
+
+
+  </body>
+</html>

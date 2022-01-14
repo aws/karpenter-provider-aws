@@ -1,0 +1,329 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Karpenter – Tasks</title>
+    <link>/v0.5.0-docs/tasks/</link>
+    <description>Recent content in Tasks on Karpenter</description>
+    <generator>Hugo -- gohugo.io</generator>
+    
+	  <atom:link href="/v0.5.0-docs/tasks/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>V0.5.0-Docs: Provisioning nodes</title>
+      <link>/v0.5.0-docs/tasks/provisioning-task/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/v0.5.0-docs/tasks/provisioning-task/</guid>
+      <description>
+        
+        
+        &lt;p&gt;When you first installed Karpenter, you set up a default Provisioner.
+The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
+The Provisioner can be set to do things like:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Define taints to limit the pods that can run on nodes Karpenter creates&lt;/li&gt;
+&lt;li&gt;Limit node creation to certain zones, instance types, and computer architectures&lt;/li&gt;
+&lt;li&gt;Set defaults for node expiration&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You can change your provisioner or add other provisioners to Karpenter.
+Here are things you should know about Provisioners:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Karpenter won&amp;rsquo;t do anything if there is not at least one Provisioner configured.&lt;/li&gt;
+&lt;li&gt;Each Provisioner that is configured is looped through by Karpenter.&lt;/li&gt;
+&lt;li&gt;If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won&amp;rsquo;t use that Provisioner to provision the pod.&lt;/li&gt;
+&lt;li&gt;It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will randomly choose which to use.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If you want to modify or add provisioners to Karpenter, do the following:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Review the following Provisioner documents:&lt;/li&gt;
+&lt;/ol&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;../../getting-started/#provisioner&#34;&gt;Provisioner&lt;/a&gt; in the Getting Started guide for a sample default Provisioner&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../provisioner/&#34;&gt;Provisioner API&lt;/a&gt; for descriptions of Provisioner API values&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../AWS/provisioning&#34;&gt;Provisioning Configuration&lt;/a&gt; for cloud-specific settings&lt;/li&gt;
+&lt;/ul&gt;
+&lt;ol start=&#34;2&#34;&gt;
+&lt;li&gt;Apply the new or modified Provisioner to the cluster.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The following examples illustrate different aspects of Provisioners.
+Refer to &lt;a href=&#34;../running-pods&#34;&gt;Running pods&lt;/a&gt; to see how the same features are used in Pod specs to determine where pods run.&lt;/p&gt;
+&lt;h2 id=&#34;example-requirements&#34;&gt;Example: Requirements&lt;/h2&gt;
+&lt;p&gt;This provisioner limits nodes to specific zones.
+It is flexible to both spot and on-demand capacity types.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: westzones
+spec:
+  requirements:
+    - key: &amp;quot;topology.kubernetes.io/zone&amp;quot; 
+      operator: In
+      values: [&amp;quot;us-west-2a&amp;quot;, &amp;quot;us-west-2b&amp;quot;, &amp;quot;us-west-2c&amp;quot;]
+    - key: &amp;quot;karpenter.sh/capacity-type&amp;quot;
+      operator: In
+      values: [&amp;quot;spot&amp;quot;, &amp;quot;on-demand&amp;quot;]
+  provider: 
+    instanceProfile: myprofile-cluster101
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;With these settings, the provisioner is able to launch nodes in three availability zones and is flexible to both spot and on-demand purchase types.&lt;/p&gt;
+&lt;h2 id=&#34;example-isolating-expensive-hardware&#34;&gt;Example: Isolating Expensive Hardware&lt;/h2&gt;
+&lt;p&gt;A provisioner can be set up to only provision nodes on particular processor types.
+The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: gpu
+spec:
+  ttlSecondsAfterEmpty: 60
+  requirements:
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values: [&amp;quot;p3.8xlarge&amp;quot;, &amp;quot;p3.16xlarge&amp;quot;]
+  taints:
+  - key: nvidia.com/gpu
+    value: true
+    effect: “NoSchedule”
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;In order for a pod to run on a node defined in this provisioner, it must tolerate &lt;code&gt;nvidia.com/gpu&lt;/code&gt; in its pod spec.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>V0.5.0-Docs: Running pods</title>
+      <link>/v0.5.0-docs/tasks/running-pods/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/v0.5.0-docs/tasks/running-pods/</guid>
+      <description>
+        
+        
+        &lt;p&gt;If your pods have no requirements for how or where to run, you can let Karpenter choose nodes from the full range of available cloud provider resources.
+However, by taking advantage of Karpenter&amp;rsquo;s model of layered constraints, you can be sure that the precise type and amount of resources needed are available to your pods.
+Reasons for constraining where your pods run could include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Needing to run in zones where dependent applications or storage are available&lt;/li&gt;
+&lt;li&gt;Requiring certain kinds of processors or other hardware&lt;/li&gt;
+&lt;li&gt;Wanting to use techniques like topology spread to help insure high availability&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Your Cloud Provider defines the first layer of constraints, including all instance types, architectures, zones, and purchase types available to its cloud.
+The cluster operator adds the next layer of constraints by creating one or more provisioners.
+The final layer comes from you adding specifications to your Kubernetes pod deployments.
+Pod scheduling constraints must fall within a provisioner&amp;rsquo;s constraints or the pods will not deploy.
+For example, if the provisioner sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.&lt;/p&gt;
+&lt;p&gt;Constraints you can request include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Resource requests&lt;/strong&gt;: Request that certain amount of memory or CPU be available.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Node selection&lt;/strong&gt;: Choose to run on a node that is has a particular label (&lt;code&gt;nodeSelector&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Node affinity&lt;/strong&gt;: Draws a pod to run on nodes with particular attributes (affinity).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Topology spread&lt;/strong&gt;: Use topology spread to help insure availability of the application.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Karpenter supports standard Kubernetes scheduling constraints.
+This allows you to define a single set of rules that apply to both existing and provisioned capacity.
+Pod affinity is a key exception to this rule.&lt;/p&gt;
+
+
+&lt;div class=&#34;alert alert-primary&#34; role=&#34;alert&#34;&gt;
+&lt;h4 class=&#34;alert-heading&#34;&gt;Note&lt;/h4&gt;
+
+    Karpenter supports specific &lt;a href=&#34;https://kubernetes.io/docs/reference/labels-annotations-taints/&#34;&gt;Well-Known Labels, Annotations and Taints&lt;/a&gt; that are useful for scheduling.
+
+&lt;/div&gt;
+
+&lt;h2 id=&#34;resource-requests-resources&#34;&gt;Resource requests (&lt;code&gt;resources&lt;/code&gt;)&lt;/h2&gt;
+&lt;p&gt;Within a Pod spec, you can both make requests and set limits on resources a pod needs, such as CPU and memory.
+For example:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+spec:
+  containers:
+  - name: app
+    image: myimage
+    resources:
+      requests:
+        memory: &amp;quot;128Mi&amp;quot;
+        cpu: &amp;quot;500m&amp;quot;
+      limits:
+        memory: &amp;quot;256Mi&amp;quot;
+        cpu: &amp;quot;1000m&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;In this example, the container is requesting 128MiB of memory and .5 CPU.
+Its limits are set to 256MiB of memory and 1 CPU.
+Instance type selection math only uses &lt;code&gt;requests&lt;/code&gt;, but &lt;code&gt;limits&lt;/code&gt; may be configured to enable resource oversubscription.&lt;/p&gt;
+&lt;p&gt;See &lt;a href=&#34;https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/&#34;&gt;Managing Resources for Containers&lt;/a&gt; for details on resource types supported by Kubernetes, &lt;a href=&#34;https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit&#34;&gt;Specify a memory request and a memory limit&lt;/a&gt; for examples of memory requests, and &lt;a href=&#34;../../aws/provisioning/&#34;&gt;Provisioning Configuration&lt;/a&gt; for a list of supported resources.&lt;/p&gt;
+&lt;h2 id=&#34;selecting-nodes-nodeselector-and-nodeaffinity&#34;&gt;Selecting nodes (&lt;code&gt;nodeSelector&lt;/code&gt; and &lt;code&gt;nodeAffinity&lt;/code&gt;)&lt;/h2&gt;
+&lt;p&gt;With &lt;code&gt;nodeSelector&lt;/code&gt; you can ask for a node that matches selected key-value pairs.
+This can include well-known labels or custom labels you create yourself.&lt;/p&gt;
+&lt;p&gt;While &lt;code&gt;nodeSelector&lt;/code&gt; is like node affinity, it doesn&amp;rsquo;t have the same &amp;ldquo;and/or&amp;rdquo; matchExpressions that affinity has.
+So all key-value pairs must match if you use &lt;code&gt;nodeSelector&lt;/code&gt;.
+Also, &lt;code&gt;nodeSelector&lt;/code&gt; can do only do inclusions, while &lt;code&gt;affinity&lt;/code&gt; can do inclusions and exclusions (&lt;code&gt;In&lt;/code&gt; and &lt;code&gt;NotIn&lt;/code&gt;).&lt;/p&gt;
+&lt;h3 id=&#34;node-selector-nodeselector&#34;&gt;Node selector (&lt;code&gt;nodeSelector&lt;/code&gt;)&lt;/h3&gt;
+&lt;p&gt;Here is an example of a &lt;code&gt;nodeSelector&lt;/code&gt; for selecting nodes:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nodeSelector:
+  topology.kubernetes.io/zone: us-west-2a
+  karpenter.sh/capacity-type: spot
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;This example features a well-known label (&lt;code&gt;topology.kubernetes.io/zone&lt;/code&gt;) and a label that is well known to Karpenter (&lt;code&gt;karpenter.sh/capacity-type&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;If you want to create a custom label, you should do that at the provisioner level.
+Then the pod can declare that custom label.&lt;/p&gt;
+&lt;p&gt;See &lt;a href=&#34;https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector&#34;&gt;nodeSelector&lt;/a&gt; in the Kubernetes documentation for details.&lt;/p&gt;
+&lt;h3 id=&#34;node-affinity-nodeaffinity&#34;&gt;Node affinity (&lt;code&gt;nodeAffinity&lt;/code&gt;)&lt;/h3&gt;
+&lt;p&gt;Examples below illustrate how to use Node affinity to include (&lt;code&gt;In&lt;/code&gt;) and exclude (&lt;code&gt;NotIn&lt;/code&gt;) objects.
+See &lt;a href=&#34;https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity&#34;&gt;Node affinity&lt;/a&gt; for details.
+When setting rules, the following Node affinity types define how hard or soft each rule is:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;requiredDuringSchedulingIgnoredDuringExecution&lt;/strong&gt;: This is a hard rule that must be met.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;preferredDuringSchedulingIgnoredDuringExecution&lt;/strong&gt;: This is a preference, but the pod can run on a node where it is not guaranteed.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;code&gt;IgnoredDuringExecution&lt;/code&gt; part of each tells the pod to keep running, even if conditions change on the node so the rules no longer matched.
+You can think of these concepts as &lt;code&gt;required&lt;/code&gt; and &lt;code&gt;preferred&lt;/code&gt;, since Kubernetes never implemented other variants of these rules.&lt;/p&gt;
+&lt;p&gt;All examples below assume that the provisioner doesn&amp;rsquo;t have constraints to prevent those zones from being used.
+The first constraint says you could use &lt;code&gt;us-west-2a&lt;/code&gt; or &lt;code&gt;us-west-2b&lt;/code&gt;, the second constraint makes it so only &lt;code&gt;us-west-2b&lt;/code&gt; can be used.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt; affinity:
+   nodeAffinity:
+     requiredDuringSchedulingIgnoredDuringExecution:
+       nodeSelectorTerms:
+         - matchExpressions:
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot;
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;us-west-2a, us-west-2b&amp;quot;]
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot;
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;us-west-2b&amp;quot;]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Changing the second operator to &lt;code&gt;NotIn&lt;/code&gt; would allow the pod to run in &lt;code&gt;us-west-2a&lt;/code&gt; only:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot;
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;us-west-2a, us-west-2b&amp;quot;]
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot;
+             operator: &amp;quot;NotIn&amp;quot;
+             values: [&amp;quot;us-west-2b&amp;quot;]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Continuing to add to the example, &lt;code&gt;nodeAffinity&lt;/code&gt; lets you define terms so if one term doesn&amp;rsquo;t work it goes to the next one.
+Here, if &lt;code&gt;us-west-2a&lt;/code&gt; is not available, the second term will cause the pod to run on a spot instance in &lt;code&gt;us-west-2d&lt;/code&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt; affinity:
+   nodeAffinity:
+     requiredDuringSchedulingIgnoredDuringExecution:
+       nodeSelectorTerms:
+         - matchExpressions: # OR
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot; # AND
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;us-west-2a, us-west-2b&amp;quot;]
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot; # AND
+             operator: &amp;quot;NotIn&amp;quot;
+             values: [&amp;quot;us-west-2b&amp;quot;]
+         - matchExpressions: # OR
+           - key: &amp;quot;karpenter.sh/capacity-type&amp;quot; # AND
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;spot&amp;quot;]
+           - key: &amp;quot;topology.kubernetes.io/zone&amp;quot; # AND
+             operator: &amp;quot;In&amp;quot;
+             values: [&amp;quot;us-west-2d&amp;quot;]
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;In general, Karpenter will go through each of the &lt;code&gt;nodeSelectorTerms&lt;/code&gt; in order and take the first one that works.
+However, if Karpenter fails to provision on the first &lt;code&gt;nodeSelectorTerms&lt;/code&gt;, it will try again using the second one.
+If they all fail, Karpenter will fail to provision the pod.
+Karpenter will backoff and retry over time.
+So if capacity becomes available, it will schedule the pod without user intervention.&lt;/p&gt;
+&lt;h2 id=&#34;taints-and-tolerations&#34;&gt;Taints and tolerations&lt;/h2&gt;
+&lt;p&gt;Taints are the opposite of affinity.
+Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint.
+This example shows a Provisioner that was set up with a taint for only running pods that require a GPU, such as the following:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: gpu
+spec:
+  requirements: 
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values:
+      - p3.2xlarge
+      - p3.8xlarge
+      - p3.16xlarge
+  taints:
+  - key: nvidia.com/gpu
+    value: true
+    effect: “NoSchedule”
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;For a pod to request to run on a node that has provisioner, it could set a toleration as follows:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;apiVersion: v1
+kind: Pod
+metadata:
+  name: mygpupod
+spec:
+  containers:
+  - name: gpuapp
+    resources:
+      requests:
+        nvidia.com/gpu: 1
+      limits:
+        nvidia.com/gpu: 1
+    image: mygpucontainer
+  tolerations:
+  - key: &amp;quot;nvidia.com/gpu&amp;quot;
+    operator: &amp;quot;Exists&amp;quot;
+    effect: &amp;quot;NoSchedule&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;See &lt;a href=&#34;https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/&#34;&gt;Taints and Tolerations&lt;/a&gt; in the Kubernetes documentation for details.&lt;/p&gt;
+&lt;h2 id=&#34;topology-spread-topologyspreadconstraints&#34;&gt;Topology spread (&lt;code&gt;topologySpreadConstraints&lt;/code&gt;)&lt;/h2&gt;
+&lt;p&gt;By using the Kubernetes &lt;code&gt;topologySpreadConstraints&lt;/code&gt; you can ask the provisioner to have pods push away from each other to limit the blast radius of an outage.
+Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
+For example:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;spec:
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: &amp;quot;topology.kubernetes.io/zone&amp;quot;
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          dev: jjones
+    - maxSkew: 1
+      topologyKey: &amp;quot;kubernetes.io/hostname&amp;quot;
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          dev: jjones
+
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Adding this to your podspec would result in:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pods being spread across both zones and hosts (&lt;code&gt;topologyKey&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;The &lt;code&gt;dev&lt;/code&gt; &lt;code&gt;labelSelector&lt;/code&gt; will include all pods with the label of &lt;code&gt;dev=jjones&lt;/code&gt; in topology calculations. It is recommended to use a selector to match all pods in a deployment.&lt;/li&gt;
+&lt;li&gt;No more than one pod difference in the number of pods on each host (&lt;code&gt;maxSkew&lt;/code&gt;).
+For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
+If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.&lt;/li&gt;
+&lt;li&gt;Karpenter is always able to improve skew by launching new nodes in the right zones. Therefore, &lt;code&gt;whenUnsatisfiable&lt;/code&gt; does not change provisioning behavior.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See &lt;a href=&#34;https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/&#34;&gt;Pod Topology Spread Constraints&lt;/a&gt; for details.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+    <item>
+      <title>V0.5.0-Docs: Deprovisioning nodes</title>
+      <link>/v0.5.0-docs/tasks/deprov-nodes/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/v0.5.0-docs/tasks/deprov-nodes/</guid>
+      <description>
+        
+        
+        &lt;h2 id=&#34;deletion-workflow&#34;&gt;Deletion Workflow&lt;/h2&gt;
+&lt;h3 id=&#34;finalizer&#34;&gt;Finalizer&lt;/h3&gt;
+&lt;p&gt;Karpenter adds a finalizer to provisioned nodes. &lt;a href=&#34;https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/#how-finalizers-work&#34;&gt;Review how finalizers work.&lt;/a&gt;&lt;/p&gt;
+&lt;h3 id=&#34;drain-nodes&#34;&gt;Drain Nodes&lt;/h3&gt;
+&lt;p&gt;Review how to &lt;a href=&#34;https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/&#34;&gt;safely drain a node&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&#34;delete-node&#34;&gt;Delete Node&lt;/h2&gt;
+&lt;p&gt;Karpenter changes the behavior of &lt;code&gt;kubectl delete node&lt;/code&gt;. Nodes will be drained, and then the underlying instance will be deleted.&lt;/p&gt;
+&lt;h2 id=&#34;disruption-budget&#34;&gt;Disruption Budget&lt;/h2&gt;
+&lt;p&gt;Karpenter respects Pod Disruption Budgets. Review what &lt;a href=&#34;https://kubernetes.io/docs/concepts/workloads/pods/disruptions/&#34;&gt;disruptions are&lt;/a&gt;, and &lt;a href=&#34;https://kubernetes.io/docs/tasks/run-application/configure-pdb/&#34;&gt;how to configure them&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Generally, pod workloads may be configured with &lt;code&gt;.spec.minAvailable&lt;/code&gt; and/or &lt;code&gt;.spec.maxUnavailable&lt;/code&gt;. Karpenter provisions nodes to accommodate these constraints.&lt;/p&gt;
+&lt;h2 id=&#34;emptiness&#34;&gt;Emptiness&lt;/h2&gt;
+&lt;p&gt;Karpenter will delete nodes (and the instance) that are considered empty of pods. Daemonset pods are not included in this calculation.&lt;/p&gt;
+&lt;h2 id=&#34;expiry&#34;&gt;Expiry&lt;/h2&gt;
+&lt;p&gt;Nodes may be configured to expire. That is, a maximum lifetime in seconds starting with the node joining the cluster. Review the &lt;code&gt;ttlSecondsUntilExpired&lt;/code&gt; field of the &lt;a href=&#34;../../provisioner/&#34;&gt;provisioner API&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Note that newly created nodes have a Kubernetes version matching the control plane. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version) are deleted, and replaced with nodes on the current version.&lt;/p&gt;
+
+      </description>
+    </item>
+    
+  </channel>
+</rss>

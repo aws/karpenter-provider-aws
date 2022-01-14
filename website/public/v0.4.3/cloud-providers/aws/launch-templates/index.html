@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.85.0" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+<head>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="alternate icon" href="/favicon.ico">
+</head>
+
+<title>Launch Templates and Custom Images | Karpenter</title>
+<meta name="description" content="Just-in-time Nodes for Any Kubernetes Cluster"><meta property="og:title" content="Launch Templates and Custom Images" />
+<meta property="og:description" content="By default, Karpenter generates launch templates that use EKS Optimized AMI for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template.
+Note: By customizing the image, you are taking responsibility for maintaining the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/v0.4.3/cloud-providers/aws/launch-templates/" /><meta property="og:image" content="/banner.png"/><meta property="article:section" content="v0.4.3" />
+
+<meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="Launch Templates and Custom Images">
+<meta itemprop="description" content="By default, Karpenter generates launch templates that use EKS Optimized AMI for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template.
+Note: By customizing the image, you are taking responsibility for maintaining the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS.">
+
+<meta itemprop="wordCount" content="1041"><meta itemprop="image" content="/banner.png"/>
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="/banner.png"/>
+
+<meta name="twitter:title" content="Launch Templates and Custom Images"/>
+<meta name="twitter:description" content="By default, Karpenter generates launch templates that use EKS Optimized AMI for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template.
+Note: By customizing the image, you are taking responsibility for maintaining the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS."/>
+
+
+
+
+<link rel="preload" href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" as="style">
+<link href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+<script
+  src="https://unpkg.com/lunr@2.3.8/lunr.min.js"
+  integrity="sha384-vRQ9bDyE0Wnu+lMfm57BlYLO0/XauFuKpVsZPs7KEDwYKktWi5+Kz3MP8++DFlRY"
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand-md navbar-dark  td-navbar py-2">
+	<a class="navbar-brand" href="/">
+		<span class="navbar-logo"><svg viewBox="0 0 500 443" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><path d="M237.704918.0C314.662629.0 377.04918 62.3865513 377.04918 139.344262L377.049 336.352 442.622951 336.351852C474.31142 336.351852 5e2 362.040432 5e2 393.728901V443h-7.546066c-18.225271.0-33.094961-14.592764-33.437541-32.814815V401.960534L459.013099 401.553891C458.795948 388.160675 447.871194 377.37037 434.42623 377.37037H106.557377c-58.8500143.0-106.557377-47.707362-106.557377-106.557377L-100611761e-22 139.344262c0-76.9577107 62.3865513-139.344262 139.344262-139.344262zm-8.196721 41.0185185H147.540984L145.778863 41.0327942C87.7415928 41.97378 40.9836066 89.3143814 40.9836066 147.575896V270.778081L40.9923916 271.862464C41.5714598 307.577706 70.7041376 336.351852 106.557377 336.351852H270.491803c36.215394.0 65.573771-29.358377 65.573771-65.573771V147.575896L336.051298 145.813774C335.110312 87.7765047 287.769711 41.0185185 229.508197 41.0185185zM147.868852 106.648148C157.213115 106.648148 164.590164 114.277593 164.590164 123.875926v49.960555l56.803279-58.574444C228.770492 108.370926 238.852459 107.878704 245.983607 114.523704V114.769815C252.868852 121.168704 252.377049 131.751481 244.754098 138.642593l-42.04918 43.315555 48.934426 69.895556C257.540984 260.467593 255.819672 271.296481 247.95082 276.464815 239.344262 281.387037 229.508197 278.679815 223.606557 270.065926l-44.016393-64.481111-15 15.751111v40.362222c0 9.84444500000001-7.377049 17.227778-16.721312 17.227778C138.52459 278.925926 131.147541 271.542593 131.147541 261.698148V123.875926c0-9.59833300000001 7.377049-17.227778 16.721311-17.227778z" id="white_square_logo" fill="#fff"/></g></svg></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main_navbar" aria-controls="main_navbar" aria-expanded="false" aria-label="Toggle navigation">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+	<div class="collapse navbar-collapse ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav ml-auto pt-4 pt-md-0 my-2 my-md-1">
+			
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/" ><i class='fas fa-book'></i><span>Docs</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="https://github.com/aws/karpenter" target="_blank" ><i class='fab fa-github'></i><span>GitHub</span></a>
+			</li>
+			
+			
+      		<li class="nav-item dropdown mt-1 mt-lg-0 mr-2">
+        		
+
+
+
+
+	
+
+	
+
+	
+
+	
+
+	
+
+<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	v0.4.3
+</a>
+<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
+	
+	<a class="dropdown-item" href="/docs/">v0.5.4</a>
+	
+	<a class="dropdown-item" href="/v0.5.3-docs/">v0.5.3</a>
+	
+	<a class="dropdown-item" href="/v0.5.2-docs/">v0.5.2</a>
+	
+	<a class="dropdown-item" href="/v0.5.0-docs/">v0.5.0</a>
+	
+	<a class="dropdown-item" href="/v0.4.3-docs/">v0.4.3</a>
+	
+</div>
+
+			</li>
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+</div>
+</nav>
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+
+
+
+
+  
+
+
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  
+  <form class="td-sidebar__search d-flex align-items-center">
+    
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  
+  <nav class="collapse td-sidebar-nav foldable-nav" id="td-section-nav">
+    
+    
+    
+    
+    
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v043-li">
+    
+      <a href="/v0.4.3/" title="Documentation" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-v043"><span class="">Docs</span></a>
+    
+    
+      
+      <ul class="ul-1">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043getting-started-li">
+    
+      <input type="checkbox" id="m-v043getting-started-check"/>
+      <label for="m-v043getting-started-check"><a href="/v0.4.3/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v043getting-started"><span class="">Getting Started</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043faqs-li">
+    
+      <input type="checkbox" id="m-v043faqs-check"/>
+      <label for="m-v043faqs-check"><a href="/v0.4.3/faqs/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v043faqs"><span class="">FAQs</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043concepts-li">
+    
+      <input type="checkbox" id="m-v043concepts-check"/>
+      <label for="m-v043concepts-check"><a href="/v0.4.3/concepts/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v043concepts"><span class="">Concepts</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043provisioner-crd-li">
+    
+      <input type="checkbox" id="m-v043provisioner-crd-check"/>
+      <label for="m-v043provisioner-crd-check"><a href="/v0.4.3/provisioner-crd/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v043provisioner-crd"><span class="">Provisioner CRD</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v043cloud-providers-li">
+    
+      <input type="checkbox" id="m-v043cloud-providers-check" checked/>
+      <label for="m-v043cloud-providers-check"><a href="/v0.4.3/cloud-providers/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v043cloud-providers"><span class="">Cloud Providers</span></a></label>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v043cloud-providersaws-li">
+    
+      <input type="checkbox" id="m-v043cloud-providersaws-check" checked/>
+      <label for="m-v043cloud-providersaws-check"><a href="/v0.4.3/cloud-providers/aws/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v043cloud-providersaws"><span class="">AWS</span></a></label>
+    
+    
+      
+      <ul class="ul-3 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043cloud-providersawsaws-spec-fields-li">
+    
+      <input type="checkbox" id="m-v043cloud-providersawsaws-spec-fields-check"/>
+      <label for="m-v043cloud-providersawsaws-spec-fields-check"><a href="/v0.4.3/cloud-providers/aws/aws-spec-fields/" title="Specifying Values to Control AWS Provisioning" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v043cloud-providersawsaws-spec-fields"><span class="">Spec Fields</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-v043cloud-providersawslaunch-templates-li">
+    
+      <input type="checkbox" id="m-v043cloud-providersawslaunch-templates-check" checked/>
+      <label for="m-v043cloud-providersawslaunch-templates-check"><a href="/v0.4.3/cloud-providers/aws/launch-templates/" title="Launch Templates and Custom Images" class="align-left pl-0  active td-sidebar-link td-sidebar-link__page" id="m-v043cloud-providersawslaunch-templates"><span class="td-sidebar-nav-active-item">Launch Templates</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v043development-guide-li">
+    
+      <input type="checkbox" id="m-v043development-guide-check"/>
+      <label for="m-v043development-guide-check"><a href="/v0.4.3/development-guide/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v043development-guide"><span class="">Development Guide</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+    </ul>
+  </nav>
+</div>
+
+
+
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+  
+  
+  
+  
+  
+  
+  <div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+  
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    
+
+    <a href="https://github.com/aws/karpenter/edit/main/website/content/en/v0.4.3/cloud-providers/AWS/launch-templates.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/aws/karpenter/new/main/website/content/en/v0.4.3/cloud-providers/AWS/launch-templates.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/aws/karpenter/issues/new?title=Launch%20Templates%20and%20Custom%20Images" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    
+
+  
+  
+  </div>
+
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#launch-template-requirements">Launch Template Requirements</a></li>
+    <li><a href="#important-fields">Important Fields</a>
+      <ul>
+        <li><a href="#ami">AMI</a></li>
+        <li><a href="#user-data---autoconfigure">User Data - Autoconfigure</a></li>
+      </ul>
+    </li>
+    <li><a href="#situational-fields">Situational Fields</a>
+      <ul>
+        <li><a href="#instance-profile---iam">Instance Profile - IAM</a></li>
+        <li><a href="#storage">Storage</a></li>
+        <li><a href="#security-groups---firewall">Security Groups - Firewall</a></li>
+      </ul>
+    </li>
+    <li><a href="#fields-with-undefined-behavior">Fields with Undefined Behavior</a>
+      <ul>
+        <li><a href="#instance-type">Instance Type</a></li>
+        <li><a href="#network-interfaces">Network Interfaces</a></li>
+      </ul>
+    </li>
+    <li><a href="#creating-the-launch-template">Creating the Launch Template</a>
+      <ul>
+        <li><a href="#cloudformation">CloudFormation</a></li>
+        <li><a href="#define-launchtemplate-for-provisioner">Define LaunchTemplate for Provisioner</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+
+
+
+  
+  
+
+	
+		
+
+
+
+  
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.4.3/">Docs</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.4.3/cloud-providers/">Cloud Providers</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.4.3/cloud-providers/aws/">AWS</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="/v0.4.3/cloud-providers/aws/launch-templates/">Launch Templates</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>Launch Templates and Custom Images</h1>
+	
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+			
+		
+		
+	</header>    
+	<p>By default, Karpenter generates launch templates that use <a href="https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html">EKS Optimized AMI</a> for nodes. Often, users need to customize the node image to integrate with existing infrastructure or meet compliance requirements. Karpenter supports custom node images through Launch Templates. If you need to customize the node, then you need a custom launch template.</p>
+<p>Note: By customizing the image, you are taking responsibility for maintaining the image, including security updates. In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS.</p>
+<h2 id="introduction">Introduction</h2>
+<p>Karpenter follows existing AWS patterns for customizing the base image of
+instances. More specifically, Karpenter uses <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/LaunchTemplates.html">EC2 launch templates</a>. Launch
+templates may specify many values. The pivotal value is the base image (AMI).
+Launch templates further specify many different parameters related to networking, authorization, instance type, and more.</p>
+<p>Launch Templates and AMIs are unique to AWS regions, similar to EKS clusters. IAM resources are global.</p>
+<p><strong>Karpenter only implements a subset of launch template fields, and some fields should not be set.</strong></p>
+<p>This guide describes requirements for using launch templates with Karpenter, and later an example procedure.</p>
+<h2 id="launch-template-requirements">Launch Template Requirements</h2>
+<p>The Launch Template resource includes a large number of fields. AWS accepts launch templates with any subset of these fields defined.</p>
+<p>Certain fields are obviously critical, such as AMI and User Data. Some fields are useful for particular workloads, such as storage and IAM Instance Profile.</p>
+<p>Finally, <strong>the majority of Launch Template fields should not be set</strong> (or will have no effect), such as network interfaces and instance type.</p>
+<h2 id="important-fields">Important Fields</h2>
+<p>When creating a custom launch template, the AMI and User Data are the defining characteristics. Instance Profile (IAM Role) and Security Group (firewall rules) are also important for Karpenter.</p>
+<h3 id="ami">AMI</h3>
+<p>AMI (Amazon Machine Image), is the base image/VM for a launch template.</p>
+<p><a href="https://docs.aws.amazon.com/vm-import/latest/userguide/vmimport-image-import.html">Review the instructions for importing a VM to AWS.</a> Note the AMI id generated by this process, such as,
+<code>ami-074cce78125f09d61</code>.</p>
+<h3 id="user-data---autoconfigure">User Data - Autoconfigure</h3>
+<p>Importantly, the AMI must support automatically connecting to a cluster based
+on &ldquo;user data&rdquo;, or a base64 encoded string passed to the instance at startup.
+The syntax and purpose of the user data varies between images. The Karpenter
+default OS, Amazon Linux 2 (AL2), accepts shell scripts (bash commands).</p>
+<p><a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-data-shell-scripts">AWS calls data passed to an instance at launch time &ldquo;user
+data&rdquo;.</a></p>
+<p>In the default configuration, Karpenter uses an EKS optimized version of AL2 and passes the hostname of the Kubernetes API server, and a certificate. The EKS Optimized AMI includes a <code>bootstrap.sh</code> script which connects the instance to the cluster, based on the passed data.</p>
+<p>Alternatively, you may reference AWS&rsquo;s <a href="https://github.com/awslabs/amazon-eks-ami/blob/master/files/bootstrap.sh"><code>bootstrap.sh</code>
+file</a>
+when building a custom base image.</p>
+<pre><code>#!/bin/bash
+/etc/eks/bootstrap.sh &lt;my-cluster-name&gt; \
+--kubelet-extra-args &lt;'--max-pods=40'&gt; \
+--b64-cluster-ca &lt;certificateAuthority&gt; \
+--apiserver-endpoint &lt;endpoint&gt; \
+--dns-cluster-ip &lt;serviceIpv4Cidr&gt; \
+--use-max-pods false
+</code></pre><p>Note, you must populate this command with live values. Karpenter will
+not change the user data in the launch template.</p>
+<p>Encode using yaml function <code>!Base64</code> yaml function or <code>cat userdata.sh | base64 &gt; userdata-encoded.txt</code> shell command.</p>
+<p><strong>Bootstrap Script Parameters</strong></p>
+<p>The sample bootstrap script requires information to join the cluster.</p>
+<p>These values may be found using:</p>
+<pre><code>aws eks describe-cluster --name MyKarpenterCluster
+</code></pre><p><strong>Kubelet Arguments</strong></p>
+<p>Specifying max-pods can break Karpenter&rsquo;s binpacking logic (it has no way to know what this setting is). If Karpenter attempts to pack more than this number of pods, the instance may be oversized, and additional pods will reschedule.</p>
+<h2 id="situational-fields">Situational Fields</h2>
+<p>Configure these values in response to a particular use case, such as nodes interacting with another AWS service, or using EBS storage on the node.</p>
+<h3 id="instance-profile---iam">Instance Profile - IAM</h3>
+<p>The launch template must include an &ldquo;instance profile&rdquo; &ndash; an IAM role.</p>
+<p>The instance profile must include <em>at least</em> the permissions of the default Karpenter node instance profile. See the default role, <code>KarpenterNodeRole</code>, in the full example below for more information.</p>
+<p>See also, <a href="https://docs.aws.amazon.com/eks/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonEKSWorkerNodePolicy">the managed policy &ldquo;AmazonEKSWorkerNodePolicy&rdquo;</a> which includes permission to describe clusters and subnets.</p>
+<h3 id="storage">Storage</h3>
+<p>Karpenter expects nothing of node storage. Configure as needed for your base
+image.</p>
+<h3 id="security-groups---firewall">Security Groups - Firewall</h3>
+<p>The launch template may include a security group (i.e., instance firewall rules) and the security group must be associated with the virtual private cloud (VPC) of the EKS cluster. If none is specified, the default security group of the cluster VPC is used.</p>
+<p>The security group must permit communication with EKS control plane. Outbound access should be permitted for at least: HTTPS on port 443, DNS (UDP and TCP) on port 53, and your subnet&rsquo;s network access control list (network ACL).</p>
+<h2 id="fields-with-undefined-behavior">Fields with Undefined Behavior</h2>
+<p>Resources referenced by these fields are controlled by EKS/Karpenter, and not the launch template.</p>
+<h3 id="instance-type">Instance Type</h3>
+<p>The instance type should not be specified in the launch template. Karpenter
+will determine the launch template at run time.</p>
+<h3 id="network-interfaces">Network Interfaces</h3>
+<p>The <a href="https://docs.aws.amazon.com/eks/latest/userguide/pod-networking.html">AWS CNI</a> will configure the network interfaces. Do not configure network instances in the launch template.</p>
+<h2 id="creating-the-launch-template">Creating the Launch Template</h2>
+<p>Launch Templates may be created via the web console, the AWS CLI, or
+CloudFormation.</p>
+<h3 id="cloudformation">CloudFormation</h3>
+<p>The procedure, in summary, is to:</p>
+<ol>
+<li><a href="https://docs.aws.amazon.com/vm-import/latest/userguide/vmimport-image-import.html">Create an AMI as described in the EC2 documentation.</a></li>
+<li>Write a EC2 Launch Template specification including the AMI.</li>
+<li>Push the specification to AWS with CloudFormation.</li>
+<li>Update the Provisioner CRD to specify the new Launch Template.</li>
+</ol>
+<p>An example yaml cloudformation definition of a launch template for Karpenter is
+provided below.</p>
+<p>CloudFormation yaml is suited for the moderately high configuration density of
+launch templates, and creating the unusual InstanceProfile resource.</p>
+<p>You must manually replace these values in the template:</p>
+<ul>
+<li>SecurityGroupID
+<ul>
+<li>list all security groups with <code>aws ec2 describe-security-groups</code></li>
+</ul>
+</li>
+<li>Parameters in UserData</li>
+<li>AMI</li>
+</ul>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#204a87;font-weight:bold">AWSTemplateFormatVersion</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#39;2010-09-09&#39;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline"></span><span style="color:#204a87;font-weight:bold">Resources</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#8f5902;font-style:italic"># create InstanceProfile wrapper on NodeRole</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#204a87;font-weight:bold">KarpenterNodeInstanceProfile</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Type</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;AWS::IAM::InstanceProfile&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Properties</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">InstanceProfileName</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;KarpenterNodeInstanceProfile&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">Path</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;/&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">Roles</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span>- <span style="color:#204a87;font-weight:bold">Ref</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;KarpenterNodeRole&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#8f5902;font-style:italic"># create role with basic permissions for EKS node</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#204a87;font-weight:bold">KarpenterNodeRole</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Type</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;AWS::IAM::Role&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Properties</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">RoleName</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;KarpenterNodeRole&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">Path</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">/</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">AssumeRolePolicyDocument</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">Version</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;2012-10-17&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">Statement</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">          </span>- <span style="color:#204a87;font-weight:bold">Effect</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">Allow</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span><span style="color:#204a87;font-weight:bold">Principal</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">              </span><span style="color:#204a87;font-weight:bold">Service</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">                </span>!<span style="color:#000">Sub &#34;ec2.${AWS::URLSuffix}&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span><span style="color:#204a87;font-weight:bold">Action</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">              </span>- <span style="color:#4e9a06">&#34;sts:AssumeRole&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">ManagedPolicyArns</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span>- !<span style="color:#000">Sub &#34;arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span>- !<span style="color:#000">Sub &#34;arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span>- !<span style="color:#000">Sub &#34;arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span>- !<span style="color:#000">Sub &#34;arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore&#34;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#204a87;font-weight:bold">MyLaunchTemplate</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Type</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">AWS::EC2::LaunchTemplate</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">Properties</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">LaunchTemplateData</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">IamInstanceProfile</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">          </span><span style="color:#8f5902;font-style:italic"># Get ARN of InstanceProfile defined above</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">          </span><span style="color:#204a87;font-weight:bold">Arn</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span>!<span style="color:#000">GetAtt</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span>- <span style="color:#000">KarpenterNodeInstanceProfile</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span>- <span style="color:#000">Arn</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">ImageId</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">ami-074cce78125f09d61</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#8f5902;font-style:italic"># UserData is Base64 Encoded</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">UserData</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span>!<span style="color:#000">Base64 &gt;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span><span style="color:#8f5902;font-style:italic">#!/bin/bash</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span><span style="color:#000">/etc/eks/bootstrap.sh &#39;MyClusterName&#39; \</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span>--<span style="color:#000">kubelet-extra-args &#39;--node-labels=node.k8s.aws/capacity-type=spot&#39; \</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span>--<span style="color:#000">b64-cluster-ca &#39;LS0t....0tCg==&#39; \</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span>--<span style="color:#000">apiserver-endpoint &#39;https://B0385BE29EA792E811CB5866D23C856E.gr7.us-east-2.eks.amazonaws.com&#39;</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">BlockDeviceMappings</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">          </span>- <span style="color:#204a87;font-weight:bold">Ebs</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">              </span><span style="color:#204a87;font-weight:bold">VolumeSize</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#0000cf;font-weight:bold">80</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">              </span><span style="color:#204a87;font-weight:bold">VolumeType</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">gp3</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">            </span><span style="color:#204a87;font-weight:bold">DeviceName</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">/dev/xvda</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#8f5902;font-style:italic"># The SecurityGroup must be associated with the cluster VPC</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">        </span><span style="color:#204a87;font-weight:bold">SecurityGroupIds</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">          </span>- <span style="color:#000">sg-a69adfdb</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">      </span><span style="color:#204a87;font-weight:bold">LaunchTemplateName</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">KarpenterCustomLaunchTemplate</span><span style="color:#f8f8f8;text-decoration:underline">
+</span></code></pre></div><p>Create the Launch Template by uploading the CloudFormation yaml file. The
+sample yaml creates an IAM Object (InstanceProfile), so <code>--capabilities CAPABILITY_NAMED_IAM</code> must be indicated.</p>
+<pre><code>aws cloudformation create-stack \
+  --stack-name KarpenterLaunchTemplateStack \
+  --template-body file://$(pwd)/lt-cfn-demo.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+</code></pre><h3 id="define-launchtemplate-for-provisioner">Define LaunchTemplate for Provisioner</h3>
+<p>The LaunchTemplate is ready to be used. Specify it by name in the <a href="../../provisioner-crd">Provisioner
+CRD</a>. Karpenter will use this template when creating new instances.</p>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-yaml" data-lang="yaml"><span style="color:#204a87;font-weight:bold">apiVersion</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">karpenter.sh/v1alpha5</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline"></span><span style="color:#204a87;font-weight:bold">kind</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">Provisioner</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline"></span><span style="color:#204a87;font-weight:bold">spec</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">  </span><span style="color:#204a87;font-weight:bold">provider</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">    </span><span style="color:#204a87;font-weight:bold">launchTemplate</span><span style="color:#000;font-weight:bold">:</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#000">CustomKarpenterLaunchTemplateDemo</span><span style="color:#f8f8f8;text-decoration:underline">
+</span><span style="color:#f8f8f8;text-decoration:underline">
+</span></code></pre></div>
+	
+	
+	<div class="text-muted mt-5 pt-3 border-top">
+
+</div>
+
+</div>
+
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <p class="mx-auto col-sm-3 text-center text-light">
+        Built with ❤️ at <a class="text-light" href="https://aws.amazon.com/">AWS</a>
+      </p>
+    </div>
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+          
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+          
+            
+  <ul class="list-inline mb-0">
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="GitHub" aria-label="GitHub">
+        <a class="text-white" target="_blank" rel="noopener" href="https://github.com/aws/karpenter" aria-label="GitHub">
+          <i class="fab fa-github"></i>
+        </a>
+      </li>
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Slack" aria-label="Slack">
+        <a class="text-white" target="_blank" rel="noopener" href="https://slack.k8s.io/" aria-label="Slack">
+          <i class="fab fa-slack"></i>
+        </a>
+      </li>
+    
+  </ul>
+
+          
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved</small>
+        
+        
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/main.min.3b172c13b62c2bea8b1c9d2599cddc8cf89718a92d792c680871c81ba43d8c85.js" integrity="sha256-OxcsE7YsK&#43;qLHJ0lmc3cjPiXGKkteSxoCHHIG6Q9jIU=" crossorigin="anonymous"></script>
+
+
+<script>
+
+    
+    function WarningElement(version) {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing documentation for Karpenter version: ${version}
+            </h3>
+            <p> Karpenter ${version} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+
+    //create the html element with the version string
+    function PrereleaseElement() {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing pre-release documentation for Karpenter 
+            </h3>
+            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+    
+    //determine if path is /v1-docs/ (archived) or /docs/ (latest)
+    let re = new RegExp ('/(.*)\-docs')
+    const result = window.location.pathname.match(re)
+    const ArchiveStatus = result.length > 0
+
+    if (ArchiveStatus) {
+        //get version string from match result
+        let Version = result[1]
+
+        const target = document.querySelector(".td-content > h1")
+
+        if (Version == "pre"){
+            target.parentNode.insertBefore(PrereleaseElement(), target)
+        }
+        else {
+            target.parentNode.insertBefore(WarningElement(Version), target)
+        }
+        
+    }
+</script>
+
+
+  </body>
+</html>

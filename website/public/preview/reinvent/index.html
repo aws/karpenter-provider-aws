@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.85.0" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+<head>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="alternate icon" href="/favicon.ico">
+</head>
+
+<title>Karpenter</title>
+<meta name="description" content="Just-in-time Nodes for Any Kubernetes Cluster"><meta property="og:title" content="" />
+<meta property="og:description" content="Karpenter re:Invent 2021 Builders Session ​ ​
+Prerequisites Please install the following tools before starting:
+ AWS CLI. If you&rsquo;re on macOS and have Homebrew installed, simply brew install awscli. Otherwise, follow the AWS CLI user&rsquo;s guide. Helm, the Kubernetes package manager. If you&rsquo;re on macOS, feel free to simply brew install helm. Otherwise, follow the Helm installation guide. ​  Get Started Once you have all the necessary tools installed, configure your shell with the credentials for the temporary AWS account created for this session by:" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/preview/reinvent/" /><meta property="og:image" content="/banner.png"/><meta property="article:section" content="preview" />
+
+<meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="">
+<meta itemprop="description" content="Karpenter re:Invent 2021 Builders Session ​ ​
+Prerequisites Please install the following tools before starting:
+ AWS CLI. If you&rsquo;re on macOS and have Homebrew installed, simply brew install awscli. Otherwise, follow the AWS CLI user&rsquo;s guide. Helm, the Kubernetes package manager. If you&rsquo;re on macOS, feel free to simply brew install helm. Otherwise, follow the Helm installation guide. ​  Get Started Once you have all the necessary tools installed, configure your shell with the credentials for the temporary AWS account created for this session by:">
+
+<meta itemprop="wordCount" content="425"><meta itemprop="image" content="/banner.png"/>
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="/banner.png"/>
+
+<meta name="twitter:title" content=""/>
+<meta name="twitter:description" content="Karpenter re:Invent 2021 Builders Session ​ ​
+Prerequisites Please install the following tools before starting:
+ AWS CLI. If you&rsquo;re on macOS and have Homebrew installed, simply brew install awscli. Otherwise, follow the AWS CLI user&rsquo;s guide. Helm, the Kubernetes package manager. If you&rsquo;re on macOS, feel free to simply brew install helm. Otherwise, follow the Helm installation guide. ​  Get Started Once you have all the necessary tools installed, configure your shell with the credentials for the temporary AWS account created for this session by:"/>
+
+
+
+
+<link rel="preload" href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" as="style">
+<link href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+<script
+  src="https://unpkg.com/lunr@2.3.8/lunr.min.js"
+  integrity="sha384-vRQ9bDyE0Wnu+lMfm57BlYLO0/XauFuKpVsZPs7KEDwYKktWi5+Kz3MP8++DFlRY"
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand-md navbar-dark  td-navbar py-2">
+	<a class="navbar-brand" href="/">
+		<span class="navbar-logo"><svg viewBox="0 0 500 443" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><path d="M237.704918.0C314.662629.0 377.04918 62.3865513 377.04918 139.344262L377.049 336.352 442.622951 336.351852C474.31142 336.351852 5e2 362.040432 5e2 393.728901V443h-7.546066c-18.225271.0-33.094961-14.592764-33.437541-32.814815V401.960534L459.013099 401.553891C458.795948 388.160675 447.871194 377.37037 434.42623 377.37037H106.557377c-58.8500143.0-106.557377-47.707362-106.557377-106.557377L-100611761e-22 139.344262c0-76.9577107 62.3865513-139.344262 139.344262-139.344262zm-8.196721 41.0185185H147.540984L145.778863 41.0327942C87.7415928 41.97378 40.9836066 89.3143814 40.9836066 147.575896V270.778081L40.9923916 271.862464C41.5714598 307.577706 70.7041376 336.351852 106.557377 336.351852H270.491803c36.215394.0 65.573771-29.358377 65.573771-65.573771V147.575896L336.051298 145.813774C335.110312 87.7765047 287.769711 41.0185185 229.508197 41.0185185zM147.868852 106.648148C157.213115 106.648148 164.590164 114.277593 164.590164 123.875926v49.960555l56.803279-58.574444C228.770492 108.370926 238.852459 107.878704 245.983607 114.523704V114.769815C252.868852 121.168704 252.377049 131.751481 244.754098 138.642593l-42.04918 43.315555 48.934426 69.895556C257.540984 260.467593 255.819672 271.296481 247.95082 276.464815 239.344262 281.387037 229.508197 278.679815 223.606557 270.065926l-44.016393-64.481111-15 15.751111v40.362222c0 9.84444500000001-7.377049 17.227778-16.721312 17.227778C138.52459 278.925926 131.147541 271.542593 131.147541 261.698148V123.875926c0-9.59833300000001 7.377049-17.227778 16.721311-17.227778z" id="white_square_logo" fill="#fff"/></g></svg></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main_navbar" aria-controls="main_navbar" aria-expanded="false" aria-label="Toggle navigation">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+	<div class="collapse navbar-collapse ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav ml-auto pt-4 pt-md-0 my-2 my-md-1">
+			
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link active" href="/preview/" ><i class='fas fa-book'></i><span class="active">Docs</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="https://github.com/aws/karpenter" target="_blank" ><i class='fab fa-github'></i><span>GitHub</span></a>
+			</li>
+			
+			
+      		<li class="nav-item dropdown mt-1 mt-lg-0 mr-2">
+        		
+
+
+
+
+	
+
+	
+
+	
+
+	
+
+	
+
+<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	preview
+</a>
+<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
+	
+	<a class="dropdown-item" href="/docs/">v0.5.4</a>
+	
+	<a class="dropdown-item" href="/v0.5.3-docs/">v0.5.3</a>
+	
+	<a class="dropdown-item" href="/v0.5.2-docs/">v0.5.2</a>
+	
+	<a class="dropdown-item" href="/v0.5.0-docs/">v0.5.0</a>
+	
+	<a class="dropdown-item" href="/v0.4.3-docs/">v0.4.3</a>
+	
+</div>
+
+			</li>
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+</div>
+</nav>
+    </header>
+    <div class="container-fluid td-default td-outer">
+      <main role="main" class="td-main">
+        
+
+<h1 id="karpenter-reinvent-2021-builders-session">Karpenter re:Invent 2021 Builders Session</h1>
+<p>​
+<img src="https://github.com/aws/karpenter/raw/main/website/static/banner.png" alt="">
+​</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Please install the following tools before starting:</p>
+<ul>
+<li><a href="https://aws.amazon.com/cli/">AWS CLI</a>. If you&rsquo;re on macOS and have <a href="https://brew.sh/">Homebrew</a> installed, simply <code>brew install awscli</code>. Otherwise, follow the AWS CLI <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html">user&rsquo;s guide</a>.</li>
+<li><a href="https://helm.sh/docs/intro/install/">Helm</a>, the Kubernetes package manager. If you&rsquo;re on macOS, feel free to simply <code>brew install helm</code>. Otherwise, follow the <a href="https://helm.sh/docs/intro/install/">Helm installation guide</a>.
+​</li>
+</ul>
+<h2 id="get-started">Get Started</h2>
+<p>Once you have all the necessary tools installed, configure your shell with the credentials for the temporary AWS account created for this session by:</p>
+<ol>
+<li>Navigating to the Event Engine team dashboard and clicking on the &ldquo;☁️ AWS Console&rdquo; button</li>
+<li>Configuring your shell with the credentials required by copy and pasting the command for your operating system.</li>
+<li>Running the following to set your <code>AWS_ACCOUNT_ID</code> environmental variable:
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash"><span style="color:#204a87">export</span> <span style="color:#000">AWS_ACCOUNT_ID</span><span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#4e9a06">&#34;</span><span style="color:#204a87;font-weight:bold">$(</span>aws sts get-caller-identity --query Account --output text<span style="color:#204a87;font-weight:bold">)</span><span style="color:#4e9a06">&#34;</span>
+</code></pre></div></li>
+<li>Updating your local Kubernetes configuration (<code>kubeconfig</code>) by running:
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">aws eks update-kubeconfig --name karpenter-demo --role-arn arn:aws:iam::<span style="color:#4e9a06">${</span><span style="color:#000">AWS_ACCOUNT_ID</span><span style="color:#4e9a06">}</span>:role/KarpenterEESetupRole-karpenter-demo
+</code></pre></div></li>
+<li>Creating an AWS <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/using-service-linked-roles.html">IAM service-linked role</a> so that Karpenter can provision Spot EC2 instances with the following command:
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
+</code></pre></div><p><em><strong>N.B.</strong> If the role was created previously, you will see:</em></p>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash"><span style="color:#8f5902;font-style:italic"># An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.</span>
+</code></pre></div></li>
+</ol>
+<p>​
+If you can run the following command and see the pods running in your EKS cluster, you&rsquo;re all set! If not, please ask for help from one of the speakers in the session and they&rsquo;ll get you squared away. For your reference, the cluster name is <code>karpenter-demo</code>.</p>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">kubectl get pods -A
+</code></pre></div><p>​
+Congratulations! You now have access to an Amazon EKS cluster with an EKS Managed Node Group as well as all the AWS infrastructure necessary to use Karpenter.
+Happy Building 🔨!
+​</p>
+<h2 id="install-karpenter">Install Karpenter</h2>
+<p>Use the following command to install Karpenter into your cluster:</p>
+<div class="highlight"><pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">helm repo add karpenter https://charts.karpenter.sh
+helm repo update
+helm upgrade --install karpenter karpenter/karpenter --namespace karpenter <span style="color:#4e9a06">\
+</span><span style="color:#4e9a06"></span>  --create-namespace --set serviceAccount.create<span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#204a87">false</span> --version 0.5.4 <span style="color:#4e9a06">\
+</span><span style="color:#4e9a06"></span>  --set controller.clusterName<span style="color:#ce5c00;font-weight:bold">=</span>karpenter-demo <span style="color:#4e9a06">\
+</span><span style="color:#4e9a06"></span>  --set controller.clusterEndpoint<span style="color:#ce5c00;font-weight:bold">=</span><span style="color:#204a87;font-weight:bold">$(</span>aws eks describe-cluster --name karpenter-demo --query <span style="color:#4e9a06">&#34;cluster.endpoint&#34;</span> --output json<span style="color:#204a87;font-weight:bold">)</span> <span style="color:#4e9a06">\
+</span><span style="color:#4e9a06"></span>  --wait <span style="color:#8f5902;font-style:italic"># for the defaulting webhook to install before creating a Provisioner</span>
+</code></pre></div><p>​</p>
+<h2 id="next-steps">Next Steps</h2>
+<p>If you&rsquo;re a Kubernetes expert, feel free to start exploring how Karpenter works on your own and if you have any questions, one of the AWS speakers will be happy to answer them.
+​
+If you&rsquo;d like a guided walkthrough of Karpenter&rsquo;s features and capabilities, you can follow the Karpenter Getting Started guide starting at the <a href="https://karpenter.sh/docs/getting-started/#provisioner">&ldquo;Provisioner&rdquo; step</a>. Please don&rsquo;t hesitate to ask your AWS speaker any questions you might have!</p>
+
+
+
+      </main>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <p class="mx-auto col-sm-3 text-center text-light">
+        Built with ❤️ at <a class="text-light" href="https://aws.amazon.com/">AWS</a>
+      </p>
+    </div>
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+          
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+          
+            
+  <ul class="list-inline mb-0">
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="GitHub" aria-label="GitHub">
+        <a class="text-white" target="_blank" rel="noopener" href="https://github.com/aws/karpenter" aria-label="GitHub">
+          <i class="fab fa-github"></i>
+        </a>
+      </li>
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Slack" aria-label="Slack">
+        <a class="text-white" target="_blank" rel="noopener" href="https://slack.k8s.io/" aria-label="Slack">
+          <i class="fab fa-slack"></i>
+        </a>
+      </li>
+    
+  </ul>
+
+          
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved</small>
+        
+        
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/main.min.3b172c13b62c2bea8b1c9d2599cddc8cf89718a92d792c680871c81ba43d8c85.js" integrity="sha256-OxcsE7YsK&#43;qLHJ0lmc3cjPiXGKkteSxoCHHIG6Q9jIU=" crossorigin="anonymous"></script>
+
+
+<script>
+
+    
+    function WarningElement(version) {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing documentation for Karpenter version: ${version}
+            </h3>
+            <p> Karpenter ${version} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+
+    //create the html element with the version string
+    function PrereleaseElement() {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing pre-release documentation for Karpenter 
+            </h3>
+            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+    
+    //determine if path is /v1-docs/ (archived) or /docs/ (latest)
+    let re = new RegExp ('/(.*)\-docs')
+    const result = window.location.pathname.match(re)
+    const ArchiveStatus = result.length > 0
+
+    if (ArchiveStatus) {
+        //get version string from match result
+        let Version = result[1]
+
+        const target = document.querySelector(".td-content > h1")
+
+        if (Version == "pre"){
+            target.parentNode.insertBefore(PrereleaseElement(), target)
+        }
+        else {
+            target.parentNode.insertBefore(WarningElement(Version), target)
+        }
+        
+    }
+</script>
+
+
+  </body>
+</html>

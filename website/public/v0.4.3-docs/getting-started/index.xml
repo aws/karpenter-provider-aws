@@ -1,0 +1,17 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Karpenter – Getting Started with Karpenter on AWS</title>
+    <link>/v0.4.3-docs/getting-started/</link>
+    <description>Recent content in Getting Started with Karpenter on AWS on Karpenter</description>
+    <generator>Hugo -- gohugo.io</generator>
+    
+	  <atom:link href="/v0.4.3-docs/getting-started/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+  </channel>
+</rss>

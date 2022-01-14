@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="generator" content="Hugo 0.85.0" /><META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
+<head>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="alternate icon" href="/favicon.ico">
+</head>
+
+<title>Provisioning nodes | Karpenter</title>
+<meta name="description" content="Just-in-time Nodes for Any Kubernetes Cluster"><meta property="og:title" content="Provisioning nodes" />
+<meta property="og:description" content="When you first installed Karpenter, you set up a default Provisioner. The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes. The Provisioner can be set to do things like:
+ Define taints to limit the pods that can run on nodes Karpenter creates Limit node creation to certain zones, instance types, and computer architectures Set defaults for node expiration  You can change your provisioner or add other provisioners to Karpenter." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="/v0.5.0/tasks/provisioning-task/" /><meta property="og:image" content="/banner.png"/><meta property="article:section" content="v0.5.0" />
+
+<meta property="og:site_name" content="Karpenter" />
+
+<meta itemprop="name" content="Provisioning nodes">
+<meta itemprop="description" content="When you first installed Karpenter, you set up a default Provisioner. The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes. The Provisioner can be set to do things like:
+ Define taints to limit the pods that can run on nodes Karpenter creates Limit node creation to certain zones, instance types, and computer architectures Set defaults for node expiration  You can change your provisioner or add other provisioners to Karpenter.">
+
+<meta itemprop="wordCount" content="402"><meta itemprop="image" content="/banner.png"/>
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="/banner.png"/>
+
+<meta name="twitter:title" content="Provisioning nodes"/>
+<meta name="twitter:description" content="When you first installed Karpenter, you set up a default Provisioner. The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes. The Provisioner can be set to do things like:
+ Define taints to limit the pods that can run on nodes Karpenter creates Limit node creation to certain zones, instance types, and computer architectures Set defaults for node expiration  You can change your provisioner or add other provisioners to Karpenter."/>
+
+
+
+
+<link rel="preload" href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" as="style">
+<link href="/scss/main.min.0b37f95108ce37f0b7d48c3e28f4085b93466316038fb0f812edd03ec2597fa9.css" rel="stylesheet" integrity="">
+
+
+<script
+  src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+  crossorigin="anonymous"></script>
+
+<script
+  src="https://unpkg.com/lunr@2.3.8/lunr.min.js"
+  integrity="sha384-vRQ9bDyE0Wnu+lMfm57BlYLO0/XauFuKpVsZPs7KEDwYKktWi5+Kz3MP8++DFlRY"
+  crossorigin="anonymous"></script>
+
+
+
+
+
+  </head>
+  <body class="td-page">
+    <header>
+      
+<nav class="js-navbar-scroll navbar navbar-expand-md navbar-dark  td-navbar py-2">
+	<a class="navbar-brand" href="/">
+		<span class="navbar-logo"><svg viewBox="0 0 500 443" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><path d="M237.704918.0C314.662629.0 377.04918 62.3865513 377.04918 139.344262L377.049 336.352 442.622951 336.351852C474.31142 336.351852 5e2 362.040432 5e2 393.728901V443h-7.546066c-18.225271.0-33.094961-14.592764-33.437541-32.814815V401.960534L459.013099 401.553891C458.795948 388.160675 447.871194 377.37037 434.42623 377.37037H106.557377c-58.8500143.0-106.557377-47.707362-106.557377-106.557377L-100611761e-22 139.344262c0-76.9577107 62.3865513-139.344262 139.344262-139.344262zm-8.196721 41.0185185H147.540984L145.778863 41.0327942C87.7415928 41.97378 40.9836066 89.3143814 40.9836066 147.575896V270.778081L40.9923916 271.862464C41.5714598 307.577706 70.7041376 336.351852 106.557377 336.351852H270.491803c36.215394.0 65.573771-29.358377 65.573771-65.573771V147.575896L336.051298 145.813774C335.110312 87.7765047 287.769711 41.0185185 229.508197 41.0185185zM147.868852 106.648148C157.213115 106.648148 164.590164 114.277593 164.590164 123.875926v49.960555l56.803279-58.574444C228.770492 108.370926 238.852459 107.878704 245.983607 114.523704V114.769815C252.868852 121.168704 252.377049 131.751481 244.754098 138.642593l-42.04918 43.315555 48.934426 69.895556C257.540984 260.467593 255.819672 271.296481 247.95082 276.464815 239.344262 281.387037 229.508197 278.679815 223.606557 270.065926l-44.016393-64.481111-15 15.751111v40.362222c0 9.84444500000001-7.377049 17.227778-16.721312 17.227778C138.52459 278.925926 131.147541 271.542593 131.147541 261.698148V123.875926c0-9.59833300000001 7.377049-17.227778 16.721311-17.227778z" id="white_square_logo" fill="#fff"/></g></svg></span><span class="text-uppercase font-weight-bold">Karpenter</span>
+	</a>
+	<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main_navbar" aria-controls="main_navbar" aria-expanded="false" aria-label="Toggle navigation">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+	<div class="collapse navbar-collapse ml-md-auto" id="main_navbar">
+		<ul class="navbar-nav ml-auto pt-4 pt-md-0 my-2 my-md-1">
+			
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/getting-started/" ><span>Getting Started</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="/preview/" ><i class='fas fa-book'></i><span>Docs</span></a>
+			</li>
+			
+			<li class="nav-item mr-2 mr-lg-4 mt-1 mt-lg-0">
+				
+				
+				
+				
+				
+				
+				<a class="nav-link" href="https://github.com/aws/karpenter" target="_blank" ><i class='fab fa-github'></i><span>GitHub</span></a>
+			</li>
+			
+			
+      		<li class="nav-item dropdown mt-1 mt-lg-0 mr-2">
+        		
+
+
+
+
+	
+
+	
+
+	
+
+	
+
+	
+
+<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	v0.5.0
+</a>
+<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
+	
+	<a class="dropdown-item" href="/docs/">v0.5.4</a>
+	
+	<a class="dropdown-item" href="/v0.5.3-docs/">v0.5.3</a>
+	
+	<a class="dropdown-item" href="/v0.5.2-docs/">v0.5.2</a>
+	
+	<a class="dropdown-item" href="/v0.5.0-docs/">v0.5.0</a>
+	
+	<a class="dropdown-item" href="/v0.4.3-docs/">v0.4.3</a>
+	
+</div>
+
+			</li>
+			
+			
+		</ul>
+	</div>
+	<div class="navbar-nav d-none d-lg-block">
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+</div>
+</nav>
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            
+
+
+
+
+  
+
+
+<div id="td-sidebar-menu" class="td-sidebar__inner">
+  
+  <form class="td-sidebar__search d-flex align-items-center">
+    
+
+
+
+<input
+  type="search"
+  class="form-control td-search-input"
+  placeholder="&#xf002; Search this site…"
+  aria-label="Search this site…"
+  autocomplete="off"
+  
+  data-offline-search-index-json-src="/offline-search-index.d016e33954ed0639efa943586ae122a3.json"
+  data-offline-search-base-href="/"
+  data-offline-search-max-results="10"
+>
+
+
+    <button class="btn btn-link td-sidebar__toggle d-md-none p-0 ml-3 fas fa-bars" type="button" data-toggle="collapse" data-target="#td-section-nav" aria-controls="td-docs-nav" aria-expanded="false" aria-label="Toggle section navigation">
+    </button>
+  </form>
+  
+  <nav class="collapse td-sidebar-nav foldable-nav" id="td-section-nav">
+    
+    
+    
+    
+    
+    <ul class="td-sidebar-nav__section pr-md-3 ul-0">
+      
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v050-li">
+    
+      <a href="/v0.5.0/" title="Documentation" class="align-left pl-0 td-sidebar-link td-sidebar-link__section tree-root" id="m-v050"><span class="">Docs</span></a>
+    
+    
+      
+      <ul class="ul-1">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050getting-started-li">
+    
+      <input type="checkbox" id="m-v050getting-started-check"/>
+      <label for="m-v050getting-started-check"><a href="/v0.5.0/getting-started/" title="Getting Started with Karpenter on AWS" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050getting-started"><span class="">Getting Started</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050concepts-li">
+    
+      <input type="checkbox" id="m-v050concepts-check"/>
+      <label for="m-v050concepts-check"><a href="/v0.5.0/concepts/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050concepts"><span class="">Concepts</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child active-path" id="m-v050tasks-li">
+    
+      <input type="checkbox" id="m-v050tasks-check" checked/>
+      <label for="m-v050tasks-check"><a href="/v0.5.0/tasks/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050tasks"><span class="">Tasks</span></a></label>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child active-path" id="m-v050tasksprovisioning-task-li">
+    
+      <input type="checkbox" id="m-v050tasksprovisioning-task-check" checked/>
+      <label for="m-v050tasksprovisioning-task-check"><a href="/v0.5.0/tasks/provisioning-task/" class="align-left pl-0  active td-sidebar-link td-sidebar-link__page" id="m-v050tasksprovisioning-task"><span class="td-sidebar-nav-active-item">Provisioning nodes</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050tasksrunning-pods-li">
+    
+      <input type="checkbox" id="m-v050tasksrunning-pods-check"/>
+      <label for="m-v050tasksrunning-pods-check"><a href="/v0.5.0/tasks/running-pods/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050tasksrunning-pods"><span class="">Running pods</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050tasksdeprov-nodes-li">
+    
+      <input type="checkbox" id="m-v050tasksdeprov-nodes-check"/>
+      <label for="m-v050tasksdeprov-nodes-check"><a href="/v0.5.0/tasks/deprov-nodes/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050tasksdeprov-nodes"><span class="">Deprovisioning nodes</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050provisioner-li">
+    
+      <input type="checkbox" id="m-v050provisioner-check"/>
+      <label for="m-v050provisioner-check"><a href="/v0.5.0/provisioner/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050provisioner"><span class="">Provisioner API</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section with-child" id="m-v050aws-li">
+    
+      <input type="checkbox" id="m-v050aws-check"/>
+      <label for="m-v050aws-check"><a href="/v0.5.0/aws/" class="align-left pl-0  td-sidebar-link td-sidebar-link__section" id="m-v050aws"><span class="">AWS</span></a></label>
+    
+    
+      
+      <ul class="ul-2 foldable">
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050awsprovisioning-li">
+    
+      <input type="checkbox" id="m-v050awsprovisioning-check"/>
+      <label for="m-v050awsprovisioning-check"><a href="/v0.5.0/aws/provisioning/" title="Provisioning Configuration" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050awsprovisioning"><span class="">Provisioning</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050awslaunch-templates-li">
+    
+      <input type="checkbox" id="m-v050awslaunch-templates-check"/>
+      <label for="m-v050awslaunch-templates-check"><a href="/v0.5.0/aws/launch-templates/" title="Launch Templates and Custom Images" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050awslaunch-templates"><span class="">Launch Templates</span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050development-guide-li">
+    
+      <input type="checkbox" id="m-v050development-guide-check"/>
+      <label for="m-v050development-guide-check"><a href="/v0.5.0/development-guide/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050development-guide"><span class="">Development Guide</span></a></label>
+    
+    
+  </li>
+
+          
+        
+          
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <li class="td-sidebar-nav__section-title td-sidebar-nav__section without-child" id="m-v050reinvent-li">
+    
+      <input type="checkbox" id="m-v050reinvent-check"/>
+      <label for="m-v050reinvent-check"><a href="/v0.5.0/reinvent/" class="align-left pl-0  td-sidebar-link td-sidebar-link__page" id="m-v050reinvent"><span class=""></span></a></label>
+    
+    
+  </li>
+
+          
+        
+      </ul>
+    
+  </li>
+
+    </ul>
+  </nav>
+</div>
+
+
+
+
+          </aside>
+          <aside class="d-none d-xl-block col-xl-2 td-sidebar-toc d-print-none">
+            
+  
+  
+  
+  
+  
+  
+  <div class="td-page-meta ml-2 pb-1 pt-2 mb-0">
+  
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    
+
+    <a href="https://github.com/aws/karpenter/edit/main/website/content/en/v0.5.0/tasks/provisioning-task.md" target="_blank"><i class="fa fa-edit fa-fw"></i> Edit this page</a>
+    <a href="https://github.com/aws/karpenter/new/main/website/content/en/v0.5.0/tasks/provisioning-task.md?filename=change-me.md&amp;value=---%0Atitle%3A&#43;%22Long&#43;Page&#43;Title%22%0AlinkTitle%3A&#43;%22Short&#43;Nav&#43;Title%22%0Aweight%3A&#43;100%0Adescription%3A&#43;%3E-%0A&#43;&#43;&#43;&#43;&#43;Page&#43;description&#43;for&#43;heading&#43;and&#43;indexes.%0A---%0A%0A%23%23&#43;Heading%0A%0AEdit&#43;this&#43;template&#43;to&#43;create&#43;your&#43;new&#43;page.%0A%0A%2A&#43;Give&#43;it&#43;a&#43;good&#43;name%2C&#43;ending&#43;in&#43;%60.md%60&#43;-&#43;e.g.&#43;%60getting-started.md%60%0A%2A&#43;Edit&#43;the&#43;%22front&#43;matter%22&#43;section&#43;at&#43;the&#43;top&#43;of&#43;the&#43;page&#43;%28weight&#43;controls&#43;how&#43;its&#43;ordered&#43;amongst&#43;other&#43;pages&#43;in&#43;the&#43;same&#43;directory%3B&#43;lowest&#43;number&#43;first%29.%0A%2A&#43;Add&#43;a&#43;good&#43;commit&#43;message&#43;at&#43;the&#43;bottom&#43;of&#43;the&#43;page&#43;%28%3C80&#43;characters%3B&#43;use&#43;the&#43;extended&#43;description&#43;field&#43;for&#43;more&#43;detail%29.%0A%2A&#43;Create&#43;a&#43;new&#43;branch&#43;so&#43;you&#43;can&#43;preview&#43;your&#43;new&#43;file&#43;and&#43;request&#43;a&#43;review&#43;via&#43;Pull&#43;Request.%0A" target="_blank"><i class="fa fa-edit fa-fw"></i> Create child page</a>
+    <a href="https://github.com/aws/karpenter/issues/new?title=Provisioning%20nodes" target="_blank"><i class="fab fa-github fa-fw"></i> Create documentation issue</a>
+    
+
+  
+  
+  </div>
+
+
+            
+
+
+<div class="td-toc"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#example-requirements">Example: Requirements</a></li>
+    <li><a href="#example-isolating-expensive-hardware">Example: Isolating Expensive Hardware</a></li>
+  </ul>
+</nav></div>
+
+
+
+            
+
+	
+		
+
+
+
+  
+  
+
+	
+		
+
+
+
+  
+  
+
+	
+
+          </aside>
+          <main class="col-12 col-md-9 col-xl-8 pl-md-5" role="main">
+            
+  
+
+            <nav aria-label="breadcrumb" class="d-none d-md-block d-print-none">
+	<ol class="breadcrumb spb-1">
+		
+
+
+
+
+
+
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.5.0/">Docs</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item" >
+	<a href="/v0.5.0/tasks/">Tasks</a>
+</li>
+
+
+
+
+<li class="breadcrumb-item active" aria-current="page">
+	<a href="/v0.5.0/tasks/provisioning-task/">Provisioning nodes</a>
+</li>
+
+	</ol>
+</nav	>
+
+            
+<div class="td-content">
+	<h1>Provisioning nodes</h1>
+	
+	<header class="article-meta">
+		
+		
+			
+				
+
+
+			
+				
+
+
+			
+		
+		
+	</header>    
+	<p>When you first installed Karpenter, you set up a default Provisioner.
+The Provisioner sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
+The Provisioner can be set to do things like:</p>
+<ul>
+<li>Define taints to limit the pods that can run on nodes Karpenter creates</li>
+<li>Limit node creation to certain zones, instance types, and computer architectures</li>
+<li>Set defaults for node expiration</li>
+</ul>
+<p>You can change your provisioner or add other provisioners to Karpenter.
+Here are things you should know about Provisioners:</p>
+<ul>
+<li>Karpenter won&rsquo;t do anything if there is not at least one Provisioner configured.</li>
+<li>Each Provisioner that is configured is looped through by Karpenter.</li>
+<li>If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won&rsquo;t use that Provisioner to provision the pod.</li>
+<li>It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will randomly choose which to use.</li>
+</ul>
+<p>If you want to modify or add provisioners to Karpenter, do the following:</p>
+<ol>
+<li>Review the following Provisioner documents:</li>
+</ol>
+<ul>
+<li><a href="../../getting-started/#provisioner">Provisioner</a> in the Getting Started guide for a sample default Provisioner</li>
+<li><a href="../../provisioner/">Provisioner API</a> for descriptions of Provisioner API values</li>
+<li><a href="../../AWS/provisioning">Provisioning Configuration</a> for cloud-specific settings</li>
+</ul>
+<ol start="2">
+<li>Apply the new or modified Provisioner to the cluster.</li>
+</ol>
+<p>The following examples illustrate different aspects of Provisioners.
+Refer to <a href="../running-pods">Running pods</a> to see how the same features are used in Pod specs to determine where pods run.</p>
+<h2 id="example-requirements">Example: Requirements</h2>
+<p>This provisioner limits nodes to specific zones.
+It is flexible to both spot and on-demand capacity types.</p>
+<pre><code>apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: westzones
+spec:
+  requirements:
+    - key: &quot;topology.kubernetes.io/zone&quot; 
+      operator: In
+      values: [&quot;us-west-2a&quot;, &quot;us-west-2b&quot;, &quot;us-west-2c&quot;]
+    - key: &quot;karpenter.sh/capacity-type&quot;
+      operator: In
+      values: [&quot;spot&quot;, &quot;on-demand&quot;]
+  provider: 
+    instanceProfile: myprofile-cluster101
+</code></pre><p>With these settings, the provisioner is able to launch nodes in three availability zones and is flexible to both spot and on-demand purchase types.</p>
+<h2 id="example-isolating-expensive-hardware">Example: Isolating Expensive Hardware</h2>
+<p>A provisioner can be set up to only provision nodes on particular processor types.
+The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:</p>
+<pre><code>apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: gpu
+spec:
+  ttlSecondsAfterEmpty: 60
+  requirements:
+  - key: node.kubernetes.io/instance-type
+    operator: In
+    values: [&quot;p3.8xlarge&quot;, &quot;p3.16xlarge&quot;]
+  taints:
+  - key: nvidia.com/gpu
+    value: true
+    effect: “NoSchedule”
+</code></pre><p>In order for a pod to run on a node defined in this provisioner, it must tolerate <code>nvidia.com/gpu</code> in its pod spec.</p>
+
+	
+	
+	<div class="text-muted mt-5 pt-3 border-top">
+
+</div>
+
+</div>
+
+
+          </main>
+        </div>
+      </div>
+      
+<footer class="bg-dark py-5 row d-print-none">
+  <div class="container-fluid mx-sm-5">
+    <div class="row">
+      <p class="mx-auto col-sm-3 text-center text-light">
+        Built with ❤️ at <a class="text-light" href="https://aws.amazon.com/">AWS</a>
+      </p>
+    </div>
+    <div class="row">
+      <div class="col-6 col-sm-4 text-xs-center order-sm-2">
+        
+          
+        
+      </div>
+      <div class="col-6 col-sm-4 text-right text-xs-center order-sm-3">
+        
+          
+            
+  <ul class="list-inline mb-0">
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="GitHub" aria-label="GitHub">
+        <a class="text-white" target="_blank" rel="noopener" href="https://github.com/aws/karpenter" aria-label="GitHub">
+          <i class="fab fa-github"></i>
+        </a>
+      </li>
+    
+      <li class="list-inline-item mx-2 h3" data-toggle="tooltip" data-placement="top" title="Slack" aria-label="Slack">
+        <a class="text-white" target="_blank" rel="noopener" href="https://slack.k8s.io/" aria-label="Slack">
+          <i class="fab fa-slack"></i>
+        </a>
+      </li>
+    
+  </ul>
+
+          
+        
+      </div>
+      <div class="col-12 col-sm-4 text-center py-2 order-sm-2">
+        <small class="text-white">&copy; 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved</small>
+        
+        
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="/js/main.min.3b172c13b62c2bea8b1c9d2599cddc8cf89718a92d792c680871c81ba43d8c85.js" integrity="sha256-OxcsE7YsK&#43;qLHJ0lmc3cjPiXGKkteSxoCHHIG6Q9jIU=" crossorigin="anonymous"></script>
+
+
+<script>
+
+    
+    function WarningElement(version) {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing documentation for Karpenter version: ${version}
+            </h3>
+            <p> Karpenter ${version} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+
+    //create the html element with the version string
+    function PrereleaseElement() {
+        let RawElement = `
+        <div class="alert alert-warning" role="alert">
+            <h3>
+                You are viewing pre-release documentation for Karpenter 
+            </h3>
+            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the 
+                <a href="/docs/">latest version.</a>
+            </p>
+        </div>
+        `
+        let TemplateElement = document.createElement('div')
+        TemplateElement.innerHTML = RawElement
+
+        return TemplateElement
+    }
+    
+    //determine if path is /v1-docs/ (archived) or /docs/ (latest)
+    let re = new RegExp ('/(.*)\-docs')
+    const result = window.location.pathname.match(re)
+    const ArchiveStatus = result.length > 0
+
+    if (ArchiveStatus) {
+        //get version string from match result
+        let Version = result[1]
+
+        const target = document.querySelector(".td-content > h1")
+
+        if (Version == "pre"){
+            target.parentNode.insertBefore(PrereleaseElement(), target)
+        }
+        else {
+            target.parentNode.insertBefore(WarningElement(Version), target)
+        }
+        
+    }
+</script>
+
+
+  </body>
+</html>
