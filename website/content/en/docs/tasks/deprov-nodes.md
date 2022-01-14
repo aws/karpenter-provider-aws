@@ -81,3 +81,4 @@ That annotation is used for pods that you want to run on one node from start to 
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 If you want to terminate a `do-not-evict` pod, you can simply remove the annotation and the finalizer will delete the pod and continue the node deprovisioning process.
+
