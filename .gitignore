@@ -5,3 +5,4 @@ coverage.html
 *.csv
 website/node_modules
 website/resources
+website/public
