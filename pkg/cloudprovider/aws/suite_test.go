@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -406,10 +407,13 @@ var _ = Describe("Allocation", func() {
 			It("should default to a generated launch template", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				createLaunchTemplateInput := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
-				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
-				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
+				launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
+				Expect(*launchTemplate.LaunchTemplateName).To(Equal(*createLaunchTemplateInput.LaunchTemplateName))
 				Expect(*launchTemplate.Version).To(Equal("$Default"))
 			})
 			It("should allow a launch template to be specified", func() {
@@ -476,6 +480,36 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
 			})
 		})
+		Context("Metadata Options", func() {
+			It("should default metadata options on generated launch template", func() {
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(v1alpha1.DefaultMetadataOptionsHTTPEndpoint))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(v1alpha1.DefaultMetadataOptionsHTTPProtocolIPv6))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(v1alpha1.DefaultMetadataOptionsHTTPPutResponseHopLimit)))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(v1alpha1.DefaultMetadataOptionsHTTPTokens))
+			})
+			It("should set metadata options on generated launch template from provisioner configuration", func() {
+				provider, err := ProviderFromProvisioner(provisioner)
+				Expect(err).ToNot(HaveOccurred())
+				provider.MetadataOptions = &v1alpha1.MetadataOptions{
+					HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
+					HTTPProtocolIPv6:        aws.String(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled),
+					HTTPPutResponseHopLimit: aws.Int64(1),
+					HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
+				}
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpEndpoint).To(Equal(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpProtocolIpv6).To(Equal(ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpPutResponseHopLimit).To(Equal(int64(1)))
+				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
+			})
+		})
 	})
 	Context("Defaulting", func() {
 		It("should default subnetSelector", func() {
@@ -497,6 +531,9 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Validation", func() {
+		It("should validate", func() {
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
 		It("should not panic if provider undefined", func() {
 			provisioner.Spec.Provider = nil
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
@@ -504,6 +541,8 @@ var _ = Describe("Allocation", func() {
 
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
+				provider, err := ProviderFromProvisioner(provisioner)
+				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
 					"key": "",
@@ -514,8 +553,10 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 		})
-		Context("SecurityGroupSelector", func() {
-			It("should not allow empty string keys or values", func() {
+		It("should not allow empty string keys or values", func() {
+			Context("SecurityGroupSelector", func() {
+				provider, err := ProviderFromProvisioner(provisioner)
+				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
 					"key": "",
@@ -538,6 +579,112 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 		})
+		Context("MetadataOptions", func() {
+			It("should allow missing values", func() {
+				provider, err := ProviderFromProvisioner(provisioner)
+				Expect(err).ToNot(HaveOccurred())
+				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
+				provisioner := ProvisionerWithProvider(provisioner, provider)
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			})
+			Context("HTTPEndpoint", func() {
+				It("should allow enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					for _, value := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
+							HTTPEndpoint: &value,
+						}
+						provisioner := ProvisionerWithProvider(provisioner, provider)
+						Expect(provisioner.Validate(ctx)).To(Succeed())
+					}
+				})
+				It("should not allow non-enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
+						HTTPEndpoint: aws.String(randomdata.SillyName()),
+					}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
+			Context("HTTPProtocolIpv6", func() {
+				It("should allow enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					for _, value := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
+							HTTPProtocolIPv6: &value,
+						}
+						provisioner := ProvisionerWithProvider(provisioner, provider)
+						Expect(provisioner.Validate(ctx)).To(Succeed())
+					}
+				})
+				It("should not allow non-enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
+						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
+					}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
+			Context("HTTPPutResponseHopLimit", func() {
+				It("should validate inside accepted range", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
+						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
+					}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).To(Succeed())
+				})
+				It("should not validate outside accepted range", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{}
+					// We expect to be able to invalidate any hop limit between
+					// [math.MinInt64, 1). But, to avoid a panic here, we can't
+					// exceed math.MaxInt for the difference between bounds of
+					// the random number range. So we divide the range
+					// approximately in half and test on both halves.
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64, math.MinInt64/2)))
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64/2, 1)))
+					provisioner = ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+
+					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(65, math.MaxInt64)))
+					provisioner = ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
+			Context("HTTPTokens", func() {
+				It("should allow enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					for _, value := range ec2.LaunchTemplateHttpTokensState_Values() {
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
+							HTTPTokens: aws.String(value),
+						}
+						provisioner := ProvisionerWithProvider(provisioner, provider)
+						Expect(provisioner.Validate(ctx)).To(Succeed())
+					}
+				})
+				It("should not allow non-enum values", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
+						HTTPTokens: aws.String(randomdata.SillyName()),
+					}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
+		})
 	})
 })
 
@@ -548,6 +695,11 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 	provisioner.Spec.Limits.Resources = v1.ResourceList{}
 	provisioner.Spec.Limits.Resources[v1.ResourceCPU] = *resource.NewScaledQuantity(10, 0)
 	return provisioner
+}
+
+func ProviderFromProvisioner(provisioner *v1alpha5.Provisioner) (*v1alpha1.AWS, error) {
+	constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
+	return constraints.AWS, err
 }
 
 func InstancesLaunchedFrom(createFleetInputIter <-chan interface{}) int {

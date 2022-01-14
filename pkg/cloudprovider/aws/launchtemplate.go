@@ -81,6 +81,7 @@ type launchTemplateOptions struct {
 	SecurityGroupsIds []string
 	AMIID             string
 	Tags              map[string]string
+	MetadataOptions   *v1alpha1.MetadataOptions
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
@@ -114,6 +115,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
 			Tags:              constraints.Tags,
+			MetadataOptions:   constraints.GetMetadataOptions(),
 		})
 		if err != nil {
 			return nil, err
@@ -178,6 +180,12 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
+			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
+				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
+				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
+				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
+				HttpTokens:              options.MetadataOptions.HTTPTokens,
+			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),

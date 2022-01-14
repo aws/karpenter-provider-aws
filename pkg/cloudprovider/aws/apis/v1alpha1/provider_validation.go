@@ -16,7 +16,9 @@ package v1alpha1
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"knative.dev/pkg/apis"
 )
 
@@ -31,6 +33,7 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
 		a.validateTags(),
+		a.validateMetadataOptions(),
 	)
 }
 
@@ -80,4 +83,57 @@ func (a *AWS) validateTags() (errs *apis.FieldError) {
 		}
 	}
 	return errs
+}
+
+func (a *AWS) validateMetadataOptions() (errs *apis.FieldError) {
+	if a.MetadataOptions == nil {
+		return nil
+	}
+	return errs.Also(
+		a.validateHTTPEndpoint(),
+		a.validateHTTPProtocolIpv6(),
+		a.validateHTTPPutResponseHopLimit(),
+		a.validateHTTPTokens(),
+	).ViaField("metadataOptions")
+}
+
+func (a *AWS) validateHTTPEndpoint() (errs *apis.FieldError) {
+	if a.MetadataOptions.HTTPEndpoint == nil {
+		return nil
+	}
+	return a.validateStringEnum(*a.MetadataOptions.HTTPEndpoint, "httpEndpoint", ec2.LaunchTemplateInstanceMetadataEndpointState_Values())
+}
+
+func (a *AWS) validateHTTPProtocolIpv6() (errs *apis.FieldError) {
+	if a.MetadataOptions.HTTPProtocolIPv6 == nil {
+		return nil
+	}
+	return a.validateStringEnum(*a.MetadataOptions.HTTPProtocolIPv6, "httpProtocolIPv6", ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values())
+}
+
+func (a *AWS) validateHTTPPutResponseHopLimit() *apis.FieldError {
+	if a.MetadataOptions.HTTPPutResponseHopLimit == nil {
+		return nil
+	}
+	limit := *a.MetadataOptions.HTTPPutResponseHopLimit
+	if limit < 1 || limit > 64 {
+		return apis.ErrOutOfBoundsValue(limit, 1, 64, "httpPutResponseHopLimit")
+	}
+	return nil
+}
+
+func (a *AWS) validateHTTPTokens() *apis.FieldError {
+	if a.MetadataOptions.HTTPTokens == nil {
+		return nil
+	}
+	return a.validateStringEnum(*a.MetadataOptions.HTTPTokens, "httpTokens", ec2.LaunchTemplateHttpTokensState_Values())
+}
+
+func (a *AWS) validateStringEnum(value, field string, validValues []string) *apis.FieldError {
+	for _, validValue := range validValues {
+		if value == validValue {
+			return nil
+		}
+	}
+	return apis.ErrInvalidValue(fmt.Sprintf("valid values: %s", strings.Join(validValues, ", ")), field)
 }
