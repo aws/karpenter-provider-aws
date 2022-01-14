@@ -6,21 +6,15 @@ weight: 90
 ## General
 
 ### How does a provisioner decide to manage a particular node?
-Karpenter only provisions nodes for pods with a status condition `Unschedulable=True`
-Karpenter will only take action on nodes that it provisions.
-All nodes launched by Karpenter will be labeled with `karpenter.sh/provisioner-name`.
+See [Configuring provisioners]({{< ref "/docs/concepts/#configuring-provisioners" >}}) for information on how Karpenter provisions and manages nodes.
 
 ### What cloud providers are supported?
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
 See [[Cloud provider]({{< ref "/docs/concepts/#cloud-provider" >}}) for details.
 
-### What deployment methods are supported by Karpenter?
-To deploy Karpenter manually, see [[Getting Started]({{< ref "/docs/getting-started/" >}}).
-To deploy using Terraform, see [[Getting Started with Terraform]({{< ref "/docs/getting-started-with-terraform/" >}}).
-To deploy using kOps, see [[Getting Started with kOps]({{< ref "/docs/getting-started-with-kops/" >}}).
-
 ### Can I write my own cloud provider for Karpenter?
-!!! NEEDS INFO !!!
+Yes, but there is no documentation yet for it.
+Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter/tree/main/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
 By default, Karpenter uses Amazon Linux 2 images.
@@ -34,10 +28,11 @@ Yes. Build and prepare custom arm images as described in [Launch Templates and C
 Specify the desired architecture when you deploy workloads.
 
 ### What RBAC access is required?
-!!! NEEDS INFO !!!
+All of the required RBAC rules can be found in the helm chart template.
+See the [rbac.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/controller/rbac.yaml) file for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
-!!! NEEDS INFO !!!
+Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
 
 ## Compatibility
 
@@ -76,9 +71,9 @@ This is analogous to the default scheduler.
 To select an alternative provisioner, use the node selector `karpenter.sh/provisioner-name: alternative-provisioner`.
 You must either define a default provisioner or explicitly specify `karpenter.sh/provisioner-name node selector`.
 
-
 ### Can I set total limits of CPU and memory for a provisioner?
-!!! NEEDS INFO !!!
+Yes, the setting is provider-specific.
+See examples in [Accelerators, GPU]({{< ref "/docs/aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
 Yes, see [Example Provisioner Resource]({{< ref "/docs/provisioner/#example-provisioner-resource" >}}) for an example.
@@ -88,9 +83,6 @@ Yes, see [Example Provisioner Resource]({{< ref "/docs/provisioner/#example-prov
 * Attribute-based requests are currently not possible.
 * You can select instances with special hardware, such as gpu.
 
-### Can I identify EC2 instances using common labels?
-!!! NEEDS INFO !!!
-
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?
@@ -99,15 +91,20 @@ See [Application developer]({{< ref "/docs/concepts/#application-developer" >}})
 
 ### How do I use Karpenter with the AWS load balancer controller?
 
-* Set the [ALB target type]({{< ref "https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type" >}}) to IP mode for the pods 
+* Set the [ALB target type]({{< ref "https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type" >}}) to IP mode for the pods.
+Use IP targeting if you want the pods to receive equal weight.
+Instance balancing could greatly skew the traffic being sent to a node without also managing host spread of the workload.
 * Set [readiness gate]({{< ref "https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/" >}}) on the namespace.
-The default is round robin at node level.
+The default is round robin at the node level.
 For Karpenter, not all nodes are equal.
+For example, each node will have different performance characteristics and a different number of pods running on it.
+A `t3.small` with three instances should not receive the same amount of traffic as a `m5.4xlarge` with dozens of pods.
+If you don't specify a spread at the workload level, or limit what instances should be picked, you could get the same amount of traffic sent to the `t3` and `m5`.
 
-### Can I use Karpenter with ELB disks per availability zone?
+### Can I use Karpenter with EBS disks per availability zone?
 Not yet.
 
-### Can I set --max-pods on my nodes?
+### Can I set `--max-pods` on my nodes?
 Not yet.
 
 ## Deprovisioning
@@ -116,7 +113,5 @@ See [Deprovisioning nodes]({{< ref "/docs/tasks/deprov-nodes" >}}) for informati
 
 ## Upgrading
 ### How do I upgrade Karpenter?
-!!! NEEDS INFO !!!
-
-### How do I upgrade Kubernetes?
-!!! NEEDS INFO !!!
+Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
+Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
