@@ -9,9 +9,10 @@ WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} \
-			 --set controller.clusterEndpoint=${CLUSTER_ENDPOINT} \
-			 --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
+HELM_OPTS ?= --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
+      --set clusterName=${CLUSTER_NAME} \
+			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
+			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -49,7 +50,7 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
+	helm template --include-crds karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=ko://github.com/aws/karpenter/cmd/controller \
 		--set webhook.image=ko://github.com/aws/karpenter/cmd/webhook \
@@ -58,7 +59,6 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm template karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set serviceAccount.create=false \
 		| kubectl delete -f -
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
