@@ -9,10 +9,6 @@ contentDir: content/en
 defaultContentLanguage: en
 defaultContentLanguageInSubdir: false
 enableMissingTranslationPlaceholders: true
-services:
-  googleAnalytics:
-    id: G-NT6C9QZZQ0
-    languageCode: en-us
 languages:
   en:
     title: Karpenter
@@ -65,15 +61,13 @@ params:
         url: 'https://slack.k8s.io/'
         icon: fab fa-slack
         desc: 'Chat with us on Slack in the #aws-provider channel'
-  latest_release_version: 0.5.4
+  latest_release_version: 0.5.3
   versions:
   - version: v0.5.3
   - version: v0.5.2
   - version: v0.5.0
   - version: v0.4.3
   - version: preview
-permalinks:
-  v0.5.4: docs
 menu:
   main:
     - name: GitHub

@@ -37,7 +37,7 @@
     }
     
     //determine if path is /v1-docs/ (archived) or /docs/ (latest)
-    let re = new RegExp ('/(.*)\-docs')
+    let re = new RegExp ('/((v.*)|(preview))/')
     const result = window.location.pathname.match(re)
     const ArchiveStatus = result.length > 0
 
@@ -47,7 +47,7 @@
 
         const target = document.querySelector(".td-content > h1")
 
-        if (Version == "pre"){
+        if (Version == "preview"){
             target.parentNode.insertBefore(PrereleaseElement(), target)
         }
         else {
