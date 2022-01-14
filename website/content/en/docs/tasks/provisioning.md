@@ -31,7 +31,7 @@ If you want to modify or add provisioners to Karpenter, do the following:
 2. Apply the new or modified Provisioner to the cluster.
 
 The following examples illustrate different aspects of Provisioners.
-Refer to [Running pods](../running-pods) to see how the same features are used in Pod specs to determine where pods run.
+Refer to [Running pods](../scheduling) to see how the same features are used in Pod specs to determine where pods run.
 
 ## Example: Requirements
 
