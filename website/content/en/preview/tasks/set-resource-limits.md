@@ -39,6 +39,10 @@ In response to pending pods, Karpenter calculates a new 6 core instance is neede
 
 In response to a new set of pending pods, Karpenter calculates another 6 core instance is needed. Karpenter *does not create* the instance, because the resource limit has been met.
 
+{{% alert title="Note" color="primary" %}}
+Karpenter provisioning is highly parallel. Because of this, limit checking is eventually consistent, which can result in overrun during rapid scale outs.
+{{% /alert %}}
+
 ### Example Provisioner:
 
 ```
