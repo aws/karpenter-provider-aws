@@ -5,11 +5,11 @@ weight: 10
 ---
 
 Karpenter sets a Kubernetes [finalizer](https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/) on each node it provisions.
-The finalizer specifies additional actions the Karpenter controller will takes in response to node a deletion request.
+The finalizer specifies additional actions the Karpenter controller will takes in response to a node deletion request.
 These include:
 
 * Marking the node as unschedulable, so no further pods can be deployed there.
-* Evicting all workload pods from the node, drainit it of all pods other than daemonsets.
+* Evicting all workload pods from the node, draining it of all pods other than daemonsets.
 * Deleting the node from the Kubernetes cluster.
 * Terminating the instance from the cloud provider.
 
