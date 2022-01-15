@@ -57,7 +57,6 @@ type InstanceType interface {
 	// Note that though this is an array it is expected that all the Offerings are unique from one another
 	Offerings() []Offering
 	Architecture() string
-	AMIFamily() string
 	OperatingSystems() sets.String
 	CPU() *resource.Quantity
 	Memory() *resource.Quantity
