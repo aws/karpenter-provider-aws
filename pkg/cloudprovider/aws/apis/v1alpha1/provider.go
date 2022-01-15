@@ -36,7 +36,7 @@ type AWS struct {
 	metav1.TypeMeta `json:",inline"`
 	// AMIFamily is the AMI family that instances use.
 	// +optional
-	AMIFamily string `json:"amiFamily"`
+	AMIFamily *string `json:"amiFamily,omitempty"`
 	// InstanceProfile is the AWS identity that instances use.
 	// +required
 	InstanceProfile string `json:"instanceProfile"`
