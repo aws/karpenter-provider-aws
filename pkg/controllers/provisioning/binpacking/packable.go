@@ -22,6 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -174,21 +175,34 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 
 func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
-		return fmt.Errorf("instance type %s not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
+		instanceTypes := constraints.Requirements.InstanceTypes()
+		if instanceTypes.IsComplement {
+			return fmt.Errorf("instance type %s not in complement set %v'", p.Name(), instanceTypes.RawValues())
+		}
+		return fmt.Errorf("instance type %s not in %v", p.Name(), instanceTypes.RawValues())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), constraints.Requirements.Architectures().List())
+		architectures := constraints.Requirements.Architectures()
+		if architectures.IsComplement {
+			return fmt.Errorf("architecture %s not in complement set %v'", p.Name(), architectures.RawValues())
+		}
+		return fmt.Errorf("architecture %s not in %v", p.Name(), architectures.RawValues())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
-	if constraints.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
-		return fmt.Errorf("operating systems %s not in %v", p.OperatingSystems(), constraints.Requirements.OperatingSystems().List())
+	operatingSystem := sets.NewSet(false, p.OperatingSystems().UnsortedList()...)
+	if constraints.Requirements.OperatingSystems().Intersection(operatingSystem).Len() == 0 {
+		operatingSystems := constraints.Requirements.OperatingSystems()
+		if operatingSystems.IsComplement {
+			return fmt.Errorf("operating systems %s not in complement set %v'", p.Name(), operatingSystems.RawValues())
+		}
+		return fmt.Errorf("operating systems %s not in %v", p.Name(), operatingSystems.RawValues())
 	}
 	return nil
 }
@@ -199,7 +213,17 @@ func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("offerings %v are not available for capacity types %v and zones %v", p.Offerings(), constraints.Requirements.CapacityTypes().List(), constraints.Requirements.Zones().List())
+	capacityTypes := constraints.Requirements.CapacityTypes()
+	zones := constraints.Requirements.Zones()
+	var capacityModifier, zoneModifier string
+	if capacityTypes.IsComplement {
+		capacityModifier = "(complement set)"
+	}
+	if zones.IsComplement {
+		zoneModifier = "(complement set)"
+	}
+
+	return fmt.Errorf("offerings %v are not available for capacity types %v%s and zones %v%s", p.Offerings(), capacityTypes.RawValues(), capacityModifier, zones.RawValues(), zoneModifier)
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {

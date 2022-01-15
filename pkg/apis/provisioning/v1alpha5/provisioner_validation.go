@@ -23,12 +23,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
 
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var (
-	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)}
+	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist)}
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -134,28 +133,5 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 }
 
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	for i, requirement := range c.Requirements {
-		if err := validateRequirement(requirement); err != nil {
-			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
-		}
-	}
-	return errs
-}
-
-func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
-	if !WellKnownLabels.Has(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
-	}
-	for _, err := range validation.IsQualifiedName(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
-	}
-	for i, value := range requirement.Values {
-		for _, err := range validation.IsValidLabelValue(value) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-		}
-	}
-	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
-	}
-	return errs
+	return c.Requirements.Validate()
 }

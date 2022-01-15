@@ -95,6 +95,7 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 		return nil
 	}
 	for _, candidate := range c.provisioners.List(ctx) {
+
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
 		} else {

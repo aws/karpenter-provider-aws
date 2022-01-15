@@ -17,8 +17,8 @@ package scheduling
 import (
 	"math"
 
+	"github.com/aws/karpenter/pkg/utils/sets"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func NewTopologyGroup(pod *v1.Pod, constraint v1.TopologySpreadConstraint) *TopologyGroup {
@@ -51,11 +51,11 @@ func (t *TopologyGroup) Increment(domain string) {
 }
 
 // NextDomain chooses a domain within the constraints that minimizes skew
-func (t *TopologyGroup) NextDomain(requirement sets.String) string {
+func (t *TopologyGroup) NextDomain(requirement *sets.Set) string {
 	minDomain := ""
 	minCount := math.MaxInt32
 	for domain, count := range t.spread {
-		if requirement != nil && !requirement.Has(domain) {
+		if !requirement.Has(domain) {
 			continue
 		}
 		if count <= minCount {

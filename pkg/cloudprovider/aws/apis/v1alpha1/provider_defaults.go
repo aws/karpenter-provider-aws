@@ -35,11 +35,11 @@ func (c *Constraints) defaultCapacityTypes() {
 	if functional.ContainsString(c.Requirements.Keys(), v1alpha5.LabelCapacityType) {
 		return
 	}
-	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
+	c.Requirements = c.Requirements.Merge(v1alpha5.NewRequirements(v1.NodeSelectorRequirement{
 		Key:      v1alpha5.LabelCapacityType,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{CapacityTypeOnDemand},
-	})
+	}))
 }
 
 func (c *Constraints) defaultArchitecture() {
@@ -49,9 +49,9 @@ func (c *Constraints) defaultArchitecture() {
 	if functional.ContainsString(c.Requirements.Keys(), v1.LabelArchStable) {
 		return
 	}
-	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
+	c.Requirements = c.Requirements.Merge(v1alpha5.NewRequirements(v1.NodeSelectorRequirement{
 		Key:      v1.LabelArchStable,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{v1alpha5.ArchitectureAmd64},
-	})
+	}))
 }
