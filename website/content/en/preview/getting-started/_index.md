@@ -193,9 +193,10 @@ shapes. Karpenter makes scheduling and provisioning decisions based on pod
 attributes such as labels and affinity. In other words, Karpenter eliminates
 the need to manage many different node groups.
 
-Create a default provisioner using the command below. This provisioner
-configures instances to connect to your cluster's endpoint and discovers
-resources like subnets and security groups using the cluster's name.
+Create a default provisioner using the command below.
+This provisioner uses `securityGroupSelector` and `subnetSelector` to discover resources used to launch nodes.
+We applied the tag `karpenter.sh/discovery` in the `eksctl` command above.
+Depending how these resources are shared between clusters, you may need to use different tagging schemes.
 
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
