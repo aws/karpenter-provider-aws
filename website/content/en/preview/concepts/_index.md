@@ -24,7 +24,7 @@ Concepts associated with this role are described below.
 Karpenter is designed to run on a node in your Kubernetes cluster.
 As part of the installation process, you need credentials from the underlying cloud provider to allow nodes to be started up and added to the cluster as they are needed.
 
-[Getting Started with Karpenter on AWS](https://karpenter.sh/docs/getting-started/)
+[Getting Started with Karpenter on AWS]{{< ref "./getting-started" >}})
 describes the process of installing Karpenter on an AWS cloud provider.
 Because requests to add and delete nodes and schedule pods are made through Kubernetes, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
 For example, Karpenter uses AWS IRSA roles to grant the permissions needed to describe EC2 instance types and create EC2 instances.
@@ -67,7 +67,7 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 
-For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprov-nodes/) for details.
+For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../tasks/deprovisioning) for details.
 
 ### Upgrading nodes
 
@@ -157,8 +157,8 @@ Those that are implemented in Karpenter include:
 
 {{% alert title="Note" color="primary" %}}
 Don't use `podAffinity` and `podAntiAffinity` to schedule pods on the same or different nodes as other pods.
-Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see [KEP 895](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#impact-to-other-features)) and Karpenter doesn't support them for the moment (you can follow their consideration by subscribing to the [issue](https://github.com/aws/karpenter/issues/942)).".
+Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see [KEP 895](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#impact-to-other-features)) and Karpenter doesn't support them for the moment (you can follow their consideration by subscribing to the [issue](https://github.com/aws/karpenter/issues/942).
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/scheduling/) for details.
+For more on how, as a developer, you can add constraints to your pod deployment, see [Scheduling](../tasks/scheduling/) for details.
