@@ -102,7 +102,7 @@
           "exemplar": true,
           "expr": "sum (karpenter_pods_state{namespace=~\"$namespace\", node=~\"$node\", zone=~\"$zone\", instance_type=~\"$instance_type\",  owner=~\"$owner\",  phase=~\"$phase\", arch=~\"$arch\", capacity_type=~\"$capacity_type\", provisioner=~\"$provisioner\"})",
           "interval": "",
-          "legendFormat": "Number of Nodes",
+          "legendFormat": "Number of Pods",
           "refId": "A"
         }
       ],
