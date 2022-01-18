@@ -8,9 +8,16 @@ main() {
 }
 
 tools() {
-    cd tools
-    go mod tidy
-    GO111MODULE=on cat tools.go | grep _ | awk -F'"' '{print $2}' | xargs -tI % go install %
+    go install github.com/mitchellh/golicense@v0.2.0
+    go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.3.1
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.41.1
+    go install github.com/google/ko@v0.9.4-0.20220110162209-64df1a7ec588
+    go install github.com/mikefarah/yq/v4@v4.16.1
+    go install github.com/mitchellh/golicense@v0.2.0
+    go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.6.0
+    go install github.com/onsi/ginkgo/ginkgo@v1.16.5
+    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20220113220429-45b13b951f77
+    go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."
