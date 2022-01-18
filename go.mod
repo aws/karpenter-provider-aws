@@ -8,7 +8,7 @@ require (
 	github.com/aws/amazon-vpc-resource-controller-k8s v1.1.0
 	github.com/aws/aws-sdk-go v1.42.25
 	github.com/deckarep/golang-set v1.8.0
-	github.com/go-logr/zapr v0.4.0
+	github.com/go-logr/zapr v1.2.2
 	github.com/imdario/mergo v0.3.12
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo v1.16.5
@@ -42,7 +42,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-kit/log v0.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
-	github.com/go-logr/logr v0.4.0 // indirect
+	github.com/go-logr/logr v1.2.2 // indirect
 	github.com/gobuffalo/flect v0.2.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
