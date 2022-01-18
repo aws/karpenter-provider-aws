@@ -20,7 +20,7 @@ Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://g
 
 You can view the current consumption of cpu and memory on your cluster by running:
 ```
-kubectl get provisioner -o=jsonpath='{.items[0].stat
+kubectl get provisioner -o=jsonpath='{.items[0].status}'
 ```
 
 Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
