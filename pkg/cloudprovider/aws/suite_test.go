@@ -51,6 +51,7 @@ import (
 )
 
 var ctx context.Context
+var opts options.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
@@ -67,10 +68,11 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		opts := options.Options{
-			ClusterName:           "test-cluster",
-			ClusterEndpoint:       "https://test-cluster",
-			AWSNodeNameConvention: string(options.IPName),
+		opts = options.Options{
+			ClusterName:             "test-cluster",
+			ClusterEndpoint:         "https://test-cluster",
+			AWSNodeNameConvention:   string(options.IPName),
+			AWSENILimitedPodDensity: true,
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
@@ -471,15 +473,36 @@ var _ = Describe("Allocation", func() {
 				))
 			})
 		})
-		Context("Kubelet Args", func() {
-			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-				provisioner.Spec.KubeletConfiguration.ClusterDNS = []string{"10.0.10.100"}
+		Context("User Data", func() {
+			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
+				Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods=false"))
+			})
+			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = false
+				ctx = injection.WithOptions(ctx, opts)
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--use-max-pods=false"))
+				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
+			})
+			Context("Kubelet Args", func() {
+				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
+					provisioner.Spec.KubeletConfiguration.ClusterDNS = []string{"10.0.10.100"}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
+				})
 			})
 		})
 		Context("Metadata Options", func() {

@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"github.com/aws/karpenter/pkg/utils/options"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,6 +35,7 @@ const EC2VMAvailableMemoryFactor = .925
 type InstanceType struct {
 	ec2.InstanceTypeInfo
 	AvailableOfferings []cloudprovider.Offering
+	Options            options.Options
 }
 
 func (i *InstanceType) Name() string {
@@ -70,6 +72,10 @@ func (i *InstanceType) Memory() *resource.Quantity {
 }
 
 func (i *InstanceType) Pods() *resource.Quantity {
+	if !i.Options.AWSENILimitedPodDensity {
+		return resources.Quantity("110")
+	}
+
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20

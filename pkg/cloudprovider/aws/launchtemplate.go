@@ -259,6 +259,12 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
 	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
 
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		userData.WriteString(` \
+    --use-max-pods=false`)
+		kubeletExtraArgs += " --max-pods=110"
+	}
+
 	if len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))

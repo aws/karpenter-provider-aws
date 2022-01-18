@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -85,6 +86,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 			instanceType.AvailableOfferings = offerings
 			result = append(result, instanceType)
 		}
+		instanceType.Options = injection.GetOptions(ctx)
 	}
 	return result, nil
 }
