@@ -79,7 +79,7 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 ### Pod set to do-not-evict
 
 If a pod exists with the annotation `karpenter.sh/do-not-evict` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node.
-However, if a`do-not-evict` pod is added to a node while the node is draining, the remaining pods will still evict, but that pod will block termination until it is removed.
+However, if a `do-not-evict` pod is added to a node while the node is draining, the remaining pods will still evict, but that pod will block termination until it is removed.
 In either case, the node will be cordoned to prevent additional work from scheduling.
 
 That annotation is used for pods that you want to run on one node from start to finish without interruption.
