@@ -78,3 +78,7 @@ menu:
       weight: 99
       url: 'https://github.com/aws/karpenter'
       pre: <i class='fab fa-github'></i>
+    - name: Docs
+      weight: 20
+      url: '/v0.5.3/'
+      pre: <i class='fas fa-book'></i>
