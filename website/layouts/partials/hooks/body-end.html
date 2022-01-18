@@ -37,7 +37,7 @@
     }
 
     //determine if path is /v1-docs/ (archived) or /docs/ (latest)
-    const match = window.location.pathname.match(new RegExp ('/((v.*)/|(preview))/'))
+    const match = window.location.pathname.match(new RegExp ('/((v([0-9]|\.)+)|(preview))/'))
     if (match.length > 0) {
         const versions = Array.from(document.querySelectorAll(".dropdown-item")).map(o => o.innerText)
         const latest = versions[0]
