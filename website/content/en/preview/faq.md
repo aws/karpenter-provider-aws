@@ -93,6 +93,7 @@ If you are using the on-demand capacity type, then Karpenter uses a lowest price
 So fleet will provision the lowest price instance type it can get from the 20 Karpenter passed it.
 If the instance type is unavailable for some reason, then fleet will move on to the next cheapest instance type.
 If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that ec2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
+See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
 ## Workloads
 
