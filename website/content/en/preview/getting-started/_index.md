@@ -89,7 +89,8 @@ First, create the IAM resources using AWS CloudFormation.
 
 ```bash
 TEMPOUT=$(mktemp)
-curl -fsSL https://karpenter.sh/docs/getting-started/cloudformation.yaml > $TEMPOUT \
+
+curl -fsSL https://karpenter.sh{{< relref "." >}}cloudformation.yaml  > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name Karpenter-${CLUSTER_NAME} \
   --template-file ${TEMPOUT} \
