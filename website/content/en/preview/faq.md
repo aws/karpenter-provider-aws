@@ -10,7 +10,7 @@ See [Configuring provisioners]({{< ref "./concepts/#configuring-provisioners" >}
 
 ### What cloud providers are supported?
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
-See [[Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
+See [Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
 
 ### Can I write my own cloud provider for Karpenter?
 Yes, but there is no documentation yet for it.
