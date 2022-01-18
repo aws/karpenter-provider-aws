@@ -106,6 +106,10 @@ module "eks" {
       asg_max_size  = 1
     }
   ]
+
+  tags = {
+    "karpenter.sh/discovery" = var.cluster_name
+  }
 }
 ```
 
@@ -307,6 +311,10 @@ spec:
       cpu: 1000
   provider:
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
+    subnetSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    securityGroupSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
 EOF
 ```
