@@ -163,6 +163,6 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 // The number of pods per node is calculated using the formula:
 // max number of ENIs * (IPv4 Addresses per ENI -1) + 2
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-func (i *InstanceType) getNumberOfEniBasedPods() int64 {
+func (i *InstanceType) eniLimitedPods() int64 {
 	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 }
