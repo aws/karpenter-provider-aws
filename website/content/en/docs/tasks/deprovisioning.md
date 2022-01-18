@@ -10,8 +10,8 @@ These include:
 
 * Marking the node as unschedulable, so no further pods can be scheduled there.
 * Evicting all pods other than daemonsets from the node.
-* Deleting the node from the Kubernetes cluster.
 * Terminating the instance from the cloud provider.
+* Deleting the node from the Kubernetes cluster.
 
 ## How Karpenter nodes are deprovisioned
 
@@ -28,14 +28,14 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
 
     ```bash
-    kubectl delete <nodename>
-    ```
-
-    Or delete all Karpenter nodes at once:
-
-    ```bash
-    kubectl delete -l <provisioner label>
- 
+    # Delete a specific node
+    kubectl delete node $NODE_NAME
+    
+    # Delete all nodes owned any provisioner
+    kubectl delete nodes -l karpenter.sh/provisioner-name
+    
+    # Delete all nodes owned by a specific provisioner
+    kubectl delete nodes -l karpenter.sh/provisioner-name=$PROVISIONER_NAME
     ```
 
 Whether through node expiry or manual deletion, Karpenter seeks to follow graceful termination procedures as described in Kubernetes [Graceful node shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdow) documentation.
@@ -44,9 +44,9 @@ If the Karpenter controller is removed or fails, the finalizers on the nodes are
 
 {{% alert title="Note" color="primary" %}}
 By adding the finalizer, Karpenter improves the default Kubernetes process of node deletion.
-When you run `kubectl delete node` on a node without a finalizer, the node gets deleted in the API server but the instance keeps running.
+When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The instance will continue running in EC2, even though there is no longer a node object for it. 
 The kubelet isn’t watching for its own existence, so if a node is deleted the kubelet doesn’t terminate itself.
-All the pod objects get deleted by a garbage collection process later, because the pods’ nodes are gone.
+All the pod objects get deleted by a garbage collection process later, because the pods’ node is gone.
 {{% /alert %}}
 
 ## What can cause deprovisioning to fail?
@@ -55,7 +55,7 @@ There are a few cases where requesting to deprovision a Karpenter node will fail
 
 ### Disruption budgets
 
-Karpenter respects Pod Disruption Budgets (PDBs) when provisioning nodes and can prevent a node from being deprovisioned to maintain those disruption budgets.
+Karpenter respects Pod Disruption Budgets (PDBs) by using a backoff retry eviction strategy. Pods will never be forcibly deleted, so pods that fail to shut down will prevent a node from deprovisioning.
 Kubernetes PDBs let you specify how much of a Deployment, ReplicationController, ReplicaSet, or StatefulSet must be protected from disruptions when pod eviction requests are made. 
 
 PDBs can be used to strike a balance by protecting the application's availability while still allowing a cluster administrator to manage the cluster.
