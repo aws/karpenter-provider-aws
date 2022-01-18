@@ -83,7 +83,7 @@ Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisio
 * Attribute-based requests are currently not possible.
 * You can select instances with special hardware, such as gpu.
 
-### How does Karpenter "know" which instance type to use?
+### How does Karpenter dynamically select instance types?
 
 Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemon sets that will be packed when bringing up a new node.
 By default Karpenter uses all available instance types, but it can be constrained in the provisioner spec with the instance types well known label in the requirements section.
