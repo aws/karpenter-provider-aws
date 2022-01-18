@@ -102,10 +102,10 @@ See [Application developer]({{< ref "./concepts/#application-developer" >}}) for
 
 ### How do I use Karpenter with the AWS load balancer controller?
 
-* Set the [ALB target type]("https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type") to IP mode for the pods.
+* Set the [ALB target type](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type) to IP mode for the pods.
 Use IP targeting if you want the pods to receive equal weight.
 Instance balancing could greatly skew the traffic being sent to a node without also managing host spread of the workload.
-* Set [readiness gate]({"https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/") on the namespace.
+* Set [readiness gate](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/) on the namespace.
 The default is round robin at the node level.
 For Karpenter, not all nodes are equal.
 For example, each node will have different performance characteristics and a different number of pods running on it.
