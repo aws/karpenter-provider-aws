@@ -1,14 +1,14 @@
 <script>
 
     //create the html element with the version string
-    function WarningElement(version) {
+    function WarningElement(current, latest) {
         let RawElement = `
         <div class="alert alert-warning" role="alert">
             <h3>
-                You are viewing documentation for Karpenter version: ${version}
+                You are viewing documentation for Karpenter version: ${current}
             </h3>
-            <p> Karpenter ${version} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the 
-                <a href="/docs/">latest version.</a>
+            <p> Karpenter ${current} documentation is not the latest stable release. The version you are currently viewing is a static snapshot. For up-to-date documentation, see the
+                <a href="/${latest}">latest version.</a>
             </p>
         </div>
         `
@@ -19,14 +19,14 @@
     }
 
     //create the html element with the version string
-    function PrereleaseElement() {
+    function PrereleaseElement(current, latest) {
         let RawElement = `
         <div class="alert alert-warning" role="alert">
             <h3>
-                You are viewing pre-release documentation for Karpenter 
+                You are viewing pre-release documentation for Karpenter
             </h3>
-            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the 
-                <a href="/docs/">latest version.</a>
+            <p> Karpenter pre-release documentation is under active development. The documentation, and included APIs, are unstable. For up-to-date documentation, see the
+                <a href="/${latest}">latest version.</a>
             </p>
         </div>
         `
@@ -35,24 +35,20 @@
 
         return TemplateElement
     }
-    
+
     //determine if path is /v1-docs/ (archived) or /docs/ (latest)
-    let re = new RegExp ('/(.*)\-docs')
-    const result = window.location.pathname.match(re)
-    const ArchiveStatus = result.length > 0
+    const match = window.location.pathname.match(new RegExp ('/((v.*)|(preview))/'))
+    if (match.length > 0) {
+        const versions = Array.from(document.querySelectorAll(".dropdown-item")).map(o => o.innerText)
+        const latest = versions[0]
+        const current = match[1]
 
-    if (ArchiveStatus) {
-        //get version string from match result
-        let Version = result[1]
+        const header = document.querySelector(".td-content > h1")
 
-        const target = document.querySelector(".td-content > h1")
-
-        if (Version == "pre"){
-            target.parentNode.insertBefore(PrereleaseElement(), target)
+        if (current == "preview"){
+            header.parentNode.insertBefore(PrereleaseElement(current, latest), header)
+        } else if (current != latest) {
+            header.parentNode.insertBefore(WarningElement(current, latest), header)
         }
-        else {
-            target.parentNode.insertBefore(WarningElement(Version), target)
-        }
-        
     }
 </script>

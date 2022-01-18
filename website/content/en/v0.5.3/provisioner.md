@@ -2,7 +2,6 @@
 title: "Provisioner API"
 linkTitle: "Provisioner API"
 weight: 70
-date: 2017-01-05
 description: >
   Provisioner API reference page
 ---
@@ -35,13 +34,13 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "node.kubernetes.io/instance-type" 
+    - key: "node.kubernetes.io/instance-type"
       operator: In
       values: ["m5.large", "m5.2xlarge"]
-    - key: "topology.kubernetes.io/zone" 
+    - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch" 
+    - key: "kubernetes.io/arch"
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
@@ -53,19 +52,19 @@ spec:
 
 ## spec.requirements
 
-Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API. 
+Kubernetes defines the following [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/), and cloud providers (e.g., AWS) implement them. They are defined at the "spec.requirements" section of the Provisioner API.
 
 These well known labels may be specified at the provisioner level, or in a workload definition (e.g., nodeSelector on a pod.spec). Nodes are chosen using the both the provisioner's and pod's requirements. If there is no overlap, nodes will not be launched. In other words, a pod's requirements must be within the provisioner's requirements. If a requirement is not defined for a well known label, any value available to the cloud provider may be chosen.
 
-For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the provisioner list and the provisioner has instance type requirements, Karpenter will not create a node or schedule the pod. 
+For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the provisioner list and the provisioner has instance type requirements, Karpenter will not create a node or schedule the pod.
 
-📝 None of these values are required. 
+📝 None of these values are required.
 
 ### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
 
-Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods. 
+Generally, instance types should be a list and not a single value. Leaving this field undefined is recommended, as it maximizes choices for efficiently placing pods.
 
 ☁️ **AWS**
 
@@ -132,14 +131,14 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 - values
   - `spot` (default)
-  - `on-demand` 
+  - `on-demand`
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
 
 
 ## spec.kubeletConfiguration
 
-Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for 
+Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
 additional customization and use cases. Adjust these only if you know you need to do so.
 
 ```yaml
@@ -154,6 +153,3 @@ spec:
 This section is cloud provider specific. Reference the appropriate documentation:
 
 - [AWS](../aws/provisioning/)
-
-
-

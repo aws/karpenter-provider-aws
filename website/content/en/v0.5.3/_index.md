@@ -3,10 +3,10 @@
 title: "Documentation"
 linkTitle: "Docs"
 weight: 20
-menu:
-  main:
-    weight: 20
-    pre: <i class='fas fa-book'></i>
+aliases:
+  - docs
+cascade:
+  type: docs
 ---
 Karpenter is an open-source node provisioning project built for Kubernetes.
 Adding Karpenter to a Kubernetes cluster can dramatically improve the efficiency and cost of running workloads on that cluster.
@@ -19,9 +19,9 @@ Karpenter works by:
 * **Scheduling** the pods to run on the new nodes
 * **Removing** the nodes when the nodes are no longer needed
 
-As a cluster administrator, you can configure an unconstrained Karpenter provisioner when it is first installed and not change it again.
+As a cluster operator, you can configure an unconstrained Karpenter provisioner when it is first installed and not change it again.
 Other times, you might continue to tweak the provisioner or create multiple provisioners for a cluster used by different teams.
-On-going cluster administrator tasks include upgrading and decommissioning nodes.
+On-going cluster operator tasks include upgrading and decommissioning nodes.
 
 As an application developer, you can make specific requests for capacity and features you want from the nodes running your pods.
 Karpenter is designed to quickly create the best possible nodes to meet those needs and schedule the pods to run on them.

@@ -6,11 +6,11 @@ weight: 90
 ## General
 
 ### How does a provisioner decide to manage a particular node?
-See [Configuring provisioners]({{< ref "/docs/concepts/#configuring-provisioners" >}}) for information on how Karpenter provisions and manages nodes.
+See [Configuring provisioners]({{< ref "./concepts/#configuring-provisioners" >}}) for information on how Karpenter provisions and manages nodes.
 
 ### What cloud providers are supported?
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
-See [[Cloud provider]({{< ref "/docs/concepts/#cloud-provider" >}}) for details.
+See [[Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
 
 ### Can I write my own cloud provider for Karpenter?
 Yes, but there is no documentation yet for it.
@@ -21,10 +21,10 @@ By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
 Karpenter allows you to create your own AWS AMIs using custom launch templates.
-See [Launch Templates and Custom Images]({{< ref "/docs/aws/launch-templates/" >}}) for details.
+See [Launch Templates and Custom Images]({{< ref "./aws/launch-templates/" >}}) for details.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
-Yes. Build and prepare custom arm images as described in [Launch Templates and Custom Images]({{< ref "/docs/aws/launch-templates/" >}}).
+Yes. Build and prepare custom arm images as described in [Launch Templates and Custom Images]({{< ref "./aws/launch-templates/" >}}).
 Specify the desired architecture when you deploy workloads.
 
 ### What RBAC access is required?
@@ -52,17 +52,17 @@ We expect most users will use a mixed approach in the near term and provisioner-
 
 ### How does Karpenter interact with Kubernetes features?
 * Kubernetes Cluster Autoscaler: Karpenter can work alongside cluster autoscaler.
-See [Kubernetes cluster autoscaler]({{< ref "/docs/concepts/#kubernetes-cluster-autoscaler" >}}) for details.
+See [Kubernetes cluster autoscaler]({{< ref "./concepts/#kubernetes-cluster-autoscaler" >}}) for details.
 * Kubernetes Scheduler: Karpenter focuses on scheduling pods that the Kubernetes scheduler has marked as unschedulable.
-See [Scheduling]({{< ref "/docs/concepts/#scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
+See [Scheduling]({{< ref "./concepts/#scheduling" >}}) for details on how Karpenter interacts with the Kubernetes scheduler.
 
 ## Provisioning
 ### What features does the Karpenter provisioner support?
-See [Provisioner API]({{< ref "/docs/provisioner" >}}) for provisioner examples and descriptions of features.
+See [Provisioner API]({{< ref "./provisioner" >}}) for provisioner examples and descriptions of features.
 
 ### Can I create multiple (team-based) provisioners on a cluster?
 Yes, provisioners can identify multiple teams based on labels.
-See [Provisioner API]({{< ref "/docs/provisioner" >}}) for details.
+See [Provisioner API]({{< ref "./provisioner" >}}) for details.
 
 ### If multiple provisioners are defined, which will my pod use?
 
@@ -73,10 +73,10 @@ You must either define a default provisioner or explicitly specify `karpenter.sh
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
-See examples in [Accelerators, GPU]({{< ref "/docs/aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
+See examples in [Accelerators, GPU]({{< ref "./aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
-Yes, see [Example Provisioner Resource]({{< ref "/docs/provisioner/#example-provisioner-resource" >}}) for an example.
+Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisioner-resource" >}}) for an example.
 
 ### Can I restrict EC2 instance types?
 
@@ -87,14 +87,14 @@ Yes, see [Example Provisioner Resource]({{< ref "/docs/provisioner/#example-prov
 
 ### How can someone deploying pods take advantage of Karpenter?
 
-See [Application developer]({{< ref "/docs/concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
+See [Application developer]({{< ref "./concepts/#application-developer" >}}) for descriptions of how Karpenter matches nodes with pod requests.
 
 ### How do I use Karpenter with the AWS load balancer controller?
 
-* Set the [ALB target type]({{< ref "https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type" >}}) to IP mode for the pods.
+* Set the [ALB target type]("https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type") to IP mode for the pods.
 Use IP targeting if you want the pods to receive equal weight.
 Instance balancing could greatly skew the traffic being sent to a node without also managing host spread of the workload.
-* Set [readiness gate]({{< ref "https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/" >}}) on the namespace.
+* Set [readiness gate]({"https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/") on the namespace.
 The default is round robin at the node level.
 For Karpenter, not all nodes are equal.
 For example, each node will have different performance characteristics and a different number of pods running on it.
@@ -109,7 +109,7 @@ Not yet.
 
 ## Deprovisioning
 ### How does Karpenter deprovision nodes?
-See [Deprovisioning nodes]({{< ref "/docs/tasks/deprov-nodes" >}}) for information on how Karpenter deprovisions nodes.
+See [Deprovisioning nodes]({{< ref "./tasks/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
 
 ## Upgrading
 ### How do I upgrade Karpenter?
