@@ -83,6 +83,17 @@ Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisio
 * Attribute-based requests are currently not possible.
 * You can select instances with special hardware, such as gpu.
 
+### How does Karpenter "know" which instance type to use?
+
+Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemon sets that will be packed when bringing up a new node.
+By default Karpenter uses all available instance types, but it can be constrained in the provisioner spec with the instance types well known label in the requirements section.
+After the pods are binpacked on the most efficient instance type (i.e. the smallest instance type that can fit the pod batch), Karpenter takes 19 other instance types that are larger than the most efficient packing, and passes all 20 instance type options to an API called Ec2 Fleet.
+The EC2 fleet API attempts to provision the instance type based on a user-defined allocation strategy.
+If you are using the on-demand capacity type, then Karpenter uses a lowest price allocation strategy.
+So fleet will provision the lowest price instance type it can get from the 20 Karpenter passed it.
+If the instance type is unavailable for some reason, then fleet will move on to the next cheapest instance type.
+If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that ec2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
+
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?
