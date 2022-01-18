@@ -16,8 +16,6 @@ package aws
 
 import (
 	"fmt"
-	"github.com/aws/karpenter/pkg/utils/options"
-
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,7 +33,7 @@ const EC2VMAvailableMemoryFactor = .925
 type InstanceType struct {
 	ec2.InstanceTypeInfo
 	AvailableOfferings []cloudprovider.Offering
-	Options            options.Options
+	MaxPods            *int32
 }
 
 func (i *InstanceType) Name() string {
@@ -72,14 +70,10 @@ func (i *InstanceType) Memory() *resource.Quantity {
 }
 
 func (i *InstanceType) Pods() *resource.Quantity {
-	if !i.Options.AWSENILimitedPodDensity {
-		return resources.Quantity("110")
+	if i.MaxPods != nil {
+		return resources.Quantity(fmt.Sprint(*i.MaxPods))
 	}
-
-	// The number of pods per node is calculated using the formula:
-	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
-	return resources.Quantity(fmt.Sprint(*i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2))
+	return resources.Quantity(fmt.Sprint(i.getNumberOfEniBasedPods()))
 }
 
 func (i *InstanceType) AWSPodENI() *resource.Quantity {
@@ -126,7 +120,9 @@ func (i *InstanceType) AWSNeurons() *resource.Quantity {
 }
 
 // Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
-// using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings
+// using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
+// While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
+// analysis can be performed
 func (i *InstanceType) Overhead() v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
@@ -134,7 +130,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 			resource.DecimalSI),
 		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
 			// kube-reserved
-			((11*i.Pods().Value())+255)+
+			((11*i.getNumberOfEniBasedPods())+255)+
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
@@ -162,4 +158,11 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 		}
 	}
 	return overhead
+}
+
+// The number of pods per node is calculated using the formula:
+// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+func (i *InstanceType) getNumberOfEniBasedPods() int64 {
+	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 }
