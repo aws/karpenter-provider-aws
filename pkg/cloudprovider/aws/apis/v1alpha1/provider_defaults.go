@@ -16,22 +16,16 @@ package v1alpha1
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	v1 "k8s.io/api/core/v1"
 )
-
-var ClusterDiscoveryTagKeyFormat = "kubernetes.io/cluster/%s"
 
 // Default the constraints.
 func (c *Constraints) Default(ctx context.Context) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultSubnets(injection.GetOptions(ctx).ClusterName)
-	c.defaultSecurityGroups(injection.GetOptions(ctx).ClusterName)
 }
 
 func (c *Constraints) defaultCapacityTypes() {
@@ -60,18 +54,4 @@ func (c *Constraints) defaultArchitecture() {
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{v1alpha5.ArchitectureAmd64},
 	})
-}
-
-func (c *Constraints) defaultSubnets(clusterName string) {
-	if c.SubnetSelector != nil {
-		return
-	}
-	c.SubnetSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
-}
-
-func (c *Constraints) defaultSecurityGroups(clusterName string) {
-	if c.SecurityGroupSelector != nil {
-		return
-	}
-	c.SecurityGroupSelector = map[string]string{fmt.Sprintf(ClusterDiscoveryTagKeyFormat, clusterName): "*"}
 }

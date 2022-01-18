@@ -60,6 +60,8 @@ metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
   version: "1.21"
+  tags:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
 managedNodeGroups:
   - instanceType: m5.large
     amiFamily: AmazonLinux2
@@ -78,21 +80,6 @@ This guide uses a managed node group to host Karpenter.
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
 
 Karpenter will provision EC2 instances in your account.
-
-### Tag Subnets
-
-Karpenter discovers subnets tagged `kubernetes.io/cluster/$CLUSTER_NAME`. Add this tag to subnets associated configured for your cluster.
-Retrieve the subnet IDs and tag them with the cluster name.
-
-```bash
-SUBNET_IDS=$(aws cloudformation describe-stacks \
-    --stack-name eksctl-${CLUSTER_NAME}-cluster \
-    --query 'Stacks[].Outputs[?OutputKey==`SubnetsPrivate`].OutputValue' \
-    --output text)
-aws ec2 create-tags \
-    --resources $(echo $SUBNET_IDS | tr ',' '\n') \
-    --tags Key="kubernetes.io/cluster/${CLUSTER_NAME}",Value=
-```
 
 ### Create the KarpenterNode IAM Role
 
@@ -206,9 +193,10 @@ shapes. Karpenter makes scheduling and provisioning decisions based on pod
 attributes such as labels and affinity. In other words, Karpenter eliminates
 the need to manage many different node groups.
 
-Create a default provisioner using the command below. This provisioner
-configures instances to connect to your cluster's endpoint and discovers
-resources like subnets and security groups using the cluster's name.
+Create a default provisioner using the command below.
+This provisioner uses `securityGroupSelector` and `subnetSelector` to discover resources used to launch nodes.
+We applied the tag `karpenter.sh/discovery` in the `eksctl` command above.
+Depending how these resources are shared between clusters, you may need to use different tagging schemes.
 
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
@@ -233,6 +221,10 @@ spec:
     resources:
       cpu: 1000
   provider:
+    subnetSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    securityGroupSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
     instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
 EOF

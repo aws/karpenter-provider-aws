@@ -20,28 +20,17 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-const (
-	// ClusterTagKeyFormat is set on all Kubernetes owned resources.
-	ClusterTagKeyFormat = "kubernetes.io/cluster/%s"
-	// KarpenterTagKeyFormat is set on all Karpenter owned resources.
-	KarpenterTagKeyFormat = "karpenter.sh/cluster/%s"
-)
-
-func MergeTags(ctx context.Context, customTags map[string]string) []*ec2.Tag {
-	// We'll set some default tags, but allow them to be overridden in the merge
-	managedTags := map[string]string{
-		"Name": fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s",
-			injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name),
-		fmt.Sprintf(ClusterTagKeyFormat, injection.GetOptions(ctx).ClusterName):   "owned",
-		fmt.Sprintf(KarpenterTagKeyFormat, injection.GetOptions(ctx).ClusterName): "owned",
+func MergeTags(ctx context.Context, custom ...map[string]string) (tags []*ec2.Tag) {
+	for key, value := range functional.UnionStringMaps(append(custom, map[string]string{
+		v1alpha5.ProvisionerNameLabelKey: injection.GetNamespacedName(ctx).Name,
+		"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, injection.GetNamespacedName(ctx).Name),
+	})...) {
+		tags = append(tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
 	}
-	ec2Tags := []*ec2.Tag{}
-	for key, value := range functional.UnionStringMaps(managedTags, customTags) {
-		ec2Tags = append(ec2Tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
-	}
-	return ec2Tags
+	return tags
 }

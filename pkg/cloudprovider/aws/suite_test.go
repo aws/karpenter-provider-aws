@@ -120,7 +120,9 @@ var _ = Describe("Allocation", func() {
 
 	BeforeEach(func() {
 		provider = &v1alpha1.AWS{
-			InstanceProfile: "test-instance-profile",
+			InstanceProfile:       "test-instance-profile",
+			SubnetSelector:        map[string]string{"foo": "bar"},
+			SecurityGroupSelector: map[string]string{"foo": "bar"},
 		}
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
 		provisioner.SetDefaults(ctx)
@@ -512,18 +514,6 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 	Context("Defaulting", func() {
-		It("should default subnetSelector", func() {
-			provisioner.SetDefaults(ctx)
-			constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.SubnetSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": "*"}))
-		})
-		It("should default securityGroupSelector", func() {
-			provisioner.SetDefaults(ctx)
-			constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.SecurityGroupSelector).To(Equal(map[string]string{"kubernetes.io/cluster/test-cluster": "*"}))
-		})
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
 			Expect(provisioner.Spec.Requirements.CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))

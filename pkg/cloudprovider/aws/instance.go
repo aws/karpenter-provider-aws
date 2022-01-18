@@ -124,7 +124,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         v1alpha1.MergeTags(ctx, constraints.Tags),
+				Tags:         v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"}),
 			},
 		},
 	}
