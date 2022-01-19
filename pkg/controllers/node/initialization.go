@@ -30,9 +30,9 @@ import (
 
 const InitializationTimeout = 15 * time.Minute
 
-// Startup is a subreconciler that
+// Initialization is a subreconciler that
 // 1. Removes the NotReady taint when the node is ready. This taint is originally applied on node creation.
-// 2. Terminates nodes that don't transition to ready within StartupTimeout
+// 2. Terminates nodes that don't transition to ready within InitializationTimeout
 type Initialization struct {
 	kubeClient client.Client
 }
