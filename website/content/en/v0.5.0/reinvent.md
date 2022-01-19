@@ -51,4 +51,4 @@ helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
 ## Next Steps
 If you're a Kubernetes expert, feel free to start exploring how Karpenter works on your own and if you have any questions, one of the AWS speakers will be happy to answer them.
 ​
-If you'd like a guided walkthrough of Karpenter's features and capabilities, you can follow the Karpenter Getting Started guide starting at the ["Provisioner" step](https://karpenter.sh/docs/getting-started/#provisioner). Please don't hesitate to ask your AWS speaker any questions you might have!
+If you'd like a guided walkthrough of Karpenter's features and capabilities, you can follow the Karpenter Getting Started guide starting at the ["Provisioner" step]({{< ref "./getting-started/#provisioner" >}}). Please don't hesitate to ask your AWS speaker any questions you might have!
