@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"knative.dev/pkg/ptr"
 )
 
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
@@ -71,7 +72,7 @@ func (i *InstanceType) Memory() *resource.Quantity {
 
 func (i *InstanceType) Pods() *resource.Quantity {
 	if i.MaxPods != nil {
-		return resources.Quantity(fmt.Sprint(*i.MaxPods))
+		return resources.Quantity(fmt.Sprint(ptr.Int32Value(i.MaxPods)))
 	}
 	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }

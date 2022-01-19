@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"knative.dev/pkg/ptr"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -87,8 +88,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 			result = append(result, instanceType)
 		}
 		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-			instanceType.MaxPods = new(int32)
-			*instanceType.MaxPods = 110
+			instanceType.MaxPods = ptr.Int32(110)
 		}
 	}
 	return result, nil
