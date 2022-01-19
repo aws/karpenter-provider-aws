@@ -7,7 +7,6 @@ datasources:
       version: 1
       url: http://prometheus-server:80
       access: proxy
-
 dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
@@ -20,8 +19,6 @@ dashboardProviders:
       editable: true
       options:
         path: /var/lib/grafana/dashboards/default
-
-
 dashboards:
   default:
     pod-dashboard:
