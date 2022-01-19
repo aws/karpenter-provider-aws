@@ -42,7 +42,7 @@ const controllerName = "node"
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
-		liveness:   &Liveness{kubeClient: kubeClient},
+		startup:    &Startup{kubeClient: kubeClient},
 		emptiness:  &Emptiness{kubeClient: kubeClient},
 		expiration: &Expiration{kubeClient: kubeClient},
 	}
@@ -52,8 +52,7 @@ func NewController(kubeClient client.Client) *Controller {
 // taints, labels, finalizers.
 type Controller struct {
 	kubeClient client.Client
-	readiness  *Readiness
-	liveness   *Liveness
+	startup    *Startup
 	emptiness  *Emptiness
 	expiration *Expiration
 	finalizer  *Finalizer
@@ -93,8 +92,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, reconciler := range []interface {
 		Reconcile(context.Context, *v1alpha5.Provisioner, *v1.Node) (reconcile.Result, error)
 	}{
-		c.readiness,
-		c.liveness,
+		c.startup,
 		c.expiration,
 		c.emptiness,
 		c.finalizer,
