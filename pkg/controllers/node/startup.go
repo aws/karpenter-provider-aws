@@ -39,7 +39,7 @@ type Startup struct {
 
 // Reconcile reconciles the node
 func (r *Startup) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !notReadyTaintKeyExists(n) {
+	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
@@ -64,11 +64,4 @@ func (r *Startup) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.
 	return reconcile.Result{}, nil
 }
 
-func notReadyTaintKeyExists(n *v1.Node) bool {
-	for _, taint := range n.Spec.Taints {
-		if taint.Key == v1alpha5.NotReadyTaintKey {
-			return true
-		}
-	}
-	return false
-}
+
