@@ -10,7 +10,7 @@ See [Configuring provisioners]({{< ref "./concepts/#configuring-provisioners" >}
 
 ### What cloud providers are supported?
 AWS is the first cloud provider supported by Karpenter, although it is designed to be used with other cloud providers as well.
-See [[Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
+See [Cloud provider]({{< ref "./concepts/#cloud-provider" >}}) for details.
 
 ### Can I write my own cloud provider for Karpenter?
 Yes, but there is no documentation yet for it.
@@ -83,6 +83,18 @@ Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisio
 * Attribute-based requests are currently not possible.
 * You can select instances with special hardware, such as gpu.
 
+### How does Karpenter dynamically select instance types?
+
+Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemon sets that will be packed when bringing up a new node.
+By default Karpenter uses all available instance types, but it can be constrained in the provisioner spec with the [instance-type](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type) well-known label in the requirements section.
+After the pods are binpacked on the most efficient instance type (i.e. the smallest instance type that can fit the pod batch), Karpenter takes 19 other instance types that are larger than the most efficient packing, and passes all 20 instance type options to an API called Amazon EC2 Fleet.
+The EC2 fleet API attempts to provision the instance type based on a user-defined allocation strategy.
+If you are using the on-demand capacity type, then Karpenter uses the `lowest-price` allocation strategy.
+So fleet will provision the lowest price instance type it can get from the 20 Karpenter passed it.
+If the instance type is unavailable for some reason, then fleet will move on to the next cheapest instance type.
+If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that EC2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
+See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
+
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?
@@ -91,10 +103,10 @@ See [Application developer]({{< ref "./concepts/#application-developer" >}}) for
 
 ### How do I use Karpenter with the AWS load balancer controller?
 
-* Set the [ALB target type]("https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type") to IP mode for the pods.
+* Set the [ALB target type](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type) to IP mode for the pods.
 Use IP targeting if you want the pods to receive equal weight.
 Instance balancing could greatly skew the traffic being sent to a node without also managing host spread of the workload.
-* Set [readiness gate]({"https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/") on the namespace.
+* Set [readiness gate](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/pod_readiness_gate/) on the namespace.
 The default is round robin at the node level.
 For Karpenter, not all nodes are equal.
 For example, each node will have different performance characteristics and a different number of pods running on it.
