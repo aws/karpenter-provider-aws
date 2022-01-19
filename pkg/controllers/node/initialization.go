@@ -28,25 +28,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const StartupTimeout = 15 * time.Minute
+const InitializationTimeout = 15 * time.Minute
 
 // Startup is a subreconciler that
 // 1. Removes the NotReady taint when the node is ready. This taint is originally applied on node creation.
 // 2. Terminates nodes that don't transition to ready within StartupTimeout
-type Startup struct {
+type Initialization struct {
 	kubeClient client.Client
 }
 
 // Reconcile reconciles the node
-func (r *Startup) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Initialization) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
 
 	if !node.IsReady(n) {
-		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < StartupTimeout {
-			return reconcile.Result{RequeueAfter: StartupTimeout - timeSinceCreation}, nil
+		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
+			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
 		}
 		logging.FromContext(ctx).Infof("Triggering termination for node that failed to become ready")
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
@@ -63,5 +63,3 @@ func (r *Startup) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.
 	n.Spec.Taints = taints
 	return reconcile.Result{}, nil
 }
-
-

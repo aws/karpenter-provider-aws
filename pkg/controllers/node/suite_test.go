@@ -120,7 +120,7 @@ var _ = Describe("Controller", func() {
 		})
 	})
 
-	Context("Startup", func() {
+	Context("Initialization", func() {
 		It("should not remove the readiness taint if not ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionUnknown,
@@ -181,7 +181,7 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
-		It("should delete nodes if node not ready even after startup timeout", func() {
+		It("should delete nodes if node not ready even after Initialization timeout ", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Finalizers: []string{v1alpha5.TerminationFinalizer},
@@ -203,7 +203,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			injectabletime.Now = func() time.Time { return time.Now().Add(node.StartupTimeout) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(node.InitializationTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
