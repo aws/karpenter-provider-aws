@@ -42,7 +42,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioner](../provisioner-crd/) for a description of settings and the [Provisioning](../tasks/provisioning-task/) task for of provisioner examples. 
+See [Provisioner](../provisioner-crd/) for a description of settings.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.
@@ -67,15 +67,10 @@ Karpenter handles all clean-up work needed to properly delete the node.
 * **Empty nodes**: When the last workload pod running on a Karpenter-managed node is gone, the node is annotated with an emptiness timestamp.
 Once that "node empty" time-to-live (`ttlSecondsAfterEmpty`) is reached, finalization is triggered.
 
-For more details on how Karpenter deletes nodes, see [Deleting nodes with Karpenter](../tasks/deprov-nodes/) for details.
-
 ### Upgrading nodes
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
 Nodes will be terminated after a set period of time and will be replaced with newer nodes.
-
-For details on upgrading nodes with Karpenter, see [Upgrading nodes with Karpenter](../deprov-nodes/#expiry) for details.
-
 
 Understanding the following concepts will help you in carrying out the tasks just described.
 
@@ -164,4 +159,3 @@ Kubernetes SIG scalability recommends against these features and Karpenter doesn
 Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
 {{% /alert %}}
 
-For more on how, as a developer, you can add constraints to your pod deployment, see [Running pods](../tasks/running-pods/) for details.
