@@ -73,7 +73,7 @@ func (i *InstanceType) Pods() *resource.Quantity {
 	if i.MaxPods != nil {
 		return resources.Quantity(fmt.Sprint(*i.MaxPods))
 	}
-	return resources.Quantity(fmt.Sprint(i.getNumberOfEniBasedPods()))
+	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
 
 func (i *InstanceType) AWSPodENI() *resource.Quantity {
@@ -130,7 +130,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 			resource.DecimalSI),
 		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
 			// kube-reserved
-			((11*i.getNumberOfEniBasedPods())+255)+
+			((11*i.eniLimitedPods())+255)+
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
