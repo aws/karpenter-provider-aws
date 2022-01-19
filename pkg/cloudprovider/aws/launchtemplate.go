@@ -229,7 +229,7 @@ func sortedKeys(m map[string]string) []string {
 }
 
 // getUserData returns the exact same string for equivalent input,
-// even if elements of those inputs are in differing orders,
+// even if elements of those inputs are in differeing orders,
 // guaranteeing it won't cause spurious hash differences.
 func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
 	var containerRuntimeArg string
@@ -258,6 +258,12 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
 	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
 	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
+
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		userData.WriteString(` \
+    --use-max-pods=false`)
+		kubeletExtraArgs += " --max-pods=110"
+	}
 
 	if len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(` \

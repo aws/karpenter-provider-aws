@@ -17,6 +17,8 @@ package aws
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"knative.dev/pkg/ptr"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -84,6 +86,9 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 		if len(offerings) > 0 {
 			instanceType.AvailableOfferings = offerings
 			result = append(result, instanceType)
+		}
+		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+			instanceType.MaxPods = ptr.Int32(110)
 		}
 	}
 	return result, nil
