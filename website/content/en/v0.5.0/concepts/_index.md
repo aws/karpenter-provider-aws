@@ -24,7 +24,7 @@ Concepts associated with this role are described below.
 Karpenter is designed to run on a node in your Kubernetes cluster.
 As part of the installation process, you need credentials from the underlying cloud provider to allow nodes to be started up and added to the cluster as they are needed.
 
-[Getting Started with Karpenter on AWS](https://karpenter.sh/docs/getting-started/)
+[Getting Started with Karpenter on AWS](../getting-started/)
 describes the process of installing Karpenter on an AWS cloud provider.
 Because requests to add and delete nodes and schedule pods are made through Kubernetes, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
 For example, Karpenter uses AWS IRSA roles to grant the permissions needed to describe EC2 instance types and create EC2 instances.
@@ -42,7 +42,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioner API](/docs/provisioner/) for a description of settings and the [Provisioning](../tasks/provisioning-task) task for provisioner examples. 
+See [Provisioner API](../provisioner/) for a description of settings and the [Provisioning](../tasks/provisioning-task) task for provisioner examples. 
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.

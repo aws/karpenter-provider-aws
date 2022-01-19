@@ -219,7 +219,7 @@ aws cloudformation create-stack \
 ### Define LaunchTemplate for Provisioner
 
 The LaunchTemplate is ready to be used. Specify it by name in the [Provisioner
-CRD](../../provisioner-crd). Karpenter will use this template when creating new instances.
+CRD](../../../provisioner-crd). Karpenter will use this template when creating new instances.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
