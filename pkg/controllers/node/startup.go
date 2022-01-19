@@ -45,10 +45,10 @@ func (r *Startup) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.
 	}
 
 	if !node.IsReady(n) {
-		if timeSinceCreation := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); timeSinceCreation < StartupTimeout {
+		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < StartupTimeout {
 			return reconcile.Result{RequeueAfter: StartupTimeout - timeSinceCreation}, nil
 		}
-		logging.FromContext(ctx).Infof("Triggering termination for node that failed to transition to ready")
+		logging.FromContext(ctx).Infof("Triggering termination for node that failed to become ready")
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
