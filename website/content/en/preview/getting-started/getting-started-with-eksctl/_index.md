@@ -154,7 +154,7 @@ Depending how these resources are shared between clusters, you may need to use d
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
 
-Review the [provisioner CRD](../provisioner) for more information. For example,
+Review the [provisioner CRD](../../provisioner) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
