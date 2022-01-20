@@ -1,0 +1,4 @@
+# Redirects from what the browser requests to what we serve
+/docs/*     	/v0.5.5/:splat
+/docs/provisioner-crd/	        /v0.5.5/provisioner/  		
+/docs/faqs/	    /docs/faq/
