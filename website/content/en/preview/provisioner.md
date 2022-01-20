@@ -47,6 +47,14 @@ spec:
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
       operator: In
       values: ["spot", "on-demand"]
+
+  # Resource limits constrain the total size of the cluster.
+  # Limits prevent Karpenter from creating new instances once the limit is exceeded.
+  limits:
+    resources:
+      cpu: 1000 
+      memory: 1000Gi
+
   # These fields vary per cloud provider, see your cloud provider specific documentation
   provider: {}
 ```
@@ -147,6 +155,21 @@ spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
 ```
+
+## spec.limits
+
+The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
+
+Presently, Karpenter supports `memory` and `cpu` limits. 
+
+CPU limits are described with a `DecimalSI` value, usually a natural integer. 
+
+Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
+
+Karpenter stops allocating resources once at least one resource limit is met/exceeded.
+
+Review the [resource limit task](../tasks/set-resource-limits) for more information.
+
 
 
 ## spec.provider
