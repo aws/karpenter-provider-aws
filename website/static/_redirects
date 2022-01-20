@@ -1,4 +1,5 @@
 # Redirects from what the browser requests to what we serve
-/docs/provisioner-crd/	        /docs/provisioner 		
-/docs/faqs/	    /docs/faq/
-/docs/*     	/v0.5.5/:splat
+/docs/tasks/running-pods/       /docs/tasks/scheduling/
+/docs/provisioner-crd/	        /docs/provisioner/ 		
+/docs/faqs/	                    /docs/faq/
+/docs/*     	                /v0.5.5/:splat
