@@ -67,7 +67,7 @@ We're going to use two different Terraform modules to create our cluster - one
 to create the VPC and another for the cluster itself. The key part of this is
 that we need to tag the VPC subnets that we want to use for the worker nodes.
 
-Place the following Terraform config into your `vpc.tf` file.
+Place the following Terraform config into your `main.tf` file.
 
 ```hcl
 module "vpc" {
@@ -88,14 +88,7 @@ module "vpc" {
     "kubernetes.io/cluster/${var.cluster_name}" = "owned"
   }
 }
-```
 
-And depending what you want to use for backend compute choose one of the
-following options to provision EKS control plane and put it into `eks.tf`:
-
-#### Using EC2 node
-
-```hcl
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "<18"
@@ -114,52 +107,9 @@ module "eks" {
     }
   ]
 }
-```
-
-#### Using Fargate
-
-```hcl
-module "eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  version         = "<18"
-
-  cluster_version = "1.21"
-  cluster_name    = var.cluster_name
-  vpc_id          = module.vpc.vpc_id
-  subnets         = module.vpc.private_subnets
-  enable_irsa     = true
-
-  # Ensure provisioned nodes have permissions to join cluster control plane
-  map_roles = [{
-    rolearn  = module.eks.worker_iam_role_arn
-    username = "system:node:{{EC2PrivateDNSName}}"
-    groups   = ["system:bootstrappers", "system:nodes"]
-    }
-  ]
-
-  # Create Fargate profile to run kube-system and karpenter namespaces
-  fargate_profiles = {
-    karpenter = {
-      name = "karpenter"
-      selectors = [
-        {
-          namespace = "kube-system"
-        },
-        {
-          namespace = "karpenter"
-        }
-      ]
-
-      tags = {
-        owner = "karpenter"
-      }
-    },
-  }
-}
-```
 
 At this point, go ahead and apply what we've done to create the VPC and
-cluster. This may take some time.
+EKS cluster. This may take some time.
 
 ```bash
 terraform init
