@@ -3,8 +3,6 @@
 title: "Documentation"
 linkTitle: "Docs"
 weight: 20
-aliases:
-  - docs
 cascade:
   type: docs
 ---
