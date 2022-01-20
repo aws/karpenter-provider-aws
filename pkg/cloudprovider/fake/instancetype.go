@@ -87,7 +87,6 @@ type InstanceTypeOptions struct {
 	Name             string
 	Offerings        []cloudprovider.Offering
 	Architecture     string
-	AMIFamily        string
 	OperatingSystems sets.String
 	CPU              resource.Quantity
 	Memory           resource.Quantity
@@ -104,10 +103,6 @@ type InstanceType struct {
 
 func (i *InstanceType) Name() string {
 	return i.options.Name
-}
-
-func (i *InstanceType) AMIFamily() string {
-	return "bottlerocket"
 }
 
 func (i *InstanceType) Offerings() []cloudprovider.Offering {

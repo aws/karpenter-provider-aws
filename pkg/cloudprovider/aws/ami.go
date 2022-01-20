@@ -97,13 +97,16 @@ func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Con
 	}
 
 	if constraints.AMIFamily != nil {
-		switch *constraints.AMIFamily {
-		case v1alpha1.OperatingSystemBottleRocket:
+		if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
 			return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+		} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
+			return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+		} else {
+			return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 		}
+	} else {
+		return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 	}
-
-	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
