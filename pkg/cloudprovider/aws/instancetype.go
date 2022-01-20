@@ -41,12 +41,6 @@ func (i *InstanceType) Name() string {
 	return aws.StringValue(i.InstanceType)
 }
 
-/*
-func (i *InstanceType) AMIFamily() string {
-	return ""
-}
-*/
-
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
 	return i.AvailableOfferings
 }
