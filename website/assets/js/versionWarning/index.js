@@ -5,7 +5,7 @@ export function versionWarning() {
       ...document.querySelectorAll("#navbarVersionSelector .dropdown-item")
     ].map(el => el.dataset.docsVersion)[0]
 
-    if (viewingVersion === "preview" || viewingVersion !== latestVersion) {
+    if (viewingVersion !== latestVersion) {
       const alertElement = document.createElement('div')
       alertElement.classList.add('alert', 'alert-warning')
       alertElement.innerHTML = `
