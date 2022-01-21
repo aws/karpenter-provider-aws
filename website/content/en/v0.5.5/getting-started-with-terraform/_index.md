@@ -106,6 +106,10 @@ module "eks" {
       asg_max_size  = 1
     }
   ]
+
+  tags = {
+    "karpenter.sh/discovery" = var.cluster_name
+  }
 }
 
 At this point, go ahead and apply what we've done to create the VPC and
