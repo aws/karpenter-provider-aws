@@ -41,6 +41,7 @@ func MustParse() Options {
 	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
 	flag.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
+	flag.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
 	flag.Parse()
 	if err := opts.Validate(); err != nil {
 		panic(err)
@@ -50,15 +51,16 @@ func MustParse() Options {
 
 // Options for running this binary
 type Options struct {
-	ClusterName             string
-	ClusterEndpoint         string
-	MetricsPort             int
-	HealthProbePort         int
-	WebhookPort             int
-	KubeClientQPS           int
-	KubeClientBurst         int
-	AWSNodeNameConvention   string
-	AWSENILimitedPodDensity bool
+	ClusterName               string
+	ClusterEndpoint           string
+	MetricsPort               int
+	HealthProbePort           int
+	WebhookPort               int
+	KubeClientQPS             int
+	KubeClientBurst           int
+	AWSNodeNameConvention     string
+	AWSENILimitedPodDensity   bool
+	AWSDefaultInstanceProfile string
 }
 
 func (o Options) Validate() (err error) {

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -89,6 +90,10 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if constraints.LaunchTemplate != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplate): instanceTypes}, nil
 	}
+	instanceProfile, err := p.getInstanceProfile(ctx, constraints)
+	if err != nil {
+		return nil, err
+	}
 	// Get constrained security groups
 	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
 	if err != nil {
@@ -111,7 +116,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 			UserData:          userData,
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
-			InstanceProfile:   constraints.InstanceProfile,
+			InstanceProfile:   instanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
 			Tags:              constraints.Tags,
@@ -310,6 +315,17 @@ func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constrai
 		}
 	}
 	return nodeTaintsArgs
+}
+
+func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+	if constraints.InstanceProfile != "" {
+		return constraints.InstanceProfile, nil
+	}
+	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
+	if defaultProfile == "" {
+		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
+	}
+	return defaultProfile, nil
 }
 
 func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {

@@ -63,6 +63,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{- if .Values.aws.defaultInstanceProfile }}
+            - name: AWS_DEFAULT_INSTANCE_PROFILE
+              value: {{ .Values.aws.defaultInstanceProfile }}
+            {{- end }}
             {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
