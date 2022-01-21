@@ -260,6 +260,11 @@ resource "helm_release" "karpenter" {
     name  = "controller.clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
+
+  set {
+    name  = "aws.defaultInstanceProfile"
+    value = aws_iam_instance_profile.karpenter.name
+  }
 }
 ```
 
@@ -310,7 +315,6 @@ spec:
     resources:
       cpu: 1000
   provider:
-    instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
     subnetSelector:
       karpenter.sh/discovery: ${CLUSTER_NAME}
     securityGroupSelector:

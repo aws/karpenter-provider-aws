@@ -25,6 +25,7 @@ You can follow the detailed installation instruction [here](https://karpenter.sh
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | additionalLabels | object | `{}` | Additional labels to add into metadata |
+| aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes on AWS |
 | controller.affinity | object | `{}` | Affinity rules for scheduling |
 | controller.clusterEndpoint | string | `""` | Cluster endpoint |
 | controller.clusterName | string | `""` | Cluster name |

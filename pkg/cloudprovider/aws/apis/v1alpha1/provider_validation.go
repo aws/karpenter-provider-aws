@@ -28,20 +28,12 @@ func (a *AWS) Validate() (errs *apis.FieldError) {
 
 func (a *AWS) validate() (errs *apis.FieldError) {
 	return errs.Also(
-		a.validateInstanceProfile(),
 		a.validateLaunchTemplate(),
 		a.validateSubnets(),
 		a.validateSecurityGroups(),
 		a.validateTags(),
 		a.validateMetadataOptions(),
 	)
-}
-
-func (a *AWS) validateInstanceProfile() (errs *apis.FieldError) {
-	if a.InstanceProfile == "" {
-		errs = errs.Also(apis.ErrMissingField("instanceProfile"))
-	}
-	return errs
 }
 
 func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
