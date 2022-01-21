@@ -89,7 +89,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
 		if err := constraints.ValidatePod(pod); err != nil {
-			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Name, pod.Namespace, err.Error())
+			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Namespace, pod.Name, err.Error())
 			continue
 		}
 		tightened := constraints.Tighten(pod)
