@@ -304,7 +304,3 @@ aws ec2 describe-launch-templates \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 eksctl delete cluster --name ${CLUSTER_NAME}
 ```
-
----
-
-## Next Steps:
