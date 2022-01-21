@@ -4,10 +4,12 @@
 	{{ $pageDir = .Site.Params.latest_release_version }}
 {{ end }}
 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-	{{ $pageDir }}
+	{{ $pageDir }} {{ if eq (index .Site.Params.versions 0) $pageDir }} (stable) {{ end }}
 </a>
 <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
-	{{ range .Site.Params.versions }}
-	<a class="dropdown-item" href="/{{ . }}/">{{ . }}</a>
+	{{ range $index, $version := .Site.Params.versions }}
+	<a class="dropdown-item" href="/{{ $version }}" data-docs-version="{{ $version }}">
+		{{ $version }} {{ if eq $index 0 }} (stable) {{ end }}
+	</a>
 	{{ end }}
 </div>
