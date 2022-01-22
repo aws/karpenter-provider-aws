@@ -95,6 +95,12 @@ If the instance type is unavailable for some reason, then fleet will move on to 
 If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that EC2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
+### What if there is no spot capacity? Will Karpenter fallback to on-demand?
+
+Karpenter will fallback to on-demand, if your provisioner specifies both spot and on-demand. 
+
+More specifically, Karpenter maintains a concept of "offerings" which is a combination of instance type, zone, and purchase type. Spot offerings are prioritized, if they're available. Whenever the fleet API returns an insufficient capacity for spot, that offering is removed from the list for 5 minutes. Since fleet gives expressive responses about which offerings are unavilable, it results in at worst 2 API calls. The retry will happen immediately within milliseconds.
+
 ## Workloads
 
 ### How can someone deploying pods take advantage of Karpenter?

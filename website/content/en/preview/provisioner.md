@@ -139,10 +139,12 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 ☁️ **AWS**
 
 - values
-  - `spot` (default)
-  - `on-demand` 
+  - `spot` 
+  - `on-demand` (default)
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
+
+Karpenter prioritizes spot offerings. If the provider API (e.g., EC2 fleet API) indicates spot capacity is unavailable, Karpenter caches that result for five minutes. Next, Karpenter will provision on-demand instances, generally within milliseconds. 
 
 
 ## spec.kubeletConfiguration
