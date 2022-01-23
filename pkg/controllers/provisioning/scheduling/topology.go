@@ -46,7 +46,7 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			domain := topologyGroup.NextDomain(constraints.Requirements.Merge(v1alpha5.PodRequirements(pod)).Allow(topologyGroup.Constraint.TopologyKey))
+			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.PodRequirements(pod)...).Allow(topologyGroup.Constraint.TopologyKey))
 			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}
@@ -99,8 +99,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constra
 	}
 	topologyGroup.Register(domains...)
 	// This is a bit of a hack that allows the constraints to recognize viable hostname topologies
-	constraints.Requirements = constraints.Requirements.
-		Merge(v1alpha5.NewRequirements(v1.NodeSelectorRequirement{Key: topologyGroup.Constraint.TopologyKey, Operator: v1.NodeSelectorOpIn, Values: domains}))
+	constraints.Requirements = constraints.Requirements.Add(v1.NodeSelectorRequirement{Key: topologyGroup.Constraint.TopologyKey, Operator: v1.NodeSelectorOpIn, Values: domains})
 	return nil
 }
 

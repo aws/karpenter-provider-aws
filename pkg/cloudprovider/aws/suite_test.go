@@ -292,12 +292,12 @@ var _ = Describe("Allocation", func() {
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 				}
 				twoInstanceProvisioner := provisioner.DeepCopy()
-				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Merge(
-					v1alpha5.NewRequirements(v1.NodeSelectorRequirement{
+				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Add(
+					v1.NodeSelectorRequirement{
 						Key:      v1.LabelInstanceType,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"m5.large", "m5.xlarge"},
-					}))
+					})
 				pods := []*v1.Pod{}
 				for i := 0; i < 2; i++ {
 					pods = append(pods, test.UnschedulablePod(test.PodOptions{

@@ -233,6 +233,13 @@ func (in *Requirements) DeepCopyInto(out *Requirements) {
 	*out = *in
 	if in.Requirements != nil {
 		in, out := &in.Requirements, &out.Requirements
+		*out = make([]v1.NodeSelectorRequirement, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Records != nil {
+		in, out := &in.Records, &out.Records
 		*out = make(map[string][]v1.NodeSelectorRequirement, len(*in))
 		for key, val := range *in {
 			var outVal []v1.NodeSelectorRequirement
@@ -250,7 +257,7 @@ func (in *Requirements) DeepCopyInto(out *Requirements) {
 	}
 	if in.Allows != nil {
 		in, out := &in.Allows, &out.Allows
-		*out = make(map[string]*sets.Set, len(*in))
+		*out = make(map[string]sets.Set, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
 		}

@@ -41,7 +41,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		s.Constraints.Validate(ctx),
+		s.Validate(ctx),
 	)
 }
 
@@ -132,6 +132,18 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
+// This function is used by the provisioner validation webhook to verify the provisioner requirements.
+// When this function is called, the provisioner's requirments do not include the requirements from labels.
+// Provisioner requirements only support well known labels.
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	return c.Requirements.Validate()
+	// validate if requirement keys are well known labels
+	for _, key := range c.Requirements.Keys() {
+		if !WellKnownLabels.Has(key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", key, WellKnownLabels.UnsortedList()), "key"))
+		}
+	}
+	if err := c.Requirements.Validate(); err != nil {
+		errs = errs.Also(err)
+	}
+	return errs
 }

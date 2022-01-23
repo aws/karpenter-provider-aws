@@ -78,62 +78,33 @@ spec:
               requirements:
                 description: Requirements are layered with Labels and applied to every
                   node.
-                properties:
-                  allows:
-                    additionalProperties:
-                      description: Set is a logical set of string values for the requirements.
-                        It supports representations using complement operator. e.g.,
-                        if C={"A", "B"}, setting isComplement = true means C' contains
-                        every possible string values other than "A" and "B"
-                      properties:
-                        Members:
-                          additionalProperties:
-                            description: Empty is public since it is used by some
-                              internal API objects for conversions between external
-                              string arrays and internal sets, and conversion logic
-                              requires public types today.
-                            type: object
-                          description: sets.String is a set of strings, implemented
-                            via map[string]struct{} for minimal memory consumption.
-                          type: object
-                        allows:
-                          type: boolean
-                      type: object
-                    type: object
-                  requirements:
-                    additionalProperties:
+                items:
+                  description: A node selector requirement is a selector that contains
+                    values, a key, and an operator that relates the key and values.
+                  properties:
+                    key:
+                      description: The label key that the selector applies to.
+                      type: string
+                    operator:
+                      description: Represents a key's relationship to a set of values.
+                        Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and
+                        Lt.
+                      type: string
+                    values:
+                      description: An array of string values. If the operator is In
+                        or NotIn, the values array must be non-empty. If the operator
+                        is Exists or DoesNotExist, the values array must be empty.
+                        If the operator is Gt or Lt, the values array must have a
+                        single element, which will be interpreted as an integer. This
+                        array is replaced during a strategic merge patch.
                       items:
-                        description: A node selector requirement is a selector that
-                          contains values, a key, and an operator that relates the
-                          key and values.
-                        properties:
-                          key:
-                            description: The label key that the selector applies to.
-                            type: string
-                          operator:
-                            description: Represents a key's relationship to a set
-                              of values. Valid operators are In, NotIn, Exists, DoesNotExist.
-                              Gt, and Lt.
-                            type: string
-                          values:
-                            description: An array of string values. If the operator
-                              is In or NotIn, the values array must be non-empty.
-                              If the operator is Exists or DoesNotExist, the values
-                              array must be empty. If the operator is Gt or Lt, the
-                              values array must have a single element, which will
-                              be interpreted as an integer. This array is replaced
-                              during a strategic merge patch.
-                            items:
-                              type: string
-                            type: array
-                        required:
-                        - key
-                        - operator
-                        type: object
+                        type: string
                       type: array
-                    description: Ground truth record of requirements
-                    type: object
-                type: object
+                  required:
+                  - key
+                  - operator
+                  type: object
+                type: array
               taints:
                 description: Taints will be applied to every node launched by the
                   Provisioner. If specified, the provisioner will not provision nodes

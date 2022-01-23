@@ -51,7 +51,7 @@ func (t *TopologyGroup) Increment(domain string) {
 }
 
 // NextDomain chooses a domain within the constraints that minimizes skew
-func (t *TopologyGroup) NextDomain(requirement *sets.Set) string {
+func (t *TopologyGroup) NextDomain(requirement sets.Set) string {
 	minDomain := ""
 	minCount := math.MaxInt32
 	for domain, count := range t.spread {

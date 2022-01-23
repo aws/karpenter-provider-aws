@@ -41,12 +41,10 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 		instance := instanceTypes[0]
 		var zone, capacityType string
 		for _, o := range instance.Offerings() {
-			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) {
-				if constraints.Requirements.Zones().Has(o.Zone) {
-					zone = o.Zone
-					capacityType = o.CapacityType
-					break
-				}
+			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) && constraints.Requirements.Zones().Has(o.Zone) {
+				zone = o.Zone
+				capacityType = o.CapacityType
+				break
 			}
 		}
 

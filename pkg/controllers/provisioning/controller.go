@@ -100,8 +100,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
-		Merge(requirements(instanceTypes)).
-		Merge(v1alpha5.LabelRequirements(provisioner.Spec.Labels))
+		Add(requirements(instanceTypes)...).
+		Add(v1alpha5.LabelRequirements(provisioner.Spec.Labels)...)
 	if err := provisioner.Spec.Requirements.Validate(); err != nil {
 		return fmt.Errorf("provisioner requirements validation failed, %v", err)
 	}
@@ -141,7 +141,7 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 	return provisioners
 }
 
-func requirements(instanceTypes []cloudprovider.InstanceType) *v1alpha5.Requirements {
+func requirements(instanceTypes []cloudprovider.InstanceType) []v1.NodeSelectorRequirement {
 	supported := map[string]sets.String{
 		v1.LabelInstanceTypeStable: sets.NewString(),
 		v1.LabelTopologyZone:       sets.NewString(),
@@ -162,7 +162,8 @@ func requirements(instanceTypes []cloudprovider.InstanceType) *v1alpha5.Requirem
 	for key, values := range supported {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
 	}
-	return v1alpha5.NewRequirements(requirements...)
+	return requirements
+
 }
 
 // Register the controller to the manager

@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ctx context.Context
@@ -163,16 +164,14 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			}
 		})
-		/*
-			It("should fail for unknown labels", func() {
-				for label := range sets.NewString("unknown", "invalid", "rejected") {
-					provisioner.Spec.Requirements = NewRequirements(
-						v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-					)
-					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-				}
-			})
-		*/
+		It("should fail for unknown labels", func() {
+			for label := range sets.NewString("unknown", "invalid", "rejected") {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
 		It("should fail because no feasible value", func() {
 			provisioner.Spec.Requirements = NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},

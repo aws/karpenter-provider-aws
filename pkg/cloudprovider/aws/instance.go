@@ -180,7 +180,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones *sets.Set, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.Set, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {

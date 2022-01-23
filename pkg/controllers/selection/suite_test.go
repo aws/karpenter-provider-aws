@@ -47,7 +47,7 @@ var env *test.Environment
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controllers/Scheduling")
+	RunSpecs(t, "Controllers/Selection")
 }
 
 var _ = BeforeSuite(func() {

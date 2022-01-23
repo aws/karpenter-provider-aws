@@ -30,171 +30,76 @@ type Set struct {
 	IsComplement bool        `json:"allows,omitempty"`
 }
 
-func (s *Set) DeepCopy() *Set {
-	return &Set{
-		Members:      sets.NewString(s.Members.UnsortedList()...),
+func NewSet(values ...string) Set {
+	return Set{
+		Members:      sets.NewString(values...),
+		IsComplement: false,
+	}
+}
+
+func NewComplementSet(values ...string) Set {
+	return Set{
+		Members:      sets.NewString(values...),
+		IsComplement: true,
+	}
+}
+
+// DeepCopy creates a deep copy of the set object
+// It is required by the Kubernetes CRDs code generation
+func (s Set) DeepCopy() Set {
+	members := s.Members.UnsortedList()
+	return Set{
+		Members:      sets.NewString(members...),
 		IsComplement: s.IsComplement,
 	}
 }
 
 // Values returns the members of the set.
 // If the set has an infinite size, returns an error
-func (s *Set) Values() ([]string, error) {
+func (s Set) Values() ([]string, error) {
 	if s.IsComplement {
-		return nil, fmt.Errorf("infinite set")
+		return []string{}, fmt.Errorf("infinite set")
 	}
 	return s.Members.UnsortedList(), nil
 }
 
-// RawValues returns the members of Members
-// Do not use this to iterate the members of the set except for syntax validation
-func (s *Set) RawValues() sets.String {
-	return s.Members
-}
-
-func NewSet(isComplement bool, values ...string) *Set {
-	return &Set{
-		Members:      sets.NewString(values...),
-		IsComplement: isComplement,
-	}
-}
-
-// Insert inserts a value into the set.
-func (s *Set) Insert(value string) *Set {
+func (s Set) String() string {
 	if s.IsComplement {
-		s.Members.Delete(value)
-	} else {
-		s.Members.Insert(value)
+		return fmt.Sprintf("%v' (complement set)", s.Members.UnsortedList())
 	}
-	return s
-}
+	return fmt.Sprintf("%v", s.Members.UnsortedList())
 
-// Delete remove a value into the set.
-func (s *Set) Delete(value string) *Set {
-	if s.IsComplement {
-		s.Members.Insert(value)
-	} else {
-		s.Members.Delete(value)
-	}
-	return s
 }
 
 // Has returns true if and only if item is contained in the set.
-func (s *Set) Has(value string) bool {
+func (s Set) Has(value string) bool {
 	if s.IsComplement {
 		return !s.Members.Has(value)
 	}
 	return s.Members.Has(value)
 }
 
-// HasAll returns true if and only if all items are contained in the set.
-func (s *Set) HasAll(values ...string) bool {
-	for _, value := range values {
-		if !s.Has(value) {
-			return false
-		}
-	}
-	return true
-}
-
-// HasAny returns true if any items are contained in the set.
-func (s *Set) HasAny(items ...string) bool {
-	for _, item := range items {
-		if s.Has(item) {
-			return true
-		}
-	}
-	return false
-}
-
-// Difference returns a set of values that are not in provided set
-func (s *Set) Difference(set *Set) *Set {
-	result := s.DeepCopy()
-	if s.IsComplement {
-		if set.IsComplement {
-			result.Members = set.Members.Difference(result.Members)
-		} else {
-			result.Members = result.Members.Union(set.Members)
-		}
-	} else {
-		if set.IsComplement {
-			result.Members = result.Members.Intersection(set.Members)
-		} else {
-			result.Members = result.Members.Difference(set.Members)
-		}
-	}
-	return result
-}
-
-// Union returns a set of values that are in either sets
-func (s *Set) Union(set *Set) *Set {
-	result := s.DeepCopy()
-	if s.IsComplement {
-		if set.IsComplement {
-			result.Members = result.Members.Intersection(set.Members)
-		} else {
-			result.Members = result.Members.Difference(set.Members)
-		}
-	} else {
-		if set.IsComplement {
-			result.Members = set.Members.Difference(result.Members)
-			result.IsComplement = true
-		} else {
-			result.Members = result.Members.Union(set.Members)
-		}
-	}
-	return result
-}
-
 // Intersection returns a new set containing the common values
-func (s *Set) Intersection(set *Set) *Set {
-	result := s.DeepCopy()
+func (s Set) Intersection(set Set) Set {
 	if s.IsComplement {
 		if set.IsComplement {
-			result.Members = result.Members.Union(set.Members)
+			s.Members = s.Members.Union(set.Members)
 		} else {
-			result.Members = set.Members.Difference(result.Members)
-			result.IsComplement = false
+			s.Members = set.Members.Difference(s.Members)
+			s.IsComplement = false
 		}
 	} else {
 		if set.IsComplement {
-			result.Members = result.Members.Difference(set.Members)
+			s.Members = s.Members.Difference(set.Members)
 		} else {
-			result.Members = result.Members.Intersection(set.Members)
+			s.Members = s.Members.Intersection(set.Members)
 		}
 	}
-	return result
+	return s
 }
-
-// Equal returns true if and only if two sets are equal (as a set).
-// Two sets are equal if their membership is identical.
-// (In practice, this means same elements, order doesn't matter)
-func (s *Set) Equal(set *Set) bool {
-	// if isComplement do not agree, one set is finite and the other is infnite.
-	if len(s.Members) != len(set.Members) || (set.IsComplement && !s.IsComplement) || (!set.IsComplement && s.IsComplement) {
-		return false
-	}
-	for item := range set.Members {
-		if !s.Has(item) {
-			return false
-		}
-	}
-	return true
-}
-
-// Need this to perform schedule calcualtion later
-// Intersection returns a new set containing the common values
-/*
-func (s *Set) isSuperset(set *Set) bool {
-	return s.Intersection(set).Equal(set)
-}
-*/
 
 // Len returns the size of the set.
-func (s *Set) Len() int {
-	if s == nil {
-		return 0
-	}
+func (s Set) Len() int {
 	if s.IsComplement {
 		return math.MaxInt64 - s.Members.Len()
 	}

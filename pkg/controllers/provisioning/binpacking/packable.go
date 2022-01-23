@@ -175,34 +175,22 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 
 func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
-		instanceTypes := constraints.Requirements.InstanceTypes()
-		if instanceTypes.IsComplement {
-			return fmt.Errorf("instance type %s not in complement set %v'", p.Name(), instanceTypes.RawValues())
-		}
-		return fmt.Errorf("instance type %s not in %v", p.Name(), instanceTypes.RawValues())
+		return fmt.Errorf("instance type %s not in %s", p.Name(), constraints.Requirements.InstanceTypes())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
-		architectures := constraints.Requirements.Architectures()
-		if architectures.IsComplement {
-			return fmt.Errorf("architecture %s not in complement set %v'", p.Name(), architectures.RawValues())
-		}
-		return fmt.Errorf("architecture %s not in %v", p.Name(), architectures.RawValues())
+		return fmt.Errorf("architecture %s not in %s", p.Name(), constraints.Requirements.Architectures())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
-	operatingSystem := sets.NewSet(false, p.OperatingSystems().UnsortedList()...)
+	operatingSystem := sets.NewSet(p.OperatingSystems().UnsortedList()...)
 	if constraints.Requirements.OperatingSystems().Intersection(operatingSystem).Len() == 0 {
-		operatingSystems := constraints.Requirements.OperatingSystems()
-		if operatingSystems.IsComplement {
-			return fmt.Errorf("operating systems %s not in complement set %v'", p.Name(), operatingSystems.RawValues())
-		}
-		return fmt.Errorf("operating systems %s not in %v", p.Name(), operatingSystems.RawValues())
+		return fmt.Errorf("operating systems %s not in %s", p.Name(), constraints.Requirements.OperatingSystems())
 	}
 	return nil
 }
@@ -213,17 +201,7 @@ func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 			return nil
 		}
 	}
-	capacityTypes := constraints.Requirements.CapacityTypes()
-	zones := constraints.Requirements.Zones()
-	var capacityModifier, zoneModifier string
-	if capacityTypes.IsComplement {
-		capacityModifier = "(complement set)"
-	}
-	if zones.IsComplement {
-		zoneModifier = "(complement set)"
-	}
-
-	return fmt.Errorf("offerings %v are not available for capacity types %v%s and zones %v%s", p.Offerings(), capacityTypes.RawValues(), capacityModifier, zones.RawValues(), zoneModifier)
+	return fmt.Errorf("offerings %v are not available for capacity types %s and zones %s", p.Offerings(), constraints.Requirements.CapacityTypes(), constraints.Requirements.Zones())
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {
