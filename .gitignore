@@ -6,3 +6,4 @@ coverage.html
 website/node_modules
 website/resources
 website/public
+karpenter-*.csv

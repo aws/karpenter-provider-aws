@@ -102,7 +102,9 @@ toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
 issues: ## Run GitHub issue analysis scripts
-	./hack/feature_request_reactions.py > "karpenter-feature-requests-$(date +"%Y-%m-%d").csv"
-	./hack/label_issue_count.py > "karpenter-labels-$(date +"%Y-%m-%d").csv"
+	pip install -r ./hack/github/requirements.txt
+	@echo "Set GH_TOKEN env variable to avoid being rate limited by Github"
+	./hack/github/feature_request_reactions.py > "karpenter-feature-requests-$(shell date +"%Y-%m-%d").csv"
+	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
+.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses issues
