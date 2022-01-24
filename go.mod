@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/avast/retry-go v2.7.0+incompatible
+	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/amazon-vpc-resource-controller-k8s v1.1.0
 	github.com/aws/aws-sdk-go v1.42.39
 	github.com/deckarep/golang-set v1.8.0
