@@ -9,7 +9,7 @@
 <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
 	{{ range $index, $version := .Site.Params.versions }}
 	<a class="dropdown-item" href="/{{ $version }}" data-docs-version="{{ $version }}">
-		{{ $version }} {{ if eq $index 0 }} (stable) {{ end }}
+		{{ $version }} {{ if eq $index 0 }} (latest) {{ end }}
 	</a>
 	{{ end }}
 </div>
