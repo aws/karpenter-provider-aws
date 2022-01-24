@@ -25,12 +25,17 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-func MergeTags(ctx context.Context, custom ...map[string]string) (tags []*ec2.Tag) {
-	for key, value := range functional.UnionStringMaps(append(custom, map[string]string{
+func MergeTags(ctx context.Context, custom ...map[string]string) (result []*ec2.Tag) {
+	tags := map[string]string{
 		v1alpha5.ProvisionerNameLabelKey: injection.GetNamespacedName(ctx).Name,
 		"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, injection.GetNamespacedName(ctx).Name),
-	})...) {
-		tags = append(tags, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
 	}
-	return tags
+	// Custom tags may override defaults (e.g. Name)
+	for _, t := range custom {
+		tags = functional.UnionStringMaps(tags, t)
+	}
+	for key, value := range tags {
+		result = append(result, &ec2.Tag{Key: aws.String(key), Value: aws.String(value)})
+	}
+	return result
 }
