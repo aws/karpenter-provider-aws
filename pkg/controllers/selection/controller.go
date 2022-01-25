@@ -43,6 +43,7 @@ type Controller struct {
 	provisioners   *provisioning.Controller
 	preferences    *Preferences
 	volumeTopology *VolumeTopology
+	antiAffinity   *AntiAffinity
 }
 
 // NewController constructs a controller instance
@@ -52,6 +53,7 @@ func NewController(kubeClient client.Client, provisioners *provisioning.Controll
 		provisioners:   provisioners,
 		preferences:    NewPreferences(),
 		volumeTopology: NewVolumeTopology(kubeClient),
+		antiAffinity:   NewAntiAffinity(),
 	}
 }
 
@@ -69,7 +71,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !isProvisionable(pod) {
 		return reconcile.Result{}, nil
 	}
-	if err := validate(pod); err != nil {
+	if err := c.validate(pod); err != nil {
 		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err.Error())
 		return reconcile.Result{}, nil
 	}
@@ -84,6 +86,8 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
+	// Translate anti affinity into topology
+	c.antiAffinity.Transform(ctx, pod)
 	// Inject volume topological requirements
 	if err := c.volumeTopology.Inject(ctx, pod); err != nil {
 		return fmt.Errorf("getting volume topology requirements, %w", err)
@@ -120,14 +124,14 @@ func isProvisionable(p *v1.Pod) bool {
 		!pod.IsOwnedByNode(p)
 }
 
-func validate(p *v1.Pod) error {
+func (c *Controller) validate(p *v1.Pod) error {
 	return multierr.Combine(
-		validateAffinity(p),
-		validateTopology(p),
+		c.validateAffinity(p),
+		c.validateTopology(p),
 	)
 }
 
-func validateTopology(pod *v1.Pod) (errs error) {
+func (c *Controller) validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
 		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone); !supported.Has(constraint.TopologyKey) {
 			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
@@ -136,15 +140,15 @@ func validateTopology(pod *v1.Pod) (errs error) {
 	return errs
 }
 
-func validateAffinity(pod *v1.Pod) (errs error) {
+func (c *Controller) validateAffinity(pod *v1.Pod) (errs error) {
 	if pod.Spec.Affinity == nil {
 		return nil
 	}
+	if err := c.antiAffinity.Validate(pod).ViaField("affinity.podAntiAffinity"); err != nil {
+		errs = multierr.Append(errs, fmt.Errorf(err.Error()))
+	}
 	if pod.Spec.Affinity.PodAffinity != nil {
 		errs = multierr.Append(errs, fmt.Errorf("pod affinity is not supported"))
-	}
-	if pod.Spec.Affinity.PodAntiAffinity != nil {
-		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity is not supported"))
 	}
 	if pod.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
