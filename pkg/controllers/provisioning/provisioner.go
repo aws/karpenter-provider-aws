@@ -103,19 +103,25 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
-	// Launch capacity and bind pods
-	for _, schedule := range schedules {
-		packings, err := p.packer.Pack(ctx, schedule.Constraints, schedule.Pods)
-		if err != nil {
-			return fmt.Errorf("binpacking pods, %w", err)
-		}
-		for _, packing := range packings {
-			if err := p.launch(ctx, schedule.Constraints, packing); err != nil {
-				logging.FromContext(ctx).Errorf("Could not launch node, %s", err.Error())
-				continue
-			}
-		}
+	// Get instance type options
+	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
+	if err != nil {
+		return fmt.Errorf("getting instance types, %w", err)
 	}
+	// Launch capacity and bind pods
+	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(i int) {
+		packings, err := p.packer.Pack(ctx, schedules[i].Constraints, schedules[i].Pods, instanceTypes)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err.Error())
+			return
+		}
+		workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(j int) {
+			if err := p.launch(ctx, schedules[i].Constraints, packings[j]); err != nil {
+				logging.FromContext(ctx).Errorf("Could not launch node, %s", err.Error())
+				return
+			}
+		})
+	})
 	return nil
 }
 

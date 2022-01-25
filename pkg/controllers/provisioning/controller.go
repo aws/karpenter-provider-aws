@@ -93,7 +93,7 @@ func (c *Controller) Delete(name string) {
 // Apply creates or updates the provisioner to the latest configuration
 func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
 	// Refresh global requirements using instance type availability
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &provisioner.Spec.Constraints)
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 	if err != nil {
 		return err
 	}
