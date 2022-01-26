@@ -52,6 +52,7 @@ var (
 	// WellKnownLabels supported by karpenter
 	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,
+		v1.LabelTopologyRegion,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
 		v1.LabelOSStable,
@@ -63,10 +64,11 @@ var (
 	// however, Provisioner labels are still restricted to WellKnownLabels.
 	// Additional labels may be injected by cloud providers.
 	NormalizedLabels = map[string]string{
-		v1.LabelFailureDomainBetaZone: v1.LabelTopologyZone,
-		"beta.kubernetes.io/arch":     v1.LabelArchStable,
-		"beta.kubernetes.io/os":       v1.LabelOSStable,
-		v1.LabelInstanceType:          v1.LabelInstanceTypeStable,
+		v1.LabelFailureDomainBetaZone:   v1.LabelTopologyZone,
+		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
+		"beta.kubernetes.io/arch":       v1.LabelArchStable,
+		"beta.kubernetes.io/os":         v1.LabelOSStable,
+		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
 	}
 )
 
@@ -75,6 +77,10 @@ type Requirements []v1.NodeSelectorRequirement
 
 func (r Requirements) Zones() sets.String {
 	return r.Requirement(v1.LabelTopologyZone)
+}
+
+func (r Requirements) Regions() sets.String {
+	return r.Requirement(v1.LabelTopologyRegion)
 }
 
 func (r Requirements) InstanceTypes() sets.String {
