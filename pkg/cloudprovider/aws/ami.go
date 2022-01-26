@@ -93,7 +93,7 @@ func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Con
 		amiSuffix = "-arm64"
 		arch = "arm64"
 	} else if instanceType.Architecture() == v1alpha5.ArchitectureAmd64 {
-		arch = "arm64"
+		arch = "x86_64"
 	}
 
 	if constraints.AMIFamily != nil {

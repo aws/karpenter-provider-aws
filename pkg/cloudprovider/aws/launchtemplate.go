@@ -110,9 +110,9 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		// Get userData for Node
 		var userData string
 		if constraints.AMIFamily != nil {
-			if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
+			if strings.EqualFold(*constraints.AMIFamily, v1alpha1.OperatingSystemBottleRocket) {
 				userData, err = p.getBottleRocketUserData(ctx, constraints, additionalLabels)
-			} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
+			} else if strings.EqualFold(*constraints.AMIFamily, v1alpha1.OperatingSystemEKSOptimized) {
 				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
 			} else {
 				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)

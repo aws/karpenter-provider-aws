@@ -32,7 +32,7 @@ var (
 	AWSRestrictedLabelDomains = []string{
 		"k8s.aws",
 	}
-	OperatingSystemBottleRocket = "BottleRocket"
+	OperatingSystemBottleRocket = "Bottlerocket"
 	OperatingSystemEKSOptimized = "EKSOptimized"
 )
 
