@@ -34,17 +34,19 @@ type AntiAffinity struct{}
 // Validate that the affinity terms are supported
 func (a *AntiAffinity) Validate(pod *v1.Pod) (errs *apis.FieldError) {
 	for i, term := range a.termsFor(pod) {
-		errs = errs.Also(a.validateTerm(term).ViaIndex(i))
+		errs = errs.Also(a.validateTerm(pod, term).ViaIndex(i))
 	}
 	return errs
 }
 
-func (a *AntiAffinity) validateTerm(term v1.PodAffinityTerm) (errs *apis.FieldError) {
+func (a *AntiAffinity) validateTerm(pod *v1.Pod, term v1.PodAffinityTerm) (errs *apis.FieldError) {
 	if term.NamespaceSelector != nil {
 		errs = errs.Also(apis.ErrDisallowedFields("namespaceSelector"))
 	}
-	if len(term.Namespaces) != 0 {
-		errs = errs.Also(apis.ErrDisallowedFields("namespaces"))
+	for i, namespace := range term.Namespaces {
+		if namespace != pod.Namespace {
+			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, cross namespace affinity is not supported", namespace), "namespaces", i))
+		}
 	}
 	if !AllowedAntiAffinityKeys.Has(term.TopologyKey) {
 		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", term.TopologyKey, AllowedAntiAffinityKeys.UnsortedList()), "topologyKey"))
