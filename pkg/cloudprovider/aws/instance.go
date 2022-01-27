@@ -39,6 +39,7 @@ import (
 
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
+	region                 string
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
@@ -255,7 +256,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					Name: nodeName,
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       zone,
-						v1.LabelTopologyRegion:     zone[:len(zone)-1],
+						v1.LabelTopologyRegion:     p.region,
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
 						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},

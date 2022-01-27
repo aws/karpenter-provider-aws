@@ -53,6 +53,7 @@ import (
 var ctx context.Context
 var opts options.Options
 var env *test.Environment
+var region string
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
@@ -77,6 +78,7 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
+		region = "test-region-1"
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -97,7 +99,7 @@ var _ = BeforeSuite(func() {
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
-				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+				fakeEC2API, region, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
 					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
 					securityGroupProvider: securityGroupProvider,
@@ -726,6 +728,18 @@ var _ = Describe("Allocation", func() {
 					}
 					provisioner := ProvisionerWithProvider(provisioner, provider)
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+				})
+			})
+			Context("Region", func() {
+				It("should launch capacity if region is allowed", func() {
+					provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{region}}}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+				})
+				It("should not launch capacity if region is not allowed", func() {
+					provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{"bad-region"}}}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+					ExpectNotScheduled(ctx, env.Client, pod)
 				})
 			})
 		})
