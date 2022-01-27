@@ -114,7 +114,7 @@ A `t3.small` with three instances should not receive the same amount of traffic 
 If you don't specify a spread at the workload level, or limit what instances should be picked, you could get the same amount of traffic sent to the `t3` and `m5`.
 
 ### Can I use Karpenter with EBS disks per availability zone?
-Not yet.
+Yes.  See [Persistent Volume Topology](https://karpenter.sh/v0.5.6/tasks/scheduling/#persistent-volume-topology) for details.
 
 ### Can I set `--max-pods` on my nodes?
 Not yet.
