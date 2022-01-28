@@ -22,7 +22,9 @@ The number of pods on a node is limited by the number of networking interfaces (
 
 AWS VPC CNI v1.9 introduced prefix assignment. In short, a single ENI can provide IP addresses for multiple pods. Much higher pod densities are now supported. 
 
-Run Karpenter with the argument `--aws-eni-limited-pod-density=true` to enable nodes with more than 110 pods. Arguments may be specified in the controller deployment. In the [example helm chart](https://github.com/aws/karpenter/blob/c73f425e924bb64c3f898f30ca5035a1d8591183/charts/karpenter/templates/controller/deployment.yaml), add `args: ["--aws-eni-limited-pod-density=true"]` to `spec.containers[0]`.
+Run the Karpenter controller with the enviornment variable `AWS_ENI_LIMITED_POD_DENSITY` (or the argument  `--aws-eni-limited-pod-density=true`) to enable nodes with more than 110 pods. 
+
+Environment variables for the Karpenter controller may be specified as [helm chart values](https://github.com/aws/karpenter/blob/c73f425e924bb64c3f898f30ca5035a1d8591183/charts/karpenter/values.yaml#L15). 
 
 ## Limit Pod Density
 
