@@ -17,10 +17,9 @@ package aws
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"knative.dev/pkg/ptr"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"

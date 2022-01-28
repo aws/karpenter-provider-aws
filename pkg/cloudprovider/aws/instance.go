@@ -249,19 +249,17 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
-			zone := aws.StringValue(instance.Placement.AvailabilityZone)
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
 					Labels: map[string]string{
-						v1.LabelTopologyZone:       zone,
-						v1.LabelTopologyRegion:     zone[:len(zone)-1],
+						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
 						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},
 				},
 				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("aws:///%s/%s", zone, aws.StringValue(instance.InstanceId)),
+					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 				Status: v1.NodeStatus{
 					Allocatable: v1.ResourceList{
