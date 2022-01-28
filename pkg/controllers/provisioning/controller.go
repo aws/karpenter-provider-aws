@@ -141,7 +141,6 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
 	supported := map[string]sets.String{
 		v1.LabelInstanceTypeStable: sets.NewString(),
-		v1.LabelTopologyRegion:     sets.NewString(),
 		v1.LabelTopologyZone:       sets.NewString(),
 		v1.LabelArchStable:         sets.NewString(),
 		v1.LabelOSStable:           sets.NewString(),
@@ -150,7 +149,6 @@ func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1al
 	for _, instanceType := range instanceTypes {
 		for _, offering := range instanceType.Offerings() {
 			supported[v1.LabelTopologyZone].Insert(offering.Zone)
-			supported[v1.LabelTopologyRegion].Insert(offering.Region)
 			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
 		}
 		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())

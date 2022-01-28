@@ -73,5 +73,4 @@ type InstanceType interface {
 type Offering struct {
 	CapacityType string
 	Zone         string
-	Region       string
 }

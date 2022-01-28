@@ -79,11 +79,11 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
 	subnetProvider := NewSubnetProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ec2api, *sess.Config.Region, subnetProvider)
+	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider)
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
-		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
+		instanceProvider: &InstanceProvider{ec2api, *sess.Config.Region, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
 				ec2api,
 				NewAMIProvider(ssm.New(sess), options.ClientSet),
@@ -111,8 +111,8 @@ func withUserAgent(sess *session.Session) *session.Session {
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
-	if constraints.Requirements.Regions().Len() != 0 && !constraints.Requirements.Regions().Has(c.instanceTypeProvider.region) {
-		return fmt.Errorf("the current region \"%s\" is not in the region requirements %s", c.instanceTypeProvider.region, constraints.Requirements.Regions())
+	if constraints.Requirements.Regions().Len() != 0 && !constraints.Requirements.Regions().Has(c.instanceProvider.region) {
+		return fmt.Errorf("the current region \"%s\" is not in the region requirements %s", c.instanceProvider.region, constraints.Requirements.Regions().List())
 	}
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {

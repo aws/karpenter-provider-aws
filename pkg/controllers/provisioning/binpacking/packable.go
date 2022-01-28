@@ -195,13 +195,11 @@ func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) e
 
 func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 	for _, offering := range p.Offerings() {
-		if constraints.Requirements.CapacityTypes().Has(offering.CapacityType) && constraints.Requirements.Zones().Has(offering.Zone) &&
-			constraints.Requirements.Regions().Has(offering.Region) {
+		if constraints.Requirements.CapacityTypes().Has(offering.CapacityType) && constraints.Requirements.Zones().Has(offering.Zone) {
 			return nil
 		}
 	}
-	return fmt.Errorf("offerings %v are not available for capacity types %v, zones %v, and regions %v",
-		p.Offerings(), constraints.Requirements.CapacityTypes().List(), constraints.Requirements.Zones().List(), constraints.Requirements.Regions().List())
+	return fmt.Errorf("offerings %v are not available for capacity types %v and zones %v", p.Offerings(), constraints.Requirements.CapacityTypes().List(), constraints.Requirements.Zones().List())
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {

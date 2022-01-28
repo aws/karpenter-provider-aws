@@ -39,6 +39,7 @@ import (
 
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
+	region                 string
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
@@ -250,19 +251,12 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 			zone := aws.StringValue(instance.Placement.AvailabilityZone)
-			region := ""
-			for _, offering := range instanceType.Offerings() {
-				if offering.Zone == zone {
-					region = offering.Region
-					break
-				}
-			}
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       zone,
-						v1.LabelTopologyRegion:     region,
+						v1.LabelTopologyRegion:     p.region,
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
 						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},

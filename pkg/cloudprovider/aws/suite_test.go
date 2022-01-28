@@ -86,7 +86,6 @@ var _ = BeforeSuite(func() {
 		subnetProvider := NewSubnetProvider(fakeEC2API)
 		instanceTypeProvider := &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
-			region:               region,
 			subnetProvider:       subnetProvider,
 			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 			unavailableOfferings: unavailableOfferingsCache,
@@ -100,7 +99,7 @@ var _ = BeforeSuite(func() {
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
-				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+				fakeEC2API, region, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
 					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
 					securityGroupProvider: securityGroupProvider,
@@ -335,7 +334,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
-				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", region, "test-zone-1a"))
+				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
 				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
@@ -733,13 +732,12 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Region", func() {
 				It("should launch capacity if region is allowed", func() {
-
-					provisioner.Spec.Requirements = v1alpha5.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{region}})
+					provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{region}}}
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 				})
 				It("should not launch capacity if region is not allowed", func() {
-					provisioner.Spec.Requirements = v1alpha5.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{"bad-region"}})
+					provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{"bad-region"}}}
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 					ExpectNotScheduled(ctx, env.Client, pod)
 				})
