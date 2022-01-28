@@ -734,12 +734,12 @@ var _ = Describe("Allocation", func() {
 			Context("Region", func() {
 				It("should launch capacity if region is allowed", func() {
 
-					provisioner.Spec.Requirements = v1alpha5.Requirements{v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{region}}}
+					provisioner.Spec.Requirements = v1alpha5.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{region}})
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 				})
 				It("should not launch capacity if region is not allowed", func() {
-					provisioner.Spec.Requirements = v1alpha5.Requirements{v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{"bad-region"}}}
+					provisioner.Spec.Requirements = v1alpha5.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyRegion, Operator: v1.NodeSelectorOpIn, Values: []string{"bad-region"}})
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 					ExpectNotScheduled(ctx, env.Client, pod)
 				})
