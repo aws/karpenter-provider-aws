@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -32,7 +31,7 @@ func (c *Constraints) defaultCapacityTypes() {
 	if _, ok := c.Labels[v1alpha5.LabelCapacityType]; ok {
 		return
 	}
-	if functional.ContainsString(c.Requirements.Keys(), v1alpha5.LabelCapacityType) {
+	if c.Requirements.Keys().Has(v1alpha5.LabelCapacityType) {
 		return
 	}
 	c.Requirements = c.Requirements.Add(v1.NodeSelectorRequirement{
@@ -46,7 +45,7 @@ func (c *Constraints) defaultArchitecture() {
 	if _, ok := c.Labels[v1.LabelArchStable]; ok {
 		return
 	}
-	if functional.ContainsString(c.Requirements.Keys(), v1.LabelArchStable) {
+	if c.Requirements.Keys().Has(v1.LabelArchStable) {
 		return
 	}
 	c.Requirements = c.Requirements.Add(v1.NodeSelectorRequirement{

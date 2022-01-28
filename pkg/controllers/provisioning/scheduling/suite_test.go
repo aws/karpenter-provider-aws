@@ -78,7 +78,8 @@ var _ = AfterEach(func() {
 	ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 })
 
-var _ = Describe("Combined Constraints", func() {
+
+var _ = Describe("Constraints", func() {
 	Context("Custom Labels", func() {
 		It("should schedule unconstrained pods that don't have matching node selectors", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
@@ -111,6 +112,43 @@ var _ = Describe("Combined Constraints", func() {
 				}},
 			))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should schedule the pod with Exists operator and defined key", func() {
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: "foo", Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}})
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "foo", Operator: v1.NodeSelectorOpExists},
+				}},
+			))[0]
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should not schedule the pod with Exists operator and undefined key", func() {
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "foo", Operator: v1.NodeSelectorOpExists},
+				}},
+			))[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should not schedule the pod with DoesNotExists operator and defined key", func() {
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: "foo", Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}})
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "foo", Operator: v1.NodeSelectorOpDoesNotExist},
+				}},
+			))[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should schedule the pod with DoesNotExists operator and undefined key", func() {
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements()
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+					{Key: "foo", Operator: v1.NodeSelectorOpDoesNotExist, Values: []string{}},
+				}},
+			))[0]
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should schedule pods that have matching preferences", func() {
 			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
@@ -164,46 +202,6 @@ var _ = Describe("Combined Constraints", func() {
 				test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}},
 			))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
-		})
-		It("should schedule the pod with Exists operator and defined key", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists, Values: []string{}},
-				}},
-			))[0]
-			ExpectScheduled(ctx, env.Client, pod)
-		})
-		It("should not schedule the pod with Exists operator and undefined key", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: "foo", Operator: v1.NodeSelectorOpExists, Values: []string{}},
-				}},
-			))[0]
-			ExpectNotScheduled(ctx, env.Client, pod)
-		})
-		It("should not schedule the pod with DoesNotExists operator and defined key", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist, Values: []string{}},
-				}},
-			))[0]
-			ExpectNotScheduled(ctx, env.Client, pod)
-		})
-		It("should schedule the pod with Exists operator and undefined key", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-					{Key: "foo", Operator: v1.NodeSelectorOpDoesNotExist, Values: []string{}},
-				}},
-			))[0]
-			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should schedule compatible requirements with Operator=In", func() {
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(

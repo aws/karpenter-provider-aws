@@ -22,7 +22,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -188,8 +187,7 @@ func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error
 }
 
 func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
-	operatingSystem := sets.NewSet(p.OperatingSystems().UnsortedList()...)
-	if constraints.Requirements.OperatingSystems().Intersection(operatingSystem).Len() == 0 {
+	if constraints.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
 		return fmt.Errorf("operating systems %s not in %s", p.Name(), constraints.Requirements.OperatingSystems())
 	}
 	return nil

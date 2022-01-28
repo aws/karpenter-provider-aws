@@ -46,7 +46,9 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.PodRequirements(pod)...).Allow(topologyGroup.Constraint.TopologyKey))
+			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...).
+				Values(topologyGroup.Constraint.TopologyKey).
+				Values())
 			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}
@@ -79,7 +81,7 @@ func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1al
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(topologyGroup, constraints)
 	case v1.LabelTopologyZone:
-		return t.computeZonalTopology(ctx, constraints.Requirements, topologyGroup)
+		return t.computeZonalTopology(ctx, constraints, topologyGroup)
 	default:
 		return nil
 	}
@@ -108,9 +110,8 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constra
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, requirements *v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
-	zones := requirements.Zones().Values()
-	topologyGroup.Register(zones...)
+func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha5.Constraints, topologyGroup *TopologyGroup) error {
+	topologyGroup.Register(constraints.Requirements.Zones().UnsortedList()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}

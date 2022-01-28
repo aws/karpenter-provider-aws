@@ -136,8 +136,8 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	// validate if requirement keys are well known labels
-	for _, key := range c.Requirements.Keys() {
+	// Ensure requirements are well known
+	for key := range c.Requirements.Keys() {
 		if !WellKnownLabels.Has(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", key, WellKnownLabels.UnsortedList()), "key"))
 		}

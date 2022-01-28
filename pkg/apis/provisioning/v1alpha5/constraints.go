@@ -33,7 +33,7 @@ type Constraints struct {
 	// +optional
 	Taints Taints `json:"taints,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
-	Requirements *Requirements `json:"requirements,inline,omitempty"`
+	Requirements Requirements `json:"requirements,inline,omitempty"`
 	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
 	//+optional
 	KubeletConfiguration KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
@@ -52,13 +52,13 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 		return err
 	}
 	// Test if pod requirements are valid
-	podRequirements := NewRequirements(PodRequirements(pod)...)
-	if errs := podRequirements.Validate(); errs != nil {
+	requirements := NewPodRequirements(pod)
+	if errs := requirements.Validate(); errs != nil {
 		return fmt.Errorf("pod requirements not feasible, %v", errs)
 	}
 	// Test if pod requirements are compatible
-	if errs := c.Requirements.Compatible(podRequirements); errs != nil {
-		return fmt.Errorf("incompatible requirements %w", errs)
+	if errs := c.Requirements.Compatible(requirements); errs != nil {
+		return fmt.Errorf("incompatible requirements, %w", errs)
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
 	return &Constraints{
 		Labels:               c.Labels,
-		Requirements:         c.Requirements.Add(PodRequirements(pod)...).WellKnown(),
+		Requirements:         c.Requirements.Add(NewPodRequirements(pod).Requirements...).WellKnown(),
 		Taints:               c.Taints,
 		Provider:             c.Provider,
 		KubeletConfiguration: c.KubeletConfiguration,

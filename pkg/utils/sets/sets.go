@@ -23,76 +23,74 @@ import (
 
 // Set is a logical set of string values for the requirements.
 // It supports representations using complement operator.
-// e.g., if C={"A", "B"}, setting isComplement = true means
+// e.g., if C={"A", "B"}, setting complement = true means
 // C' contains every possible string values other than "A" and "B"
 type Set struct {
-	Members      sets.String `json:"Members,omitempty"`
-	IsComplement bool        `json:"allows,omitempty"`
+	values     sets.String
+	Complement bool
 }
 
 func NewSet(values ...string) Set {
 	return Set{
-		Members:      sets.NewString(values...),
-		IsComplement: false,
+		values:     sets.NewString(values...),
+		Complement: false,
 	}
 }
 
 func NewComplementSet(values ...string) Set {
 	return Set{
-		Members:      sets.NewString(values...),
-		IsComplement: true,
+		values:     sets.NewString(values...),
+		Complement: true,
 	}
 }
 
 // DeepCopy creates a deep copy of the set object
 // It is required by the Kubernetes CRDs code generation
 func (s Set) DeepCopy() Set {
-	members := s.Members.UnsortedList()
 	return Set{
-		Members:      sets.NewString(members...),
-		IsComplement: s.IsComplement,
+		values:     sets.NewString(s.values.UnsortedList()...),
+		Complement: s.Complement,
 	}
 }
 
-// Values returns the members of the set.
+// Values returns the values of the set.
 // If the set has an infinite size, returns an error
-func (s Set) Values() []string {
-	if s.IsComplement {
+func (s Set) Values() sets.String {
+	if s.Complement {
 		panic("infinite set")
 	}
-	return s.Members.UnsortedList()
+	return s.values
 }
 
 func (s Set) String() string {
-	if s.IsComplement {
-		return fmt.Sprintf("%v' (complement set)", s.Members.UnsortedList())
+	if s.Complement {
+		return fmt.Sprintf("%v' (complement set)", s.values.UnsortedList())
 	}
-	return fmt.Sprintf("%v", s.Members.UnsortedList())
-
+	return fmt.Sprintf("%v", s.values.UnsortedList())
 }
 
 // Has returns true if and only if item is contained in the set.
 func (s Set) Has(value string) bool {
-	if s.IsComplement {
-		return !s.Members.Has(value)
+	if s.Complement {
+		return !s.values.Has(value)
 	}
-	return s.Members.Has(value)
+	return s.values.Has(value)
 }
 
 // Intersection returns a new set containing the common values
 func (s Set) Intersection(set Set) Set {
-	if s.IsComplement {
-		if set.IsComplement {
-			s.Members = s.Members.Union(set.Members)
+	if s.Complement {
+		if set.Complement {
+			s.values = s.values.Union(set.values)
 		} else {
-			s.Members = set.Members.Difference(s.Members)
-			s.IsComplement = false
+			s.values = set.values.Difference(s.values)
+			s.Complement = false
 		}
 	} else {
-		if set.IsComplement {
-			s.Members = s.Members.Difference(set.Members)
+		if set.Complement {
+			s.values = s.values.Difference(set.values)
 		} else {
-			s.Members = s.Members.Intersection(set.Members)
+			s.values = s.values.Intersection(set.values)
 		}
 	}
 	return s
@@ -100,8 +98,8 @@ func (s Set) Intersection(set Set) Set {
 
 // Len returns the size of the set.
 func (s Set) Len() int {
-	if s.IsComplement {
-		return math.MaxInt64 - s.Members.Len()
+	if s.Complement {
+		return math.MaxInt64 - s.values.Len()
 	}
-	return s.Members.Len()
+	return s.values.Len()
 }

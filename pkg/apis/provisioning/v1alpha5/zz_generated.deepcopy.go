@@ -43,11 +43,7 @@ func (in *Constraints) DeepCopyInto(out *Constraints) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Requirements != nil {
-		in, out := &in.Requirements, &out.Requirements
-		*out = new(Requirements)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Requirements.DeepCopyInto(&out.Requirements)
 	in.KubeletConfiguration.DeepCopyInto(&out.KubeletConfiguration)
 	if in.Provider != nil {
 		in, out := &in.Provider, &out.Provider
@@ -238,8 +234,8 @@ func (in *Requirements) DeepCopyInto(out *Requirements) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Allows != nil {
-		in, out := &in.Allows, &out.Allows
+	if in.requirements != nil {
+		in, out := &in.requirements, &out.requirements
 		*out = make(map[string]sets.Set, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
