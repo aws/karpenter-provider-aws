@@ -55,6 +55,7 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []cor
 			Taints:                  taints,
 			Labels:                  labels,
 			CABundle:                caBundle,
+			ServiceIPv6CIDR:         a.Options.ServiceIPv6CIDR,
 		},
 	}
 }

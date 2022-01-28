@@ -67,9 +67,17 @@ type EnvironmentOption func(env *Environment)
 
 func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environment {
 	ctx, stop := context.WithCancel(ctx)
+	customApiServerFlags := []string{
+		"--service-cluster-ip-range=10.31.32.0/16,fd4b:121b:812b::/108",
+	}
 	return &Environment{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{project.RelativeToRoot("charts/karpenter/crds/karpenter.sh_provisioners.yaml")},
+			ControlPlane: envtest.ControlPlane{
+				APIServer: &envtest.APIServer{
+					Args: customApiServerFlags,
+				},
+			},
 		},
 		Ctx:     ctx,
 		stop:    stop,

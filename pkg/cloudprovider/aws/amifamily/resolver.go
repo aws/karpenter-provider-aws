@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"context"
+	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -53,6 +54,7 @@ type Options struct {
 	SecurityGroupsIDs []string
 	Tags              map[string]string
 	Labels            map[string]string `hash:"ignore"`
+	ServiceIPv6CIDR   *net.IPNet
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters

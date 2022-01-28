@@ -15,6 +15,8 @@ limitations under the License.
 package bootstrap
 
 import (
+	"net"
+
 	core "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -29,6 +31,7 @@ type Options struct {
 	Labels                  map[string]string `hash:"set"`
 	CABundle                *string
 	AWSENILimitedPodDensity bool
+	ServiceIPv6CIDR         *net.IPNet
 }
 
 // Bootstrapper can be implemented to generate a bootstrap script

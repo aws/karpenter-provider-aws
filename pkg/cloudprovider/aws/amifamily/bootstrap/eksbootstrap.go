@@ -41,9 +41,14 @@ func (e EKS) Script() string {
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
-	if !e.AWSENILimitedPodDensity {
+	if e.Options.ServiceIPv6CIDR != nil {
+		userData.WriteString(" \\\n--ip-family ipv6")
+		userData.WriteString(fmt.Sprintf(" \\\n--service-ipv6-cidr '%s'", e.Options.ServiceIPv6CIDR.String()))
+	}
+
+	if !e.AWSENILimitedPodDensity || e.Options.ServiceIPv6CIDR != nil {
 		userData.WriteString(" \\\n--use-max-pods false")
-		kubeletExtraArgs += " --max-pods=110"
+		kubeletExtraArgs += " --max-pods 110"
 	}
 	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgs))

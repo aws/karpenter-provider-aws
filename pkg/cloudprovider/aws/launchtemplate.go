@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -97,6 +99,12 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
+
+	serviceIPv6CIDR, err := p.kubeServiceIPv6CIDR(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Debugf("IPv6 Service CIDR cannot be found, %w", err)
+	}
+
 	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, constraints, instanceTypes, &amifamily.Options{
 		ClusterName:             injection.GetOptions(ctx).ClusterName,
 		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
@@ -107,6 +115,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
+		ServiceIPv6CIDR:         serviceIPv6CIDR,
 	})
 	if err != nil {
 		return nil, err
@@ -264,4 +273,20 @@ func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string,
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
 	return version, nil
+}
+
+func (p *LaunchTemplateProvider) kubeServiceIPv6CIDR(ctx context.Context) (*net.IPNet, error) {
+	dnsService, err := p.clientSet.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	kubeDnsIP := net.ParseIP(dnsService.Spec.ClusterIP)
+	logging.FromContext(ctx).Debugf("Discovered DNS IP %s", kubeDnsIP.String())
+	if kubeDnsIP.To4() == nil { // ipv6
+		mask := net.CIDRMask(108, 128)
+		ipNet := net.IPNet{IP: kubeDnsIP.Mask(mask), Mask: mask}
+		return &ipNet, nil
+	} else {
+		return nil, fmt.Errorf("The cluster is not IPv6")
+	}
 }

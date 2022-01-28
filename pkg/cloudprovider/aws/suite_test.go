@@ -632,6 +632,18 @@ var _ = Describe("Allocation", func() {
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 			})
+			It("should specify --ip-family ipv6 and --use-max-pods false when using IPv6 DNS Service", func() {
+				localCtx := injection.WithOptions(ctx, opts)
+				ExpectApplied(localCtx, env.Client, test.ServiceHaveClusterIP("kube-system", "kube-dns", "fd4b:121b:812b::a"))
+				pod := ExpectProvisioned(localCtx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(localCtx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--service-ipv6-cidr 'fd4b:121b:812b::/108'"))
+				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
+				Expect(string(userData)).To(ContainSubstring("--max-pods 110"))
+			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
 				localCtx := injection.WithOptions(ctx, opts)
@@ -641,7 +653,7 @@ var _ = Describe("Allocation", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
-				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
+				Expect(string(userData)).To(ContainSubstring("--max-pods 110"))
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
@@ -652,6 +664,18 @@ var _ = Describe("Allocation", func() {
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
+				})
+				It("should specify the --ip-family ipv6 flag when IPv6 clusterDNSIP is set", func() {
+					provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"fd4b:121b:812b::a"}}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--ip-family ipv6"))
+					Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
+					Expect(string(userData)).To(ContainSubstring("--service-ipv6-cidr 'fd4b:121b:812b::/108'"))
+					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip 'fd4b:121b:812b::a'"))
 				})
 			})
 			Context("Instance Profile", func() {
