@@ -37,12 +37,12 @@ You can use [topology spread]({{< relref "scheduling.md#topology-spread" >}}) fe
 
 Exclude large instance sizes to reduce the blast radius of an EC2 instance failure.
 
-Consider setting up upper or lower boundaries on target instance sizes with the [node.kubernetes.io/instance-type](http://node.kubernetes.io/instance-type) key. 
+Consider setting up upper or lower boundaries on target instance sizes with the node.kubernetes.io/instance-type key. 
 
 The following example shows how to avoid provisioning large Graviton instances in order to reduce the impact of individual instance failures:
 
 ```
--key: node.kubernetes.io/instance-type (http://node.kubernetes.io/instance-type)
+-key: node.kubernetes.io/instance-type
     operator: NotIn
     values:
       'm6g.16xlarge'
