@@ -76,7 +76,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 			getCapacityType(instance),
 		)
 		// Convert Instance to Node
-		node, err := p.instanceToNode(ctx, instance, instanceTypes)
+		node, err := p.instanceToNode(ctx, constraints, instance, instanceTypes)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err.Error())
 			continue
@@ -128,10 +128,15 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 			},
 		},
 	}
+
+	allocationStrategy, err := p.getAllocationStrategy(constraints, capacityType)
+	if err != nil {
+		return nil, fmt.Errorf("cannot indentify allocation strategy, %w", err)
+	}
 	if capacityType == v1alpha1.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
+		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(allocationStrategy)}
 	} else {
-		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(allocationStrategy)}
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
@@ -242,20 +247,24 @@ func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*
 	return instances, err
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, constraints *v1alpha1.Constraints, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
+
+			capacityType := getCapacityType(instance)
+			allocationStrategy, _ := p.getAllocationStrategy(constraints, capacityType)
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
 					Labels: map[string]string{
-						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
-						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
-						v1alpha5.LabelCapacityType: getCapacityType(instance),
+						v1.LabelTopologyZone:             aws.StringValue(instance.Placement.AvailabilityZone),
+						v1.LabelInstanceTypeStable:       aws.StringValue(instance.InstanceType),
+						v1alpha5.LabelCapacityType:       capacityType,
+						v1alpha5.LabelAllocationStrategy: allocationStrategy,
 					},
 				},
 				Spec: v1.NodeSpec{
@@ -306,6 +315,33 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 		}
 	}
 	return v1alpha1.CapacityTypeOnDemand
+}
+
+func (p *InstanceProvider) getAllocationStrategy(constraints *v1alpha1.Constraints, capacityType string) (string, error) {
+	allocationStrategy := constraints.Requirements.AllocationStrategy()
+	if len(allocationStrategy) == 0 {
+		if capacityType == v1alpha1.CapacityTypeSpot {
+			allocationStrategy = ec2.SpotAllocationStrategyCapacityOptimizedPrioritized
+		} else {
+			allocationStrategy = ec2.FleetOnDemandAllocationStrategyLowestPrice
+		}
+	}
+
+	var availableStrategies []string
+
+	if capacityType == v1alpha1.CapacityTypeSpot {
+		availableStrategies = ec2.SpotAllocationStrategy_Values()
+	} else {
+		availableStrategies = ec2.OnDemandAllocationStrategy_Values()
+		// ec2.OnDemandAllocationStrategy_Values() includes "lowestPrice", not "lowest-price"
+		availableStrategies = append(availableStrategies, "lowest-price")
+	}
+	for _, availableStrategy := range availableStrategies {
+		if allocationStrategy == availableStrategy {
+			return availableStrategy, nil
+		}
+	}
+	return "", fmt.Errorf("invalid strategy type: %s", allocationStrategy)
 }
 
 func getInstanceID(node *v1.Node) (*string, error) {

@@ -47,6 +47,9 @@ spec:
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
       operator: In
       values: ["spot", "on-demand"]
+    - key: "karpenter.sh/allocation-strategy" # If not included, the webhook for the AWS cloud provider will default to on-demand
+      operator: In
+      values: ["lowest-price"]
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -143,6 +146,18 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
   - `on-demand`
 
 Karpenter supports specifying capacity type, which is analogous to [EC2 purchase options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-purchasing-options.html).
+
+### Allocation Strategy
+
+- key: `karpenter.sh/allocation-strategy`
+
+☁️ **AWS**
+
+- values
+  - `capacity-optimized` (default for spot)
+  - `lowest-price` (default for ondemand)
+
+Karpenter supports specifying allocation strategy. See also [Allocation strategies for Spot Instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html).
 
 
 ## spec.kubeletConfiguration

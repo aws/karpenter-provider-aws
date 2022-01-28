@@ -365,6 +365,12 @@ var _ = Describe("Allocation", func() {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot))
 			})
+			It("should launch spot capacity with allocation strategy", func() {
+				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot}}, {Key: v1alpha5.LabelAllocationStrategy, Operator: v1.NodeSelectorOpIn, Values: []string{"lowest-price"}}}
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelAllocationStrategy, "lowest-price"))
+			})
 		})
 		Context("LaunchTemplates", func() {
 			It("should use same launch template for equivalent constraints", func() {

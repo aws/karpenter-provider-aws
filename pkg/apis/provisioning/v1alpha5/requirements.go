@@ -48,7 +48,8 @@ var (
 		"k8s.io",
 		KarpenterLabelDomain,
 	)
-	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
+	LabelCapacityType       = KarpenterLabelDomain + "/capacity-type"
+	LabelAllocationStrategy = KarpenterLabelDomain + "/allocation-strategy"
 	// WellKnownLabels supported by karpenter
 	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,
@@ -56,6 +57,7 @@ var (
 		v1.LabelArchStable,
 		v1.LabelOSStable,
 		LabelCapacityType,
+		LabelAllocationStrategy,
 		v1.LabelHostname, // Used internally for hostname topology spread
 	)
 	// NormalizedLabels translate aliased concepts into the controller's
@@ -91,6 +93,14 @@ func (r Requirements) OperatingSystems() sets.String {
 
 func (r Requirements) CapacityTypes() sets.String {
 	return r.Requirement(LabelCapacityType)
+}
+
+func (r Requirements) AllocationStrategy() string {
+	if strategies := r.Requirement(LabelAllocationStrategy); strategies == nil {
+		return ""
+	} else {
+		return strategies.List()[0]
+	}
 }
 
 func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requirements {
