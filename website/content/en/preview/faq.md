@@ -99,7 +99,7 @@ See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWS
 
 Karpenter will fallback to on-demand, if your provisioner specifies both spot and on-demand. 
 
-More specifically, Karpenter maintains a concept of "offerings" which is a combination of instance type, zone, and purchase type. Spot offerings are prioritized, if they're available. Whenever the fleet API returns an insufficient capacity for spot, that offering is removed from the list for 5 minutes. Since fleet gives expressive responses about which offerings are unavilable, it results in at worst 2 API calls. The retry will happen immediately within milliseconds.
+More specifically, Karpenter maintains a concept of "offerings" for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option). Spot offerings are prioritized, if they're available. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) for 45 seconds so that Karpenter can make forward progress through fallback. The retry will happen immediately within milliseconds.
 
 ## Workloads
 
