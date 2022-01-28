@@ -84,15 +84,13 @@ var (
 type Requirements struct {
 	// Requirements are layered with Labels and applied to every node.
 	Requirements []v1.NodeSelectorRequirement `json:"requirements,omitempty"`
-	// Ground truth for record keeping
-	Records map[string][]v1.NodeSelectorRequirement `json:"-"`
-	Allows  map[string]sets.Set                     `json:"-"`
+	Allows       map[string]sets.Set          `json:"-"`
 }
 
 func NewRequirements(requirements ...v1.NodeSelectorRequirement) *Requirements {
 	result := Requirements{
-		Records: map[string][]v1.NodeSelectorRequirement{},
-		Allows:  map[string]sets.Set{},
+		Requirements: []v1.NodeSelectorRequirement{},
+		Allows:       map[string]sets.Set{},
 	}
 	return result.Add(requirements...)
 }
@@ -109,7 +107,7 @@ func (r *Requirements) Add(requirements ...v1.NodeSelectorRequirement) *Requirem
 		if newKey, ok := NormalizedLabels[requirement.Key]; ok {
 			requirement.Key = newKey
 		}
-		rd.Records[requirement.Key] = append(rd.Records[requirement.Key], requirement)
+		rd.Requirements = append(rd.Requirements, requirement)
 		switch requirement.Operator {
 		case v1.NodeSelectorOpIn:
 			rd.Allows[requirement.Key] = rd.Allow(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
@@ -121,18 +119,14 @@ func (r *Requirements) Add(requirements ...v1.NodeSelectorRequirement) *Requirem
 }
 
 func (r *Requirements) MarshalJSON() ([]byte, error) {
-	var result []v1.NodeSelectorRequirement
-	for _, requirements := range r.Records {
-		result = append(result, requirements...)
-	}
-	return json.Marshal(result)
+	return json.Marshal(r.Requirements)
 }
 
 func (r *Requirements) UnmarshalJSON(b []byte) error {
 	var requirements []v1.NodeSelectorRequirement
 	json.Unmarshal(b, &requirements)
 	result := NewRequirements(requirements...)
-	r.Records = result.Records
+	r.Requirements = result.Requirements
 	r.Allows = result.Allows
 	return nil
 }
@@ -145,7 +139,6 @@ func (r *Requirements) Allow(key string) sets.Set {
 	}
 	if _, ok := r.Allows[key]; !ok {
 		return sets.NewComplementSet()
-		//r.Allows[key] = sets.NewComplementSet()
 	}
 	return r.Allows[key]
 }
@@ -155,30 +148,29 @@ func (r *Requirements) Validate() (errs *apis.FieldError) {
 	if r == nil {
 		return errs
 	}
-	for _, key := range r.Keys() {
-		for _, err := range validation.IsQualifiedName(key) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", key, err), "key"))
+	for index, requirement := range r.Requirements {
+		for _, err := range validation.IsQualifiedName(requirement.Key) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
 		}
+		for _, value := range requirement.Values {
+			for _, err := range validation.IsValidLabelValue(value) {
+				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", index))
+			}
+
+		}
+		if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
+		}
+		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && !r.Allow(requirement.Key).IsComplement {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("Operator In and DoesNotExists conflicts, %s", requirement.Key), "values"))
+		}
+	}
+	for _, key := range r.Keys() {
 		values := r.Allow(key)
 		if values.Len() == 0 {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("no feasible value for requirement, %s", key), "values"))
 		}
-		i := 0
-		for value := range values.Members {
-			for _, err := range validation.IsValidLabelValue(value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-			}
-			i++
-		}
-		for _, requirement := range r.Records[key] {
-			if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
-			}
-			// case when DoesNotExists and In operator appear together
-			if requirement.Operator == v1.NodeSelectorOpDoesNotExist && !r.Allow(key).IsComplement {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("Operator In and DoesNotExists conflicts, %s", key), "values"))
-			}
-		}
+
 	}
 	return errs
 }
@@ -241,11 +233,8 @@ func (r *Requirements) Compatible(requirements *Requirements) (errs *apis.FieldE
 // * Pod Spec has a label selector but provisioner doesn't have the label
 // * One pod is not compatible with a schedule (group of pods) due to extra requirements
 func (r *Requirements) isKeyDefined(key string, requirements *Requirements) (errs *apis.FieldError) {
-	if _, ok := requirements.Records[key]; ok {
-		_, exist := r.Records[key]
-		if !requirements.Allow(key).IsComplement && requirements.Allow(key).Len() != 0 && !exist {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("key %s, need %s but not defined", key, requirements.Allow(key)), "values"))
-		}
+	if !requirements.Allow(key).IsComplement && requirements.Allow(key).Len() != 0 && len(r.filter(key)) == 0 {
+		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("key %s, need %s but not defined", key, requirements.Allow(key)), "values"))
 	}
 	return errs
 }
@@ -260,23 +249,24 @@ func (r *Requirements) hasCommons(key string, requirements *Requirements) (errs 
 
 // satisfyExistOperators returns errors with detailed messages when Exist or DoesNotExist operators requirements are violated.
 func (r *Requirements) satisfyExistOperators(key string, requirements *Requirements) (errs *apis.FieldError) {
-	for r1, r2 := range map[*Requirements]*Requirements{
-		r:            requirements,
-		requirements: r,
+	rf1 := r.filter(key)
+	rf2 := requirements.filter(key)
+	for r1, r2 := range map[*[]v1.NodeSelectorRequirement]*[]v1.NodeSelectorRequirement{
+		&rf1: &rf2,
+		&rf2: &rf1,
 	} {
-		if records, ok := r1.Records[key]; ok {
-			for _, requirement := range records {
-				switch requirement.Operator {
-				case v1.NodeSelectorOpExists:
-					if _, exist := r2.Records[key]; !exist {
-						errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("Exist operator violation, %s", key), "values"))
-					}
-				case v1.NodeSelectorOpDoesNotExist:
-					if _, exist := r2.Records[key]; exist {
-						errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("DoesNotExist operator violation, %s", key), "values"))
-					}
+		for _, requirement := range *r1 {
+			switch requirement.Operator {
+			case v1.NodeSelectorOpExists:
+				if len(*r2) == 0 {
+					errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("Exist operator violation, %s", key), "values"))
+				}
+			case v1.NodeSelectorOpDoesNotExist:
+				if len(*r2) > 0 {
+					errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("DoesNotExist operator violation, %s", key), "values"))
 				}
 			}
+
 		}
 	}
 	return errs
@@ -304,9 +294,9 @@ func (r *Requirements) CapacityTypes() sets.Set {
 
 func (r *Requirements) WellKnown() *Requirements {
 	requirements := []v1.NodeSelectorRequirement{}
-	for _, key := range r.Keys() {
-		if WellKnownLabels.Has(key) {
-			requirements = append(requirements, r.Records[key]...)
+	for _, requirement := range r.Requirements {
+		if WellKnownLabels.Has(requirement.Key) {
+			requirements = append(requirements, requirement)
 		}
 	}
 	return NewRequirements(requirements...)
@@ -317,9 +307,20 @@ func (r *Requirements) Keys() []string {
 	if r == nil {
 		return []string{}
 	}
-	keys := make([]string, 0, len(r.Records))
-	for k := range r.Records {
-		keys = append(keys, k)
+	keys := make([]string, 0, len(r.Requirements))
+	for _, requirement := range r.Requirements {
+		keys = append(keys, requirement.Key)
 	}
-	return keys
+
+	return sets.NewSet(keys...).Values()
+}
+
+func (r *Requirements) filter(key string) []v1.NodeSelectorRequirement {
+	result := []v1.NodeSelectorRequirement{}
+	for _, requirement := range r.Requirements {
+		if requirement.Key == key {
+			result = append(result, requirement)
+		}
+	}
+	return result
 }

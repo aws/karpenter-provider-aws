@@ -56,11 +56,11 @@ func (s Set) DeepCopy() Set {
 
 // Values returns the members of the set.
 // If the set has an infinite size, returns an error
-func (s Set) Values() ([]string, error) {
+func (s Set) Values() []string {
 	if s.IsComplement {
-		return []string{}, fmt.Errorf("infinite set")
+		panic("infinite set")
 	}
-	return s.Members.UnsortedList(), nil
+	return s.Members.UnsortedList()
 }
 
 func (s Set) String() string {
