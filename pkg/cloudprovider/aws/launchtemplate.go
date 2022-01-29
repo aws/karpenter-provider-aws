@@ -115,6 +115,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 			} else if strings.EqualFold(*constraints.AMIFamily, v1alpha1.OperatingSystemEKSOptimized) {
 				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
 			} else {
+				logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
 				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
 			}
 		} else {
@@ -278,6 +279,15 @@ api-server = "%s"
 `
 		for key, val := range nodeLabelArgs {
 			userData += fmt.Sprintf("\"%s\" = \"%s\"", key, val)
+		}
+	}
+
+	if len(constraints.Taints) > 0 {
+		userData += `[settings.kubernetes.node-taints]
+`
+		sorted := sortedTaints(constraints.Taints)
+		for _, taint := range sorted {
+			userData += fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect)
 		}
 	}
 
