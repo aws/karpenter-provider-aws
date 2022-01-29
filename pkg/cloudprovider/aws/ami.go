@@ -84,29 +84,40 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	return ami, nil
 }
 
-func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
-	var amiSuffix string
-	var arch string
+// getAL2Alias returns a properly-formatted alias for an Amazon Linux AMI from SSM
+func (p *AMIProvider) getAL2Alias(version string, instanceType cloudprovider.InstanceType) string {
+	amiSuffix := ""
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-gpu"
 	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
-		amiSuffix = "-arm64"
-		arch = "arm64"
-	} else if instanceType.Architecture() == v1alpha5.ArchitectureAmd64 {
-		arch = "x86_64"
+		amiSuffix = fmt.Sprintf("-%s", instanceType.Architecture())
 	}
+	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+}
 
+// getBottlerocketAlias returns a properly-formatted alias for a Bottlerocket AMI from SSM
+func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudprovider.InstanceType) string {
+	arch := "x86_64"
+	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
+		arch = instanceType.Architecture()
+	}
+	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+}
+
+func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
+	ssmQuery := p.getAL2Alias(version, instanceType)
 	if constraints.AMIFamily != nil {
 		if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
-			return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+			ssmQuery = p.getBottlerocketAlias(version, instanceType)
 		} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
-			return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+			ssmQuery = p.getAL2Alias(version, instanceType)
 		} else {
-			return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+			logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
+			ssmQuery = p.getAL2Alias(version, instanceType)
 		}
-	} else {
-		return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 	}
+
+	return ssmQuery
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
