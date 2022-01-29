@@ -54,6 +54,9 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	// The constraints do not support this requirement
 	podRequirements := PodRequirements(pod)
 	for _, key := range podRequirements.Keys() {
+		if IgnoredLabels.Has(key) {
+			continue
+		}
 		if c.Requirements.Requirement(key).Len() == 0 {
 			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}
