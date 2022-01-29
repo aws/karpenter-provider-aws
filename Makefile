@@ -1,3 +1,6 @@
+export K8S_VERSION ?= 1.21.x
+export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
+
 ## Inject the app version into project.Version
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
@@ -15,7 +18,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify licenses battletest ## Run all steps used by continuous integration
+ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
 
 test: ## Run tests
 	ginkgo -r
