@@ -82,14 +82,8 @@ type Packing struct {
 // Pods provided are all schedulable in the same zone as tightly as possible.
 // It follows the First Fit Decreasing bin packing technique, reference-
 // https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
-func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Packing, error) {
+func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod, instanceTypes []cloudprovider.InstanceType) ([]*Packing, error) {
 	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-
-	// Get instance type options
-	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, constraints)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
 	// Get daemons for overhead calculations
 	daemons, err := p.getDaemons(ctx, constraints)
 	if err != nil {

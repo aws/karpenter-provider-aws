@@ -67,7 +67,7 @@ func BenchmarkPacker(b *testing.B) {
 
 	// Pack benchmark
 	for i := 0; i < b.N; i++ {
-		if packings, err := packer.Pack(ctx, schedule.Constraints, pods); err != nil || len(packings) == 0 {
+		if packings, err := packer.Pack(ctx, schedule.Constraints, pods, instanceTypes); err != nil || len(packings) == 0 {
 			b.FailNow()
 		}
 	}

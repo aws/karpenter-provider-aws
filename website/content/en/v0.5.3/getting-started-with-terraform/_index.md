@@ -49,8 +49,8 @@ export CLUSTER_NAME=$USER-karpenter-demo
 export AWS_DEFAULT_REGION=us-west-2
 ```
 
-The first thing we need to do is create our `main.tf` file and place the 
-following in it. This will let us pass in a cluster name that will be used 
+The first thing we need to do is create our `main.tf` file and place the
+following in it. This will let us pass in a cluster name that will be used
 throughout the remainder of our config.
 
 ```hcl
@@ -65,7 +65,7 @@ variable "cluster_name" {
 
 We're going to use two different Terraform modules to create our cluster - one
 to create the VPC and another for the cluster itself. The key part of this is
-that we need to tag the VPC subnets that we want to use for the worker nodes. 
+that we need to tag the VPC subnets that we want to use for the worker nodes.
 
 Place the following Terraform config into your `main.tf` file.
 
@@ -107,10 +107,9 @@ module "eks" {
     }
   ]
 }
-```
 
 At this point, go ahead and apply what we've done to create the VPC and
-cluster. This may take some time.
+EKS cluster. This may take some time.
 
 ```bash
 terraform init
@@ -134,11 +133,11 @@ Everything should apply successfully now!
 
 ### Configure the KarpenterNode IAM Role
 
-The EKS module creates an IAM role for worker nodes. We'll use that for 
+The EKS module creates an IAM role for worker nodes. We'll use that for
 Karpenter (so we don't have to reconfigure the aws-auth ConfigMap), but we need
 to add one more policy and create an instance profile.
 
-Place the following into your `main.tf` to add the policy and create an 
+Place the following into your `main.tf` to add the policy and create an
 instance profile.
 
 ```hcl
@@ -163,14 +162,14 @@ Go ahead and apply the changes.
 terraform apply -var cluster_name=$CLUSTER_NAME
 ```
 
-Now, Karpenter can use this instance profile to launch new EC2 instances and 
+Now, Karpenter can use this instance profile to launch new EC2 instances and
 those instances will be able to connect to your cluster.
 
 ### Create the KarpenterController IAM Role
 
 Karpenter requires permissions like launching instances, which means it needs
-an IAM role that grants it access. The config below will create an AWS IAM 
-Role, attach a policy, and authorize the Service Account to assume the role 
+an IAM role that grants it access. The config below will create an AWS IAM
+Role, attach a policy, and authorize the Service Account to assume the role
 using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 We will create the ServiceAccount and connect it to this role during the Helm
 chart install.
@@ -217,7 +216,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
 }
 ```
 
-Since we've added a new module, you'll need to run `terraform init` again. 
+Since we've added a new module, you'll need to run `terraform init` again.
 Then, apply the changes.
 
 ```bash
@@ -227,7 +226,7 @@ terraform apply -var cluster_name=$CLUSTER_NAME
 
 ### Install Karpenter Helm Chart
 
-Use helm to deploy Karpenter to the cluster. We are going to use the 
+Use helm to deploy Karpenter to the cluster. We are going to use the
 `helm_release` Terraform resource to do the deploy and pass in the cluster
 details and IAM role Karpenter needs to assume.
 
@@ -240,7 +239,7 @@ resource "helm_release" "karpenter" {
   name       = "karpenter"
   repository = "https://charts.karpenter.sh"
   chart      = "karpenter"
-  version    = "{{< param "latest_release_version" >}}"
+  version    = "v0.5.3"
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
@@ -372,13 +371,19 @@ kubectl delete node $NODE_NAME
 
 ## Cleanup
 
-To avoid additional charges, remove the demo infrastructure from your AWS 
+To avoid additional charges, remove the demo infrastructure from your AWS
 account. Since Karpenter is managing nodes outside of Terraform's view, we need
-to remove the pods and node first (if you haven't already). Once the node is 
-removed, you can remove the rest of the infrastructure.
+to remove the pods and node first (if you haven't already). Once the node is
+removed, you can remove the rest of the infrastructure and clean up Karpenter
+created LaunchTemplates.
 
 ```bash
 kubectl delete deployment inflate
 kubectl delete node -l karpenter.sh/provisioner-name=default
+helm uninstall karpenter --namespace karpenter
 terraform destroy -var cluster_name=$CLUSTER_NAME
+aws ec2 describe-launch-templates \
+    | jq -r ".LaunchTemplates[].LaunchTemplateName" \
+    | grep -i Karpenter-${CLUSTER_NAME} \
+    | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```

@@ -68,6 +68,11 @@ var (
 		"beta.kubernetes.io/os":       v1.LabelOSStable,
 		v1.LabelInstanceType:          v1.LabelInstanceTypeStable,
 	}
+	// IgnoredLables are not considered in scheduling decisions
+	// and prevent validation errors when specified
+	IgnoredLabels = sets.NewString(
+		v1.LabelTopologyRegion,
+	)
 )
 
 // Requirements is a decorated alias type for []v1.NodeSelectorRequirements

@@ -35,13 +35,13 @@ spec:
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
-    - key: "node.kubernetes.io/instance-type" 
+    - key: "node.kubernetes.io/instance-type"
       operator: In
       values: ["m5.large", "m5.2xlarge"]
-    - key: "topology.kubernetes.io/zone" 
+    - key: "topology.kubernetes.io/zone"
       operator: In
       values: ["us-west-2a", "us-west-2b"]
-    - key: "kubernetes.io/arch" 
+    - key: "kubernetes.io/arch"
       operator: In
       values: ["arm64", "amd64"]
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
@@ -67,7 +67,7 @@ These well known labels may be specified at the provisioner level, or in a workl
 
 For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the provisioner list and the provisioner has instance type requirements, Karpenter will not create a node or schedule the pod. 
 
-📝 None of these values are required. 
+📝 None of these values are required.
 
 ### Instance Types
 
@@ -149,7 +149,7 @@ Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-deman
 
 ## spec.kubeletConfiguration
 
-Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for 
+Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
 additional customization and use cases. Adjust these only if you know you need to do so.
 
 ```yaml

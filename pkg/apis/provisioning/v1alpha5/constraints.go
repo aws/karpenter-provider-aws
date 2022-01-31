@@ -39,8 +39,11 @@ type Constraints struct {
 	KubeletConfiguration KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Provider *runtime.RawExtension `json:"provider,omitempty"`
+	Provider *Provider `json:"provider,omitempty"`
 }
+
+// +kubebuilder:object:generate=false
+type Provider = runtime.RawExtension
 
 // ValidatePod returns an error if the pod's requirements are not met by the constraints
 func (c *Constraints) ValidatePod(pod *v1.Pod) error {
@@ -51,6 +54,9 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	// The constraints do not support this requirement
 	podRequirements := PodRequirements(pod)
 	for _, key := range podRequirements.Keys() {
+		if IgnoredLabels.Has(key) {
+			continue
+		}
 		if c.Requirements.Requirement(key).Len() == 0 {
 			return fmt.Errorf("invalid nodeSelector %q, %v not in %v", key, podRequirements.Requirement(key).UnsortedList(), c.Requirements.Requirement(key).UnsortedList())
 		}

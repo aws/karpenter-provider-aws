@@ -28,11 +28,13 @@
 			</li>
 			{{ end }}
 			{{ if  (gt (len .Site.Home.Translations) 0) }}
-			<li class="nav-item dropdown mt-1 mt-lg-0">
+			<li id="navbarVersionSelector" class="nav-item dropdown mt-1 mt-lg-0">
 				{{ partial "navbar-lang-selector.html" . }}
 			</li>
 			{{ end }}
 		</ul>
 	</div>
-	<div class="navbar-nav d-none d-lg-block">{{ partial "search-input.html" . }}</div>
+	<div class="navbar-nav d-none d-lg-block">
+		{{ partial "search-input.html" . }}
+	</div>
 </nav>

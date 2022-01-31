@@ -52,10 +52,20 @@ func (ts Taints) WithPod(pod *v1.Pod) Taints {
 	return ts
 }
 
-// Has returns true if taints has a taint for the given key
+// Has returns true if taints has a taint for the given key and effect
 func (ts Taints) Has(taint v1.Taint) bool {
 	for _, t := range ts {
 		if t.Key == taint.Key && t.Effect == taint.Effect {
+			return true
+		}
+	}
+	return false
+}
+
+// HasKey returns true if taints has a taint for the given key
+func (ts Taints) HasKey(taintKey string) bool {
+	for _, t := range ts {
+		if t.Key == taintKey {
 			return true
 		}
 	}

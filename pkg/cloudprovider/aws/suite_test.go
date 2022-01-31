@@ -418,6 +418,7 @@ var _ = Describe("Allocation", func() {
 				Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal(*createLaunchTemplateInput.LaunchTemplateName))
+				Expect(createLaunchTemplateInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 				Expect(*launchTemplate.Version).To(Equal("$Default"))
 			})
 			It("should allow a launch template to be specified", func() {

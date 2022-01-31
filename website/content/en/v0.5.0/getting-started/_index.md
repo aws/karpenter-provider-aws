@@ -154,7 +154,7 @@ eksctl. Thus, we don't need the helm chart to do that.
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
 helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version {{< param "latest_release_version" >}} \
+  --create-namespace --set serviceAccount.create=false --version v0.5.0 \
   --set controller.clusterName=${CLUSTER_NAME} \
   --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
   --wait # for the defaulting webhook to install before creating a Provisioner

@@ -36,7 +36,7 @@ type CloudProvider interface {
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
 	// Availability of types or zone may vary by provisioner or over time.
-	GetInstanceTypes(context.Context, *v1alpha5.Constraints) ([]InstanceType, error)
+	GetInstanceTypes(context.Context, *v1alpha5.Provider) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Constraints)
 	// Validate is a hook for additional validation logic at webhook time.

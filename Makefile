@@ -22,7 +22,9 @@ WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
+HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} \
+			 --set controller.clusterEndpoint=${CLUSTER_ENDPOINT} \
+			 --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -97,12 +99,15 @@ helm: ## Generate Helm Chart
 
 website: ## Generate Docs Website
 	cp -r website/content/en/preview website/content/en/${RELEASE_VERSION}
+	find website/content/en/${RELEASE_VERSION}/ -type f | xargs  perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
 issues: ## Run GitHub issue analysis scripts
-	./hack/feature_request_reactions.py > "karpenter-feature-requests-$(date +"%Y-%m-%d").csv"
-	./hack/label_issue_count.py > "karpenter-labels-$(date +"%Y-%m-%d").csv"
+	pip install -r ./hack/github/requirements.txt
+	@echo "Set GH_TOKEN env variable to avoid being rate limited by Github"
+	./hack/github/feature_request_reactions.py > "karpenter-feature-requests-$(shell date +"%Y-%m-%d").csv"
+	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
+.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses issues
