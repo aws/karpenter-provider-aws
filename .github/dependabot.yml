@@ -6,13 +6,13 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
 
   # Maintain dependencies for Golang
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     # Interdependent
     ignore:
       - dependency-name: "k8s.io/api"
