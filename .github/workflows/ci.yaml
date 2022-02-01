@@ -3,6 +3,11 @@ on: [pull_request, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          k8sVersion: ["1.19.x", "1.20.x", "1.21.x"]
+    env:
+      K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
@@ -14,11 +19,10 @@ jobs:
           ~/.cache/go-build
           ~/go/pkg/mod
           ~/go/bin/
+          ~/.kubebuilder/bin/k8s
         key: gocache
     - name: CI - Verifications and Tests
       run: |
-        make toolchain
-        echo "/usr/local/kubebuilder/bin" >> $GITHUB_PATH
         make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
