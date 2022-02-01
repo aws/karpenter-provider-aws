@@ -162,7 +162,7 @@ The provisioner spec includes a limits section (`spec.limits.resources`), which 
 
 Presently, Karpenter supports `memory` and `cpu` limits. 
 
-CPU limits are described with a `DecimalSI` value, usually a natural integer. Note that the Kubernetes API will return a string value here, so when using e.g. ArgoCD, it's better to specify the CPU limit as a string.
+CPU limits are described with a `DecimalSI` value. Note that the Kubernetes API will coerce this into a string, so we recommend against using integers to avoid GitOps skew.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
 
