@@ -48,7 +48,10 @@ var (
 		"k8s.io",
 		KarpenterLabelDomain,
 	)
-	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
+	LabelCapacityType     = KarpenterLabelDomain + "/capacity-type"
+	CapacityTypesOnDemand = "on-demand"
+	CapacityTypesSpot     = "spot"
+
 	// WellKnownLabels supported by karpenter
 	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,

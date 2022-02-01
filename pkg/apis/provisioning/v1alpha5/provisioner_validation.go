@@ -29,6 +29,7 @@ import (
 
 var (
 	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)}
+	SupportedCapacityType    = []string{CapacityTypesOnDemand, CapacityTypesSpot}
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -145,6 +146,13 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
 	if !WellKnownLabels.Has(requirement.Key) {
 		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
+	}
+	if requirement.Key == LabelCapacityType {
+		for _, value := range requirement.Values {
+			if !functional.ContainsString(SupportedCapacityType, value) {
+				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", value, SupportedCapacityType), "values"))
+			}
+		}
 	}
 	for _, err := range validation.IsQualifiedName(requirement.Key) {
 		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))

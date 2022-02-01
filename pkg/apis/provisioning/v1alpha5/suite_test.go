@@ -152,9 +152,15 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
+		It("should fail for unsupported capacity type", func() {
+			provisioner.Spec.Requirements = Requirements{
+				{Key: LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
 		It("should allow well known labels", func() {
 			for label := range WellKnownLabels {
-				provisioner.Spec.Requirements = Requirements{{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}}
+				provisioner.Spec.Requirements = Requirements{{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"spot"}}}
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			}
 		})
