@@ -1,23 +1,7 @@
-RELEASE_REPO ?= public.ecr.aws/karpenter
-RELEASE_VERSION ?= $(shell git describe --tags --always)
-RELEASE_PLATFORM ?= --platform=linux/amd64,linux/arm64
-
-# https://reproducible-builds.org/docs/source-date-epoch/
-DATE_FMT = +%Y-%m-%dT%H:%M:%SZ
-ifdef SOURCE_DATE_EPOCH
-    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-else
-    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
-endif
-
-## Inject these annotations to cosign signing
-COSIGN_FLAGS ?= -a GIT_HASH=$(shell git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$BUILD_DATE
-
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
+LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
-WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
@@ -32,8 +16,6 @@ help: ## Display help
 dev: verify test ## Run all steps in the developer loop
 
 ci: verify licenses battletest ## Run all steps used by continuous integration
-
-release: verify publish helm ## Run all steps in release workflow
 
 test: ## Run tests
 	ginkgo -r
@@ -84,22 +66,8 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
-publish: ## Generate release manifests and publish a versioned container image.
-	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
-	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
-	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
-	yq e -i '.appVersion = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
-
-helm: ## Generate Helm Chart
-	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
-	helm-docs
-
-website: ## Generate Docs Website
-	cp -r website/content/en/preview website/content/en/${RELEASE_VERSION}
-	find website/content/en/${RELEASE_VERSION}/ -type f | xargs  perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+release: ## Generate release manifests and publish a versioned container image.
+	$(WITH_GOFLAGS) ./hack/release.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
@@ -110,4 +78,4 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/feature_request_reactions.py > "karpenter-feature-requests-$(shell date +"%Y-%m-%d").csv"
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses issues
+.PHONY: help dev ci release test battletest verify codegen apply delete toolchain release licenses issues
