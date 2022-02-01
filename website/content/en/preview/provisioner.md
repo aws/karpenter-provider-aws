@@ -52,7 +52,7 @@ spec:
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
     resources:
-      cpu: 1000 
+      cpu: "1000"
       memory: 1000Gi
 
   # These fields vary per cloud provider, see your cloud provider specific documentation
@@ -162,7 +162,7 @@ The provisioner spec includes a limits section (`spec.limits.resources`), which 
 
 Presently, Karpenter supports `memory` and `cpu` limits. 
 
-CPU limits are described with a `DecimalSI` value, usually a natural integer. 
+CPU limits are described with a `DecimalSI` value, usually a natural integer. Note that the Kubernetes API will return a string value here, so when using e.g. ArgoCD, it's better to specify the CPU limit as a string.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
 
