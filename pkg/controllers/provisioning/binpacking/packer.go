@@ -81,7 +81,7 @@ type Packing struct {
 // to make better cost and availability decisions. The instance types returned are sorted by resources.
 // Pods provided are all schedulable in the same zone as tightly as possible.
 // It follows the First Fit Decreasing bin packing technique, reference-
-// https://en.wikipedia.org/wiki/Bin_packing_problem#First_Fit_Decreasing_(FFD)
+// https://en.wikipedia.org/wiki/First-fit-decreasing_bin_packing
 func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod, instanceTypes []cloudprovider.InstanceType) ([]*Packing, error) {
 	defer metrics.Measure(packDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	// Get daemons for overhead calculations
