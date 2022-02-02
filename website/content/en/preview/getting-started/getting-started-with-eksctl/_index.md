@@ -1,4 +1,3 @@
-
 ---
 title: "Getting Started with Karpenter on AWS"
 linkTitle: "Getting Started"
@@ -106,39 +105,9 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 {{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
 
 ### Enable Debug Logging (optional)
-
-The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
-
-#### Deploy a temporary Prometheus and Grafana stack (optional)
-
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
-
-```bash
-helm repo add grafana-charts https://grafana.github.io/helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-kubectl create namespace monitoring
-
-curl -fsSL https://karpenter.sh{{< relref "." >}}prometheus-values.yaml | tee prometheus-values.yaml
-helm install --namespace monitoring prometheus prometheus-community/prometheus --values prometheus-values.yaml
-
-curl -fsSL https://karpenter.sh{{< relref "." >}}grafana-values.yaml | tee grafana-values.yaml
-helm install --namespace monitoring grafana grafana-charts/grafana --values grafana-values.yaml
+```sh
+kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
 ```
-
-The Grafana instance may be accessed using port forwarding.
-
-```bash
-kubectl port-forward --namespace monitoring svc/grafana 3000:80
-```
-
-The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
-
-```bash
-kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode
-```
-
 ### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
@@ -255,3 +224,7 @@ aws ec2 describe-launch-templates \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 eksctl delete cluster --name "${CLUSTER_NAME}"
 ```
+
+## Next Steps:
+
+- [Install Grafana dashboards]({{ ref .. "next-steps-grafana" }}) to monitor Karpenter

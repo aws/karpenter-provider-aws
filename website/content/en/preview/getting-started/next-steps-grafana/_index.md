@@ -5,11 +5,11 @@ linkTitle: "Next Steps: Grafana"
 weight: 50
 ---
 
-### Create Grafana dashboards (optional)
+### Create Grafana dashboards
 
 The Karpenter repo contains multiple importable dashboards for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
 
-#### Deploy a temporary Prometheus and Grafana stack (optional)
+#### Deploy a temporary Prometheus and Grafana stack
 
 The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
 
