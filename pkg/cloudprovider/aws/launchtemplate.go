@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -33,6 +34,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
+	"go.uber.org/zap"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
@@ -47,19 +49,23 @@ const (
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
+	logger                *zap.SugaredLogger
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
 }
 
-func NewLaunchTemplateProvider(ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
-	return &LaunchTemplateProvider{
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
+	ltProvider := &LaunchTemplateProvider{
 		ec2api:                ec2api,
+		logger:                logging.FromContext(ctx).Named("launchTemplateProvider"),
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 	}
+	ltProvider.cache.OnEvicted(ltProvider.onCacheEvicted)
+	return ltProvider
 }
 
 func launchTemplateName(options *launchTemplateOptions) string {
@@ -138,6 +144,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	name := launchTemplateName(options)
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
+		p.cache.SetDefault(name, launchTemplate)
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
@@ -208,6 +215,20 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	}
 	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
+}
+
+func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
+	p.Lock()
+	defer p.Unlock()
+	if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {
+		return
+	}
+	launchTemplate := lt.(*ec2.LaunchTemplate)
+	if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
+		p.logger.Debugf("unable to delete launch template, %v", err)
+		return
+	}
+	p.logger.Debugf("deleted launch template %v", *launchTemplate.LaunchTemplateId)
 }
 
 func sortedTaints(ts []core.Taint) []core.Taint {

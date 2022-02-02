@@ -66,6 +66,7 @@ type CloudProvider struct {
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
@@ -85,6 +86,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		subnetProvider:       subnetProvider,
 		instanceProvider: &InstanceProvider{ec2api, instanceTypeProvider, subnetProvider,
 			NewLaunchTemplateProvider(
+				ctx,
 				ec2api,
 				NewAMIProvider(ssm.New(sess), options.ClientSet),
 				NewSecurityGroupProvider(ec2api),
