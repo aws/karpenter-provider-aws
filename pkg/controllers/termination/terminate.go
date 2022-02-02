@@ -73,7 +73,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	}
 
 	// 4. Get and evict pods
-	evictable := t.getEvictablePods(pods)
+	evictable := t.getEvictablePods(ctx, pods)
 	if len(evictable) == 0 {
 		return true, nil
 	}
@@ -109,7 +109,7 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 	return ptr.PodListToSlice(pods), nil
 }
 
-func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
+func (t *Terminator) getEvictablePods(ctx context.Context, pods []*v1.Pod) []*v1.Pod {
 	evictable := []*v1.Pod{}
 	for _, p := range pods {
 		// Ignore if unschedulable is tolerated, since they will reschedule
@@ -124,6 +124,7 @@ func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
 		if pod.IsOwnedByNode(p) {
 			continue
 		}
+		logging.FromContext(ctx).Debugf("pod %s marked as evictable", p.Name)
 		evictable = append(evictable, p)
 	}
 	return evictable
