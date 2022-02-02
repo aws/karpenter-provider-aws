@@ -211,7 +211,10 @@ func (r Requirements) Validate() (errs *apis.FieldError) {
 		if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
 		}
-		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && !r.Values(requirement.Key).Complement {
+		// Excludes cases when DoesNotExists appears together with In, NotIn, Exists
+		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
+			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
+			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("operator %s and %s conflict", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist), "operator"))
 		}
 	}
@@ -236,17 +239,24 @@ func (r Requirements) Compatible(requirements Requirements) (errs *apis.FieldErr
 		if values := r.Values(key); values.Intersection(requirements.Values(key)).Len() == 0 {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", values, requirements.Values(key)), "values")).ViaFieldIndex("requirements", i)
 		}
-		// Exists incompatible with DoesNotExist or undefined
-		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
-			if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key)) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist), "operator")).ViaFieldIndex("requirements", i)
+
+		for r1, r2 := range map[*Requirements]*Requirements{
+			&r:            &requirements,
+			&requirements: &r,
+		} {
+			// Exists incompatible with DoesNotExist or undefined
+			if r1.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
+				if r2.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r2.hasRequirement(withKey(key)) {
+					errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist), "operator")).ViaFieldIndex("requirements", i)
+				}
 			}
-		}
-		// DoesNotExist requires DoesNotExist or undefined
-		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
-			if !(r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key))) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist), "operator")).ViaFieldIndex("requirements", i)
+			// DoesNotExist requires DoesNotExist or undefined
+			if r1.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
+				if !(r2.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r2.hasRequirement(withKey(key))) {
+					errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist), "operator")).ViaFieldIndex("requirements", i)
+				}
 			}
+
 		}
 	}
 	return errs
