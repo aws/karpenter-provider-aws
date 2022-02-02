@@ -186,13 +186,8 @@ func ExpectProvisioned(ctx context.Context, c client.Client, selectionController
 	return result
 }
 
-func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) {
-	_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
+	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())
-}
-
-func ExpectReconcileSucceededWithResult(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey, result reconcile.Result) {
-	actualResult, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-	Expect(actualResult).To(Equal(result))
-	Expect(err).ToNot(HaveOccurred())
+	return result
 }

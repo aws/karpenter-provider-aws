@@ -303,7 +303,8 @@ var _ = Describe("Controller", func() {
 				}},
 			})
 			ExpectCreated(ctx, env.Client, provisioner, node)
-			ExpectReconcileSucceededWithResult(ctx, controller, client.ObjectKeyFromObject(node), reconcile.Result{Requeue: true, RequeueAfter: expectedrequeueTime})
+			reconcileResult := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			Expect(reconcileResult).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedrequeueTime}))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
