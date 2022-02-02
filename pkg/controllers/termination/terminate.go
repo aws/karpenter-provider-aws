@@ -65,9 +65,9 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 
 	// 2. Separate pods as non-critical and critical
 	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
-	for _, pod := range pods {
-		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
-			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s has do-not-evict annotation", pod.Name)
+	for _, p := range pods {
+		if val := p.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
+			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s has do-not-evict annotation", p.Name)
 			return false, nil
 		}
 	}
@@ -134,14 +134,14 @@ func (t *Terminator) evict(pods []*v1.Pod) {
 	// 1. Prioritize noncritical pods https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	critical := []*v1.Pod{}
 	nonCritical := []*v1.Pod{}
-	for _, pod := range pods {
-		if !pod.DeletionTimestamp.IsZero() {
+	for _, p := range pods {
+		if !p.DeletionTimestamp.IsZero() {
 			continue
 		}
-		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
-			critical = append(critical, pod)
+		if p.Spec.PriorityClassName == "system-cluster-critical" || p.Spec.PriorityClassName == "system-node-critical" {
+			critical = append(critical, p)
 		} else {
-			nonCritical = append(nonCritical, pod)
+			nonCritical = append(nonCritical, p)
 		}
 	}
 	// 2. Evict critical pods if all noncritical are evicted
