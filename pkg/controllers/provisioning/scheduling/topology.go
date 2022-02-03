@@ -47,7 +47,7 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints
 		}
 		for _, pod := range topologyGroup.Pods {
 			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...).
-				Values(topologyGroup.Constraint.TopologyKey).
+				Get(topologyGroup.Constraint.TopologyKey).
 				Values())
 			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}

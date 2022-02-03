@@ -54,7 +54,7 @@ func (s Set) DeepCopy() Set {
 }
 
 // Values returns the values of the set.
-// If the set has an infinite size, returns an error
+// If the set has an infinite size, it will panic
 func (s Set) Values() sets.String {
 	if s.Complement {
 		panic("infinite set")

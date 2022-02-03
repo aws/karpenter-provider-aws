@@ -56,7 +56,6 @@ var _ = Describe("Set", func() {
 			Expect(setA.Intersection(emptySet)).To(Equal(emptySet))
 		})
 	})
-
 	Context("Functional Correctness", func() {
 
 		It("size of AB should be 2", func() {

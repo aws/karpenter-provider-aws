@@ -21,7 +21,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
@@ -97,7 +96,6 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 		return nil
 	}
 	for _, candidate := range c.provisioners.List(ctx) {
-
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
 		} else {
@@ -168,7 +166,7 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 	}
 	if term.MatchExpressions != nil {
 		for _, requirement := range term.MatchExpressions {
-			if !functional.ContainsString(v1alpha5.SupportedNodeSelectorOps, string(requirement.Operator)) {
+			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
 				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
 			}
 		}
