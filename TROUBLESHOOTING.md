@@ -41,3 +41,28 @@ If you have an EC2 instance get launched that is stuck in pending and ultimately
 > No entry for c6i.xlarge in /etc/eks/eni-max-pods.txt
 
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
+
+### Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
+
+If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
+
+Verify that webhook is running
+```text
+kubectl get po -A -l karpenter=webhook
+NAMESPACE   NAME                                READY   STATUS    RESTARTS   AGE
+karpenter   karpenter-webhook-d644c7567-cdc4d   1/1     Running   0          37m
+karpenter   karpenter-webhook-d644c7567-dn9xw   1/1     Running   0          37m
+```
+
+Webhook service has endpoints assigned to it
+```text
+kubectl get ep -A -l app.kubernetes.io/component=karpenter
+NAMESPACE   NAME                ENDPOINTS                        AGE
+karpenter   karpenter-metrics   10.0.13.104:8080                 38m
+karpenter   karpenter-webhook   10.0.1.25:8443,10.0.30.46:8443   38m
+```
+
+Your security groups are not blocking you from reaching your webhook. 
+
+This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
+approach, and now it's much more restrictive. 
