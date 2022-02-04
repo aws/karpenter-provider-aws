@@ -140,6 +140,7 @@ func (r Requirements) WellKnown() Requirements {
 func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requirements {
 	// Deep copy to avoid mutating existing requirements
 	r = *r.DeepCopy()
+	// This fail-safe measurement can be removed later when we implement test webhook.
 	if r.requirements == nil {
 		r.requirements = map[string]sets.Set{}
 	}
