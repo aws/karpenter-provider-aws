@@ -27,20 +27,20 @@ import (
 // C' contains every possible string values other than "A" and "B"
 type Set struct {
 	values     sets.String
-	Complement bool
+	complement bool
 }
 
 func NewSet(values ...string) Set {
 	return Set{
 		values:     sets.NewString(values...),
-		Complement: false,
+		complement: false,
 	}
 }
 
 func NewComplementSet(values ...string) Set {
 	return Set{
 		values:     sets.NewString(values...),
-		Complement: true,
+		complement: true,
 	}
 }
 
@@ -49,21 +49,26 @@ func NewComplementSet(values ...string) Set {
 func (s Set) DeepCopy() Set {
 	return Set{
 		values:     sets.NewString(s.values.UnsortedList()...),
-		Complement: s.Complement,
+		complement: s.complement,
 	}
+}
+
+//  IsComplement returns whether the set is a complement set.
+func (s Set) IsComplement() bool {
+	return s.complement
 }
 
 // Values returns the values of the set.
 // If the set has an infinite size, it will panic
 func (s Set) Values() sets.String {
-	if s.Complement {
+	if s.complement {
 		panic("infinite set")
 	}
 	return s.values
 }
 
 func (s Set) String() string {
-	if s.Complement {
+	if s.complement {
 		return fmt.Sprintf("%v' (complement set)", s.values.UnsortedList())
 	}
 	return fmt.Sprintf("%v", s.values.UnsortedList())
@@ -71,7 +76,7 @@ func (s Set) String() string {
 
 // Has returns true if and only if item is contained in the set.
 func (s Set) Has(value string) bool {
-	if s.Complement {
+	if s.complement {
 		return !s.values.Has(value)
 	}
 	return s.values.Has(value)
@@ -79,15 +84,15 @@ func (s Set) Has(value string) bool {
 
 // Intersection returns a new set containing the common values
 func (s Set) Intersection(set Set) Set {
-	if s.Complement {
-		if set.Complement {
+	if s.complement {
+		if set.complement {
 			s.values = s.values.Union(set.values)
 		} else {
 			s.values = set.values.Difference(s.values)
-			s.Complement = false
+			s.complement = false
 		}
 	} else {
-		if set.Complement {
+		if set.complement {
 			s.values = s.values.Difference(set.values)
 		} else {
 			s.values = s.values.Intersection(set.values)
@@ -98,7 +103,7 @@ func (s Set) Intersection(set Set) Set {
 
 // Len returns the size of the set.
 func (s Set) Len() int {
-	if s.Complement {
+	if s.complement {
 		return math.MaxInt64 - s.values.Len()
 	}
 	return s.values.Len()

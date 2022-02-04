@@ -194,6 +194,15 @@ var _ = Describe("Validation", func() {
 			)
 			Expect(provisioner.Spec.Requirements.Keys().UnsortedList()).To(Equal([]string{v1.LabelTopologyZone}))
 		})
+		It("should ignore labels in IgoredLabels", func() {
+			for label := range IgnoredLabels {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+				Expect(provisioner.Spec.Requirements.Keys()).ToNot(ContainElements(label))
+			}
+		})
 	})
 	Context("Compatibility", func() {
 		It("A should be compatible to B, <In, In> operator", func() {

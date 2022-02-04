@@ -73,6 +73,11 @@ var (
 		"beta.kubernetes.io/os":       v1.LabelOSStable,
 		v1.LabelInstanceType:          v1.LabelInstanceTypeStable,
 	}
+	// IgnoredLables are not considered in scheduling decisions
+	// and prevent validation errors when specified
+	IgnoredLabels = stringsets.NewString(
+		v1.LabelTopologyRegion,
+	)
 )
 
 // Requirements are an alias type that wrap []v1.NodeSelectorRequirement and
@@ -139,6 +144,9 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 		r.requirements = map[string]sets.Set{}
 	}
 	for _, requirement := range requirements {
+		if IgnoredLabels.Has(requirement.Key) {
+			continue
+		}
 		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
 			requirement.Key = normalized
 		}
@@ -224,7 +232,7 @@ func (r Requirements) Validate() (errs *apis.FieldError) {
 func (r Requirements) Compatible(requirements Requirements) (errs *apis.FieldError) {
 	for i, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
 		// Key must be defined if required
-		if values := requirements.Get(key); values.Len() != 0 && !values.Complement && !r.hasRequirement(withKey(key)) {
+		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("require values for key %s but is not defined", key), "key")).ViaFieldIndex("requirements", i)
 		}
 		// Values must overlap
