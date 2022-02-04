@@ -63,10 +63,11 @@ var (
 	// however, Provisioner labels are still restricted to WellKnownLabels.
 	// Additional labels may be injected by cloud providers.
 	NormalizedLabels = map[string]string{
-		v1.LabelFailureDomainBetaZone: v1.LabelTopologyZone,
-		"beta.kubernetes.io/arch":     v1.LabelArchStable,
-		"beta.kubernetes.io/os":       v1.LabelOSStable,
-		v1.LabelInstanceType:          v1.LabelInstanceTypeStable,
+		v1.LabelFailureDomainBetaZone:   v1.LabelTopologyZone,
+		"beta.kubernetes.io/arch":       v1.LabelArchStable,
+		"beta.kubernetes.io/os":         v1.LabelOSStable,
+		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
+		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
 	}
 	// IgnoredLables are not considered in scheduling decisions
 	// and prevent validation errors when specified
