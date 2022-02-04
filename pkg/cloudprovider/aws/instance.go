@@ -164,7 +164,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
-				Version:            aws.String("$Default"),
+				Version:            aws.String("$Latest"),
 			},
 		}
 		if len(launchTemplateConfig.Overrides) > 0 {
