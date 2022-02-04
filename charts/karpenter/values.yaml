@@ -1,5 +1,7 @@
 # -- Additional labels to add into metadata
 additionalLabels: {}
+# -- Global debug level
+debugLevel: info
 # app: karpenter
 serviceAccount:
   # -- Create a service account for the application controller
@@ -17,6 +19,8 @@ controller:
   nodeSelector: {}
   # -- Tolerations to schedule to nodes with taints.
   tolerations: []
+  # -- Annotations for the controller
+  annotations: {}
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the Karpenter controller
@@ -40,6 +44,8 @@ webhook:
   nodeSelector: {}
   # -- Tolerations to schedule to nodes with taints.
   tolerations: []
+  # -- Annotations for the webhook
+  annotations: {}
   # -- Affinity rules for scheduling
   affinity: {}
   # -- Image to use for the webhook

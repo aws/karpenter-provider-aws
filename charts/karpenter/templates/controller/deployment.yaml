@@ -18,6 +18,10 @@ kind: Deployment
 metadata:
   name: karpenter-controller
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.controller.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "karpenter.labels" . | indent 4 }}
 spec:

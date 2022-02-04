@@ -17,6 +17,10 @@ kind: Deployment
 metadata:
   name: karpenter-webhook
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.webhook.annotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "karpenter.labels" . | indent 4 }}
 spec:

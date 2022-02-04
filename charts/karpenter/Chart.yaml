@@ -3,4 +3,4 @@ appVersion: "0.6.0"
 name: karpenter
 description: A Helm chart for https://github.com/aws/karpenter/.
 type: application
-version: "0.6.0"
+version: "0.6.1"
