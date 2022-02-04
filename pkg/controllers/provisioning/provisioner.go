@@ -31,6 +31,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -89,15 +90,27 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	logging.FromContext(ctx).Infof("Batched %d pods in %s", len(items), window)
 	// Filter pods
 	pods := []*v1.Pod{}
+
+	// Multiple reconciliations for the same pod can occur while we are batching
+	// pods. This caused pods to be duplicated in batcher and items above, which
+	// would then cause us to both overestimate the resources required to run those
+	// pods and caused binding errors as we attempted to bind pods that were already
+	// assigned to a node the first time we encountered them in the list.
+	processed := map[types.NamespacedName]bool{}
+
 	for _, item := range items {
-		provisionable, err := p.isProvisionable(ctx, item.(*v1.Pod))
+		pd := item.(*v1.Pod)
+		provisionable, err := p.isProvisionable(ctx, pd)
 		if err != nil {
 			return err
 		}
-		if provisionable {
-			pods = append(pods, item.(*v1.Pod))
+		k := types.NamespacedName{Namespace: pd.Namespace, Name: pd.Name}
+		if provisionable && !processed[k] {
+			pods = append(pods, pd)
+			processed[k] = true
 		}
 	}
+
 	// Separate pods by scheduling constraints
 	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, pods)
 	if err != nil {
