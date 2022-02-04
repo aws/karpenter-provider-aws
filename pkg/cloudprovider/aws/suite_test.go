@@ -419,7 +419,7 @@ var _ = Describe("Allocation", func() {
 				launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal(*createLaunchTemplateInput.LaunchTemplateName))
 				Expect(createLaunchTemplateInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
-				Expect(*launchTemplate.Version).To(Equal("$Default"))
+				Expect(*launchTemplate.Version).To(Equal("$Latest"))
 			})
 			It("should allow a launch template to be specified", func() {
 				provider.LaunchTemplate = aws.String("test-launch-template")
@@ -430,7 +430,7 @@ var _ = Describe("Allocation", func() {
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal("test-launch-template"))
-				Expect(*launchTemplate.Version).To(Equal("$Default"))
+				Expect(*launchTemplate.Version).To(Equal("$Latest"))
 			})
 		})
 		Context("Subnets", func() {
