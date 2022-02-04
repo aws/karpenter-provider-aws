@@ -174,21 +174,21 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 
 func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
-		return fmt.Errorf("instance type %s not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
+		return fmt.Errorf("instance type %s not in %s", p.Name(), constraints.Requirements.InstanceTypes())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), constraints.Requirements.Architectures().List())
+		return fmt.Errorf("architecture %s not in %s", p.Name(), constraints.Requirements.Architectures())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
 	if constraints.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
-		return fmt.Errorf("operating systems %s not in %v", p.OperatingSystems(), constraints.Requirements.OperatingSystems().List())
+		return fmt.Errorf("operating systems %s not in %s", p.Name(), constraints.Requirements.OperatingSystems())
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("offerings %v are not available for capacity types %v and zones %v", p.Offerings(), constraints.Requirements.CapacityTypes().List(), constraints.Requirements.Zones().List())
+	return fmt.Errorf("offerings %v are not available for capacity types %s and zones %s", p.Offerings(), constraints.Requirements.CapacityTypes(), constraints.Requirements.Zones())
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {

@@ -292,11 +292,12 @@ var _ = Describe("Allocation", func() {
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 				}
 				twoInstanceProvisioner := provisioner.DeepCopy()
-				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Add(v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"m5.large", "m5.xlarge"},
-				})
+				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Add(
+					v1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"m5.large", "m5.xlarge"},
+					})
 				pods := []*v1.Pod{}
 				for i := 0; i < 2; i++ {
 					pods = append(pods, test.UnschedulablePod(test.PodOptions{
@@ -339,11 +340,11 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch on-demand capacity if flexible to both spot and on demand, but spot if unavailable", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}}
-				provisioner.Spec.Requirements = v1alpha5.Requirements{
-					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				}
+				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
+					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				)
 				// Spot Unavailable
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
@@ -360,7 +361,8 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
-				provisioner.Spec.Requirements = v1alpha5.Requirements{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
+				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}})
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot))

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/go-logr/zapr"
@@ -165,7 +166,7 @@ func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
 	}
 	if term.MatchExpressions != nil {
 		for _, requirement := range term.MatchExpressions {
-			if !sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)).Has(string(requirement.Operator)) {
+			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
 				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
 			}
 		}
