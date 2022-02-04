@@ -46,7 +46,7 @@ commonly used values.
 
 ```bash
 export CLUSTER_NAME=$USER-karpenter-demo
-export AWS_DEFAULT_REGION=us-west-2
+export AWS_DEFAULT_REGION=us-east-1
 ```
 
 The first thing we need to do is create our `main.tf` file and place the
