@@ -55,7 +55,7 @@ func (t *TopologyGroup) NextDomain(requirement sets.String) string {
 	minDomain := ""
 	minCount := math.MaxInt32
 	for domain, count := range t.spread {
-		if requirement != nil && !requirement.Has(domain) {
+		if !requirement.Has(domain) {
 			continue
 		}
 		if count <= minCount {

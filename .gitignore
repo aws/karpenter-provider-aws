@@ -3,5 +3,3 @@ coverage.out
 coverage.html
 *.test
 *.csv
-website/node_modules
-website/resources

@@ -1,3 +1,12 @@
+---
+name: Docs Request/Question
+about: All things related to docs! Bugs, requests, suggestions, etc.
+title: ''
+labels: Documentation
+assignees: ''
+
+---
+
 **Is an existing page relevant?**
 <!-- provide a link -->
 

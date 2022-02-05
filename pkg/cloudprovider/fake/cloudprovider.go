@@ -41,12 +41,10 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 		instance := instanceTypes[0]
 		var zone, capacityType string
 		for _, o := range instance.Offerings() {
-			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) {
-				if constraints.Requirements.Zones().Has(o.Zone) {
-					zone = o.Zone
-					capacityType = o.CapacityType
-					break
-				}
+			if constraints.Requirements.CapacityTypes().Has(o.CapacityType) && constraints.Requirements.Zones().Has(o.Zone) {
+				zone = o.Zone
+				capacityType = o.CapacityType
+				break
 			}
 		}
 
@@ -78,7 +76,7 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 	return err
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Constraints) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}

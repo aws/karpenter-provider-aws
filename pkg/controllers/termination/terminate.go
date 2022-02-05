@@ -137,7 +137,7 @@ func (t *Terminator) evict(pods []*v1.Pod) {
 		if !pod.DeletionTimestamp.IsZero() {
 			continue
 		}
-		if pod.Spec.PriorityClassName != "system-cluster-critical" && pod.Spec.PriorityClassName != "system-node-critical" {
+		if pod.Spec.PriorityClassName == "system-cluster-critical" || pod.Spec.PriorityClassName == "system-node-critical" {
 			critical = append(critical, pod)
 		} else {
 			nonCritical = append(nonCritical, pod)

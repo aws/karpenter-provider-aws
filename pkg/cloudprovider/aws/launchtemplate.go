@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -81,12 +82,17 @@ type launchTemplateOptions struct {
 	SecurityGroupsIds []string
 	AMIID             string
 	Tags              map[string]string
+	MetadataOptions   *v1alpha1.MetadataOptions
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
 	// If Launch Template is directly specified then just use it
 	if constraints.LaunchTemplate != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplate): instanceTypes}, nil
+	}
+	instanceProfile, err := p.getInstanceProfile(ctx, constraints)
+	if err != nil {
+		return nil, err
 	}
 	// Get constrained security groups
 	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
@@ -122,10 +128,11 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
 			UserData:          userData,
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
-			InstanceProfile:   constraints.InstanceProfile,
+			InstanceProfile:   instanceProfile,
 			AMIID:             amiID,
 			SecurityGroupsIds: securityGroupsIds,
 			Tags:              constraints.Tags,
+			MetadataOptions:   constraints.GetMetadataOptions(),
 		})
 		if err != nil {
 			return nil, err
@@ -184,12 +191,25 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
+			BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{{
+				DeviceName: aws.String("/dev/xvda"),
+				Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+					Encrypted:  aws.Bool(true),
+					VolumeSize: aws.Int64(20),
+				},
+			}},
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
 			UserData:         aws.String(options.UserData),
 			ImageId:          aws.String(options.AMIID),
+			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
+				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
+				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
+				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
+				HttpTokens:              options.MetadataOptions.HTTPTokens,
+			},
 		},
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
@@ -305,6 +325,12 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
 	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
 
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		userData.WriteString(` \
+    --use-max-pods=false`)
+		kubeletExtraArgs += " --max-pods=110"
+	}
+
 	if len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(` \
     --kubelet-extra-args '%s'`, kubeletExtraArgs))
@@ -350,6 +376,17 @@ func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constrai
 		}
 	}
 	return nodeTaintsArgs
+}
+
+func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
+	if constraints.InstanceProfile != "" {
+		return constraints.InstanceProfile, nil
+	}
+	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
+	if defaultProfile == "" {
+		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
+	}
+	return defaultProfile, nil
 }
 
 func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {

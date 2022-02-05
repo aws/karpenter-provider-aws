@@ -15,10 +15,15 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
 
+	"github.com/aws/karpenter/pkg/utils/sets"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
+	stringsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"knative.dev/pkg/apis"
 )
 
 var (
@@ -27,7 +32,7 @@ var (
 	OperatingSystemLinux = "linux"
 
 	// RestrictedLabels are injected by Cloud Providers
-	RestrictedLabels = sets.NewString(
+	RestrictedLabels = stringsets.NewString(
 		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
@@ -36,21 +41,21 @@ var (
 	// AllowedLabelDomains are domains that may be restricted, but that is allowed because
 	// they are not used in a context where they may be passed as argument to kubelet.
 	// AllowedLabelDomains are evaluated before RestrictedLabelDomains
-	AllowedLabelDomains = sets.NewString(
+	AllowedLabelDomains = stringsets.NewString(
 		"kops.k8s.io",
 	)
 
 	// These are either prohibited by the kubelet or reserved by karpenter
 	// They are evaluated after AllowedLabelDomains
 	KarpenterLabelDomain   = "karpenter.sh"
-	RestrictedLabelDomains = sets.NewString(
+	RestrictedLabelDomains = stringsets.NewString(
 		"kubernetes.io",
 		"k8s.io",
 		KarpenterLabelDomain,
 	)
 	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
 	// WellKnownLabels supported by karpenter
-	WellKnownLabels = sets.NewString(
+	WellKnownLabels = stringsets.NewString(
 		v1.LabelTopologyZone,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
@@ -63,134 +68,237 @@ var (
 	// however, Provisioner labels are still restricted to WellKnownLabels.
 	// Additional labels may be injected by cloud providers.
 	NormalizedLabels = map[string]string{
-		v1.LabelFailureDomainBetaZone: v1.LabelTopologyZone,
-		"beta.kubernetes.io/arch":     v1.LabelArchStable,
-		"beta.kubernetes.io/os":       v1.LabelOSStable,
-		v1.LabelInstanceType:          v1.LabelInstanceTypeStable,
+		v1.LabelFailureDomainBetaZone:   v1.LabelTopologyZone,
+		"beta.kubernetes.io/arch":       v1.LabelArchStable,
+		"beta.kubernetes.io/os":         v1.LabelOSStable,
+		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
+		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
 	}
+	// IgnoredLables are not considered in scheduling decisions
+	// and prevent validation errors when specified
+	IgnoredLabels = stringsets.NewString(
+		v1.LabelTopologyRegion,
+	)
 )
 
-// Requirements is a decorated alias type for []v1.NodeSelectorRequirements
-type Requirements []v1.NodeSelectorRequirement
-
-func (r Requirements) Zones() sets.String {
-	return r.Requirement(v1.LabelTopologyZone)
+// Requirements are an alias type that wrap []v1.NodeSelectorRequirement and
+// include an efficient set representation under the hood. Since its underlying
+// types are slices and maps, this type should not be used as a pointer.
+type Requirements struct {
+	// Requirements are layered with Labels and applied to every node.
+	Requirements []v1.NodeSelectorRequirement `json:"requirements,omitempty"`
+	requirements map[string]sets.Set          `json:"-"`
 }
 
-func (r Requirements) InstanceTypes() sets.String {
-	return r.Requirement(v1.LabelInstanceTypeStable)
+// NewRequirements constructs requiremnets from NodeSelectorRequirements
+func NewRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
+	return Requirements{requirements: map[string]sets.Set{}}.Add(requirements...)
 }
 
-func (r Requirements) Architectures() sets.String {
-	return r.Requirement(v1.LabelArchStable)
-}
-
-func (r Requirements) OperatingSystems() sets.String {
-	return r.Requirement(v1.LabelOSStable)
-}
-
-func (r Requirements) CapacityTypes() sets.String {
-	return r.Requirement(LabelCapacityType)
-}
-
-func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requirements {
-	return append(r, Requirements(requirements).Normalize()...)
-}
-
-// Normalize the requirements to use WellKnownLabels
-func (r Requirements) Normalize() Requirements {
-	normalized := Requirements{}
-	for _, requirement := range r {
-		label := requirement.Key
-		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
-			label = normalized
-		}
-		normalized = append(normalized, v1.NodeSelectorRequirement{Key: label, Operator: requirement.Operator, Values: requirement.Values})
-	}
-	return normalized
-}
-
-// Consolidate combines In and NotIn requirements for each unique key, producing
-// an equivalent minimal representation of the requirements. This is useful as
-// requirements may be appended from a variety of sources and then consolidated.
-// Caution: If a key has contains a `NotIn` operator without a corresponding
-// `In` operator, the requirement will permanently be [] after consolidation. To
-// avoid this, include the broadest `In` requirements before consolidating.
-func (r Requirements) Consolidate() (requirements Requirements) {
-	for _, key := range r.Keys() {
-		requirements = requirements.Add(v1.NodeSelectorRequirement{
-			Key:      key,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   r.Requirement(key).UnsortedList(),
-		})
-	}
-	return requirements
-}
-
-func LabelRequirements(labels map[string]string) (r Requirements) {
+// NewLabelRequirements constructs requriements from labels
+func NewLabelRequirements(labels map[string]string) Requirements {
+	requirements := []v1.NodeSelectorRequirement{}
 	for key, value := range labels {
-		r = r.Add(v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
-	return r
+	return NewRequirements(requirements...)
 }
 
-func PodRequirements(pod *v1.Pod) (r Requirements) {
+// NewPodRequirements constructs requirements from a pod
+func NewPodRequirements(pod *v1.Pod) Requirements {
+	requirements := []v1.NodeSelectorRequirement{}
 	for key, value := range pod.Spec.NodeSelector {
-		r = r.Add(v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
+		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
-		return r
+		return NewRequirements(requirements...)
 	}
+	// The legal operators for pod affinity and anti-affinity are In, NotIn, Exists, DoesNotExist.
 	// Select heaviest preference and treat as a requirement. An outer loop will iteratively unconstrain them if unsatisfiable.
 	if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
 		sort.Slice(preferred, func(i int, j int) bool { return preferred[i].Weight > preferred[j].Weight })
-		r = r.Add(preferred[0].Preference.MatchExpressions...)
+		requirements = append(requirements, preferred[0].Preference.MatchExpressions...)
 	}
 	// Select first requirement. An outer loop will iteratively remove OR requirements if unsatisfiable
 	if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil &&
 		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-		r = r.Add(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+		requirements = append(requirements, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
+	}
+	return NewRequirements(requirements...)
+}
+
+func (r Requirements) WellKnown() Requirements {
+	requirements := []v1.NodeSelectorRequirement{}
+	for _, requirement := range r.Requirements {
+		if WellKnownLabels.Has(requirement.Key) {
+			requirements = append(requirements, requirement)
+		}
+	}
+	return NewRequirements(requirements...)
+}
+
+// Add function returns a new Requirements object with new requirements inserted.
+func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requirements {
+	// Deep copy to avoid mutating existing requirements
+	r = *r.DeepCopy()
+	// This fail-safe measurement can be removed later when we implement test webhook.
+	if r.requirements == nil {
+		r.requirements = map[string]sets.Set{}
+	}
+	for _, requirement := range requirements {
+		if IgnoredLabels.Has(requirement.Key) {
+			continue
+		}
+		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
+			requirement.Key = normalized
+		}
+		r.Requirements = append(r.Requirements, requirement)
+		switch requirement.Operator {
+		case v1.NodeSelectorOpIn:
+			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
+		case v1.NodeSelectorOpNotIn:
+			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet(requirement.Values...))
+		}
 	}
 	return r
 }
 
-func (r Requirements) WellKnown() (requirements Requirements) {
-	for _, requirement := range r {
-		if WellKnownLabels.Has(requirement.Key) {
-			requirements = requirements.Add(requirement)
-
-		}
-	}
-	return requirements
-}
-
 // Keys returns unique set of the label keys from the requirements
-func (r Requirements) Keys() []string {
-	keys := sets.NewString()
-	for _, requirement := range r {
+func (r Requirements) Keys() stringsets.String {
+	keys := stringsets.NewString()
+	for _, requirement := range r.Requirements {
 		keys.Insert(requirement.Key)
 	}
-	return keys.UnsortedList()
+	return keys
 }
 
-// Requirements for the provided key, nil if unconstrained
-func (r Requirements) Requirement(key string) sets.String {
-	var result sets.String
-	// OpIn
-	for _, requirement := range r {
-		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpIn {
-			if result == nil {
-				result = sets.NewString(requirement.Values...)
-			} else {
-				result = result.Intersection(sets.NewString(requirement.Values...))
+// Get returns the sets of values allowed by all included requirements
+// following a denylist method. Values are allowed except specified
+func (r Requirements) Get(key string) sets.Set {
+	if _, ok := r.requirements[key]; !ok {
+		return sets.NewComplementSet()
+	}
+	return r.requirements[key]
+}
+
+func (r Requirements) Zones() stringsets.String {
+	return r.Get(v1.LabelTopologyZone).Values()
+}
+
+func (r Requirements) InstanceTypes() stringsets.String {
+	return r.Get(v1.LabelInstanceTypeStable).Values()
+}
+
+func (r Requirements) Architectures() stringsets.String {
+	return r.Get(v1.LabelArchStable).Values()
+}
+
+func (r Requirements) OperatingSystems() stringsets.String {
+	return r.Get(v1.LabelOSStable).Values()
+}
+
+func (r Requirements) CapacityTypes() stringsets.String {
+	return r.Get(LabelCapacityType).Values()
+}
+
+// Validate validates the feasibility of the requirements.
+func (r Requirements) Validate() (errs *apis.FieldError) {
+	for i, requirement := range r.Requirements {
+		for _, err := range validation.IsQualifiedName(requirement.Key) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("key %s, %s", requirement.Key, err), "key"))
+		}
+		for _, value := range requirement.Values {
+			for _, err := range validation.IsValidLabelValue(value) {
+				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("key %s, value %s, %s", requirement.Key, value, err), "values", i))
+			}
+		}
+		if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s for %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key), "operator"))
+		}
+		// Excludes cases when DoesNotExists appears together with In, NotIn, Exists
+		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
+			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
+			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("operator %s and %s conflict for %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key), "operator"))
+		}
+		if r.Get(requirement.Key).Len() == 0 {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("no feasible value for %s", requirement.Key), "values"))
+		}
+	}
+	return errs
+}
+
+// Compatible ensures the provided requirements can be met. It is
+// non-commutative (i.e., A.Compatible(B) != B.Compatible(A))
+//gocyclo:ignore
+func (r Requirements) Compatible(requirements Requirements) (errs *apis.FieldError) {
+	for i, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
+		// Key must be defined if required
+		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("require values for key %s but is not defined", key), "key")).ViaFieldIndex("requirements", i)
+		}
+		// Values must overlap
+		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s, key %s", values, requirements.Get(key), key), "values")).ViaFieldIndex("requirements", i)
+		}
+		// Exists incompatible with DoesNotExist or undefined
+		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
+			if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key)) {
+				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+			}
+		}
+		// DoesNotExist requires DoesNotExist or undefined
+		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
+			if !(r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key))) {
+				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+			}
+		}
+		// Repeat for the other direction
+		// Exists incompatible with DoesNotExist or undefined
+		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
+			if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key)) {
+				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+			}
+		}
+		// DoesNotExist requires DoesNotExist or undefined
+		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
+			if !(requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key))) {
+				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
 			}
 		}
 	}
-	// OpNotIn
-	for _, requirement := range r {
-		if requirement.Key == key && requirement.Operator == v1.NodeSelectorOpNotIn {
-			result = result.Difference(sets.NewString(requirement.Values...))
+	return errs
+}
+
+func (r Requirements) hasRequirement(f func(v1.NodeSelectorRequirement) bool) bool {
+	for _, requirement := range r.Requirements {
+		if f(requirement) {
+			return true
 		}
 	}
-	return result
+	return false
+}
+
+func withKey(key string) func(v1.NodeSelectorRequirement) bool {
+	return func(requirement v1.NodeSelectorRequirement) bool { return requirement.Key == key }
+}
+
+func withKeyAndOperator(key string, operator v1.NodeSelectorOperator) func(v1.NodeSelectorRequirement) bool {
+	return func(requirement v1.NodeSelectorRequirement) bool {
+		return key == requirement.Key && requirement.Operator == operator
+	}
+}
+
+func (r *Requirements) MarshalJSON() ([]byte, error) {
+	if r.Requirements == nil {
+		r.Requirements = []v1.NodeSelectorRequirement{}
+	}
+	return json.Marshal(r.Requirements)
+}
+
+func (r *Requirements) UnmarshalJSON(b []byte) error {
+	var requirements []v1.NodeSelectorRequirement
+	json.Unmarshal(b, &requirements)
+	*r = NewRequirements(requirements...)
+	return nil
 }

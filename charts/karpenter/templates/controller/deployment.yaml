@@ -7,7 +7,8 @@ metadata:
     {{- include "karpenter.labels" . | indent 4 }}
 spec:
   ports:
-    - port: 8080
+    - name: metrics
+      port: 8080
       targetPort: metrics
   selector:
     karpenter: controller
@@ -62,6 +63,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{- if .Values.aws.defaultInstanceProfile }}
+            - name: AWS_DEFAULT_INSTANCE_PROFILE
+              value: {{ .Values.aws.defaultInstanceProfile }}
+            {{- end }}
             {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

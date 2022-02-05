@@ -2,8 +2,38 @@ apiVersion: v1
 entries:
   karpenter:
   - apiVersion: v2
+    appVersion: 0.6.0
+    created: "2022-01-31T17:41:48.865137-08:00"
+    description: A Helm chart for https://github.com/aws/karpenter/.
+    digest: 351c364ad0a81dd52ffcc81d456b265e5e04cf355d03cdaf2003befe37a1550a
+    name: karpenter
+    type: application
+    urls:
+    - karpenter-0.6.0.tgz
+    version: 0.6.0
+  - apiVersion: v2
+    appVersion: 0.5.6
+    created: "2022-01-31T17:41:48.863968-08:00"
+    description: A Helm chart for https://github.com/aws/karpenter/.
+    digest: b52a3bbac517e9130c8bec587c411c81f49b38e4510fa45ce1f212377145705b
+    name: karpenter
+    type: application
+    urls:
+    - karpenter-0.5.6.tgz
+    version: 0.5.6
+  - apiVersion: v2
+    appVersion: 0.5.5
+    created: "2022-01-31T17:41:48.863379-08:00"
+    description: A Helm chart for https://github.com/aws/karpenter/.
+    digest: 2bd507dd53f10c82bdfe049f0bb4c0193ecf684d73b44ff1bbb5cf2f16f0fa25
+    name: karpenter
+    type: application
+    urls:
+    - karpenter-0.5.5.tgz
+    version: 0.5.5
+  - apiVersion: v2
     appVersion: 0.5.4
-    created: "2022-01-07T19:18:47.586454-05:00"
+    created: "2022-01-31T17:41:48.862795-08:00"
     description: A Helm chart for https://github.com/aws/karpenter/.
     digest: 0c613878bc1827f2188a78b5d2a2945c417c29c699f8f9c5fa7f4e2cbdeefebb
     name: karpenter
@@ -12,7 +42,7 @@ entries:
     - karpenter-0.5.4.tgz
     version: 0.5.4
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.585681-05:00"
+    created: "2022-01-31T17:41:48.862251-08:00"
     description: A Helm chart for https://github.com/aws/karpenter/.
     digest: f6bb831f6ceea8b90634f9a6841e77de97ad1e3350437cb66cc50f14b7c3becc
     name: karpenter
@@ -21,7 +51,7 @@ entries:
     - karpenter-0.5.3.tgz
     version: 0.5.3
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.584568-05:00"
+    created: "2022-01-31T17:41:48.861724-08:00"
     description: A Helm chart for https://github.com/aws/karpenter/.
     digest: 45f6262a018c11c0c3068e29dc2e1cf337cba8c390ec269b9b36c6d8bdac581e
     name: karpenter
@@ -30,7 +60,7 @@ entries:
     - karpenter-0.5.2.tgz
     version: 0.5.2
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.583373-05:00"
+    created: "2022-01-31T17:41:48.861204-08:00"
     description: A Helm chart for https://github.com/aws/karpenter/.
     digest: 4247c15ec571f82025c80ceaa9354ce3ee3b209e4ba15a0ca3c36a1f90a859ec
     name: karpenter
@@ -39,7 +69,7 @@ entries:
     - karpenter-0.5.1.tgz
     version: 0.5.1
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.581513-05:00"
+    created: "2022-01-31T17:41:48.860659-08:00"
     description: A Helm chart for https://github.com/aws/karpenter/.
     digest: 6d49a00dca8a6f8d7938e9508228af085d85a2746e2f742c895b954fe71292df
     name: karpenter
@@ -48,7 +78,7 @@ entries:
     - karpenter-0.5.0.tgz
     version: 0.5.0
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.580501-05:00"
+    created: "2022-01-31T17:41:48.860213-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 70c5bbea1016aa56da5227b7f5d7cf5700c4d38ff1814f8e28072c77d8a02c20
     name: karpenter
@@ -57,7 +87,7 @@ entries:
     - karpenter-0.4.3.tgz
     version: 0.4.3
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.579615-05:00"
+    created: "2022-01-31T17:41:48.859769-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 558f26b8786384766407c5f86cff5180066c4fa68fe9e3cf7b782ec8564f04ff
     name: karpenter
@@ -66,7 +96,7 @@ entries:
     - karpenter-0.4.2.tgz
     version: 0.4.2
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.578645-05:00"
+    created: "2022-01-31T17:41:48.859365-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: ec4bcf2a7f279ad97b8749a7f1a8edd527a09f8c00614d911a773843bd44a58b
     name: karpenter
@@ -75,7 +105,7 @@ entries:
     - karpenter-0.4.1.tgz
     version: 0.4.1
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.577617-05:00"
+    created: "2022-01-31T17:41:48.858967-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: d4ea011979906ad22b2345d0eb4c941445e89c1b0561c6ae44bb71fdb641c161
     name: karpenter
@@ -84,7 +114,7 @@ entries:
     - karpenter-0.4.0.tgz
     version: 0.4.0
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.576685-05:00"
+    created: "2022-01-31T17:41:48.858572-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: e8b9b3dd447d0ab48b66156bf88ae924121e5780d741ee18cc9a43a90a6f4290
     name: karpenter
@@ -93,7 +123,7 @@ entries:
     - karpenter-0.3.4.tgz
     version: 0.3.4
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.575849-05:00"
+    created: "2022-01-31T17:41:48.858175-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 0d8bc4c74416aeb5233a0a65c4b4fd678b7c961f1dca10604e33337715b585ff
     name: karpenter
@@ -102,7 +132,7 @@ entries:
     - karpenter-0.3.3.tgz
     version: 0.3.3
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.574718-05:00"
+    created: "2022-01-31T17:41:48.857777-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: e24d1ca8364e92d161f8295b552ec101a72491c62926dd67779d4e4a7e6b5756
     name: karpenter
@@ -111,7 +141,7 @@ entries:
     - karpenter-0.3.2.tgz
     version: 0.3.2
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.573945-05:00"
+    created: "2022-01-31T17:41:48.857381-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 86c9a22a01247b2ed564baa12b88ed2df6556c9e8cb6aca9b990212c1e809c45
     name: karpenter
@@ -120,7 +150,7 @@ entries:
     - karpenter-0.3.1.tgz
     version: 0.3.1
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.573196-05:00"
+    created: "2022-01-31T17:41:48.856975-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 6d86156704c2c7eac8094dbe57458a3b1334eb38626b6da4ccd60c5cd65e0250
     name: karpenter
@@ -129,7 +159,7 @@ entries:
     - karpenter-0.3.0.tgz
     version: v0.3.0
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.572325-05:00"
+    created: "2022-01-31T17:41:48.856563-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 5b19f5da4dd3d3e147f3e93bf168d1cd24106e12eb7fe44ad88850f73ceb82f0
     name: karpenter
@@ -138,7 +168,7 @@ entries:
     - karpenter-0.2.9.tgz
     version: v0.2.9
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.571476-05:00"
+    created: "2022-01-31T17:41:48.855433-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 8b704acc1a9c018da774f62c6be824e7389bb482437d318902d01237e3cacfc5
     name: karpenter
@@ -147,7 +177,7 @@ entries:
     - karpenter-0.2.8.tgz
     version: v0.2.8
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.570663-05:00"
+    created: "2022-01-31T17:41:48.854998-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 048ec496d46d8ab534bc8af6090699fedd2aaf45c8e1658636c7a44afdb6e898
     name: karpenter
@@ -156,7 +186,7 @@ entries:
     - karpenter-0.2.7.tgz
     version: v0.2.7
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.568735-05:00"
+    created: "2022-01-31T17:41:48.854561-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 48008ba427baa5206bd59abe9e25005b0b6673f03e705f2149717bb89156873d
     name: karpenter
@@ -165,7 +195,7 @@ entries:
     - karpenter-0.2.6.tgz
     version: v0.2.6
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.567902-05:00"
+    created: "2022-01-31T17:41:48.85411-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 208d0c14d2cdbc8c387dc92a473b625f905e829486edd5fd007eb56c9f896682
     name: karpenter
@@ -174,7 +204,7 @@ entries:
     - karpenter-0.2.5.tgz
     version: v0.2.5
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.56709-05:00"
+    created: "2022-01-31T17:41:48.853714-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: ed7d1d08bde38f41a6bc8a4bf93b4dd85a3b6e5f526e44324483eadc9faeea6d
     name: karpenter
@@ -183,7 +213,7 @@ entries:
     - karpenter-0.2.4.tgz
     version: v0.2.4
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.566239-05:00"
+    created: "2022-01-31T17:41:48.853291-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 902bd53be060893d4bfe3c0f57ae831448aa8790930d153666429ea5472d824b
     name: karpenter
@@ -192,7 +222,7 @@ entries:
     - karpenter-0.2.3.tgz
     version: v0.2.3
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.56563-05:00"
+    created: "2022-01-31T17:41:48.852971-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 90d075cbc08871ffb56b2e530fdf304b6af32c76670fcdd299af87d3810d4651
     name: karpenter
@@ -201,7 +231,7 @@ entries:
     - karpenter-0.2.2.tgz
     version: v0.2.2
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.564895-05:00"
+    created: "2022-01-31T17:41:48.852663-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 87e161d40c65dc58a3963f17d70cc165a5bf46155f723e487486f57d209e50d1
     name: karpenter
@@ -210,7 +240,7 @@ entries:
     - karpenter-0.2.1.tgz
     version: v0.2.1
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.564221-05:00"
+    created: "2022-01-31T17:41:48.852316-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 552bdc17f5625e4696bb7419284026f4291428877092ec5d984f486a2b812d6f
     name: karpenter
@@ -219,7 +249,7 @@ entries:
     - karpenter-0.2.0.tgz
     version: v0.2.0
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.563516-05:00"
+    created: "2022-01-31T17:41:48.851977-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 1a597c415201e61576b83ee6ec3e24b99281805b3be8141b0a344c6f014d4e15
     name: karpenter
@@ -228,7 +258,7 @@ entries:
     - karpenter-0.1.3.tgz
     version: v0.1.3
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.562265-05:00"
+    created: "2022-01-31T17:41:48.851589-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 6a6753731aef19db2aae72b6bfc1535917053d87f706579e158cae98c23887b4
     name: karpenter
@@ -237,7 +267,7 @@ entries:
     - karpenter-0.1.2.tgz
     version: v0.1.2
   - apiVersion: v2
-    created: "2022-01-07T19:18:47.561423-05:00"
+    created: "2022-01-31T17:41:48.851103-08:00"
     description: A Helm chart for https://github.com/awslabs/karpenter/.
     digest: 39685c8cbe9a757ca48721aed08b49111fef18bc2a9f67d3223f19d0706f09f7
     name: karpenter
@@ -245,4 +275,4 @@ entries:
     urls:
     - karpenter-0.1.1.tgz
     version: v0.1.1
-generated: "2022-01-07T19:18:47.560039-05:00"
+generated: "2022-01-31T17:41:48.850423-08:00"

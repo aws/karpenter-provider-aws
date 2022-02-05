@@ -25,7 +25,6 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 )
 
@@ -51,11 +50,10 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		// removing instance types that obviously lack resources, such
 		// as GPUs, for the workload being presented).
 		if err := multierr.Combine(
-			packable.validateZones(constraints),
+			packable.validateOfferings(constraints),
 			packable.validateInstanceType(constraints),
 			packable.validateArchitecture(constraints),
 			packable.validateOperatingSystems(constraints),
-			packable.validateCapacityTypes(constraints),
 			packable.validateAWSPodENI(pods),
 			packable.validateGPUs(pods),
 		); err != nil {
@@ -176,45 +174,32 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 
 func (p *Packable) validateInstanceType(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.InstanceTypes().Has(p.Name()) {
-		return fmt.Errorf("instance type %s not in %v", p.Name(), constraints.Requirements.InstanceTypes().List())
+		return fmt.Errorf("instance type %s not in %s", p.Name(), constraints.Requirements.InstanceTypes())
 	}
 	return nil
 }
 
 func (p *Packable) validateArchitecture(constraints *v1alpha5.Constraints) error {
 	if !constraints.Requirements.Architectures().Has(p.Architecture()) {
-		return fmt.Errorf("architecture %s is not in %v", p.Architecture(), constraints.Requirements.Architectures().List())
+		return fmt.Errorf("architecture %s not in %s", p.Name(), constraints.Requirements.Architectures())
 	}
 	return nil
 }
 
 func (p *Packable) validateOperatingSystems(constraints *v1alpha5.Constraints) error {
 	if constraints.Requirements.OperatingSystems().Intersection(p.OperatingSystems()).Len() == 0 {
-		return fmt.Errorf("operating systems %s not in %v", p.OperatingSystems(), constraints.Requirements.OperatingSystems().List())
+		return fmt.Errorf("operating systems %s not in %s", p.Name(), constraints.Requirements.OperatingSystems())
 	}
 	return nil
 }
 
-func (p *Packable) validateZones(constraints *v1alpha5.Constraints) error {
-	zones := sets.String{}
+func (p *Packable) validateOfferings(constraints *v1alpha5.Constraints) error {
 	for _, offering := range p.Offerings() {
-		zones.Insert(offering.Zone)
+		if constraints.Requirements.CapacityTypes().Has(offering.CapacityType) && constraints.Requirements.Zones().Has(offering.Zone) {
+			return nil
+		}
 	}
-	if constraints.Requirements.Zones().Intersection(zones).Len() == 0 {
-		return fmt.Errorf("zones %v are not in %v", zones, constraints.Requirements.Zones().List())
-	}
-	return nil
-}
-
-func (p *Packable) validateCapacityTypes(constraints *v1alpha5.Constraints) error {
-	capacityTypes := sets.String{}
-	for _, offering := range p.Offerings() {
-		capacityTypes.Insert(offering.CapacityType)
-	}
-	if constraints.Requirements.CapacityTypes().Intersection(capacityTypes).Len() == 0 {
-		return fmt.Errorf("capacity types %v are not in %v", capacityTypes, constraints.Requirements.CapacityTypes().List())
-	}
-	return nil
+	return fmt.Errorf("offerings %v are not available for capacity types %s and zones %s", p.Offerings(), constraints.Requirements.CapacityTypes(), constraints.Requirements.Zones())
 }
 
 func (p *Packable) validateGPUs(pods []*v1.Pod) error {

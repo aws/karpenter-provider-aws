@@ -1,29 +1,24 @@
-RELEASE_REPO ?= public.ecr.aws/karpenter
-RELEASE_VERSION ?= $(shell git describe --tags --always)
-RELEASE_PLATFORM ?= --platform=linux/amd64,linux/arm64
-
-## Inject these annotations to cosign signing
-COSIGN_FLAGS ?= -a GIT_HASH=$(shell git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=$(shell date +'%Y-%m-%dT%H:%M:%SZ')
+export K8S_VERSION ?= 1.21.x
+export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(RELEASE_VERSION)"
+LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
-WITH_RELEASE_REPO = KO_DOCKER_REPO=$(RELEASE_REPO)
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} --set controller.clusterEndpoint=${CLUSTER_ENDPOINT}
+HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} \
+			 --set controller.clusterEndpoint=${CLUSTER_ENDPOINT} \
+			 --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: verify licenses battletest ## Run all steps used by continuous integration
-
-release: verify publish helm ## Run all steps in release workflow
+ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
 
 test: ## Run tests
 	ginkgo -r
@@ -74,27 +69,16 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
-publish: ## Generate release manifests and publish a versioned container image.
-	@aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin $(RELEASE_REPO)
-	yq e -i ".controller.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/controller)\"" charts/karpenter/values.yaml
-	yq e -i ".webhook.image = \"$$($(WITH_RELEASE_REPO) $(WITH_GOFLAGS) ko publish -B -t $(RELEASE_VERSION) $(RELEASE_PLATFORM) ./cmd/webhook)\"" charts/karpenter/values.yaml
-	yq e -i '.appVersion = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	yq e -i '.version = "$(subst v,,${RELEASE_VERSION})"' charts/karpenter/Chart.yaml
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/controller:${RELEASE_VERSION}
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${RELEASE_REPO}/webhook:${RELEASE_VERSION}
-
-helm: ## Generate Helm Chart
-	cd charts;helm lint karpenter;helm package karpenter;helm repo index .
-	helm-docs
-
-website: ## Generate Docs Website
-	cd website; npm install; git submodule update --init --recursive; hugo
+release: ## Generate release manifests and publish a versioned container image.
+	$(WITH_GOFLAGS) ./hack/release.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
 issues: ## Run GitHub issue analysis scripts
-	./hack/feature_request_reactions.py > "karpenter-feature-requests-$(date +"%Y-%m-%d").csv"
-	./hack/label_issue_count.py > "karpenter-labels-$(date +"%Y-%m-%d").csv"
+	pip install -r ./hack/github/requirements.txt
+	@echo "Set GH_TOKEN env variable to avoid being rate limited by Github"
+	./hack/github/feature_request_reactions.py > "karpenter-feature-requests-$(shell date +"%Y-%m-%d").csv"
+	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
-.PHONY: help dev ci release test battletest verify codegen apply delete publish helm website toolchain licenses
+.PHONY: help dev ci release test battletest verify codegen apply delete toolchain release licenses issues

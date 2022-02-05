@@ -78,7 +78,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(injectabletime.Now())}, nil
 }
 
 func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {

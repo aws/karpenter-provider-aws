@@ -31,6 +31,7 @@ type PodOptions struct {
 	metav1.ObjectMeta
 	Image                     string
 	NodeName                  string
+	PriorityClassName         string
 	ResourceRequirements      v1.ResourceRequirements
 	NodeSelector              map[string]string
 	NodeRequirements          []v1.NodeSelectorRequirement
@@ -80,8 +81,9 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
-			NodeName: options.NodeName,
-			Volumes:  volumes,
+			NodeName:          options.NodeName,
+			Volumes:           volumes,
+			PriorityClassName: options.PriorityClassName,
 		},
 		Status: v1.PodStatus{
 			Conditions: options.Conditions,

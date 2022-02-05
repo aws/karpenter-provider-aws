@@ -197,6 +197,43 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+
+		It("should evict non-critical pods first", func() {
+			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
+			podNodeCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-node-critical"})
+			podClusterCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-cluster-critical"})
+
+			ExpectCreated(ctx, env.Client, node, podEvict, podNodeCritical, podClusterCritical)
+
+			// Trigger Termination Controller
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// Expect podEvict to be enqueued for eviction
+			ExpectEnqueuedForEviction(evictionQueue, podEvict)
+
+			// Expect node to exist and be draining
+			ExpectNodeDraining(env.Client, node.Name)
+
+			// Expect podEvict to be evicting, and delete it
+			ExpectEvicted(env.Client, podEvict)
+			ExpectDeleted(ctx, env.Client, podEvict)
+
+			// Expect the critical pods to be evicted and deleted
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectEvicted(env.Client, podNodeCritical)
+			ExpectDeleted(ctx, env.Client, podNodeCritical)
+			ExpectEvicted(env.Client, podClusterCritical)
+			ExpectDeleted(ctx, env.Client, podClusterCritical)
+
+			// Reconcile to delete node
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
+
 		It("should not evict static pods", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			ExpectCreated(ctx, env.Client, node, podEvict)

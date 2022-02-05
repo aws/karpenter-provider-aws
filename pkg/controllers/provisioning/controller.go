@@ -15,6 +15,7 @@ package provisioning
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -93,15 +94,17 @@ func (c *Controller) Delete(name string) {
 // Apply creates or updates the provisioner to the latest configuration
 func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
 	// Refresh global requirements using instance type availability
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &provisioner.Spec.Constraints)
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 	if err != nil {
 		return err
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		Add(requirements(instanceTypes)...).
-		Add(v1alpha5.LabelRequirements(provisioner.Spec.Labels)...).
-		Consolidate()
+		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
+	if err := provisioner.Spec.Requirements.Validate(); err != nil {
+		return fmt.Errorf("validating requirements, %w", err)
+	}
 	// Update the provisioner if anything has changed
 	if c.hasChanged(ctx, provisioner) {
 		c.Delete(provisioner.Name)
@@ -138,7 +141,7 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 	return provisioners
 }
 
-func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1alpha5.Requirements) {
+func requirements(instanceTypes []cloudprovider.InstanceType) []v1.NodeSelectorRequirement {
 	supported := map[string]sets.String{
 		v1.LabelInstanceTypeStable: sets.NewString(),
 		v1.LabelTopologyZone:       sets.NewString(),
@@ -155,6 +158,7 @@ func requirements(instanceTypes []cloudprovider.InstanceType) (requirements v1al
 		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
 		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().List()...)
 	}
+	requirements := []v1.NodeSelectorRequirement{}
 	for key, values := range supported {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
 	}

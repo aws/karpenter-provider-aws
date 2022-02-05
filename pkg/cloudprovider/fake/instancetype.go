@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +35,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if len(options.Architecture) == 0 {
 		options.Architecture = "amd64"
 	}
-	if len(options.OperatingSystems) == 0 {
+	if options.OperatingSystems.Len() == 0 {
 		options.OperatingSystems = sets.NewString("linux", "windows", "darwin")
 	}
 	if options.CPU.IsZero() {

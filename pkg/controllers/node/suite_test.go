@@ -34,6 +34,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var ctx context.Context
@@ -120,7 +121,7 @@ var _ = Describe("Controller", func() {
 		})
 	})
 
-	Context("Readiness", func() {
+	Context("Initialization", func() {
 		It("should not remove the readiness taint if not ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionUnknown,
@@ -181,9 +182,7 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
-	})
-	Context("Liveness", func() {
-		It("should delete nodes if NodeStatusNeverUpdated after 5 minutes", func() {
+		It("should delete nodes if node not ready even after Initialization timeout ", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Finalizers: []string{v1alpha5.TerminationFinalizer},
@@ -191,6 +190,9 @@ var _ = Describe("Controller", func() {
 				},
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
+				Taints: []v1.Taint{
+					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
+				},
 			})
 			ExpectCreated(ctx, env.Client, provisioner)
 			ExpectCreatedWithStatus(ctx, env.Client, n)
@@ -202,31 +204,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
-		})
-		It("should delete nodes if we never hear anything after 5 minutes", func() {
-			n := test.Node(test.NodeOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Finalizers: []string{v1alpha5.TerminationFinalizer},
-					Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-				},
-				ReadyStatus: v1.ConditionUnknown,
-				ReadyReason: "",
-			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
-
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
-
-			// Simulate time passing and a n failing to join
-			injectabletime.Now = func() time.Time { return time.Now().Add(node.LivenessTimeout) }
+			injectabletime.Now = func() time.Time { return time.Now().Add(node.InitializationTimeout) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -307,6 +285,28 @@ var _ = Describe("Controller", func() {
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			Expect(node.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should requeue reconcile if node is empty, but not past emptiness TTL", func() {
+			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
+			now := time.Now()
+			injectabletime.Now = func() time.Time { return now } // injectabletime.Now() is called multiple times in function being tested.
+			emptinessTime := injectabletime.Now().Add(-10 * time.Second)
+			// Emptiness timestamps are first formatted to a string friendly (time.RFC3339) (to put it in the node object)
+			// and then eventually parsed back into time.Time when comparing ttls. Repeating that logic in the test.
+			emptinessTimestamp, _ := time.Parse(time.RFC3339, emptinessTime.Format(time.RFC3339))
+			expectedRequeueTime := emptinessTimestamp.Add(time.Duration(30 * time.Second)).Sub(injectabletime.Now()) // we should requeue in ~20 seconds.
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+				Annotations: map[string]string{
+					v1alpha5.EmptinessTimestampAnnotationKey: emptinessTime.Format(time.RFC3339),
+				}},
+			})
+			ExpectCreated(ctx, env.Client, provisioner, node)
+			result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			Expect(result).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedRequeueTime}))
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 	})
 	Context("Finalizer", func() {

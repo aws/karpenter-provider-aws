@@ -19,16 +19,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/karpenter/pkg/utils/ptr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
-
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 var (
-	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)}
+	SupportedNodeSelectorOps sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
+	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpExists))
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -42,7 +42,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		s.Constraints.Validate(ctx),
+		s.Validate(ctx),
 	)
 }
 
@@ -133,29 +133,22 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
+// This function is used by the provisioner validation webhook to verify the provisioner requirements.
+// When this function is called, the provisioner's requirments do not include the requirements from labels.
+// Provisioner requirements only support well known labels.
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	for i, requirement := range c.Requirements {
-		if err := validateRequirement(requirement); err != nil {
-			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
+	for _, requirement := range c.Requirements.Requirements {
+		// Ensure requirements are well known
+		if !WellKnownLabels.Has(requirement.Key) {
+			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
+		}
+		// Ensure requirements operator is allowed
+		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
+			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Operator, SupportedProvisionerOps.UnsortedList()), "key"))
 		}
 	}
-	return errs
-}
-
-func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
-	if !WellKnownLabels.Has(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
-	}
-	for _, err := range validation.IsQualifiedName(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
-	}
-	for i, value := range requirement.Values {
-		for _, err := range validation.IsValidLabelValue(value) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-		}
-	}
-	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
+	if err := c.Requirements.Validate(); err != nil {
+		errs = errs.Also(err)
 	}
 	return errs
 }
