@@ -57,15 +57,15 @@ type LaunchTemplateProvider struct {
 }
 
 func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
-	ltProvider := &LaunchTemplateProvider{
+	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 	}
-	ltProvider.cache.OnEvicted(ltProvider.onCacheEvicted)
-	return ltProvider
+	l.cache.OnEvicted(l.onCacheEvicted)
+	return l
 }
 
 func launchTemplateName(options *launchTemplateOptions) string {
