@@ -68,6 +68,13 @@ type ProvisionerSpec struct {
 	// Termination due to expiration is disabled if this field is not set.
 	// +optional
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
+	// MaintenanceWindows are the sets of time windows that controller will
+	// terminate a node when a node reaches to TTLSecondsUntilExpired threshold
+	// and falls within a window defined in the MaintenanceWindows
+	//
+	// Termination due to expiration within window is disabled if this field is not set.
+	// +optional
+	MaintenanceWindows MaintenanceWindows `json:"maintenanceWindows,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
 	Limits *Limits `json:"limits,omitempty"`
 }

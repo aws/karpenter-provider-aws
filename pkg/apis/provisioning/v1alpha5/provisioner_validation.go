@@ -43,6 +43,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
+		s.MaintenanceWindows.Validate(),
 		s.Validate(ctx),
 	)
 }
@@ -162,4 +163,13 @@ func (s *ProvisionerSpec) validateRequirements() *apis.FieldError {
 		result = result.Also(apis.ErrInvalidValue(errs, "requirements"))
 	}
 	return result
+}
+
+func (m *MaintenanceWindows) Validate() (errs *apis.FieldError) {
+	for i, maintenanceWindow := range *m {
+		if err := maintenanceWindow.Validate(); err != nil {
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, "maintenanceWindow", i))
+		}
+	}
+	return errs
 }

@@ -76,6 +76,26 @@ spec:
                       that Karpenter supports for limiting.
                     type: object
                 type: object
+              maintenanceWindows:
+                description: "MaintenanceWindows are the sets of time windows that
+                  controller will terminate a node when a node reaches to TTLSecondsUntilExpired
+                  threshold and falls within a window defined in the MaintenanceWindows
+                  \n Termination due to expiration within window is disabled if this
+                  field is not set."
+                items:
+                  properties:
+                    duration:
+                      type: string
+                    startTime:
+                      type: string
+                    timeZone:
+                      type: string
+                    weekDays:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                type: array
               provider:
                 description: Provider contains fields specific to your cloudprovider.
                 type: object

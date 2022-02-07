@@ -16,6 +16,7 @@ package node_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/utils/timespan"
 	"strings"
 	"testing"
 	"time"
@@ -118,6 +119,130 @@ var _ = Describe("Controller", func() {
 			injectabletime.Now = func() time.Time {
 				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
 			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should delete nodes after expiry and falls within maintenance windows", func() {
+			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
+			provisioner.Spec.MaintenanceWindows = v1alpha5.MaintenanceWindows{
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{"SUN", "MON"},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{"TUE", "WED", "THU"},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{"FRI", "SAT"},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+			}
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
+		})
+		It("should ignore nodes after expiry but not falls within maintenance windows", func() {
+			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
+			provisioner.Spec.MaintenanceWindows = v1alpha5.MaintenanceWindows{
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{strings.ToUpper(time.Now().Add(24 * time.Hour).Weekday().String())[0:3]},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{strings.ToUpper(time.Now().Add(48 * time.Hour).Weekday().String())[0:3]},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+			}
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+		It("should requeue reconcile and delete node if nodes passed expiry TTL and falls within maintenance windows", func() {
+			provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(30)
+			provisioner.Spec.MaintenanceWindows = v1alpha5.MaintenanceWindows{
+				v1alpha5.MaintenanceWindow{
+					WeekDays:  []string{strings.ToUpper(time.Now().Add(24 * time.Hour).Weekday().String())[0:3]},
+					StartTime: "00:00",
+					TimeZone:  "America/New_York",
+					Duration:  "24:00",
+				},
+			}
+
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels: map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+				},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+
+			// Should still exist
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			// Simulate time passing
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
+			}
+			expectedRequeueTime := timespan.ParseStringTimeInDuration(strings.ToUpper(time.Now().Add(24 * time.Hour).Weekday().String())[0:3], "00:00") - timespan.ParseTimeWithZoneInDuration(injectabletime.Now(), "America/New_York")
+
+			// Should still exist
+			result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			Expect(result).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedRequeueTime}))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
+
+			injectabletime.Now = func() time.Time {
+				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second).Add(expectedRequeueTime)
+			}
+
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())

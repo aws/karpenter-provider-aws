@@ -16,6 +16,7 @@ package v1alpha5
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"strings"
 	"testing"
 
@@ -63,6 +64,103 @@ var _ = Describe("Validation", func() {
 	It("should succeed on a missing empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = nil
 		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
+
+	Context("MaintenanceWindows", func() {
+		It("should allow supported week days", func() {
+			for weekday := range sets.NewString("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{weekday}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "24:00"},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail empty week days", func() {
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "24:00"},
+				{WeekDays: nil, StartTime: "00:00", TimeZone: "America/New_York", Duration: "24:00"},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail unsupported week days", func() {
+			for weekday := range sets.NewString("MONDAY", "monday", "mon", "m0n") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{weekday}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow supported start time", func() {
+			for startTime := range sets.NewString("00:00", "09:09", "19:50", "23:59") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: startTime, TimeZone: "America/New_York", Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
+		It("should allow empty start time", func() {
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "", TimeZone: "America/New_York", Duration: "24:00"},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should allow unsupported start time", func() {
+			for startTime := range sets.NewString("25:00", "24:01", "00:60", "30:00", "000:00", "000:000") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: startTime, TimeZone: "America/New_York", Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow supported timezone", func() {
+			for timeZone := range sets.NewString("America/New_York", "US/Central", "GMT") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: timeZone, Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
+		It("should allow empty timezone", func() {
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "", Duration: "24:00"},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail unsupported timezone", func() {
+			for timeZone := range sets.NewString("New_Yor", "Central", "GMTX") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: timeZone, Duration: "24:00"},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow supported window", func() {
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "00:00"},
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "09:09"},
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "19:50"},
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: "23:59"},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail empty duration", func() {
+			provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+				{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: ""},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail unsupported duration format", func() {
+			for duration := range sets.NewString("25:00", "24:01", "00:60", "30:00", "000:00", "00:000", "000:000") {
+				provisioner.Spec.MaintenanceWindows = MaintenanceWindows{
+					{WeekDays: []string{"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}, StartTime: "00:00", TimeZone: "America/New_York", Duration: duration},
+				}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
 	})
 
 	Context("Limits", func() {
