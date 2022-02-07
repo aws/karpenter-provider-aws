@@ -59,7 +59,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 	if err := retry.Do(
 		func() (err error) { instances, err = p.getInstances(ctx, ids); return err },
 		retry.Delay(1*time.Second),
-		retry.Attempts(3),
+		retry.Attempts(6),
 	); err != nil && len(instances) == 0 {
 		return nil, err
 	} else if err != nil {
