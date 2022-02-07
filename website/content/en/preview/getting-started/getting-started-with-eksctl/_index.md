@@ -1,6 +1,7 @@
+
 ---
-title: "Getting Started with Karpenter on AWS"
-linkTitle: "Getting Started"
+title: "Getting Started with Karpenter on AWS with eksctl"
+linkTitle: "Getting Started with eksctl"
 weight: 10
 ---
 
@@ -98,11 +99,15 @@ Use Helm to deploy Karpenter to the cluster.
 
 Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-{{% script file="./content/en/preview/getting-started/scripts/step06-install-helm-chart.sh" language="bash"%}}
-
-Install the chart passing in the cluster details and the Karpenter role ARN.
-
-{{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
+```bash
+helm repo add karpenter https://charts.karpenter.sh/
+helm repo update
+helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
+  --create-namespace --set serviceAccount.create=false --version {{< param "latest_release_version" >}} \
+  --set controller.clusterName=${CLUSTER_NAME} \
+  --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
+  --wait # for the defaulting webhook to install before creating a Provisioner
+```
 
 ### Enable Debug Logging (optional)
 ```sh
@@ -147,6 +152,7 @@ spec:
       karpenter.sh/discovery: ${CLUSTER_NAME}
     securityGroupSelector:
       karpenter.sh/discovery: ${CLUSTER_NAME}
+    instanceProfile: KarpenterNodeInstanceProfile-${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
 EOF
 ```
@@ -224,6 +230,8 @@ aws ec2 describe-launch-templates \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 eksctl delete cluster --name "${CLUSTER_NAME}"
 ```
+
+---
 
 ## Next Steps:
 
