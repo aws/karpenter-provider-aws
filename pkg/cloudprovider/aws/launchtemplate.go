@@ -59,7 +59,7 @@ type LaunchTemplateProvider struct {
 func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
 	ltProvider := &LaunchTemplateProvider{
 		ec2api:                ec2api,
-		logger:                logging.FromContext(ctx).Named("launchTemplateProvider"),
+		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
@@ -225,10 +225,10 @@ func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
 	}
 	launchTemplate := lt.(*ec2.LaunchTemplate)
 	if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
-		p.logger.Debugf("unable to delete launch template, %v", err)
+		p.logger.Errorf("Unable to delete launch template, %v", err)
 		return
 	}
-	p.logger.Debugf("deleted launch template %v", *launchTemplate.LaunchTemplateId)
+	p.logger.Debugf("Deleted launch template %v", aws.StringValue(launchTemplate.LaunchTemplateId))
 }
 
 func sortedTaints(ts []core.Taint) []core.Taint {
