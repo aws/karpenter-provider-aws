@@ -202,27 +202,30 @@ func (r Requirements) CapacityTypes() stringsets.String {
 }
 
 // Validate validates the feasibility of the requirements.
-func (r Requirements) Validate() (errs *apis.FieldError) {
-	for i, requirement := range r.Requirements {
+//gocyclo:ignore
+func (r Requirements) Validate() (errs []string) {
+	for _, requirement := range r.Requirements {
 		for _, err := range validation.IsQualifiedName(requirement.Key) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("key %s, %s", requirement.Key, err), "key"))
+			errs = append(errs, fmt.Sprintf("key %s is not a qualified name, %s", requirement.Key, err))
 		}
 		for _, value := range requirement.Values {
 			for _, err := range validation.IsValidLabelValue(value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("key %s, value %s, %s", requirement.Key, value, err), "values", i))
+				errs = append(errs, fmt.Sprintf("key %s has an invalid value %s, %s", requirement.Key, value, err))
 			}
 		}
 		if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s for %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key), "operator"))
+			errs = append(errs, fmt.Sprintf("key %s has an unsupported operator %s, supported operators are %s", requirement.Key, requirement.Operator, SupportedNodeSelectorOps.UnsortedList()))
 		}
 		// Excludes cases when DoesNotExists appears together with In, NotIn, Exists
 		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("operator %s and %s conflict for %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key), "operator"))
+			errs = append(errs, fmt.Sprintf("operator %s and %s conflict for key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key))
 		}
-		if r.Get(requirement.Key).Len() == 0 {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("no feasible value for %s", requirement.Key), "values"))
+	}
+	for key := range r.Keys() {
+		if r.Get(key).Len() == 0 {
+			errs = append(errs, fmt.Sprintf("requirements render no feasible value for key %s", key))
 		}
 	}
 	return errs

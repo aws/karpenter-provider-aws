@@ -17,6 +17,7 @@ package v1alpha5
 import (
 	"fmt"
 
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -54,7 +55,11 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	// Test if pod requirements are valid
 	requirements := NewPodRequirements(pod)
 	if errs := requirements.Validate(); errs != nil {
-		return fmt.Errorf("pod requirements not feasible, %v", errs)
+		var multiErrors error
+		for _, err := range errs {
+			multiErrors = multierr.Append(multiErrors, fmt.Errorf(err))
+		}
+		return fmt.Errorf("pod requirements not feasible, %w", multiErrors)
 	}
 	// Test if pod requirements are compatible
 	if errs := c.Requirements.Compatible(requirements); errs != nil {

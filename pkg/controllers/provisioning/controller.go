@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -102,8 +103,12 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		Add(requirements(instanceTypes)...).
 		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
-	if err := provisioner.Spec.Requirements.Validate(); err != nil {
-		return fmt.Errorf("validating requirements, %w", err)
+	if errs := provisioner.Spec.Requirements.Validate(); errs != nil {
+		var multiErrors error
+		for _, err := range errs {
+			multiErrors = multierr.Append(multiErrors, fmt.Errorf(err))
+		}
+		return fmt.Errorf("provisioner is incompatible with the instance types, %w", multiErrors)
 	}
 	// Update the provisioner if anything has changed
 	if c.hasChanged(ctx, provisioner) {
