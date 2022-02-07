@@ -91,17 +91,20 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 		return fmt.Errorf("getting volume topology requirements, %w", err)
 	}
 	// Pick provisioner
-	var provisioner *provisioning.Provisioner
 	provisioners := c.provisioners.List(ctx)
 	if len(provisioners) == 0 {
 		return nil
 	}
+	var provisioner *provisioning.Provisioner
+	maxRank := -1
 	for _, candidate := range c.provisioners.List(ctx) {
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
 		} else {
-			provisioner = candidate
-			break
+			if rank := candidate.Rank(pod); rank > maxRank {
+				maxRank = rank
+				provisioner = candidate
+			}
 		}
 	}
 	if provisioner == nil {

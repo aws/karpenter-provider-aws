@@ -17,7 +17,6 @@ package v1alpha5
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -79,34 +78,11 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
-		if RestrictedLabels.Has(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label is restricted"))
-		}
-		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label domain not allowed"))
+		if err := IsRestrictedLabel(key); err != nil {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", fmt.Sprintf("%s", err)))
 		}
 	}
 	return errs
-}
-
-func IsRestrictedLabelDomain(key string) bool {
-	labelDomain := getLabelDomain(key)
-	if AllowedLabelDomains.Has(labelDomain) {
-		return false
-	}
-	for restrictedLabelDomain := range RestrictedLabelDomains {
-		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
-			return true
-		}
-	}
-	return false
-}
-
-func getLabelDomain(key string) string {
-	if parts := strings.SplitN(key, "/", 2); len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
 }
 
 func (c *Constraints) validateTaints() (errs *apis.FieldError) {
@@ -140,13 +116,12 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 	var err error
 	for _, requirement := range c.Requirements.Requirements {
-		// Ensure requirements are well known
-		if !WellKnownLabels.Has(requirement.Key) {
-			err = multierr.Append(err, fmt.Errorf("key %s is not in well known labels %s", requirement.Key, WellKnownLabels.UnsortedList()))
-		}
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
 			err = multierr.Append(err, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
+		}
+		if e := IsRestrictedLabel(requirement.Key); e != nil {
+			err = multierr.Append(err, e)
 		}
 	}
 	err = multierr.Append(err, c.Requirements.Validate())

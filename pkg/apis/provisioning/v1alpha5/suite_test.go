@@ -27,7 +27,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ctx context.Context
@@ -154,20 +153,36 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
-		It("should allow well known labels", func() {
-			for label := range WellKnownLabels {
-				provisioner.Spec.Requirements = NewRequirements(
-					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				)
-				Expect(provisioner.Validate(ctx)).To(Succeed())
-			}
-		})
-		It("should fail for unknown labels", func() {
-			for label := range sets.NewString("unknown", "invalid", "rejected") {
+		It("should fail for restricted labels", func() {
+			for label := range RestrictedLabels {
 				provisioner.Spec.Requirements = NewRequirements(
 					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 				)
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should fail for restricted domains", func() {
+			for label := range RestrictedLabelDomains {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow restricted domains exceptions", func() {
+			for label := range LabelDomainExceptions {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
+		It("should allow restricted label exceptions", func() {
+			for label := range LabelExceptions {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).To(Succeed())
 			}
 		})
 		It("should fail because no feasible value", func() {
@@ -177,10 +192,10 @@ var _ = Describe("Validation", func() {
 			)
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
-		It("should fail because In and NotIn cancel out", func() {
+		It("should fail because In and NotIn cannot have overlapped value", func() {
 			provisioner.Spec.Requirements = NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test"}},
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}},
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "bar"}},
 			)
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
@@ -329,10 +344,10 @@ var _ = Describe("Validation", func() {
 			B := NewRequirements()
 			Expect(A.Compatible(B)).To(Succeed())
 		})
-		It("A should fail to be compatible to B, <Empty, In> operator, indirectional", func() {
+		It("A should be compatible to B, <Empty, In> operator, indirectional", func() {
 			A := NewRequirements()
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
-			Expect(A.Compatible(B)).ToNot(Succeed())
+			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should be compatible to B, <Empty, NotIn> operator", func() {
 			A := NewRequirements()

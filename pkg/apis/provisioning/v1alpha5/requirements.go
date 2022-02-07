@@ -19,67 +19,12 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
-
-	"github.com/aws/karpenter/pkg/utils/sets"
-)
-
-var (
-	ArchitectureAmd64    = "amd64"
-	ArchitectureArm64    = "arm64"
-	OperatingSystemLinux = "linux"
-
-	// RestrictedLabels are injected by Cloud Providers
-	RestrictedLabels = stringsets.NewString(
-		// Used internally by provisioning logic
-		EmptinessTimestampAnnotationKey,
-		v1.LabelHostname,
-	)
-
-	// AllowedLabelDomains are domains that may be restricted, but that is allowed because
-	// they are not used in a context where they may be passed as argument to kubelet.
-	// AllowedLabelDomains are evaluated before RestrictedLabelDomains
-	AllowedLabelDomains = stringsets.NewString(
-		"kops.k8s.io",
-	)
-
-	// These are either prohibited by the kubelet or reserved by karpenter
-	// They are evaluated after AllowedLabelDomains
-	KarpenterLabelDomain   = "karpenter.sh"
-	RestrictedLabelDomains = stringsets.NewString(
-		"kubernetes.io",
-		"k8s.io",
-		KarpenterLabelDomain,
-	)
-	LabelCapacityType = KarpenterLabelDomain + "/capacity-type"
-	// WellKnownLabels supported by karpenter
-	WellKnownLabels = stringsets.NewString(
-		v1.LabelTopologyZone,
-		v1.LabelInstanceTypeStable,
-		v1.LabelArchStable,
-		v1.LabelOSStable,
-		LabelCapacityType,
-		v1.LabelHostname, // Used internally for hostname topology spread
-	)
-	// NormalizedLabels translate aliased concepts into the controller's
-	// WellKnownLabels. Pod requirements are translated for compatibility,
-	// however, Provisioner labels are still restricted to WellKnownLabels.
-	// Additional labels may be injected by cloud providers.
-	NormalizedLabels = map[string]string{
-		v1.LabelFailureDomainBetaZone:   v1.LabelTopologyZone,
-		"beta.kubernetes.io/arch":       v1.LabelArchStable,
-		"beta.kubernetes.io/os":         v1.LabelOSStable,
-		v1.LabelInstanceType:            v1.LabelInstanceTypeStable,
-		v1.LabelFailureDomainBetaRegion: v1.LabelTopologyRegion,
-	}
-	// IgnoredLables are not considered in scheduling decisions
-	// and prevent validation errors when specified
-	IgnoredLabels = stringsets.NewString(
-		v1.LabelTopologyRegion,
-	)
 )
 
 // Requirements are an alias type that wrap []v1.NodeSelectorRequirement and
@@ -111,6 +56,23 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 	for key, value := range pod.Spec.NodeSelector {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
+	// insert GPU requirements
+	for key := range resources.GPULimitsFor(pod) {
+		var value string
+		switch key {
+		case resources.NvidiaGPU:
+			value = nvidiaGPU
+		case resources.AMDGPU:
+			value = amdGPU
+		case resources.AWSNeuron:
+			value = awsNeuron
+		}
+		requirements = append(requirements, v1.NodeSelectorRequirement{
+			Key:      LabelGPUType,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{value},
+		})
+	}
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
 		return NewRequirements(requirements...)
 	}
@@ -128,14 +90,10 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 	return NewRequirements(requirements...)
 }
 
-func (r Requirements) WellKnown() Requirements {
-	requirements := []v1.NodeSelectorRequirement{}
-	for _, requirement := range r.Requirements {
-		if WellKnownLabels.Has(requirement.Key) {
-			requirements = append(requirements, requirement)
-		}
-	}
-	return NewRequirements(requirements...)
+// Rank returns the ranking score.
+// Requirements with tighener constraints will have a higher rank.
+func (r Requirements) Rank() int {
+	return r.Keys().Len()
 }
 
 // Add function returns a new Requirements object with new requirements inserted.
@@ -159,6 +117,8 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
 		case v1.NodeSelectorOpNotIn:
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet(requirement.Values...))
+		case v1.NodeSelectorOpDoesNotExist:
+			r.requirements[requirement.Key] = sets.NewSet()
 		}
 	}
 	return r
@@ -203,6 +163,7 @@ func (r Requirements) CapacityTypes() stringsets.String {
 }
 
 // Validate validates the feasibility of the requirements.
+// Do not apply validation to requiremnts after merging with other requirements.
 //gocyclo:ignore
 func (r Requirements) Validate() (errs error) {
 	for _, requirement := range r.Requirements {
@@ -223,26 +184,26 @@ func (r Requirements) Validate() (errs error) {
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
 			errs = multierr.Append(errs, fmt.Errorf("operator %s cannot coexist with other operators for key %s", v1.NodeSelectorOpDoesNotExist, requirement.Key))
 		}
+		// Excludes cases when In and NotIn have overlaps.
+		if requirement.Operator == v1.NodeSelectorOpIn && r.hasRequirement(withKeyOperatorAndValues(requirement.Key, v1.NodeSelectorOpNotIn, requirement.Values)) {
+			errs = multierr.Append(errs, fmt.Errorf("operators %s and %s have common values for key %s", v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, requirement.Key))
+		}
 	}
 	for key := range r.Keys() {
-		if r.Get(key).Len() == 0 {
+		if r.Get(key).Len() == 0 && !r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
 			errs = multierr.Append(errs, fmt.Errorf("no feasible value for key %s", key))
 		}
 	}
 	return errs
 }
 
-// Compatible ensures the provided requirements can be met. It is
-// non-commutative (i.e., A.Compatible(B) != B.Compatible(A))
+// Compatible ensures the provided requirements can be met.
 //gocyclo:ignore
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
 	for _, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
-		// Key must be defined if required
-		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
-			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
-		}
-		// Values must overlap
-		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 {
+		// Values must overlap except DoesNotExist operator
+		// DoesNotExist will be handled later
+		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 && !r.Get(key).IsEmpty() && !requirements.Get(key).IsEmpty() {
 			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
 		}
 		// Exists incompatible with DoesNotExist or undefined
@@ -290,6 +251,12 @@ func withKey(key string) func(v1.NodeSelectorRequirement) bool {
 func withKeyAndOperator(key string, operator v1.NodeSelectorOperator) func(v1.NodeSelectorRequirement) bool {
 	return func(requirement v1.NodeSelectorRequirement) bool {
 		return key == requirement.Key && requirement.Operator == operator
+	}
+}
+
+func withKeyOperatorAndValues(key string, operator v1.NodeSelectorOperator, values []string) func(v1.NodeSelectorRequirement) bool {
+	return func(requirement v1.NodeSelectorRequirement) bool {
+		return key == requirement.Key && requirement.Operator == operator && sets.NewSet(values...).Intersection(sets.NewSet(requirement.Values...)).Len() != 0
 	}
 }
 

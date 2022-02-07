@@ -15,8 +15,11 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"crypto/rand"
+	"encoding/base32"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -47,26 +50,118 @@ type Provider = runtime.RawExtension
 
 // ValidatePod returns an error if the pod's requirements are not met by the constraints
 func (c *Constraints) ValidatePod(pod *v1.Pod) error {
-	// Tolerate Taints
-	if err := c.Taints.Tolerates(pod); err != nil {
+	p := pod.DeepCopy()
+	// The soft preference may conflict with the requirements.
+	// Validate it separatly.
+	if err := validatePreferences(p); err != nil {
 		return err
 	}
+	// Remove soft constraints/ preferences
+	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil {
+		p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = nil
+	}
+	// Tolerate Taints
+	if err := c.Taints.Tolerates(p); err != nil {
+		return err
+	}
+	requirements := NewPodRequirements(p)
+	// Test if labels are allowed
+	for key := range requirements.Keys() {
+		if err := IsRestrictedLabel(key); err != nil && !PodLabelExceptions.Has(key) {
+			return err
+		}
+	}
 	// Test if pod requirements are valid
-	requirements := NewPodRequirements(pod)
 	if err := requirements.Validate(); err != nil {
 		return fmt.Errorf("invalid requirements, %w", err)
 	}
-	// Test if pod requirements are compatible
+	// Test if pod requirements are compatible to the provisioner
 	if errs := c.Requirements.Compatible(requirements); errs != nil {
 		return fmt.Errorf("incompatible requirements, %w", errs)
 	}
 	return nil
 }
 
+// ValidateDaemonSet  returns an error if the daemonset's requirements are not met by the constraints.
+// Karpenter does not create node labels based on daemonset's requirements.
+func (c *Constraints) ValidateDaemonSet(daemonSet appsv1.DaemonSet) error {
+	pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
+	p := pod.DeepCopy()
+	// The soft preference may conflict with the requirements.
+	// Validate it separatly.
+	if err := validatePreferences(p); err != nil {
+		return err
+	}
+	// Remove soft constraints/ preferences
+	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil {
+		p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = nil
+	}
+	// Tolerate Taints
+	if err := c.Taints.Tolerates(p); err != nil {
+		return err
+	}
+	requirements := NewPodRequirements(p)
+	// Test if pod requirements are valid
+	if err := requirements.Validate(); err != nil {
+		return fmt.Errorf("invalid requirements, %w", err)
+	}
+	// Test if the daemonset requirements is compatible to the node Labels
+	for key := range requirements.Keys() {
+		if value, ok := c.Labels[key]; !ok {
+			// case when daemonset requirement is not DoesNotExist or NotIn
+			if !requirements.Get(key).IsEmpty() && !requirements.Get(key).IsComplement() {
+				return fmt.Errorf("key %s not defined", key)
+			}
+		} else {
+			if !requirements.Get(key).Has(value) {
+				return fmt.Errorf("incompatible requirements for key %s", key)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validatePreferences(pod *v1.Pod) error {
+	if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
+		if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
+			preferences := NewRequirements(preferred[0].Preference.MatchExpressions...)
+			if err := preferences.Validate(); err != nil {
+				return fmt.Errorf("invalid preference, %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
+	requirements := c.Requirements.Add(NewPodRequirements(pod).Requirements...)
+	labels := map[string]string{}
+	for key, value := range c.Labels {
+		labels[key] = value
+	}
+	for key := range requirements.Keys() {
+		if !IsRestrictedNodeLabel(key) {
+			values := requirements.Get(key)
+			if !values.IsComplement() && !values.IsEmpty() {
+				labels[key] = values.Values().UnsortedList()[0]
+			}
+			// NotIn, Exists and DoesNotExist will have a complement value set.
+			// Only write a random value if the requirements operator is Exists.
+			// NotIn operator and DoesNotExist operator will schedule without the label
+			if values.IsFull() {
+				label := make([]byte, 32)
+				_, err := rand.Read(label)
+				if err != nil {
+					panic(err)
+				}
+				labels[key] = base32.StdEncoding.EncodeToString(label)[:10]
+			}
+		}
+	}
 	return &Constraints{
-		Labels:               c.Labels,
-		Requirements:         c.Requirements.Add(NewPodRequirements(pod).Requirements...).WellKnown(),
+		Labels:               labels,
+		Requirements:         requirements,
 		Taints:               c.Taints,
 		Provider:             c.Provider,
 		KubeletConfiguration: c.KubeletConfiguration,

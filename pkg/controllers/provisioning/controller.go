@@ -16,7 +16,6 @@ package provisioning
 import (
 	"context"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 
@@ -141,7 +140,6 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 		provisioners = append(provisioners, value.(*Provisioner))
 		return true
 	})
-	sort.Slice(provisioners, func(i, j int) bool { return provisioners[i].Name < provisioners[j].Name })
 	return provisioners
 }
 

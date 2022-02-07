@@ -100,7 +100,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 		}
 	}
 	// Separate pods by scheduling constraints
-	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, pods)
+	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, p.cloudProvider, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
@@ -157,6 +157,7 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 		pods <- ps
 	}
 	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
+		// Inserting labels from constraints
 		node.Labels = functional.UnionStringMaps(node.Labels, constraints.Labels)
 		node.Spec.Taints = append(node.Spec.Taints, constraints.Taints...)
 		return p.bind(ctx, node, <-pods)
