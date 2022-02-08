@@ -49,7 +49,6 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
 	CalledWithCreateFleetInput          set.Set
 	CalledWithCreateLaunchTemplateInput set.Set
-	CalledWithDeleteLaunchTemplateInput set.Set
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           []CapacityPool
@@ -69,7 +68,6 @@ func (e *EC2API) Reset() {
 	e.EC2Behavior = EC2Behavior{
 		CalledWithCreateFleetInput:          set.NewSet(),
 		CalledWithCreateLaunchTemplateInput: set.NewSet(),
-		CalledWithDeleteLaunchTemplateInput: set.NewSet(),
 		Instances:                           sync.Map{},
 		LaunchTemplates:                     sync.Map{},
 		InsufficientCapacityPools:           []CapacityPool{},
@@ -171,28 +169,10 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 		}
 		return true
 	})
-	if len(output.LaunchTemplates) == 0 && len(input.LaunchTemplateNames) != 0 {
+	if len(output.LaunchTemplates) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
 	}
 	return output, nil
-}
-
-func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, opts ...request.Option) error {
-	output, err := e.DescribeLaunchTemplatesWithContext(ctx, input, opts...)
-	if err != nil {
-		return err
-	}
-	fn(output, false)
-	return nil
-}
-
-func (e *EC2API) DeleteLaunchTemplate(input *ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
-	e.CalledWithDeleteLaunchTemplateInput.Add(input)
-	launchTemplate, ok := e.LaunchTemplates.LoadAndDelete(input.LaunchTemplateName)
-	if !ok {
-		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
-	}
-	return &ec2.DeleteLaunchTemplateOutput{LaunchTemplate: launchTemplate.(*ec2.LaunchTemplate)}, nil
 }
 
 func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnetsInput, ...request.Option) (*ec2.DescribeSubnetsOutput, error) {

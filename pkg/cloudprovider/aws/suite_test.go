@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -36,6 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -53,10 +53,9 @@ import (
 var ctx context.Context
 var opts options.Options
 var env *test.Environment
-var launchTemplateProvider *LaunchTemplateProvider
-var instanceTypeProvider *InstanceTypeProvider
-var securityGroupProvider *SecurityGroupProvider
-var subnetProvider *SubnetProvider
+var launchTemplateCache *cache.Cache
+var securityGroupCache *cache.Cache
+var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
 var selectionController *selection.Controller
@@ -78,16 +77,33 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
-		clientSet := kubernetes.NewForConfigOrDie(e.Config)
+		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
+		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
+		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
-		subnetProvider = NewSubnetProvider(fakeEC2API)
-		instanceTypeProvider = NewInstanceTypeProvider(fakeEC2API, subnetProvider)
-		securityGroupProvider = NewSecurityGroupProvider(fakeEC2API)
-		launchTemplateProvider = NewLaunchTemplateProvider(ctx, fakeEC2API, NewAMIProvider(&fake.SSMAPI{}, clientSet), securityGroupProvider)
+		subnetProvider := NewSubnetProvider(fakeEC2API)
+		instanceTypeProvider := &InstanceTypeProvider{
+			ec2api:               fakeEC2API,
+			subnetProvider:       subnetProvider,
+			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+			unavailableOfferings: unavailableOfferingsCache,
+		}
+		clientSet := kubernetes.NewForConfigOrDie(e.Config)
+		securityGroupProvider := &SecurityGroupProvider{
+			ec2api: fakeEC2API,
+			cache:  securityGroupCache,
+		}
 		cloudProvider := &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
-			instanceProvider:     NewInstanceProvider(fakeEC2API, instanceTypeProvider, subnetProvider, launchTemplateProvider),
+			instanceProvider: &InstanceProvider{
+				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
+					ec2api:                fakeEC2API,
+					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
+					securityGroupProvider: securityGroupProvider,
+					cache:                 launchTemplateCache,
+				},
+			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		provisioners = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
@@ -113,10 +129,9 @@ var _ = Describe("Allocation", func() {
 		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
 		provisioner.SetDefaults(ctx)
 		fakeEC2API.Reset()
-		launchTemplateProvider.cache.Flush()
-		instanceTypeProvider.cache.Flush()
-		instanceTypeProvider.unavailableOfferings.Flush()
-		securityGroupProvider.cache.Flush()
+		launchTemplateCache.Flush()
+		securityGroupCache.Flush()
+		unavailableOfferingsCache.Flush()
 	})
 
 	AfterEach(func() {
@@ -318,7 +333,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
-				instanceTypeProvider.unavailableOfferings.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
+				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
 				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
@@ -354,21 +369,6 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("LaunchTemplates", func() {
-			It("should hydrate the launch template cache on instantiation of the LaunchTemplateProvider", func() {
-				launchTemplateProvider.hydrateCache(ctx)
-				Expect(launchTemplateProvider.cache.ItemCount()).To(Equal(0))
-				fakeEC2API.DescribeLaunchTemplatesOutput = &ec2.DescribeLaunchTemplatesOutput{
-					LaunchTemplates: []*ec2.LaunchTemplate{{LaunchTemplateName: aws.String(fmt.Sprintf("Karpenter-%s-abcdef", opts.ClusterName))}},
-				}
-				launchTemplateProvider.hydrateCache(ctx)
-				Expect(launchTemplateProvider.cache.ItemCount()).To(Equal(1))
-			})
-			It("should delete launch templates when evicted from cache", func() {
-				launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: aws.String(fmt.Sprintf("Karpenter-%s-abcdef", opts.ClusterName))}
-				launchTemplateProvider.cache.SetDefault(*launchTemplate.LaunchTemplateName, launchTemplate)
-				launchTemplateProvider.cache.Delete(*launchTemplate.LaunchTemplateName)
-				Expect(fakeEC2API.CalledWithDeleteLaunchTemplateInput.Cardinality()).To(Equal(1))
-			})
 			It("should use same launch template for equivalent constraints", func() {
 				t1 := v1.Toleration{
 					Key:      "Abacus",
@@ -409,6 +409,7 @@ var _ = Describe("Allocation", func() {
 				name2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 				Expect(name1).To(Equal(name2))
 			})
+
 			It("should default to a generated launch template", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
