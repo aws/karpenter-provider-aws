@@ -1,13 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "karpenter.fullname" . }}
+  name: karpenter
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.additionalAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- }}
+  {{- end }}
 spec:
   type: ClusterIP
   ports:

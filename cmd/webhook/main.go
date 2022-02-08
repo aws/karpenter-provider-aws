@@ -45,8 +45,8 @@ func main() {
 	config := knativeinjection.ParseAndGetRESTConfigOrDie()
 	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 		Port:        opts.WebhookPort,
-		ServiceName: "karpenter-webhook",
-		SecretName:  "karpenter-webhook-cert",
+		ServiceName: "karpenter",
+		SecretName:  "karpenter-cert",
 	})
 
 	// Register the cloud provider to attach vendor specific validation logic.

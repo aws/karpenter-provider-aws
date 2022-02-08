@@ -9,8 +9,10 @@ WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      --set clusterName=${CLUSTER_NAME} \
+AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
+KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
+HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
+      		--set clusterName=${CLUSTER_NAME} \
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 

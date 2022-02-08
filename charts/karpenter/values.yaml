@@ -70,6 +70,7 @@ affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
+      - matchExpressions:
         - key: karpenter.sh/provisioner-name
           operator: DoesNotExist
 

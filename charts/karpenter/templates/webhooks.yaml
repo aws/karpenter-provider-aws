@@ -2,12 +2,13 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: defaulting.webhook.provisioners.karpenter.sh
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.additionalAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- }}
+  {{- end }}
 webhooks:
   - name: defaulting.webhook.provisioners.karpenter.sh
     admissionReviewVersions: ["v1"]
@@ -33,6 +34,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validation.webhook.provisioners.karpenter.sh
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
 webhooks:
@@ -61,6 +63,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validation.webhook.config.karpenter.sh
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
 webhooks:

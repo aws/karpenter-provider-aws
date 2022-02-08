@@ -7,7 +7,7 @@ metadata:
   {{- with .Values.additionalAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- }}
+  {{- end }}
 rules:
   - apiGroups: ["karpenter.sh"]
     resources: ["provisioners"]

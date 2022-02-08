@@ -2,12 +2,13 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.additionalAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- }}
+  {{- end }}
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -26,7 +27,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: ["karpenter-webhook-cert"]
+    resourceNames: ["karpenter-cert"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
     resources: ["secrets"]

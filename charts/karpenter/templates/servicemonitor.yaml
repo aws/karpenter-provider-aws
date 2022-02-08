@@ -3,6 +3,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.serviceMonitor.additionalLabels }}
@@ -11,7 +12,7 @@ metadata:
   {{- with .Values.additionalAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- }}
+  {{- end }}
 spec:
   namespaceSelector:
     matchNames:
