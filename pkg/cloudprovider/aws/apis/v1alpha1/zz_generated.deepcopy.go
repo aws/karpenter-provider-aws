@@ -28,6 +28,11 @@ import (
 func (in *AWS) DeepCopyInto(out *AWS) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
+	if in.AMIFamily != nil {
+		in, out := &in.AMIFamily, &out.AMIFamily
+		*out = new(string)
+		**out = **in
+	}
 	if in.LaunchTemplate != nil {
 		in, out := &in.LaunchTemplate, &out.LaunchTemplate
 		*out = new(string)

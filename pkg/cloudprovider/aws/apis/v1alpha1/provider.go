@@ -43,8 +43,11 @@ type AWS struct {
 	// TypeMeta includes version and kind of the extensions, inferred if not provided.
 	// +optional
 	metav1.TypeMeta `json:",inline"`
-	// InstanceProfile to use for provisioned nodes, overriding the default profile.
+	// AMIFamily is the AMI family that instances use.
 	// +optional
+	AMIFamily *string `json:"amiFamily,omitempty"`
+	// InstanceProfile is the AWS identity that instances use.
+	// +required
 	InstanceProfile string `json:"instanceProfile"`
 	// LaunchTemplate for the node. If not specified, a launch template will be generated.
 	// +optional

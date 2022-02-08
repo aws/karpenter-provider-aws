@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
@@ -46,7 +47,7 @@ func NewAMIProvider(ssm ssmiface.SSMAPI, clientSet *kubernetes.Clientset) *AMIPr
 }
 
 // Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
-func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
+func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (map[string][]cloudprovider.InstanceType, error) {
 	version, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kube server version, %w", err)
@@ -54,7 +55,7 @@ func (p *AMIProvider) Get(ctx context.Context, instanceTypes []cloudprovider.Ins
 	// Separate instance types by unique queries
 	amiQueries := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		query := p.getSSMQuery(instanceType, version)
+		query := p.getSSMQuery(ctx, constraints, instanceType, version)
 		amiQueries[query] = append(amiQueries[query], instanceType)
 	}
 	// Separate instance types by unique AMIIDs
@@ -83,14 +84,40 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	return ami, nil
 }
 
-func (p *AMIProvider) getSSMQuery(instanceType cloudprovider.InstanceType, version string) string {
-	var amiSuffix string
+// getAL2Alias returns a properly-formatted alias for an Amazon Linux AMI from SSM
+func (p *AMIProvider) getAL2Alias(version string, instanceType cloudprovider.InstanceType) string {
+	amiSuffix := ""
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-gpu"
 	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
-		amiSuffix = "-arm64"
+		amiSuffix = fmt.Sprintf("-%s", instanceType.Architecture())
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
+}
+
+// getBottlerocketAlias returns a properly-formatted alias for a Bottlerocket AMI from SSM
+func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudprovider.InstanceType) string {
+	arch := "x86_64"
+	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
+		arch = instanceType.Architecture()
+	}
+	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+}
+
+func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
+	ssmQuery := p.getAL2Alias(version, instanceType)
+	if constraints.AMIFamily != nil {
+		if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
+			ssmQuery = p.getBottlerocketAlias(version, instanceType)
+		} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
+			ssmQuery = p.getAL2Alias(version, instanceType)
+		} else {
+			logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
+			ssmQuery = p.getAL2Alias(version, instanceType)
+		}
+	}
+
+	return ssmQuery
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
