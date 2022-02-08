@@ -85,7 +85,7 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 }
 
 func (p *AMIProvider) getSSMQuery(constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
-	if strings.EqualFold(aws.StringValue(constraints.AMIFamily), v1alpha1.AMIFamilyBottlerocket) {
+	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
 		return p.getBottlerocketAlias(version, instanceType)
 	}
 	return p.getAL2Alias(version, instanceType)

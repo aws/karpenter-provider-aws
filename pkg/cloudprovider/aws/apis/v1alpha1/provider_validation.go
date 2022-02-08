@@ -131,7 +131,7 @@ func (a *AWS) validateAMIFamily() *apis.FieldError {
 
 func (a *AWS) validateStringEnum(value, field string, validValues []string) *apis.FieldError {
 	for _, validValue := range validValues {
-		if strings.EqualFold(value, validValue) {
+		if value == validValue {
 			return nil
 		}
 	}

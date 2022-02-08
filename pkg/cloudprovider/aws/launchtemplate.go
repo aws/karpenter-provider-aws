@@ -108,7 +108,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
 	for amiID, instanceTypes := range amis {
 		userData, err := p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
-		if strings.EqualFold(aws.StringValue(constraints.AMIFamily), v1alpha1.AMIFamilyBottlerocket) {
+		if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
 			userData, err = p.getBottlerocketUserData(ctx, constraints, additionalLabels)
 		}
 		if err != nil {
