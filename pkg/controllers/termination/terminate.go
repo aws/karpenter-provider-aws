@@ -70,7 +70,7 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 		}
 	}
 	// Enqueue for eviction
-	t.evict(ctx, pods)
+	t.evict(pods)
 	return len(pods) == 0, nil
 }
 
@@ -118,7 +118,7 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 	return pods, nil
 }
 
-func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
+func (t *Terminator) evict(pods []*v1.Pod) {
 	// 1. Prioritize noncritical pods https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	critical := []*v1.Pod{}
 	nonCritical := []*v1.Pod{}
@@ -134,9 +134,9 @@ func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
 	}
 	// 2. Evict critical pods if all noncritical are evicted
 	if len(nonCritical) == 0 {
-		t.EvictionQueue.Add(ctx, critical)
+		t.EvictionQueue.Add(critical)
 	} else {
-		t.EvictionQueue.Add(ctx, nonCritical)
+		t.EvictionQueue.Add(nonCritical)
 	}
 }
 

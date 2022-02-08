@@ -54,7 +54,7 @@ func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) 
 }
 
 // Add adds pods to the EvictionQueue
-func (e *EvictionQueue) Add(ctx context.Context, pods []*v1.Pod) {
+func (e *EvictionQueue) Add(pods []*v1.Pod) {
 	for _, pod := range pods {
 		if nn := client.ObjectKeyFromObject(pod); !e.Set.Contains(nn) {
 			e.Set.Add(nn)

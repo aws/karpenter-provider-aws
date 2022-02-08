@@ -83,4 +83,4 @@ If a pod exists with the annotation `karpenter.sh/do-not-evict` on a node, and a
 This is useful for pods that you want to run from start to finish without interruption.
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
-If you want to terminate node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
+If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.
