@@ -52,16 +52,13 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template --include-crds karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=ko://github.com/aws/karpenter/cmd/controller \
-		--set webhook.image=ko://github.com/aws/karpenter/cmd/webhook \
-		| $(WITH_GOFLAGS) ko apply -B -f -
+		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
+		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter --namespace karpenter \
-		$(HELM_OPTS) \
-		| kubectl delete -f -
+	helm uninstall karpenter --namespace karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \
