@@ -44,6 +44,15 @@ type InstanceProvider struct {
 	launchTemplateProvider *LaunchTemplateProvider
 }
 
+func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+	return &InstanceProvider{
+		ec2api:                 ec2api,
+		instanceTypeProvider:   instanceTypeProvider,
+		subnetProvider:         subnetProvider,
+		launchTemplateProvider: launchTemplateProvider,
+	}
+}
+
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
