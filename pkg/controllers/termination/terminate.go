@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 type Terminator struct {
@@ -57,28 +56,22 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 
 // drain evicts pods from the node and returns true when all pods are evicted
 func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
-	// 1. Get pods on node
+	// Get evictable pods
 	pods, err := t.getPods(ctx, node)
 	if err != nil {
 		return false, fmt.Errorf("listing pods for node, %w", err)
 	}
-
-	// 2. Separate pods as non-critical and critical
-	// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
+	// Skip node due to do-not-evict
 	for _, pod := range pods {
+		// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
-			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s has do-not-evict annotation", pod.Name)
+			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s/%s has do-not-evict annotation", pod.Namespace, pod.Name)
 			return false, nil
 		}
 	}
-
-	// 4. Get and evict pods
-	evictable := t.getEvictablePods(pods)
-	if len(evictable) == 0 {
-		return true, nil
-	}
-	t.evict(evictable)
-	return false, nil
+	// Enqueue for eviction
+	t.evict(ctx, pods)
+	return len(pods) == 0, nil
 }
 
 // terminate calls cloud provider delete then removes the finalizer to delete the node
@@ -102,34 +95,30 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 
 // getPods returns a list of pods scheduled to a node based on some filters
 func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
-	pods := &v1.PodList{}
-	if err := t.KubeClient.List(ctx, pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+	podList := &v1.PodList{}
+	if err := t.KubeClient.List(ctx, podList, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return nil, fmt.Errorf("listing pods on node, %w", err)
 	}
-	return ptr.PodListToSlice(pods), nil
-}
-
-func (t *Terminator) getEvictablePods(pods []*v1.Pod) []*v1.Pod {
-	evictable := []*v1.Pod{}
-	for _, p := range pods {
+	pods := []*v1.Pod{}
+	for i := range podList.Items {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(p) == nil {
+		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(&podList.Items[i]) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
-		if IsStuckTerminating(p) {
+		if IsStuckTerminating(&podList.Items[i]) {
 			continue
 		}
 		// Ignore static mirror pods
-		if pod.IsOwnedByNode(p) {
+		if pod.IsOwnedByNode(&podList.Items[i]) {
 			continue
 		}
-		evictable = append(evictable, p)
+		pods = append(pods, &podList.Items[i])
 	}
-	return evictable
+	return pods, nil
 }
 
-func (t *Terminator) evict(pods []*v1.Pod) {
+func (t *Terminator) evict(ctx context.Context, pods []*v1.Pod) {
 	// 1. Prioritize noncritical pods https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 	critical := []*v1.Pod{}
 	nonCritical := []*v1.Pod{}
@@ -145,9 +134,9 @@ func (t *Terminator) evict(pods []*v1.Pod) {
 	}
 	// 2. Evict critical pods if all noncritical are evicted
 	if len(nonCritical) == 0 {
-		t.EvictionQueue.Add(critical)
+		t.EvictionQueue.Add(ctx, critical)
 	} else {
-		t.EvictionQueue.Add(nonCritical)
+		t.EvictionQueue.Add(ctx, nonCritical)
 	}
 }
 

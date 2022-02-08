@@ -49,12 +49,12 @@ func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) 
 
 		coreV1Client: coreV1Client,
 	}
-	go queue.Start(ctx)
+	go queue.Start(logging.WithLogger(ctx, logging.FromContext(ctx).Named("eviction")))
 	return queue
 }
 
 // Add adds pods to the EvictionQueue
-func (e *EvictionQueue) Add(pods []*v1.Pod) {
+func (e *EvictionQueue) Add(ctx context.Context, pods []*v1.Pod) {
 	for _, pod := range pods {
 		if nn := client.ObjectKeyFromObject(pod); !e.Set.Contains(nn) {
 			e.Set.Add(nn)
@@ -92,11 +92,11 @@ func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool
 		ObjectMeta: metav1.ObjectMeta{Name: nn.Name, Namespace: nn.Namespace},
 	})
 	if errors.IsInternalError(err) { // 500
-		logging.FromContext(ctx).Debugf("Failed to evict pod %s due to PDB misconfiguration error.", nn.String())
+		logging.FromContext(ctx).Errorf("Could not evict pod %s due to PDB misconfiguration error.", nn.String())
 		return false
 	}
 	if errors.IsTooManyRequests(err) { // 429
-		logging.FromContext(ctx).Debugf("Failed to evict pod %s due to PDB violation.", nn.String())
+		logging.FromContext(ctx).Debugf("Did not to evict pod %s due to PDB violation.", nn.String())
 		return false
 	}
 	if errors.IsNotFound(err) { // 404
