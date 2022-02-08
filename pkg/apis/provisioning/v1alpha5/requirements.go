@@ -298,7 +298,9 @@ func (r *Requirements) MarshalJSON() ([]byte, error) {
 
 func (r *Requirements) UnmarshalJSON(b []byte) error {
 	var requirements []v1.NodeSelectorRequirement
-	json.Unmarshal(b, &requirements)
+	if err := json.Unmarshal(b, &requirements); err != nil {
+		return err
+	}
 	*r = NewRequirements(requirements...)
 	return nil
 }
