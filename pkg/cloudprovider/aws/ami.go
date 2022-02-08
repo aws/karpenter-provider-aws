@@ -106,17 +106,9 @@ func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudpro
 
 func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
 	ssmQuery := p.getAL2Alias(version, instanceType)
-	if constraints.AMIFamily != nil {
-		if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
-			ssmQuery = p.getBottlerocketAlias(version, instanceType)
-		} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
-			ssmQuery = p.getAL2Alias(version, instanceType)
-		} else {
-			logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
-			ssmQuery = p.getAL2Alias(version, instanceType)
-		}
+	if strings.EqualFold(aws.StringValue(constraints.AMIFamily), v1alpha1.AMIFamilyBottlerocket) {
+		ssmQuery = p.getBottlerocketAlias(version, instanceType)
 	}
-
 	return ssmQuery
 }
 
