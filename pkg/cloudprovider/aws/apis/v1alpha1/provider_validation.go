@@ -135,5 +135,5 @@ func (a *AWS) validateStringEnum(value, field string, validValues []string) *api
 			return nil
 		}
 	}
-	return apis.ErrInvalidValue(fmt.Sprintf("valid values: %s", strings.Join(validValues, ", ")), field)
+	return apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", value, strings.Join(validValues, ", ")), field)
 }
