@@ -65,6 +65,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiP
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
+	l.hydrateCache(ctx)
 	return l
 }
 
@@ -215,6 +216,24 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	}
 	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
+}
+
+// hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
+// Any error during hydration will result in a panic
+func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
+	queryKey := fmt.Sprintf(launchTemplateNameFormat, injection.GetOptions(ctx).ClusterName, "*")
+	p.logger.Debugf("Hydrating the launch template cache with names matching \"%s\"", queryKey)
+	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []*ec2.Filter{{Name: aws.String("launch-template-name"), Values: []*string{aws.String(queryKey)}}},
+	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
+		for _, lt := range output.LaunchTemplates {
+			p.cache.SetDefault(*lt.LaunchTemplateName, lt)
+		}
+		return true
+	}); err != nil {
+		panic(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err.Error()))
+	}
+	p.logger.Debugf("Finished hydrating the launch template cache with %d items", p.cache.ItemCount())
 }
 
 func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
