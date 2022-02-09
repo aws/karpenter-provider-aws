@@ -111,16 +111,9 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		return nil, fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
 	for amiID, instanceTypes := range amis {
-		userData := p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
-		if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
-			userData = p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
-		}
-		if err != nil {
-			return nil, err
-		}
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-			UserData:          userData,
+			UserData:          p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle),
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
 			InstanceProfile:   instanceProfile,
 			AMIID:             amiID,
@@ -244,6 +237,13 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
+	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
+		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
+	}
+	return p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
 }
 
 func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
