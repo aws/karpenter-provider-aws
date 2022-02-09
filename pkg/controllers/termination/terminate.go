@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 type Terminator struct {
@@ -100,20 +101,20 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 		return nil, fmt.Errorf("listing pods on node, %w", err)
 	}
 	pods := []*v1.Pod{}
-	for i := range podList.Items {
+	for _, p := range podList.Items {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(&podList.Items[i]) == nil {
+		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(ptr.Pod(p)) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
-		if IsStuckTerminating(&podList.Items[i]) {
+		if IsStuckTerminating(ptr.Pod(p)) {
 			continue
 		}
 		// Ignore static mirror pods
-		if pod.IsOwnedByNode(&podList.Items[i]) {
+		if pod.IsOwnedByNode(ptr.Pod(p)) {
 			continue
 		}
-		pods = append(pods, &podList.Items[i])
+		pods = append(pods, ptr.Pod(p))
 	}
 	return pods, nil
 }
