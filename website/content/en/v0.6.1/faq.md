@@ -29,7 +29,7 @@ Specify the desired architecture when you deploy workloads.
 
 ### What RBAC access is required?
 All of the required RBAC rules can be found in the helm chart template.
-See the [rbac.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/controller/rbac.yaml) file for details.
+See [clusterrolebinding.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/clusterrolebinding.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/role.yaml) files for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
