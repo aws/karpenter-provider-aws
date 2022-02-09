@@ -106,27 +106,14 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	}
 	// Construct launch templates
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
+	caBundle, err := p.GetCABundle(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting ca bundle for user data, %w", err)
+	}
 	for amiID, instanceTypes := range amis {
-		// Get userData for Node
-		var userData string
-		if constraints.AMIFamily != nil {
-			if strings.EqualFold(*constraints.AMIFamily, v1alpha1.OperatingSystemBottleRocket) {
-				userData, err = p.getBottleRocketUserData(ctx, constraints, additionalLabels)
-			} else if strings.EqualFold(*constraints.AMIFamily, v1alpha1.OperatingSystemEKSOptimized) {
-				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
-			} else {
-				logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
-				userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
-			}
-		} else {
-			userData, err = p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels)
-		}
-		if err != nil {
-			return nil, err
-		}
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-			UserData:          userData,
+			UserData:          p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle),
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
 			InstanceProfile:   instanceProfile,
 			AMIID:             amiID,
@@ -252,52 +239,42 @@ func sortedKeys(m map[string]string) []string {
 	return keys
 }
 
-func (p *LaunchTemplateProvider) getBottleRocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string) (string, error) {
-	var userData string
-	userData += fmt.Sprintf(`[settings.kubernetes]
-cluster-name = "%s"
-api-server = "%s"
-`,
-		injection.GetOptions(ctx).ClusterName,
-		injection.GetOptions(ctx).ClusterEndpoint)
-
-	if constraints.KubeletConfiguration.ClusterDNS != nil {
-		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"", constraints.KubeletConfiguration.ClusterDNS)
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
+	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
+		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
 	}
+	return p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
+}
 
-	caBundle, err := p.GetCABundle(ctx)
-	if err != nil {
-		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
+func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
+	userData := fmt.Sprintf("[settings.kubernetes]\ncluster-name = \"%s\"\napi-server = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
+	if constraints.KubeletConfiguration.ClusterDNS != nil {
+		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS)
 	}
 	if caBundle != nil {
 		userData += fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle)
 	}
-
 	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
 	if len(nodeLabelArgs) > 0 {
-		userData += `[settings.kubernetes.node-labels]
-`
+		userData += "[settings.kubernetes.node-labels]\n"
 		for key, val := range nodeLabelArgs {
-			userData += fmt.Sprintf("\"%s\" = \"%s\"", key, val)
+			userData += fmt.Sprintf("\"%s\" = \"%s\"\n", key, val)
 		}
 	}
-
 	if len(constraints.Taints) > 0 {
-		userData += `[settings.kubernetes.node-taints]
-`
+		userData += "[settings.kubernetes.node-taints]\n"
 		sorted := sortedTaints(constraints.Taints)
 		for _, taint := range sorted {
-			userData += fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect)
+			userData += fmt.Sprintf("%s=%s:%s\n", taint.Key, taint.Value, taint.Effect)
 		}
 	}
-
-	return base64.StdEncoding.EncodeToString([]byte(userData)), nil
+	return base64.StdEncoding.EncodeToString([]byte(userData))
 }
 
 // getEKSOptimizedUserData returns the exact same string for equivalent input,
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
-func (p *LaunchTemplateProvider) getEKSOptimizedUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (string, error) {
+func (p *LaunchTemplateProvider) getEKSOptimizedUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
 		containerRuntimeArg = "--container-runtime containerd"
@@ -311,10 +288,6 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		injection.GetOptions(ctx).ClusterName,
 		containerRuntimeArg,
 		injection.GetOptions(ctx).ClusterEndpoint))
-	caBundle, err := p.GetCABundle(ctx)
-	if err != nil {
-		return "", fmt.Errorf("getting ca bundle for user data, %w", err)
-	}
 	if caBundle != nil {
 		userData.WriteString(fmt.Sprintf(` \
     --b64-cluster-ca '%s'`,
@@ -339,7 +312,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 		userData.WriteString(fmt.Sprintf(` \
     --dns-cluster-ip '%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
 	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }
 
 func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) string {

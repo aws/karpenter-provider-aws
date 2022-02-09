@@ -33,6 +33,7 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 		a.validateSecurityGroups(),
 		a.validateTags(),
 		a.validateMetadataOptions(),
+		a.validateAMIFamily(),
 	)
 }
 
@@ -121,11 +122,18 @@ func (a *AWS) validateHTTPTokens() *apis.FieldError {
 	return a.validateStringEnum(*a.MetadataOptions.HTTPTokens, "httpTokens", ec2.LaunchTemplateHttpTokensState_Values())
 }
 
+func (a *AWS) validateAMIFamily() *apis.FieldError {
+	if a.AMIFamily == nil {
+		return nil
+	}
+	return a.validateStringEnum(*a.AMIFamily, "amiFamily", SupportedAMIFamilies)
+}
+
 func (a *AWS) validateStringEnum(value, field string, validValues []string) *apis.FieldError {
 	for _, validValue := range validValues {
 		if value == validValue {
 			return nil
 		}
 	}
-	return apis.ErrInvalidValue(fmt.Sprintf("valid values: %s", strings.Join(validValues, ", ")), field)
+	return apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", value, strings.Join(validValues, ", ")), field)
 }

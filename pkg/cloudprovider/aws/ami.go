@@ -55,7 +55,7 @@ func (p *AMIProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints
 	// Separate instance types by unique queries
 	amiQueries := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		query := p.getSSMQuery(ctx, constraints, instanceType, version)
+		query := p.getSSMQuery(constraints, instanceType, version)
 		amiQueries[query] = append(amiQueries[query], instanceType)
 	}
 	// Separate instance types by unique AMIIDs
@@ -84,6 +84,13 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	return ami, nil
 }
 
+func (p *AMIProvider) getSSMQuery(constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
+	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
+		return p.getBottlerocketAlias(version, instanceType)
+	}
+	return p.getAL2Alias(version, instanceType)
+}
+
 // getAL2Alias returns a properly-formatted alias for an Amazon Linux AMI from SSM
 func (p *AMIProvider) getAL2Alias(version string, instanceType cloudprovider.InstanceType) string {
 	amiSuffix := ""
@@ -102,22 +109,6 @@ func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudpro
 		arch = instanceType.Architecture()
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
-}
-
-func (p *AMIProvider) getSSMQuery(ctx context.Context, constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
-	ssmQuery := p.getAL2Alias(version, instanceType)
-	if constraints.AMIFamily != nil {
-		if *constraints.AMIFamily == v1alpha1.OperatingSystemBottleRocket {
-			ssmQuery = p.getBottlerocketAlias(version, instanceType)
-		} else if *constraints.AMIFamily == v1alpha1.OperatingSystemEKSOptimized {
-			ssmQuery = p.getAL2Alias(version, instanceType)
-		} else {
-			logging.FromContext(ctx).Warnf("AMIFamily was set, but was not one of %s or %s. Setting to %s as the default.", v1alpha1.OperatingSystemEKSOptimized, v1alpha1.OperatingSystemBottleRocket, v1alpha1.OperatingSystemEKSOptimized)
-			ssmQuery = p.getAL2Alias(version, instanceType)
-		}
-	}
-
-	return ssmQuery
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {
