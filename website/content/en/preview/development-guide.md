@@ -56,7 +56,7 @@ make battletest # More rigorous tests run in CI environment
 ### Verbose Logging
 
 ```bash
-kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
+kubectl patch configmap karpenter-config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
 ```
 
 ### Debugging Metrics

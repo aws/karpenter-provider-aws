@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -45,8 +46,8 @@ func main() {
 	config := knativeinjection.ParseAndGetRESTConfigOrDie()
 	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 		Port:        opts.WebhookPort,
-		ServiceName: "karpenter",
-		SecretName:  "karpenter-cert",
+		ServiceName: opts.KarpenterService,
+		SecretName:  fmt.Sprintf("%s-cert", opts.KarpenterService),
 	})
 
 	// Register the cloud provider to attach vendor specific validation logic.

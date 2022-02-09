@@ -61,6 +61,8 @@ spec:
               value: {{ .Values.clusterName }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+            - name: KARPENTER_SERVICE
+              value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -103,6 +105,8 @@ spec:
               value: {{ .Values.clusterName }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+            - name: KARPENTER_SERVICE
+              value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
