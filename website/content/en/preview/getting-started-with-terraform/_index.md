@@ -210,6 +210,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
           "iam:PassRole",
           "ec2:TerminateInstances",
           "ec2:DescribeLaunchTemplates",
+          "ec2:DeleteLaunchTemplate",
           "ec2:DescribeInstances",
           "ec2:DescribeSecurityGroups",
           "ec2:DescribeSubnets",

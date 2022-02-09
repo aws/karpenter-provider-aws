@@ -48,6 +48,7 @@ Resources:
               - ec2:CreateTags
               - iam:PassRole
               - ec2:TerminateInstances
+              - ec2:DeleteLaunchTemplate
               # Read Operations
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeInstances

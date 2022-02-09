@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: karpenter-config-logging
+  name: config-logging
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
