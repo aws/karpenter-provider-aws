@@ -64,7 +64,6 @@ func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	}
 	// Skip node due to do-not-evict
 	for _, pod := range pods {
-		// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 		if val := pod.Annotations[v1alpha5.DoNotEvictPodAnnotationKey]; val == "true" {
 			logging.FromContext(ctx).Debugf("Unable to drain node, pod %s/%s has do-not-evict annotation", pod.Namespace, pod.Name)
 			return false, nil
@@ -94,7 +93,7 @@ func (t *Terminator) terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// getPods returns a list of pods scheduled to a node based on some filters
+// getPods returns a list of evictable pods for the node
 func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, error) {
 	podList := &v1.PodList{}
 	if err := t.KubeClient.List(ctx, podList, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
