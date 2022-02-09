@@ -20,10 +20,10 @@ import (
 	"sort"
 
 	"github.com/aws/karpenter/pkg/utils/sets"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"knative.dev/pkg/apis"
 )
 
 var (
@@ -203,29 +203,29 @@ func (r Requirements) CapacityTypes() stringsets.String {
 
 // Validate validates the feasibility of the requirements.
 //gocyclo:ignore
-func (r Requirements) Validate() (errs []string) {
+func (r Requirements) Validate() (errs error) {
 	for _, requirement := range r.Requirements {
 		for _, err := range validation.IsQualifiedName(requirement.Key) {
-			errs = append(errs, fmt.Sprintf("key %s is not a qualified name, %s", requirement.Key, err))
+			errs = multierr.Append(errs, fmt.Errorf("key %s is not a qualified name, %s", requirement.Key, err))
 		}
 		for _, value := range requirement.Values {
 			for _, err := range validation.IsValidLabelValue(value) {
-				errs = append(errs, fmt.Sprintf("key %s has an invalid value %s, %s", requirement.Key, value, err))
+				errs = multierr.Append(errs, fmt.Errorf("invalid value %s for key %s, %s", value, requirement.Key, err))
 			}
 		}
 		if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
-			errs = append(errs, fmt.Sprintf("key %s has an unsupported operator %s, supported operators are %s", requirement.Key, requirement.Operator, SupportedNodeSelectorOps.UnsortedList()))
+			errs = multierr.Append(errs, fmt.Errorf("operator %s not in %s for key %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key))
 		}
 		// Excludes cases when DoesNotExists appears together with In, NotIn, Exists
 		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
-			errs = append(errs, fmt.Sprintf("operator %s and %s conflict for key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key))
+			errs = multierr.Append(errs, fmt.Errorf("operator %s and %s conflict for key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key))
 		}
 	}
 	for key := range r.Keys() {
 		if r.Get(key).Len() == 0 {
-			errs = append(errs, fmt.Sprintf("requirements render no feasible value for key %s", key))
+			errs = multierr.Append(errs, fmt.Errorf("no feasible value for key %s", key))
 		}
 	}
 	return errs
@@ -234,39 +234,39 @@ func (r Requirements) Validate() (errs []string) {
 // Compatible ensures the provided requirements can be met. It is
 // non-commutative (i.e., A.Compatible(B) != B.Compatible(A))
 //gocyclo:ignore
-func (r Requirements) Compatible(requirements Requirements) (errs *apis.FieldError) {
-	for i, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
+func (r Requirements) Compatible(requirements Requirements) (errs error) {
+	for _, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
 		// Key must be defined if required
 		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("require values for key %s but is not defined", key), "key")).ViaFieldIndex("requirements", i)
+			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
 		}
 		// Values must overlap
 		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s, key %s", values, requirements.Get(key), key), "values")).ViaFieldIndex("requirements", i)
+			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
 		}
 		// Exists incompatible with DoesNotExist or undefined
 		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
 			if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key)) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+				errs = multierr.Append(errs, fmt.Errorf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key))
 			}
 		}
 		// DoesNotExist requires DoesNotExist or undefined
 		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
 			if !(r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key))) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+				errs = multierr.Append(errs, fmt.Errorf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key))
 			}
 		}
 		// Repeat for the other direction
 		// Exists incompatible with DoesNotExist or undefined
 		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
 			if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key)) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+				errs = multierr.Append(errs, fmt.Errorf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key))
 			}
 		}
 		// DoesNotExist requires DoesNotExist or undefined
 		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
 			if !(requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key))) {
-				errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key), "operator")).ViaFieldIndex("requirements", i)
+				errs = multierr.Append(errs, fmt.Errorf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key))
 			}
 		}
 	}

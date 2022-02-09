@@ -137,26 +137,21 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
-func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	var multiErrors error
+func (c *Constraints) validateRequirements() (errors *apis.FieldError) {
+	var errs error
 	for _, requirement := range c.Requirements.Requirements {
 		// Ensure requirements are well known
 		if !WellKnownLabels.Has(requirement.Key) {
-			multiErrors = multierr.Append(multiErrors, fmt.Errorf("key %s is not in wellknown labels %s", requirement.Key, WellKnownLabels.UnsortedList()))
+			errs = multierr.Append(errs, fmt.Errorf("key %s is not in wellknown labels %s", requirement.Key, WellKnownLabels.UnsortedList()))
 		}
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
-			multiErrors = multierr.Append(multiErrors, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
+			errs = multierr.Append(errs, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
 		}
 	}
-	if errors := c.Requirements.Validate(); errors != nil {
-		for _, err := range errors {
-			fmt.Printf("\n=============\n%s\n", err)
-			multiErrors = multierr.Append(multiErrors, fmt.Errorf(err))
-		}
+	errs = multierr.Append(errs, c.Requirements.Validate())
+	if errs != nil {
+		errors = errors.Also(apis.ErrInvalidValue(errs, "validateRequirements"))
 	}
-	if multiErrors != nil {
-		errs = errs.Also(apis.ErrInvalidValue(multiErrors, "validateRequirements"))
-	}
-	return errs
+	return errors
 }
