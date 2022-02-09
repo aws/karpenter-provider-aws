@@ -167,13 +167,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 
 The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
 
-### Create Grafana dashboards (optional)
-
-The Karpenter repo contains multiple [importable dashboards](https://github.com/aws/karpenter/tree/main/grafana-dashboards) for an existing Grafana instance. See the Grafana documentation for [instructions](https://grafana.com/docs/grafana/latest/dashboards/export-import/#import-dashboard) to import a dashboard.
-
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
-The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
+The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
 
 ```bash
 helm repo add grafana-charts https://grafana.github.io/helm-charts
