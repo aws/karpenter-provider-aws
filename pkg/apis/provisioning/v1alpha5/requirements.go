@@ -146,11 +146,11 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 		r.requirements = map[string]sets.Set{}
 	}
 	for _, requirement := range requirements {
-		if IgnoredLabels.Has(requirement.Key) {
-			continue
-		}
 		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
 			requirement.Key = normalized
+		}
+		if IgnoredLabels.Has(requirement.Key) {
+			continue
 		}
 		r.Requirements = append(r.Requirements, requirement)
 		switch requirement.Operator {
