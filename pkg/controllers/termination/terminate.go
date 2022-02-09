@@ -56,6 +56,7 @@ func (t *Terminator) cordon(ctx context.Context, node *v1.Node) error {
 }
 
 // drain evicts pods from the node and returns true when all pods are evicted
+// https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown
 func (t *Terminator) drain(ctx context.Context, node *v1.Node) (bool, error) {
 	// Get evictable pods
 	pods, err := t.getPods(ctx, node)

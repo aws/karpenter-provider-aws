@@ -162,25 +162,30 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
-			doNotEvict := test.Pod(test.PodOptions{
-				NodeName:   node.Name,
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
-			})
-			tolerate := test.Pod(test.PodOptions{
-				NodeName:   node.Name,
-				Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
-			})
-			static := test.Pod(test.PodOptions{
-				NodeName:   node.Name,
-				ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{ Kind: "Node", APIVersion: "v1", Name: node.Name}}},
-			})
-			ExpectCreated(ctx, env.Client, node, doNotEvict, tolerate)
+			ExpectCreated(ctx, env.Client, node)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			pods := []*v1.Pod{
+				test.Pod(test.PodOptions{
+					NodeName:   node.Name,
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
+				}),
+				test.Pod(test.PodOptions{
+					NodeName:    node.Name,
+					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
+				}),
+				test.Pod(test.PodOptions{
+					NodeName:   node.Name,
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{Kind: "Node", APIVersion: "v1", Name: node.Name, UID: node.UID}}},
+				}),
+			}
+			for _, pod := range pods {
+				ExpectCreated(ctx, env.Client, pod)
+			}
 			// Trigger eviction
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
-			Expect(env.Client.Delete(ctx, doNotEvict, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(30)})).To(Succeed())
-			Expect(env.Client.Delete(ctx, tolerate, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(30)})).To(Succeed())
-			Expect(env.Client.Delete(ctx, static, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(30)})).To(Succeed())
-
+			for _, pod := range pods {
+				Expect(env.Client.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(30)})).To(Succeed())
+			}
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			// Simulate stuck terminating
