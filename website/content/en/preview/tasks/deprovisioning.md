@@ -24,16 +24,16 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
     Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for example, if a cluster
     brings up all nodes at once, all the pods on those nodes would fall into the same batching window on expiration.
     {{% /alert %}}
-    
+
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:
 
     ```bash
     # Delete a specific node
     kubectl delete node $NODE_NAME
-    
+
     # Delete all nodes owned any provisioner
     kubectl delete nodes -l karpenter.sh/provisioner-name
-    
+
     # Delete all nodes owned by a specific provisioner
     kubectl delete nodes -l karpenter.sh/provisioner-name=$PROVISIONER_NAME
     ```
@@ -44,7 +44,7 @@ If the Karpenter controller is removed or fails, the finalizers on the nodes are
 
 {{% alert title="Note" color="primary" %}}
 By adding the finalizer, Karpenter improves the default Kubernetes process of node deletion.
-When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The instance will continue running in EC2, even though there is no longer a node object for it. 
+When you run `kubectl delete node` on a node without a finalizer, the node is deleted without triggering the finalization logic. The instance will continue running in EC2, even though there is no longer a node object for it.
 The kubelet isn’t watching for its own existence, so if a node is deleted the kubelet doesn’t terminate itself.
 All the pod objects get deleted by a garbage collection process later, because the pods’ node is gone.
 {{% /alert %}}
@@ -56,7 +56,7 @@ There are a few cases where requesting to deprovision a Karpenter node will fail
 ### Disruption budgets
 
 Karpenter respects Pod Disruption Budgets (PDBs) by using a backoff retry eviction strategy. Pods will never be forcibly deleted, so pods that fail to shut down will prevent a node from deprovisioning.
-Kubernetes PDBs let you specify how much of a Deployment, ReplicationController, ReplicaSet, or StatefulSet must be protected from disruptions when pod eviction requests are made. 
+Kubernetes PDBs let you specify how much of a Deployment, ReplicationController, ReplicaSet, or StatefulSet must be protected from disruptions when pod eviction requests are made.
 
 PDBs can be used to strike a balance by protecting the application's availability while still allowing a cluster administrator to manage the cluster.
 Here is an example where the pods matching the label `myapp` will block node termination if evicting the pod would reduce the number of available pods below 4.
@@ -78,11 +78,9 @@ Review what [disruptions are](https://kubernetes.io/docs/concepts/workloads/pods
 
 ### Pod set to do-not-evict
 
-If a pod exists with the annotation `karpenter.sh/do-not-evict` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node.
-However, if a `do-not-evict` pod is added to a node while the node is draining, the remaining pods will still evict, but that pod will block termination until it is removed.
-In either case, the node will be cordoned to prevent additional work from scheduling.
+If a pod exists with the annotation `karpenter.sh/do-not-evict` on a node, and a request is made to delete the node, Karpenter will not drain any pods from that node or otherwise try to delete the node. This annotation will have no effect for static pods, pods that tolerate `NoSchedule`, or pods terminating past their graceful termination period.
 
-That annotation is used for pods that you want to run on one node from start to finish without interruption.
+This is useful for pods that you want to run from start to finish without interruption.
 Examples might include a real-time, interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
-If you want to terminate a `do-not-evict` pod, you can simply remove the annotation and the finalizer will delete the pod and continue the node deprovisioning process.
+If you want to terminate a node with a `do-not-evict` pod, you can simply remove the annotation and the deprovisioning process will continue.

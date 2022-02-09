@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	. "knative.dev/pkg/logging/testing"
+	"knative.dev/pkg/ptr"
 )
 
 var ctx context.Context
@@ -160,6 +161,38 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
+		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
+			ExpectCreated(ctx, env.Client, node)
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			pods := []*v1.Pod{
+				test.Pod(test.PodOptions{
+					NodeName:   node.Name,
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
+				}),
+				test.Pod(test.PodOptions{
+					NodeName:    node.Name,
+					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
+				}),
+				test.Pod(test.PodOptions{
+					NodeName:   node.Name,
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{Kind: "Node", APIVersion: "v1", Name: node.Name, UID: node.UID}}},
+				}),
+			}
+			for _, pod := range pods {
+				ExpectCreated(ctx, env.Client, pod)
+			}
+			// Trigger eviction
+			Expect(env.Client.Delete(ctx, node)).To(Succeed())
+			for _, pod := range pods {
+				Expect(env.Client.Delete(ctx, pod, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(30)})).To(Succeed())
+			}
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			// Simulate stuck terminating
+			injectabletime.Now = func() time.Time { return time.Now().Add(1 * time.Minute) }
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectNotFound(ctx, env.Client, node)
+		})
 		It("should fail to evict pods that violate a PDB", func() {
 			minAvailable := intstr.FromInt(1)
 			labelSelector := map[string]string{randomdata.SillyName(): randomdata.SillyName()}
@@ -185,9 +218,6 @@ var _ = Describe("Termination", func() {
 
 			// Expect node to exist and be draining
 			ExpectNodeDraining(env.Client, node.Name)
-
-			// Expect podNoEvict to fail eviction due to PDB
-			// ExpectNotEvicted(env.Client, evictionQueue, podNoEvict) // TODO(etarn) reenable this after upgrading testenv apiserver
 
 			// Delete pod to simulate successful eviction
 			ExpectDeleted(ctx, env.Client, podNoEvict)
