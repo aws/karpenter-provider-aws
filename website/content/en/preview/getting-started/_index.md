@@ -18,11 +18,12 @@ Follow the clean-up instructions to reduce any charges.
 
 ## Install
 
-Karpenter is installed in clusters with a helm chart.
+Karpenter is installed in clusters with a Helm chart.
 
-Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
-permits Karpenter (within the cluster) to make privileged requests to AWS (as
-the cloud provider).
+Karpenter requires cloud provider permissions to provision nodes, for AWS IAM
+Roles for Service Accounts (IRSA) should be used. IRSA permits Karpenter
+(within the cluster) to make privileged requests to AWS (as the cloud provider)
+via a ServiceAccount.
 
 ### Required Utilities
 
@@ -42,9 +43,9 @@ After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export CLUSTER_NAME=$USER-karpenter-demo
-export AWS_DEFAULT_REGION=us-west-2
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export CLUSTER_NAME="${USER}-karpenter-demo"
+export AWS_DEFAULT_REGION="us-west-2"
+AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 ```
 
 ### Create a Cluster
@@ -73,6 +74,8 @@ iam:
   withOIDC: true
 EOF
 eksctl create cluster -f cluster.yaml
+
+export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)
 ```
 
 This guide uses a managed node group to host Karpenter.
@@ -92,10 +95,10 @@ TEMPOUT=$(mktemp)
 
 curl -fsSL https://karpenter.sh{{< relref "." >}}cloudformation.yaml  > $TEMPOUT \
 && aws cloudformation deploy \
-  --stack-name Karpenter-${CLUSTER_NAME} \
-  --template-file ${TEMPOUT} \
+  --stack-name "Karpenter-${CLUSTER_NAME}" \
+  --template-file "${TEMPOUT}" \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides ClusterName=${CLUSTER_NAME}
+  --parameter-overrides "ClusterName=${CLUSTER_NAME}"
 ```
 
 Second, grant access to instances using the profile to connect to the cluster. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
@@ -103,8 +106,8 @@ Second, grant access to instances using the profile to connect to the cluster. T
 ```bash
 eksctl create iamidentitymapping \
   --username system:node:{{EC2PrivateDNSName}} \
-  --cluster  ${CLUSTER_NAME} \
-  --arn arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME} \
+  --cluster "${CLUSTER_NAME}" \
+  --arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}" \
   --group system:bootstrappers \
   --group system:nodes
 ```
@@ -115,16 +118,21 @@ Now, Karpenter can launch new EC2 instances and those instances can connect to y
 
 Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 
-```
+```bash
 eksctl create iamserviceaccount \
-  --cluster $CLUSTER_NAME --name karpenter --namespace karpenter \
-  --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/KarpenterControllerPolicy-$CLUSTER_NAME \
+  --cluster "${CLUSTER_NAME}" --name karpenter --namespace karpenter \
+  --role-name "${CLUSTER_NAME}-karpenter" \
+  --attach-policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}" \
+  --role-only \
   --approve
+
+export KARPENTER_IAM_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 ```
 
 ### Create the EC2 Spot Service Linked Role
 
 This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+
 ```bash
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 # If the role has already been successfully created, you will see:
@@ -133,26 +141,31 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 
 ### Install Karpenter Helm Chart
 
-Use helm to deploy Karpenter to the cluster.
+Use Helm to deploy Karpenter to the cluster.
 
-We created a Kubernetes service account when we created the cluster using
-eksctl. Thus, we don't need the helm chart to do that.
+Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
 ```bash
-helm repo add karpenter https://charts.karpenter.sh
+helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
-helm upgrade --install karpenter karpenter/karpenter --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version {{< param "latest_release_version" >}} \
-  --set controller.clusterName=${CLUSTER_NAME} \
-  --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
+```
+
+Install the chart passing in the cluster details and the Karpenter role ARN.
+
+```bash
+helm upgrade --install --namespace karpenter --create-namespace \
+  karpenter karpenter/karpenter \
+  --version {{< param "latest_release_version" >}} \
+  --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}
+  --set clusterName=${CLUSTER_NAME} \
+  --set clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
   --wait # for the defaulting webhook to install before creating a Provisioner
 ```
 
 ### Enable Debug Logging (optional)
-```sh
-kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
-```
+
+The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
 
 ### Create Grafana dashboards (optional)
 
@@ -162,7 +175,7 @@ The Karpenter repo contains multiple [importable dashboards](https://github.com/
 
 The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
 
-```sh
+```bash
 helm repo add grafana-charts https://grafana.github.io/helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
@@ -178,13 +191,13 @@ helm install --namespace monitoring grafana grafana-charts/grafana --values graf
 
 The Grafana instance may be accessed using port forwarding.
 
-```sh
+```bash
 kubectl port-forward --namespace monitoring svc/grafana 3000:80
 ```
 
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
-```sh
+```bash
 kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode
 ```
 
@@ -265,7 +278,7 @@ spec:
               cpu: 1
 EOF
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Automatic Node Termination
@@ -275,7 +288,7 @@ Karpenter should terminate the now empty nodes.
 
 ```bash
 kubectl delete deployment inflate
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Manual Node Termination
@@ -296,11 +309,11 @@ To avoid additional charges, remove the demo infrastructure from your AWS accoun
 
 ```bash
 helm uninstall karpenter --namespace karpenter
-eksctl delete iamserviceaccount --cluster ${CLUSTER_NAME} --name karpenter --namespace karpenter
-aws cloudformation delete-stack --stack-name Karpenter-${CLUSTER_NAME}
+aws iam delete-role --role-name "${CLUSTER_NAME}-karpenter"
+aws cloudformation delete-stack --stack-name "Karpenter-${CLUSTER_NAME}"
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
-    | grep -i Karpenter-${CLUSTER_NAME} \
+    | grep -i "Karpenter-${CLUSTER_NAME}" \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
-eksctl delete cluster --name ${CLUSTER_NAME}
+eksctl delete cluster --name "${CLUSTER_NAME}"
 ```

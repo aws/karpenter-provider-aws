@@ -9,9 +9,12 @@ WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-HELM_OPTS ?= --set controller.clusterName=${CLUSTER_NAME} \
-			 --set controller.clusterEndpoint=${CLUSTER_ENDPOINT} \
-			 --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
+AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
+KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
+HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
+      		--set clusterName=${CLUSTER_NAME} \
+			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
+			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -49,17 +52,13 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
-	helm template --include-crds  karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
-		--set controller.image=ko://github.com/aws/karpenter/cmd/controller \
-		--set webhook.image=ko://github.com/aws/karpenter/cmd/webhook \
-		| $(WITH_GOFLAGS) ko apply -B -f -
+		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
+		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm template karpenter charts/karpenter --namespace karpenter \
-		$(HELM_OPTS) \
-		--set serviceAccount.create=false \
-		| kubectl delete -f -
+	helm uninstall karpenter --namespace karpenter
 
 codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	controller-gen \

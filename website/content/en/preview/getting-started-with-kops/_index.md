@@ -110,7 +110,7 @@ spec:
               cpu: 1
 EOF
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n kube-system -l karpenter=controller
+kubectl logs -f -n kube-system -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Automatic Node Termination
@@ -120,7 +120,7 @@ Karpenter should terminate the now empty nodes.
 
 ```bash
 kubectl delete deployment inflate
-kubectl logs -f -n karpenter -l karpenter=controller 
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Manual Node Termination

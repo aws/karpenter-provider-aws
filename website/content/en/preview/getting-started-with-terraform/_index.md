@@ -36,17 +36,14 @@ Install these tools before proceeding:
 Login to the AWS CLI with a user that has sufficient privileges to create a
 cluster.
 
-
-
-
 ### Setting up Variables
 
 After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export CLUSTER_NAME=$USER-karpenter-demo
-export AWS_DEFAULT_REGION=us-east-1
+export CLUSTER_NAME="${USER}-karpenter-demo"
+export AWS_DEFAULT_REGION="us-east-1"
 ```
 
 The first thing we need to do is create our `main.tf` file and place the
@@ -59,7 +56,6 @@ variable "cluster_name" {
   type        = string
 }
 ```
-
 
 ### Create a Cluster
 
@@ -118,7 +114,7 @@ EKS cluster. This may take some time.
 
 ```bash
 terraform init
-terraform apply -var cluster_name=$CLUSTER_NAME
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
 
 There's a good chance it will fail when trying to configure the aws-auth
@@ -128,9 +124,9 @@ configure both your local CLI and Terraform to use the file. Then try the apply
 again.
 
 ```bash
-export KUBECONFIG=${PWD}/kubeconfig_${CLUSTER_NAME}
-export KUBE_CONFIG_PATH=$KUBECONFIG
-terraform apply -var cluster_name=$CLUSTER_NAME
+export KUBECONFIG="${PWD}/kubeconfig_${CLUSTER_NAME}"
+export KUBE_CONFIG_PATH="${KUBECONFIG}"
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
 
 Everything should apply successfully now!
@@ -138,6 +134,7 @@ Everything should apply successfully now!
 ### Create the EC2 Spot Service Linked Role
 
 This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+
 ```bash
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 # If the role has already been successfully created, you will see:
@@ -172,7 +169,7 @@ resource "aws_iam_instance_profile" "karpenter" {
 Go ahead and apply the changes.
 
 ```bash
-terraform apply -var cluster_name=$CLUSTER_NAME
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
 
 Now, Karpenter can use this instance profile to launch new EC2 instances and
@@ -234,7 +231,7 @@ Then, apply the changes.
 
 ```bash
 terraform init
-terraform apply -var cluster_name=$CLUSTER_NAME
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
 
 ### Install Karpenter Helm Chart
@@ -260,12 +257,12 @@ resource "helm_release" "karpenter" {
   }
 
   set {
-    name  = "controller.clusterName"
+    name  = "clusterName"
     value = var.cluster_name
   }
 
   set {
-    name  = "controller.clusterEndpoint"
+    name  = "clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
 
@@ -280,14 +277,13 @@ Now, deploy Karpenter by applying the new Terraform config.
 
 ```bash
 terraform init
-terraform apply -var cluster_name=$CLUSTER_NAME
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
 
 
 ### Enable Debug Logging (optional)
-```sh
-kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
-```
+
+The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
 
 ### Provisioner
 
@@ -365,7 +361,7 @@ spec:
               cpu: 1
 EOF
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Automatic Node Termination
@@ -375,7 +371,7 @@ Karpenter should terminate the now empty nodes.
 
 ```bash
 kubectl delete deployment inflate
-kubectl logs -f -n karpenter $(kubectl get pods -n karpenter -l karpenter=controller -o name)
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
 ```
 
 ### Manual Node Termination
@@ -387,7 +383,7 @@ drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
 ```bash
-kubectl delete node $NODE_NAME
+kubectl delete node "${NODE_NAME}"
 ```
 
 ## Cleanup
@@ -402,9 +398,9 @@ created LaunchTemplates.
 kubectl delete deployment inflate
 kubectl delete node -l karpenter.sh/provisioner-name=default
 helm uninstall karpenter --namespace karpenter
-terraform destroy -var cluster_name=$CLUSTER_NAME
+terraform destroy -var "cluster_name=${CLUSTER_NAME}"
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
-    | grep -i Karpenter-${CLUSTER_NAME} \
+    | grep -i "Karpenter-${CLUSTER_NAME}" \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```
