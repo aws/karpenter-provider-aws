@@ -85,7 +85,7 @@ To verify if this restriction affects you, run the following commands.
 ```bash
 CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.resourcesVpcConfig.vpcId --output text)"
 
-aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query SecurityGroups[].[GroupName] --output text
+aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
 ```
 
 If multiple securityGroups are printed, you will need a more targeted securityGroupSelector.
