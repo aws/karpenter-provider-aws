@@ -53,8 +53,8 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	}
 	// Test if pod requirements are valid
 	requirements := NewPodRequirements(pod)
-	if err := requirements.Validate(); err != nil {
-		return fmt.Errorf("invalid requirements, %w", err)
+	if errs := requirements.Validate(); errs != nil {
+		return fmt.Errorf("pod requirements not feasible, %v", errs)
 	}
 	// Test if pod requirements are compatible
 	if errs := c.Requirements.Compatible(requirements); errs != nil {

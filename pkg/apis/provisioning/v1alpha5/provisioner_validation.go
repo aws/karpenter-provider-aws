@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/aws/karpenter/pkg/utils/ptr"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -137,21 +136,19 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
-func (c *Constraints) validateRequirements() (errors *apis.FieldError) {
-	var errs error
+func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 	for _, requirement := range c.Requirements.Requirements {
 		// Ensure requirements are well known
 		if !WellKnownLabels.Has(requirement.Key) {
-			errs = multierr.Append(errs, fmt.Errorf("key %s is not in wellknown labels %s", requirement.Key, WellKnownLabels.UnsortedList()))
+			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
 		}
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
-			errs = multierr.Append(errs, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
+			errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Operator, SupportedProvisionerOps.UnsortedList()), "key"))
 		}
 	}
-	errs = multierr.Append(errs, c.Requirements.Validate())
-	if errs != nil {
-		errors = errors.Also(apis.ErrInvalidValue(errs, "validateRequirements"))
+	if err := c.Requirements.Validate(); err != nil {
+		errs = errs.Also(err)
 	}
-	return errors
+	return errs
 }

@@ -102,8 +102,8 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
 		Add(requirements(instanceTypes)...).
 		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
-	if errs := provisioner.Spec.Requirements.Validate(); errs != nil {
-		return fmt.Errorf("incompatible with the instance types, %w", errs)
+	if err := provisioner.Spec.Requirements.Validate(); err != nil {
+		return fmt.Errorf("validating requirements, %w", err)
 	}
 	// Update the provisioner if anything has changed
 	if c.hasChanged(ctx, provisioner) {
