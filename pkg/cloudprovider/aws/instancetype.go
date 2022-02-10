@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -155,7 +156,9 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 			if cpu < cpuRange.end {
 				r = float64(cpu - cpuRange.start)
 			}
-			overhead.Cpu().Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
+			cpuOverhead := overhead[v1.ResourceCPU]
+			cpuOverhead.Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
+			overhead[v1.ResourceCPU] = cpuOverhead
 		}
 	}
 	return overhead
