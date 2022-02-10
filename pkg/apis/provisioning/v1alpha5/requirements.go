@@ -220,7 +220,7 @@ func (r Requirements) Validate() (errs error) {
 		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
-			errs = multierr.Append(errs, fmt.Errorf("operator %s and %s conflict for key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, requirement.Key))
+			errs = multierr.Append(errs, fmt.Errorf("operator %s cannot coexist with other operators for key %s", v1.NodeSelectorOpDoesNotExist, requirement.Key))
 		}
 	}
 	for key := range r.Keys() {
