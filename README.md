@@ -18,7 +18,7 @@ Karpenter works by:
 
 For most use cases, a cluster’s capacity can be managed by a single Karpenter Provisioner.
 However, you can define multiple Provisioners, enabling use cases like isolation, entitlements, and sharding.
-Using a combination of defaults and overrides, Karpenter determines the availability zone, instance type, capacity type, machine image, and scheduling constraints for pods it manages.
+Provisioner requirements are layered with pod requirements to launch a node with the right properties, including taints, labels, availability zone, instance type, operating system, and more.
 
 Come discuss Karpenter in the [#karpenter channel](https://kubernetes.slack.com/archives/C02SFFZSA2K) in the [Kubernetes slack](https://slack.k8s.io/)!
 
