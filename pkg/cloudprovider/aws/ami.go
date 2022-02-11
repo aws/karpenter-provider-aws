@@ -109,7 +109,7 @@ func (p *AMIProvider) getAL2Alias(version string, instanceType cloudprovider.Ins
 func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudprovider.InstanceType) string {
 	arch := "x86_64"
 	amiSuffix := ""
-	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
+	if !instanceType.NvidiaGPUs().IsZero() {
 		amiSuffix = "-nvidia"
 	}
 	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
