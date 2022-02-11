@@ -99,7 +99,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 func getRegionFromIMDS(sess *session.Session) string {
 	region, err := ec2metadata.New(sess).Region()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
 	}
 	return region
 }
@@ -156,12 +156,12 @@ func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Cons
 func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
 	vendorConstraints, err := v1alpha1.Deserialize(constraints)
 	if err != nil {
-		logging.FromContext(ctx).Errorf("Failed to deserialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to deserialize provider, %s", err)
 		return
 	}
 	vendorConstraints.Default(ctx)
 	if err := vendorConstraints.Serialize(constraints); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err)
 	}
 }
 

@@ -121,11 +121,11 @@ func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Pr
 	}
 	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err.Error())
+		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err)
 	}
 	hashKeyNew, err := hashstructure.Hash(provisionerNew.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err.Error())
+		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err)
 	}
 	return hashKeyOld != hashKeyNew
 }

@@ -53,7 +53,7 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 	go func() {
 		for running.Err() == nil {
 			if err := p.provision(running); err != nil {
-				logging.FromContext(running).Errorf("Provisioning failed, %s", err.Error())
+				logging.FromContext(running).Errorf("Provisioning failed, %s", err)
 			}
 		}
 		logging.FromContext(running).Info("Stopped provisioner")
@@ -112,12 +112,12 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(i int) {
 		packings, err := p.packer.Pack(ctx, schedules[i].Constraints, schedules[i].Pods, instanceTypes)
 		if err != nil {
-			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err.Error())
+			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err)
 			return
 		}
 		workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(j int) {
 			if err := p.launch(ctx, schedules[i].Constraints, packings[j]); err != nil {
-				logging.FromContext(ctx).Errorf("Could not launch node, %s", err.Error())
+				logging.FromContext(ctx).Errorf("Could not launch node, %s", err)
 				return
 			}
 		})
@@ -194,7 +194,7 @@ func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (
 	var bound int64
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
 		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
-			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pods[i].Namespace, pods[i].Name, node.Name, err.Error())
+			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pods[i].Namespace, pods[i].Name, node.Name, err)
 		} else {
 			atomic.AddInt64(&bound, 1)
 		}

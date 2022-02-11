@@ -34,7 +34,7 @@ func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume
 	options := PersistentVolumeOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge options: %s", err))
 		}
 	}
 	return &v1.PersistentVolume{
@@ -61,7 +61,7 @@ func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.Persis
 	options := PersistentVolumeClaimOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge options: %s", err))
 		}
 	}
 	return &v1.PersistentVolumeClaim{
@@ -84,7 +84,7 @@ func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
 	options := StorageClassOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge options: %s", err))
 		}
 	}
 

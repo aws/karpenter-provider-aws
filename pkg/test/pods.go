@@ -56,7 +56,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 	options := PodOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
 		}
 	}
 	if options.Image == "" {
@@ -114,7 +114,7 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
 		}
 	}
 	return &v1beta1.PodDisruptionBudget{

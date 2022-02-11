@@ -72,7 +72,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiP
 func launchTemplateName(options *launchTemplateOptions) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
-		panic(fmt.Sprintf("hashing launch template, %s", err.Error()))
+		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
@@ -231,7 +231,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 		}
 		return true
 	}); err != nil {
-		panic(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err.Error()))
+		panic(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	}
 	p.logger.Debugf("Finished hydrating the launch template cache with %d items", p.cache.ItemCount())
 }

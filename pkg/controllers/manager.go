@@ -34,12 +34,12 @@ type GenericControllerManager struct {
 func NewManagerOrDie(ctx context.Context, config *rest.Config, options controllerruntime.Options) Manager {
 	newManager, err := controllerruntime.NewManager(config, options)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create controller newManager, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to create controller newManager, %s", err))
 	}
 	if err := newManager.GetFieldIndexer().IndexField(ctx, &v1.Pod{}, "spec.nodeName", func(o client.Object) []string {
 		return []string{o.(*v1.Pod).Spec.NodeName}
 	}); err != nil {
-		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to setup pod indexer, %s", err))
 	}
 	return &GenericControllerManager{Manager: newManager}
 }
@@ -52,10 +52,10 @@ func (m *GenericControllerManager) RegisterControllers(ctx context.Context, cont
 		}
 	}
 	if err := m.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		panic(fmt.Sprintf("Failed to add health probe, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to add health probe, %s", err))
 	}
 	if err := m.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		panic(fmt.Sprintf("Failed to add ready probe, %s", err.Error()))
+		panic(fmt.Sprintf("Failed to add ready probe, %s", err))
 	}
 	return m
 }
