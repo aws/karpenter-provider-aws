@@ -519,7 +519,7 @@ var _ = Describe("Allocation", func() {
 					Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-instance-profile"))
 				})
 				It("should use the instance profile on the Provisioner when specified", func() {
-					provider = &v1alpha1.AWS{InstanceProfile: "overridden-profile"}
+					provider = &v1alpha1.AWS{InstanceProfile: aws.String("overridden-profile")}
 					ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
 					provisioner.SetDefaults(ctx)
 

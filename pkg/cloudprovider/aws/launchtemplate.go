@@ -393,8 +393,8 @@ func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constrai
 }
 
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
-	if constraints.InstanceProfile != "" {
-		return constraints.InstanceProfile, nil
+	if constraints.InstanceProfile != nil {
+		return aws.StringValue(constraints.InstanceProfile), nil
 	}
 	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
 	if defaultProfile == "" {

@@ -22,6 +22,15 @@ import (
 	"knative.dev/pkg/apis"
 )
 
+const (
+	launchTemplatePath          = "launchTemplate"
+	securityGroupSelectorPath   = "securityGroupSelector"
+	fieldPathSubnetSelectorPath = "subnetSelector"
+	amiFamilyPath               = "amiFamily"
+	metadataOptionsPath         = "metadataOptions"
+	instanceProfilePath         = "instanceProfile"
+)
+
 func (a *AWS) Validate() (errs *apis.FieldError) {
 	return a.validate().ViaField("provider")
 }
@@ -38,29 +47,43 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 }
 
 func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
-	// nothing to validate at the moment
+	if a.LaunchTemplate == nil {
+		return nil
+	}
+	if a.SecurityGroupSelector != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, securityGroupSelectorPath))
+	}
+	if a.MetadataOptions != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, metadataOptionsPath))
+	}
+	if a.AMIFamily != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, amiFamilyPath))
+	}
+	if a.InstanceProfile != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, instanceProfilePath))
+	}
 	return errs
 }
 
 func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 	if a.SubnetSelector == nil {
-		errs = errs.Also(apis.ErrMissingField("subnetSelector"))
+		errs = errs.Also(apis.ErrMissingField(fieldPathSubnetSelectorPath))
 	}
 	for key, value := range a.SubnetSelector {
 		if key == "" || value == "" {
-			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("subnetSelector['%s']", key)))
+			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", fieldPathSubnetSelectorPath, key)))
 		}
 	}
 	return errs
 }
 
 func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
-	if a.SecurityGroupSelector == nil {
-		errs = errs.Also(apis.ErrMissingField("securityGroupSelector"))
+	if a.SecurityGroupSelector == nil && a.LaunchTemplate == nil {
+		errs = errs.Also(apis.ErrMissingField(securityGroupSelectorPath))
 	}
 	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
-			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("securityGroupSelector['%s']", key)))
+			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", securityGroupSelectorPath, key)))
 		}
 	}
 	return errs
@@ -87,7 +110,7 @@ func (a *AWS) validateMetadataOptions() (errs *apis.FieldError) {
 		a.validateHTTPProtocolIpv6(),
 		a.validateHTTPPutResponseHopLimit(),
 		a.validateHTTPTokens(),
-	).ViaField("metadataOptions")
+	).ViaField(metadataOptionsPath)
 }
 
 func (a *AWS) validateHTTPEndpoint() (errs *apis.FieldError) {
@@ -126,7 +149,7 @@ func (a *AWS) validateAMIFamily() *apis.FieldError {
 	if a.AMIFamily == nil {
 		return nil
 	}
-	return a.validateStringEnum(*a.AMIFamily, "amiFamily", SupportedAMIFamilies)
+	return a.validateStringEnum(*a.AMIFamily, amiFamilyPath, SupportedAMIFamilies)
 }
 
 func (a *AWS) validateStringEnum(value, field string, validValues []string) *apis.FieldError {

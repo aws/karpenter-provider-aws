@@ -47,8 +47,8 @@ type AWS struct {
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty"`
 	// InstanceProfile is the AWS identity that instances use.
-	// +required
-	InstanceProfile string `json:"instanceProfile"`
+	// +optional
+	InstanceProfile *string `json:"instanceProfile"`
 	// LaunchTemplate for the node. If not specified, a launch template will be generated.
 	// +optional
 	LaunchTemplate *string `json:"launchTemplate,omitempty"`
