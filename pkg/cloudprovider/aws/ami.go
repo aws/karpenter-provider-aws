@@ -111,7 +111,8 @@ func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudpro
 	amiSuffix := ""
 	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
 		amiSuffix = "-nvidia"
-	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
+	}
+	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
 		arch = instanceType.Architecture()
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
