@@ -71,12 +71,12 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
-		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err.Error())
+		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err)
 		return reconcile.Result{}, nil
 	}
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
 	if err := c.selectProvisioner(ctx, pod); err != nil {
-		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err.Error())
+		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err)
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{RequeueAfter: time.Second * 5}, nil

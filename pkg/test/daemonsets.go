@@ -39,7 +39,7 @@ func DaemonSet(overrides ...DaemonSetOptions) *appsv1.DaemonSet {
 	options := DaemonSetOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge pod options: %s", err.Error()))
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
 		}
 	}
 	if options.Name == "" {

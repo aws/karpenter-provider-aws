@@ -154,7 +154,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 	if err := c.record(ctx, node); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to update gauges: %s", err.Error())
+		logging.FromContext(ctx).Errorf("Failed to update gauges: %s", err)
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, nil
@@ -171,7 +171,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				nodes := &v1.NodeList{}
 				if err := c.KubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: o.GetName()})); err != nil {
-					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err.Error())
+					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err)
 					return requests
 				}
 				for _, node := range nodes.Items {

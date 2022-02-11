@@ -96,7 +96,7 @@ func main() {
 		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
-		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
+		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
 }
 
@@ -110,7 +110,7 @@ func LoggingContextOrDie(config *rest.Config, clientSet *kubernetes.Clientset) c
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
 	if err := cmw.Start(ctx.Done()); err != nil {
-		logger.Fatalf("Failed to watch logging configuration, %s", err.Error())
+		logger.Fatalf("Failed to watch logging configuration, %s", err)
 	}
 	startinformers()
 	return ctx

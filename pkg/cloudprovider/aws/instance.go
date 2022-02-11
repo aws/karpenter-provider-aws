@@ -78,7 +78,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 		// Convert Instance to Node
 		node, err := p.instanceToNode(ctx, instance, instanceTypes)
 		if err != nil {
-			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err.Error())
+			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err)
 			continue
 		}
 		nodes = append(nodes, node)
