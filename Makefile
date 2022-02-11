@@ -2,8 +2,8 @@ export K8S_VERSION ?= 1.21.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
-GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
+LDFLAGS ?= -ldflags='-s -w -extldflags=-zrelro -extldflags=-znow -X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)'
+GOFLAGS ?= -tags=$(CLOUD_PROVIDER) -trimpath -buildmode=pie $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
 
 ## Extra helm options
