@@ -43,21 +43,6 @@ func StringSliceWithout(vals []string, remove ...string) []string {
 	return without
 }
 
-func UniqueStrings(strings []string) []string {
-	if strings == nil {
-		return nil
-	}
-	exists := map[string]bool{}
-	for _, s := range strings {
-		exists[s] = true
-	}
-	unique := []string{}
-	for s := range exists {
-		unique = append(unique, s)
-	}
-	return unique
-}
-
 func ContainsString(strings []string, candidate string) bool {
 	for _, s := range strings {
 		if candidate == s {
