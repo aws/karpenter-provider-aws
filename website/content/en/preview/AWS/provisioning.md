@@ -154,7 +154,7 @@ spec:
 
 The AMI used when provisioning nodes can be controlled by the `amiFamily` field. Based on the value set for `amiFamily`, Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). 
 
-Currently, Karpenter supports `amiFamily` values `al2`, `bottlerocket`, and `ubuntu`. GPUs are only supported with `al2`.
+Currently, Karpenter supports `amiFamily` values `al2`, `bottlerocket`, and `ubuntu`. GPUs are only supported with `al2` and `bottlerocket`.
 
 Note: If a custom launch template is specified, then the AMI value in the launch template is used rather than the `amiFamily` value.
 
