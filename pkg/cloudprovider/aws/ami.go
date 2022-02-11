@@ -80,13 +80,16 @@ func (p *AMIProvider) getAMIID(ctx context.Context, query string) (string, error
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.cache.SetDefault(query, ami)
-	logging.FromContext(ctx).Debugf("Discovered ami %s for query %s", ami, query)
+	logging.FromContext(ctx).Debugf("Discovered %s for query %s", ami, query)
 	return ami, nil
 }
 
 func (p *AMIProvider) getSSMQuery(constraints *v1alpha1.Constraints, instanceType cloudprovider.InstanceType, version string) string {
-	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
+	switch aws.StringValue(constraints.AMIFamily) {
+	case v1alpha1.AMIFamilyBottlerocket:
 		return p.getBottlerocketAlias(version, instanceType)
+	case v1alpha1.AMIFamilyUbuntu:
+		return p.getUbuntuAlias(version, instanceType)
 	}
 	return p.getAL2Alias(version, instanceType)
 }
@@ -109,6 +112,11 @@ func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudpro
 		arch = instanceType.Architecture()
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+}
+
+// getUbuntuAlias returns a properly-formatted alias for an Ubuntu AMI from SSM
+func (p *AMIProvider) getUbuntuAlias(version string, instanceType cloudprovider.InstanceType) string {
+	return fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, instanceType.Architecture())
 }
 
 func (p *AMIProvider) kubeServerVersion(ctx context.Context) (string, error) {

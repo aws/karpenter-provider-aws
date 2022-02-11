@@ -283,7 +283,7 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
 		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
 	}
-	return p.getEKSOptimizedUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
+	return p.getAL2UserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
 }
 
 func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
@@ -311,10 +311,11 @@ func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, co
 	return base64.StdEncoding.EncodeToString([]byte(userData))
 }
 
-// getEKSOptimizedUserData returns the exact same string for equivalent input,
+// getAL2UserData returns the exact same string for equivalent input,
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
-func (p *LaunchTemplateProvider) getEKSOptimizedUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
+// AL2 userdata also works on Ubuntu
+func (p *LaunchTemplateProvider) getAL2UserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
 	var containerRuntimeArg string
 	if !needsDocker(instanceTypes) {
 		containerRuntimeArg = "--container-runtime containerd"
