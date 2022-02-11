@@ -33,10 +33,12 @@ var (
 		"k8s.aws",
 	}
 	AMIFamilyBottlerocket = "Bottlerocket"
-	AMIFamilyEKSOptimized = "EKSOptimized"
+	AMIFamilyAL2          = "AL2"
+	AMIFamilyUbuntu       = "Ubuntu"
 	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
-		AMIFamilyEKSOptimized,
+		AMIFamilyAL2,
+		AMIFamilyUbuntu,
 	}
 )
 

@@ -60,5 +60,5 @@ func (c *Constraints) defaultAMIFamily() {
 	if c.AMIFamily != nil {
 		return
 	}
-	c.AMIFamily = &AMIFamilyEKSOptimized
+	c.AMIFamily = &AMIFamilyAL2
 }

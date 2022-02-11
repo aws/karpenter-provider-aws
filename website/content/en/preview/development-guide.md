@@ -49,7 +49,7 @@ make dev # run codegen, lint, and tests
 ### Testing
 
 ```bash
-make test       # E2e correctness tests
+make test       # E2E correctness tests
 make battletest # More rigorous tests run in CI environment
 ```
 
