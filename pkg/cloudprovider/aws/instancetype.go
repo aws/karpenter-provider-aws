@@ -29,9 +29,6 @@ import (
 	"knative.dev/pkg/ptr"
 )
 
-// EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
-const EC2VMAvailableMemoryFactor = .925
-
 type InstanceType struct {
 	ec2.InstanceTypeInfo
 	AvailableOfferings []cloudprovider.Offering
@@ -64,11 +61,7 @@ func (i *InstanceType) CPU() *resource.Quantity {
 }
 
 func (i *InstanceType) Memory() *resource.Quantity {
-	return resources.Quantity(
-		fmt.Sprintf("%dMi", int32(
-			float64(*i.MemoryInfo.SizeInMiB)*EC2VMAvailableMemoryFactor,
-		)),
-	)
+	return resources.Quantity(fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB))
 }
 
 func (i *InstanceType) Pods() *resource.Quantity {
@@ -136,6 +129,8 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+				100+
+				// additional VM overhead
 				100,
 		)),
 	}
