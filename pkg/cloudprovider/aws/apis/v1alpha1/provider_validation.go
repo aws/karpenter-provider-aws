@@ -78,7 +78,10 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 }
 
 func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
-	if a.SecurityGroupSelector == nil && a.LaunchTemplate == nil {
+	if a.LaunchTemplate != nil {
+		return nil
+	}
+	if a.SecurityGroupSelector == nil {
 		errs = errs.Also(apis.ErrMissingField(securityGroupSelectorPath))
 	}
 	for key, value := range a.SecurityGroupSelector {

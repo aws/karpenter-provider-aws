@@ -568,7 +568,7 @@ var _ = Describe("Allocation", func() {
 			provisioner.SetDefaults(ctx)
 			constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(constraints.InstanceProfile).To(Equal(""))
+			Expect(constraints.InstanceProfile).To(BeNil())
 		})
 
 		It("should default requirements", func() {
