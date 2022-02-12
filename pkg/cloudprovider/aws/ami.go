@@ -108,10 +108,14 @@ func (p *AMIProvider) getAL2Alias(version string, instanceType cloudprovider.Ins
 // getBottlerocketAlias returns a properly-formatted alias for a Bottlerocket AMI from SSM
 func (p *AMIProvider) getBottlerocketAlias(version string, instanceType cloudprovider.InstanceType) string {
 	arch := "x86_64"
+	amiSuffix := ""
+	if !instanceType.NvidiaGPUs().IsZero() {
+		amiSuffix = "-nvidia"
+	}
 	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
 		arch = instanceType.Architecture()
 	}
-	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, arch)
+	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
 }
 
 // getUbuntuAlias returns a properly-formatted alias for an Ubuntu AMI from SSM
