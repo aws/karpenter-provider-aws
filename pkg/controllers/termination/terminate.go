@@ -33,7 +33,7 @@ import (
 )
 
 type Terminator struct {
-	EvictionQueue *EvictionQueue
+	EvictionQueue EvictionQueue
 	KubeClient    client.Client
 	CoreV1Client  corev1.CoreV1Interface
 	CloudProvider cloudprovider.CloudProvider

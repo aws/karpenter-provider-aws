@@ -35,15 +35,19 @@ const (
 	evictionQueueMaxDelay  = 10 * time.Second
 )
 
-type EvictionQueue struct {
+type EvictionQueue interface {
+	Add(pods []*v1.Pod)
+	Contains(i ...interface{}) bool
+}
+type evictionQueue struct {
 	workqueue.RateLimitingInterface
 	set.Set
 
 	coreV1Client corev1.CoreV1Interface
 }
 
-func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) *EvictionQueue {
-	queue := &EvictionQueue{
+func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) EvictionQueue {
+	queue := &evictionQueue{
 		RateLimitingInterface: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay)),
 		Set:                   set.NewSet(),
 
@@ -54,7 +58,7 @@ func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) 
 }
 
 // Add adds pods to the EvictionQueue
-func (e *EvictionQueue) Add(pods []*v1.Pod) {
+func (e *evictionQueue) Add(pods []*v1.Pod) {
 	for _, pod := range pods {
 		if nn := client.ObjectKeyFromObject(pod); !e.Set.Contains(nn) {
 			e.Set.Add(nn)
@@ -63,7 +67,7 @@ func (e *EvictionQueue) Add(pods []*v1.Pod) {
 	}
 }
 
-func (e *EvictionQueue) Start(ctx context.Context) {
+func (e *evictionQueue) Start(ctx context.Context) {
 	for {
 		// Get pod from queue. This waits until queue is non-empty.
 		item, shutdown := e.RateLimitingInterface.Get()
@@ -87,7 +91,7 @@ func (e *EvictionQueue) Start(ctx context.Context) {
 }
 
 // evict returns true if successful eviction call, error is returned if not eviction-related error
-func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool {
+func (e *evictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool {
 	err := e.coreV1Client.Pods(nn.Namespace).Evict(ctx, &v1beta1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{Name: nn.Name, Namespace: nn.Namespace},
 	})

@@ -43,7 +43,7 @@ import (
 
 var ctx context.Context
 var controller *termination.Controller
-var evictionQueue *termination.EvictionQueue
+var evictionQueue *test.EvictionQueue
 var env *test.Environment
 
 func TestAPIs(t *testing.T) {
@@ -57,7 +57,7 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
-		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client)
+		evictionQueue = test.NewEvictionQueue(ctx, coreV1Client)
 		controller = &termination.Controller{
 			KubeClient: e.Client,
 			Terminator: &termination.Terminator{
@@ -357,15 +357,15 @@ var _ = Describe("Termination", func() {
 	})
 })
 
-func ExpectEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
+func ExpectEnqueuedForEviction(e *test.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeTrue())
+		Expect(e.HasContained(client.ObjectKeyFromObject(pod))).To(BeTrue())
 	}
 }
 
-func ExpectNotEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
+func ExpectNotEnqueuedForEviction(e *test.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
-		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeFalse())
+		Expect(e.HasContained(client.ObjectKeyFromObject(pod))).To(BeFalse())
 	}
 }
 
