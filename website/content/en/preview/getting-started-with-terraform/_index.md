@@ -217,10 +217,16 @@ resource "aws_iam_role_policy" "karpenter_controller" {
           "ec2:DescribeInstanceTypes",
           "ec2:DescribeInstanceTypeOfferings",
           "ec2:DescribeAvailabilityZones",
-          "ssm:GetParameter"
         ]
         Effect   = "Allow"
         Resource = "*"
+      },
+      {
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Effect   = "Allow"
+        Resource = "arn:aws:ssm:*:*:parameter/aws/service/*"
       },
     ]
   })
