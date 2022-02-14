@@ -45,7 +45,6 @@ Resources:
               - ec2:CreateLaunchTemplate
               - ec2:CreateFleet
               - ec2:CreateTags
-              - iam:PassRole
               # Read Operations
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeInstances
@@ -63,6 +62,10 @@ Resources:
             Condition:
               StringEquals:
                 "ec2:ResourceTag/karpenter.sh/discovery": !Ref ClusterName
+          - Effect: Allow
+            Resource: !Ref KarpenterNodeRole
+            Action:
+              - iam:PassRole
           - Effect: Allow
             Resource: !Sub "arn:${AWS::Partition}:ssm:*:*:parameter/aws/service/*"
             Action:

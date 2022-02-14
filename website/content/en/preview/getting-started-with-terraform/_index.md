@@ -208,7 +208,6 @@ resource "aws_iam_role_policy" "karpenter_controller" {
           "ec2:CreateLaunchTemplate",
           "ec2:CreateFleet",
           "ec2:CreateTags",
-          "iam:PassRole",
           "ec2:DescribeLaunchTemplates",
           "ec2:DescribeInstances",
           "ec2:DescribeSecurityGroups",
@@ -225,6 +224,25 @@ resource "aws_iam_role_policy" "karpenter_controller" {
           "ec2:RunInstances",
           "ec2:TerminateInstances",
           "ec2:DeleteLaunchTemplate",
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+        Condition = {
+          "StringEquals" = {
+            "ec2:ResourceTag/karpenter.sh/discovery" = local.cluster_name
+          }
+        }
+      },
+      {
+        Action = [
+          "iam:PassRole",
+        ]
+        Effect   = "Allow"
+        Resource = module.eks.eks_managed_node_groups["initial"].iam_role_arn
+      },
+      {
+        Action = [
+          "iam:PassRole",
         ]
         Effect   = "Allow"
         Resource = "*"
