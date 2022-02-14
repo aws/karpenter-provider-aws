@@ -18,7 +18,7 @@ Follow the clean-up instructions to reduce any charges.
 
 ## Install
 
-Karpenter is installed in clusters with a helm chart.
+Karpenter is installed in clusters via a helm chart.
 
 Karpenter additionally requires IAM Roles for Service Accounts (IRSA). IRSA
 permits Karpenter (within the cluster) to make privileged requests to AWS (as
@@ -42,19 +42,25 @@ After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export CLUSTER_NAME="${USER}-karpenter-demo"
+export CLUSTER_NAME="karpenter-ex"
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
-The first thing we need to do is create our `main.tf` file and place the
-following in it. This will let us pass in a cluster name that will be used
-throughout the remainder of our config.
+The first thing we need to do is create our `main.tf` file and place the following in it.
 
 ```hcl
-variable "cluster_name" {
-  description = "The name of the cluster"
-  type        = string
+provider "aws" {
+  region = "us-east-1"
 }
+
+locals {
+  cluster_name = "karpenter-ex"
+
+  # Used to determine correct partition (i.e. - `aws`, `aws-gov`, `aws-cn`, etc.)
+  partition = data.aws_partition.current.partition
+}
+
+data "aws_partition" "current" {}
 ```
 
 ### Create a Cluster
@@ -66,10 +72,30 @@ that we need to tag the VPC subnets that we want to use for the worker nodes.
 Place the following Terraform config into your `main.tf` file.
 
 ```hcl
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
+provider "aws" {
+  region = "us-east-1"
+}
 
-  name = var.cluster_name
+locals {
+  # Change name to suite
+  cluster_name = "karpenter-ex"
+
+  # Used to determine correct partition (i.e. - `aws`, `aws-gov`, `aws-cn`, etc.)
+  partition = data.aws_partition.current.partition
+}
+
+data "aws_partition" "current" {}
+
+################################################################################
+# VPC
+################################################################################
+
+module "vpc" {
+  # https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "3.12.0"
+
+  name = local.cluster_name
   cidr = "10.0.0.0/16"
 
   azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
@@ -81,55 +107,60 @@ module "vpc" {
   one_nat_gateway_per_az = false
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}" = "owned"
-    "karpenter.sh/discovery" = var.cluster_name
+    "kubernetes.io/cluster/${local.cluster_name}" = "owned"
+    "karpenter.sh/discovery"                      = local.cluster_name # for Karpenter auto-discovery
   }
 }
+
+################################################################################
+# EKS Cluster
+################################################################################
 
 module "eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  version         = "<18"
+  # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
+  source  = "terraform-aws-modules/eks/aws"
+  version = "18.6.0"
 
+  cluster_name    = local.cluster_name
   cluster_version = "1.21"
-  cluster_name    = var.cluster_name
-  vpc_id          = module.vpc.vpc_id
-  subnets         = module.vpc.private_subnets
-  enable_irsa     = true
 
-  # Only need one node to get Karpenter up and running
-  worker_groups = [
-    {
-      instance_type = "t3a.medium"
-      asg_max_size  = 1
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  # Required for Karpenter role below
+  enable_irsa = true
+
+  # Only need one node to get Karpenter up and running.
+  # This ensures core services such as VPC CNI, CoreDNS, etc. are up and running
+  # so that Karpetner can be deployed and start managing compute capacity as required
+  eks_managed_node_groups = {
+    initial = {
+      instance_types = ["t3.medium"]
+
+      min_size     = 1
+      max_size     = 1
+      desired_size = 1
+
+      iam_role_additional_policies = [
+        # Required by Karpenter
+        "arn:${local.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      ]
     }
-  ]
+  }
 
   tags = {
-    "karpenter.sh/discovery" = var.cluster_name
+    "karpenter.sh/discovery" = local.cluster_name # for Karpenter auto-discovery
   }
 }
+```
 
 At this point, go ahead and apply what we've done to create the VPC and
 EKS cluster. This may take some time.
 
 ```bash
 terraform init
-terraform apply -var "cluster_name=${CLUSTER_NAME}"
+terraform apply
 ```
-
-There's a good chance it will fail when trying to configure the aws-auth
-ConfigMap. And that's because we need to use the kubeconfig file that was
-generated during the cluster install. To use it, run the following. This will
-configure both your local CLI and Terraform to use the file. Then try the apply
-again.
-
-```bash
-export KUBECONFIG="${PWD}/kubeconfig_${CLUSTER_NAME}"
-export KUBE_CONFIG_PATH="${KUBECONFIG}"
-terraform apply -var "cluster_name=${CLUSTER_NAME}"
-```
-
-Everything should apply successfully now!
 
 ### Create the EC2 Spot Service Linked Role
 
@@ -143,33 +174,23 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 
 ### Configure the KarpenterNode IAM Role
 
-The EKS module creates an IAM role for worker nodes. We'll use that for
+The EKS module creates an IAM role for the EKS managed node group nodes. We'll use that for
 Karpenter (so we don't have to reconfigure the aws-auth ConfigMap), but we need
-to add one more policy and create an instance profile.
+to create an instance profile we can reference.
 
-Place the following into your `main.tf` to add the policy and create an
-instance profile.
+Place the following into your `main.tf` to create an instance profile.
 
 ```hcl
-data "aws_iam_policy" "ssm_managed_instance" {
-  arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy_attachment" "karpenter_ssm_policy" {
-  role       = module.eks.worker_iam_role_name
-  policy_arn = data.aws_iam_policy.ssm_managed_instance.arn
-}
-
 resource "aws_iam_instance_profile" "karpenter" {
-  name = "KarpenterNodeInstanceProfile-${var.cluster_name}"
-  role = module.eks.worker_iam_role_name
+  name = "KarpenterNodeInstanceProfile-${local.cluster_name}"
+  role = module.eks.eks_managed_node_groups["initial"].iam_role_name
 }
 ```
 
 Go ahead and apply the changes.
 
 ```bash
-terraform apply -var "cluster_name=${CLUSTER_NAME}"
+terraform apply
 ```
 
 Now, Karpenter can use this instance profile to launch new EC2 instances and
@@ -186,16 +207,17 @@ chart install.
 
 ```hcl
 module "iam_assumable_role_karpenter" {
-  source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version                       = "4.7.0"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+  version = "4.11.0"
+
   create_role                   = true
-  role_name                     = "karpenter-controller-${var.cluster_name}"
+  role_name                     = "karpenter-controller-${local.cluster_name}"
   provider_url                  = module.eks.cluster_oidc_issuer_url
   oidc_fully_qualified_subjects = ["system:serviceaccount:karpenter:karpenter"]
 }
 
 resource "aws_iam_role_policy" "karpenter_controller" {
-  name = "karpenter-policy-${var.cluster_name}"
+  name = "karpenter-policy-${local.cluster_name}"
   role = module.iam_assumable_role_karpenter.iam_role_name
 
   policy = jsonencode({
@@ -205,12 +227,9 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         Action = [
           "ec2:CreateLaunchTemplate",
           "ec2:CreateFleet",
-          "ec2:RunInstances",
           "ec2:CreateTags",
           "iam:PassRole",
-          "ec2:TerminateInstances",
           "ec2:DescribeLaunchTemplates",
-          "ec2:DeleteLaunchTemplate",
           "ec2:DescribeInstances",
           "ec2:DescribeSecurityGroups",
           "ec2:DescribeSubnets",
@@ -223,10 +242,24 @@ resource "aws_iam_role_policy" "karpenter_controller" {
       },
       {
         Action = [
+          "ec2:RunInstances",
+          "ec2:TerminateInstances",
+          "ec2:DeleteLaunchTemplate",
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+        Condition = {
+          "StringEquals" = {
+            "ec2:ResourceTag/karpenter.sh/discovery" = local.cluster_name
+          }
+        }
+      },
+      {
+        Action = [
           "ssm:GetParameter"
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:ssm:*:*:parameter/aws/service/*"
+        Resource = "arn:${local.partition}:ssm:*:*:parameter/aws/service/*"
       },
     ]
   })
@@ -238,7 +271,7 @@ Then, apply the changes.
 
 ```bash
 terraform init
-terraform apply -var "cluster_name=${CLUSTER_NAME}"
+terraform apply
 ```
 
 ### Install Karpenter Helm Chart
@@ -248,15 +281,28 @@ Use helm to deploy Karpenter to the cluster. We are going to use the
 details and IAM role Karpenter needs to assume.
 
 ```hcl
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1alpha1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", local.cluster_name]
+    }
+  }
+}
+
 resource "helm_release" "karpenter" {
-  depends_on       = [module.eks.kubeconfig]
   namespace        = "karpenter"
   create_namespace = true
 
   name       = "karpenter"
   repository = "https://charts.karpenter.sh"
   chart      = "karpenter"
-  version    = "{{< param "latest_release_version" >}}"
+  # Be sure to pull latest version of chart
+  version = "0.6.1"
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
@@ -264,12 +310,12 @@ resource "helm_release" "karpenter" {
   }
 
   set {
-    name  = "clusterName"
-    value = var.cluster_name
+    name  = "controller.clusterName"
+    value = module.eks.cluster_id
   }
 
   set {
-    name  = "clusterEndpoint"
+    name  = "controller.clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
 
@@ -284,7 +330,7 @@ Now, deploy Karpenter by applying the new Terraform config.
 
 ```bash
 terraform init
-terraform apply -var "cluster_name=${CLUSTER_NAME}"
+terraform apply
 ```
 
 
