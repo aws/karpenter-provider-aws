@@ -242,18 +242,6 @@ resource "aws_iam_role_policy" "karpenter_controller" {
       },
       {
         Action = [
-          "iam:PassRole",
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-        Condition = {
-          "StringEquals" = {
-            "ec2:ResourceTag/karpenter.sh/discovery" = local.cluster_name
-          }
-        }
-      },
-      {
-        Action = [
           "ssm:GetParameter"
         ]
         Effect   = "Allow"
