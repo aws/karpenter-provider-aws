@@ -17,9 +17,10 @@ package aws
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"knative.dev/pkg/ptr"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -141,6 +142,10 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 			{
 				Name:   aws.String("supported-virtualization-type"),
 				Values: []*string{aws.String("hvm")},
+			},
+			{
+				Name:   aws.String("processor-info.supported-architecture"),
+				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
 			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
