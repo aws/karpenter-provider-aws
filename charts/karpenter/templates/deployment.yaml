@@ -103,6 +103,8 @@ spec:
           env:
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.19.0-0"
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
             - name: KARPENTER_SERVICE

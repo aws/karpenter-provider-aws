@@ -75,7 +75,7 @@ iam:
 EOF
 eksctl create cluster -f cluster.yaml
 
-export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)
+export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 ```
 
 This guide uses a managed node group to host Karpenter.
