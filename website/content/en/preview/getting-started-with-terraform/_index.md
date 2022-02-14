@@ -432,7 +432,7 @@ created LaunchTemplates.
 kubectl delete deployment inflate
 kubectl delete node -l karpenter.sh/provisioner-name=default
 helm uninstall karpenter --namespace karpenter
-terraform destroy -var "cluster_name=${CLUSTER_NAME}"
+terraform destroy
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
     | grep -i "Karpenter-${CLUSTER_NAME}" \
