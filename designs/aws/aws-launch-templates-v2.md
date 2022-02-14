@@ -41,11 +41,14 @@ With this approach, we’ll continue to add overrides in our providerSpec based 
 *Pros*
 * Fastest path forward - we let users define which parameters are most important to them and let them unblock themselves with a PR if it should be beneficial to others.
 * Consider this as an example - EC2 has only added new fields twice in the last two years. Once for nitro enclaves, and the other for network index cards. Both of these aren't what we call a common use case, and even so it's not a lot to maintain. Network cards don't even apply to Karpenter (we tell customers to let the CNI configure network interfaces).
-  * Once we overcome the initial hump of missing fields, we shouldn't have frequent new things that are needed for a base case.
+  * Once we overcome the initial hump of missing fields, we shouldn't frequently encounter new fields that are needed for a base case.
 
 *Cons*
 * The Provider API starts to have too many configuration knobs and becomes difficult to document and use.
 * Difficult messaging for users - how do we define what is and isn't supported on the provisioner? Forcing a user to define an entire launch template as an alternative is a lot of friction.
+* Validating the provisionerSpec will become complex. Consider these examples -
+  * If a user specifies `provider.ImageId`, they'd necessarily also need to provide `provider.UserData` because Karpenter cannot guess how to bootstrap a worker node using an unknown AMI.
+  * If a user specifies both `provisionerSpec.kubeletConfiguration.clusterDNS` and `provider.UserData`, we'd have to fail the provisioner update because we can't honor the former unless we have complete control over the latter.
 
 
 **Approach 2 - Accept partial launch templates and fill in the rest.**
@@ -101,7 +104,7 @@ spec:
 Example - if someone gives us a partial launch template with a custom AMI, the UserData cannot be autofilled by Karpenter.
 Our API shape remains clean and easier to use. This paradigm is well known across other AWS capacity providers like MNG, Batch etc.
 * The user still needs to maintain a launch template. For some, the pain of maintaining a launch template is invariant to how many fields they have to fill out.
-
+* Karpenter will need to periodically reconcile the provided LaunchTemplate with the Karpenter managed version, if the provided launch template is specified using a version alias like `$LATEST` rather than a fixed number. This can lead to eventual consistency issues - i.e a short time lag between Karpenter picking up that the `$LATEST` version of the provided LT has changed and making the corresponding updates to the Karpenter managed LT.
 
 
 **Approach 3 - Provide a more generic way to specify launch template contents in the Provider**
@@ -136,6 +139,20 @@ and everything under launchTemplateOverride we try and deserialize [to the Launc
 * If customers have to fill out the whole launch templates, it's going to make the provisionerSpec verbose. If they only fill it out partially, then you have the same cons as approach 2.
 
 
+**Approach 4 - Let all infrastructure configuration be expressed as a pod requirement**
+
+The essence of this approach, is to represent each EC2 instance level feature as a well known label that the Karpenter provisioner recognizes. This is what we currently do with instanceTypes with the `node.kubernetes.io/instance-type` label. Using this approach, the provisioner can read off the podSpec to determine which ImageId it needs to use, which additional volumes need to be statically provisioned and so on.
+
+*Pros*
+* Karpenter supports a kube-native way to define node level configuration that is agnostic of the cloud provider.
+* Since each application is unique and may have unique infrastructure requirements, users will be otherwise forced to define multiple provisioners where each provisioner uses a distinct launch template. By moving the configuration to the pod level, we can continue to only necessitate a single / fewer provisioners.
+
+
+*Cons*
+* Labels aren't expressive enough for free-form fields like UserData or even complex fields like say volumes that have multiple nested attributes.
+* Karpenter uses layered constraints - is it possible to define a bound for UserData?
+  * Along the same lines, should the application developer always have complete control over their infrastructure? Some configuration like ImageIds might need to be enforced by the cluster administrator, so it would be beneficial to never expose ImageIds as a knob to the app developer at all.
+* By moving instance configuration from the provider label to the provisioner label, each separate cloud provider implementation will need to support that label which introduces unneeded complexity. The feature set across all cloud providers is unlikely to ever be homogenous.
 
 
 ### Recommendation
