@@ -600,8 +600,8 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 		})
-		It("should not allow empty string keys or values", func() {
-			Context("SecurityGroupSelector", func() {
+		Context("SecurityGroupSelector", func() {
+			It("should not allow empty string keys or values", func() {
 				provider, err := ProviderFromProvisioner(provisioner)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
