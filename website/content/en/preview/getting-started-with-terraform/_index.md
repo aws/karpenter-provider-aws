@@ -69,27 +69,9 @@ We're going to use two different Terraform modules to create our cluster - one
 to create the VPC and another for the cluster itself. The key part of this is
 that we need to tag the VPC subnets that we want to use for the worker nodes.
 
-Place the following Terraform config into your `main.tf` file.
+Add the following to your `main.tf` to create a VPC and EKS cluster.
 
 ```hcl
-provider "aws" {
-  region = "us-east-1"
-}
-
-locals {
-  # Change name to suite
-  cluster_name = "karpenter-ex"
-
-  # Used to determine correct partition (i.e. - `aws`, `aws-gov`, `aws-cn`, etc.)
-  partition = data.aws_partition.current.partition
-}
-
-data "aws_partition" "current" {}
-
-################################################################################
-# VPC
-################################################################################
-
 module "vpc" {
   # https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws/latest
   source  = "terraform-aws-modules/vpc/aws"
@@ -111,10 +93,6 @@ module "vpc" {
     "karpenter.sh/discovery"                      = local.cluster_name # for Karpenter auto-discovery
   }
 }
-
-################################################################################
-# EKS Cluster
-################################################################################
 
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
@@ -178,7 +156,7 @@ The EKS module creates an IAM role for the EKS managed node group nodes. We'll u
 Karpenter (so we don't have to reconfigure the aws-auth ConfigMap), but we need
 to create an instance profile we can reference.
 
-Place the following into your `main.tf` to create an instance profile.
+Add the following to your `main.tf` to create the instance profile.
 
 ```hcl
 resource "aws_iam_instance_profile" "karpenter" {
@@ -204,6 +182,8 @@ Role, attach a policy, and authorize the Service Account to assume the role
 using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 We will create the ServiceAccount and connect it to this role during the Helm
 chart install.
+
+Add the following to your `main.tf` to create the IAM role for the Karpenter service account.
 
 ```hcl
 module "iam_assumable_role_karpenter" {
@@ -266,8 +246,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
 }
 ```
 
-Since we've added a new module, you'll need to run `terraform init` again.
-Then, apply the changes.
+Since we've added a new module, you'll need to run `terraform init` again before applying the changes.
 
 ```bash
 terraform init
@@ -279,6 +258,8 @@ terraform apply
 Use helm to deploy Karpenter to the cluster. We are going to use the
 `helm_release` Terraform resource to do the deploy and pass in the cluster
 details and IAM role Karpenter needs to assume.
+
+Add the following to your `main.tf` to provision Karpenter via a Helm chart.
 
 ```hcl
 provider "helm" {
@@ -326,13 +307,13 @@ resource "helm_release" "karpenter" {
 }
 ```
 
-Now, deploy Karpenter by applying the new Terraform config.
+Since we've added a new provider (helm), you'll need to run `terraform init` again
+before applying the changes to deploy Karpenter.
 
 ```bash
 terraform init
 terraform apply
 ```
-
 
 ### Enable Debug Logging (optional)
 
