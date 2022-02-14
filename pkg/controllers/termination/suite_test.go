@@ -204,9 +204,11 @@ var _ = Describe("Termination", func() {
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName:   node.Name,
 				ObjectMeta: metav1.ObjectMeta{Labels: labelSelector},
+				Phase:      v1.PodRunning,
 			})
 
-			ExpectCreated(ctx, env.Client, node, podNoEvict, pdb)
+			ExpectCreated(ctx, env.Client, node)
+			ExpectCreatedWithStatus(ctx, env.Client, podNoEvict, pdb)
 
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -219,15 +221,20 @@ var _ = Describe("Termination", func() {
 			// Expect node to exist and be draining
 			ExpectNodeDraining(env.Client, node.Name)
 
+			// Expect podNoEvict to fail eviction due to PDB, and be retried
+			Eventually(func() int {
+				return evictionQueue.NumRequeues(client.ObjectKeyFromObject(podNoEvict))
+			}).Should(BeNumerically(">=", 1))
+
 			// Delete pod to simulate successful eviction
 			ExpectDeleted(ctx, env.Client, podNoEvict)
+			ExpectNotFound(ctx, env.Client, podNoEvict)
 
 			// Reconcile to delete node
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			ExpectNotFound(ctx, env.Client, node)
 		})
-
 		It("should evict non-critical pods first", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
 			podNodeCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-node-critical"})

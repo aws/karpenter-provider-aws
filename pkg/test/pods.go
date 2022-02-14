@@ -110,6 +110,8 @@ func UnschedulablePod(options ...PodOptions) *v1.Pod {
 	})...)
 }
 
+// PodDisruptionBudget creates a PodDisruptionBudget.  To function properly, it should have its status applied
+// after creation with something like ExpectCreatedWithStatus
 func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {
@@ -125,6 +127,13 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 				MatchLabels: options.Labels,
 			},
 			MaxUnavailable: options.MaxUnavailable,
+		},
+		Status: v1beta1.PodDisruptionBudgetStatus{
+			// To be considered for application by eviction, the Status.ObservedGeneration must be >= the PDB generation.
+			// kube-controller-manager normally sets ObservedGeneration, but we don't have one when running under
+			// EnvTest. If this isn't modified the eviction controller assumes that the PDB hasn't been processed
+			// by the disruption controller yet and adds a 10 second retry to our evict() call
+			ObservedGeneration: 1,
 		},
 	}
 }

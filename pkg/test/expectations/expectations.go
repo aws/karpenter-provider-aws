@@ -103,6 +103,11 @@ func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...cl
 		updatecopy := object.DeepCopyObject().(client.Object)
 		deletecopy := object.DeepCopyObject().(client.Object)
 		ExpectApplied(ctx, c, object)
+
+		// some objects (e.g. PDB) require that the resource version match prior to an update
+		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
+		updatecopy.SetResourceVersion(object.GetResourceVersion())
+
 		Expect(c.Status().Update(ctx, updatecopy)).To(Succeed())
 		if deletecopy.GetDeletionTimestamp() != nil {
 			Expect(c.Delete(ctx, deletecopy, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(int64(time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds()))})).ToNot(HaveOccurred())
