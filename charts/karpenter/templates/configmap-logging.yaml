@@ -4,12 +4,16 @@ metadata:
   name: config-logging
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "karpenter.labels" . | indent 4 }}
+    {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:-
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   # https://github.com/uber-go/zap/blob/aa3e73ec0896f8b066ddf668597a02f89628ee50/config.go
   zap-logger-config: |
     {
-      "level": "info",
+      "level": "{{ .Values.logLevel }}",
       "development": false,
       "disableStacktrace": true,
       "disableCaller": true,
@@ -31,6 +35,9 @@ data:
         "timeEncoder": "iso8601"
       }
     }
-  # Log level overrides
-  # loglevel.controller: info # debug
-  # loglevel.webhook: info # debug
+{{- with .Values.controller.logLevel }}
+  loglevel.controller: {{ . | quote }}
+{{- end }}
+{{- with .Values.webhook.logLevel }}
+  loglevel.webhook: {{ . | quote }}
+{{- end }}

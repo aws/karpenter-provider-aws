@@ -1,6 +1,16 @@
 apiVersion: v2
-appVersion: "0.6.1"
 name: karpenter
-description: A Helm chart for https://github.com/aws/karpenter/.
+description: A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 type: application
-version: "0.6.1"
+version: 0.6.2
+appVersion: 0.6.2
+keywords:
+  - cluster
+  - node
+  - scheduler
+  - autoscaling
+  - lifecycle
+home: https://karpenter.sh/
+icon: https://repository-images.githubusercontent.com/278480393/dab059c8-caa1-4b55-aaa7-3d30e47a5616
+sources:
+  - https://github.com/aws/karpenter/

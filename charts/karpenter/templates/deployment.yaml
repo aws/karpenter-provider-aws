@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicas }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "karpenter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "karpenter.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "karpenter.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      {{- with .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      {{- if .Values.webhook.hostNetwork }}
+      hostNetwork: true
+      {{- end }}
+      containers:
+        - name: controller
+          {{- with .Values.controller.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.controller.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: CLUSTER_ENDPOINT
+              value: {{ .Values.clusterEndpoint }}
+            - name: KARPENTER_SERVICE
+              value: {{ include "karpenter.fullname" . }}
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- if .Values.aws.defaultInstanceProfile }}
+            - name: AWS_DEFAULT_INSTANCE_PROFILE
+              value: {{ .Values.aws.defaultInstanceProfile }}
+          {{- end }}
+          {{- with .Values.controller.env }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          {{- with .Values.controller.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        - name: webhook
+          {{- with .Values.webhook.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: {{ .Values.webhook.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: CLUSTER_NAME
+              value: {{ .Values.clusterName }}
+            - name: KUBERNETES_MIN_VERSION
+              value: "1.19.0-0"
+            - name: CLUSTER_ENDPOINT
+              value: {{ .Values.clusterEndpoint }}
+            - name: KARPENTER_SERVICE
+              value: {{ include "karpenter.fullname" . }}
+            - name: SYSTEM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if .Values.aws.defaultInstanceProfile }}
+            - name: AWS_DEFAULT_INSTANCE_PROFILE
+              value: {{ .Values.aws.defaultInstanceProfile }}
+            {{- end }}
+          {{- with .Values.webhook.env }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - -port={{ .Values.webhook.port }}
+          ports:
+            - name: https-webhook
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              port: https-webhook
+              scheme: HTTPS
+          readinessProbe:
+            httpGet:
+              port: https-webhook
+              scheme: HTTPS
+          {{- with .Values.webhook.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
