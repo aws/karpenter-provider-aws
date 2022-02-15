@@ -2,6 +2,24 @@
 
 ## Known Problems + Solutions
 
+### Node NotReady
+
+There are many reasons that a node can fail to join the cluster.
+- Permissions
+- Security Groups
+- Networking
+
+The easiest way to start debugging is to connect to the instance
+```sh
+# List the nodes managed by Karpenter
+kubectl get node -l karpenter.sh/provisioner-name
+# Extract the instance ID
+INSTANCE_ID=$(kubectl get node -l karpenter.sh/provisioner-name -ojson | jq -r ".items[0].spec.providerID" | cut -d \/ -f5)
+# Connect to the instance
+aws ssm start-session --target $INSTANCE_ID
+# Check Kubelet logs
+sudo journalctl -u kubelet
+```
 
 ### Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
@@ -62,7 +80,7 @@ karpenter   karpenter-metrics   10.0.13.104:8080                 38m
 karpenter   karpenter-webhook   10.0.1.25:8443,10.0.30.46:8443   38m
 ```
 
-Your security groups are not blocking you from reaching your webhook. 
+Your security groups are not blocking you from reaching your webhook.
 
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
-approach, and now it's much more restrictive. 
+approach, and now it's much more restrictive.
