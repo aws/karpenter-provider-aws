@@ -17,9 +17,10 @@ package aws
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"knative.dev/pkg/ptr"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -161,9 +162,6 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 // filter the instance types to include useful ones for Kubernetes
 func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	if instanceType.FpgaInfo != nil {
-		return false
-	}
-	if aws.BoolValue(instanceType.BareMetal) {
 		return false
 	}
 	// TODO exclude if not available for spot

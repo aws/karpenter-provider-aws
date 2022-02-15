@@ -56,7 +56,7 @@ func (i *InstanceType) Architecture() string {
 			return value
 		}
 	}
-	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
+	return aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)[0] // Unrecognized, return the first architecture value for error printing
 }
 
 func (i *InstanceType) CPU() *resource.Quantity {
