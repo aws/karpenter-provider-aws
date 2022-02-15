@@ -78,6 +78,11 @@ eksctl create cluster -f cluster.yaml
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 ```
 
+You can add the details of the newly created EKS cluster to your local kubectl as a new context by running:
+```bash
+aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
+```
+
 This guide uses a managed node group to host Karpenter.
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
