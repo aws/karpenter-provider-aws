@@ -35,7 +35,8 @@ Install these tools before proceeding:
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
-with a user that has sufficient privileges to create an EKS cluster.
+with a user that has sufficient privileges to create an EKS cluster. Verify that the CLI can
+authenticate properly by running `aws sts get-caller-identity`.
 
 ### Environment Variables
 
@@ -81,6 +82,7 @@ You can add the details of the newly created EKS cluster to your local kubectl a
 ```bash
 aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
 ```
+Verify that you have a node with ready status by running `kubectl get nodes`.
 
 This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
 
