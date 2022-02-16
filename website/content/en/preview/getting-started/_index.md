@@ -34,8 +34,8 @@ Install these tools before proceeding:
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
-Login to the AWS CLI with a user that has sufficient privileges to create a
-cluster.
+[Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
+with a user that has sufficient privileges to create an EKS cluster.
 
 ### Environment Variables
 
@@ -45,7 +45,7 @@ commonly used values.
 ```bash
 export CLUSTER_NAME="${USER}-karpenter-demo"
 export AWS_DEFAULT_REGION="us-west-2"
-AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 ```
 
 ### Create a Cluster
@@ -76,6 +76,11 @@ EOF
 eksctl create cluster -f cluster.yaml
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
+```
+
+You can add the details of the newly created EKS cluster to your local kubectl as a new context by running:
+```bash
+aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
 ```
 
 This guide uses a managed node group to host Karpenter.
