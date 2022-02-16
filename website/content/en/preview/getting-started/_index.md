@@ -53,7 +53,7 @@ export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output te
 Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
 ```bash
-cat <<EOF > cluster.yaml
+eksctl create cluster << 'EOF'
 ---
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -73,7 +73,6 @@ managedNodeGroups:
 iam:
   withOIDC: true
 EOF
-eksctl create cluster -f cluster.yaml
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 ```
