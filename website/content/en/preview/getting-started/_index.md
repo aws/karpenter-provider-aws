@@ -35,7 +35,8 @@ Install these tools before proceeding:
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
-with a user that has sufficient privileges to create an EKS cluster.
+with a user that has sufficient privileges to create an EKS cluster. Verify that the CLI can
+authenticate properly by running `aws sts get-caller-identity`.
 
 ### Environment Variables
 
@@ -53,7 +54,7 @@ export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output te
 Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
 ```bash
-cat <<EOF > cluster.yaml
+eksctl create cluster << 'EOF'
 ---
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -73,17 +74,11 @@ managedNodeGroups:
 iam:
   withOIDC: true
 EOF
-eksctl create cluster -f cluster.yaml
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 ```
 
-You can add the details of the newly created EKS cluster to your local kubectl as a new context by running:
-```bash
-aws eks update-kubeconfig --region ${AWS_DEFAULT_REGION} --name ${CLUSTER_NAME}
-```
-
-This guide uses a managed node group to host Karpenter.
+This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
 
@@ -161,7 +156,7 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
   --version {{< param "latest_release_version" >}} \
-  --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}
+  --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
