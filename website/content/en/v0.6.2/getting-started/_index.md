@@ -34,9 +34,8 @@ Install these tools before proceeding:
 3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
-[Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
-with a user that has sufficient privileges to create an EKS cluster. Verify that the CLI can
-authenticate properly by running `aws sts get-caller-identity`.
+Login to the AWS CLI with a user that has sufficient privileges to create a
+cluster.
 
 ### Environment Variables
 
@@ -46,7 +45,7 @@ commonly used values.
 ```bash
 export CLUSTER_NAME="${USER}-karpenter-demo"
 export AWS_DEFAULT_REGION="us-west-2"
-export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 ```
 
 ### Create a Cluster
@@ -54,7 +53,7 @@ export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output te
 Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
 ```bash
-eksctl create cluster << 'EOF'
+cat <<EOF > cluster.yaml
 ---
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -74,11 +73,12 @@ managedNodeGroups:
 iam:
   withOIDC: true
 EOF
+eksctl create cluster -f cluster.yaml
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
 ```
 
-This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
+This guide uses a managed node group to host Karpenter.
 
 Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
 
@@ -155,7 +155,7 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version {{< param "latest_release_version" >}} \
+  --version v0.6.2 \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \

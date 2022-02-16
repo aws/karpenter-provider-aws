@@ -1,22 +1,17 @@
 # -- Overrides the chart's name.
 nameOverride: ""
-
 # -- Overrides the chart's computed fullname.
 fullnameOverride: ""
-
 # -- Additional labels to add into metadata.
 additionalLabels: {}
 # app: karpenter
 
 # -- Additional annotations to add into metadata.
 additionalAnnotations: {}
-
 # -- Image pull policy for Docker images.
 imagePullPolicy: IfNotPresent
-
 # -- Image pull secrets for Docker images.
 imagePullSecrets: []
-
 serviceAccount:
   # -- Specifies if a ServiceAccount should be created.
   create: true
@@ -25,7 +20,6 @@ serviceAccount:
   name: ""
   # -- Additional annotations for the ServiceAccount.
   annotations: {}
-
 serviceMonitor:
   # -- Specifies whether a ServiceMonitor should be created.
   enabled: false
@@ -33,57 +27,43 @@ serviceMonitor:
   additionalLabels: {}
   # -- Endpoint configuration for the ServiceMonitor.
   endpointConfig: {}
-
 # -- Number of replicas.
 replicas: 1
-
 # -- Strategy for updating the pod.
 strategy:
   type: Recreate
-
 # -- Additional labels for the pod.
 podLabels: {}
-
 # -- Additional annotations for the pod.
 podAnnotations: {}
-
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 1000
-
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
-
 # -- Override the default termination grace period for the pod.
 terminationGracePeriodSeconds:
-
 # -- Bind the pod to the host network.
 # This is required when using a custom CNI.
 hostNetwork: false
-
 # -- Node selectors to schedule the pod to nodes with labels.
 nodeSelector:
   kubernetes.io/os: linux
-
 # -- Affinity rules for scheduling the pod.
 affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: karpenter.sh/provisioner-name
-          operator: DoesNotExist
-
+        - matchExpressions:
+            - key: karpenter.sh/provisioner-name
+              operator: DoesNotExist
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
-
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.6.1@sha256:5a0bd78e2f7ada324677e2eb82e53b648593e9de1acf0a8fc84138a1a6be753c"
-
+  image: "public.ecr.aws/karpenter/controller:v0.6.3@sha256:8b4b72e002b88274895e4f7ee253e29a87391f5a29350f7650aff83b7a6f2030"
   # -- SecurityContext for the controller container.
   securityContext: {}
-
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -97,20 +77,15 @@ controller:
     limits:
       cpu: 1
       memory: 1Gi
-
   # -- Controller log level, defaults to the global log level
   logLevel: ""
-
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.6.1@sha256:7d75747caeb1ca63da1d68925b961c7a61f40faa76aa678320b2d3e090d1713f"
-
+  image: "public.ecr.aws/karpenter/webhook:v0.6.3@sha256:cddaa650e52e62bc0520697d8662a1dab99d009e4ea3ffa176367dfe6cf84d2d"
   # -- SecurityContext for the webhook container.
   securityContext: {}
-
   # -- The container port to use for the webhook.
   port: 8443
-
   # -- Additional environment variables for the webhook pod.
   env: []
   # - name: AWS_REGION
@@ -124,19 +99,14 @@ webhook:
     limits:
       cpu: 100m
       memory: 50Mi
-
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
-
 # -- Global log level
 logLevel: info
-
 # -- Cluster name.
 clusterName: ""
-
 # -- Cluster endpoint.
 clusterEndpoint: ""
-
 aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""

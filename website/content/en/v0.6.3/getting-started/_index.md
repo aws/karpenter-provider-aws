@@ -155,7 +155,7 @@ Install the chart passing in the cluster details and the Karpenter role ARN.
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version {{< param "latest_release_version" >}} \
+  --version v0.6.3 \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \

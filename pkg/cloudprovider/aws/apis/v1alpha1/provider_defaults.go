@@ -60,5 +60,8 @@ func (c *Constraints) defaultAMIFamily() {
 	if c.AMIFamily != nil {
 		return
 	}
+	if c.LaunchTemplate != nil {
+		return
+	}
 	c.AMIFamily = &AMIFamilyAL2
 }
