@@ -97,7 +97,7 @@ module "vpc" {
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.6.0"
+  version = "18.7.1"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.21"
@@ -186,69 +186,24 @@ chart install.
 Add the following to your `main.tf` to create the IAM role for the Karpenter service account.
 
 ```hcl
-module "iam_assumable_role_karpenter" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version = "4.11.0"
+module "karpenter_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "4.12.0"
 
-  create_role                   = true
-  role_name                     = "karpenter-controller-${local.cluster_name}"
-  provider_url                  = module.eks.cluster_oidc_issuer_url
-  oidc_fully_qualified_subjects = ["system:serviceaccount:karpenter:karpenter"]
-}
+  role_name                          = "karpenter-controller-${local.cluster_name}"
+  attach_karpenter_controller_policy = true
 
-resource "aws_iam_role_policy" "karpenter_controller" {
-  name = "karpenter-policy-${local.cluster_name}"
-  role = module.iam_assumable_role_karpenter.iam_role_name
+  karpenter_controller_cluster_ids        = [module.eks.cluster_id]
+  karpenter_controller_node_iam_role_arns = [
+    module.eks.eks_managed_node_groups["initial"].iam_role_arn
+  ]
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "ec2:CreateLaunchTemplate",
-          "ec2:CreateFleet",
-          "ec2:CreateTags",
-          "ec2:DescribeLaunchTemplates",
-          "ec2:DescribeInstances",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeInstanceTypes",
-          "ec2:DescribeInstanceTypeOfferings",
-          "ec2:DescribeAvailabilityZones",
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-      {
-        Action = [
-          "ec2:RunInstances",
-          "ec2:TerminateInstances",
-          "ec2:DeleteLaunchTemplate",
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-        Condition = {
-          "StringEquals" = {
-            "ec2:ResourceTag/karpenter.sh/discovery" = local.cluster_name
-          }
-        }
-      },
-      {
-        Action = [
-          "iam:PassRole",
-        ]
-        Effect   = "Allow"
-        Resource = module.eks.eks_managed_node_groups["initial"].iam_role_arn
-      },
-      {
-        Action = [
-          "ssm:GetParameter"
-        ]
-        Effect   = "Allow"
-        Resource = "arn:${local.partition}:ssm:*:*:parameter/aws/service/*"
-      },
-    ]
-  })
+  oidc_providers = {
+    ex = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["karpenter:karpenter"]
+    }
+  }
 }
 ```
 
@@ -289,20 +244,20 @@ resource "helm_release" "karpenter" {
   repository = "https://charts.karpenter.sh"
   chart      = "karpenter"
   # Be sure to pull latest version of chart
-  version = "0.6.1"
+  version = "0.6.3"
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.iam_assumable_role_karpenter.iam_role_arn
+    value = module.karpenter_irsa.iam_role_arn
   }
 
   set {
-    name  = "controller.clusterName"
+    name  = "clusterName"
     value = module.eks.cluster_id
   }
 
   set {
-    name  = "controller.clusterEndpoint"
+    name  = "clusterEndpoint"
     value = module.eks.cluster_endpoint
   }
 
