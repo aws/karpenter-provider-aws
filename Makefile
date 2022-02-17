@@ -5,6 +5,7 @@ export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
 GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
 WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
+export CGO_ENABLED=0 # Disallows inclusion of CGO in the code and all dependencies
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
@@ -15,8 +16,6 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
       		--set clusterName=${CLUSTER_NAME} \
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
-
-CGO_ENABLED=0 # Disallows inclusion of CGO in the code and all dependencies
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
