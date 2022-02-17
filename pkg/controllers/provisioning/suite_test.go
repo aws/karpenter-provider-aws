@@ -145,6 +145,20 @@ var _ = Describe("Provisioning", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 			}
 		})
+		Context("Bare Metal", func() {
+			It("should schedule when provisioner requires bare metal", func() {
+				provisioner.Spec.Requirements = provisioner.Spec.Requirements.Add(v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"bare-metal-instance-type"}})
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "bare-metal-instance-type"}}))[0]
+				ExpectScheduled(ctx, env.Client, pod)
+			})
+			It("should not schedule when provisioner does not require bare metal", func() {
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "bare-metal-instance-type"}}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+		})
 		Context("Resource Limits", func() {
 			It("should not schedule when limits are exceeded", func() {
 				provisioner.Status = v1alpha5.ProvisionerStatus{

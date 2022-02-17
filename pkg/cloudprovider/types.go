@@ -66,6 +66,7 @@ type InstanceType interface {
 	AWSNeurons() *resource.Quantity
 	AWSPodENI() *resource.Quantity
 	Overhead() v1.ResourceList
+	IsBareMetal() bool
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties

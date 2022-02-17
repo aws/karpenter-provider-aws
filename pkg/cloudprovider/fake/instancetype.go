@@ -60,6 +60,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			AMDGPUs:          options.AMDGPUs,
 			AWSNeurons:       options.AWSNeurons,
 			AWSPodENI:        options.AWSPodENI,
+			IsBareMetal:      options.IsBareMetal,
 		},
 	}
 }
@@ -94,6 +95,7 @@ type InstanceTypeOptions struct {
 	AMDGPUs          resource.Quantity
 	AWSNeurons       resource.Quantity
 	AWSPodENI        resource.Quantity
+	IsBareMetal      bool
 }
 
 type InstanceType struct {
@@ -149,4 +151,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 		v1.ResourceCPU:    resource.MustParse("100m"),
 		v1.ResourceMemory: resource.MustParse("10Mi"),
 	}
+}
+func (i *InstanceType) IsBareMetal() bool {
+	return i.options.IsBareMetal
 }

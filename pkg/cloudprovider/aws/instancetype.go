@@ -170,3 +170,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 func (i *InstanceType) eniLimitedPods() int64 {
 	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
 }
+
+func (i *InstanceType) IsBareMetal() bool {
+	return aws.BoolValue(i.BareMetal)
+}
