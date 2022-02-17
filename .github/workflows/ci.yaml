@@ -26,6 +26,9 @@ jobs:
         make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - uses: shogo82148/actions-goveralls@v1
+      with:
+        path-to-profile: coverage.out
     - uses: actions/upload-artifact@v2
       with:
         name: coverage
