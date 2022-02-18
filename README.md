@@ -45,7 +45,7 @@ Follow the setup recommendations of your cloud provider.
 - 05/04/2021 [Karpenter @ Container Day](https://youtu.be/MZ-4HzOC_ac?t=7137)
 
 ## Blogs
-- 24/09/2021 [Karpenter - Scaling Nodes Seamlessly in AWS EKS](https://blog.sivamuthukumar.com/)
+- 24/09/2021 [Karpenter - Scaling Nodes Seamlessly in AWS EKS](https://blog.sivamuthukumar.com/karpenter-scaling-nodes-seamlessly-in-aws-eks)
 - 29/11/2021 [Introducing Karpenter – An Open-Source High-Performance Kubernetes Cluster Autoscaler](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/)
 - 04/01/2022 [Karpenter vs Cluster Autoscaler](https://kubesandclouds.com/index.php/2022/01/04/karpenter-vs-cluster-autoscaler/)
 
