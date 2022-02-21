@@ -289,7 +289,7 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
 	userData := fmt.Sprintf("[settings.kubernetes]\ncluster-name = \"%s\"\napi-server = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
 	if constraints.KubeletConfiguration.ClusterDNS != nil {
-		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS)
+		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS[0])
 	}
 	if caBundle != nil {
 		userData += fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle)
