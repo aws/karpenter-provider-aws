@@ -143,6 +143,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
+	if fleetContext != "" {
+		createFleetInput.Context = &fleetContext
+	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
 		if isLaunchTemplateNotFound(err) {
