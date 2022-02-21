@@ -28,7 +28,7 @@ test: ## Run tests
 
 battletest: ## Run stronger tests
 	# Ensure all files have cyclo-complexity =< 10
-	gocyclo -over 11 ./pkg
+	gocyclo -over 11 -ignore ".*zz_generated.*" ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \

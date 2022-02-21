@@ -47,6 +47,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 	. "knative.dev/pkg/logging/testing"
 )
 
@@ -507,6 +508,96 @@ var _ = Describe("Allocation", func() {
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
+				})
+				It("should specify the --event-qps flag when eventRecordQPS is set", func() {
+					provisioner.Spec.KubeletConfiguration.EventRecordQPS = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--event-qps=33"))
+				})
+				It("should specify the --event-burst flag when eventBurst is set", func() {
+					provisioner.Spec.KubeletConfiguration.EventBurst = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--event-burst=33"))
+				})
+				It("should specify the --registry-qps flag when registryPullQPS is set", func() {
+					provisioner.Spec.KubeletConfiguration.RegistryPullQPS = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--registry-qps=33"))
+				})
+				It("should specify the --registry-burst flag when registryBurst is set", func() {
+					provisioner.Spec.KubeletConfiguration.RegistryBurst = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--registry-burst"))
+				})
+				It("should specify the --kube-api-qps flag when kubeAPIQPS is set", func() {
+					provisioner.Spec.KubeletConfiguration.KubeAPIQPS = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--kube-api-qps"))
+				})
+				It("should specify the --kube-api-burst flag when kubeAPIBurst is set", func() {
+					provisioner.Spec.KubeletConfiguration.KubeAPIBurst = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--kube-api-burst"))
+				})
+				It("should specify the --container-log-max-size flag when containerLogMaxSize is set", func() {
+					provisioner.Spec.KubeletConfiguration.ContainerLogMaxSize = pointer.String("10Mi")
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--container-log-max-size 10Mi"))
+				})
+				It("should specify the --container-log-max-files flag when containerLogMaxFiles is set", func() {
+					provisioner.Spec.KubeletConfiguration.ContainerLogMaxFiles = pointer.Int32(33)
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring("--container-log-max-files=33"))
+				})
+				It("should specify the --allowed-unsafe-sysctls flag when allowedUnsafeSysctls is set", func() {
+					provisioner.Spec.KubeletConfiguration.AllowedUnsafeSysctls = []string{"kernel.shm∗", "kernel.msg∗"}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring(`--allowed-unsafe-sysctls="kernel.shm∗,kernel.msg∗"`))
+				})
+				It("should specify the --eviction-hard flag when EvictionHard is set", func() {
+					provisioner.Spec.KubeletConfiguration.EvictionHard = map[string]string{"memory.available": "300Mi", "nodefs.available": "10%"}
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					Expect(string(userData)).To(ContainSubstring(`--eviction-hard="memory.available=300Mi,nodefs.available=10%"`))
 				})
 			})
 			Context("Instance Profile", func() {

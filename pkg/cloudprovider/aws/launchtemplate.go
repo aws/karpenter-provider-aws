@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -117,10 +118,14 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, fmt.Errorf("getting ca bundle for user data, %w", err)
 	}
+	userData, err := p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
+	if err != nil {
+		return nil, err
+	}
 	for amiID, instanceTypes := range amis {
 		// Ensure the launch template exists, or create it
 		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
-			UserData:          p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle),
+			UserData:          userData,
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
 			InstanceProfile:   instanceProfile,
 			AMIID:             amiID,
@@ -279,81 +284,194 @@ func sortedKeys(m map[string]string) []string {
 	return keys
 }
 
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
+func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) (string, error) {
 	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
-		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
+		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle), nil
 	}
 	return p.getAL2UserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
 }
 
+//gocyclo:ignore
 func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
-	userData := fmt.Sprintf("[settings.kubernetes]\ncluster-name = \"%s\"\napi-server = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
-	if constraints.KubeletConfiguration.ClusterDNS != nil {
-		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS)
-	}
+	userData := make([]string, 0)
+	// [settings.kubernetes]
+	userData = append(userData, `[settings.kubernetes]`)
+	userData = append(userData, fmt.Sprintf(`cluster-name = "%s"`, injection.GetOptions(ctx).ClusterName))
+	userData = append(userData, fmt.Sprintf(`api-server = "%s"`, injection.GetOptions(ctx).ClusterEndpoint))
 	if caBundle != nil {
-		userData += fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle)
+		userData = append(userData, fmt.Sprintf(`cluster-certificate = "%s"`, *caBundle))
 	}
+	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
+		userData = append(userData, fmt.Sprintf(`cluster-dns-ip = "%s"`, constraints.KubeletConfiguration.ClusterDNS[0]))
+	}
+	if constraints.KubeletConfiguration.EventRecordQPS != nil {
+		userData = append(userData, fmt.Sprintf(`event-qps = %d`, *constraints.KubeletConfiguration.EventRecordQPS))
+	}
+	if constraints.KubeletConfiguration.EventBurst != nil {
+		userData = append(userData, fmt.Sprintf(`event-burst = %d`, *constraints.KubeletConfiguration.EventBurst))
+	}
+	if constraints.KubeletConfiguration.RegistryPullQPS != nil {
+		userData = append(userData, fmt.Sprintf(`registry-qps = %d`, *constraints.KubeletConfiguration.RegistryPullQPS))
+	}
+	if constraints.KubeletConfiguration.RegistryBurst != nil {
+		userData = append(userData, fmt.Sprintf(`registry-burst = %d`, *constraints.KubeletConfiguration.RegistryBurst))
+	}
+	if constraints.KubeletConfiguration.KubeAPIQPS != nil {
+		userData = append(userData, fmt.Sprintf(`kube-api-qps = %d`, *constraints.KubeletConfiguration.KubeAPIQPS))
+	}
+	if constraints.KubeletConfiguration.KubeAPIBurst != nil {
+		userData = append(userData, fmt.Sprintf(`kube-api-burst = %d`, *constraints.KubeletConfiguration.KubeAPIBurst))
+	}
+	if constraints.KubeletConfiguration.ContainerLogMaxSize != nil && len(*constraints.KubeletConfiguration.ContainerLogMaxSize) > 0 {
+		userData = append(userData, fmt.Sprintf(`container-log-max-size = "%s"`, *constraints.KubeletConfiguration.ContainerLogMaxSize))
+	}
+	if constraints.KubeletConfiguration.ContainerLogMaxFiles != nil {
+		userData = append(userData, fmt.Sprintf(`container-log-max-files = %d`, *constraints.KubeletConfiguration.ContainerLogMaxFiles))
+	}
+	if len(constraints.KubeletConfiguration.AllowedUnsafeSysctls) > 0 {
+		userData = append(userData, fmt.Sprintf(`allowed-unsafe-sysctls = ["%s"]`, strings.Join(constraints.KubeletConfiguration.AllowedUnsafeSysctls, `","`)))
+	}
+	// [settings.kubernetes.node-taints]
+	userData = append(userData, taints2BottlerocketFormat(constraints)...)
+	// [settings.kubernetes.node-labels]
 	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
 	if len(nodeLabelArgs) > 0 {
-		userData += "[settings.kubernetes.node-labels]\n"
+		userData = append(userData, `[settings.kubernetes.node-labels]`)
 		for key, val := range nodeLabelArgs {
-			userData += fmt.Sprintf("\"%s\" = \"%s\"\n", key, val)
+			userData = append(userData, fmt.Sprintf(`"%s" = "%s"`, key, val))
 		}
 	}
+	// [settings.kubernetes.eviction-hard]
+	if len(constraints.KubeletConfiguration.EvictionHard) > 0 {
+		userData = append(userData, `[settings.kubernetes.eviction-hard]`)
+		for key, val := range constraints.KubeletConfiguration.EvictionHard {
+			userData = append(userData, fmt.Sprintf(`"%s" = "%s"`, key, val))
+		}
+	}
+	if len(constraints.ContainerRuntimeConfiguration.RegistryMirrors) > 0 {
+		for _, val := range constraints.ContainerRuntimeConfiguration.RegistryMirrors {
+			userData = append(userData, `[[settings.container-registry.mirrors]]`)
+			userData = append(userData, fmt.Sprintf(`registry = "%s"`, strings.TrimSpace(val.Registry)))
+			endpoints := make([]string, 0)
+			for _, ep := range val.Endpoints {
+				endpoints = append(endpoints, fmt.Sprintf(`"%s"`, strings.TrimSpace(ep.URL)))
+			}
+			userData = append(userData, fmt.Sprintf(`endpoint = [%s]`, strings.Join(endpoints, ",")))
+		}
+	}
+	return base64.StdEncoding.EncodeToString([]byte(strings.Join(userData, "\n")))
+}
+
+func taints2BottlerocketFormat(constraints *v1alpha1.Constraints) []string {
+	lines := make([]string, 0)
 	if len(constraints.Taints) > 0 {
-		userData += "[settings.kubernetes.node-taints]\n"
-		sorted := sortedTaints(constraints.Taints)
-		for _, taint := range sorted {
-			userData += fmt.Sprintf("%s=%s:%s\n", taint.Key, taint.Value, taint.Effect)
+		lines = append(lines, `[settings.kubernetes.node-taints]`)
+		aggregated := make(map[string]map[string]bool)
+		for _, taint := range constraints.Taints {
+			var valueEffects map[string]bool
+			var ok bool
+			if valueEffects, ok = aggregated[taint.Key]; !ok {
+				valueEffects = make(map[string]bool)
+			}
+			valueEffects[fmt.Sprintf(`"%s:%s"`, taint.Value, taint.Effect)] = true
+			aggregated[taint.Key] = valueEffects
+		}
+		for key, values := range aggregated {
+			valueEffect := make([]string, 0, len(values))
+			for k := range values {
+				valueEffect = append(valueEffect, k)
+			}
+			lines = append(lines, fmt.Sprintf(`"%s" = [%s]`, key, strings.Join(valueEffect, ",")))
 		}
 	}
-	return base64.StdEncoding.EncodeToString([]byte(userData))
+	return lines
 }
 
 // getAL2UserData returns the exact same string for equivalent input,
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
-// AL2 userdata also works on Ubuntu
-func (p *LaunchTemplateProvider) getAL2UserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
-	var containerRuntimeArg string
+//gocyclo:ignore
+func (p *LaunchTemplateProvider) getAL2UserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) (string, error) {
+	bootstrapArgs := make([]string, 0)
+	bootstrapArgs = append(bootstrapArgs, injection.GetOptions(ctx).ClusterName)
+	bootstrapArgs = append(bootstrapArgs, `--apiserver-endpoint`, injection.GetOptions(ctx).ClusterEndpoint)
 	if !needsDocker(instanceTypes) {
-		containerRuntimeArg = "--container-runtime containerd"
+		bootstrapArgs = append(bootstrapArgs, `--container-runtime`, `containerd`)
 	}
-
-	var userData bytes.Buffer
-	userData.WriteString(fmt.Sprintf(`#!/bin/bash -xe
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-/etc/eks/bootstrap.sh '%s' %s \
-    --apiserver-endpoint '%s'`,
-		injection.GetOptions(ctx).ClusterName,
-		containerRuntimeArg,
-		injection.GetOptions(ctx).ClusterEndpoint))
 	if caBundle != nil {
-		userData.WriteString(fmt.Sprintf(` \
-    --b64-cluster-ca '%s'`,
-			*caBundle))
-	}
-
-	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
-	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
-	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
-
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		userData.WriteString(` \
-    --use-max-pods=false`)
-		kubeletExtraArgs += " --max-pods=110"
-	}
-
-	if len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --kubelet-extra-args '%s'`, kubeletExtraArgs))
+		bootstrapArgs = append(bootstrapArgs, `--b64-cluster-ca`, *caBundle)
 	}
 	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --dns-cluster-ip '%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
+		bootstrapArgs = append(bootstrapArgs, `--dns-cluster-ip`, fmt.Sprintf(`'%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
 	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes())
+	// kubelet arguments
+	kubeletExtraArgs := make([]string, 0)
+	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
+	if len(nodeLabelArgs) > 0 {
+		kubeletExtraArgs = append(kubeletExtraArgs, nodeLabelArgs)
+	}
+	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
+	if len(nodeTaintsArgs) > 0 {
+		kubeletExtraArgs = append(kubeletExtraArgs, nodeTaintsArgs)
+	}
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		bootstrapArgs = append(bootstrapArgs, `--use-max-pods=false`)
+		kubeletExtraArgs = append(kubeletExtraArgs, `--max-pods=110`)
+	}
+	if constraints.KubeletConfiguration.EventRecordQPS != nil {
+		qps := *constraints.KubeletConfiguration.EventRecordQPS
+		if qps == 0 {
+			// On the CLI kubelet will use the default value if "0" is provided, in kubelet config file "0"
+			// means "no-limit". Here we want to mimic the kubelet config file and thus we replace "0" with
+			// the max value of an int32 to achieve "no-limit" behavior.
+			qps = math.MaxInt32
+		}
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--event-qps=%d`, qps))
+	}
+	if constraints.KubeletConfiguration.EventBurst != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--event-burst=%d`, *constraints.KubeletConfiguration.EventBurst))
+	}
+	if constraints.KubeletConfiguration.RegistryPullQPS != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--registry-qps=%d`, *constraints.KubeletConfiguration.RegistryPullQPS))
+	}
+	if constraints.KubeletConfiguration.RegistryBurst != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--registry-burst=%d`, *constraints.KubeletConfiguration.RegistryBurst))
+	}
+	if constraints.KubeletConfiguration.KubeAPIQPS != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--kube-api-qps=%d`, *constraints.KubeletConfiguration.KubeAPIQPS))
+	}
+	if constraints.KubeletConfiguration.KubeAPIBurst != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--kube-api-burst=%d`, *constraints.KubeletConfiguration.KubeAPIBurst))
+	}
+	if constraints.KubeletConfiguration.ContainerLogMaxSize != nil && len(*constraints.KubeletConfiguration.ContainerLogMaxSize) > 0 {
+		kubeletExtraArgs = append(kubeletExtraArgs, `--container-log-max-size`, *constraints.KubeletConfiguration.ContainerLogMaxSize)
+	}
+	if constraints.KubeletConfiguration.ContainerLogMaxFiles != nil {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--container-log-max-files=%d`, *constraints.KubeletConfiguration.ContainerLogMaxFiles))
+	}
+	if len(constraints.KubeletConfiguration.AllowedUnsafeSysctls) > 0 {
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--allowed-unsafe-sysctls="%s"`, strings.Join(constraints.KubeletConfiguration.AllowedUnsafeSysctls, ",")))
+	}
+	if len(constraints.KubeletConfiguration.EvictionHard) > 0 {
+		entries := make([]string, 0)
+		for _, key := range sortedKeys(constraints.KubeletConfiguration.EvictionHard) {
+			if val, found := constraints.KubeletConfiguration.EvictionHard[key]; found {
+				entries = append(entries, fmt.Sprintf(`%s=%s`, key, val))
+			}
+		}
+		kubeletExtraArgs = append(kubeletExtraArgs, fmt.Sprintf(`--eviction-hard="%s"`, strings.Join(entries, ",")))
+	}
+	if len(kubeletExtraArgs) > 0 {
+		bootstrapArgs = append(bootstrapArgs, `--kubelet-extra-args`, fmt.Sprintf(`'%s'`, strings.Join(kubeletExtraArgs, " ")))
+	}
+	if len(constraints.ContainerRuntimeConfiguration.RegistryMirrors) > 0 {
+		return "", fmt.Errorf("containerRuntimeConfiguration.registryMirrors is not (yet) supported for Amazon Linux 2")
+	}
+	userData := make([]string, 0)
+	userData = append(userData, `#!/bin/bash -xe`)
+	userData = append(userData, `exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1`)
+	userData = append(userData, fmt.Sprintf(`/etc/eks/bootstrap.sh %s`, strings.Join(bootstrapArgs, " ")))
+	return base64.StdEncoding.EncodeToString([]byte(strings.Join(userData, "\n"))), nil
 }
 
 func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) string {
@@ -373,7 +491,7 @@ func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) 
 	return nodeLabelArgs
 }
 
-func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) bytes.Buffer {
+func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) string {
 	var nodeTaintsArgs bytes.Buffer
 	if len(constraints.Taints) > 0 {
 		nodeTaintsArgs.WriteString("--register-with-taints=")
@@ -389,7 +507,7 @@ func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constrai
 			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
 		}
 	}
-	return nodeTaintsArgs
+	return nodeTaintsArgs.String()
 }
 
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {

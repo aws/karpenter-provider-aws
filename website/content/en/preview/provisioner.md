@@ -149,13 +149,40 @@ Karpenter prioritizes Spot offerings if the provisioner allows Spot and on-deman
 
 ## spec.kubeletConfiguration
 
-Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so.
+Karpenter provides the ability to specify a few additional [Kubelet args](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration). These are all optional and provide support for additional customization and use cases. Adjust these only if you know you need to do so.
 
 ```yaml
 spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
+    eventRecordQPS: 5
+    eventBurst: 10
+    registryPullQPS: 5
+    registryBurst: 10
+    kubeAPIQPS: 5
+    kubeAPIBurst: 10
+    containerLogMaxSize: "10Mi"
+    containerLogMaxFiles: 5
+    allowedUnsafeSysctls: []
+    evictionHard:
+      memory.available: "100Mi" 
+      nodefs.available: "10%" 
+      nodefs.inodesFree: "5%" 
+      imagefs.available: "15%"
+```
+
+## spec.containerRuntimeConfiguration
+
+Karpenter provides the ability to specify a few additional container runtime args, which are passed to the container runtime when provisioning nodes. These are all optional and provide support for additional customization and use cases. Adjust these only if you know you need to do so.
+
+```yaml
+spec:
+  containerRuntimeConfiguration:
+    registryMirrors:
+      - registry: "*"
+        endpoints:
+        - url: https://my-caching-pull-through-registry.net
+
 ```
 
 ## spec.limits
