@@ -96,7 +96,7 @@ func (e *EvictionQueue) evict(ctx context.Context, nn types.NamespacedName) bool
 		return false
 	}
 	if errors.IsTooManyRequests(err) { // 429
-		logging.FromContext(ctx).Debugf("Did not to evict pod %s due to PDB violation.", nn.String())
+		logging.FromContext(ctx).Debugf("Did not evict pod %s due to PDB violation.", nn.String())
 		return false
 	}
 	if errors.IsNotFound(err) { // 404
