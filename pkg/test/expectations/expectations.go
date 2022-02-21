@@ -22,6 +22,8 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
+	prometheus "github.com/prometheus/client_model/go"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -195,4 +197,17 @@ func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconcil
 	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())
 	return result
+}
+
+func ExpectMetric(prefix string) *prometheus.MetricFamily {
+	metrics, err := metrics.Registry.Gather()
+	Expect(err).To(BeNil())
+	var selected *prometheus.MetricFamily
+	for _, mf := range metrics {
+		if mf.GetName() == prefix {
+			selected = mf
+		}
+	}
+	Expect(selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
+	return selected
 }
