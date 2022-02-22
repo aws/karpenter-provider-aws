@@ -90,6 +90,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ec2api,
 				NewAMIProvider(ssm.New(sess), options.ClientSet),
 				NewSecurityGroupProvider(ec2api),
+				instanceTypeProvider,
 			),
 		},
 	}

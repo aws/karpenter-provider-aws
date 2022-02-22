@@ -101,6 +101,7 @@ var _ = BeforeSuite(func() {
 					ec2api:                fakeEC2API,
 					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
 					securityGroupProvider: securityGroupProvider,
+					instanceTypeProvider:  instanceTypeProvider,
 					cache:                 launchTemplateCache,
 				},
 			},

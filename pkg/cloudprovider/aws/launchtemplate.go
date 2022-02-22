@@ -53,15 +53,17 @@ type LaunchTemplateProvider struct {
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
+	instanceTypeProvider  *InstanceTypeProvider
 	cache                 *cache.Cache
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider, instanceTypeProvider *InstanceTypeProvider) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
+		instanceTypeProvider:  instanceTypeProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
@@ -324,8 +326,10 @@ func (p *LaunchTemplateProvider) getAL2UserData(ctx context.Context, constraints
 	var userData bytes.Buffer
 	userData.WriteString(fmt.Sprintf(`#!/bin/bash -xe
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+%s
 /etc/eks/bootstrap.sh '%s' %s \
     --apiserver-endpoint '%s'`,
+		p.ReplaceENIMaxPodsFile(ctx, constraints),
 		injection.GetOptions(ctx).ClusterName,
 		containerRuntimeArg,
 		injection.GetOptions(ctx).ClusterEndpoint))
@@ -424,4 +428,24 @@ func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, erro
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+// ReplaceENIMaxPodsFile generates a bash heredoc to replace the eni-max-pods.txt file that is shipped on an EKS Optimized AMI
+func (p *LaunchTemplateProvider) ReplaceENIMaxPodsFile(ctx context.Context, constraints *v1alpha1.Constraints) string {
+	instanceTypes, err := p.instanceTypeProvider.Get(ctx, constraints.AWS)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Unable to fetch instance types to replace eks eni-max-pods.txt, %v", err)
+		return ""
+	}
+	sort.Slice(instanceTypes, func(i, j int) bool {
+		return instanceTypes[i].Name() < instanceTypes[j].Name()
+	})
+	maxPodsPath := "/etc/eks/eni-max-pods.txt"
+	maxPodsBkupPath := fmt.Sprintf("%s-bkup", maxPodsPath)
+	maxENIPods := fmt.Sprintf("cp %s %s\ncat << EOF > %s\n", maxPodsPath, maxPodsBkupPath, maxPodsPath)
+	for _, instanceType := range instanceTypes {
+		maxENIPods += fmt.Sprintf("%s %d\n", instanceType.Name(), instanceType.Pods().Value())
+	}
+	maxENIPods += "EOF"
+	return maxENIPods
 }
