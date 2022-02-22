@@ -8,7 +8,7 @@ weight: 10
 
 This section covers parameters of the AWS Cloud Provider.
 
-[Review these fields in the code.](https://github.com/awslabs/karpenter/blob{{< relref "." >}}pkg/cloudprovider/aws/apis/v1alpha1/provider.go)
+[Review these fields in the code.](https://github.com/awslabs/karpenter/blob{{replace (relref ".") "preview" "main"}}pkg/cloudprovider/aws/apis/v1alpha1/provider.go)
 
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
