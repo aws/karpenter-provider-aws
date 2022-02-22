@@ -17,7 +17,7 @@ tools() {
     go install github.com/mikefarah/yq/v4@v4.16.1
     go install github.com/mitchellh/golicense@v0.2.0
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.7.0
-    go install github.com/onsi/ginkgo/ginkgo@v1.16.5
+    go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.3
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20220113220429-45b13b951f77
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0
     go install github.com/sigstore/cosign/cmd/cosign@v1.5.1

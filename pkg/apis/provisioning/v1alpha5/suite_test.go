@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"

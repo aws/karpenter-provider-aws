@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/aws/karpenter/pkg/utils/sets"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
