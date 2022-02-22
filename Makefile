@@ -31,8 +31,8 @@ battletest: ## Run stronger tests
 	gocyclo -over 11 ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
-		--cover --coverprofile=coverage.out --output-dir=.\
-		--randomize-all --randomize-suites --race --trace
+		-cover -coverprofile=coverage.out \
+		-race  --randomize-all --randomize-suites --trace
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
