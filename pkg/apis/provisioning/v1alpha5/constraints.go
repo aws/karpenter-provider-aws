@@ -52,10 +52,6 @@ type Provider = runtime.RawExtension
 func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	p := pod.DeepCopy()
 	// The soft preference may conflict with the requirements.
-	// Validate it separatly.
-	if err := validatePreferences(p); err != nil {
-		return err
-	}
 	// Remove soft constraints/ preferences
 	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil {
 		p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = nil
@@ -88,10 +84,6 @@ func (c *Constraints) ValidateDaemonSet(daemonSet appsv1.DaemonSet) error {
 	pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
 	p := pod.DeepCopy()
 	// The soft preference may conflict with the requirements.
-	// Validate it separatly.
-	if err := validatePreferences(p); err != nil {
-		return err
-	}
 	// Remove soft constraints/ preferences
 	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil {
 		p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = nil
@@ -119,18 +111,6 @@ func (c *Constraints) ValidateDaemonSet(daemonSet appsv1.DaemonSet) error {
 		}
 	}
 
-	return nil
-}
-
-func validatePreferences(pod *v1.Pod) error {
-	if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
-		if preferred := pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution; len(preferred) > 0 {
-			preferences := NewRequirements(preferred[0].Preference.MatchExpressions...)
-			if err := preferences.Validate(); err != nil {
-				return fmt.Errorf("invalid preference, %w", err)
-			}
-		}
-	}
 	return nil
 }
 
