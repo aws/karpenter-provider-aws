@@ -180,11 +180,11 @@ func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnet
 		return e.DescribeSubnetsOutput, nil
 	}
 	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"),
+		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"),
+		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
-		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c"),
+		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}, {Key: aws.String("TestTag")}}},
 	}}, nil
 }
