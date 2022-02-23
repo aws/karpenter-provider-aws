@@ -287,12 +287,12 @@ func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v
 }
 
 func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
-	userData := fmt.Sprintf("[settings.kubernetes]\ncluster-name = \"%s\"\napi-server = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
+	userData := fmt.Sprintf("[settings.kubernetes]\n\"cluster-name\" = \"%s\"\n\"api-server\" = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
 	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
-		userData += fmt.Sprintf("cluster-dns-ip = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS[0])
+		userData += fmt.Sprintf("\"cluster-dns-ip\" = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS[0])
 	}
 	if caBundle != nil {
-		userData += fmt.Sprintf("cluster-certificate = \"%s\"\n", *caBundle)
+		userData += fmt.Sprintf("\"cluster-certificate\" = \"%s\"\n", *caBundle)
 	}
 	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
 	if len(nodeLabelArgs) > 0 {
@@ -305,7 +305,7 @@ func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, co
 		userData += "[settings.kubernetes.node-taints]\n"
 		sorted := sortedTaints(constraints.Taints)
 		for _, taint := range sorted {
-			userData += fmt.Sprintf("%s=%s:%s\n", taint.Key, taint.Value, taint.Effect)
+			userData += fmt.Sprintf("\"%s\"=\"%s:%s\"\n", taint.Key, taint.Value, taint.Effect)
 		}
 	}
 	return base64.StdEncoding.EncodeToString([]byte(userData))
