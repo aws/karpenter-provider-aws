@@ -119,7 +119,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	}
 	for amiID, instanceTypes := range amis {
 		// Ensure the launch template exists, or create it
-		launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
+		launchTemplate, err := p.ensureLaunchTemplate(ctx, constraints, &launchTemplateOptions{
 			UserData:          p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle),
 			ClusterName:       injection.GetOptions(ctx).ClusterName,
 			InstanceProfile:   instanceProfile,
@@ -136,7 +136,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, constraints *v1alpha1.Constraints, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -154,7 +154,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	})
 	// Create LT if one doesn't exist
 	if isNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, options)
+		launchTemplate, err = p.createLaunchTemplate(ctx, constraints, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -182,17 +182,39 @@ func needsDocker(is []cloudprovider.InstanceType) bool {
 	return false
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(launchTemplateName(options)),
-		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
-			BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{{
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, constraints *v1alpha1.Constraints, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+	blockDeviceMappings := []*ec2.LaunchTemplateBlockDeviceMappingRequest{{
+		DeviceName: aws.String("/dev/xvda"),
+		Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+			Encrypted:  aws.Bool(true),
+			VolumeSize: aws.Int64(20),
+		},
+	}}
+	// Bottlerocket mounts two EBS volumes, /dev/xvda is for the core OS components and Bottlerocket API
+	// /dev/xvdb is the container image storage, container logs, etc.
+	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
+		blockDeviceMappings = []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+			{
 				DeviceName: aws.String("/dev/xvda"),
+				Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+					Encrypted:  aws.Bool(true),
+					VolumeSize: aws.Int64(4),
+				},
+			},
+			{
+				DeviceName: aws.String("/dev/xvdb"),
 				Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 					Encrypted:  aws.Bool(true),
 					VolumeSize: aws.Int64(20),
 				},
-			}},
+			},
+		}
+	}
+
+	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
+		LaunchTemplateName: aws.String(launchTemplateName(options)),
+		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
+			BlockDeviceMappings: blockDeviceMappings,
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
