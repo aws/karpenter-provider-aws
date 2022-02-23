@@ -156,7 +156,6 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
-
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
 		return nil, fmt.Errorf("creating fleet %w", err)
