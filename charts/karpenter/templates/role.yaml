@@ -27,7 +27,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: ["karpenter-cert"]
+    resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
     resources: ["secrets"]
