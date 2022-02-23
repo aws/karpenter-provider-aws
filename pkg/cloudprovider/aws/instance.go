@@ -138,14 +138,19 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
 		},
 	}
+
+	fleetContext := injection.GetOptions(ctx).AWSEC2FleetContext
+
+	if fleetContext != "" {
+		createFleetInput.Context = aws.String(fleetContext)
+	}
+
 	if capacityType == v1alpha1.CapacityTypeSpot {
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
-	if fleetContext != "" {
-		createFleetInput.Context = &fleetContext
-	}
+
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
 		if isLaunchTemplateNotFound(err) {
