@@ -179,7 +179,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		NewControllerManagedBy(m).
 		Named(controllerName).
 		For(&v1.Pod{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 100}).
 		WithLogger(zapr.NewLogger(zap.NewNop())).
 		Complete(c)
 }
