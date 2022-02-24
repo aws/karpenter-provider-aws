@@ -181,15 +181,13 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
-	// aggregate subnets by zone and sort in descending order of available IP addresses
-	subnetsPerZone := map[string][]*ec2.Subnet{}
+	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
+	zonalSubnets := map[string]*ec2.Subnet{}
+	sort.Slice(subnets, func(i, j int) bool {
+		return aws.Int64Value(subnets[i].AvailableIpAddressCount) < aws.Int64Value(subnets[j].AvailableIpAddressCount)
+	})
 	for _, subnet := range subnets {
-		zoneSubnets := subnetsPerZone[*subnet.AvailabilityZone]
-		zoneSubnets = append(zoneSubnets, subnet)
-		sort.Slice(zoneSubnets, func(i, j int) bool {
-			return aws.Int64Value(zoneSubnets[i].AvailableIpAddressCount) > aws.Int64Value(zoneSubnets[j].AvailableIpAddressCount)
-		})
-		subnetsPerZone[*subnet.AvailabilityZone] = zoneSubnets
+		zonalSubnets[*subnet.AvailabilityZone] = subnet
 	}
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
@@ -200,12 +198,10 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 			if !zones.Has(offering.Zone) {
 				continue
 			}
-			zoneSubnets := subnetsPerZone[offering.Zone]
-			if len(zoneSubnets) == 0 {
+			subnet, ok := zonalSubnets[offering.Zone]
+			if !ok {
 				continue
 			}
-			// subnets are sorted in descending order of available IP addresses, so take the first entry for the subnet with the most available IPs
-			subnet := zoneSubnets[0]
 			override := &ec2.FleetLaunchTemplateOverridesRequest{
 				InstanceType: aws.String(instanceType.Name()),
 				SubnetId:     subnet.SubnetId,
