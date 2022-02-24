@@ -103,7 +103,7 @@ Before the chart can be installed the repo needs to be added to Helm, run the fo
 
 Install the chart passing in the cluster details and the Karpenter role ARN.
 
-{{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-charts.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
 
 ### Enable Debug Logging (optional)
 
