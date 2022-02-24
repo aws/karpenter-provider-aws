@@ -8,7 +8,7 @@ weight: 10
 
 This section covers parameters of the AWS Cloud Provider.
 
-[Review these fields in the code.](https://github.com/awslabs/karpenter/blob/main/pkg/cloudprovider/aws/apis/v1alpha1/provider.go#L33)
+[Review these fields in the code.](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/cloudprovider/aws/apis/v1alpha1/provider.go)
 
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
@@ -48,13 +48,13 @@ When launching nodes, Karpenter automatically chooses a subnet that matches the 
 Select all subnets with a specified tag:
 ```
   subnetSelector:
-    kubernetes.io/cluster/MyCluster: '*'
+    karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select subnets by name:
 ```
   subnetSelector:
-    Name: subnet-0fcd7006b3754e95e
+    Name: my-subnet
 ```
 
 Select subnets by an arbitrary AWS tag key/value pair:
@@ -73,19 +73,18 @@ Select subnets using wildcards:
 ### SecurityGroupSelector
 
 The security group of an instance is comparable to a set of firewall rules.
-If no security groups are explicitly listed, Karpenter discovers them using the tag "kubernetes.io/cluster/MyClusterName", similar to subnet discovery.
 
 EKS creates at least two security groups by default, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
 
-Security groups may be specified by any AWS tag, including "name". Selecting tags using wildcards ("*") is supported.
+Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards ("*") is supported.
 
-‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `kubernetes.io/cluster/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `karpenter.sh/discovery/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
 
 To verify if this restriction affects you, run the following commands.
 ```bash
 CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.resourcesVpcConfig.vpcId --output text)"
 
-aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
+aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=karpenter.sh/discovery/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
 ```
 
 If multiple securityGroups are printed, you will need a more targeted securityGroupSelector.
@@ -97,13 +96,13 @@ Select all security groups with a specified tag:
 spec:
   provider:
     securityGroupSelector:
-      kubernetes.io/cluster/MyKarpenterSecurityGroups: '*'
+      karpenter.sh/discovery/MyClusterName: '*'
 ```
 
 Select security groups by name, or another tag (all criteria must match):
 ```
  securityGroupSelector:
-   Name: sg-01077157b7cf4f5a8
+   Name: my-security-group
    MySecurityTag: '' # matches all resources with the tag
 ```
 
