@@ -1,0 +1,1 @@
+export KARPENTER_VERSION=v0.6.3
