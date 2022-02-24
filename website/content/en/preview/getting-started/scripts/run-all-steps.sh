@@ -1,9 +1,15 @@
 #!/bin/bash
-
 set -euo pipefail #fail if one step fails
 
+if [ "$#" -ne 1 ]
+then
+  echo "Missing required Karpenter version. Usage: run-all-steps.sh v0.0.1"
+  exit 1
+fi
+
+export KARPENTER_VERSION=$1
+
 declare -a steps=(
-  step00-karpenter-version.sh
   step01-config.sh
   step02-create-cluster.sh
   step03-iam-cloud-formation.sh
@@ -14,9 +20,8 @@ declare -a steps=(
 )
 
 i=0
-for step in "${steps[@]}"
-do
+for step in "${steps[@]}"; do
   echo "Step $i"
-   source $step
-   (( i += 1 ))
+  source $step
+  ((i += 1))
 done
