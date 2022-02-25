@@ -25,7 +25,6 @@ linters:
     - unconvert
     - unparam
   disable:
-    - errcheck
     - prealloc
 
   linters-settings:

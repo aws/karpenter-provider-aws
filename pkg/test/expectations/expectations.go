@@ -179,7 +179,9 @@ func ExpectProvisioned(ctx context.Context, c client.Client, selectionController
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
+			if _, err := selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)}); err != nil {
+				Expect(err).To(HaveOccurred()) // This is expected to sometimes happen
+			}
 			wg.Done()
 		}(pod)
 	}
