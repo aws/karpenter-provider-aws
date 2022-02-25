@@ -110,8 +110,8 @@ func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, subne
 }
 
 func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[string]sets.String, error) {
-	if cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
-		return cached.(map[string]sets.String), nil
+	if Cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
+		return Cached.(map[string]sets.String), nil
 	}
 	zones := map[string]sets.String{}
 	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
@@ -133,8 +133,8 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[st
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
 func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*InstanceType, error) {
-	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
-		return cached.(map[string]*InstanceType), nil
+	if Cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
+		return Cached.(map[string]*InstanceType), nil
 	}
 	instanceTypes := map[string]*InstanceType{}
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{

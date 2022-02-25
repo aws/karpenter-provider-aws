@@ -36,7 +36,7 @@ var env *test.Environment
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controllers/Metrics/Node")
+	RunSpecs(t, "Controllers/Metrics/Pod")
 }
 
 var _ = BeforeSuite(func() {

@@ -15,13 +15,9 @@ limitations under the License.
 package aws
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -31,14 +27,13 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
-	core "k8s.io/api/core/v1"
-	"k8s.io/client-go/transport"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/launchtemplate"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -49,27 +44,29 @@ const (
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
-	logger                *zap.SugaredLogger
 	ec2api                ec2iface.EC2API
 	amiProvider           *AMIProvider
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
+	logger                *zap.SugaredLogger
+	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
+		caBundle:              caBundle,
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	l.hydrateCache(ctx)
 	return l
 }
 
-func launchTemplateName(options *launchTemplateOptions) string {
+func launchTemplateName(options *launchtemplate.Resolved) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -77,57 +74,40 @@ func launchTemplateName(options *launchTemplateOptions) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-// launchTemplateOptions is hashed and results in the creation of a real EC2
-// LaunchTemplate. Do not change this struct without thinking through the impact
-// to the number of LaunchTemplates that will result from this change.
-type launchTemplateOptions struct {
-	// Edge-triggered fields that will only change on kube events.
-	ClusterName     string
-	UserData        string
-	InstanceProfile string
-	// Level-triggered fields that may change out of sync.
-	SecurityGroupsIds []string
-	AMIID             string
-	Tags              map[string]string
-	MetadataOptions   *v1alpha1.MetadataOptions
-}
-
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
 	// If Launch Template is directly specified then just use it
-	if constraints.LaunchTemplate != nil {
-		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplate): instanceTypes}, nil
+	if constraints.LaunchTemplateName != nil {
+		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplateName): instanceTypes}, nil
 	}
 	instanceProfile, err := p.getInstanceProfile(ctx, constraints)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIds, err := p.securityGroupProvider.Get(ctx, constraints)
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, constraints)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained AMI ID
-	amis, err := p.amiProvider.Get(ctx, constraints, instanceTypes)
+	amis, err := p.amiProvider.Get(ctx, constraints, instanceTypes, launchtemplate.GetAMIFamily(constraints.AMIFamily, nil))
 	if err != nil {
 		return nil, err
 	}
 	// Construct launch templates
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
-	caBundle, err := p.GetCABundle(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting ca bundle for user data, %w", err)
-	}
 	for amiID, instanceTypes := range amis {
 		// Ensure the launch template exists, or create it
-		launchTemplate, err := p.ensureLaunchTemplate(ctx, constraints, &launchTemplateOptions{
-			UserData:          p.getUserData(ctx, constraints, instanceTypes, additionalLabels, caBundle),
-			ClusterName:       injection.GetOptions(ctx).ClusterName,
-			InstanceProfile:   instanceProfile,
-			AMIID:             amiID,
-			SecurityGroupsIds: securityGroupsIds,
-			Tags:              constraints.Tags,
-			MetadataOptions:   constraints.GetMetadataOptions(),
-		})
+		launchTemplate, err := p.ensureLaunchTemplate(ctx, launchtemplate.Get(constraints, instanceTypes, &launchtemplate.Options{
+			ClusterName:             injection.GetOptions(ctx).ClusterName,
+			ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
+			AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+			InstanceProfile:         instanceProfile,
+			AMIID:                   amiID,
+			SecurityGroupsIDs:       securityGroupsIDs,
+			Tags:                    constraints.Tags,
+			Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
+			CABundle:                p.caBundle,
+		}))
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +116,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, constraints *v1alpha1.Constraints, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchtemplate.Resolved) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -154,7 +134,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, const
 	})
 	// Create LT if one doesn't exist
 	if isNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, constraints, options)
+		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -166,60 +146,20 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, const
 		logging.FromContext(ctx).Debugf("Discovered launch template %s", name)
 		launchTemplate = output.LaunchTemplates[0]
 	}
-	// 4. Save in cache to reduce API calls
 	p.cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil
 }
 
-// needsDocker returns true if the instance type is unable to use
-// containerd directly
-func needsDocker(is []cloudprovider.InstanceType) bool {
-	for _, i := range is {
-		if !i.AWSNeurons().IsZero() || !i.NvidiaGPUs().IsZero() {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, constraints *v1alpha1.Constraints, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
-	blockDeviceMappings := []*ec2.LaunchTemplateBlockDeviceMappingRequest{{
-		DeviceName: aws.String("/dev/xvda"),
-		Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-			Encrypted:  aws.Bool(true),
-			VolumeSize: aws.Int64(20),
-		},
-	}}
-	// Bottlerocket mounts two EBS volumes, /dev/xvda is for the core OS components and Bottlerocket API
-	// /dev/xvdb is the container image storage, container logs, etc.
-	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
-		blockDeviceMappings = []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-			{
-				DeviceName: aws.String("/dev/xvda"),
-				Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-					Encrypted:  aws.Bool(true),
-					VolumeSize: aws.Int64(4),
-				},
-			},
-			{
-				DeviceName: aws.String("/dev/xvdb"),
-				Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-					Encrypted:  aws.Bool(true),
-					VolumeSize: aws.Int64(20),
-				},
-			},
-		}
-	}
-
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchtemplate.Resolved) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
-			BlockDeviceMappings: blockDeviceMappings,
+			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: aws.String(options.InstanceProfile),
 			},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIds),
-			UserData:         aws.String(options.UserData),
+			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
+			UserData:         aws.String(options.UserData.Script()),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
@@ -238,6 +178,25 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, const
 	}
 	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
+}
+
+func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+	for _, blockDeviceMapping := range blockDeviceMappings {
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
+			DeviceName: blockDeviceMapping.DeviceName,
+			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
+				Encrypted:           blockDeviceMapping.EBS.Encrypted,
+				VolumeType:          blockDeviceMapping.EBS.VolumeType,
+				Iops:                blockDeviceMapping.EBS.IOPS,
+				Throughput:          blockDeviceMapping.EBS.Throughput,
+				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
+				VolumeSize:          aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga)),
+			},
+		})
+	}
+	return blockDeviceMappingsRequest
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
@@ -272,148 +231,6 @@ func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
 	p.logger.Debugf("Deleted launch template %v", aws.StringValue(launchTemplate.LaunchTemplateId))
 }
 
-func sortedTaints(ts []core.Taint) []core.Taint {
-	sorted := append(ts[:0:0], ts...) // copy to avoid touching original
-	sort.Slice(sorted, func(i, j int) bool {
-		ti, tj := sorted[i], sorted[j]
-		if ti.Key < tj.Key {
-			return true
-		}
-		if ti.Key == tj.Key && ti.Value < tj.Value {
-			return true
-		}
-		if ti.Value == tj.Value {
-			return ti.Effect < tj.Effect
-		}
-		return false
-	})
-	return sorted
-}
-
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, len(m))
-	i := 0
-	for k := range m {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func (p *LaunchTemplateProvider) getUserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
-	if aws.StringValue(constraints.AMIFamily) == v1alpha1.AMIFamilyBottlerocket {
-		return p.getBottlerocketUserData(ctx, constraints, additionalLabels, caBundle)
-	}
-	return p.getAL2UserData(ctx, constraints, instanceTypes, additionalLabels, caBundle)
-}
-
-func (p *LaunchTemplateProvider) getBottlerocketUserData(ctx context.Context, constraints *v1alpha1.Constraints, additionalLabels map[string]string, caBundle *string) string {
-	userData := fmt.Sprintf("[settings.kubernetes]\n\"cluster-name\" = \"%s\"\n\"api-server\" = \"%s\"\n", injection.GetOptions(ctx).ClusterName, injection.GetOptions(ctx).ClusterEndpoint)
-	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
-		userData += fmt.Sprintf("\"cluster-dns-ip\" = \"%s\"\n", constraints.KubeletConfiguration.ClusterDNS[0])
-	}
-	if caBundle != nil {
-		userData += fmt.Sprintf("\"cluster-certificate\" = \"%s\"\n", *caBundle)
-	}
-	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
-	if len(nodeLabelArgs) > 0 {
-		userData += "[settings.kubernetes.node-labels]\n"
-		for key, val := range nodeLabelArgs {
-			userData += fmt.Sprintf("\"%s\" = \"%s\"\n", key, val)
-		}
-	}
-	if len(constraints.Taints) > 0 {
-		userData += "[settings.kubernetes.node-taints]\n"
-		sorted := sortedTaints(constraints.Taints)
-		for _, taint := range sorted {
-			userData += fmt.Sprintf("\"%s\"=\"%s:%s\"\n", taint.Key, taint.Value, taint.Effect)
-		}
-	}
-	return base64.StdEncoding.EncodeToString([]byte(userData))
-}
-
-// getAL2UserData returns the exact same string for equivalent input,
-// even if elements of those inputs are in differing orders,
-// guaranteeing it won't cause spurious hash differences.
-// AL2 userdata also works on Ubuntu
-func (p *LaunchTemplateProvider) getAL2UserData(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string, caBundle *string) string {
-	var containerRuntimeArg string
-	if !needsDocker(instanceTypes) {
-		containerRuntimeArg = "--container-runtime containerd"
-	}
-
-	var userData bytes.Buffer
-	userData.WriteString(fmt.Sprintf(`#!/bin/bash -xe
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-/etc/eks/bootstrap.sh '%s' %s \
-    --apiserver-endpoint '%s'`,
-		injection.GetOptions(ctx).ClusterName,
-		containerRuntimeArg,
-		injection.GetOptions(ctx).ClusterEndpoint))
-	if caBundle != nil {
-		userData.WriteString(fmt.Sprintf(` \
-    --b64-cluster-ca '%s'`,
-			*caBundle))
-	}
-
-	nodeLabelArgs := p.getNodeLabelArgs(functional.UnionStringMaps(additionalLabels, constraints.Labels))
-	nodeTaintsArgs := p.getNodeTaintArgs(constraints)
-	kubeletExtraArgs := strings.Trim(strings.Join([]string{nodeLabelArgs, nodeTaintsArgs.String()}, " "), " ")
-
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		userData.WriteString(` \
-    --use-max-pods=false`)
-		kubeletExtraArgs += " --max-pods=110"
-	}
-
-	if len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --kubelet-extra-args '%s'`, kubeletExtraArgs))
-	}
-	if len(constraints.KubeletConfiguration.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(` \
-    --dns-cluster-ip '%s'`, constraints.KubeletConfiguration.ClusterDNS[0]))
-	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes())
-}
-
-func (p *LaunchTemplateProvider) getNodeLabelArgs(nodeLabels map[string]string) string {
-	nodeLabelArgs := ""
-	if len(nodeLabels) > 0 {
-		labelStrings := []string{}
-		// Must be in sorted order or else equivalent options won't
-		// hash the same
-		for _, k := range sortedKeys(nodeLabels) {
-			if v1alpha5.AllowedLabelDomains.Has(k) {
-				continue
-			}
-			labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", k, nodeLabels[k]))
-		}
-		nodeLabelArgs = fmt.Sprintf("--node-labels=%s", strings.Join(labelStrings, ","))
-	}
-	return nodeLabelArgs
-}
-
-func (p *LaunchTemplateProvider) getNodeTaintArgs(constraints *v1alpha1.Constraints) bytes.Buffer {
-	var nodeTaintsArgs bytes.Buffer
-	if len(constraints.Taints) > 0 {
-		nodeTaintsArgs.WriteString("--register-with-taints=")
-		first := true
-		// Must be in sorted order or else equivalent options won't
-		// hash the same.
-		sorted := sortedTaints(constraints.Taints)
-		for _, taint := range sorted {
-			if !first {
-				nodeTaintsArgs.WriteString(",")
-			}
-			first = false
-			nodeTaintsArgs.WriteString(fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
-		}
-	}
-	return nodeTaintsArgs
-}
-
 func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
 	if constraints.InstanceProfile != nil {
 		return aws.StringValue(constraints.InstanceProfile), nil
@@ -423,27 +240,4 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constra
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}
 	return defaultProfile, nil
-}
-
-func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {
-	// Discover CA Bundle from the REST client. We could alternatively
-	// have used the simpler client-go InClusterConfig() method.
-	// However, that only works when Karpenter is running as a Pod
-	// within the same cluster it's managing.
-	restConfig := injection.GetConfig(ctx)
-	if restConfig == nil {
-		return nil, nil
-	}
-	transportConfig, err := restConfig.TransportConfig()
-	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading transport config, %v", err)
-		return nil, err
-	}
-	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
-	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
-		return nil, err
-	}
-	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
-	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
