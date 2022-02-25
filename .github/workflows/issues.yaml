@@ -11,9 +11,12 @@ jobs:
         with:
           stale-issue-message: 'This issue is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 5 days.'
           close-issue-message: 'This issue was closed because it has been stalled for 5 days with no activity.'
+          exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence'
+          stale-issue-label: 'stale'
           days-before-issue-stale: 25
           days-before-issue-close: 5
           stale-pr-message: 'This PR is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
           close-pr-message: 'This PR was closed because it has been stalled for 5 days with no activity.'
+          stale-pr-label: 'stale'
           days-before-pr-stale: 25
           days-before-pr-close: 5
