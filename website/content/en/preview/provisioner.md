@@ -50,7 +50,6 @@ spec:
 
   # Karpenter provides the ability to specify a few additional Kubelet args.
   # These are all optional and provide support for additional customization and use cases.
-  spec:
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
 
@@ -69,17 +68,17 @@ spec:
 
 If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster. 
 
+### spec.ttlSecondsAfterEmpty
+
+Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds. 
+
 ### spec.ttlSecondsUntilExpired
 
 Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances. This functionality may be called "repaving" or "rehydrating". 
 
-Note that Karpenter does not automatically add skew to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
+Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
 
-This value is in seconds. 
 
-### spec.ttlSecondsAfterEmpty
-
-Setting a value here enables Karpenter to delete empty/unnecessary instances. Daemonsets are excluded from considering a node "empty". This value is in seconds. 
 
 ## spec.requirements
 
