@@ -20,7 +20,7 @@ Follow the clean-up instructions to reduce any charges.
 
 Karpenter is installed in clusters with a Helm chart.
 
-Karpenter requires cloud provider permissions to provision nodes, for AWS IAM
+Karpenter requires cloud provider permissions to provision nodes. AWS IAM
 Roles for Service Accounts (IRSA) should be used. IRSA permits Karpenter
 (within the cluster) to make privileged requests to AWS (as the cloud provider)
 via a ServiceAccount.
