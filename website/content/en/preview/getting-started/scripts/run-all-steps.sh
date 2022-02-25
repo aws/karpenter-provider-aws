@@ -21,7 +21,7 @@ declare -a steps=(
 
 i=0
 for step in "${steps[@]}"; do
+  ((i += 1))
   echo "Step $i"
   source $step
-  ((i += 1))
 done

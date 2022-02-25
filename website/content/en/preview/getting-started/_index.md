@@ -85,7 +85,7 @@ Karpenter requires permissions like launching instances. This will create an AWS
 
 ### Create the EC2 Spot Service Linked Role
 
-This Stepis only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
+This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
 
 ```bash
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
