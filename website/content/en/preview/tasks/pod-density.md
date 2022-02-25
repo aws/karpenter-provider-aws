@@ -6,7 +6,7 @@ weight: 20
 
 Pod density is the number of pods per node. 
 
-Kubernetes has a default limit of 110 pods per node. Karpener shares this default. 
+Kubernetes has a default limit of 110 pods per node. If you are using the EKS Optimized AMI on AWS, the [number of pods is limited by instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt) in the default configuration. 
 
 ## Max Pods
 
@@ -20,7 +20,7 @@ Do not use the `max-pods` argument to kubelet. Karpenter is not aware of this va
 
 The number of pods on a node is limited by the number of networking interfaces (ENIs) that may be attached to a node. 
 
-AWS VPC CNI v1.9 introduced prefix assignment. In short, a single ENI can provide IP addresses for multiple pods. Much higher pod densities are now supported. 
+[AWS VPC CNI v1.9 introduced prefix assignment.](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) In short, a single ENI can provide IP addresses for multiple pods. Much higher pod densities are now supported. 
 
 Run the Karpenter controller with the enviornment variable `AWS_ENI_LIMITED_POD_DENSITY` (or the argument  `--aws-eni-limited-pod-density=true`) to enable nodes with more than 110 pods. 
 
