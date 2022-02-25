@@ -40,43 +40,22 @@ authenticate properly by running `aws sts get-caller-identity`.
 
 ### Environment Variables
 
-After setting up the tools, set the following environment variables to store
-commonly used values.
+After setting up the tools, set the following environment variable to the Karpenter version you
+would like to install.
 
 ```bash
-export CLUSTER_NAME="${USER}-karpenter-demo"
-export AWS_DEFAULT_REGION="us-west-2"
-export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
+
+Also set the following environment variables to store commonly used values.
+
+{{% script file="./content/en/preview/getting-started/scripts/step01-config.sh" language="bash"%}}
 
 ### Create a Cluster
 
 Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
-```bash
-eksctl create cluster -f - << EOF
----
-apiVersion: eksctl.io/v1alpha5
-kind: ClusterConfig
-metadata:
-  name: ${CLUSTER_NAME}
-  region: ${AWS_DEFAULT_REGION}
-  version: "1.21"
-  tags:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
-managedNodeGroups:
-  - instanceType: m5.large
-    amiFamily: AmazonLinux2
-    name: ${CLUSTER_NAME}-ng
-    desiredCapacity: 1
-    minSize: 1
-    maxSize: 10
-iam:
-  withOIDC: true
-EOF
-
-export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
-```
+{{% script file="./content/en/preview/getting-started/scripts/step02-create-cluster.sh" language="bash"%}}
 
 This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
 
@@ -90,27 +69,11 @@ Instances launched by Karpenter must run with an InstanceProfile that grants per
 
 First, create the IAM resources using AWS CloudFormation.
 
-```bash
-TEMPOUT=$(mktemp)
-
-curl -fsSL https://karpenter.sh{{< relref "." >}}cloudformation.yaml  > $TEMPOUT \
-&& aws cloudformation deploy \
-  --stack-name "Karpenter-${CLUSTER_NAME}" \
-  --template-file "${TEMPOUT}" \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides "ClusterName=${CLUSTER_NAME}"
-```
+{{% script file="./content/en/preview/getting-started/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
 Second, grant access to instances using the profile to connect to the cluster. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 
-```bash
-eksctl create iamidentitymapping \
-  --username system:node:{{EC2PrivateDNSName}} \
-  --cluster "${CLUSTER_NAME}" \
-  --arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}" \
-  --group system:bootstrappers \
-  --group system:nodes
-```
+{{% script file="./content/en/preview/getting-started/scripts/step04-grant-access.sh" language="bash"%}}
 
 Now, Karpenter can launch new EC2 instances and those instances can connect to your cluster.
 
@@ -118,16 +81,7 @@ Now, Karpenter can launch new EC2 instances and those instances can connect to y
 
 Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 
-```bash
-eksctl create iamserviceaccount \
-  --cluster "${CLUSTER_NAME}" --name karpenter --namespace karpenter \
-  --role-name "${CLUSTER_NAME}-karpenter" \
-  --attach-policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}" \
-  --role-only \
-  --approve
-
-export KARPENTER_IAM_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
-```
+{{% script file="./content/en/preview/getting-started/scripts/step05-controller-iam.sh" language="bash"%}}
 
 ### Create the EC2 Spot Service Linked Role
 
@@ -145,23 +99,11 @@ Use Helm to deploy Karpenter to the cluster.
 
 Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-```bash
-helm repo add karpenter https://charts.karpenter.sh/
-helm repo update
-```
+{{% script file="./content/en/preview/getting-started/scripts/step06-install-helm-chart.sh" language="bash"%}}
 
 Install the chart passing in the cluster details and the Karpenter role ARN.
 
-```bash
-helm upgrade --install --namespace karpenter --create-namespace \
-  karpenter karpenter/karpenter \
-  --version {{< param "latest_release_version" >}} \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
-  --set clusterName=${CLUSTER_NAME} \
-  --set clusterEndpoint=${CLUSTER_ENDPOINT} \
-  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-  --wait # for the defaulting webhook to install before creating a Provisioner
-```
+{{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
 
 ### Enable Debug Logging (optional)
 
