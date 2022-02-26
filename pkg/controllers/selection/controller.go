@@ -71,7 +71,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
-		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err)
+		logging.FromContext(ctx).Errorf("Ignoring pod, %s", err)
 		return reconcile.Result{}, nil
 	}
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
