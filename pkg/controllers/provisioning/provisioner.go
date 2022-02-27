@@ -81,7 +81,7 @@ func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
 	return p.batcher.Add(pod)
 }
 
-func (p *Provisioner) provision(ctx context.Context) (err error) {
+func (p *Provisioner) provision(ctx context.Context) error {
 	// Batch pods
 	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	items, window := p.batcher.Wait()

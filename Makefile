@@ -27,8 +27,6 @@ test: ## Run tests
 	ginkgo -r
 
 battletest: ## Run stronger tests
-	# Ensure all files have cyclo-complexity =< 10
-	gocyclo -over 11 ./pkg
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
@@ -38,8 +36,6 @@ battletest: ## Run stronger tests
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
-	go vet ./...
-	go fmt ./...
 	golangci-lint run
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit.";\
