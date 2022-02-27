@@ -2,9 +2,9 @@ export K8S_VERSION ?= 1.21.x
 export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 
 ## Inject the app version into project.Version
-LDFLAGS ?= "-ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)"
-GOFLAGS ?= "-tags=$(CLOUD_PROVIDER) $(LDFLAGS)"
-WITH_GOFLAGS = GOFLAGS=$(GOFLAGS)
+LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
+GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
+WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
@@ -44,7 +44,7 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 		fi;}
 
 licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
-	go build $(GOFLAGS) -o karpenter cmd/controller/main.go
+	$(WITH_GOFLAGS) go build -o karpenter cmd/controller/main.go
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller into your ~/.kube/config cluster
