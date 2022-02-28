@@ -109,15 +109,15 @@ The global log level can be modified with the `logLevel` chart value (e.g. `--se
 
 The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
 
-{{% script file="./content/en/preview/getting-started/scripts/step09-add-prometheus-graphana.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 
 The Grafana instance may be accessed using port forwarding.
 
-{{% script file="./content/en/preview/getting-started/scripts/step10-add-graphana-port-forward.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
 
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
-{{% script file="./content/en/preview/getting-started/scripts/step11-graphana-get-password.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
 ### Provisioner
 

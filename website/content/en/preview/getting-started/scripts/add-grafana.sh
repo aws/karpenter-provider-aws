@@ -11,9 +11,9 @@ export KARPENTER_VERSION=$1
 
 declare -a steps=(
   step01-config.sh
-  step09-add-prometheus-graphana.sh
-  step10-add-graphana-port-forward.sh
-  step11-graphana-get-password.sh
+  step09-add-prometheus-grafana.sh
+  step10-add-grafana-port-forward.sh
+  step11-grafana-get-password.sh
 )
 
 i=0
