@@ -11,13 +11,9 @@ export KARPENTER_VERSION=$1
 
 declare -a steps=(
   step01-config.sh
-  step02-create-cluster.sh
-  step03-iam-cloud-formation.sh
-  step04-grant-access.sh
-  step05-controller-iam.sh
-  step06-add-spot-role.sh
-  step07-install-helm-chart.sh
-  step08-apply-helm-chart.sh
+  step09-add-prometheus-graphana.sh
+  step10-add-graphana-port-forward.sh
+  step11-graphana-get-password.sh
 )
 
 i=0
