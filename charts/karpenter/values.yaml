@@ -7,7 +7,9 @@ additionalLabels: {}
 # app: karpenter
 
 # -- Additional annotations to add into metadata.
-additionalAnnotations: {}
+additionalAnnotations:
+  kubectl.kubernetes.io/default-container: controller
+  kubectl.kubernetes.io/default-logs-container: controller
 # -- Image pull policy for Docker images.
 imagePullPolicy: IfNotPresent
 # -- Image pull secrets for Docker images.
