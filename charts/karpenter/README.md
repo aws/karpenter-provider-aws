@@ -66,6 +66,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | strategy | object | `{"type":"Recreate"}` | Strategy for updating the pod. |
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
+| topologySpreadConstraints | list | `[]` | Constraints to spread replicas across the cluster. |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
 | webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.6.3@sha256:cddaa650e52e62bc0520697d8662a1dab99d009e4ea3ffa176367dfe6cf84d2d"` | Webhook image. |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |

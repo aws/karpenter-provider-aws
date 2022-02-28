@@ -61,6 +61,8 @@ affinity:
               operator: DoesNotExist
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
+# -- TopologySpreadConstraints to spread replicas across the cluster.
+topologySpreadConstraints: []
 controller:
   # -- Controller image.
   image: "public.ecr.aws/karpenter/controller:v0.6.3@sha256:8b4b72e002b88274895e4f7ee253e29a87391f5a29350f7650aff83b7a6f2030"
