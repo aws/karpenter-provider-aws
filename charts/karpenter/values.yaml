@@ -102,7 +102,7 @@ webhook:
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
 # -- Global log level
-logLevel: info
+logLevel: debug
 # -- Cluster name.
 clusterName: ""
 # -- Cluster endpoint.
