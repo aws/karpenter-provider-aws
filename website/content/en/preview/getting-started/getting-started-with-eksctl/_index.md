@@ -1,7 +1,7 @@
 
 ---
 title: "Getting Started with Karpenter on AWS"
-linkTitle: "Getting Started"
+linkTitle: "Getting Started (eksctl)"
 weight: 10
 ---
 
