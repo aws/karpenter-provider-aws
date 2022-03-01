@@ -141,10 +141,14 @@ func validateAffinity(pod *v1.Pod) (errs error) {
 	if pod.Spec.Affinity == nil {
 		return nil
 	}
-	if pod.Spec.Affinity.PodAffinity != nil {
+	if pod.Spec.Affinity.PodAffinity != nil &&
+		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
+			len(pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0) {
 		errs = multierr.Append(errs, fmt.Errorf("pod affinity is not supported"))
 	}
-	if pod.Spec.Affinity.PodAntiAffinity != nil {
+	if pod.Spec.Affinity.PodAntiAffinity != nil &&
+		(len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
+			len(pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0) {
 		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity is not supported"))
 	}
 	if pod.Spec.Affinity.NodeAffinity != nil {
