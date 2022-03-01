@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/aws/karpenter/pkg/utils/env"
 	"go.uber.org/multierr"
+
+	"github.com/aws/karpenter/pkg/utils/env"
 )
 
 type AWSNodeNameConvention string

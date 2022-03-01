@@ -20,11 +20,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/aws/karpenter/pkg/utils/pretty"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 const (

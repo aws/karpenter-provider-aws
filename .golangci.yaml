@@ -23,15 +23,12 @@ linters:
     - unparam
     - gocyclo
     - govet
-    - gofmt
     - goimports
   disable:
     - errcheck
     - prealloc
 
 linters-settings:
-  gci:
-    local-prefixes: github.com/aws/karpenter
   gocyclo:
     min-complexity: 11
   govet:
@@ -39,8 +36,8 @@ linters-settings:
   misspell:
     locale: US
     ignore-words: []
-  gofmt:
-    simplify: true
+  goimports:
+    local-prefixes: github.com/aws/karpenter
 
 issues:
   fix: true

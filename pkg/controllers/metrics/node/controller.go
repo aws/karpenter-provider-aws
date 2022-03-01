@@ -21,9 +21,6 @@ import (
 
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	podutil "github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +32,10 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	podutil "github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 const (

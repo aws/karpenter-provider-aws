@@ -21,7 +21,6 @@ import (
 
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 const (

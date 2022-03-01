@@ -23,22 +23,24 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/mitchellh/hashstructure/v2"
 	"go.uber.org/zap"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 
 	"github.com/patrickmn/go-cache"
 )
