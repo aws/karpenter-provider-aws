@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/aws/karpenter/pkg/utils/sets"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
+
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 var (

@@ -17,12 +17,13 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 // CloudProvider interface is implemented by cloud providers to support provisioning.
