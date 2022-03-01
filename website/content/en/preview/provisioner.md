@@ -74,7 +74,7 @@ Setting a value here enables Karpenter to delete empty/unnecessary instances. Da
 
 ### spec.ttlSecondsUntilExpired
 
-Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances. This functionality may be called "repaving" or "rehydrating". 
+Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
 
 Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
 
