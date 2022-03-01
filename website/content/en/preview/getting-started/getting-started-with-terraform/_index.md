@@ -286,7 +286,7 @@ terraform apply -var "cluster_name=${CLUSTER_NAME}"
 
 The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
 
-### provi
+### Provisioner
 
 A single Karpenter provisioner is capable of handling many different pod
 shapes. Karpenter makes scheduling and provisioning decisions based on pod
