@@ -66,7 +66,7 @@ Select subnets by an arbitrary AWS tag key/value pair:
 Select subnets using wildcards:
 ```
   subnetSelector:
-    Name: *public*
+    Name: "*Public*"
 
 ```
 
@@ -109,7 +109,7 @@ Select security groups by name, or another tag (all criteria must match):
 Select security groups by name using a wildcard:
 ```
  securityGroupSelector:
-   Name: *public*
+   Name: "*Public*"
 ```
 
 ### Tags
