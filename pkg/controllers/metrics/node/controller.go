@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"knative.dev/pkg/logging"
 
@@ -129,15 +130,14 @@ func labelNames() []string {
 }
 
 type Controller struct {
-	KubeClient      client.Client
-	LabelCollection map[types.NamespacedName][]prometheus.Labels
+	kubeClient      client.Client
+	labelCollection sync.Map
 }
 
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client) *Controller {
 	return &Controller{
-		KubeClient:      kubeClient,
-		LabelCollection: make(map[types.NamespacedName][]prometheus.Labels),
+		kubeClient: kubeClient,
 	}
 }
 
@@ -148,7 +148,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	c.cleanup(req.NamespacedName)
 	// Retrieve node from reconcile request
 	node := &v1.Node{}
-	if err := c.KubeClient.Get(ctx, req.NamespacedName, node); err != nil {
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -171,7 +171,7 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 			&source.Kind{Type: &v1alpha5.Provisioner{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) (requests []reconcile.Request) {
 				nodes := &v1.NodeList{}
-				if err := c.KubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: o.GetName()})); err != nil {
+				if err := c.kubeClient.List(ctx, nodes, client.MatchingLabels(map[string]string{v1alpha5.ProvisionerNameLabelKey: o.GetName()})); err != nil {
 					logging.FromContext(ctx).Errorf("Failed to list nodes when mapping expiration watch events, %s", err)
 					return requests
 				}
@@ -195,8 +195,8 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 }
 
 func (c *Controller) cleanup(nodeNamespacedName types.NamespacedName) {
-	if labelSet, ok := c.LabelCollection[nodeNamespacedName]; ok {
-		for _, labels := range labelSet {
+	if labelSet, ok := c.labelCollection.Load(nodeNamespacedName); ok {
+		for _, labels := range labelSet.([]prometheus.Labels) {
 			allocatableGaugeVec.Delete(labels)
 			podRequestsGaugeVec.Delete(labels)
 			podLimitsGaugeVec.Delete(labels)
@@ -205,7 +205,7 @@ func (c *Controller) cleanup(nodeNamespacedName types.NamespacedName) {
 			overheadGaugeVec.Delete(labels)
 		}
 	}
-	c.LabelCollection[nodeNamespacedName] = []prometheus.Labels{}
+	c.labelCollection.Store(nodeNamespacedName, []prometheus.Labels{})
 }
 
 // labels creates the labels using the current state of the pod
@@ -232,7 +232,7 @@ func (c *Controller) labels(node *v1.Node, resourceTypeName string) prometheus.L
 
 func (c *Controller) record(ctx context.Context, node *v1.Node) error {
 	podlist := &v1.PodList{}
-	if err := c.KubeClient.List(ctx, podlist, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+	if err := c.kubeClient.List(ctx, podlist, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		return fmt.Errorf("listing pods on node %s, %w", node.Name, err)
 	}
 	var daemons, pods []*v1.Pod
@@ -288,7 +288,11 @@ func (c *Controller) set(resourceList v1.ResourceList, node *v1.Node, gaugeVec *
 		labels := c.labels(node, resourceTypeName)
 		// Register the set of labels that are generated for node
 		nodeNamespacedName := types.NamespacedName{Name: node.Name}
-		c.LabelCollection[nodeNamespacedName] = append(c.LabelCollection[nodeNamespacedName], labels)
+
+		existingLabels, _ := c.labelCollection.LoadOrStore(nodeNamespacedName, []prometheus.Labels{})
+		existingLabels = append(existingLabels.([]prometheus.Labels), labels)
+		c.labelCollection.Store(nodeNamespacedName, existingLabels)
+
 		gauge, err := gaugeVec.GetMetricWith(labels)
 		if err != nil {
 			return fmt.Errorf("generate new gauge: %w", err)
