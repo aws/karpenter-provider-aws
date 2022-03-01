@@ -23,13 +23,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
@@ -41,8 +41,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
-
-	"github.com/patrickmn/go-cache"
 )
 
 const (
