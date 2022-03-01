@@ -137,22 +137,22 @@ func validateTopology(pod *v1.Pod) (errs error) {
 	return errs
 }
 
-func validateAffinity(pod *v1.Pod) (errs error) {
-	if pod.Spec.Affinity == nil {
+func validateAffinity(p *v1.Pod) (errs error) {
+	if p.Spec.Affinity == nil {
 		return nil
 	}
-	if pod.Spec.Affinity.PodAffinity != nil {
+	if pod.HasPodAffinity(p) {
 		errs = multierr.Append(errs, fmt.Errorf("pod affinity is not supported"))
 	}
-	if pod.Spec.Affinity.PodAntiAffinity != nil {
+	if pod.HasPodAntiAffinity(p) {
 		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity is not supported"))
 	}
-	if pod.Spec.Affinity.NodeAffinity != nil {
-		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+	if p.Spec.Affinity.NodeAffinity != nil {
+		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
 			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
 		}
-		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		if p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
 			}
 		}
