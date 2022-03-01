@@ -45,6 +45,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
+| deploymentAdditionalAnnotations | object | `{"kubectl.kubernetes.io/default-container":"controller","kubectl.kubernetes.io/default-logs-container":"controller"}` | Additional annotations to add into deployment's metadata. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
 | imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Docker images. |

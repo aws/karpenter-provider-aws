@@ -5,8 +5,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
-  {{- with .Values.additionalAnnotations }}
   annotations:
+  {{- with .Values.additionalAnnotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.deploymentAdditionalAnnotations }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
