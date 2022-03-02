@@ -15,10 +15,10 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  # If nil, the feature is disabled, nodes will never expire
+  # If omitted, the feature is disabled, nodes will never expire
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
 
-  # If nil, the feature is disabled, nodes will never scale down due to low utilization
+  # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
 
   # Provisioned nodes will have these taints

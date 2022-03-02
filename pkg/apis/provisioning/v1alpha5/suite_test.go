@@ -53,6 +53,11 @@ var _ = Describe("Validation", func() {
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
 
+	It("should fail on a small expiry ttl", func() {
+		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(299)
+		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+
 	It("should fail on negative empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())

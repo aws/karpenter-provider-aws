@@ -28,9 +28,13 @@ import (
 )
 
 var (
-	SupportedNodeSelectorOps sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
-	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
+	SupportedNodeSelectorOps = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
+	SupportedProvisionerOps  = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
 )
+
+// minTTLSecondsUntilExpired is the minimum pre-determined node lifetime. If this is set too small, nodes come up and may
+// be terminated before pods even become running.
+const minTTLSecondsUntilExpired = 300
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
@@ -48,8 +52,8 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 }
 
 func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldError) {
-	if ptr.Int64Value(s.TTLSecondsUntilExpired) < 0 {
-		return errs.Also(apis.ErrInvalidValue("cannot be negative", "ttlSecondsUntilExpired"))
+	if s.TTLSecondsUntilExpired != nil && ptr.Int64Value(s.TTLSecondsUntilExpired) < minTTLSecondsUntilExpired {
+		return errs.Also(apis.ErrInvalidValue(fmt.Sprintf("cannot be smaller than %d", minTTLSecondsUntilExpired), "ttlSecondsUntilExpired"))
 	}
 	return errs
 }
