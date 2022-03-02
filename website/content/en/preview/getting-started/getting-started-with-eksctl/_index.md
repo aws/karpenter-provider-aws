@@ -99,11 +99,11 @@ Use Helm to deploy Karpenter to the cluster.
 
 Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-{{% script file="./content/en/preview/getting-started/scripts/step06-install-helm-chart.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step06-install-helm-chart.sh" language="bash"%}}
 
 Install the chart passing in the cluster details and the Karpenter role ARN.
 
-{{% script file="./content/en/preview/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step07-apply-helm-chart.sh" language="bash"%}}
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
