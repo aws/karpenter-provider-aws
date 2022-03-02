@@ -268,3 +268,42 @@ var _ = Describe("Multiple Provisioners", func() {
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
 	})
 })
+
+var _ = Describe("Pod Affinity and AntiAffinity", func() {
+	It("should not schedule a pod with pod affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodRequirements: []v1.PodAffinityTerm{{TopologyKey: "foo"}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod anti-affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodAntiRequirements: []v1.PodAffinityTerm{{TopologyKey: "foo"}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod affinity preference", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod anti-affinity preference", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodAntiPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule a pod with empty pod affinity and anti-affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodRequirements:     []v1.PodAffinityTerm{},
+			PodAntiRequirements: []v1.PodAffinityTerm{},
+		}))[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+})
