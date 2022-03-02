@@ -53,10 +53,11 @@ make test       # E2E correctness tests
 make battletest # More rigorous tests run in CI environment
 ```
 
-### Verbose Logging
+### Change Log Level
 
 ```bash
-kubectl patch configmap karpenter-config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}'
+kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}' # Debug Level
+kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"info"}}' # Info Level
 ```
 
 ### Debugging Metrics
