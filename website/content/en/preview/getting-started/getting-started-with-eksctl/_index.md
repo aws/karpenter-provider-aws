@@ -1,7 +1,7 @@
 
 ---
-title: "Getting Started with Karpenter on AWS"
-linkTitle: "Getting Started"
+title: "Getting started with eksctl"
+linkTitle: "Getting started with eksctl"
 weight: 10
 ---
 
@@ -44,18 +44,18 @@ After setting up the tools, set the following environment variable to the Karpen
 would like to install.
 
 ```bash
-export KARPENTER_VERSION=v0.6.4
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
 
 Also set the following environment variables to store commonly used values.
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step01-config.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
 
 ### Create a Cluster
 
 Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step02-create-cluster.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
 
 This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
 
@@ -69,11 +69,11 @@ Instances launched by Karpenter must run with an InstanceProfile that grants per
 
 First, create the IAM resources using AWS CloudFormation.
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step03-iam-cloud-formation.sh" language="bash"%}}
 
 Second, grant access to instances using the profile to connect to the cluster. This command adds the Karpenter node role to your aws-auth configmap, allowing nodes with this role to connect to the cluster.
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step04-grant-access.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step04-grant-access.sh" language="bash"%}}
 
 Now, Karpenter can launch new EC2 instances and those instances can connect to your cluster.
 
@@ -81,7 +81,7 @@ Now, Karpenter can launch new EC2 instances and those instances can connect to y
 
 Karpenter requires permissions like launching instances. This will create an AWS IAM Role, Kubernetes service account, and associate them using [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html).
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step05-controller-iam.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step05-controller-iam.sh" language="bash"%}}
 
 ### Create the EC2 Spot Service Linked Role
 
@@ -99,15 +99,11 @@ Use Helm to deploy Karpenter to the cluster.
 
 Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step06-install-helm-chart.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step06-install-helm-chart.sh" language="bash"%}}
 
 Install the chart passing in the cluster details and the Karpenter role ARN.
 
-{{% script file="./content/en/v0.6.4/getting-started/scripts/step07-apply-helm-chart.sh" language="bash"%}}
-
-### Enable Debug Logging (optional)
-
-The global log level can be modified with the `logLevel` chart value (e.g. `--set logLevel=debug`) or the individual components can have their log level set with `controller.logLevel` or `webhook.logLevel` chart values.
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step07-apply-helm-chart.sh" language="bash"%}}
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
@@ -154,7 +150,7 @@ Depending how these resources are shared between clusters, you may need to use d
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
 
-Review the [provisioner CRD](../provisioner) for more information. For example,
+Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
