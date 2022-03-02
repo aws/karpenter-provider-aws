@@ -157,7 +157,7 @@ This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-paus
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-{{% script file="./content/en/preview/getting-started/scripts/step14-automatic-node-termination.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/scripts/step14-deprovisioning.sh" language="bash"%}}
 
 ### Manual Node Termination
 
