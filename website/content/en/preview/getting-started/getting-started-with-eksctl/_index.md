@@ -87,11 +87,7 @@ Karpenter requires permissions like launching instances. This will create an AWS
 
 This step is only necessary if this is the first time you're using EC2 Spot in this account. More details are available [here](https://docs.aws.amazon.com/batch/latest/userguide/spot_fleet_IAM_role.html).
 
-```bash
-aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
-# If the role has already been successfully created, you will see:
-# An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForEC2Spot has been taken in this account, please try a different suffix.
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step06-add-spot-role.sh" language="bash"%}}
 
 ### Install Karpenter Helm Chart
 
@@ -99,41 +95,25 @@ Use Helm to deploy Karpenter to the cluster.
 
 Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step06-install-helm-chart.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step07-install-helm-chart.sh" language="bash"%}}
 
 Install the chart passing in the cluster details and the Karpenter role ARN.
 
-{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step07-apply-helm-chart.sh" language="bash"%}}
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 #### Deploy a temporary Prometheus and Grafana stack (optional)
 
 The following commands will deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter. This deployment includes two Karpenter dashboards that are automatically onboaraded to Grafana. They provide a variety of visualization examples on Karpenter metrices.
 
-```bash
-helm repo add grafana-charts https://grafana.github.io/helm-charts
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-
-kubectl create namespace monitoring
-
-curl -fsSL https://karpenter.sh{{< relref "." >}}prometheus-values.yaml | tee prometheus-values.yaml
-helm install --namespace monitoring prometheus prometheus-community/prometheus --values prometheus-values.yaml
-
-curl -fsSL https://karpenter.sh{{< relref "." >}}grafana-values.yaml | tee grafana-values.yaml
-helm install --namespace monitoring grafana grafana-charts/grafana --values grafana-values.yaml
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 
 The Grafana instance may be accessed using port forwarding.
 
-```bash
-kubectl port-forward --namespace monitoring svc/grafana 3000:80
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step10-add-grafana-port-forward.sh" language="bash"%}}
 
 The new stack has only one user, `admin`, and the password is stored in a secret. The following command will retrieve the password.
 
-```bash
-kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
 ### Provisioner
 
@@ -155,28 +135,7 @@ Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more informa
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
-```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  requirements:
-    - key: karpenter.sh/capacity-type
-      operator: In
-      values: ["spot"]
-  limits:
-    resources:
-      cpu: 1000
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-  ttlSecondsAfterEmpty: 30
-EOF
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step12-add-provisioner.sh" language="bash"%}}
 
 ## First Use
 
@@ -187,43 +146,14 @@ Create some pods using a deployment, and watch Karpenter provision nodes in resp
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
-```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: inflate
-spec:
-  replicas: 0
-  selector:
-    matchLabels:
-      app: inflate
-  template:
-    metadata:
-      labels:
-        app: inflate
-    spec:
-      terminationGracePeriodSeconds: 0
-      containers:
-        - name: inflate
-          image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
-          resources:
-            requests:
-              cpu: 1
-EOF
-kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
 ### Automatic Node Termination
 
 Now, delete the deployment. After 30 seconds (`ttlSecondsAfterEmpty`),
 Karpenter should terminate the now empty nodes.
 
-```bash
-kubectl delete deployment inflate
-kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step14-deprovisioning.sh" language="bash"%}}
 
 ### Manual Node Termination
 
@@ -233,21 +163,10 @@ finalizer to the node object, which blocks deletion until all pods are
 drained and the instance is terminated. Keep in mind, this only works for
 nodes provisioned by Karpenter.
 
-```bash
-kubectl delete node $NODE_NAME
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step15-delete-node.sh" language="bash"%}}
 
 ## Cleanup
 
 To avoid additional charges, remove the demo infrastructure from your AWS account.
 
-```bash
-helm uninstall karpenter --namespace karpenter
-aws iam delete-role --role-name "${CLUSTER_NAME}-karpenter"
-aws cloudformation delete-stack --stack-name "Karpenter-${CLUSTER_NAME}"
-aws ec2 describe-launch-templates \
-    | jq -r ".LaunchTemplates[].LaunchTemplateName" \
-    | grep -i "Karpenter-${CLUSTER_NAME}" \
-    | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
-eksctl delete cluster --name "${CLUSTER_NAME}"
-```
+{{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step16-cleanup.sh" language="bash"%}}

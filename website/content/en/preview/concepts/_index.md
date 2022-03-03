@@ -24,7 +24,7 @@ Concepts associated with this role are described below.
 Karpenter is designed to run on a node in your Kubernetes cluster.
 As part of the installation process, you need credentials from the underlying cloud provider to allow nodes to be started up and added to the cluster as they are needed.
 
-[Getting Started with Karpenter on AWS]{{< ref "../getting-started" >}})
+[Getting Started with Karpenter on AWS]({{< ref "../getting-started" >}})
 describes the process of installing Karpenter on an AWS cloud provider.
 Because requests to add and delete nodes and schedule pods are made through Kubernetes, AWS IAM Roles for Service Accounts (IRSA) are needed by your Kubernetes cluster to make privileged requests to AWS.
 For example, Karpenter uses AWS IRSA roles to grant the permissions needed to describe EC2 instance types and create EC2 instances.
@@ -52,7 +52,7 @@ Keep in mind that only a subset of these labels are supported in Karpenter, as d
 
 * **Multiple provisioners**: Multiple provisioners can be configured on the same cluster.
 For example, you might want to configure different teams on the same cluster to run on completely separate capacity.
-One team could run on nodes nodes using BottleRocket, while another uses EKSOptimizedAMI.
+One team could run on nodes using BottleRocket, while another uses EKSOptimizedAMI.
 
 Although most use cases are addressed with a single provisioner for multiple teams, multiple provisioners are useful to isolate nodes for billing, use different node constraints (such as no GPUs for a team), or use different deprovisioning settings.
 
