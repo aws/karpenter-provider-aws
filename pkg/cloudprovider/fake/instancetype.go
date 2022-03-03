@@ -17,10 +17,11 @@ package fake
 import (
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {

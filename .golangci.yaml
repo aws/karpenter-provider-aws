@@ -4,9 +4,6 @@ run:
 
   timeout: 5m
 
-  build-tags:
-    - aws
-
   skip-dirs:
     - tools
     - website
@@ -24,9 +21,22 @@ linters:
     - tparallel
     - unconvert
     - unparam
+    - gocyclo
+    - govet
+    - goimports
   disable:
     - prealloc
 
-  linters-settings:
-    gci:
-      local-prefixes: github.com/aws/karpenter
+linters-settings:
+  gocyclo:
+    min-complexity: 11
+  govet:
+    check-shadowing: true
+  misspell:
+    locale: US
+    ignore-words: []
+  goimports:
+    local-prefixes: github.com/aws/karpenter
+
+issues:
+  fix: true

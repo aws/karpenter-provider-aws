@@ -48,6 +48,11 @@ spec:
       operator: In
       values: ["spot", "on-demand"]
 
+  # Karpenter provides the ability to specify a few additional Kubelet args.
+  # These are all optional and provide support for additional customization and use cases.
+  kubeletConfiguration:
+    clusterDNS: ["10.0.1.100"]
+
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
@@ -58,6 +63,22 @@ spec:
   # These fields vary per cloud provider, see your cloud provider specific documentation
   provider: {}
 ```
+
+## Node deprovisioning 
+
+If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster. 
+
+### spec.ttlSecondsAfterEmpty
+
+Setting a value here enables Karpenter to delete empty/unnecessary instances. DaemonSets are excluded from considering a node "empty". This value is in seconds. 
+
+### spec.ttlSecondsUntilExpired
+
+Setting a value here enables node expiry. After nodes reach the defined age in seconds, they will be deleted, even if in use. This enables nodes to effectively be periodically "upgraded" by replacing them with newly provisioned instances.
+
+Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
+
+
 
 ## spec.requirements
 
@@ -158,7 +179,7 @@ spec:
     clusterDNS: ["10.0.1.100"]
 ```
 
-## spec.limits
+## spec.limits.resources 
 
 The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
 
@@ -171,8 +192,6 @@ Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://k
 Karpenter stops allocating resources once at least one resource limit is met/exceeded.
 
 Review the [resource limit task](../tasks/set-resource-limits) for more information.
-
-
 
 ## spec.provider
 

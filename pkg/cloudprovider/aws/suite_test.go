@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -416,6 +417,25 @@ var _ = Describe("Allocation", func() {
 				Expect(name1).To(Equal(name2))
 			})
 
+			It("should request that tags be applied to both instances and volumes", func() {
+				provider.Tags = map[string]string{
+					"tag1": "tag1value",
+					"tag2": "tag2value",
+				}
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+
+				// tags should be included in both the instance and volume tag specification
+				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+				ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
+
+				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+			})
+
 			It("should default to a generated launch template", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -753,6 +773,19 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
+
+// ExpectTags verifies that the expected tags are a subset of the tags found
+func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
+	existingTags := map[string]string{}
+	for _, tag := range tags {
+		existingTags[*tag.Key] = *tag.Value
+	}
+	for expKey, expValue := range expected {
+		foundValue, ok := existingTags[expKey]
+		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
+		Expect(foundValue).To(Equal(expValue))
+	}
+}
 
 func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alpha1.AWS) *v1alpha5.Provisioner {
 	raw, err := json.Marshal(provider)

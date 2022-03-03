@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "autoprefixer": "^10.3.1",
-    "postcss": "^8.3.5",
+    "postcss": "^8.4.7",
     "postcss-cli": "^8.3.1",
     "ansi-regex": ">=5.0.1"
   }

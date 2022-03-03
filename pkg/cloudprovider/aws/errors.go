@@ -16,6 +16,7 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
 

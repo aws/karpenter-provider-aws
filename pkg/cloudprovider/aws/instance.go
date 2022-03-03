@@ -115,6 +115,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	// Create fleet
+	tags := v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
@@ -123,10 +124,8 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 			TotalTargetCapacity:       aws.Int64(int64(quantity)),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
-			{
-				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"}),
-			},
+			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
+			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
 		},
 	}
 	if capacityType == v1alpha1.CapacityTypeSpot {

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/mitchellh/hashstructure/v2"
 )
 
 const controllerName = "provisioning"
