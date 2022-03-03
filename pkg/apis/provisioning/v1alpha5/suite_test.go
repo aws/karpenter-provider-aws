@@ -52,10 +52,18 @@ var _ = Describe("Validation", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
-
+	It("should succeed on a missing expiry ttl", func() {
+		// this already is true, but to be explicit
+		provisioner.Spec.TTLSecondsUntilExpired = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
 	It("should fail on negative empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+	})
+	It("should succeed on a missing empty ttl", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
 	})
 
 	Context("Limits", func() {
