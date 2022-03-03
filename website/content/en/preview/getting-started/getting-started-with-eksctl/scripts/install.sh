@@ -18,16 +18,9 @@ declare -a steps=(
   step06-add-spot-role.sh
   step07-install-helm-chart.sh
   step08-apply-helm-chart.sh
-  step09-add-prometheus-grafana.sh
-  step10-add-grafana-port-forward.sh
-  step11-grafana-get-password.sh
-  step12-add-provisioner.sh
-  step13-automatic-node-provisioning.sh
 )
 
-i=0
 for step in "${steps[@]}"; do
-  ((i += 1))
-  echo "Step $i"
+  echo "$step"
   source $step
 done

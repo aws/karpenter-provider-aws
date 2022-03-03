@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail #fail if one step fails
 
 declare -a steps=(
   step01-config.sh
@@ -7,9 +6,7 @@ declare -a steps=(
   step16-cleanup.sh
 )
 
-i=0
 for step in "${steps[@]}"; do
-  ((i += 1))
-  echo "Step $i"
+  echo "$step"
   source $step
 done
