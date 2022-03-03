@@ -114,8 +114,15 @@ Select security groups by name using a wildcard:
 
 ### Tags
 
-Tags will be added to every EC2 Instance launched by this provisioner.
+Karpenter adds tags to all resources it creates, including EC2 Instances, EBS volumes, and Launch Templates. The default set of AWS tags are listed below.
 
+```
+Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
+karpenter.sh/cluster/<cluster-name>: owned
+kubernetes.io/cluster/<cluster-name>: owned
+```
+
+Additional tags can be added in the provider tags section which are merged with and can override the default tag values.
 ```
 spec:
   provider:
@@ -123,12 +130,6 @@ spec:
       InternalAccountingTag: 1234
       dev.corp.net/app: Calculator
       dev.corp.net/team: MyTeam
-```
-Note: Karpenter will set the default AWS tags listed below, but these can be overridden in the tags section above.
-```
-Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
-karpenter.sh/cluster/<cluster-name>: owned
-kubernetes.io/cluster/<cluster-name>: owned
 ```
 
 ### Metadata Options
