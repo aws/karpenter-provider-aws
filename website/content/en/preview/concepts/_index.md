@@ -72,7 +72,7 @@ For more details on how Karpenter deletes nodes, see [Deprovisioning nodes](../t
 ### Upgrading nodes
 
 A straight-forward way to upgrade nodes is to set `ttlSecondsUntilExpired`.
-Nodes will be terminated after a set period of time and will be replaced with newer using the latest [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) or the AMI specified in the `$LATEST` version of your launch template.
+Nodes will be terminated after a set period of time and will be replaced with newer nodes using the latest [EKS Optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) or the AMI specified in the `$LATEST` version of your launch template.
 
 Understanding the following concepts will help you in carrying out the tasks just described.
 
