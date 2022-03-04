@@ -91,12 +91,12 @@ type Requirements struct {
 	requirements map[string]sets.Set          `json:"-"`
 }
 
-// NewRequirements constructs requiremnets from NodeSelectorRequirements
+// NewRequirements constructs requirements from NodeSelectorRequirements
 func NewRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
 	return Requirements{requirements: map[string]sets.Set{}}.Add(requirements...)
 }
 
-// NewLabelRequirements constructs requriements from labels
+// NewLabelRequirements constructs requirements from labels
 func NewLabelRequirements(labels map[string]string) Requirements {
 	requirements := []v1.NodeSelectorRequirement{}
 	for key, value := range labels {
