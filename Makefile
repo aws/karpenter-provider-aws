@@ -76,7 +76,7 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/feature_request_reactions.py > "karpenter-feature-requests-$(shell date +"%Y-%m-%d").csv"
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
-docs: ## Serve the docs site locally
-	cd website && npm install && git submodule update --init --recursive && hugo server -l layouts/ --themesDir themes/
+website: ## Serve the docs website locally
+	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen apply delete toolchain release licenses issues docs
+.PHONY: help dev ci release test battletest verify codegen apply delete toolchain release licenses issues website
