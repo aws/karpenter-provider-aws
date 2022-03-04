@@ -436,6 +436,27 @@ var _ = Describe("Allocation", func() {
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
 			})
 
+			It("should override default tag names", func() {
+				// these tags are defaulted, so ensure users can override them
+				provider.Tags = map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: "myprovisioner",
+					"Name":                           "myname",
+				}
+
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+
+				// tags should be included in both the instance and volume tag specification
+				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+				ExpectTags(createFleetInput.TagSpecifications[0].Tags, provider.Tags)
+
+				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+			})
+
 			It("should default to a generated launch template", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
