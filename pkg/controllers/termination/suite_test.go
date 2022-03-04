@@ -108,9 +108,6 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			// Expect podEvict to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
-
 			// Expect node to exist and be draining
 			ExpectNodeDraining(env.Client, node.Name)
 
@@ -150,7 +147,6 @@ var _ = Describe("Termination", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			// Expect podEvict to be enqueued for eviction then be successful
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
 			ExpectEvicted(env.Client, podEvict)
 
 			// Delete pod to simulate successful eviction
@@ -215,9 +211,6 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			// Expect the pod to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, podNoEvict)
-
 			// Expect node to exist and be draining
 			ExpectNodeDraining(env.Client, node.Name)
 
@@ -246,9 +239,6 @@ var _ = Describe("Termination", func() {
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
-
-			// Expect podEvict to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
 
 			// Expect node to exist and be draining
 			ExpectNodeDraining(env.Client, node.Name)
@@ -296,7 +286,6 @@ var _ = Describe("Termination", func() {
 			ExpectNotEnqueuedForEviction(evictionQueue, podNoEvict)
 
 			// Expect podEvict to be enqueued for eviction then be successful
-			ExpectEnqueuedForEviction(evictionQueue, podEvict)
 			ExpectEvicted(env.Client, podEvict)
 
 			// Expect node to exist and be draining
@@ -324,8 +313,8 @@ var _ = Describe("Termination", func() {
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
-			// Expect the pod to be enqueued for eviction
-			ExpectEnqueuedForEviction(evictionQueue, pods[0], pods[1])
+			// Expect the pods to be evicted
+			ExpectEvicted(env.Client, pods[0], pods[1])
 
 			// Expect node to exist and be draining, but not deleted
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -363,12 +352,6 @@ var _ = Describe("Termination", func() {
 		})
 	})
 })
-
-func ExpectEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
-	for _, pod := range pods {
-		Expect(e.Contains(client.ObjectKeyFromObject(pod))).To(BeTrue())
-	}
-}
 
 func ExpectNotEnqueuedForEviction(e *termination.EvictionQueue, pods ...*v1.Pod) {
 	for _, pod := range pods {
