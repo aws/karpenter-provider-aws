@@ -1,8 +1,10 @@
-# Troubleshooting
+---
+title: "Troubleshooting"
+linkTitle: "Troubleshooting"
+weight: 100
+---
 
-## Known Problems + Solutions
-
-### Node NotReady
+## Node NotReady
 
 There are many reasons that a node can fail to join the cluster.
 - Permissions
@@ -21,7 +23,7 @@ aws ssm start-session --target $INSTANCE_ID
 sudo journalctl -u kubelet
 ```
 
-### Missing Service Linked Role
+## Missing Service Linked Role
 Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to avoid `ServiceLinkedRoleCreationNotPermitted`.
 ```
 AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do not have permission to create the service-linked role for EC2 Spot Instances
@@ -31,7 +33,7 @@ This can be resolved by creating the [Service Linked Role](https://docs.aws.amaz
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
 
-### Unable to delete nodes after uninstalling Karpenter
+## Unable to delete nodes after uninstalling Karpenter
 Karpenter adds a [finalizer](https://github.com/aws/karpenter/pull/466) to nodes that it provisions to support graceful node termination. If Karpenter is uninstalled, these finalizers will cause the API Server to block deletion until the finalizers are removed.
 
 You can fix this by patching the node objects:
@@ -42,7 +44,7 @@ You can fix this by patching the node objects:
 kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{"\n"}' | grep "karpenter.sh/termination" | cut -d ':' -f 1 | xargs kubectl patch node --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
 ```
 
-### Nil issues with Karpenter reallocation
+## Nil issues with Karpenter reallocation
 If you create a Karpenter Provisioner while the webhook to default it is unavailable, it's possible to get unintentionally nil fields. [Related Issue](https://github.com/aws/karpenter/issues/463).
 
    You may see some logs like this.
@@ -53,14 +55,14 @@ github.com/aws/karpenter/pkg/controllers.(*GenericController).Reconcile(0xc000b0
 ```
 This is fixed in Karpenter v0.2.7+. Reinstall Karpenter on the latest version.
 
-### Nodes stuck in pending and not running the kubelet due to outdated CNI
+## Nodes stuck in pending and not running the kubelet due to outdated CNI
 If you have an EC2 instance get launched that is stuck in pending and ultimately not running the kubelet, you may see a message like this in your `/var/log/user-data.log`:
 
 > No entry for c6i.xlarge in /etc/eks/eni-max-pods.txt
 
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
 
-### Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
+## Failed calling webhook "defaulting.webhook.provisioners.karpenter.sh"
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
