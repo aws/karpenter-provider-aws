@@ -45,6 +45,12 @@ type InstanceProvider struct {
 	launchTemplateProvider *LaunchTemplateProvider
 }
 
+const (
+	nvidiaGPUResource v1.ResourceName = "nvidia.com/gpu"
+	AMDGPUResource    v1.ResourceName = "amd.com/gpu"
+	AWSNeuronResource v1.ResourceName = "aws.amazon.com/neuron"
+)
+
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
@@ -254,6 +260,20 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
+			nodeResources := v1.ResourceList{
+				v1.ResourcePods:   *instanceType.Pods(),
+				v1.ResourceCPU:    *instanceType.CPU(),
+				v1.ResourceMemory: *instanceType.Memory(),
+			}
+			if !instanceType.NvidiaGPUs().IsZero() {
+				nodeResources[nvidiaGPUResource] = *instanceType.NvidiaGPUs()
+			}
+			if !instanceType.AMDGPUs().IsZero() {
+				nodeResources[AMDGPUResource] = *instanceType.AMDGPUs()
+			}
+			if !instanceType.AWSNeurons().IsZero() {
+				nodeResources[AWSNeuronResource] = *instanceType.AWSNeurons()
+			}
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -267,16 +287,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 				Status: v1.NodeStatus{
-					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
-					Capacity: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
+					Allocatable: nodeResources,
+					Capacity:    nodeResources,
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
