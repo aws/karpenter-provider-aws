@@ -233,6 +233,35 @@ var _ = Describe("Preferential Fallback", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
+		It("should tolerate PreferNoSchedule taint only after trying to relax Affinity terms", func() {
+			provisioner.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+			}}}
+			// Remove first term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Tolerate PreferNoSchedule Taint
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}))
+		})
 	})
 })
 
@@ -266,6 +295,15 @@ var _ = Describe("Multiple Provisioners", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
+	It("should not match provisioners with PreferNoSchedule taint when other provisioners match", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "prefer-no-schedule"
+		provisioner2.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner.Name))
 	})
 })
 
