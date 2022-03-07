@@ -107,6 +107,7 @@ module "eks" {
     }
   ]
 }
+```
 
 At this point, go ahead and apply what we've done to create the VPC and
 EKS cluster. This may take some time.
