@@ -136,7 +136,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 
 Karpenter requires proper permissions in the `KarpenterNode IAM Role` and the `KarpenterController IAM Role`.
 To upgrade Karpenter to version `$VERSION`, make sure that the `KarpenterNode IAM Role` and the `KarpenterController IAM Role` have the right permission described in `https://karpenter.sh/$VERSION/getting-started/cloudformation.yaml`.
-Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/#create-the-karpentercontroller-iam-role)) and the cluster endpoint, and pass them to the helm upgrade command
+Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/getting-started-with-eksctl/#create-the-karpentercontroller-iam-role)) and the cluster endpoint, and pass them to the helm upgrade command
 ```
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
