@@ -61,7 +61,7 @@ affinity:
 tolerations: []
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.6.4@sha256:683ac058284665bffc4486d5a09c642ddcdd04e55c0415263872f0e8ceaed332"
+  image: "public.ecr.aws/karpenter/controller:v0.6.5@sha256:f2f64529df549a96b05e0a0d2b73fb9346ed8731b985fbc83335eee1573dcfe6"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -81,7 +81,7 @@ controller:
   logLevel: ""
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.6.4@sha256:bb83caa7704c66eff4fa19e952bd322a57df44052145154a81d1f024175e7d92"
+  image: "public.ecr.aws/karpenter/webhook:v0.6.5@sha256:d84f495408e0a5f5e576170c7b5aff8291766a42b421419b9f43574b71499cc1"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
