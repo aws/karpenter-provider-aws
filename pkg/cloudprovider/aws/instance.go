@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -44,6 +45,12 @@ type InstanceProvider struct {
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
 }
+
+const (
+	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
+	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
+	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
+)
 
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.
@@ -254,6 +261,20 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
+			resources := v1.ResourceList{}
+			for resourceName, quantity := range map[v1.ResourceName]*resource.Quantity{
+				v1.ResourcePods:       instanceType.Pods(),
+				v1.ResourceCPU:        instanceType.CPU(),
+				v1.ResourceMemory:     instanceType.Memory(),
+				nvidiaGPUResourceName: instanceType.NvidiaGPUs(),
+				amdGPUResourceName:    instanceType.AMDGPUs(),
+				awsNeuronResourceName: instanceType.AWSNeurons(),
+			} {
+				if !quantity.IsZero() {
+					resources[resourceName] = *quantity
+				}
+			}
+
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -267,16 +288,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 				Status: v1.NodeStatus{
-					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
-					Capacity: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
+					Allocatable: resources,
+					Capacity:    resources,
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
