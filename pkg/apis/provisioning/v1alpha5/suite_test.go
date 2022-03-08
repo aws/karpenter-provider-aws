@@ -344,10 +344,10 @@ var _ = Describe("Validation", func() {
 			B := NewRequirements()
 			Expect(A.Compatible(B)).To(Succeed())
 		})
-		It("A should be compatible to B, <Empty, In> operator, indirectional", func() {
+		It("A should fail to be compatible to B, <Empty, In> operator, indirectional", func() {
 			A := NewRequirements()
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
-			Expect(A.Compatible(B)).To(Succeed())
+			Expect(A.Compatible(B)).ToNot(Succeed())
 		})
 		It("A should be compatible to B, <Empty, NotIn> operator", func() {
 			A := NewRequirements()

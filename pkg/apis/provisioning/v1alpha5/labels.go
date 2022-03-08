@@ -31,12 +31,6 @@ var (
 	KarpenterLabelDomain = "karpenter.sh"
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 
-	// Karpenter GPU label and values
-	LabelGPUType = KarpenterLabelDomain + "/gpu-type"
-	nvidiaGPU    = "nvidia"
-	amdGPU       = "amd"
-	awsNeuron    = "aws"
-
 	// RestrictedLabelDomains are either prohibited by the kubelet or reserved by karpenter
 	RestrictedLabelDomains = stringsets.NewString(
 		"kubernetes.io",
@@ -73,7 +67,6 @@ var (
 	// to be used in pod.Spec. Users may use these labels to interact with Karpenter.
 	PodLabelExceptions = stringsets.NewString(
 		ProvisionerNameLabelKey,
-		LabelGPUType,
 	)
 
 	// NormalizedLabels translate aliased concepts into the controller's

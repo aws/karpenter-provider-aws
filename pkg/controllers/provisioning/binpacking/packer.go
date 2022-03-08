@@ -148,8 +148,9 @@ func (p *Packer) getDaemons(ctx context.Context, constraints *v1alpha5.Constrain
 	// Include DaemonSets that will schedule on this node
 	pods := []*v1.Pod{}
 	for _, daemonSet := range daemonSetList.Items {
-		if err := constraints.ValidateDaemonSet(daemonSet); err == nil {
-			pods = append(pods, &v1.Pod{Spec: daemonSet.Spec.Template.Spec})
+		pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
+		if err := constraints.ValidatePod(pod); err == nil {
+			pods = append(pods, pod)
 		}
 	}
 	return pods, nil

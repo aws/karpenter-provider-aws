@@ -19,7 +19,6 @@ import (
 	"encoding/base32"
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -75,42 +74,6 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	if errs := c.Requirements.Compatible(requirements); errs != nil {
 		return fmt.Errorf("incompatible requirements, %w", errs)
 	}
-	return nil
-}
-
-// ValidateDaemonSet  returns an error if the daemonset's requirements are not met by the constraints.
-// Karpenter does not create node labels based on daemonset's requirements.
-func (c *Constraints) ValidateDaemonSet(daemonSet appsv1.DaemonSet) error {
-	pod := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-	p := pod.DeepCopy()
-	// The soft preference may conflict with the requirements.
-	// Remove soft constraints/ preferences
-	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil {
-		p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = nil
-	}
-	// Tolerate Taints
-	if err := c.Taints.Tolerates(p); err != nil {
-		return err
-	}
-	requirements := NewPodRequirements(p)
-	// Test if pod requirements are valid
-	if err := requirements.Validate(); err != nil {
-		return fmt.Errorf("invalid requirements, %w", err)
-	}
-	// Test if the daemonset requirements is compatible to the node Labels
-	for key := range requirements.Keys() {
-		if value, ok := c.Labels[key]; !ok {
-			// case when daemonset requirement is not DoesNotExist or NotIn
-			if !requirements.Get(key).IsEmpty() && !requirements.Get(key).IsComplement() {
-				return fmt.Errorf("key %s not defined", key)
-			}
-		} else {
-			if !requirements.Get(key).Has(value) {
-				return fmt.Errorf("incompatible requirements for key %s", key)
-			}
-		}
-	}
-
 	return nil
 }
 

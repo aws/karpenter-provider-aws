@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
+
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // Requirements are an alias type that wrap []v1.NodeSelectorRequirement and
@@ -56,23 +56,6 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 	for key, value := range pod.Spec.NodeSelector {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
-	// insert GPU requirements
-	for key := range resources.GPULimitsFor(pod) {
-		var value string
-		switch key {
-		case resources.NvidiaGPU:
-			value = nvidiaGPU
-		case resources.AMDGPU:
-			value = amdGPU
-		case resources.AWSNeuron:
-			value = awsNeuron
-		}
-		requirements = append(requirements, v1.NodeSelectorRequirement{
-			Key:      LabelGPUType,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{value},
-		})
-	}
 	if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
 		return NewRequirements(requirements...)
 	}
@@ -88,12 +71,6 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 		requirements = append(requirements, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
 	}
 	return NewRequirements(requirements...)
-}
-
-// Rank returns the ranking score.
-// Requirements with tighener constraints will have a higher rank.
-func (r Requirements) Rank() int {
-	return r.Keys().Len()
 }
 
 // Add function returns a new Requirements object with new requirements inserted.
@@ -201,8 +178,12 @@ func (r Requirements) Validate() (errs error) {
 //gocyclo:ignore
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
 	for _, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
+		// Key must be defined if required
+		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
+			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
+		}
 		// Values must overlap except DoesNotExist operator
-		// DoesNotExist will be handled later
+		// Excluding DoesNotExist cases to avoid generating mutiple error mesasges for the same error.
 		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 && !r.Get(key).IsEmpty() && !requirements.Get(key).IsEmpty() {
 			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
 		}
