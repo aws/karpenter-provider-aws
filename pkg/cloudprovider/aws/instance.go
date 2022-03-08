@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -46,9 +47,9 @@ type InstanceProvider struct {
 }
 
 const (
-	nvidiaGPUResource v1.ResourceName = "nvidia.com/gpu"
-	AMDGPUResource    v1.ResourceName = "amd.com/gpu"
-	AWSNeuronResource v1.ResourceName = "aws.amazon.com/neuron"
+	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
+	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
+	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
 )
 
 // Create an instance given the constraints.
@@ -260,20 +261,20 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
-			nodeResources := v1.ResourceList{
-				v1.ResourcePods:   *instanceType.Pods(),
-				v1.ResourceCPU:    *instanceType.CPU(),
-				v1.ResourceMemory: *instanceType.Memory(),
+			resources := v1.ResourceList{}
+			for resourceName, quantity := range map[v1.ResourceName]*resource.Quantity{
+				v1.ResourcePods:       instanceType.Pods(),
+				v1.ResourceCPU:        instanceType.CPU(),
+				v1.ResourceMemory:     instanceType.Memory(),
+				nvidiaGPUResourceName: instanceType.NvidiaGPUs(),
+				amdGPUResourceName:    instanceType.AMDGPUs(),
+				awsNeuronResourceName: instanceType.AWSNeurons(),
+			} {
+				if !quantity.IsZero() {
+					resources[resourceName] = *quantity
+				}
 			}
-			if !instanceType.NvidiaGPUs().IsZero() {
-				nodeResources[nvidiaGPUResource] = *instanceType.NvidiaGPUs()
-			}
-			if !instanceType.AMDGPUs().IsZero() {
-				nodeResources[AMDGPUResource] = *instanceType.AMDGPUs()
-			}
-			if !instanceType.AWSNeurons().IsZero() {
-				nodeResources[AWSNeuronResource] = *instanceType.AWSNeurons()
-			}
+
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -287,8 +288,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 				Status: v1.NodeStatus{
-					Allocatable: nodeResources,
-					Capacity:    nodeResources,
+					Allocatable: resources,
+					Capacity:    resources,
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
