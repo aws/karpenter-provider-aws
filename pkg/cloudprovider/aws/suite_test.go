@@ -207,6 +207,48 @@ var _ = Describe("Allocation", func() {
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
+			It("should not schedule a non-GPU workload on a node w/GPU", func() {
+				nodeNames := sets.NewString()
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								resources.NvidiaGPU: resource.MustParse("1"),
+								"cpu":               resource.MustParse("31"),
+							},
+							Limits: v1.ResourceList{
+								resources.NvidiaGPU: resource.MustParse("1"),
+								"cpu":               resource.MustParse("31"),
+							},
+						},
+					}),
+					// Can't pack onto the same instance due to consuming too much CPU
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								"cpu": resource.MustParse("3"),
+							},
+							Limits: v1.ResourceList{
+								"cpu": resource.MustParse("3"),
+							},
+						},
+					}),
+				) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+
+					// This test has a GPU workload that nearly maxes out the test instance type.  It's intended to ensure
+					// that the second pod won't get a GPU node since it doesn't require one, even though it's compatible
+					// with the first pod that does require a GPU.
+					if _, isGpuPod := pod.Spec.Containers[0].Resources.Requests[resources.NvidiaGPU]; isGpuPod {
+						Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
+					} else {
+						Expect(node.Labels).ToNot(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
+					}
+					nodeNames.Insert(node.Name)
+				}
+				Expect(nodeNames.Len()).To(Equal(2))
+			})
+
 			It("should launch instances for AWS Neuron resource requests", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
@@ -280,8 +322,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
