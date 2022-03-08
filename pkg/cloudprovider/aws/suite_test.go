@@ -203,6 +203,7 @@ var _ = Describe("Allocation", func() {
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
+					Expect(node.Status.Capacity).To(HaveKeyWithValue(nvidiaGPUResourceName, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -233,6 +234,7 @@ var _ = Describe("Allocation", func() {
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+					Expect(node.Status.Capacity).To(HaveKeyWithValue(awsNeuronResourceName, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
