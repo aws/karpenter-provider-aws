@@ -122,7 +122,7 @@ Instead, it relies on the kube-scheduler to make the same scheduling decision af
 A node that Karpenter launches has its pods bound immediately.
 The kubelet doesn't have to wait for the scheduler or for the node to become ready.
 It can start preparing the container runtime immediately, including pre-pulling the image.
-This can shave seconds off of node startup latency.
+This can save seconds off of node startup latency.
 
 ## Application developer
 
