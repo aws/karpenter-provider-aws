@@ -16,6 +16,8 @@ package scheduling_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/utils/resources"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 	"testing"
 	"time"
@@ -575,6 +577,90 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(4))
+		})
+		It("schedule pods from multiple deployments with hostname topology spread", func() {
+			provisioner.Spec.Taints = append(provisioner.Spec.Taints, v1.Taint{
+				Key:    "test.com/test",
+				Value:  "test",
+				Effect: v1.TaintEffectNoSchedule,
+			})
+			provisioner.Labels = map[string]string{}
+			provisioner.Labels["test.com/test"] = "test"
+
+			spreadPod := func(appName string) test.PodOptions {
+				return test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": appName,
+						},
+					},
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "test.com/test",
+							Operator: v1.TolerationOpEqual,
+							Value:    "test",
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       v1.LabelHostname,
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": appName},
+							},
+						},
+					},
+				}
+			}
+
+			scheduled := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(spreadPod("app1")), test.UnschedulablePod(spreadPod("app1")),
+				test.UnschedulablePod(spreadPod("app2")), test.UnschedulablePod(spreadPod("app2")))
+
+			for _, p := range scheduled {
+				ExpectScheduled(ctx, env.Client, p)
+			}
+		})
+		It("balance multiple deployments with hostname topology spread that can't schedule together", func() {
+			spreadPod := func(appName string, gpuType v1.ResourceName) test.PodOptions {
+				return test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": appName,
+						},
+					},
+					ResourceRequirements: v1.ResourceRequirements{
+						Limits: v1.ResourceList{
+							gpuType: resource.MustParse("1"),
+						},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       v1.LabelHostname,
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": appName},
+							},
+						},
+					},
+				}
+			}
+
+			scheduled := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(spreadPod("app1", resources.NvidiaGPU)), test.UnschedulablePod(spreadPod("app1", resources.NvidiaGPU)),
+				test.UnschedulablePod(spreadPod("app2", resources.AWSNeuron)), test.UnschedulablePod(spreadPod("app2", resources.AWSNeuron)),
+				test.UnschedulablePod(spreadPod("app3", resources.AMDGPU)), test.UnschedulablePod(spreadPod("app3", resources.AMDGPU)))
+
+			for _, p := range scheduled {
+				ExpectScheduled(ctx, env.Client, p)
+			}
+			nodes := v1.NodeList{}
+			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+			// the three types of pods are mutually incompatible as well as each pair having topology spread, so we get six nodes
+			Expect(nodes.Items).To(HaveLen(6))
 		})
 	})
 

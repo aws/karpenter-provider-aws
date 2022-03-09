@@ -16,6 +16,7 @@ package scheduling
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -43,13 +44,18 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints
 	topologyGroups := t.getTopologyGroups(pods)
 	// Compute spread
 	for _, topologyGroup := range topologyGroups {
-		if err := t.computeCurrentTopology(ctx, constraints, topologyGroup); err != nil {
+		cp := constraints.DeepCopy()
+		if err := t.computeCurrentTopology(ctx, cp, topologyGroup); err != nil {
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...).
+			// we look for the next domain in the topology that meets all of the constraints from the pod
+			domain := topologyGroup.NextDomain(cp.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...).
 				Get(topologyGroup.Constraint.TopologyKey).
 				Values())
+			if domain == "" {
+				return errors.New("unable to satisfy domain constraints")
+			}
 			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}

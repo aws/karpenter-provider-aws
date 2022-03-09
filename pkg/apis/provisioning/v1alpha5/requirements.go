@@ -146,6 +146,7 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 	if r.requirements == nil {
 		r.requirements = map[string]sets.Set{}
 	}
+	var unsupported []v1.NodeSelectorRequirement
 	for _, requirement := range requirements {
 		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
 			requirement.Key = normalized
@@ -153,13 +154,33 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 		if IgnoredLabels.Has(requirement.Key) {
 			continue
 		}
-		r.Requirements = append(r.Requirements, requirement)
 		switch requirement.Operator {
 		case v1.NodeSelectorOpIn:
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
 		case v1.NodeSelectorOpNotIn:
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet(requirement.Values...))
+		default:
+			unsupported = append(unsupported, requirement)
 		}
+	}
+
+	// rebuild our Requirements list to prevent an issue in the hashing library. Previously if a node selector was
+	// Add()'d twice the .requirements sets wouldn't change, but the duplicate value would cause the entire node
+	// requirement to XOR itself out in the resulting hash.  The other issue is unexported values (e.g. requirements)
+	// aren't hashed, so we must reset the exported field to be correct based on what the internal set logic form has
+	// determined.
+	r.Requirements = unsupported
+	for key, req := range r.requirements {
+		nr := v1.NodeSelectorRequirement{}
+		nr.Key = key
+		if req.IsComplement() {
+			nr.Operator = v1.NodeSelectorOpNotIn
+			nr.Values = req.ComplementValues().List()
+		} else {
+			nr.Operator = v1.NodeSelectorOpIn
+			nr.Values = req.Values().List()
+		}
+		r.Requirements = append(r.Requirements, nr)
 	}
 	return r
 }

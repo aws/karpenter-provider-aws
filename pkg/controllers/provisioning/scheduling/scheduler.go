@@ -89,11 +89,14 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 	// schedule uniqueness is tracked by hash(Constraints)
 	schedules := map[uint64]*Schedule{}
 	for _, pod := range pods {
-		if err := constraints.ValidatePod(pod); err != nil {
+		// take the provisioner's constraints and tighten them down by the pod to see if its even schedulable
+		cp := constraints.DeepCopy()
+		cp.Requirements = cp.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...)
+		if err := cp.ValidatePod(pod); err != nil {
 			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Namespace, pod.Name, err)
 			continue
 		}
-		tightened := constraints.Tighten(pod)
+		tightened := cp.Tighten(pod)
 
 		// schedulingConstraints applies the provisioner constraints
 		// and any inferred constraints such as GPU resource requests from the pods
@@ -110,6 +113,7 @@ func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Cons
 		if err != nil {
 			return nil, fmt.Errorf("hashing constraints, %w", err)
 		}
+
 		// Create new schedule if one doesn't exist
 		if _, ok := schedules[key]; !ok {
 			schedules[key] = &Schedule{Constraints: tightened, Pods: []*v1.Pod{}}
