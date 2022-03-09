@@ -97,7 +97,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates := p.ltResolver.Resolve(constraints, instanceTypes, &ltresolver.Options{
+	resolvedLaunchTemplates, err := p.ltResolver.Resolve(ctx, constraints, instanceTypes, &ltresolver.Options{
 		ClusterName:             injection.GetOptions(ctx).ClusterName,
 		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
@@ -108,7 +108,9 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 	})
-
+	if err != nil {
+		return nil, err
+	}
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
@@ -223,6 +225,9 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 }
 
 func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
+	if key == kubernetesVersionCacheKey {
+		return
+	}
 	p.Lock()
 	defer p.Unlock()
 	if _, expiration, _ := p.cache.GetWithExpiration(key); expiration.After(time.Now()) {

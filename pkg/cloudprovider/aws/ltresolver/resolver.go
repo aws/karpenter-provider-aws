@@ -15,6 +15,8 @@ limitations under the License.
 package ltresolver
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
@@ -83,11 +85,14 @@ func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, options *Options) []*ResolvedTemplate {
+func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, options *Options) ([]*ResolvedTemplate, error) {
 	amiFamily := r.getAMIFamily(constraints.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		amiID := amiFamily.SSMAlias(options.KubernetesVersion, instanceType)
+		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+		if err != nil {
+			return nil, err
+		}
 		amiIDs[amiID] = append(amiIDs[amiID], instanceType)
 	}
 	var resolvedTemplates []*ResolvedTemplate
@@ -108,7 +113,7 @@ func (r Resolver) Resolve(constraints *v1alpha1.Constraints, instanceTypes []clo
 		}
 		resolvedTemplates = append(resolvedTemplates, resolved)
 	}
-	return resolvedTemplates
+	return resolvedTemplates, nil
 }
 
 func (r Resolver) getAMIFamily(amiFamily *string, options *Options) AMIFamily {
