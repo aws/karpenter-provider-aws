@@ -24,6 +24,7 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -61,7 +62,7 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, cloudProvider cloudprovider.CloudProvider, pods []*v1.Pod) ([]*Schedule, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
@@ -71,26 +72,34 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
+	instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, constraints.Provider)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules := s.getSchedules(constraints, pods)
-	return schedules, nil
+	return s.getSchedules(constraints, instanceTypes, pods), nil
 }
 
 // getSchedules separates pods into a set of schedules. All pods in each group
 // contain isomorphic scheduling constraints and can be deployed together on the
 // same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(constraints *v1alpha5.Constraints, pods []*v1.Pod) []*Schedule {
+func (s *Scheduler) getSchedules(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Schedule {
 	schedules := []*Schedule{}
 	for _, pod := range pods {
 		isCompatible := false
 		for index, schedule := range schedules {
 			if err := schedule.Requirements.Compatible(v1alpha5.NewPodRequirements(pod)); err == nil {
-				//TODO: The cross product of the constraints values from cloud provider may not be supported by any instance type.
-				// Need to test if there is any instance type that can support the combined constraints.
-				schedules[index].Constraints = schedules[index].Tighten(pod)
-				schedules[index].Pods = append(schedules[index].Pods, pod)
-				isCompatible = true
-				break
+				// Test if there is any instance type that can support the combined constraints
+				// TODO: Implement a virtual node approach solution that combine scheduling and node selection to solve this problem.
+				c := schedules[index].Tighten(pod)
+				for _, instanceType := range instanceTypes {
+					if support(instanceType, c) {
+						schedules[index].Constraints = c
+						schedules[index].Pods = append(schedules[index].Pods, pod)
+						isCompatible = true
+						break
+					}
+				}
 			}
 		}
 		if !isCompatible {
@@ -98,4 +107,29 @@ func (s *Scheduler) getSchedules(constraints *v1alpha5.Constraints, pods []*v1.P
 		}
 	}
 	return schedules
+}
+
+func support(instanceType cloudprovider.InstanceType, constraints *v1alpha5.Constraints) bool {
+	req := []v1.NodeSelectorRequirement{}
+	for key := range constraints.Requirements.Keys() {
+		req = append(req, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpExists})
+	}
+	for _, offering := range instanceType.Offerings() {
+		supported := map[string][]string{}
+		supported[v1.LabelTopologyZone] = []string{offering.Zone}
+		supported[v1alpha5.LabelCapacityType] = []string{offering.CapacityType}
+		supported[v1.LabelInstanceTypeStable] = []string{instanceType.Name()}
+		supported[v1.LabelArchStable] = []string{instanceType.Architecture()}
+		supported[v1.LabelOSStable] = instanceType.OperatingSystems().UnsortedList()
+		r := make([]v1.NodeSelectorRequirement, len(req))
+		copy(r, req)
+		for key, values := range supported {
+			r = append(r, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values})
+		}
+		requirements := v1alpha5.NewRequirements(r...)
+		if err := requirements.Compatible(constraints.Requirements); err == nil {
+			return true
+		}
+	}
+	return false
 }

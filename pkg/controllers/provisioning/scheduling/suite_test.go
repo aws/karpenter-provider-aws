@@ -341,6 +341,11 @@ var _ = Describe("Custom Constraints", func() {
 			}
 		})
 		It("should schedule pods that have node selectors with label in restricted domains exceptions list", func() {
+			requirements := []v1.NodeSelectorRequirement{}
+			for domain := range v1alpha5.LabelDomainExceptions {
+				requirements = append(requirements, v1.NodeSelectorRequirement{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
+			}
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(requirements...)
 			for domain := range v1alpha5.LabelDomainExceptions {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
 					test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
@@ -379,13 +384,12 @@ var _ = Describe("Custom Constraints", func() {
 
 	})
 	Context("Scheduling Logics", func() {
-		It("should schedule pods that have node selectors with In operator and undefined key", func() {
+		It("should not schedule pods that have node selectors with In operator and undefined key", func() {
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
 				test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
 					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}},
 				}}))[0]
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
+			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should schedule pods that have node selectors with NotIn operator and undefined key", func() {
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(

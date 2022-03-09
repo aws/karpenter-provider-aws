@@ -161,10 +161,6 @@ func (r Requirements) Validate() (errs error) {
 			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
 			errs = multierr.Append(errs, fmt.Errorf("operator %s cannot coexist with other operators for key %s", v1.NodeSelectorOpDoesNotExist, requirement.Key))
 		}
-		// Excludes cases when In and NotIn have overlaps.
-		if requirement.Operator == v1.NodeSelectorOpIn && r.hasRequirement(withKeyOperatorAndValues(requirement.Key, v1.NodeSelectorOpNotIn, requirement.Values)) {
-			errs = multierr.Append(errs, fmt.Errorf("operators %s and %s have common values for key %s", v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, requirement.Key))
-		}
 	}
 	for key := range r.Keys() {
 		if r.Get(key).Len() == 0 && !r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
@@ -183,7 +179,7 @@ func (r Requirements) Compatible(requirements Requirements) (errs error) {
 			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
 		}
 		// Values must overlap except DoesNotExist operator
-		// Excluding DoesNotExist cases to avoid generating mutiple error mesasges for the same error.
+		// Excluding DoesNotExist cases to avoid generating multiple error mesasges for the same error.
 		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 && !r.Get(key).IsEmpty() && !requirements.Get(key).IsEmpty() {
 			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
 		}
@@ -232,12 +228,6 @@ func withKey(key string) func(v1.NodeSelectorRequirement) bool {
 func withKeyAndOperator(key string, operator v1.NodeSelectorOperator) func(v1.NodeSelectorRequirement) bool {
 	return func(requirement v1.NodeSelectorRequirement) bool {
 		return key == requirement.Key && requirement.Operator == operator
-	}
-}
-
-func withKeyOperatorAndValues(key string, operator v1.NodeSelectorOperator, values []string) func(v1.NodeSelectorRequirement) bool {
-	return func(requirement v1.NodeSelectorRequirement) bool {
-		return key == requirement.Key && requirement.Operator == operator && sets.NewSet(values...).Intersection(sets.NewSet(requirement.Values...)).Len() != 0
 	}
 }
 

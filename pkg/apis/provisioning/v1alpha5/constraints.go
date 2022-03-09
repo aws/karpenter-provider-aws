@@ -15,12 +15,12 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"crypto/rand"
-	"encoding/base32"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/aws/karpenter/pkg/utils/rand"
 )
 
 // Constraints are applied to all nodes created by the provisioner.
@@ -93,12 +93,7 @@ func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
 			// Only write a random value if the requirements operator is Exists.
 			// NotIn operator and DoesNotExist operator will schedule without the label
 			if values.IsFull() {
-				label := make([]byte, 32)
-				_, err := rand.Read(label)
-				if err != nil {
-					panic(err)
-				}
-				labels[key] = base32.StdEncoding.EncodeToString(label)[:10]
+				labels[key] = rand.String(10)
 			}
 		}
 	}

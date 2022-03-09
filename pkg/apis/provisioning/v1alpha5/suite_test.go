@@ -192,12 +192,12 @@ var _ = Describe("Validation", func() {
 			)
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
-		It("should fail because In and NotIn cannot have overlapped value", func() {
+		It("should allow non-empty set after removing overlapped value", func() {
 			provisioner.Spec.Requirements = NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}},
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "bar"}},
 			)
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should allow empty requirements", func() {
 			provisioner.Spec.Requirements = NewRequirements()
