@@ -28,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/ltresolver"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
@@ -58,6 +59,7 @@ var env *test.Environment
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
+var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var provisioners *provisioning.Controller
@@ -84,6 +86,7 @@ var _ = BeforeSuite(func() {
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
+		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
@@ -95,18 +98,19 @@ var _ = BeforeSuite(func() {
 			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 			unavailableOfferings: unavailableOfferingsCache,
 		}
-		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		securityGroupProvider := &SecurityGroupProvider{
 			ec2api: fakeEC2API,
 			cache:  securityGroupCache,
 		}
+		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiProvider:           NewAMIProvider(&fake.SSMAPI{}, clientSet),
+					ltResolver:            ltresolver.New(fake.SSMAPI{}, amiCache),
+					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
 					caBundle:              ptr.String("ca-bundle"),
@@ -140,6 +144,7 @@ var _ = Describe("Allocation", func() {
 		securityGroupCache.Flush()
 		subnetCache.Flush()
 		unavailableOfferingsCache.Flush()
+		amiCache.Flush()
 	})
 
 	AfterEach(func() {

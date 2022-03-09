@@ -40,9 +40,9 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
+func (p *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
 	// Get SecurityGroups
-	securityGroups, err := s.getSecurityGroups(ctx, s.getFilters(constraints))
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(constraints))
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (s *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	return securityGroupIds, nil
 }
 
-func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
+func (p *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range constraints.SecurityGroupSelector {
 		filters = append(filters, &ec2.Filter{
@@ -69,24 +69,24 @@ func (s *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []
 	return filters
 }
 
-func (s *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *SecurityGroupProvider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := s.cache.Get(fmt.Sprint(hash)); ok {
+	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		return securityGroups.([]*ec2.SecurityGroup), nil
 	}
-	output, err := s.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
 	}
-	s.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	logging.FromContext(ctx).Debugf("Discovered security groups: %s", s.securityGroupIds(output.SecurityGroups))
+	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
+	logging.FromContext(ctx).Debugf("Discovered security groups: %s", p.securityGroupIds(output.SecurityGroups))
 	return output.SecurityGroups, nil
 }
 
-func (s *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
+func (p *SecurityGroupProvider) securityGroupIds(securityGroups []*ec2.SecurityGroup) []string {
 	names := []string{}
 	for _, securityGroup := range securityGroups {
 		names = append(names, aws.StringValue(securityGroup.GroupId))

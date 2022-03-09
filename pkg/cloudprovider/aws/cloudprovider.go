@@ -26,10 +26,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/ltresolver"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -87,7 +89,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				NewAMIProvider(ssm.New(sess), options.ClientSet),
+				options.ClientSet,
+				ltresolver.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 			),

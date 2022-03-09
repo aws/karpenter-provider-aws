@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,35 +29,39 @@ import (
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/launchtemplate"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/ltresolver"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
-	launchTemplateNameFormat = "Karpenter-%s-%s"
+	launchTemplateNameFormat  = "Karpenter-%s-%s"
+	kubernetesVersionCacheKey = "kubernetesVersion"
 )
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
-	amiProvider           *AMIProvider
+	clientSet             *kubernetes.Clientset
+	ltResolver            *ltresolver.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
 	logger                *zap.SugaredLogger
 	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiProvider *AMIProvider, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, ltResolver *ltresolver.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
+		clientSet:             clientSet,
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
-		amiProvider:           amiProvider,
+		ltResolver:            ltResolver,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
@@ -66,7 +71,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiP
 	return l
 }
 
-func launchTemplateName(options *launchtemplate.Resolved) string {
+func launchTemplateName(options *ltresolver.ResolvedTemplate) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -88,35 +93,35 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	// Get constrained AMI ID
-	amis, err := p.amiProvider.Get(ctx, constraints, instanceTypes, launchtemplate.GetAMIFamily(constraints.AMIFamily, nil))
+	kubeServerVersion, err := p.kubeServerVersion(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// Construct launch templates
+	resolvedLaunchTemplates := p.ltResolver.Resolve(constraints, instanceTypes, &ltresolver.Options{
+		ClusterName:             injection.GetOptions(ctx).ClusterName,
+		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+		InstanceProfile:         instanceProfile,
+		SecurityGroupsIDs:       securityGroupsIDs,
+		Tags:                    constraints.Tags,
+		Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
+		CABundle:                p.caBundle,
+		KubernetesVersion:       kubeServerVersion,
+	})
+
 	launchTemplates := map[string][]cloudprovider.InstanceType{}
-	for amiID, instanceTypes := range amis {
+	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		launchTemplate, err := p.ensureLaunchTemplate(ctx, launchtemplate.Get(constraints, instanceTypes, &launchtemplate.Options{
-			ClusterName:             injection.GetOptions(ctx).ClusterName,
-			ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-			AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
-			InstanceProfile:         instanceProfile,
-			AMIID:                   amiID,
-			SecurityGroupsIDs:       securityGroupsIDs,
-			Tags:                    constraints.Tags,
-			Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
-			CABundle:                p.caBundle,
-		}))
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates[aws.StringValue(launchTemplate.LaunchTemplateName)] = instanceTypes
+		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
 	}
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchtemplate.Resolved) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *ltresolver.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -150,7 +155,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchtemplate.Resolved) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *ltresolver.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -240,4 +245,18 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constra
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}
 	return defaultProfile, nil
+}
+
+func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string, error) {
+	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
+		return version.(string), nil
+	}
+	serverVersion, err := p.clientSet.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
+	p.cache.SetDefault(kubernetesVersionCacheKey, version)
+	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
+	return version, nil
 }
