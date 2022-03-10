@@ -191,7 +191,7 @@ var _ = Describe("Validation", func() {
 		It("should fail because DoesNotExists conflicting", func() {
 			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, v1.NodeSelectorOpExists} {
 				provisioner.Spec.Requirements = NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOperator(op), Values: []string{"test"}},
+					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
 					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist},
 				)
 			}
