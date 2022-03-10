@@ -71,7 +71,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 	return l
 }
 
-func launchTemplateName(options *amifamily.ResolvedTemplate) string {
+func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -123,7 +123,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -157,7 +157,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{

@@ -47,16 +47,16 @@ type Options struct {
 	ClusterEndpoint         string
 	AWSENILimitedPodDensity bool
 	InstanceProfile         string
-	KubernetesVersion       string
 	CABundle                *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
+	KubernetesVersion string
 	SecurityGroupsIDs []string
 	Tags              map[string]string
 	Labels            map[string]string `hash:"ignore"`
 }
 
-// ResolvedTemplate holds the dynamically generated launch template parameters
-type ResolvedTemplate struct {
+// LaunchTemplate holds the dynamically generated launch template parameters
+type LaunchTemplate struct {
 	*Options
 	UserData            bootstrap.Bootstrapper
 	BlockDeviceMappings []*v1alpha1.BlockDeviceMapping
@@ -85,7 +85,7 @@ func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, options *Options) ([]*ResolvedTemplate, error) {
+func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := r.getAMIFamily(constraints.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
@@ -95,9 +95,9 @@ func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints
 		}
 		amiIDs[amiID] = append(amiIDs[amiID], instanceType)
 	}
-	var resolvedTemplates []*ResolvedTemplate
+	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {
-		resolved := &ResolvedTemplate{
+		resolved := &LaunchTemplate{
 			Options:             options,
 			UserData:            amiFamily.UserData(constraints.KubeletConfiguration, constraints.Taints, options.Labels, options.CABundle),
 			BlockDeviceMappings: constraints.BlockDeviceMappings,
