@@ -36,7 +36,7 @@ type Constraints struct {
 	Requirements Requirements `json:"requirements,inline,omitempty"`
 	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
 	//+optional
-	KubeletConfiguration KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
+	KubeletConfiguration *KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *Provider `json:"provider,omitempty"`

@@ -330,8 +330,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
@@ -611,7 +611,7 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-					provisioner.Spec.KubeletConfiguration.ClusterDNS = []string{"10.0.10.100"}
+					provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
@@ -622,7 +622,7 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Instance Profile", func() {
 				It("should use the default instance profile if none specified on the Provisioner", func() {
-					provisioner.Spec.KubeletConfiguration.ClusterDNS = []string{"10.0.10.100"}
+					provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
 					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
@@ -1020,7 +1020,7 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 	raw, err := json.Marshal(provider)
 	Expect(err).ToNot(HaveOccurred())
 	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}
-	provisioner.Spec.Limits.Resources = v1.ResourceList{}
+	provisioner.Spec.Limits = &v1alpha5.Limits{Resources: v1.ResourceList{}}
 	provisioner.Spec.Limits.Resources[v1.ResourceCPU] = *resource.NewScaledQuantity(10, 0)
 	return provisioner
 }
