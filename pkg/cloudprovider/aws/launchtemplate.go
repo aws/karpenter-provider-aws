@@ -34,8 +34,8 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/ltresolver"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -49,19 +49,19 @@ type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
 	clientSet             *kubernetes.Clientset
-	ltResolver            *ltresolver.Resolver
+	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
 	logger                *zap.SugaredLogger
 	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, ltResolver *ltresolver.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
-		ltResolver:            ltResolver,
+		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
 		caBundle:              caBundle,
@@ -71,7 +71,7 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 	return l
 }
 
-func launchTemplateName(options *ltresolver.ResolvedTemplate) string {
+func launchTemplateName(options *amifamily.ResolvedTemplate) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -97,7 +97,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.ltResolver.Resolve(ctx, constraints, instanceTypes, &ltresolver.Options{
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, constraints, instanceTypes, &amifamily.Options{
 		ClusterName:             injection.GetOptions(ctx).ClusterName,
 		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
@@ -123,7 +123,7 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	return launchTemplates, nil
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *ltresolver.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -157,7 +157,7 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *ltresolver.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.ResolvedTemplate) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{

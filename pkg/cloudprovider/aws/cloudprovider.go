@@ -30,8 +30,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/ltresolver"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -90,7 +90,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ctx,
 				ec2api,
 				options.ClientSet,
-				ltresolver.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
+				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 			),
@@ -184,12 +184,12 @@ func getCABundle(ctx context.Context) *string {
 	}
 	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading transport config, %v", err)
+		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading transport config, %v", err)
 		return nil
 	}
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
 	if err != nil {
-		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
+		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading TLS config, %v", err)
 		return nil
 	}
 	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
