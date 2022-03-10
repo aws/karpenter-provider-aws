@@ -22,6 +22,7 @@ package v1alpha5
 import (
 	"github.com/aws/karpenter/pkg/utils/sets"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"knative.dev/pkg/apis"
 )
@@ -167,6 +168,16 @@ func (in *ProvisionerList) DeepCopyObject() runtime.Object {
 func (in *ProvisionerSpec) DeepCopyInto(out *ProvisionerSpec) {
 	*out = *in
 	in.Constraints.DeepCopyInto(&out.Constraints)
+	if in.Namespaces != nil {
+		in, out := &in.Namespaces, &out.Namespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.NamespaceSelector != nil {
+		in, out := &in.NamespaceSelector, &out.NamespaceSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.TTLSecondsAfterEmpty != nil {
 		in, out := &in.TTLSecondsAfterEmpty, &out.TTLSecondsAfterEmpty
 		*out = new(int64)

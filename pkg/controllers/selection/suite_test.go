@@ -76,6 +76,151 @@ var _ = AfterEach(func() {
 	ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
 })
 
+var _ = Describe("Namespace Selector", func() {
+	It("should schedule if there is no namespace selector", func() {
+		provisioner.Spec.NamespaceSelector = nil
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if there is an empty namespace selector", func() {
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels:      map[string]string{},
+			MatchExpressions: []metav1.LabelSelectorRequirement{},
+		}
+
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule if the pod isn't in a matching namespace, namespace list", func() {
+		provisioner.Spec.Namespaces = []string{"foo"}
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(),
+		)[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule if the pod isn't in a matching namespace, MatchLabels", func() {
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"foo": "bar",
+			},
+		}
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(),
+		)[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule if the pod isn't in a matching namespace, MatchExpressions", func() {
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "foo",
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   []string{"bar"},
+				},
+			},
+		}
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(),
+		)[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if the pod is in a matching namespace, namespace list", func() {
+		ns := randomdata.Noun() + randomdata.Adjective()
+		ExpectCreated(ctx, env.Client, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+		provisioner.Spec.Namespaces = []string{ns}
+
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if the pod is in a matching namespace, MatchLabels", func() {
+		ns := randomdata.Noun() + randomdata.Adjective() // need a lowercase name here
+		ExpectCreated(ctx, env.Client, &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   ns,
+				Labels: map[string]string{"foo": "bar"},
+			},
+		})
+
+		// select for namespaces with the label foo=bar
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{"foo": "bar"},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if the pod is in a matching namespace, MatchExpressions", func() {
+		ns := randomdata.Noun() + randomdata.Adjective()
+		ExpectCreated(ctx, env.Client, &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   ns,
+				Labels: map[string]string{"foo": "bar"},
+			},
+		})
+
+		// select for namespaces with the label foo in ["bar"]
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "foo",
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   []string{"bar"},
+				},
+			},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if the pod is in a matching namespace list but fails selector ", func() {
+		ns := randomdata.Noun() + randomdata.Adjective()
+		ExpectCreated(ctx, env.Client, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+		provisioner.Spec.Namespaces = []string{ns}
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{"foo": "bar"},
+		}
+
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule if the pod is not in a matching namespace list but passes selector", func() {
+		ns := randomdata.Noun() + randomdata.Adjective() // need a lowercase name here
+		ExpectCreated(ctx, env.Client, &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   ns,
+				Labels: map[string]string{"foo": "bar"},
+			},
+		})
+
+		// will fail the namespaec list match, but pass the selector
+		provisioner.Spec.Namespaces = []string{"somethingelse"}
+		provisioner.Spec.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{"foo": "bar"},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}),
+		)[0]
+		ExpectScheduled(ctx, env.Client, pod)
+	})
+})
+
 var _ = Describe("Volume Topology Requirements", func() {
 	var storageClass *storagev1.StorageClass
 	BeforeEach(func() {

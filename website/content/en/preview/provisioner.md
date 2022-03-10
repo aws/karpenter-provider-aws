@@ -22,6 +22,19 @@ spec:
   # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
 
+  # If both namespaces and namespaceSelector are omitted, Karpenter will provision nodes for unschedulable pods in
+  # any namespace. If both are provided, Karpenter will provision for the union of the namespaces selected.
+
+  # Provision for unschedulable pods in these specific namespaces
+  namespaces:
+    - namespace1
+    - namespace2
+
+  # Provision for unschedulable pods in namespaces where the namespaces match these labels
+  namespaceSelector:
+    matchLabels:
+      karpenter: "yes"
+      
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated
   taints:
@@ -68,6 +81,14 @@ spec:
 ## Node deprovisioning 
 
 If neither of these values are set, Karpenter will *not* delete instances. It is recommended to set the `ttlSecondsAfterEmpty` value, to enable scale down of the cluster. 
+
+### spec.namespaces
+
+Setting a value here causes Karpenter to only respond to unschedulable pods within the namespaces that are matched by the union of namespaces and namespaceSelector. This is a list of namespace names. 
+
+### spec.namespaceSelector
+
+Setting a value here causes Karpenter to only respond to unschedulable pods within the namespaces that are matched by the union of namespaces and namespaceSelector.  This matches against labels on the namespaces.
 
 ### spec.ttlSecondsAfterEmpty
 

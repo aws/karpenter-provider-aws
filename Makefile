@@ -52,6 +52,7 @@ apply: ## Deploy the controller into your ~/.kube/config cluster
 		$(HELM_OPTS) \
 		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
 		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
+	kubectl apply -f charts/karpenter/crds/
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter

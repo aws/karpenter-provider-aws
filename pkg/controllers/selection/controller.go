@@ -19,6 +19,9 @@ import (
 	"fmt"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -75,6 +78,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		logging.FromContext(ctx).Errorf("Ignoring pod, %s", err)
 		return reconcile.Result{}, nil
 	}
+
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
 	if err := c.selectProvisioner(ctx, pod); err != nil {
 		logging.FromContext(ctx).Debugf("Could not schedule pod, %s", err)
@@ -96,13 +100,29 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	if len(provisioners) == 0 {
 		return nil
 	}
+
+	// lookup the pod namespace for matching against the provisioner
+	var podNamespace v1.Namespace
+	if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &podNamespace); err != nil {
+		return err
+	}
+
 	for _, candidate := range c.provisioners.List(ctx) {
+		// check if the provisioner is allowed to provision pods in this namespace
+		if err := validateNamespace(candidate, podNamespace); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
+			continue
+		}
+
+		// ValidatePod is on Constraints, which is embedded in ProvisionerSpec.  If that gets reworked, consider moving
+		// validateNamespace to there as well
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tried provisioner/%s: %w", candidate.Name, err))
-		} else {
-			provisioner = candidate
-			break
+			continue
 		}
+
+		provisioner = candidate
+		break
 	}
 	if provisioner == nil {
 		return fmt.Errorf("matched 0/%d provisioners, %w", len(multierr.Errors(errs)), errs)
@@ -110,6 +130,35 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	select {
 	case <-provisioner.Add(pod):
 	case <-ctx.Done():
+	}
+	return nil
+}
+
+// validateNamespace returns nil if the candidate provisioner is configured to provision pods in the provided
+// namespace
+func validateNamespace(candidate *provisioning.Provisioner, namespace v1.Namespace) error {
+	// no namespace list or label selector provided, so everything passes
+	if len(candidate.Spec.Namespaces) == 0 && candidate.Spec.NamespaceSelector == nil {
+		return nil
+	}
+
+	// the namespace of the pod must match one of the list of namespaces or the selector
+	for _, ns := range candidate.Spec.Namespaces {
+		if ns == namespace.Name {
+			return nil
+		}
+	}
+
+	// For an undefined namespace selector, the selector itself matches nothing.  This
+	// provides the desired semantics here as we know there is either a namespace list
+	// or a namespace label selector and the namespace has already failed to match the
+	// possibly empty list
+	selector, err := metav1.LabelSelectorAsSelector(candidate.Spec.NamespaceSelector)
+	if err != nil {
+		return err
+	}
+	if !selector.Matches(labels.Set(namespace.Labels)) {
+		return fmt.Errorf("doesn't match namespaces being provisioned")
 	}
 	return nil
 }

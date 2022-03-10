@@ -25,6 +25,19 @@ import (
 type ProvisionerSpec struct {
 	// Constraints are applied to all nodes launched by this provisioner.
 	Constraints `json:",inline"`
+	// namespaces specifies a static list of namespace names that the provisioner applies to.
+	// The provisioner is applied to the union of the namespaces listed in this field
+	// and the ones selected by namespaceSelector.
+	// null or empty namespaces list and null namespaceSelector means provision for all namespaces
+	// +optional
+	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,2,rep,name=namespaces"`
+	// A label query over the set of namespaces that the provisioner applies to.
+	// The provisioner is applied to the union of the namespaces selected by this field
+	// and the ones listed in the namespaces field.
+	// null selector and null or empty namespaces list means provision for all namespaces
+	// An empty selector ({}) matches all namespaces.
+	// +optional
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,4,opt,name=namespaceSelector"`
 	// TTLSecondsAfterEmpty is the number of seconds the controller will wait
 	// before attempting to delete a node, measured from when the node is
 	// detected to be empty. A Node is considered to be empty when it does not
