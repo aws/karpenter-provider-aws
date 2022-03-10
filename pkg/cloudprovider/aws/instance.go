@@ -39,6 +39,18 @@ import (
 	"github.com/aws/karpenter/pkg/utils/options"
 )
 
+const (
+	// CreationQPS limits the number of requests per second to CreateFleet
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationQPS = 2
+	// CreationBurst limits the additional burst requests.
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationBurst                         = 100
+	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
+	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
+	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
+)
+
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
@@ -46,11 +58,14 @@ type InstanceProvider struct {
 	launchTemplateProvider *LaunchTemplateProvider
 }
 
-const (
-	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
-	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
-	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
-)
+func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+	return &InstanceProvider{
+		ec2api:                 ec2api,
+		instanceTypeProvider:   instanceTypeProvider,
+		subnetProvider:         subnetProvider,
+		launchTemplateProvider: launchTemplateProvider,
+	}
+}
 
 // Create an instance given the constraints.
 // instanceTypes should be sorted by priority for spot capacity type.

@@ -77,7 +77,6 @@ var _ = Describe("Provisioning", func() {
 				},
 			},
 		}
-		provisioner.SetDefaults(ctx)
 	})
 
 	AfterEach(func() {

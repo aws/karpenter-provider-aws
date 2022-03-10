@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
 
@@ -29,6 +30,12 @@ const (
 	amiFamilyPath               = "amiFamily"
 	metadataOptionsPath         = "metadataOptions"
 	instanceProfilePath         = "instanceProfile"
+	blockDeviceMappingsPath     = "blockDeviceMappings"
+)
+
+var (
+	minVolumeSize = *resource.NewScaledQuantity(1, resource.Giga)
+	maxVolumeSize = *resource.NewScaledQuantity(64, resource.Tera)
 )
 
 func (a *AWS) Validate() (errs *apis.FieldError) {
@@ -43,11 +50,12 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 		a.validateTags(),
 		a.validateMetadataOptions(),
 		a.validateAMIFamily(),
+		a.validateBlockDeviceMappings(),
 	)
 }
 
 func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
-	if a.LaunchTemplate == nil {
+	if a.LaunchTemplateName == nil {
 		return nil
 	}
 	if a.SecurityGroupSelector != nil {
@@ -61,6 +69,9 @@ func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
 	}
 	if a.InstanceProfile != nil {
 		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, instanceProfilePath))
+	}
+	if len(a.BlockDeviceMappings) != 0 {
+		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, blockDeviceMappingsPath))
 	}
 	return errs
 }
@@ -78,7 +89,7 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 }
 
 func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
-	if a.LaunchTemplate != nil {
+	if a.LaunchTemplateName != nil {
 		return nil
 	}
 	if a.SecurityGroupSelector == nil {
@@ -116,14 +127,14 @@ func (a *AWS) validateMetadataOptions() (errs *apis.FieldError) {
 	).ViaField(metadataOptionsPath)
 }
 
-func (a *AWS) validateHTTPEndpoint() (errs *apis.FieldError) {
+func (a *AWS) validateHTTPEndpoint() *apis.FieldError {
 	if a.MetadataOptions.HTTPEndpoint == nil {
 		return nil
 	}
 	return a.validateStringEnum(*a.MetadataOptions.HTTPEndpoint, "httpEndpoint", ec2.LaunchTemplateInstanceMetadataEndpointState_Values())
 }
 
-func (a *AWS) validateHTTPProtocolIpv6() (errs *apis.FieldError) {
+func (a *AWS) validateHTTPProtocolIpv6() *apis.FieldError {
 	if a.MetadataOptions.HTTPProtocolIPv6 == nil {
 		return nil
 	}
@@ -162,4 +173,55 @@ func (a *AWS) validateStringEnum(value, field string, validValues []string) *api
 		}
 	}
 	return apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", value, strings.Join(validValues, ", ")), field)
+}
+
+func (a *AWS) validateBlockDeviceMappings() (errs *apis.FieldError) {
+	for i, blockDeviceMapping := range a.BlockDeviceMappings {
+		if err := a.validateBlockDeviceMapping(blockDeviceMapping); err != nil {
+			errs = errs.Also(err.ViaFieldIndex(blockDeviceMappingsPath, i))
+		}
+	}
+	return errs
+}
+
+func (a *AWS) validateBlockDeviceMapping(blockDeviceMapping *BlockDeviceMapping) (errs *apis.FieldError) {
+	return errs.Also(a.validateDeviceName(blockDeviceMapping), a.validateEBS(blockDeviceMapping))
+}
+
+func (a *AWS) validateDeviceName(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
+	if blockDeviceMapping.DeviceName == nil {
+		return apis.ErrMissingField("deviceName")
+	}
+	return nil
+}
+
+func (a *AWS) validateEBS(blockDeviceMapping *BlockDeviceMapping) (errs *apis.FieldError) {
+	if blockDeviceMapping.EBS == nil {
+		return apis.ErrMissingField("ebs")
+	}
+	for _, err := range []*apis.FieldError{
+		a.validateVolumeType(blockDeviceMapping),
+		a.validateVolumeSize(blockDeviceMapping),
+	} {
+		if err != nil {
+			errs = errs.Also(err.ViaField("ebs"))
+		}
+	}
+	return errs
+}
+
+func (a *AWS) validateVolumeType(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
+	if blockDeviceMapping.EBS.VolumeType != nil {
+		return a.validateStringEnum(*blockDeviceMapping.EBS.VolumeType, "volumeType", ec2.VolumeType_Values())
+	}
+	return nil
+}
+
+func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
+	if blockDeviceMapping.EBS.VolumeSize == nil {
+		return apis.ErrMissingField("volumeSize")
+	} else if blockDeviceMapping.EBS.VolumeSize.Cmp(minVolumeSize) == -1 || blockDeviceMapping.EBS.VolumeSize.Cmp(maxVolumeSize) == 1 {
+		return apis.ErrOutOfBoundsValue(blockDeviceMapping.EBS.VolumeSize.String(), minVolumeSize.String(), maxVolumeSize.String(), "volumeSize")
+	}
+	return nil
 }

@@ -69,7 +69,6 @@ var _ = BeforeEach(func() {
 		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
-	provisioner.SetDefaults(ctx)
 })
 
 var _ = AfterEach(func() {

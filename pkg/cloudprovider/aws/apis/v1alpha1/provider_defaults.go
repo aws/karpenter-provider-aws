@@ -26,7 +26,6 @@ import (
 func (c *Constraints) Default(ctx context.Context) {
 	c.defaultArchitecture()
 	c.defaultCapacityTypes()
-	c.defaultAMIFamily()
 }
 
 func (c *Constraints) defaultCapacityTypes() {
@@ -55,14 +54,4 @@ func (c *Constraints) defaultArchitecture() {
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{v1alpha5.ArchitectureAmd64},
 	})
-}
-
-func (c *Constraints) defaultAMIFamily() {
-	if c.AMIFamily != nil {
-		return
-	}
-	if c.LaunchTemplate != nil {
-		return
-	}
-	c.AMIFamily = &AMIFamilyAL2
 }
