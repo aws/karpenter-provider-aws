@@ -79,7 +79,7 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
 		if err := IsRestrictedLabel(key); err != nil {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", fmt.Sprintf("%s", err)))
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err.Error()))
 		}
 	}
 	return errs

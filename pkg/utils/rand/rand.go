@@ -16,14 +16,16 @@ package rand
 
 import (
 	"encoding/base32"
+	"math"
 	"math/rand"
 )
 
-func String(lenght int) string {
-	label := make([]byte, 32)
+func String(length int) string {
+	bufferSize := math.Ceil(float64((5*length - 4)) / float64(8))
+	label := make([]byte, int(bufferSize))
 	_, err := rand.Read(label) //nolint
 	if err != nil {
 		panic(err)
 	}
-	return base32.StdEncoding.EncodeToString(label)[:lenght]
+	return base32.StdEncoding.EncodeToString(label)[:length]
 }

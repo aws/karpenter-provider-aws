@@ -177,8 +177,8 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			}
 		})
-		It("should allow restricted label exceptions", func() {
-			for label := range LabelExceptions {
+		It("should allow well known label exceptions", func() {
+			for label := range WellKnownLabels {
 				provisioner.Spec.Requirements = NewRequirements(
 					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 				)

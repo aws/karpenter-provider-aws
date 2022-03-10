@@ -44,10 +44,10 @@ var (
 		"kops.k8s.io",
 	)
 
-	// LabelExceptions are labels that belong to the RestrictedLabelDomains but allowed.
+	// WellKnownLabels are labels that belong to the RestrictedLabelDomains but allowed.
 	// Karpenter is aware of these labels, and they can be used to further narrow down
 	// the range of the corresponding values by either provisioner or pods.
-	LabelExceptions = stringsets.NewString(
+	WellKnownLabels = stringsets.NewString(
 		v1.LabelTopologyZone,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
@@ -61,12 +61,6 @@ var (
 		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
-	)
-
-	// PodLabelExceptions are labels that belong to the RestrictedLabelDomains but allowed
-	// to be used in pod.Spec. Users may use these labels to interact with Karpenter.
-	PodLabelExceptions = stringsets.NewString(
-		ProvisionerNameLabelKey,
 	)
 
 	// NormalizedLabels translate aliased concepts into the controller's
@@ -87,11 +81,11 @@ var (
 
 // IsRestrictedLabel returns an error if the label is restricted.
 func IsRestrictedLabel(key string) error {
+	if WellKnownLabels.Has(key) {
+		return nil
+	}
 	if RestrictedLabels.Has(key) {
 		return fmt.Errorf("label is restricted, %s", key)
-	}
-	if LabelExceptions.Has(key) {
-		return nil
 	}
 	labelDomain := getLabelDomain(key)
 	if LabelDomainExceptions.Has(labelDomain) {

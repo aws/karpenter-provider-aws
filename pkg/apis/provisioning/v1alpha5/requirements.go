@@ -24,6 +24,7 @@ import (
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	"github.com/aws/karpenter/pkg/utils/rand"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
@@ -94,6 +95,8 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
 		case v1.NodeSelectorOpNotIn:
 			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet(requirement.Values...))
+		case v1.NodeSelectorOpExists:
+			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet())
 		case v1.NodeSelectorOpDoesNotExist:
 			r.requirements[requirement.Key] = sets.NewSet()
 		}
@@ -108,6 +111,21 @@ func (r Requirements) Keys() stringsets.String {
 		keys.Insert(requirement.Key)
 	}
 	return keys
+}
+
+// Labels returns value realization for the provided key.
+// If the set is a complement set, return a randomly generated value.
+// If the set is not a complement set, return the first value in the set.
+func (r Requirements) Label(key string) string {
+	values := r.Get(key)
+	if values.IsComplement() {
+		label := rand.String(10)
+		for !values.Has(label) {
+			label = rand.String(10)
+		}
+		return label
+	}
+	return values.Values().UnsortedList()[0]
 }
 
 // Get returns the sets of values allowed by all included requirements
@@ -140,7 +158,7 @@ func (r Requirements) CapacityTypes() stringsets.String {
 }
 
 // Validate validates the feasibility of the requirements.
-// Do not apply validation to requiremnts after merging with other requirements.
+// Do not apply validation to requirements after merging with other requirements.
 //gocyclo:ignore
 func (r Requirements) Validate() (errs error) {
 	for _, requirement := range r.Requirements {
@@ -179,7 +197,7 @@ func (r Requirements) Compatible(requirements Requirements) (errs error) {
 			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
 		}
 		// Values must overlap except DoesNotExist operator
-		// Excluding DoesNotExist cases to avoid generating multiple error mesasges for the same error.
+		// Both DoesNotExist and conflicting { In, NotIn } rules are represented by the empty set. DoesNotExist is a valid configuration, but conflicting { In, NotIn } is not.
 		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 && !r.Get(key).IsEmpty() && !requirements.Get(key).IsEmpty() {
 			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
 		}

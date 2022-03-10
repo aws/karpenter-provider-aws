@@ -99,15 +99,15 @@ func (p *Provisioner) provision(ctx context.Context) error {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
-	// Separate pods by scheduling constraints
-	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, p.cloudProvider, pods)
-	if err != nil {
-		return fmt.Errorf("solving scheduling constraints, %w", err)
-	}
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
 	if err != nil {
 		return fmt.Errorf("getting instance types, %w", err)
+	}
+	// Separate pods by scheduling constraints
+	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	if err != nil {
+		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(i int) {
@@ -157,7 +157,7 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 		pods <- ps
 	}
 	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
-		node.Labels = functional.UnionStringMaps(node.Labels, constraints.Labels)
+		node.Labels = functional.UnionStringMaps(node.Labels, constraints.GenerateLabels())
 		node.Spec.Taints = append(node.Spec.Taints, constraints.Taints...)
 		return p.bind(ctx, node, <-pods)
 	})

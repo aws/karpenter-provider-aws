@@ -62,7 +62,7 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, cloudProvider cloudprovider.CloudProvider, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Schedule, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
@@ -71,10 +71,6 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
 	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
-	}
-	instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, constraints.Provider)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
 	// Separate pods into schedules of isomorphic scheduling constraints.
 	return s.getSchedules(constraints, instanceTypes, pods), nil
@@ -87,15 +83,15 @@ func (s *Scheduler) getSchedules(constraints *v1alpha5.Constraints, instanceType
 	schedules := []*Schedule{}
 	for _, pod := range pods {
 		isCompatible := false
-		for index, schedule := range schedules {
+		for _, schedule := range schedules {
 			if err := schedule.Requirements.Compatible(v1alpha5.NewPodRequirements(pod)); err == nil {
 				// Test if there is any instance type that can support the combined constraints
 				// TODO: Implement a virtual node approach solution that combine scheduling and node selection to solve this problem.
-				c := schedules[index].Tighten(pod)
+				c := schedule.Tighten(pod)
 				for _, instanceType := range instanceTypes {
 					if support(instanceType, c) {
-						schedules[index].Constraints = c
-						schedules[index].Pods = append(schedules[index].Pods, pod)
+						schedule.Constraints = c
+						schedule.Pods = append(schedule.Pods, pod)
 						isCompatible = true
 						break
 					}

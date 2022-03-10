@@ -215,6 +215,7 @@ var _ = Describe("Allocation", func() {
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 			It("should not schedule a non-GPU workload on a node w/GPU", func() {
+				Skip("enable after scheduling and binpacking are merged into the same process")
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
@@ -330,8 +331,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
