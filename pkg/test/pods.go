@@ -60,7 +60,7 @@ type PDBOptions struct {
 var (
 	sequentialPodNumber     = 0
 	randomSource            = rand.NewSource(time.Now().UnixNano())
-	randomizer              = rand.New(randomSource)
+	randomizer              = rand.New(randomSource) //nolint
 	sequentialPodNumberLock = new(sync.Mutex)
 )
 
