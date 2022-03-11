@@ -2,6 +2,8 @@ name: Flaky Test Finder
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '22 18 * * 0'
   pull_request:
   workflow_dispatch:
 jobs:
@@ -24,6 +26,6 @@ jobs:
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
       - name: CI - Verifications and Tests
         run: |
-          for i in {1..10}; do make ci; done
+          for i in {1..10}; do make battletest; done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
