@@ -26,11 +26,15 @@ ci: toolchain verify licenses battletest ## Run all steps used by continuous int
 test: ## Run tests
 	ginkgo -r
 
+
 strongertests:
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
 			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 			--randomizeAllSpecs --randomizeSuites -race
+
+deflake:
+	for i in {1..10}; do make strongertests; done
 
 battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
