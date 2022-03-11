@@ -16,7 +16,10 @@ package test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
@@ -54,6 +57,13 @@ type PDBOptions struct {
 	MaxUnavailable *intstr.IntOrString
 }
 
+var (
+	sequentialPodNumber     = 0
+	randomSource            = rand.NewSource(time.Now().UnixNano())
+	randomizer              = rand.New(randomSource)
+	sequentialPodNumberLock = new(sync.Mutex)
+)
+
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
 func Pod(overrides ...PodOptions) *v1.Pod {
@@ -81,7 +91,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
-				Name:      strings.ToLower(randomdata.SillyName()),
+				Name:      strings.ToLower(sequentialRandomName()),
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
@@ -94,6 +104,13 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Phase:      options.Phase,
 		},
 	}
+}
+
+func sequentialRandomName() string {
+	sequentialPodNumberLock.Lock()
+	defer sequentialPodNumberLock.Unlock()
+	sequentialPodNumber++
+	return fmt.Sprintf("P%04d-%s-%06d", sequentialPodNumber, randomdata.SillyName(), randomizer.Intn(99999))
 }
 
 // Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
