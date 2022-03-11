@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
       - name: Running tests 10 times to find flaky tests
         run: |
-          make strongertests
-          for i in {1..10}; do make battletest; done
+          make toolchain
+          for i in {1..10}; do make strongertests; done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
