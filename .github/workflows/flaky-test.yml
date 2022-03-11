@@ -1,4 +1,4 @@
-name: Flaky Test Finder
+name: Deflake
 on:
   schedule:
     - cron: '22 18 * * 0'
