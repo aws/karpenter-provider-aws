@@ -1,0 +1,29 @@
+name: Flaky Test Finder
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      K8S_VERSION: "1.21.x"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin/
+            ~/.kubebuilder/bin/k8s
+          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - name: CI - Verifications and Tests
+        run: |
+          for i in {1..10}; do make ci; done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
