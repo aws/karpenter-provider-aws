@@ -1,7 +1,5 @@
 name: Flaky Test Finder
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '22 18 * * 0'
   pull_request:
@@ -24,7 +22,7 @@ jobs:
             ~/go/bin/
             ~/.kubebuilder/bin/k8s
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
-      - name: CI - Verifications and Tests
+      - name: Running tests 10 times to find flaky tests
         run: |
           make toolchain
           for i in {1..10}; do make battletest; done
