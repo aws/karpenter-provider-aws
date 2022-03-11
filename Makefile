@@ -26,11 +26,13 @@ ci: toolchain verify licenses battletest ## Run all steps used by continuous int
 test: ## Run tests
 	ginkgo -r
 
-battletest: ## Run stronger tests
+strongertests:
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
-		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
-		--randomizeAllSpecs --randomizeSuites -race
+			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+			--randomizeAllSpecs --randomizeSuites -race
+
+battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
