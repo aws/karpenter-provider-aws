@@ -24,7 +24,7 @@ import (
 type Options struct {
 	ClusterName             string
 	ClusterEndpoint         string
-	KubeletConfig           v1alpha5.KubeletConfiguration
+	KubeletConfig           *v1alpha5.KubeletConfiguration
 	Taints                  []core.Taint      `hash:"set"`
 	Labels                  map[string]string `hash:"set"`
 	CABundle                *string

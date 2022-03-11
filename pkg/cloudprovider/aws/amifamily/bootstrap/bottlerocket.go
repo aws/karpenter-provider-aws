@@ -55,7 +55,7 @@ func (b Bottlerocket) Script() string {
 			NodeLabels:         b.Labels,
 		},
 	}}
-	if len(b.KubeletConfig.ClusterDNS) > 0 {
+	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
 		s.Settings.Kubernetes.ClusterDNSIP = b.KubeletConfig.ClusterDNS[0]
 	}
 	if !b.AWSENILimitedPodDensity {

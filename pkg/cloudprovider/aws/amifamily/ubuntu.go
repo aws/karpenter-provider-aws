@@ -36,7 +36,7 @@ func (u Ubuntu) SSMAlias(version string, instanceType cloudprovider.InstanceType
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:             u.Options.ClusterName,
