@@ -5,8 +5,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      K8S_VERSION: "1.21.x"
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2

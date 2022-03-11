@@ -26,7 +26,6 @@ ci: toolchain verify licenses battletest ## Run all steps used by continuous int
 test: ## Run tests
 	ginkgo -r
 
-
 strongertests:
 	# Run randomized, parallelized, racing, code coveraged, tests
 	ginkgo -r \
