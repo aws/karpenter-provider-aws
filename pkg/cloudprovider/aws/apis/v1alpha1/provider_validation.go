@@ -16,64 +16,66 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
 
 const (
-	launchTemplatePath          = "launchTemplate"
 	securityGroupSelectorPath   = "securityGroupSelector"
 	fieldPathSubnetSelectorPath = "subnetSelector"
-	amiFamilyPath               = "amiFamily"
-	metadataOptionsPath         = "metadataOptions"
-	instanceProfilePath         = "instanceProfile"
-	blockDeviceMappingsPath     = "blockDeviceMappings"
 )
 
-var (
-	minVolumeSize = *resource.NewScaledQuantity(1, resource.Giga)
-	maxVolumeSize = *resource.NewScaledQuantity(64, resource.Tera)
-)
-
-func (a *AWS) Validate() (errs *apis.FieldError) {
-	return a.validate().ViaField("provider")
+func (a *AWS) Validate(constraints *Constraints) (errs *apis.FieldError) {
+	if a != nil {
+		return a.validate(constraints).ViaField("provider")
+	}
+	return
 }
 
-func (a *AWS) validate() (errs *apis.FieldError) {
+func (a *AWS) validate(constraints *Constraints) (errs *apis.FieldError) {
 	return errs.Also(
-		a.validateLaunchTemplate(),
+		a.validateOSProvider(constraints),
 		a.validateSubnets(),
-		a.validateSecurityGroups(),
 		a.validateTags(),
-		a.validateMetadataOptions(),
-		a.validateAMIFamily(),
-		a.validateBlockDeviceMappings(),
 	)
 }
 
-func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
-	if a.LaunchTemplateName == nil {
-		return nil
-	}
-	if a.SecurityGroupSelector != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, securityGroupSelectorPath))
-	}
-	if a.MetadataOptions != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, metadataOptionsPath))
-	}
-	if a.AMIFamily != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, amiFamilyPath))
-	}
-	if a.InstanceProfile != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, instanceProfilePath))
-	}
-	if len(a.BlockDeviceMappings) != 0 {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, blockDeviceMappingsPath))
+func (a *AWS) validateTags() (errs *apis.FieldError) {
+	for tagKey, tagValue := range a.Tags {
+		if tagKey == "" {
+			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf(
+				"the tag with key : '' and value : '%s' is invalid because empty tag keys aren't supported", tagValue), "tags"))
+		}
 	}
 	return errs
+}
+
+func (a *AWS) validateOSProvider(constraints *Constraints) (errs *apis.FieldError) {
+	c := 0
+	if a.Amazonlinux != nil {
+		errs = errs.Also(a.Amazonlinux.Validate(constraints).ViaField(AMIFamilyAmazonlinux))
+		c++
+	}
+	if a.Bottlerocket != nil {
+		errs = errs.Also(a.Bottlerocket.Validate(constraints).ViaField(AMIFamilyBottlerocket))
+		c++
+	}
+	if a.Ubuntu != nil {
+		errs = errs.Also(a.Ubuntu.Validate(constraints).ViaField(AMIFamilyUbuntu))
+		c++
+	}
+	if a.Generic != nil {
+		errs = errs.Also(a.Generic.Validate(constraints).ViaField(AMIFamilyGeneric))
+		c++
+	}
+	if a.Predefined != nil {
+		errs = errs.Also(a.Predefined.Validate(constraints).ViaField(AMIFamilyPredefined))
+		c++
+	}
+	if c > 1 {
+		errs = errs.Also(apis.ErrMultipleOneOf(AMIFamilyAmazonlinux, AMIFamilyBottlerocket, AMIFamilyUbuntu, AMIFamilyGeneric, AMIFamilyPredefined))
+	}
+	return
 }
 
 func (a *AWS) validateSubnets() (errs *apis.FieldError) {
@@ -86,142 +88,4 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 		}
 	}
 	return errs
-}
-
-func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
-	if a.LaunchTemplateName != nil {
-		return nil
-	}
-	if a.SecurityGroupSelector == nil {
-		errs = errs.Also(apis.ErrMissingField(securityGroupSelectorPath))
-	}
-	for key, value := range a.SecurityGroupSelector {
-		if key == "" || value == "" {
-			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", securityGroupSelectorPath, key)))
-		}
-	}
-	return errs
-}
-
-func (a *AWS) validateTags() (errs *apis.FieldError) {
-	// Avoiding a check on number of tags (hard limit of 50) since that limit is shared by user
-	// defined and Karpenter tags, and the latter could change over time.
-	for tagKey, tagValue := range a.Tags {
-		if tagKey == "" {
-			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf(
-				"the tag with key : '' and value : '%s' is invalid because empty tag keys aren't supported", tagValue), "tags"))
-		}
-	}
-	return errs
-}
-
-func (a *AWS) validateMetadataOptions() (errs *apis.FieldError) {
-	if a.MetadataOptions == nil {
-		return nil
-	}
-	return errs.Also(
-		a.validateHTTPEndpoint(),
-		a.validateHTTPProtocolIpv6(),
-		a.validateHTTPPutResponseHopLimit(),
-		a.validateHTTPTokens(),
-	).ViaField(metadataOptionsPath)
-}
-
-func (a *AWS) validateHTTPEndpoint() *apis.FieldError {
-	if a.MetadataOptions.HTTPEndpoint == nil {
-		return nil
-	}
-	return a.validateStringEnum(*a.MetadataOptions.HTTPEndpoint, "httpEndpoint", ec2.LaunchTemplateInstanceMetadataEndpointState_Values())
-}
-
-func (a *AWS) validateHTTPProtocolIpv6() *apis.FieldError {
-	if a.MetadataOptions.HTTPProtocolIPv6 == nil {
-		return nil
-	}
-	return a.validateStringEnum(*a.MetadataOptions.HTTPProtocolIPv6, "httpProtocolIPv6", ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values())
-}
-
-func (a *AWS) validateHTTPPutResponseHopLimit() *apis.FieldError {
-	if a.MetadataOptions.HTTPPutResponseHopLimit == nil {
-		return nil
-	}
-	limit := *a.MetadataOptions.HTTPPutResponseHopLimit
-	if limit < 1 || limit > 64 {
-		return apis.ErrOutOfBoundsValue(limit, 1, 64, "httpPutResponseHopLimit")
-	}
-	return nil
-}
-
-func (a *AWS) validateHTTPTokens() *apis.FieldError {
-	if a.MetadataOptions.HTTPTokens == nil {
-		return nil
-	}
-	return a.validateStringEnum(*a.MetadataOptions.HTTPTokens, "httpTokens", ec2.LaunchTemplateHttpTokensState_Values())
-}
-
-func (a *AWS) validateAMIFamily() *apis.FieldError {
-	if a.AMIFamily == nil {
-		return nil
-	}
-	return a.validateStringEnum(*a.AMIFamily, amiFamilyPath, SupportedAMIFamilies)
-}
-
-func (a *AWS) validateStringEnum(value, field string, validValues []string) *apis.FieldError {
-	for _, validValue := range validValues {
-		if value == validValue {
-			return nil
-		}
-	}
-	return apis.ErrInvalidValue(fmt.Sprintf("%s not in %v", value, strings.Join(validValues, ", ")), field)
-}
-
-func (a *AWS) validateBlockDeviceMappings() (errs *apis.FieldError) {
-	for i, blockDeviceMapping := range a.BlockDeviceMappings {
-		if err := a.validateBlockDeviceMapping(blockDeviceMapping); err != nil {
-			errs = errs.Also(err.ViaFieldIndex(blockDeviceMappingsPath, i))
-		}
-	}
-	return errs
-}
-
-func (a *AWS) validateBlockDeviceMapping(blockDeviceMapping *BlockDeviceMapping) (errs *apis.FieldError) {
-	return errs.Also(a.validateDeviceName(blockDeviceMapping), a.validateEBS(blockDeviceMapping))
-}
-
-func (a *AWS) validateDeviceName(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
-	if blockDeviceMapping.DeviceName == nil {
-		return apis.ErrMissingField("deviceName")
-	}
-	return nil
-}
-
-func (a *AWS) validateEBS(blockDeviceMapping *BlockDeviceMapping) (errs *apis.FieldError) {
-	if blockDeviceMapping.EBS == nil {
-		return apis.ErrMissingField("ebs")
-	}
-	for _, err := range []*apis.FieldError{
-		a.validateVolumeType(blockDeviceMapping),
-		a.validateVolumeSize(blockDeviceMapping),
-	} {
-		if err != nil {
-			errs = errs.Also(err.ViaField("ebs"))
-		}
-	}
-	return errs
-}
-
-func (a *AWS) validateVolumeType(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
-	if blockDeviceMapping.EBS.VolumeType != nil {
-		return a.validateStringEnum(*blockDeviceMapping.EBS.VolumeType, "volumeType", ec2.VolumeType_Values())
-	}
-	return nil
-}
-
-func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.FieldError {
-	if blockDeviceMapping.EBS.VolumeSize == nil {
-		return apis.ErrMissingField("volumeSize")
-	} else if blockDeviceMapping.EBS.VolumeSize.Cmp(minVolumeSize) == -1 || blockDeviceMapping.EBS.VolumeSize.Cmp(maxVolumeSize) == 1 {
-		return apis.ErrOutOfBoundsValue(blockDeviceMapping.EBS.VolumeSize.String(), minVolumeSize.String(), maxVolumeSize.String(), "volumeSize")
-	}
-	return nil
 }

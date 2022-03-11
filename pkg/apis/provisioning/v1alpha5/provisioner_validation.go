@@ -67,6 +67,8 @@ func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
 		c.validateLabels(),
 		c.validateTaints(),
 		c.validateRequirements(),
+		c.validateKubeletConfig(),
+		c.validateContainerRuntimeConfiguration(),
 		ValidateHook(ctx, c),
 	)
 }
@@ -154,4 +156,12 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
 	}
 	return errs
+}
+
+func (c *Constraints) validateKubeletConfig() (errs *apis.FieldError) {
+	return c.KubeletConfiguration.validate().ViaField("kubeletConfiguration")
+}
+
+func (c *Constraints) validateContainerRuntimeConfiguration() (errs *apis.FieldError) {
+	return c.ContainerRuntimeConfiguration.validate().ViaField("containerRuntimeConfiguration")
 }

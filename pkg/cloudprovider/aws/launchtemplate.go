@@ -16,9 +16,8 @@ package aws
 
 import (
 	"context"
-	"errors"
+	"encoding/base64"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -28,14 +27,13 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/launchtemplate"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -47,31 +45,25 @@ const (
 
 type LaunchTemplateProvider struct {
 	sync.Mutex
-	ec2api                ec2iface.EC2API
-	clientSet             *kubernetes.Clientset
-	amiFamily             *amifamily.Resolver
-	securityGroupProvider *SecurityGroupProvider
-	cache                 *cache.Cache
-	logger                *zap.SugaredLogger
-	caBundle              *string
+	logger  *zap.SugaredLogger
+	ec2api  ec2iface.EC2API
+	builder *launchtemplate.Builder
+	cache   *cache.Cache
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, builder *launchtemplate.Builder) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
-		ec2api:                ec2api,
-		clientSet:             clientSet,
-		logger:                logging.FromContext(ctx).Named("launchtemplate"),
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		cache:                 cache.New(CacheTTL, CacheCleanupInterval),
-		caBundle:              caBundle,
+		ec2api:  ec2api,
+		logger:  logging.FromContext(ctx).Named("launchtemplate"),
+		builder: builder,
+		cache:   cache.New(CacheTTL, CacheCleanupInterval),
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
 	l.hydrateCache(ctx)
 	return l
 }
 
-func launchTemplateName(options *amifamily.LaunchTemplate) string {
+func launchTemplateName(options *launchTemplateOptions) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, nil)
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -79,51 +71,64 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
-	// If Launch Template is directly specified then just use it
-	if constraints.LaunchTemplateName != nil {
-		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplateName): instanceTypes}, nil
-	}
-	instanceProfile, err := p.getInstanceProfile(ctx, constraints)
-	if err != nil {
-		return nil, err
-	}
-	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, constraints)
-	if err != nil {
-		return nil, err
-	}
-	kubeServerVersion, err := p.kubeServerVersion(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, constraints, instanceTypes, &amifamily.Options{
-		ClusterName:             injection.GetOptions(ctx).ClusterName,
-		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
-		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    constraints.Tags,
-		Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
-		CABundle:                p.caBundle,
-		KubernetesVersion:       kubeServerVersion,
-	})
-	if err != nil {
-		return nil, err
-	}
-	launchTemplates := map[string][]cloudprovider.InstanceType{}
-	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
-		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
-		if err != nil {
-			return nil, err
-		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
-	}
-	return launchTemplates, nil
+// launchTemplateOptions is hashed and results in the creation of a real EC2
+// LaunchTemplate. Do not change this struct without thinking through the impact
+// to the number of LaunchTemplates that will result from this change.
+type launchTemplateOptions struct {
+	// Edge-triggered fields that will only change on kube events.
+	ClusterName string
+	Tags        map[string]string
+	Options     *ec2.RequestLaunchTemplateData
 }
 
-func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[*v1alpha1.LauchtemplateReference][]cloudprovider.InstanceType, error) {
+	osProvider := launchtemplate.OSProviderOf(&constraints.AWS)
+	k8sVersion, err := p.builder.K8sClient.ServerVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	caBundle, err := p.GetCABundle(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting ca bundle for user data, %w", err)
+	}
+	nodeLabelArgs := functional.UnionStringMaps(additionalLabels, constraints.Labels)
+	configuration := &launchtemplate.Configuration{
+		Constraints:            constraints,
+		ClusterName:            injection.GetOptions(ctx).ClusterName,
+		ClusterEndpoint:        injection.GetOptions(ctx).ClusterEndpoint,
+		DefaultInstanceProfile: injection.GetOptions(ctx).AWSDefaultInstanceProfile,
+		KubernetesVersion:      *k8sVersion,
+		NodeLabels:             nodeLabelArgs,
+		CABundle:               caBundle,
+	}
+	launchTemplates, err := osProvider.GetLaunchTemplates(ctx, p.builder, configuration, instanceTypes)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[*v1alpha1.LauchtemplateReference][]cloudprovider.InstanceType)
+	for templateInput, compatibleInstanceTypes := range launchTemplates {
+		if templateInput.ByReference != nil {
+			// If Launch Template is directly specified then just use it
+			result[templateInput.ByReference] = compatibleInstanceTypes
+		} else {
+			input := templateInput.ByContent
+			launchTemplate, err := p.ensureLaunchTemplate(ctx, &launchTemplateOptions{
+				ClusterName: injection.GetOptions(ctx).ClusterName,
+				Tags:        constraints.Tags,
+				Options:     input,
+			})
+			if err != nil {
+				return nil, err
+			}
+			result[&v1alpha1.LauchtemplateReference{
+				LaunchTemplateName: launchTemplate.LaunchTemplateName,
+			}] = compatibleInstanceTypes
+		}
+	}
+	return result, nil
+}
+
+func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	// Ensure that multiple threads don't attempt to create the same launch template
 	p.Lock()
 	defer p.Unlock()
@@ -157,24 +162,10 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 	return launchTemplate, nil
 }
 
-func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *launchTemplateOptions) (*ec2.LaunchTemplate, error) {
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
-		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
-			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
-			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-				Name: aws.String(options.InstanceProfile),
-			},
-			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
-			UserData:         aws.String(options.UserData.Script()),
-			ImageId:          aws.String(options.AMIID),
-			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
-				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
-				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
-				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
-				HttpTokens:              options.MetadataOptions.HTTPTokens,
-			},
-		},
+		LaunchTemplateData: options.Options,
 		TagSpecifications: []*ec2.TagSpecification{{
 			ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
 			Tags:         v1alpha1.MergeTags(ctx, options.Tags),
@@ -185,25 +176,6 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 	}
 	logging.FromContext(ctx).Debugf("Created launch template, %s", *output.LaunchTemplate.LaunchTemplateName)
 	return output.LaunchTemplate, nil
-}
-
-func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
-	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
-	for _, blockDeviceMapping := range blockDeviceMappings {
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
-			DeviceName: blockDeviceMapping.DeviceName,
-			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
-				Encrypted:           blockDeviceMapping.EBS.Encrypted,
-				VolumeType:          blockDeviceMapping.EBS.VolumeType,
-				Iops:                blockDeviceMapping.EBS.IOPS,
-				Throughput:          blockDeviceMapping.EBS.Throughput,
-				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
-				VolumeSize:          aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga)),
-			},
-		})
-	}
-	return blockDeviceMappingsRequest
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
@@ -241,27 +213,25 @@ func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
 	p.logger.Debugf("Deleted launch template %v", aws.StringValue(launchTemplate.LaunchTemplateId))
 }
 
-func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
-	if constraints.InstanceProfile != nil {
-		return aws.StringValue(constraints.InstanceProfile), nil
+func (p *LaunchTemplateProvider) GetCABundle(ctx context.Context) (*string, error) {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	restConfig := injection.GetConfig(ctx)
+	if restConfig == nil {
+		return nil, nil
 	}
-	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
-	if defaultProfile == "" {
-		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
-	}
-	return defaultProfile, nil
-}
-
-func (p *LaunchTemplateProvider) kubeServerVersion(ctx context.Context) (string, error) {
-	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
-		return version.(string), nil
-	}
-	serverVersion, err := p.clientSet.Discovery().ServerVersion()
+	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
-		return "", err
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading transport config, %v", err)
+		return nil, err
 	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.cache.SetDefault(kubernetesVersionCacheKey, version)
-	logging.FromContext(ctx).Debugf("Discovered kubernetes version %s", version)
-	return version, nil
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		logging.FromContext(ctx).Debugf("Unable to discover caBundle, loading TLS config, %v", err)
+		return nil, err
+	}
+	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }

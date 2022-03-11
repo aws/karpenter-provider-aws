@@ -26,12 +26,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/launchtemplate"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -80,8 +79,14 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
-	subnetProvider := NewSubnetProvider(ec2api)
+	subnetProvider := NewSubnetProvider(ec2api, injection.GetOptions(ctx).ClusterName)
 	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider)
+
+	ssmClient := launchtemplate.NewCachingSSMClient(launchtemplate.NewAWSSSMClient(ssm.New(sess)))
+	amiResolver := launchtemplate.NewCachingAMIResolver(launchtemplate.NewAWSAMIResolver(ec2.New(sess)))
+	securityGroupprovider := launchtemplate.NewCachingSecurityGroupResolver(launchtemplate.NewNativeSecurityGroupResolver(ec2.New(sess)))
+	k8sClient := launchtemplate.NewCachingK8sClient(launchtemplate.NewNativeK8sClient(options.ClientSet))
+
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,
@@ -89,10 +94,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				options.ClientSet,
-				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
-				NewSecurityGroupProvider(ec2api),
-				getCABundle(ctx),
+				launchtemplate.NewBuilder(k8sClient, ssmClient, amiResolver, securityGroupprovider),
 			),
 		},
 	}
@@ -123,7 +125,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints.AWS)
+	return c.instanceTypeProvider.Get(ctx, &vendorConstraints.AWS)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -136,7 +138,7 @@ func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Cons
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return vendorConstraints.AWS.Validate()
+	return vendorConstraints.AWS.Validate(vendorConstraints)
 }
 
 // Default the provisioner
@@ -173,7 +175,7 @@ func withUserAgent(sess *session.Session) *session.Session {
 	return sess
 }
 
-func getCABundle(ctx context.Context) *string {
+func GetCABundle(ctx context.Context) *string {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod

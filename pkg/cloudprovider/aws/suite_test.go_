@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/launchtemplate"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
@@ -84,7 +85,6 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
-		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
@@ -98,22 +98,15 @@ var _ = BeforeSuite(func() {
 			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 			unavailableOfferings: unavailableOfferingsCache,
 		}
-		securityGroupProvider := &SecurityGroupProvider{
-			ec2api: fakeEC2API,
-			cache:  securityGroupCache,
-		}
 		clientSet := kubernetes.NewForConfigOrDie(e.Config)
 		cloudProvider := &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
-					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache),
-					clientSet:             clientSet,
-					securityGroupProvider: securityGroupProvider,
-					cache:                 launchTemplateCache,
-					caBundle:              ptr.String("ca-bundle"),
+					ec2api:  fakeEC2API,
+					builder: launchtemplate.NewBuilder(ctx, fake.DefaultK8sClient(), fake.DefaultSSMClient(), fake.NewDefaultAMIResolver(), fake.DefaultSecurityGroupProvider()),
+					cache:   launchTemplateCache,
 				},
 			},
 		}

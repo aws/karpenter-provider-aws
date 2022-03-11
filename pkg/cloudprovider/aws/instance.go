@@ -172,7 +172,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, constraints.AWS)
+	subnets, err := p.subnetProvider.Get(ctx, &constraints.AWS)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
@@ -181,12 +181,18 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
-	for launchTemplateName, instanceTypes := range launchTemplates {
+	for launchTemplateReference, instanceTypes := range launchTemplates {
+		var name = launchTemplateReference.LaunchTemplateName
+		var id *string
+		if name == nil {
+			id = launchTemplateReference.LaunchTemplateID
+		}
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
 			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplateName),
-				Version:            aws.String("$Latest"),
+				LaunchTemplateName: name,
+				LaunchTemplateId:   id,
+				Version:            aws.String(launchTemplateReference.GetVersion()),
 			},
 		}
 		if len(launchTemplateConfig.Overrides) > 0 {

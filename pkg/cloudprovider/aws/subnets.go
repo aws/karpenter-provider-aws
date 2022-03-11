@@ -30,19 +30,21 @@ import (
 )
 
 type SubnetProvider struct {
-	ec2api ec2iface.EC2API
-	cache  *cache.Cache
+	ec2api      ec2iface.EC2API
+	cache       *cache.Cache
+	clusterName string
 }
 
-func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
+func NewSubnetProvider(ec2api ec2iface.EC2API, clusterName string) *SubnetProvider {
 	return &SubnetProvider{
-		ec2api: ec2api,
-		cache:  cache.New(CacheTTL, CacheCleanupInterval),
+		ec2api:      ec2api,
+		cache:       cache.New(CacheTTL, CacheCleanupInterval),
+		clusterName: clusterName,
 	}
 }
 
 func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
-	filters := getFilters(constraints)
+	filters := p.getFilters(constraints)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -62,7 +64,7 @@ func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]
 	return output.Subnets, nil
 }
 
-func getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
+func (p *SubnetProvider) getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
 	for key, value := range constraints.SubnetSelector {
@@ -72,11 +74,22 @@ func getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
 				Values: []*string{aws.String(key)},
 			})
 		} else {
+			// Support placeholder for cluster name, to enable cluster name agnostic
+			// filtering.
+			if key == "kubernetes.io/cluster/{{ClusterName}}" {
+				key = fmt.Sprintf("kubernetes.io/cluster/%s", p.clusterName)
+			}
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
 				Values: []*string{aws.String(value)},
 			})
 		}
+	}
+	if len(filters) == 0 {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", p.clusterName)),
+			Values: []*string{aws.String("shared")},
+		})
 	}
 	return filters
 }

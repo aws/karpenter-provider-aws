@@ -14,7 +14,6 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-toml/v2 v2.0.0-beta.5
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	go.uber.org/multierr v1.7.0
@@ -28,6 +27,8 @@ require (
 	knative.dev/pkg v0.0.0-20211120133512-d016976f2567
 	sigs.k8s.io/controller-runtime v0.9.7
 )
+
+require k8s.io/utils v0.0.0-20210802155522-efc7438f0176
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
@@ -68,6 +69,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.7.1-0.20210427113832-6241f9ab9942 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.4.0 // indirect
@@ -91,7 +93,6 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/klog/v2 v2.8.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
-	k8s.io/utils v0.0.0-20210802155522-efc7438f0176 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

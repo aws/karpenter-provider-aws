@@ -33,13 +33,17 @@ var (
 	AWSRestrictedLabelDomains = []string{
 		"k8s.aws",
 	}
-	AMIFamilyBottlerocket = "Bottlerocket"
-	AMIFamilyAL2          = "AL2"
-	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyBottlerocket = "bottlerocket"
+	AMIFamilyAmazonlinux  = "amazonlinux"
+	AMIFamilyUbuntu       = "ubuntu"
+	AMIFamilyGeneric      = "generic"
+	AMIFamilyPredefined   = "predefined"
 	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
-		AMIFamilyAL2,
+		AMIFamilyAmazonlinux,
 		AMIFamilyUbuntu,
+		AMIFamilyGeneric,
+		AMIFamilyPredefined,
 	}
 )
 

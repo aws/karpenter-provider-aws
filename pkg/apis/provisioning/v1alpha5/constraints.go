@@ -34,9 +34,13 @@ type Constraints struct {
 	Taints Taints `json:"taints,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
 	Requirements Requirements `json:"requirements,inline,omitempty"`
-	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
+	// KubeletConfiguration are options passed to the kubelet when provisioning nodes, this
+	// is a subset of https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration.
 	//+optional
-	KubeletConfiguration *KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
+	KubeletConfiguration KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
+	// ContainerRuntimeConfiguration are options passed to the container runtime when provisioning nodes
+	//+optional
+	ContainerRuntimeConfiguration ContainerRuntimeConfiguration `json:"containerRuntimeConfiguration,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *Provider `json:"provider,omitempty"`
