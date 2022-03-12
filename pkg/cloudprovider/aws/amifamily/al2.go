@@ -45,7 +45,7 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:             a.Options.ClusterName,

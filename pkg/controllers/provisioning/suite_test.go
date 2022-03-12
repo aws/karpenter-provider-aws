@@ -70,7 +70,7 @@ var _ = Describe("Provisioning", func() {
 		provisioner = &v1alpha5.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: v1alpha5.ProvisionerSpec{
-				Limits: v1alpha5.Limits{
+				Limits: &v1alpha5.Limits{
 					Resources: v1.ResourceList{
 						v1.ResourceCPU: *resource.NewScaledQuantity(10, 0),
 					},
