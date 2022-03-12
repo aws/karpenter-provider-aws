@@ -33,7 +33,7 @@ strongertests:
 			--randomizeAllSpecs --randomizeSuites -race
 
 deflake:
-	for i in {1..10}; do make strongertests; done
+	for i in {1..10}; do make strongertests || exit 1; done
 
 battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
