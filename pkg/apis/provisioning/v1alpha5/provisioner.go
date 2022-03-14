@@ -47,7 +47,7 @@ type ProvisionerSpec struct {
 
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=provisioners,scope=Cluster
+// +kubebuilder:resource:path=provisioners,scope=Cluster,categories=karpenter
 // +kubebuilder:subresource:status
 type Provisioner struct {
 	metav1.TypeMeta   `json:",inline"`
