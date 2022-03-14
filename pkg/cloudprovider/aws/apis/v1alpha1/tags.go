@@ -28,8 +28,14 @@ import (
 
 func MergeTags(ctx context.Context, custom ...map[string]string) (result []*ec2.Tag) {
 	tags := map[string]string{
+		// karpenter.sh/provisioner-name: <provisioner-name>
 		v1alpha5.ProvisionerNameLabelKey: injection.GetNamespacedName(ctx).Name,
-		"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, injection.GetNamespacedName(ctx).Name),
+		// karpenter.sh/cluster/<cluster-name>: owned
+		fmt.Sprintf("%s/cluster/%s", v1alpha5.Group, injection.GetOptions(ctx).ClusterName): "owned",
+		// kubernetes.io/cluster/<cluster-name>: owned
+		fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned",
+		// Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
+		"Name": fmt.Sprintf("%s/cluster/%s/provisioner/%s", v1alpha5.Group, injection.GetOptions(ctx).ClusterName, injection.GetNamespacedName(ctx).Name),
 	}
 	// Custom tags may override defaults (e.g. Name)
 	for _, t := range custom {

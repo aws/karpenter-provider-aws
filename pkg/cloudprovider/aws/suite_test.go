@@ -476,7 +476,7 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 				// tags should be included in both the instance and volume tag specification
 				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
@@ -497,7 +497,7 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
 
 				// tags should be included in both the instance and volume tag specification
 				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
@@ -505,6 +505,41 @@ var _ = Describe("Allocation", func() {
 
 				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
+
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				createLaunchTemplateInput := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				// default tags should be included in the LaunchTemplate specification
+				Expect(*createLaunchTemplateInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeLaunchTemplate))
+				ExpectTags(createLaunchTemplateInput.TagSpecifications[0].Tags, provider.Tags)
+			})
+
+			It("should apply default tags if not overriden", func() {
+				// default tags applied to all created resources
+				defaultTags := map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					fmt.Sprintf("karpenter.sh/cluster/%s", opts.ClusterName): "owned",
+					fmt.Sprintf("kubernetes.io/cluster/%s", opts.ClusterName): "owned",
+					"Name": fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s", opts.ClusterName, provisioner.Name),
+				}
+
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
+
+				// default tags should be included in the Instance specification
+				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+				ExpectTags(createFleetInput.TagSpecifications[0].Tags, defaultTags)
+				// default tags should be included in the Volume specification
+				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+				ExpectTags(createFleetInput.TagSpecifications[1].Tags, defaultTags)
+
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				createLaunchTemplateInput := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				// default tags should be included in the LaunchTemplate specification
+				Expect(*createLaunchTemplateInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeLaunchTemplate))
+				ExpectTags(createLaunchTemplateInput.TagSpecifications[0].Tags, defaultTags)
 			})
 
 			It("should default to a generated launch template", func() {
@@ -531,6 +566,26 @@ var _ = Describe("Allocation", func() {
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal("test-launch-template"))
 				Expect(*launchTemplate.Version).To(Equal("$Latest"))
+			})
+		})
+		Context("Fleets", func() {
+			It("should have default tags applied", func() {
+				// default tags applied to all created resources
+				defaultTags := map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					fmt.Sprintf("karpenter.sh/cluster/%s", opts.ClusterName): "owned",
+					fmt.Sprintf("kubernetes.io/cluster/%s", opts.ClusterName): "owned",
+					"Name": fmt.Sprintf("karpenter.sh/cluster/%s/provisioner/%s", opts.ClusterName, provisioner.Name),
+				}
+
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+
+				// default tags should be included in the fleet tag specifications
+				Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
+				ExpectTags(createFleetInput.TagSpecifications[2].Tags, defaultTags)
 			})
 		})
 		Context("Subnets", func() {
