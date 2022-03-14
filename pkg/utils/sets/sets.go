@@ -58,6 +58,11 @@ func (s Set) IsComplement() bool {
 	return s.complement
 }
 
+//  IsEmpty returns whether the set is an empty set.
+func (s Set) IsEmpty() bool {
+	return !s.complement && s.values.Len() == 0
+}
+
 // Values returns the values of the set.
 // If the set has an infinite size, it will panic
 func (s Set) Values() sets.String {

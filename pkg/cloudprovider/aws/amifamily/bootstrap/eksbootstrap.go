@@ -69,7 +69,7 @@ func (e EKS) nodeLabelArg() string {
 	labelStrings := []string{}
 	var once sync.Once
 	for k, v := range e.Labels {
-		if v1alpha5.AllowedLabelDomains.Has(k) {
+		if v1alpha5.LabelDomainExceptions.Has(k) {
 			continue
 		}
 		once.Do(func() { nodeLabelArg = "--node-labels=" })
