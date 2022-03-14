@@ -11,4 +11,4 @@ extraScrapeConfigs: |
     - job_name: karpenter
       static_configs:
       - targets:
-        - karpenter-metrics.karpenter:8080
+        - karpenter.karpenter:8080
