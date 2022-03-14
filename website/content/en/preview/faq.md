@@ -71,6 +71,16 @@ This is analogous to the default scheduler.
 To select an alternative provisioner, use the node selector `karpenter.sh/provisioner-name: alternative-provisioner`.
 You must either define a default provisioner or explicitly specify `karpenter.sh/provisioner-name node selector`.
 
+### How can I configure Karpenter to only provision pods for a particular namespace?
+
+There is no native support for namespaced based provisioning.
+Karpenter can be configured to provision a subset of pods based on a combination of taints/tolerations and node selectors.
+This allows Karpenter to work in concert with the `kube-scheduler` in that the same mechanisms that `kube-scheduler` uses to determine if a pod can schedule to an existing node are also used for provisioning new nodes.
+This avoids scenarios where pods are bound to nodes that were provisioned by Karpenter which Karpenter would not have bound itself.
+If this were to occur, a node could remain non-empty and have its lifetime extended due to a pod that wouldn't have caused the node to be provisioned had the pod been unschedulable. 
+
+We recommend using Kubernetes native scheduling constraints to achieve namespace based scheduling segregation. Using native scheduling constraints ensures that Karpenter, `kube-scheduler` and any other scheduling or auto-provisioning mechanism all have an identical understanding of which pods can be scheduled on which nodes.  This can be enforced via policy agents, an example of which can be seen [here](https://blog.mikesir87.io/2022/01/creating-tenant-node-pools-with-karpenter/).
+
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
 See examples in [Accelerators, GPU]({{< ref "./aws/provisioning/#accelerators-gpu" >}}) Karpenter documentation.
