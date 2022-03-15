@@ -105,7 +105,7 @@ func (p *Packer) Pack(ctx context.Context, constraints *v1alpha5.Constraints, po
 	var packings []*Packing
 	var packing *Packing
 	remainingPods := pods
-	emptyPackables := PackablesFor(ctx, instanceTypes, constraints, pods, daemons)
+	emptyPackables := PackablesFor(ctx, instanceTypes, daemons)
 	for len(remainingPods) > 0 {
 		packables := []*Packable{}
 		for _, packable := range emptyPackables {

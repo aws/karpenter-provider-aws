@@ -323,7 +323,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(2 * 1024),
+					SizeInMiB: aws.Int64(4 * 1024),
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(4),
@@ -448,6 +448,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("inf1.6xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("c6g.large"),
 				Location:     aws.String("test-zone-1a"),
 			},
 		},
