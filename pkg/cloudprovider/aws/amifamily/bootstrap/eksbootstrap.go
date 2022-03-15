@@ -41,7 +41,7 @@ func (e EKS) Script() string {
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
 	if !e.AWSENILimitedPodDensity {
-		userData.WriteString(" \\\n--use-max-pods false")
+		userData.WriteString(" \\\n--use-max-pods=false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
 	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
