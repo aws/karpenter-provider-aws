@@ -41,14 +41,14 @@ func (e EKS) Script() string {
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
 	if !e.AWSENILimitedPodDensity {
-		userData.WriteString(" \\\n--use-max-pods=false")
+		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
 	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args='%s'", kubeletExtraArgs))
+		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgs))
 	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip='%s'", e.KubeletConfig.ClusterDNS[0]))
+		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }
