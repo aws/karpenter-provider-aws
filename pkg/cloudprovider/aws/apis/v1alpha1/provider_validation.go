@@ -34,6 +34,7 @@ const (
 	metadataOptionsPath         = "metadataOptions"
 	instanceProfilePath         = "instanceProfile"
 	blockDeviceMappingsPath     = "blockDeviceMappings"
+	contextPath                 = "context"
 )
 
 var (
@@ -58,6 +59,7 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 		a.validateMetadataOptions(),
 		a.validateAMIFamily(),
 		a.validateBlockDeviceMappings(),
+		a.validateContext(),
 	)
 }
 
@@ -137,6 +139,16 @@ func (a *AWS) validateTags() (errs *apis.FieldError) {
 				"the tag with key : '' and value : '%s' is invalid because empty tag keys aren't supported", tagValue), "tags"))
 		}
 	}
+	return errs
+}
+
+func (a *AWS) validateContext() (errs *apis.FieldError) {
+	if a.Context != nil {
+		if *a.Context == "" {
+			errs = errs.Also(apis.ErrInvalidValue("if provided, Context must be a non-empty string", contextPath))
+		}
+	}
+
 	return errs
 }
 
