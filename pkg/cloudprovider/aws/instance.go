@@ -127,7 +127,6 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
-		Context:               aws.String(injection.GetOptions(ctx).AWSEC2FleetContext),
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
@@ -143,6 +142,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+	}
+	if fleetContext != "" {
+		createFleetInput.Context = &fleetContext
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
