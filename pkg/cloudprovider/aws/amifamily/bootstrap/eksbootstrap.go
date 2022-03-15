@@ -36,6 +36,7 @@ func (e EKS) Script() string {
 	var userData bytes.Buffer
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
+	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
 	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
