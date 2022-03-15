@@ -31,12 +31,12 @@ type EKS struct {
 func (e EKS) Script() string {
 	var caBundleArg string
 	if e.CABundle != nil {
-		caBundleArg = fmt.Sprintf("--b64-cluster-ca='%s'", *e.CABundle)
+		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
 	}
 	var userData bytes.Buffer
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
-	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint='%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
+	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
