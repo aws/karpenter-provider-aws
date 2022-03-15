@@ -31,24 +31,25 @@ type EKS struct {
 func (e EKS) Script() string {
 	var caBundleArg string
 	if e.CABundle != nil {
-		caBundleArg = fmt.Sprintf("--b64-cluster-ca='%s'", *e.CABundle)
+		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
 	}
 	var userData bytes.Buffer
 	userData.WriteString("#!/bin/bash -xe\n")
 	userData.WriteString("exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n")
-	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint='%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
+	// Due to the way bootstrap.sh is written, parameters should not be passed to it with an equal sign
+	userData.WriteString(fmt.Sprintf("/etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' %s", e.ClusterName, e.ClusterEndpoint, caBundleArg))
 
 	kubeletExtraArgs := strings.Join([]string{e.nodeLabelArg(), e.nodeTaintArg()}, " ")
 
 	if !e.AWSENILimitedPodDensity {
-		userData.WriteString(" \\\n--use-max-pods=false")
+		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
 	}
 	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args='%s'", kubeletExtraArgs))
+		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgs))
 	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
-		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip='%s'", e.KubeletConfig.ClusterDNS[0]))
+		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }

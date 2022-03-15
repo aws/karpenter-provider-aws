@@ -630,7 +630,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods=false"))
+				Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
@@ -640,7 +640,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).To(ContainSubstring("--use-max-pods=false"))
+				Expect(string(userData)).To(ContainSubstring("--use-max-pods false"))
 				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 			})
 			Context("Kubelet Args", func() {
@@ -651,7 +651,7 @@ var _ = Describe("Allocation", func() {
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip='10.0.10.100'"))
+					Expect(string(userData)).To(ContainSubstring("--dns-cluster-ip '10.0.10.100'"))
 				})
 			})
 			Context("Instance Profile", func() {
