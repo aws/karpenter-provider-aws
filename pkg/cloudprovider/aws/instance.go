@@ -348,8 +348,8 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 
 func (p *InstanceProvider) getFleetContext(aws *v1alpha1.AWS) string {
 
-	if aws.FleetContext != nil && *aws.FleetContext != "" {
-		return *aws.FleetContext
+	if aws.Context != nil && *aws.Context != "" {
+		return *aws.Context
 	}
 
 	return ""
