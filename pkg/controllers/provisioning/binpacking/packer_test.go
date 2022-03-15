@@ -52,7 +52,7 @@ func BenchmarkPacker(b *testing.B) {
 		},
 	})
 
-	schedule := &scheduling.Schedule{
+	node := &scheduling.Node{
 		Constraints: &v1alpha5.Constraints{
 			Requirements: v1alpha5.NewRequirements([]v1.NodeSelectorRequirement{
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}},
@@ -67,7 +67,7 @@ func BenchmarkPacker(b *testing.B) {
 
 	// Pack benchmark
 	for i := 0; i < b.N; i++ {
-		if packings, err := packer.Pack(ctx, schedule.Constraints, pods, instanceTypes); err != nil || len(packings) == 0 {
+		if packings, err := packer.Pack(ctx, node.Constraints, pods, instanceTypes); err != nil || len(packings) == 0 {
 			b.FailNow()
 		}
 	}

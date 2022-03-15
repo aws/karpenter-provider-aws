@@ -45,87 +45,47 @@ func init() {
 }
 
 type Scheduler struct {
-	KubeClient client.Client
-	Topology   *Topology
-}
-
-type Schedule struct {
-	*v1alpha5.Constraints
-	// Pods is a set of pods that may schedule to the node; used for binpacking.
-	Pods []*v1.Pod
+	kubeClient client.Client
+	topology   *Topology
 }
 
 func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology:   &Topology{kubeClient: kubeClient},
+		kubeClient: kubeClient,
+		topology:   &Topology{kubeClient: kubeClient},
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Schedule, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
-	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
+	// lets us treat TopologySpreadConstraints as just-in-time NodeSelectors.
+	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
-	// Separate pods into schedules of isomorphic scheduling constraints.
-	return s.getSchedules(constraints, instanceTypes, pods), nil
+	return s.schedule(constraints, instanceTypes, pods), nil
 }
 
-// getSchedules separates pods into a set of schedules. All pods in each group
-// contain isomorphic scheduling constraints and can be deployed together on the
-// same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Schedule {
-	schedules := []*Schedule{}
+// schedule separates pods into a list of TheoreticalNodes that contain the pods. All pods in each theoretical node
+// contain isomorphic scheduling constraints and can be deployed together on the same node, or multiple similar nodes if
+// the pods exceed one node's capacity.
+func (s *Scheduler) schedule(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Node {
+	var nodes []*Node
 	for _, pod := range pods {
-		isCompatible := false
-		for _, schedule := range schedules {
-			if err := schedule.Requirements.Compatible(v1alpha5.NewPodRequirements(pod)); err == nil {
-				// Test if there is any instance type that can support the combined constraints
-				// TODO: Implement a virtual node approach solution that combine scheduling and node selection to solve this problem.
-				c := schedule.Tighten(pod)
-				for _, instanceType := range instanceTypes {
-					if support(instanceType, c) {
-						schedule.Constraints = c
-						schedule.Pods = append(schedule.Pods, pod)
-						isCompatible = true
-						break
-					}
-				}
+		isScheduled := false
+		for _, node := range nodes {
+			if err := node.Compatible(pod); err == nil {
+				node.Add(pod)
+				isScheduled = true
+				break
 			}
 		}
-		if !isCompatible {
-			schedules = append(schedules, &Schedule{Constraints: constraints.Tighten(pod), Pods: []*v1.Pod{pod}})
+		if !isScheduled {
+			nodes = append(nodes, NewNode(constraints, instanceTypes, pod))
 		}
 	}
-	return schedules
-}
-
-func support(instanceType cloudprovider.InstanceType, constraints *v1alpha5.Constraints) bool {
-	req := []v1.NodeSelectorRequirement{}
-	for key := range constraints.Requirements.Keys() {
-		req = append(req, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpExists})
-	}
-	for _, offering := range instanceType.Offerings() {
-		supported := map[string][]string{}
-		supported[v1.LabelTopologyZone] = []string{offering.Zone}
-		supported[v1alpha5.LabelCapacityType] = []string{offering.CapacityType}
-		supported[v1.LabelInstanceTypeStable] = []string{instanceType.Name()}
-		supported[v1.LabelArchStable] = []string{instanceType.Architecture()}
-		supported[v1.LabelOSStable] = instanceType.OperatingSystems().UnsortedList()
-		r := make([]v1.NodeSelectorRequirement, len(req))
-		copy(r, req)
-		for key, values := range supported {
-			r = append(r, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values})
-		}
-		requirements := v1alpha5.NewRequirements(r...)
-		if err := requirements.Compatible(constraints.Requirements); err == nil {
-			return true
-		}
-	}
-	return false
+	return nodes
 }

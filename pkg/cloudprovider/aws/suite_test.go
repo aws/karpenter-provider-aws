@@ -184,6 +184,7 @@ var _ = Describe("Allocation", func() {
 					Expect(supportsPodENI()).To(Equal(true))
 				}
 			})
+			// TODO(todd): this set of tests should move to scheduler once resource handling is made more generic
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
@@ -213,6 +214,37 @@ var _ = Describe("Allocation", func() {
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should launch pods with Nvidia and Neuron resources on different instances", func() {
+				nodeNames := sets.NewString()
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						},
+					}),
+					// Should pack onto a different instance since no type has both Nvidia and Neuron
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+						},
+					})) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					nodeNames.Insert(node.Name)
+				}
+				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should fail to schedule a pod with both Nvidia and Neuron resources requests", func() {
+				pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1"), resources.AWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1"), resources.AWSNeuron: resource.MustParse("1")},
+						},
+					}))
+				ExpectNotScheduled(ctx, env.Client, pods[0])
 			})
 			It("should not schedule a non-GPU workload on a node w/GPU", func() {
 				Skip("enable after scheduling and binpacking are merged into the same process")
@@ -536,7 +568,8 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Subnets", func() {
 			It("should default to the cluster's subnets", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod(
+					test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)

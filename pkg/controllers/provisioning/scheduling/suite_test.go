@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 	"testing"
 	"time"
@@ -1549,6 +1550,103 @@ var _ = Describe("Taints", func() {
 		}
 		node := ExpectScheduled(ctx, env.Client, pods[len(pods)-1])
 		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
+	})
+})
+
+var _ = Describe("Instance Type Compatibility", func() {
+	It("should not schedule if requesting more resources than any instance type has", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU: resource.MustParse("512"),
+					}},
+			}))
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+	})
+	It("should launch pods with different archs on different instances", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
+			},
+		}
+		nodeNames := sets.NewString()
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64},
+			}),
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureArm64},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should launch pods with different operating systems on different instances", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
+			},
+		}
+		nodeNames := sets.NewString()
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelOSStable: "linux"},
+			}),
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelOSStable: "windows"},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should launch pods with different instance type node selectors on different instances", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
+			},
+		}
+		nodeNames := sets.NewString()
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceType: "small-instance-type"},
+			}),
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "default-instance-type"},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should launch pods with different zone selectors on different instances", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
+			},
+		}
+		nodeNames := sets.NewString()
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"},
+			}),
+			test.UnschedulablePod(test.PodOptions{
+				NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
 	})
 })
 

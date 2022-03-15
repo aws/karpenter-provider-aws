@@ -105,19 +105,19 @@ func (p *Provisioner) provision(ctx context.Context) error {
 		return fmt.Errorf("getting instance types, %w", err)
 	}
 	// Separate pods by scheduling constraints
-	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
 	// Launch capacity and bind pods
-	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(i int) {
-		packings, err := p.packer.Pack(ctx, schedules[i].Constraints, schedules[i].Pods, instanceTypes)
+	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
+		packings, err := p.packer.Pack(ctx, nodes[i].Constraints, nodes[i].Pods, nodes[i].InstanceTypeOptions)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err)
 			return
 		}
 		workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(j int) {
-			if err := p.launch(ctx, schedules[i].Constraints, packings[j]); err != nil {
+			if err := p.launch(ctx, nodes[i].Constraints, packings[j]); err != nil {
 				logging.FromContext(ctx).Errorf("Could not launch node, %s", err)
 				return
 			}
