@@ -131,6 +131,8 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
 	capacityType := p.getCapacityType(constraints, instanceTypes)
 
+	fleetContext := p.getFleetContext(constraints.AWS)
+
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
 	if err != nil {
@@ -139,7 +141,6 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
-		Context:               aws.String(injection.GetOptions(ctx).AWSEC2FleetContext),
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
@@ -155,6 +156,9 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyCapacityOptimizedPrioritized)}
 	} else {
 		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+	}
+	if fleetContext != "" {
+		createFleetInput.Context = &fleetContext
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
@@ -340,6 +344,15 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 		}
 	}
 	return v1alpha1.CapacityTypeOnDemand
+}
+
+func (p *InstanceProvider) getFleetContext(aws *v1alpha1.AWS) string {
+
+	if aws.FleetContext != nil && *aws.FleetContext != "" {
+		return *aws.FleetContext
+	}
+
+	return ""
 }
 
 func getInstanceID(node *v1.Node) (*string, error) {

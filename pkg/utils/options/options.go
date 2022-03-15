@@ -44,7 +44,6 @@ func MustParse() Options {
 	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
 	flag.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
 	flag.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
-	flag.StringVar(&opts.AWSEC2FleetContext, "aws-ec2-fleet-context", env.WithDefaultString("AWS_EC2_FLEET_CONTEXT", ""), "The optional AWS EC2 Fleet context to use when provisioning nodes in AWS")
 	flag.Parse()
 	if err := opts.Validate(); err != nil {
 		panic(err)
@@ -65,7 +64,6 @@ type Options struct {
 	AWSNodeNameConvention     string
 	AWSENILimitedPodDensity   bool
 	AWSDefaultInstanceProfile string
-	AWSEC2FleetContext        string
 }
 
 func (o Options) Validate() (err error) {
