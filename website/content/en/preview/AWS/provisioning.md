@@ -173,18 +173,19 @@ Learn more about [block device mappings](https://docs.aws.amazon.com/AWSEC2/late
 
 Note: If a custom launch template is specified, then the `BlockDeviceMappings` field in the launch template is used rather than the provisioner's `blockDeviceMappings`.
 
-```
+```yaml
 spec:
   provider:
     blockDeviceMappings:
       - deviceName: /dev/xvda
-        volumeSize: 100Gi
-        volumeType: gp3
-        iops: 10000
-        encrypted: true
-        kmsKeyID: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
-        deleteOnTermination: true
-        throughput: 125
+        ebs:
+          volumeSize: 100Gi
+          volumeType: gp3
+          iops: 10000
+          encrypted: true
+          kmsKeyID: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+          deleteOnTermination: true
+          throughput: 125
 ```
 
 ## Other Resources
