@@ -180,7 +180,16 @@ func (p *Packer) packWithLargestPod(unpackedPods []*v1.Pod, packables []*Packabl
 				// packable nodes are sorted lexicographically according to the order of [CPU, memory]
 				// It may result in cases where an instance type may have larger index value when it has more CPU but fewer memory
 				// Need to exclude instance type with smaller memory and fewer pods
-				if packables[i].Memory().Cmp(*packables[j].Memory()) <= 0 && packables[i].Pods().Cmp(*packables[j].Pods()) <= 0 {
+				lv := packables[i]
+				rv := packables[j]
+
+				lvMem := lv.Resources()[v1.ResourceMemory]
+				rvMem := rv.Resources()[v1.ResourceMemory]
+
+				lvPods := lv.Resources()[v1.ResourcePods]
+				rvPods := rv.Resources()[v1.ResourcePods]
+
+				if lvMem.Cmp(rvMem) <= 0 && lvPods.Cmp(rvPods) <= 0 {
 					bestInstances = append(bestInstances, packables[j])
 				}
 			}

@@ -60,66 +60,100 @@ func (i *InstanceType) Architecture() string {
 	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
 }
 
-func (i *InstanceType) CPU() *resource.Quantity {
-	return resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
+func (i *InstanceType) Resources() v1.ResourceList {
+	return v1.ResourceList{
+		v1.ResourceCPU:             i.cpu(),
+		v1.ResourceMemory:          i.memory(),
+		v1.ResourcePods:            i.pods(),
+		v1alpha1.ResourceAWSPodENI: i.awsPodENI(),
+		v1alpha1.ResourceNVIDIAGPU: i.nvidiaGPUs(),
+		v1alpha1.ResourceAMDGPU:    i.amdGPUs(),
+		v1alpha1.ResourceAWSNeuron: i.awsNeurons(),
+	}
 }
 
-func (i *InstanceType) Memory() *resource.Quantity {
-	return resources.Quantity(
+func (i *InstanceType) Price() float64 {
+	const (
+		GPUCostWeight      = 5
+		CPUCostWeight      = 1
+		MemoryMBCostWeight = 1
+		MbToGb             = 1 / 1024.0
+	)
+
+	gpuCount := 0.0
+	if i.GpuInfo != nil {
+		for _, gpu := range i.GpuInfo.Gpus {
+			if gpu.Count != nil {
+				gpuCount += float64(*gpu.Count)
+			}
+		}
+	}
+
+	// These are meant to give some relative weighting
+	return CPUCostWeight*float64(*i.VCpuInfo.DefaultVCpus) +
+		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB)/MbToGb +
+		GPUCostWeight*gpuCount
+}
+func (i *InstanceType) cpu() resource.Quantity {
+	return *resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
+}
+
+func (i *InstanceType) memory() resource.Quantity {
+	return *resources.Quantity(
 		fmt.Sprintf("%dMi", int32(
 			float64(*i.MemoryInfo.SizeInMiB)*EC2VMAvailableMemoryFactor,
 		)),
 	)
 }
 
-func (i *InstanceType) Pods() *resource.Quantity {
+func (i *InstanceType) pods() resource.Quantity {
 	if i.MaxPods != nil {
-		return resources.Quantity(fmt.Sprint(ptr.Int32Value(i.MaxPods)))
+		return *resources.Quantity(fmt.Sprint(ptr.Int32Value(i.MaxPods)))
 	}
-	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
+	return *resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
 
-func (i *InstanceType) AWSPodENI() *resource.Quantity {
+func (i *InstanceType) awsPodENI() resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := vpc.Limits[aws.StringValue(i.InstanceType)]
 	if ok && limits.IsTrunkingCompatible {
-		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
+		return *resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
-	return resources.Quantity("0")
+	return *resources.Quantity("0")
 }
 
-func (i *InstanceType) NvidiaGPUs() *resource.Quantity {
+func (i *InstanceType) nvidiaGPUs() resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
 		for _, gpu := range i.GpuInfo.Gpus {
-			if *i.GpuInfo.Gpus[0].Manufacturer == "NVIDIA" {
+			if *gpu.Manufacturer == "NVIDIA" {
 				count += *gpu.Count
 			}
 		}
 	}
-	return resources.Quantity(fmt.Sprint(count))
+	return *resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) AMDGPUs() *resource.Quantity {
+func (i *InstanceType) amdGPUs() resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
 		for _, gpu := range i.GpuInfo.Gpus {
-			if *i.GpuInfo.Gpus[0].Manufacturer == "AMD" {
+			if *gpu.Manufacturer == "NVIDIA" {
 				count += *gpu.Count
 			}
 		}
 	}
-	return resources.Quantity(fmt.Sprint(count))
+	return *resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) AWSNeurons() *resource.Quantity {
+func (i *InstanceType) awsNeurons() resource.Quantity {
 	count := int64(0)
 	if i.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range i.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
 		}
 	}
-	return resources.Quantity(fmt.Sprint(count))
+	return *resources.Quantity(fmt.Sprint(count))
 }
 
 // Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
@@ -152,7 +186,8 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 		{start: 2000, end: 4000, percentage: 0.005},
 		{start: 4000, end: 1 << 31, percentage: 0.0025},
 	} {
-		if cpu := i.CPU().MilliValue(); cpu >= cpuRange.start {
+		cpuSt := i.cpu()
+		if cpu := cpuSt.MilliValue(); cpu >= cpuRange.start {
 			r := float64(cpuRange.end - cpuRange.start)
 			if cpu < cpuRange.end {
 				r = float64(cpu - cpuRange.start)

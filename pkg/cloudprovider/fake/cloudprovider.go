@@ -18,12 +18,15 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/Pallinder/go-randomdata"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -35,9 +38,23 @@ import (
 
 type CloudProvider struct {
 	InstanceTypes []cloudprovider.InstanceType
+
+	// CreateCalls contains the arguments for every create call that was made since it was cleared
+	mu          sync.Mutex
+	CreateCalls []CreateCallArgs
+}
+
+type CreateCallArgs struct {
+	Constraints   *v1alpha5.Constraints
+	InstanceTypes []cloudprovider.InstanceType
+	Quantity      int
 }
 
 func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, bind func(*v1.Node) error) error {
+	c.mu.Lock()
+	c.CreateCalls = append(c.CreateCalls, CreateCallArgs{constraints, instanceTypes, quantity})
+	c.mu.Unlock()
+
 	var err error
 	for i := 0; i < quantity; i++ {
 		name := strings.ToLower(randomdata.SillyName())
@@ -69,9 +86,9 @@ func (c *CloudProvider) Create(_ context.Context, constraints *v1alpha5.Constrai
 					OperatingSystem: v1alpha5.OperatingSystemLinux,
 				},
 				Allocatable: v1.ResourceList{
-					v1.ResourcePods:   *instance.Pods(),
-					v1.ResourceCPU:    *instance.CPU(),
-					v1.ResourceMemory: *instance.Memory(),
+					v1.ResourcePods:   instance.Resources()[v1.ResourcePods],
+					v1.ResourceCPU:    instance.Resources()[v1.ResourceCPU],
+					v1.ResourceMemory: instance.Resources()[v1.ResourceMemory],
 				},
 			},
 		}))
@@ -88,32 +105,43 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider
 			Name: "default-instance-type",
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:      "pod-eni-instance-type",
-			AWSPodENI: resource.MustParse("1"),
+			Name: "pod-eni-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1alpha1.ResourceAWSPodENI: resource.MustParse("1"),
+			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:   "small-instance-type",
-			CPU:    resource.MustParse("2"),
-			Memory: resource.MustParse("2Gi"),
+			Name: "small-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:    resource.MustParse("2"),
+				v1.ResourceMemory: resource.MustParse("2Gi"),
+			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:       "nvidia-gpu-instance-type",
-			NvidiaGPUs: resource.MustParse("2"),
+			Name: "nvidia-gpu-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2"),
+			}}),
+		NewInstanceType(InstanceTypeOptions{
+			Name: "amd-gpu-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1alpha1.ResourceAMDGPU: resource.MustParse("2"),
+			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:    "amd-gpu-instance-type",
-			AMDGPUs: resource.MustParse("2"),
+			Name: "aws-neuron-instance-type",
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1alpha1.ResourceAWSNeuron: resource.MustParse("2"),
+			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:       "aws-neuron-instance-type",
-			AWSNeurons: resource.MustParse("2"),
-		}),
-		NewInstanceType(InstanceTypeOptions{
-			Name:             "arm-instance-type",
-			Architecture:     "arm64",
+			Name:         "arm-instance-type",
+			Architecture: "arm64",
 			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
-			CPU:              resource.MustParse("16"),
-			Memory:           resource.MustParse("128Gi"),
+			Resources: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:    resource.MustParse("16"),
+				v1.ResourceMemory: resource.MustParse("128Gi"),
+			},
 		}),
 	}, nil
 }

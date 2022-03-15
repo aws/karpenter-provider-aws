@@ -58,6 +58,9 @@ const (
 
 func init() {
 	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+	cloudprovider.ResourceRegistration[v1alpha1.ResourceAWSNeuron] = cloudprovider.ResourceFlagMinimizeUsage
+	cloudprovider.ResourceRegistration[v1alpha1.ResourceNVIDIAGPU] = cloudprovider.ResourceFlagMinimizeUsage
+	cloudprovider.ResourceRegistration[v1alpha1.ResourceAMDGPU] = cloudprovider.ResourceFlagMinimizeUsage
 }
 
 type CloudProvider struct {

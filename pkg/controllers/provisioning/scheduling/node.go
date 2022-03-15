@@ -30,6 +30,7 @@ type Node struct {
 	Constraints         *v1alpha5.Constraints
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
+	unschedulable       bool // if true, the node will accept no more pods
 }
 
 func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovider.InstanceType, pods ...*v1.Pod) *Node {
@@ -52,6 +53,10 @@ func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovi
 }
 
 func (n Node) Compatible(pod *v1.Pod) error {
+	if n.unschedulable {
+		return errors.New("node is unschedulable")
+	}
+
 	podRequirements := v1alpha5.NewPodRequirements(pod)
 	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
 		return err
@@ -68,6 +73,8 @@ func (n Node) Compatible(pod *v1.Pod) error {
 	return errors.New("no matching instance type found")
 }
 
+// Add adds a pod to the Node which tightens constraints, possibly reducing the available instance type options for this
+// node
 func (n *Node) Add(pod *v1.Pod) {
 	n.Pods = append(n.Pods, pod)
 	n.Constraints = n.Constraints.Tighten(pod)
@@ -84,25 +91,14 @@ func (n *Node) Add(pod *v1.Pod) {
 // hasCompatibleResources tests if a given node selector and resource request list is compatible with an instance type
 func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovider.InstanceType) bool {
 	for name, quantity := range resourceList {
-		switch name {
-		case resources.NvidiaGPU:
-			if it.NvidiaGPUs().Cmp(quantity) < 0 {
-				return false
-			}
-		case resources.AWSNeuron:
-			if it.AWSNeurons().Cmp(quantity) < 0 {
-				return false
-			}
-		case resources.AMDGPU:
-			if it.AMDGPUs().Cmp(quantity) < 0 {
-				return false
-			}
-		case resources.AWSPodENI:
-			if it.AWSPodENI().Cmp(quantity) < 0 {
-				return false
-			}
-		default:
+		// we don't care if the pod is requesting zero quantity of some resource
+		if quantity.IsZero() {
 			continue
+		}
+		// instance must have a non-zero quantity
+		instanceQuantity := it.Resources()[name]
+		if instanceQuantity.IsZero() {
+			return false
 		}
 	}
 	return true

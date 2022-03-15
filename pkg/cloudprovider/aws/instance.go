@@ -45,10 +45,7 @@ const (
 	CreationQPS = 2
 	// CreationBurst limits the additional burst requests.
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
-	CreationBurst                         = 100
-	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
-	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
-	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
+	CreationBurst = 100
 )
 
 type InstanceProvider struct {
@@ -276,17 +273,18 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
+
 			resources := v1.ResourceList{}
-			for resourceName, quantity := range map[v1.ResourceName]*resource.Quantity{
-				v1.ResourcePods:       instanceType.Pods(),
-				v1.ResourceCPU:        instanceType.CPU(),
-				v1.ResourceMemory:     instanceType.Memory(),
-				nvidiaGPUResourceName: instanceType.NvidiaGPUs(),
-				amdGPUResourceName:    instanceType.AMDGPUs(),
-				awsNeuronResourceName: instanceType.AWSNeurons(),
+			for resourceName, quantity := range map[v1.ResourceName]resource.Quantity{
+				v1.ResourcePods:            instanceType.Resources()[v1.ResourcePods],
+				v1.ResourceCPU:             instanceType.Resources()[v1.ResourceCPU],
+				v1.ResourceMemory:          instanceType.Resources()[v1.ResourceMemory],
+				v1alpha1.ResourceNVIDIAGPU: instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU],
+				v1alpha1.ResourceAMDGPU:    instanceType.Resources()[v1alpha1.ResourceAMDGPU],
+				v1alpha1.ResourceAWSNeuron: instanceType.Resources()[v1alpha1.ResourceAWSNeuron],
 			} {
 				if !quantity.IsZero() {
-					resources[resourceName] = *quantity
+					resources[resourceName] = quantity
 				}
 			}
 

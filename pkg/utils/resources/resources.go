@@ -19,13 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-const (
-	NvidiaGPU = "nvidia.com/gpu"
-	AMDGPU    = "amd.com/gpu"
-	AWSNeuron = "aws.amazon.com/neuron"
-	AWSPodENI = "vpc.amazonaws.com/pod-eni"
-)
-
 // RequestsForPods returns the total resources of a variadic list of podspecs.
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	resources := []v1.ResourceList{}
@@ -65,4 +58,16 @@ func Merge(resources ...v1.ResourceList) v1.ResourceList {
 func Quantity(value string) *resource.Quantity {
 	r := resource.MustParse(value)
 	return &r
+}
+
+// Cmp implements lhs.Cmp(rhs). This method is provided to make some code a bit cleaner as the Quantity.Cmp takes
+// a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
+func Cmp(lhs, rhs resource.Quantity) int {
+	return lhs.Cmp(rhs)
+}
+
+// IsZero implements r.IsZero(). This method is provided to make some code a bit cleaner as the Quantity.IsZero() takes
+// a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
+func IsZero(r resource.Quantity) bool {
+	return r.IsZero()
 }
