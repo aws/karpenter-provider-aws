@@ -188,6 +188,18 @@ spec:
           throughput: 125
 ```
 
+### Context
+
+The `Context` parameter that all underlying calls to [EC2 CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) made by the Provisioner would use.
+
+Note: Only use this parameter if advised by AWS.
+
+```
+spec:
+  provider:
+    context: sampleContext
+```
+
 ## Other Resources
 
 ### Accelerators, GPU
