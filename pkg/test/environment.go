@@ -17,12 +17,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/utils/project"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 var (

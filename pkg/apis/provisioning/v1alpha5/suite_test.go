@@ -27,7 +27,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ctx context.Context
@@ -52,19 +51,27 @@ var _ = Describe("Validation", func() {
 		provisioner.Spec.TTLSecondsUntilExpired = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
-
+	It("should succeed on a missing expiry ttl", func() {
+		// this already is true, but to be explicit
+		provisioner.Spec.TTLSecondsUntilExpired = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
 	It("should fail on negative empty ttl", func() {
 		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(-1)
 		Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 	})
+	It("should succeed on a missing empty ttl", func() {
+		provisioner.Spec.TTLSecondsAfterEmpty = nil
+		Expect(provisioner.Validate(ctx)).To(Succeed())
+	})
 
 	Context("Limits", func() {
 		It("should allow undefined limits", func() {
-			provisioner.Spec.Limits = Limits{}
+			provisioner.Spec.Limits = &Limits{}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should allow empty limits", func() {
-			provisioner.Spec.Limits = Limits{Resources: v1.ResourceList{}}
+			provisioner.Spec.Limits = &Limits{Resources: v1.ResourceList{}}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 	})
@@ -146,20 +153,36 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
-		It("should allow well known labels", func() {
+		It("should fail for restricted labels", func() {
+			for label := range RestrictedLabels {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should fail for restricted domains", func() {
+			for label := range RestrictedLabelDomains {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			}
+		})
+		It("should allow restricted domains exceptions", func() {
+			for label := range LabelDomainExceptions {
+				provisioner.Spec.Requirements = NewRequirements(
+					v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				)
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
+		It("should allow well known label exceptions", func() {
 			for label := range WellKnownLabels {
 				provisioner.Spec.Requirements = NewRequirements(
 					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 				)
 				Expect(provisioner.Validate(ctx)).To(Succeed())
-			}
-		})
-		It("should fail for unknown labels", func() {
-			for label := range sets.NewString("unknown", "invalid", "rejected") {
-				provisioner.Spec.Requirements = NewRequirements(
-					v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				)
-				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
 		})
 		It("should fail because no feasible value", func() {
@@ -169,12 +192,12 @@ var _ = Describe("Validation", func() {
 			)
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
-		It("should fail because In and NotIn cancel out", func() {
+		It("should allow non-empty set after removing overlapped value", func() {
 			provisioner.Spec.Requirements = NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test"}},
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}},
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "bar"}},
 			)
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should allow empty requirements", func() {
 			provisioner.Spec.Requirements = NewRequirements()
@@ -183,7 +206,7 @@ var _ = Describe("Validation", func() {
 		It("should fail because DoesNotExists conflicting", func() {
 			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, v1.NodeSelectorOpExists} {
 				provisioner.Spec.Requirements = NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOperator(op), Values: []string{"test"}},
+					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
 					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist},
 				)
 			}

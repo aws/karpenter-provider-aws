@@ -22,6 +22,8 @@ import (
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
+	prometheus "github.com/prometheus/client_model/go"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -147,7 +149,8 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		for _, namespace := range namespaces.Items {
 			wg.Add(1)
 			go func(object client.Object, namespace string) {
-				Expect(c.DeleteAllOf(ctx, object, client.InNamespace(namespace))).ToNot(HaveOccurred())
+				Expect(c.DeleteAllOf(ctx, object, client.InNamespace(namespace),
+					&client.DeleteAllOfOptions{DeleteOptions: client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}})).ToNot(HaveOccurred())
 				wg.Done()
 			}(object, namespace.Name)
 		}
@@ -179,7 +182,9 @@ func ExpectProvisioned(ctx context.Context, c client.Client, selectionController
 	for _, pod := range pods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
+			if _, err := selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)}); err != nil {
+				Expect(err).To(HaveOccurred()) // This is expected to sometimes happen
+			}
 			wg.Done()
 		}(pod)
 	}
@@ -195,4 +200,17 @@ func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconcil
 	result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 	Expect(err).ToNot(HaveOccurred())
 	return result
+}
+
+func ExpectMetric(prefix string) *prometheus.MetricFamily {
+	metrics, err := metrics.Registry.Gather()
+	Expect(err).To(BeNil())
+	var selected *prometheus.MetricFamily
+	for _, mf := range metrics {
+		if mf.GetName() == prefix {
+			selected = mf
+		}
+	}
+	Expect(selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
+	return selected
 }

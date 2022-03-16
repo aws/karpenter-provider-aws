@@ -10,6 +10,8 @@ metadata:
 spec:
   group: karpenter.sh
   names:
+    categories:
+    - karpenter
     kind: Provisioner
     listKind: ProvisionerList
     plural: provisioners

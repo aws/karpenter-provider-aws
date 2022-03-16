@@ -36,7 +36,7 @@ type Constraints struct {
 	Requirements Requirements `json:"requirements,inline,omitempty"`
 	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
 	//+optional
-	KubeletConfiguration KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
+	KubeletConfiguration *KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *Provider `json:"provider,omitempty"`
@@ -51,22 +51,40 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	if err := c.Taints.Tolerates(pod); err != nil {
 		return err
 	}
-	// Test if pod requirements are valid
 	requirements := NewPodRequirements(pod)
+	// Test if pod requirements are valid
 	if err := requirements.Validate(); err != nil {
 		return fmt.Errorf("invalid requirements, %w", err)
 	}
-	// Test if pod requirements are compatible
+	// Test if pod requirements are compatible to the provisioner
 	if errs := c.Requirements.Compatible(requirements); errs != nil {
 		return fmt.Errorf("incompatible requirements, %w", errs)
 	}
 	return nil
 }
 
+func (c *Constraints) GenerateLabels() map[string]string {
+	labels := map[string]string{}
+	for key, value := range c.Labels {
+		labels[key] = value
+	}
+	for key := range c.Requirements.Keys() {
+		if !IsRestrictedNodeLabel(key) {
+			// Ignore cases when values set is empty (i.e., DoesNotExist or <In, NotIn> cancling out)
+			if c.Requirements.Get(key).IsEmpty() {
+				continue
+			}
+			labels[key] = c.Requirements.Label(key)
+		}
+	}
+	return labels
+}
+
 func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
+	requirements := c.Requirements.Add(NewPodRequirements(pod).Requirements...)
 	return &Constraints{
 		Labels:               c.Labels,
-		Requirements:         c.Requirements.Add(NewPodRequirements(pod).Requirements...).WellKnown(),
+		Requirements:         requirements,
 		Taints:               c.Taints,
 		Provider:             c.Provider,
 		KubeletConfiguration: c.KubeletConfiguration,

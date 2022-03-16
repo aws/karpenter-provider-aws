@@ -18,16 +18,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 var schedulingDuration = prometheus.NewHistogramVec(
@@ -46,80 +45,47 @@ func init() {
 }
 
 type Scheduler struct {
-	KubeClient client.Client
-	Topology   *Topology
-}
-
-type Schedule struct {
-	*v1alpha5.Constraints
-	// Pods is a set of pods that may schedule to the node; used for binpacking.
-	Pods []*v1.Pod
+	kubeClient client.Client
+	topology   *Topology
 }
 
 func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
-		KubeClient: kubeClient,
-		Topology:   &Topology{kubeClient: kubeClient},
+		kubeClient: kubeClient,
+		topology:   &Topology{kubeClient: kubeClient},
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, pods []*v1.Pod) (schedules []*Schedule, err error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
-	// lets us to treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.Topology.Inject(ctx, constraints, pods); err != nil {
+	// lets us treat TopologySpreadConstraints as just-in-time NodeSelectors.
+	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
-	// Separate pods into schedules of isomorphic scheduling constraints.
-	schedules, err = s.getSchedules(ctx, constraints, pods)
-	if err != nil {
-		return nil, fmt.Errorf("getting schedules, %w", err)
-	}
-	return schedules, nil
+	return s.schedule(constraints, instanceTypes, pods), nil
 }
 
-// getSchedules separates pods into a set of schedules. All pods in each group
-// contain isomorphic scheduling constraints and can be deployed together on the
-// same node, or multiple similar nodes if the pods exceed one node's capacity.
-func (s *Scheduler) getSchedules(ctx context.Context, constraints *v1alpha5.Constraints, pods []*v1.Pod) ([]*Schedule, error) {
-	// schedule uniqueness is tracked by hash(Constraints)
-	schedules := map[uint64]*Schedule{}
+// schedule separates pods into a list of TheoreticalNodes that contain the pods. All pods in each theoretical node
+// contain isomorphic scheduling constraints and can be deployed together on the same node, or multiple similar nodes if
+// the pods exceed one node's capacity.
+func (s *Scheduler) schedule(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Node {
+	var nodes []*Node
 	for _, pod := range pods {
-		if err := constraints.ValidatePod(pod); err != nil {
-			logging.FromContext(ctx).Infof("Unable to schedule pod %s/%s, %s", pod.Namespace, pod.Name, err)
-			continue
+		isScheduled := false
+		for _, node := range nodes {
+			if err := node.Compatible(pod); err == nil {
+				node.Add(pod)
+				isScheduled = true
+				break
+			}
 		}
-		tightened := constraints.Tighten(pod)
-
-		// schedulingConstraints applies the provisioner constraints
-		// and any inferred constraints such as GPU resource requests from the pods
-		// and is then hashed to compute the schedules
-		schedulingConstraints := struct {
-			*v1alpha5.Constraints
-			GPURequests v1.ResourceList
-		}{
-			Constraints: tightened,
-			GPURequests: resources.GPULimitsFor(pod),
+		if !isScheduled {
+			nodes = append(nodes, NewNode(constraints, instanceTypes, pod))
 		}
-
-		key, err := hashstructure.Hash(schedulingConstraints, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-		if err != nil {
-			return nil, fmt.Errorf("hashing constraints, %w", err)
-		}
-		// Create new schedule if one doesn't exist
-		if _, ok := schedules[key]; !ok {
-			schedules[key] = &Schedule{Constraints: tightened, Pods: []*v1.Pod{}}
-		}
-		// Append pod to schedule, guaranteed to exist
-		schedules[key].Pods = append(schedules[key].Pods, pod)
 	}
-
-	result := []*Schedule{}
-	for _, schedule := range schedules {
-		result = append(result, schedule)
-	}
-	return result, nil
+	return nodes
 }

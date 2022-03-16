@@ -14,6 +14,7 @@ package aws
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -25,25 +26,25 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/patrickmn/go-cache"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
 )
 
 const (
-	// CreationQPS limits the number of requests per second to CreateFleet
-	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
-	CreationQPS = 2
-	// CreationBurst limits the additional burst requests.
-	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
-	CreationBurst = 100
 	// CacheTTL restricts QPS to AWS APIs to this interval for verifying setup
 	// resources. This value represents the maximum eventual consistency between
 	// AWS actual state and the controller's ability to provision those
@@ -88,27 +89,13 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				NewAMIProvider(ssm.New(sess), options.ClientSet),
+				options.ClientSet,
+				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
+				getCABundle(ctx),
 			),
 		},
 	}
-}
-
-// get the current region from EC2 IMDS
-func getRegionFromIMDS(sess *session.Session) string {
-	region, err := ec2metadata.New(sess).Region()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
-	}
-	return region
-}
-
-// withUserAgent adds a karpenter specific user-agent string to AWS session
-func withUserAgent(sess *session.Session) *session.Session {
-	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
-	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
-	return sess
 }
 
 // Create a node given the constraints.
@@ -168,4 +155,43 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
+}
+
+// get the current region from EC2 IMDS
+func getRegionFromIMDS(sess *session.Session) string {
+	region, err := ec2metadata.New(sess).Region()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to call the metadata server's region API, %s", err))
+	}
+	return region
+}
+
+// withUserAgent adds a karpenter specific user-agent string to AWS session
+func withUserAgent(sess *session.Session) *session.Session {
+	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
+	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
+	return sess
+}
+
+func getCABundle(ctx context.Context) *string {
+	// Discover CA Bundle from the REST client. We could alternatively
+	// have used the simpler client-go InClusterConfig() method.
+	// However, that only works when Karpenter is running as a Pod
+	// within the same cluster it's managing.
+	restConfig := injection.GetConfig(ctx)
+	if restConfig == nil {
+		return nil
+	}
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading transport config, %v", err)
+		return nil
+	}
+	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("Unable to discover caBundle, loading TLS config, %v", err)
+		return nil
+	}
+	logging.FromContext(ctx).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
 }

@@ -19,14 +19,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
-	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +28,15 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Provisioner {
@@ -81,7 +82,7 @@ func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
 	return p.batcher.Add(pod)
 }
 
-func (p *Provisioner) provision(ctx context.Context) (err error) {
+func (p *Provisioner) provision(ctx context.Context) error {
 	// Batch pods
 	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	items, window := p.batcher.Wait()
@@ -98,25 +99,25 @@ func (p *Provisioner) provision(ctx context.Context) (err error) {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
-	// Separate pods by scheduling constraints
-	schedules, err := p.scheduler.Solve(ctx, p.Provisioner, pods)
-	if err != nil {
-		return fmt.Errorf("solving scheduling constraints, %w", err)
-	}
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
 	if err != nil {
 		return fmt.Errorf("getting instance types, %w", err)
 	}
+	// Separate pods by scheduling constraints
+	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	if err != nil {
+		return fmt.Errorf("solving scheduling constraints, %w", err)
+	}
 	// Launch capacity and bind pods
-	workqueue.ParallelizeUntil(ctx, len(schedules), len(schedules), func(i int) {
-		packings, err := p.packer.Pack(ctx, schedules[i].Constraints, schedules[i].Pods, instanceTypes)
+	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
+		packings, err := p.packer.Pack(ctx, nodes[i].Constraints, nodes[i].Pods, nodes[i].InstanceTypeOptions)
 		if err != nil {
 			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err)
 			return
 		}
 		workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(j int) {
-			if err := p.launch(ctx, schedules[i].Constraints, packings[j]); err != nil {
+			if err := p.launch(ctx, nodes[i].Constraints, packings[j]); err != nil {
 				logging.FromContext(ctx).Errorf("Could not launch node, %s", err)
 				return
 			}
@@ -156,7 +157,7 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 		pods <- ps
 	}
 	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
-		node.Labels = functional.UnionStringMaps(node.Labels, constraints.Labels)
+		node.Labels = functional.UnionStringMaps(node.Labels, constraints.GenerateLabels())
 		node.Spec.Taints = append(node.Spec.Taints, constraints.Taints...)
 		return p.bind(ctx, node, <-pods)
 	})

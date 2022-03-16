@@ -19,9 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -34,6 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 const controllerName = "selection"
@@ -71,7 +72,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
-		logging.FromContext(ctx).Debugf("Ignoring pod, %s", err)
+		logging.FromContext(ctx).Errorf("Ignoring pod, %s", err)
 		return reconcile.Result{}, nil
 	}
 	// Select a provisioner, wait for it to bind the pod, and verify scheduling succeeded in the next loop
@@ -137,22 +138,22 @@ func validateTopology(pod *v1.Pod) (errs error) {
 	return errs
 }
 
-func validateAffinity(pod *v1.Pod) (errs error) {
-	if pod.Spec.Affinity == nil {
+func validateAffinity(p *v1.Pod) (errs error) {
+	if p.Spec.Affinity == nil {
 		return nil
 	}
-	if pod.Spec.Affinity.PodAffinity != nil {
+	if pod.HasPodAffinity(p) {
 		errs = multierr.Append(errs, fmt.Errorf("pod affinity is not supported"))
 	}
-	if pod.Spec.Affinity.PodAntiAffinity != nil {
+	if pod.HasPodAntiAffinity(p) {
 		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity is not supported"))
 	}
-	if pod.Spec.Affinity.NodeAffinity != nil {
-		for _, term := range pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+	if p.Spec.Affinity.NodeAffinity != nil {
+		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
 			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
 		}
-		if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			for _, term := range pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		if p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
 			}
 		}

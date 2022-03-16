@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -37,11 +39,32 @@ import (
 	"github.com/aws/karpenter/pkg/utils/options"
 )
 
+const (
+	// CreationQPS limits the number of requests per second to CreateFleet
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationQPS = 2
+	// CreationBurst limits the additional burst requests.
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
+	CreationBurst                         = 100
+	nvidiaGPUResourceName v1.ResourceName = "nvidia.com/gpu"
+	amdGPUResourceName    v1.ResourceName = "amd.com/gpu"
+	awsNeuronResourceName v1.ResourceName = "aws.amazon.com/neuron"
+)
+
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
 	subnetProvider         *SubnetProvider
 	launchTemplateProvider *LaunchTemplateProvider
+}
+
+func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceTypeProvider, subnetProvider *SubnetProvider, launchTemplateProvider *LaunchTemplateProvider) *InstanceProvider {
+	return &InstanceProvider{
+		ec2api:                 ec2api,
+		instanceTypeProvider:   instanceTypeProvider,
+		subnetProvider:         subnetProvider,
+		launchTemplateProvider: launchTemplateProvider,
+	}
 }
 
 // Create an instance given the constraints.
@@ -114,6 +137,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	// Create fleet
+	tags := v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
@@ -122,10 +146,8 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 			TotalTargetCapacity:       aws.Int64(int64(quantity)),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
-			{
-				ResourceType: aws.String(ec2.ResourceTypeInstance),
-				Tags:         v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"}),
-			},
+			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
+			{ResourceType: aws.String(ec2.ResourceTypeVolume), Tags: tags},
 		},
 	}
 	if capacityType == v1alpha1.CapacityTypeSpot {
@@ -180,6 +202,14 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
 func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
+	zonalSubnets := map[string]*ec2.Subnet{}
+	sort.Slice(subnets, func(i, j int) bool {
+		return aws.Int64Value(subnets[i].AvailableIpAddressCount) < aws.Int64Value(subnets[j].AvailableIpAddressCount)
+	})
+	for _, subnet := range subnets {
+		zonalSubnets[*subnet.AvailabilityZone] = subnet
+	}
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for i, instanceType := range instanceTypeOptions {
 		for _, offering := range instanceType.Offerings() {
@@ -189,27 +219,24 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 			if !zones.Has(offering.Zone) {
 				continue
 			}
-			for _, subnet := range subnets {
-				if aws.StringValue(subnet.AvailabilityZone) != offering.Zone {
-					continue
-				}
-				override := &ec2.FleetLaunchTemplateOverridesRequest{
-					InstanceType: aws.String(instanceType.Name()),
-					SubnetId:     subnet.SubnetId,
-					// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
-					// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
-					AvailabilityZone: subnet.AvailabilityZone,
-				}
-				// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
-				// to reduce the likelihood of getting an excessively large instance type.
-				// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
-				if capacityType == v1alpha1.CapacityTypeSpot {
-					override.Priority = aws.Float64(float64(i))
-				}
-				overrides = append(overrides, override)
-				// FleetAPI cannot span subnets from the same AZ, so break after the first one.
-				break
+			subnet, ok := zonalSubnets[offering.Zone]
+			if !ok {
+				continue
 			}
+			override := &ec2.FleetLaunchTemplateOverridesRequest{
+				InstanceType: aws.String(instanceType.Name()),
+				SubnetId:     subnet.SubnetId,
+				// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
+				// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
+				AvailabilityZone: subnet.AvailabilityZone,
+			}
+			// Add a priority for spot requests since we are using the capacity-optimized-prioritized spot allocation strategy
+			// to reduce the likelihood of getting an excessively large instance type.
+			// instanceTypeOptions are sorted by vcpus and memory so this prioritizes smaller instance types.
+			if capacityType == v1alpha1.CapacityTypeSpot {
+				override.Priority = aws.Float64(float64(i))
+			}
+			overrides = append(overrides, override)
 		}
 	}
 	return overrides
@@ -249,6 +276,20 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
+			resources := v1.ResourceList{}
+			for resourceName, quantity := range map[v1.ResourceName]*resource.Quantity{
+				v1.ResourcePods:       instanceType.Pods(),
+				v1.ResourceCPU:        instanceType.CPU(),
+				v1.ResourceMemory:     instanceType.Memory(),
+				nvidiaGPUResourceName: instanceType.NvidiaGPUs(),
+				amdGPUResourceName:    instanceType.AMDGPUs(),
+				awsNeuronResourceName: instanceType.AWSNeurons(),
+			} {
+				if !quantity.IsZero() {
+					resources[resourceName] = *quantity
+				}
+			}
+
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -262,16 +303,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 				Status: v1.NodeStatus{
-					Allocatable: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
-					Capacity: v1.ResourceList{
-						v1.ResourcePods:   *instanceType.Pods(),
-						v1.ResourceCPU:    *instanceType.CPU(),
-						v1.ResourceMemory: *instanceType.Memory(),
-					},
+					Allocatable: resources,
+					Capacity:    resources,
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),

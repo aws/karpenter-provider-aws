@@ -48,19 +48,6 @@ func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
 	return Merge(resources...)
 }
 
-// GPULimitsFor returns a resource list of GPU limits from a pod
-// GPUs must be specified in the Limits section of the pod resources per
-//   https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
-func GPULimitsFor(pod *v1.Pod) v1.ResourceList {
-	resources := v1.ResourceList{}
-	for key, value := range LimitsForPods(pod) {
-		if key == AMDGPU || key == AWSNeuron || key == NvidiaGPU {
-			resources[key] = value
-		}
-	}
-	return resources
-}
-
 // Merge the resources from the variadic into a single v1.ResourceList
 func Merge(resources ...v1.ResourceList) v1.ResourceList {
 	result := v1.ResourceList{}

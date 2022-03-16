@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +37,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/mitchellh/hashstructure/v2"
 )
 
 const controllerName = "provisioning"
@@ -93,6 +93,10 @@ func (c *Controller) Delete(name string) {
 
 // Apply creates or updates the provisioner to the latest configuration
 func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
+	provisioner.SetDefaults(ctx)
+	if err := provisioner.Validate(ctx); err != nil {
+		return err
+	}
 	// Refresh global requirements using instance type availability
 	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 	if err != nil {

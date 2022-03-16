@@ -16,7 +16,10 @@ package test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/imdario/mergo"
@@ -36,6 +39,10 @@ type PodOptions struct {
 	NodeSelector              map[string]string
 	NodeRequirements          []v1.NodeSelectorRequirement
 	NodePreferences           []v1.NodeSelectorRequirement
+	PodRequirements           []v1.PodAffinityTerm
+	PodPreferences            []v1.WeightedPodAffinityTerm
+	PodAntiRequirements       []v1.PodAffinityTerm
+	PodAntiPreferences        []v1.WeightedPodAffinityTerm
 	TopologySpreadConstraints []v1.TopologySpreadConstraint
 	Tolerations               []v1.Toleration
 	PersistentVolumeClaims    []string
@@ -49,6 +56,13 @@ type PDBOptions struct {
 	MinAvailable   *intstr.IntOrString
 	MaxUnavailable *intstr.IntOrString
 }
+
+var (
+	sequentialPodNumber     = 0
+	randomSource            = rand.NewSource(time.Now().UnixNano())
+	randomizer              = rand.New(randomSource) //nolint
+	sequentialPodNumberLock = new(sync.Mutex)
+)
 
 // Pod creates a test pod with defaults that can be overridden by PodOptions.
 // Overrides are applied in order, with a last write wins semantic.
@@ -73,11 +87,11 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
-			Affinity:                  buildAffinity(options.NodeRequirements, options.NodePreferences),
+			Affinity:                  buildAffinity(options),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
 			Containers: []v1.Container{{
-				Name:      strings.ToLower(randomdata.SillyName()),
+				Name:      strings.ToLower(sequentialRandomName()),
 				Image:     options.Image,
 				Resources: options.ResourceRequirements,
 			}},
@@ -90,6 +104,13 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Phase:      options.Phase,
 		},
 	}
+}
+
+func sequentialRandomName() string {
+	sequentialPodNumberLock.Lock()
+	defer sequentialPodNumberLock.Unlock()
+	sequentialPodNumber++
+	return fmt.Sprintf("P%04d-%s-%06d", sequentialPodNumber, randomdata.SillyName(), randomizer.Intn(99999))
 }
 
 // Pods creates homogeneous groups of pods based on the passed in options, evenly divided by the total pods requested
@@ -138,22 +159,71 @@ func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	}
 }
 
-func buildAffinity(nodeRequirements []v1.NodeSelectorRequirement, nodePreferences []v1.NodeSelectorRequirement) *v1.Affinity {
-	var affinity *v1.Affinity
-	if nodeRequirements == nil && nodePreferences == nil {
-		return affinity
+func buildAffinity(options PodOptions) *v1.Affinity {
+	affinity := &v1.Affinity{}
+	if nodeAffinity := buildNodeAffinity(options.NodeRequirements, options.NodePreferences); nodeAffinity != nil {
+		affinity.NodeAffinity = nodeAffinity
 	}
-	affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{}}
+	if podAffinity := buildPodAffinity(options.PodRequirements, options.PodPreferences); podAffinity != nil {
+		affinity.PodAffinity = podAffinity
+	}
+	if podAntiAffinity := buildPodAntiAffinity(options.PodAntiRequirements, options.PodAntiPreferences); podAntiAffinity != nil {
+		affinity.PodAntiAffinity = podAntiAffinity
+	}
+	if affinity.NodeAffinity == nil && affinity.PodAffinity == nil && affinity.PodAntiAffinity == nil {
+		return nil
+	}
+	return affinity
+}
+
+func buildPodAffinity(podRequirements []v1.PodAffinityTerm, podPreferences []v1.WeightedPodAffinityTerm) *v1.PodAffinity {
+	var podAffinity *v1.PodAffinity
+	if podRequirements == nil && podPreferences == nil {
+		return podAffinity
+	}
+	podAffinity = &v1.PodAffinity{}
+
+	if podRequirements != nil {
+		podAffinity.RequiredDuringSchedulingIgnoredDuringExecution = podRequirements
+	}
+	if podPreferences != nil {
+		podAffinity.PreferredDuringSchedulingIgnoredDuringExecution = podPreferences
+	}
+	return podAffinity
+}
+
+func buildPodAntiAffinity(podAntiRequirements []v1.PodAffinityTerm, podAntiPreferences []v1.WeightedPodAffinityTerm) *v1.PodAntiAffinity {
+	var podAntiAffinity *v1.PodAntiAffinity
+	if podAntiRequirements == nil && podAntiPreferences == nil {
+		return podAntiAffinity
+	}
+	podAntiAffinity = &v1.PodAntiAffinity{}
+
+	if podAntiRequirements != nil {
+		podAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = podAntiRequirements
+	}
+	if podAntiPreferences != nil {
+		podAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = podAntiPreferences
+	}
+	return podAntiAffinity
+}
+
+func buildNodeAffinity(nodeRequirements []v1.NodeSelectorRequirement, nodePreferences []v1.NodeSelectorRequirement) *v1.NodeAffinity {
+	var nodeAffinity *v1.NodeAffinity
+	if nodeRequirements == nil && nodePreferences == nil {
+		return nodeAffinity
+	}
+	nodeAffinity = &v1.NodeAffinity{}
 
 	if nodeRequirements != nil {
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{{MatchExpressions: nodeRequirements}},
 		}
 	}
 	if nodePreferences != nil {
-		affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.PreferredSchedulingTerm{
+		nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.PreferredSchedulingTerm{
 			{Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: nodePreferences}},
 		}
 	}
-	return affinity
+	return nodeAffinity
 }

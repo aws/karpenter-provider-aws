@@ -69,7 +69,6 @@ var _ = BeforeEach(func() {
 		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
-	provisioner.SetDefaults(ctx)
 })
 
 var _ = AfterEach(func() {
@@ -233,6 +232,35 @@ var _ = Describe("Preferential Fallback", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
+		It("should tolerate PreferNoSchedule taint only after trying to relax Affinity terms", func() {
+			provisioner.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+				{
+					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+					}},
+				},
+			}}}
+			// Remove first term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Tolerate PreferNoSchedule Taint
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}))
+		})
 	})
 })
 
@@ -266,5 +294,53 @@ var _ = Describe("Multiple Provisioners", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner2.Name))
+	})
+	It("should not match provisioners with PreferNoSchedule taint when other provisioners match", func() {
+		provisioner2 := provisioner.DeepCopy()
+		provisioner2.Name = "prefer-no-schedule"
+		provisioner2.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}
+		ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner2)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).To(Equal(provisioner.Name))
+	})
+})
+
+var _ = Describe("Pod Affinity and AntiAffinity", func() {
+	It("should not schedule a pod with pod affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodRequirements: []v1.PodAffinityTerm{{TopologyKey: "foo"}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod anti-affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodAntiRequirements: []v1.PodAffinityTerm{{TopologyKey: "foo"}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod affinity preference", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should not schedule a pod with pod anti-affinity preference", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodAntiPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+		}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule a pod with empty pod affinity and anti-affinity", func() {
+		ExpectCreated(ctx, env.Client)
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+			PodRequirements:     []v1.PodAffinityTerm{},
+			PodAntiRequirements: []v1.PodAffinityTerm{},
+		}))[0]
+		ExpectScheduled(ctx, env.Client, pod)
 	})
 })

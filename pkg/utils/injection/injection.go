@@ -17,9 +17,10 @@ package injection
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/utils/options"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 type resourceKey struct{}

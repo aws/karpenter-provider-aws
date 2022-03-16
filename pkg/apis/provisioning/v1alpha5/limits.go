@@ -27,7 +27,7 @@ type Limits struct {
 }
 
 func (l *Limits) ExceededBy(resources v1.ResourceList) error {
-	if l.Resources == nil {
+	if l == nil || l.Resources == nil {
 		return nil
 	}
 	for resourceName, usage := range resources {

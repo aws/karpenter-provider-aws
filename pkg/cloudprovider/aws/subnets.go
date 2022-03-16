@@ -21,11 +21,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/pretty"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 type SubnetProvider struct {
@@ -40,23 +41,23 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (s *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
+func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
 	filters := getFilters(constraints)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
 	}
-	if subnets, ok := s.cache.Get(fmt.Sprint(hash)); ok {
+	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}
-	output, err := s.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
 	if len(output.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
 	}
-	s.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
+	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	logging.FromContext(ctx).Debugf("Discovered subnets: %s", prettySubnets(output.Subnets))
 	return output.Subnets, nil
 }

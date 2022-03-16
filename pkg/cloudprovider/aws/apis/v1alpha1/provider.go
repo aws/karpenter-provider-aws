@@ -18,17 +18,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
 
-const (
-	DefaultMetadataOptionsHTTPEndpoint            = ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled
-	DefaultMetadataOptionsHTTPProtocolIPv6        = ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled
-	DefaultMetadataOptionsHTTPPutResponseHopLimit = 2
-	DefaultMetadataOptionsHTTPTokens              = ec2.LaunchTemplateHttpTokensStateRequired
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 // Constraints wraps generic constraints with AWS specific parameters
@@ -49,9 +42,6 @@ type AWS struct {
 	// InstanceProfile is the AWS identity that instances use.
 	// +optional
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
-	// LaunchTemplate for the node. If not specified, a launch template will be generated.
-	// +optional
-	LaunchTemplate *string `json:"launchTemplate,omitempty"`
 	// SubnetSelector discovers subnets by tags. A value of "" is a wildcard.
 	// +optional
 	SubnetSelector map[string]string `json:"subnetSelector,omitempty"`
@@ -61,6 +51,16 @@ type AWS struct {
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
+	// LaunchTemplate parameters to use when generating an LT
+	LaunchTemplate `json:",inline,omitempty"`
+}
+
+type LaunchTemplate struct {
+	// LaunchTemplateName for the node. If not specified, a launch template will be generated.
+	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
+	// as `launchTemplate` for backwards compatibility.
+	// +optional
+	LaunchTemplateName *string `json:"launchTemplate,omitempty"`
 	// MetadataOptions for the generated launch template of provisioned nodes.
 	//
 	// This specifies the exposure of the Instance Metadata Service to
@@ -77,6 +77,9 @@ type AWS struct {
 	// required.
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// BlockDeviceMappings to be applied to provisioned nodes.
+	// +optionals
+	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
@@ -123,6 +126,69 @@ type MetadataOptions struct {
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
 
+type BlockDeviceMapping struct {
+	// The device name (for example, /dev/sdh or xvdh).
+	DeviceName *string `json:"deviceName,omitempty"`
+	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
+	EBS *BlockDevice `json:"ebs,omitempty"`
+}
+
+type BlockDevice struct {
+	// DeleteOnTermination indicates whether the EBS volume is deleted on instance termination.
+	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
+
+	// Encrypted indicates whether the EBS volume is encrypted. Encrypted volumes can only
+	// be attached to instances that support Amazon EBS encryption. If you are creating
+	// a volume from a snapshot, you can't specify an encryption value.
+	Encrypted *bool `json:"encrypted,omitempty"`
+
+	// IOPS is the number of I/O operations per second (IOPS). For gp3, io1, and io2 volumes,
+	// this represents the number of IOPS that are provisioned for the volume. For
+	// gp2 volumes, this represents the baseline performance of the volume and the
+	// rate at which the volume accumulates I/O credits for bursting.
+	//
+	// The following are the supported values for each volume type:
+	//
+	//    * gp3: 3,000-16,000 IOPS
+	//
+	//    * io1: 100-64,000 IOPS
+	//
+	//    * io2: 100-64,000 IOPS
+	//
+	// For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
+	// on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+	// Other instance families guarantee performance up to 32,000 IOPS.
+	//
+	// This parameter is supported for io1, io2, and gp3 volumes only. This parameter
+	// is not supported for gp2, st1, sc1, or standard volumes.
+	IOPS *int64 `json:"iops,omitempty"`
+
+	// KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
+	KMSKeyID *string `json:"kmsKeyID,omitempty"`
+
+	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
+	// Valid Range: Minimum value of 125. Maximum value of 1000.
+	Throughput *int64 `json:"throughput,omitempty"`
+
+	// VolumeSize in GiBs. You must specify either a snapshot ID or
+	// a volume size. The following are the supported volumes sizes for each volume
+	// type:
+	//
+	//    * gp2 and gp3: 1-16,384
+	//
+	//    * io1 and io2: 4-16,384
+	//
+	//    * st1 and sc1: 125-16,384
+	//
+	//    * standard: 1-1,024
+	VolumeSize *resource.Quantity `json:"volumeSize,omitempty"`
+
+	// VolumeType of the block device.
+	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
+	// in the Amazon Elastic Compute Cloud User Guide.
+	VolumeType *string `json:"volumeType,omitempty"`
+}
+
 func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {
 	if constraints.Provider == nil {
 		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
@@ -148,16 +214,4 @@ func (a *AWS) Serialize(constraints *v1alpha5.Constraints) error {
 	}
 	constraints.Provider.Raw = bytes
 	return nil
-}
-
-func (a *AWS) GetMetadataOptions() *MetadataOptions {
-	if a.MetadataOptions == nil {
-		return &MetadataOptions{
-			HTTPEndpoint:            aws.String(DefaultMetadataOptionsHTTPEndpoint),
-			HTTPProtocolIPv6:        aws.String(DefaultMetadataOptionsHTTPProtocolIPv6),
-			HTTPPutResponseHopLimit: aws.Int64(DefaultMetadataOptionsHTTPPutResponseHopLimit),
-			HTTPTokens:              aws.String(DefaultMetadataOptionsHTTPTokens),
-		}
-	}
-	return a.MetadataOptions
 }
