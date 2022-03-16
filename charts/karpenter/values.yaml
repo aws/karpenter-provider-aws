@@ -110,4 +110,4 @@ clusterEndpoint: ""
 aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""
-  eni_limited_pod_density: "true"
+  eni_limited_pod_density: true
