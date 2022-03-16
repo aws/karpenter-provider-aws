@@ -70,6 +70,8 @@ spec:
           {{- if .Values.aws.defaultInstanceProfile }}
             - name: AWS_DEFAULT_INSTANCE_PROFILE
               value: {{ .Values.aws.defaultInstanceProfile }}
+            - name: AWS_ENI_LIMITED_POD_DENSITY
+              value: {{ quote .Values.aws.eni_limited_pod_density }}
           {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
