@@ -15,6 +15,10 @@ limitations under the License.
 package bootstrap
 
 import (
+	"fmt"
+	"strings"
+	"sync"
+
 	core "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -37,4 +41,29 @@ type Options struct {
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
 	Script() string
+}
+
+func (o Options) nodeTaintArg() string {
+	nodeTaintsArg := ""
+	taintStrings := []string{}
+	var once sync.Once
+	for _, taint := range o.Taints {
+		once.Do(func() { nodeTaintsArg = "--register-with-taints=" })
+		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
+	}
+	return fmt.Sprintf("%s%s", nodeTaintsArg, strings.Join(taintStrings, ","))
+}
+
+func (o Options) nodeLabelArg() string {
+	nodeLabelArg := ""
+	labelStrings := []string{}
+	var once sync.Once
+	for k, v := range o.Labels {
+		if v1alpha5.LabelDomainExceptions.Has(k) {
+			continue
+		}
+		once.Do(func() { nodeLabelArg = "--node-labels=" })
+		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", k, v))
+	}
+	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
 }
