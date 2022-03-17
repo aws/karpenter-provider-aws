@@ -140,6 +140,10 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
 		}),
+		NewInstanceType(InstanceTypeOptions{
+			Name:              "pod-private-ipv4-instance-type",
+			AWSPodPrivateIPv4: resource.MustParse("1"),
+		}),
 	}, nil
 }
 

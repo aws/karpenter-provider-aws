@@ -277,6 +277,11 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				}
 			}
 
+			os := v1alpha5.OperatingSystemLinux
+			if aws.StringValue(instance.Platform) == "Windows" {
+				os = v1alpha5.OperatingSystemWindows
+			}
+
 			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -295,7 +300,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					NodeInfo: v1.NodeSystemInfo{
 						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						OSImage:         aws.StringValue(instance.ImageId),
-						OperatingSystem: v1alpha5.OperatingSystemLinux,
+						OperatingSystem: os,
 					},
 				},
 			}

@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	ArchitectureAmd64    = "amd64"
-	ArchitectureArm64    = "arm64"
-	OperatingSystemLinux = "linux"
+	ArchitectureAmd64      = "amd64"
+	ArchitectureArm64      = "arm64"
+	OperatingSystemLinux   = "linux"
+	OperatingSystemWindows = "windows"
 
 	// ValidTopologyKeys are the topology keys that Karpenter allows for topology spread and pod affinity/anti-affinity
 	ValidTopologyKeys = stringsets.NewString(v1.LabelHostname, v1.LabelTopologyZone, LabelCapacityType)

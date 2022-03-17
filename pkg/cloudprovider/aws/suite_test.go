@@ -18,13 +18,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"testing"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -185,24 +185,37 @@ var _ = Describe("Allocation", func() {
 					ExpectScheduled(ctx, env.Client, pod)
 				}
 			})
-			It("should launch AWS Pod ENI on a compatible instance type", func() {
-				ExpectApplied(ctx, env.Client, provisioner)
-				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+			It("should not launch m4.xlarge for windows pods", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{
+							v1.LabelOSStable:           "windows",
+							v1.LabelInstanceTypeStable: "m4.xlarge",
+						},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
 						},
 					})) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
-					supportsPodENI := func() bool {
-						limits, ok := vpc.Limits[node.Labels[v1.LabelInstanceTypeStable]]
-						return ok && limits.IsTrunkingCompatible
-					}
-					Expect(supportsPodENI()).To(Equal(true))
+					ExpectNotScheduled(ctx, env.Client, pod)
 				}
 			})
+			It("should launch m4.16xlarge for windows pods", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{
+							v1.LabelOSStable:           "windows",
+							v1.LabelInstanceTypeStable: "m4.16xlarge",
+						},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+						},
+					})) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
+			})
+			// TODO(todd): this set of tests should move to scheduler once resource handling is made more generic
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
 				ExpectApplied(ctx, env.Client, provisioner)

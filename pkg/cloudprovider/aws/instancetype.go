@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
@@ -57,7 +59,16 @@ func (i *InstanceType) Offerings() []cloudprovider.Offering {
 }
 
 func (i *InstanceType) OperatingSystems() sets.String {
-	return sets.NewString("linux")
+	// https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html#windows-support-prerequisites
+	if functional.HasAnyPrefix(i.Name(), "c3", "c4", "d2", "i2", "m6a", "r3") {
+		return sets.NewString("linux")
+	}
+
+	if strings.HasPrefix(i.Name(), "m4") && i.Name() != "m4.16xlarge" {
+		return sets.NewString("linux")
+	}
+
+	return sets.NewString("linux", "windows")
 }
 
 func (i *InstanceType) Architecture() string {
