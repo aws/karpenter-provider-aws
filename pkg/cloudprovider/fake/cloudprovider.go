@@ -110,6 +110,10 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider
 			Name:         "arm-instance-type",
 			Architecture: "arm64",
 		}),
+		NewInstanceType(InstanceTypeOptions{
+			Name:              "pod-private-ipv4-instance-type",
+			AWSPodPrivateIPv4: resource.MustParse("1"),
+		}),
 	}, nil
 }
 

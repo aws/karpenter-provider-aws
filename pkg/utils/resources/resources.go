@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	NvidiaGPU = "nvidia.com/gpu"
-	AMDGPU    = "amd.com/gpu"
-	AWSNeuron = "aws.amazon.com/neuron"
-	AWSPodENI = "vpc.amazonaws.com/pod-eni"
+	NvidiaGPU         = "nvidia.com/gpu"
+	AMDGPU            = "amd.com/gpu"
+	AWSNeuron         = "aws.amazon.com/neuron"
+	AWSPodENI         = "vpc.amazonaws.com/pod-eni"
+	AWSPodPrivateIPv4 = "vpc.amazonaws.com/PrivateIPv4Address"
 )
 
 // RequestsForPods returns the total resources of a variadic list of podspecs.

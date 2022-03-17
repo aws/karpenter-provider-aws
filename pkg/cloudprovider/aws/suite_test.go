@@ -184,6 +184,53 @@ var _ = Describe("Allocation", func() {
 					Expect(supportsPodENI()).To(Equal(true))
 				}
 			})
+			It("should launch instances for AWS Pod Private IPv4 resource requests", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+						},
+					})) {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+					supportsPodPrivateIPv4 := func() bool {
+						limits, ok := vpc.Limits[node.Labels[v1.LabelInstanceTypeStable]]
+						return ok && limits.IPv4PerInterface > 0
+					}
+					Expect(supportsPodPrivateIPv4()).To(Equal(true))
+				}
+			})
+			It("should not launch m4.xlarge for windows pods", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{
+							v1.LabelOSStable:           "windows",
+							v1.LabelInstanceTypeStable: "m4.xlarge",
+						},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+						},
+					})) {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+			})
+			It("should able to launch m4.16xlarge for windows pods", func() {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{
+						NodeSelector: map[string]string{
+							v1.LabelOSStable:           "windows",
+							v1.LabelInstanceTypeStable: "m4.16xlarge",
+						},
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+						},
+					})) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
+			})
 			// TODO(todd): this set of tests should move to scheduler once resource handling is made more generic
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()

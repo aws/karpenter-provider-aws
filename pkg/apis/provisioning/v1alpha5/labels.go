@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	ArchitectureAmd64    = "amd64"
-	ArchitectureArm64    = "arm64"
-	OperatingSystemLinux = "linux"
+	ArchitectureAmd64      = "amd64"
+	ArchitectureArm64      = "arm64"
+	OperatingSystemLinux   = "linux"
+	OperatingSystemWindows = "windows"
 
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"

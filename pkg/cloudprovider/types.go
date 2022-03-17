@@ -66,6 +66,7 @@ type InstanceType interface {
 	AMDGPUs() *resource.Quantity
 	AWSNeurons() *resource.Quantity
 	AWSPodENI() *resource.Quantity
+	AWSPodPrivateIPv4() *resource.Quantity
 	Overhead() v1.ResourceList
 }
 

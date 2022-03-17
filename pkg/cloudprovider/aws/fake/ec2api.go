@@ -382,6 +382,48 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					Ipv4AddressesPerInterface: aws.Int64(60),
 				},
 			},
+			{
+				InstanceType:                  aws.String("m4.xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("xen"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(4),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(16384),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(4),
+					Ipv4AddressesPerInterface: aws.Int64(15),
+				},
+			},
+			{
+				InstanceType:                  aws.String("m4.16xlarge"),
+				SupportedUsageClasses:         DefaultSupportedUsageClasses,
+				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
+				BurstablePerformanceSupported: aws.Bool(false),
+				BareMetal:                     aws.Bool(false),
+				Hypervisor:                    aws.String("xen"),
+				ProcessorInfo: &ec2.ProcessorInfo{
+					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+				},
+				VCpuInfo: &ec2.VCpuInfo{
+					DefaultVCpus: aws.Int64(64),
+				},
+				MemoryInfo: &ec2.MemoryInfo{
+					SizeInMiB: aws.Int64(262144),
+				},
+				NetworkInfo: &ec2.NetworkInfo{
+					MaximumNetworkInterfaces:  aws.Int64(8),
+					Ipv4AddressesPerInterface: aws.Int64(30),
+				},
+			},
 		},
 	}, false)
 	return nil
@@ -453,6 +495,22 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			{
 				InstanceType: aws.String("c6g.large"),
 				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m4.xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m4.xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("m4.16xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m4.16xlarge"),
+				Location:     aws.String("test-zone-1b"),
 			},
 		},
 	}, false)

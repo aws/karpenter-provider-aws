@@ -84,17 +84,18 @@ func InstanceTypes(total int) []cloudprovider.InstanceType {
 }
 
 type InstanceTypeOptions struct {
-	Name             string
-	Offerings        []cloudprovider.Offering
-	Architecture     string
-	OperatingSystems sets.String
-	CPU              resource.Quantity
-	Memory           resource.Quantity
-	Pods             resource.Quantity
-	NvidiaGPUs       resource.Quantity
-	AMDGPUs          resource.Quantity
-	AWSNeurons       resource.Quantity
-	AWSPodENI        resource.Quantity
+	Name              string
+	Offerings         []cloudprovider.Offering
+	Architecture      string
+	OperatingSystems  sets.String
+	CPU               resource.Quantity
+	Memory            resource.Quantity
+	Pods              resource.Quantity
+	NvidiaGPUs        resource.Quantity
+	AMDGPUs           resource.Quantity
+	AWSNeurons        resource.Quantity
+	AWSPodENI         resource.Quantity
+	AWSPodPrivateIPv4 resource.Quantity
 }
 
 type InstanceType struct {
@@ -143,6 +144,10 @@ func (i *InstanceType) AWSNeurons() *resource.Quantity {
 
 func (i *InstanceType) AWSPodENI() *resource.Quantity {
 	return &i.options.AWSPodENI
+}
+
+func (i *InstanceType) AWSPodPrivateIPv4() *resource.Quantity {
+	return &i.options.AWSPodPrivateIPv4
 }
 
 func (i *InstanceType) Overhead() v1.ResourceList {

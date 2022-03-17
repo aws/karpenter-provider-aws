@@ -165,6 +165,10 @@ func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovi
 			if it.AWSPodENI().Cmp(quantity) < 0 {
 				return false
 			}
+		case resources.AWSPodPrivateIPv4:
+			if it.AWSPodPrivateIPv4().Cmp(quantity) < 0 {
+				return false
+			}
 		default:
 			continue
 		}

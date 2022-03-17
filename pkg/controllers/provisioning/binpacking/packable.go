@@ -78,13 +78,14 @@ func PackableFor(i cloudprovider.InstanceType) *Packable {
 	return &Packable{
 		InstanceType: i,
 		total: v1.ResourceList{
-			v1.ResourceCPU:      *i.CPU(),
-			v1.ResourceMemory:   *i.Memory(),
-			resources.NvidiaGPU: *i.NvidiaGPUs(),
-			resources.AMDGPU:    *i.AMDGPUs(),
-			resources.AWSNeuron: *i.AWSNeurons(),
-			resources.AWSPodENI: *i.AWSPodENI(),
-			v1.ResourcePods:     *i.Pods(),
+			v1.ResourceCPU:              *i.CPU(),
+			v1.ResourceMemory:           *i.Memory(),
+			resources.NvidiaGPU:         *i.NvidiaGPUs(),
+			resources.AMDGPU:            *i.AMDGPUs(),
+			resources.AWSNeuron:         *i.AWSNeurons(),
+			resources.AWSPodENI:         *i.AWSPodENI(),
+			resources.AWSPodPrivateIPv4: *i.AWSPodPrivateIPv4(),
+			v1.ResourcePods:             *i.Pods(),
 		},
 	}
 }
