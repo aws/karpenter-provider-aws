@@ -19,9 +19,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
-	"sync"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 type EKS struct {
@@ -56,29 +53,4 @@ func (e EKS) Script() string {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes())
-}
-
-func (e EKS) nodeTaintArg() string {
-	nodeTaintsArg := ""
-	taintStrings := []string{}
-	var once sync.Once
-	for _, taint := range e.Taints {
-		once.Do(func() { nodeTaintsArg = "--register-with-taints=" })
-		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
-	}
-	return fmt.Sprintf("%s%s", nodeTaintsArg, strings.Join(taintStrings, ","))
-}
-
-func (e EKS) nodeLabelArg() string {
-	nodeLabelArg := ""
-	labelStrings := []string{}
-	var once sync.Once
-	for k, v := range e.Labels {
-		if v1alpha5.LabelDomainExceptions.Has(k) {
-			continue
-		}
-		once.Do(func() { nodeLabelArg = "--node-labels=" })
-		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", k, v))
-	}
-	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
 }

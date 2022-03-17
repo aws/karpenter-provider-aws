@@ -38,10 +38,12 @@ var (
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"
 	AMIFamilyUbuntu       = "Ubuntu"
+	AMIFamilyWindows      = "Windows"
 	SupportedAMIFamilies  = []string{
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
+		AMIFamilyWindows,
 	}
 	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
