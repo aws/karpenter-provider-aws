@@ -1585,6 +1585,20 @@ var _ = Describe("Instance Type Compatibility", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should exclude instance types that are not supported by the provider constraints (arch)", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Limits: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("14")}}}))
+		// only the ARM instance has enough CPU, but it's not allowed per the provisioner
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+	})
 	It("should launch pods with different operating systems on different instances", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
 			{
