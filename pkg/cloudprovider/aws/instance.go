@@ -342,15 +342,6 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 	return v1alpha1.CapacityTypeOnDemand
 }
 
-func (p *InstanceProvider) getFleetContext(aws *v1alpha1.AWS) string {
-
-	if aws.Context != nil && *aws.Context != "" {
-		return *aws.Context
-	}
-
-	return ""
-}
-
 func getInstanceID(node *v1.Node) (*string, error) {
 	id := strings.Split(node.Spec.ProviderID, "/")
 	if len(id) < 5 {
