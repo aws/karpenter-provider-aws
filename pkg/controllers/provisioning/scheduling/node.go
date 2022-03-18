@@ -19,6 +19,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/aws/karpenter/pkg/utils/sets"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -41,6 +43,16 @@ func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovi
 		if !instanceTypes.Has(it.Name()) {
 			continue
 		}
+
+		// provisioner constraints can't exclude the instance type by arch or OS
+		if !constraints.Requirements.Get(v1.LabelArchStable).Has(it.Architecture()) {
+			continue
+		}
+		if constraints.Requirements.Get(v1.LabelOSStable).Intersection(
+			sets.NewSet(it.OperatingSystems().List()...)).Len() == 0 {
+			continue
+		}
+
 		included := false
 		// and the instance type must have some valid offering combination per the provisioner constraints
 		for _, off := range it.Offerings() {
@@ -61,6 +73,7 @@ func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovi
 	}
 	return n
 }
+
 func (n Node) Compatible(pod *v1.Pod) error {
 	podRequirements := v1alpha5.NewPodRequirements(pod)
 	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
