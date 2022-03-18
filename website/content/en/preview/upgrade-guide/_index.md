@@ -1,6 +1,6 @@
 ---
-title: "Upgrade guide"
-linkTitle: "Troubleshooting"
+title: "Upgrade Guide"
+linkTitle: "Upgrade Guide"
 weight: 10
 ---
 
