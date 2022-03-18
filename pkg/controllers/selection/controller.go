@@ -143,10 +143,10 @@ func validateAffinity(p *v1.Pod) (errs error) {
 		return nil
 	}
 	if pod.HasRequiredPodAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("pod affinity rule  'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
+		errs = multierr.Append(errs, fmt.Errorf("pod affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
 	}
 	if pod.HasRequiredPodAntiAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("strong pod anti-affinity is not supported"))
+		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
 	}
 	if p.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
