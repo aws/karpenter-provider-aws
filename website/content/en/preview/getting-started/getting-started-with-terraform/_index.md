@@ -42,7 +42,7 @@ After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export CLUSTER_NAME="karpenter-ex"
+export CLUSTER_NAME="karpenter-demo"
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
@@ -54,7 +54,7 @@ provider "aws" {
 }
 
 locals {
-  cluster_name = "karpenter-ex"
+  cluster_name = "karpenter-demo"
 
   # Used to determine correct partition (i.e. - `aws`, `aws-gov`, `aws-cn`, etc.)
   partition = data.aws_partition.current.partition
@@ -243,8 +243,7 @@ resource "helm_release" "karpenter" {
   name       = "karpenter"
   repository = "https://charts.karpenter.sh"
   chart      = "karpenter"
-  # Be sure to pull latest version of chart
-  version = "0.7.1"
+  version    = "{{< param "latest_release_version" >}}"
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
@@ -294,7 +293,7 @@ resources like subnets and security groups using the cluster's name.
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
 This behavior can be disabled by leaving the value undefined.
 
-Review the [provisioner CRD](../provisioner) for more information. For example,
+Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
