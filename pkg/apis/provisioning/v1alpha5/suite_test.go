@@ -314,20 +314,20 @@ var _ = Describe("Validation", func() {
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			Expect(A.Compatible(B)).ToNot(Succeed())
 		})
-		It("A should fail to be compatible to B, <Exists, Empty> operator, conflicting", func() {
+		It("A should be compatible to B, <Exists, Empty> operator", func() {
 			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
 			B := NewRequirements()
-			Expect(A.Compatible(B)).ToNot(Succeed())
+			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should fail to be compatible to B, <DoesNotExist, In> operator, conflicting", func() {
 			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
 			Expect(A.Compatible(B)).ToNot(Succeed())
 		})
-		It("A should fail to be compatible to B, <DoesNotExist, NotIn> operator, conflicting", func() {
+		It("A should be compatible to B, <DoesNotExist, NotIn> operator", func() {
 			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
-			Expect(A.Compatible(B)).ToNot(Succeed())
+			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should fail to be compatible to B, <DoesNotExists, Exists> operator, conflicting", func() {
 			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
@@ -340,7 +340,7 @@ var _ = Describe("Validation", func() {
 			Expect(A.Compatible(B)).To(Succeed())
 		})
 		It("A should be compatible to B, <DoesNotExist, Empty> operator", func() {
-			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist, Values: []string{"foo"}})
+			A := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			B := NewRequirements()
 			Expect(A.Compatible(B)).To(Succeed())
 		})
@@ -354,14 +354,14 @@ var _ = Describe("Validation", func() {
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
 			Expect(A.Compatible(B)).To(Succeed())
 		})
-		It("A should fail to be compatible to B,, <Empty, Exists> operator, conflicting", func() {
+		It("A should fail to be compatible to B, <Empty, Exists> operator, conflicting", func() {
 			A := NewRequirements()
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
 			Expect(A.Compatible(B)).ToNot(Succeed())
 		})
 		It("A should be compatible to B, <Empty, DoesNotExist> operator", func() {
 			A := NewRequirements()
-			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist, Values: []string{"foo"}})
+			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			Expect(A.Compatible(B)).To(Succeed())
 		})
 	})

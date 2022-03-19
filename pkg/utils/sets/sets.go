@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -53,14 +54,22 @@ func (s Set) DeepCopy() Set {
 	}
 }
 
-//  IsComplement returns whether the set is a complement set.
+// IsComplement returns whether the set is a complement set.
 func (s Set) IsComplement() bool {
 	return s.complement
 }
 
-//  IsEmpty returns whether the set is an empty set.
-func (s Set) IsEmpty() bool {
-	return !s.complement && s.values.Len() == 0
+func (s Set) Type() v1.NodeSelectorOperator {
+	if s.IsComplement() {
+		if s.Len() < math.MaxInt64 {
+			return v1.NodeSelectorOpNotIn
+		}
+		return v1.NodeSelectorOpExists
+	}
+	if s.Len() > 0 {
+		return v1.NodeSelectorOpIn
+	}
+	return v1.NodeSelectorOpDoesNotExist
 }
 
 // Values returns the values of the set.

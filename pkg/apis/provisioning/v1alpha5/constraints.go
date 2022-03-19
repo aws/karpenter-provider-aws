@@ -71,7 +71,7 @@ func (c *Constraints) GenerateLabels() map[string]string {
 	for key := range c.Requirements.Keys() {
 		if !IsRestrictedNodeLabel(key) {
 			// Ignore cases when values set is empty (i.e., DoesNotExist or <In, NotIn> cancling out)
-			if c.Requirements.Get(key).IsEmpty() {
+			if c.Requirements.Get(key).Len() == 0 {
 				continue
 			}
 			labels[key] = c.Requirements.Label(key)

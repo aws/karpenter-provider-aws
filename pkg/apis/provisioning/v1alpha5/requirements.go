@@ -90,16 +90,23 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 			continue
 		}
 		r.Requirements = append(r.Requirements, requirement)
+		var values sets.Set
 		switch requirement.Operator {
 		case v1.NodeSelectorOpIn:
-			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewSet(requirement.Values...))
+			values = sets.NewSet(requirement.Values...)
 		case v1.NodeSelectorOpNotIn:
-			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet(requirement.Values...))
+			values = sets.NewComplementSet(requirement.Values...)
 		case v1.NodeSelectorOpExists:
-			r.requirements[requirement.Key] = r.Get(requirement.Key).Intersection(sets.NewComplementSet())
+			values = sets.NewComplementSet()
 		case v1.NodeSelectorOpDoesNotExist:
-			r.requirements[requirement.Key] = sets.NewSet()
+			values = sets.NewSet()
+		default:
+			values = sets.NewSet()
 		}
+		if existing, ok := r.requirements[requirement.Key]; ok {
+			values = values.Intersection(existing)
+		}
+		r.requirements[requirement.Key] = values
 	}
 	return r
 }
@@ -128,12 +135,12 @@ func (r Requirements) Label(key string) string {
 	return values.Values().UnsortedList()[0]
 }
 
-// Get returns the sets of values allowed by all included requirements
-// following a denylist method. Values are allowed except specified
+func (r Requirements) Has(key string) bool {
+	_, ok := r.requirements[key]
+	return ok
+}
+
 func (r Requirements) Get(key string) sets.Set {
-	if _, ok := r.requirements[key]; !ok {
-		return sets.NewComplementSet()
-	}
 	return r.requirements[key]
 }
 
@@ -174,10 +181,12 @@ func (r Requirements) Validate() (errs error) {
 			errs = multierr.Append(errs, fmt.Errorf("operator %s not in %s for key %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key))
 		}
 		// Excludes cases when DoesNotExists appears together with In, NotIn, Exists
-		if requirement.Operator == v1.NodeSelectorOpDoesNotExist && (r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
-			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
-			r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists))) {
-			errs = multierr.Append(errs, fmt.Errorf("operator %s cannot coexist with other operators for key %s", v1.NodeSelectorOpDoesNotExist, requirement.Key))
+		if requirement.Operator == v1.NodeSelectorOpDoesNotExist {
+			if r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpIn)) ||
+				r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpNotIn)) ||
+				r.hasRequirement(withKeyAndOperator(requirement.Key, v1.NodeSelectorOpExists)) {
+				errs = multierr.Append(errs, fmt.Errorf("operator %s cannot coexist with other operators for key %s", v1.NodeSelectorOpDoesNotExist, requirement.Key))
+			}
 		}
 	}
 	for key := range r.Keys() {
@@ -189,42 +198,19 @@ func (r Requirements) Validate() (errs error) {
 }
 
 // Compatible ensures the provided requirements can be met.
-//gocyclo:ignore
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
-	for _, key := range r.Keys().Union(requirements.Keys()).UnsortedList() {
-		// Key must be defined if required
-		if values := requirements.Get(key); values.Len() != 0 && !values.IsComplement() && !r.hasRequirement(withKey(key)) {
-			errs = multierr.Append(errs, fmt.Errorf("require values for key %s but is not defined", key))
+	for key, requirement := range requirements.requirements {
+		if requirement.Type() == v1.NodeSelectorOpIn && requirement.Intersection(r.Get(key)).Len() == 0 {
+			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", requirement, r.Get(key), key))
 		}
-		// Values must overlap except DoesNotExist operator
-		// Both DoesNotExist and conflicting { In, NotIn } rules are represented by the empty set. DoesNotExist is a valid configuration, but conflicting { In, NotIn } is not.
-		if values := r.Get(key); values.Intersection(requirements.Get(key)).Len() == 0 && !r.Get(key).IsEmpty() && !requirements.Get(key).IsEmpty() {
-			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, requirements.Get(key), key))
+		if requirement.Type() == v1.NodeSelectorOpExists && requirement.Intersection(r.Get(key)).Len() == 0 {
+			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", requirement, r.Get(key), key))
 		}
-		// Exists incompatible with DoesNotExist or undefined
-		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
-			if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key)) {
-				errs = multierr.Append(errs, fmt.Errorf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key))
-			}
+		if requirement.Type() == v1.NodeSelectorOpNotIn && r.Get(key).Type() == v1.NodeSelectorOpIn && requirement.Intersection(r.Get(key)).Len() == 0 {
+			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", requirement, r.Get(key), key))
 		}
-		// DoesNotExist requires DoesNotExist or undefined
-		if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
-			if !(r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !r.hasRequirement(withKey(key))) {
-				errs = multierr.Append(errs, fmt.Errorf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key))
-			}
-		}
-		// Repeat for the other direction
-		// Exists incompatible with DoesNotExist or undefined
-		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
-			if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key)) {
-				errs = multierr.Append(errs, fmt.Errorf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key))
-			}
-		}
-		// DoesNotExist requires DoesNotExist or undefined
-		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
-			if !(requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key))) {
-				errs = multierr.Append(errs, fmt.Errorf("%s requires %s, key %s", v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpDoesNotExist, key))
-			}
+		if requirement.Type() == v1.NodeSelectorOpDoesNotExist && r.Get(key).Len() > 0 {
+			errs = multierr.Append(errs, fmt.Errorf("operator DoesNotExist prohibits %s, key %s", r.Get(key), key))
 		}
 	}
 	return errs
@@ -237,10 +223,6 @@ func (r Requirements) hasRequirement(f func(v1.NodeSelectorRequirement) bool) bo
 		}
 	}
 	return false
-}
-
-func withKey(key string) func(v1.NodeSelectorRequirement) bool {
-	return func(requirement v1.NodeSelectorRequirement) bool { return requirement.Key == key }
 }
 
 func withKeyAndOperator(key string, operator v1.NodeSelectorOperator) func(v1.NodeSelectorRequirement) bool {
