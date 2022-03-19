@@ -214,9 +214,9 @@ func (r Requirements) Compatible(requirements Requirements) (errs error) {
 			}
 		}
 		// Repeat for the other direction
-		// Exists incompatible with DoesNotExist or undefined
+		// Exists incompatible with DoesNotExist
 		if r.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpExists)) {
-			if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) || !requirements.hasRequirement(withKey(key)) {
+			if requirements.hasRequirement(withKeyAndOperator(key, v1.NodeSelectorOpDoesNotExist)) {
 				errs = multierr.Append(errs, fmt.Errorf("%s prohibits %s, key %s", v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist, key))
 			}
 		}

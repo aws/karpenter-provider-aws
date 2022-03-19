@@ -16,12 +16,9 @@ package scheduling_test
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 	"testing"
 	"time"
-
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -31,11 +28,12 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -516,6 +514,12 @@ var _ = Describe("Custom Constraints", func() {
 					}},
 			))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should schedule the pod with Exists operator in provisioner and undefined key in pod", func() {
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpExists, Values: []string{}})
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+			ExpectScheduled(ctx, env.Client, pod)
 		})
 	})
 })
