@@ -491,7 +491,7 @@ var _ = Describe("Custom Constraints", func() {
 			Expect(node2.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
-		It("should schedule imcompatible pods to the different node", func() {
+		It("should schedule incompatible pods to the different node", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value", "another-value"}})
 			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -619,7 +619,7 @@ var _ = Describe("Preferential Fallback", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
-		It("should schedule even preference is confliting with requirement", func() {
+		It("should schedule even if preference is conflicting with requirement", func() {
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
@@ -642,7 +642,7 @@ var _ = Describe("Preferential Fallback", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-3"))
 		})
-		It("should schedule even preference requirements are conflicting", func() {
+		It("should schedule even if preference requirements are conflicting", func() {
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
@@ -1584,6 +1584,47 @@ var _ = Describe("Instance Type Compatibility", func() {
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should exclude instance types that are not supported by the pod constraints (node affinity/instance type)", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelInstanceTypeStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"arm-instance-type"},
+					},
+				}}))
+		// arm instance type conflicts with the provisioner limitation of AMD only
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+	})
+	It("should exclude instance types that are not supported by the pod constraints (node affinity/operating system)", func() {
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			},
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"ios"},
+					},
+				}}))
+		// there's an instance with an OS of ios, but it has an arm processor so the provider requirements will
+		// exclude it
+		ExpectNotScheduled(ctx, env.Client, pod[0])
 	})
 	It("should exclude instance types that are not supported by the provider constraints (arch)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{

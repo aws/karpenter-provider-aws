@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	"github.com/Pallinder/go-randomdata"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/apis"
@@ -107,10 +109,11 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider
 			AWSNeurons: resource.MustParse("2"),
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:         "arm-instance-type",
-			Architecture: "arm64",
-			CPU:          resource.MustParse("16"),
-			Memory:       resource.MustParse("128Gi"),
+			Name:             "arm-instance-type",
+			Architecture:     "arm64",
+			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
+			CPU:              resource.MustParse("16"),
+			Memory:           resource.MustParse("128Gi"),
 		}),
 	}, nil
 }
