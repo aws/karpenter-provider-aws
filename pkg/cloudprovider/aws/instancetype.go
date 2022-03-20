@@ -76,8 +76,7 @@ func (i *InstanceType) Price() float64 {
 	const (
 		GPUCostWeight      = 5
 		CPUCostWeight      = 1
-		MemoryMBCostWeight = 1
-		MbToGb             = 1 / 1024.0
+		MemoryMBCostWeight = 1024
 	)
 
 	gpuCount := 0.0
@@ -89,9 +88,8 @@ func (i *InstanceType) Price() float64 {
 		}
 	}
 
-	// These are meant to give some relative weighting
 	return CPUCostWeight*float64(*i.VCpuInfo.DefaultVCpus) +
-		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB)/MbToGb +
+		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB) +
 		GPUCostWeight*gpuCount
 }
 func (i *InstanceType) cpu() resource.Quantity {

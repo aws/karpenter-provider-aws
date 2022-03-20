@@ -96,8 +96,7 @@ func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovi
 			continue
 		}
 		// instance must have a non-zero quantity
-		instanceQuantity := it.Resources()[name]
-		if instanceQuantity.IsZero() {
+		if resources.IsZero(it.Resources()[name]) {
 			return false
 		}
 	}
