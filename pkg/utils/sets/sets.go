@@ -73,7 +73,7 @@ func (s Set) Type() v1.NodeSelectorOperator {
 }
 
 // Values returns the values of the set.
-// If the set has an infinite size, it will panic
+// If the set is negatively defined, it will panic
 func (s Set) Values() sets.String {
 	if s.complement {
 		panic("infinite set")
