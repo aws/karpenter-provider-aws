@@ -135,8 +135,8 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider
 			},
 		}),
 		NewInstanceType(InstanceTypeOptions{
-			Name:         "arm-instance-type",
-			Architecture: "arm64",
+			Name:             "arm-instance-type",
+			Architecture:     "arm64",
 			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
 			Resources: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:    resource.MustParse("16"),

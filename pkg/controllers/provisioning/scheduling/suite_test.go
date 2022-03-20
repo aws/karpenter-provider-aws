@@ -16,7 +16,6 @@ package scheduling_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 	"testing"
@@ -79,7 +78,6 @@ var _ = BeforeEach(func() {
 	// reset instance types
 	cloudProv.InstanceTypes = fake.CloudProvider{}.InstanceTypes
 	cloudProv.CreateCalls = nil
-	cloudprovider.ResourceRegistration = map[v1.ResourceName]cloudprovider.ResourceFlags{}
 	provisioner.SetDefaults(ctx)
 })
 
@@ -1940,49 +1938,6 @@ var _ = Describe("Binpacking", func() {
 			}}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
-	It("should schedule the minimum instance type for compatible pods", func() {
-		// This is a weird test but verifies some old bad behavior doesn't come back.  If some non-GPU pods and GPU pods
-		// were compatible, they would be considered in the same set.  If the GPU pod consumed all of the capacity of an
-		// instance type, the non-GPU pods might get an instance with a GPU type to themselves even though they didn't
-		// require it since the constraints for that set of pods considered all of them together
-		//  (e.g. GPU pods + non-GPU pods need a GPU instance type to run)
-		cloudProv.InstanceTypes = fake.InstanceTypes(5)
-		const fakeGPU = "karpenter.sh/super-great-gpu"
-		cloudProv.InstanceTypes[4].Resources()[fakeGPU] = resource.MustParse("25")
-		cloudprovider.ResourceRegistration[fakeGPU] = cloudprovider.ResourceFlagMinimizeUsage
-
-		nodeNames := sets.NewString()
-		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						fakeGPU: resource.MustParse("1"),
-						"cpu":   resource.MustParse("4"),
-					},
-				},
-			}),
-			// Can't pack onto the same instance due to consuming too much CPU
-			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						"cpu": resource.MustParse("1"),
-					},
-				},
-			}),
-		) {
-			node := ExpectScheduled(ctx, env.Client, pod)
-			// This test has a GPU workload that nearly maxes out the test instance type.  It's intended to ensure
-			// that the second pod won't get the same instance type since it doesn't require one, even though it's
-			// compatible with the first pod that does require a GPU.
-			if _, isGpuPod := pod.Spec.Containers[0].Resources.Requests[fakeGPU]; isGpuPod {
-				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "fake-it-4"))
-			} else {
-				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "fake-it-1"))
-			}
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames.Len()).To(Equal(2))
-	})
 	It("uses the create quantity argument for identical node creation", func() {
 		opts := test.PodOptions{
 			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
@@ -2023,53 +1978,6 @@ var _ = Describe("Binpacking", func() {
 			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
 		}
 		Expect(nodeNames).To(HaveLen(5))
-	})
-	It("should not create larger instance types of exotic resources to fit non-exotic workloads", func() {
-		cloudProv.InstanceTypes = fake.InstanceTypes(10)
-		const fakeGPU1 = "karpenter.sh/super-great-gpu"
-
-		// make the largest instance type exotic
-		cloudProv.InstanceTypes[9].Resources()[fakeGPU1] = resource.MustParse("4")
-		cloudprovider.ResourceRegistration[fakeGPU1] = cloudprovider.ResourceFlagMinimizeUsage
-
-		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, // 25 generic pods
-			test.Pods(25, test.PodOptions{
-				Conditions:           []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-				ResourceRequirements: v1.ResourceRequirements{Limits: map[v1.ResourceName]resource.Quantity{v1.ResourceCPU: resource.MustParse("4.6")}},
-			})...)
-		for _, p := range pods {
-			node := ExpectScheduled(ctx, env.Client, p)
-			// The fake-it-9 with a GPU has 10 VCPU, so 2 of these pods would fit there best.  We don't want to select
-			// that though since the instance type is considered exotic and instead choose to create more of the
-			// fake-it-4 instances which can only support 1 pod each
-			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("fake-it-4"))
-		}
-	})
-	It("should not create larger instance types of exotic resources to fit non-exotic workloads", func() {
-		cloudProv.InstanceTypes = fake.InstanceTypes(10)
-		const fakeGPU1 = "karpenter.sh/super-great-gpu"
-		// make two of the instance types exotic
-		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("1")
-		cloudProv.InstanceTypes[9].Resources()[fakeGPU1] = resource.MustParse("4")
-		cloudprovider.ResourceRegistration[fakeGPU1] = cloudprovider.ResourceFlagMinimizeUsage
-
-		testPods := append(
-			// 25 generic pods
-			test.Pods(25, test.PodOptions{
-				Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			}),
-			// one that requires a GPU
-			test.UnschedulablePod(test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{Limits: map[v1.ResourceName]resource.Quantity{
-					fakeGPU1: resource.MustParse("1"),
-				}}}))
-
-		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, testPods...)
-		for _, p := range pods {
-			node := ExpectScheduled(ctx, env.Client, p)
-			// it should not create the larger exotic instance type due to the non-exotic workloads
-			Expect(node.Labels[v1.LabelInstanceTypeStable]).ToNot(Equal("fake-it-9"))
-		}
 	})
 })
 

@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -58,9 +60,6 @@ const (
 
 func init() {
 	v1alpha5.NormalizedLabels = functional.UnionStringMaps(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	cloudprovider.ResourceRegistration[v1alpha1.ResourceAWSNeuron] = cloudprovider.ResourceFlagMinimizeUsage
-	cloudprovider.ResourceRegistration[v1alpha1.ResourceNVIDIAGPU] = cloudprovider.ResourceFlagMinimizeUsage
-	cloudprovider.ResourceRegistration[v1alpha1.ResourceAMDGPU] = cloudprovider.ResourceFlagMinimizeUsage
 }
 
 type CloudProvider struct {
@@ -107,6 +106,8 @@ func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha5.Constr
 	if err != nil {
 		return err
 	}
+	instanceTypes = c.filterInstanceTypes(instanceTypes)
+
 	// Create will only return an error if zero nodes could be launched.
 	// Partial fulfillment will be logged
 	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
@@ -158,6 +159,26 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
+}
+
+// filterInstanceTypes is used to eliminate GPU instance types from the list of possible instance types when a
+// non-GPU instance type will work.  If the list of instance types consists of both GPU and non-GPU types, then only
+// the non-GPU types will be returned.  If it has only GPU types, the list will be returned unaltered.
+func (c *CloudProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
+	var genericInstanceTypes []cloudprovider.InstanceType
+	for _, it := range instanceTypes {
+		itRes := it.Resources()
+		if resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) &&
+			resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) &&
+			resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+			genericInstanceTypes = append(genericInstanceTypes, it)
+		}
+	}
+	// if we got some subset of non-GPU types, then prefer to use those
+	if len(genericInstanceTypes) != 0 {
+		return genericInstanceTypes
+	}
+	return instanceTypes
 }
 
 // get the current region from EC2 IMDS
