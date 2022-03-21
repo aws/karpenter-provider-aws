@@ -126,8 +126,8 @@ spec:
 ```
 Note: Karpenter will set the default AWS tags listed below, but these can be overridden in the tags section above.
 ```
-Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
-karpenter.sh/cluster/<cluster-name>: owned
+Name: karpenter.sh/provisioner/<provisioner-name>
+karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 
