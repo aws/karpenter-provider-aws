@@ -87,6 +87,11 @@ func (s Set) Has(value string) bool {
 	return s.values.Has(value)
 }
 
+// HasAny returns true if any of the supplied values are in the set.
+func (s Set) HasAny(values ...string) bool {
+	return s.values.HasAny(values...)
+}
+
 // Intersection returns a new set containing the common values
 func (s Set) Intersection(set Set) Set {
 	if s.complement {
