@@ -71,6 +71,8 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) {
 
 func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
+		func(pod *v1.Pod) *string { return p.removePreferredPodAffinityTerm(pod) },
+		func(pod *v1.Pod) *string { return p.removePreferredPodAntiAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.toleratePreferNoScheduleTaints(pod) },
@@ -94,6 +96,36 @@ func (p *Preferences) removePreferredNodeAffinityTerm(pod *v1.Pod) *string {
 		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
 		pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
 		return ptr.String(fmt.Sprintf("removing: spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
+	}
+	return nil
+}
+
+func (p *Preferences) removePreferredPodAffinityTerm(pod *v1.Pod) *string {
+	if pod.Spec.Affinity == nil || pod.Spec.Affinity.PodAffinity == nil || len(pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
+		return nil
+	}
+	terms := pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+	// Remove the all the terms
+	if len(terms) > 0 {
+		// Sort descending by weight to remove heaviest preferences to try lighter ones
+		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
+		pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
+		return ptr.String(fmt.Sprintf("removing: spec.affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
+	}
+	return nil
+}
+
+func (p *Preferences) removePreferredPodAntiAffinityTerm(pod *v1.Pod) *string {
+	if pod.Spec.Affinity == nil || pod.Spec.Affinity.PodAntiAffinity == nil || len(pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) == 0 {
+		return nil
+	}
+	terms := pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+	// Remove the all the terms
+	if len(terms) > 0 {
+		// Sort descending by weight to remove heaviest preferences to try lighter ones
+		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
+		pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
+		return ptr.String(fmt.Sprintf("removing: spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
 	}
 	return nil
 }
