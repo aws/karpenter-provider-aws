@@ -978,6 +978,18 @@ var _ = Describe("Allocation", func() {
 					provisioner := ProvisionerWithProvider(provisioner, provider)
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
+				It("should validate ebs device mapping with snapshotID only", func() {
+					provider, err := ProviderFromProvisioner(provisioner)
+					Expect(err).ToNot(HaveOccurred())
+					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
+						DeviceName: aws.String("/dev/xvda"),
+						EBS: &v1alpha1.BlockDevice{
+							SnapshotID: aws.String("snap-0123456789"),
+						},
+					}}
+					provisioner := ProvisionerWithProvider(provisioner, provider)
+					Expect(provisioner.Validate(ctx)).To(Succeed())
+				})
 				It("should not allow volume size below minimum", func() {
 					provider, err := ProviderFromProvisioner(provisioner)
 					Expect(err).ToNot(HaveOccurred())

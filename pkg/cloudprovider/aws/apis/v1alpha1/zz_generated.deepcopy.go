@@ -103,6 +103,11 @@ func (in *BlockDevice) DeepCopyInto(out *BlockDevice) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.SnapshotID != nil {
+		in, out := &in.SnapshotID, &out.SnapshotID
+		*out = new(string)
+		**out = **in
+	}
 	if in.Throughput != nil {
 		in, out := &in.Throughput, &out.Throughput
 		*out = new(int64)
