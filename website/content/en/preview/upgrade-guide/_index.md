@@ -70,7 +70,7 @@ for a subset of older versions and deprecate the others.
 
 # Released Upgrade Notes
 
-## Upgrading from pre-v0.6.2 to v0.6.2 or later
+## Upgrading to v0.6.2+
 
 If using Helm, the variable names have changed for the cluster's name and endpoint. You may need to update any configuration
 that sets the old variable names.
