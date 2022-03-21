@@ -70,4 +70,10 @@ for a subset of older versions and deprecate the others.
 
 # Released Upgrade Notes
 
-There are no published upgrade notes yet.
+## Upgrading from pre-v0.6.2 to v0.6.2 or later
+
+If using Helm, the variable names have changed for the cluster's name and endpoint. You may need to update any configuration
+that sets the old variable names.
+
+- `controller.clusterName` is now `clusterName`
+- `controller.clusterEndpoint` is now `clusterEndpoint`
