@@ -190,7 +190,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
 	for _, blockDeviceMapping := range blockDeviceMappings {
-		bdmr := &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: blockDeviceMapping.DeviceName,
 			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
@@ -200,14 +200,19 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 				Throughput:          blockDeviceMapping.EBS.Throughput,
 				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
 				SnapshotId:          blockDeviceMapping.EBS.SnapshotID,
+				VolumeSize:          p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
-		}
-		if blockDeviceMapping.EBS.VolumeSize != nil {
-			bdmr.Ebs.VolumeSize = aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga))
-		}
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, bdmr)
+		})
 	}
 	return blockDeviceMappingsRequest
+}
+
+// volumeSize returns a Giga scaled value from a resource quantity or nil if the resource quantity passed in is nil
+func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 {
+	if quantity == nil {
+		return nil
+	}
+	return aws.Int64(quantity.ScaledValue(resource.Giga))
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
