@@ -60,7 +60,8 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			Offerings:        options.Offerings,
 			Architecture:     options.Architecture,
 			OperatingSystems: options.OperatingSystems,
-			Resources:        options.Resources},
+			Resources:        options.Resources,
+			Price:            options.Price},
 	}
 }
 
@@ -90,6 +91,7 @@ type InstanceTypeOptions struct {
 	Architecture     string
 	OperatingSystems sets.String
 	Resources        v1.ResourceList
+	Price            float64
 }
 
 type InstanceType struct {
@@ -97,6 +99,10 @@ type InstanceType struct {
 }
 
 func (i *InstanceType) Price() float64 {
+	if i.options.Price != 0 {
+		return i.options.Price
+	}
+
 	price := 0.0
 	for k, v := range i.Resources() {
 		switch k {

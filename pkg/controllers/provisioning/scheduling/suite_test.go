@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
@@ -1977,6 +1979,53 @@ var _ = Describe("Binpacking", func() {
 			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
 		}
 		Expect(nodeNames).To(HaveLen(5))
+	})
+	It("should select for valid instance types, regardless of price", func() {
+		// capacity sizes and prices don't correlate here, regardless we should filter and see that all three instance types
+		// are valid before preferring the cheapest one 'large'
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:  "medium",
+				Price: 3.00,
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+			}),
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:  "small",
+				Price: 2.00,
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+			}),
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:  "large",
+				Price: 1.00,
+				Resources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("4"),
+					v1.ResourceMemory: resource.MustParse("4Gi"),
+				},
+			}),
+		}
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Limits: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU:    resource.MustParse("1m"),
+					v1.ResourceMemory: resource.MustParse("1Mi"),
+				},
+			}},
+		))
+		node := ExpectScheduled(ctx, env.Client, pod[0])
+		// large is the cheapest, so we should pick it, but the other two types are also valid options
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("large"))
+		// all three options should be passed to the cloud provider
+		possibleInstanceType := sets.NewString()
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypes {
+			possibleInstanceType.Insert(it.Name())
+		}
+		Expect(possibleInstanceType).To(Equal(sets.NewString("small", "medium", "large")))
 	})
 })
 
