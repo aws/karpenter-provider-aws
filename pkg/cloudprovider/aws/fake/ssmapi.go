@@ -16,6 +16,9 @@ package fake
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -29,14 +32,16 @@ type SSMAPI struct {
 	WantErr            error
 }
 
-func (a SSMAPI) GetParameterWithContext(context.Context, *ssm.GetParameterInput, ...request.Option) (*ssm.GetParameterOutput, error) {
+func (a SSMAPI) GetParameterWithContext(ctx context.Context, input *ssm.GetParameterInput, opts ...request.Option) (*ssm.GetParameterOutput, error) {
 	if a.WantErr != nil {
 		return nil, a.WantErr
 	}
+	hc, _ := hashstructure.Hash(input.Name, hashstructure.FormatV2, nil)
 	if a.GetParameterOutput != nil {
 		return a.GetParameterOutput, nil
 	}
+
 	return &ssm.GetParameterOutput{
-		Parameter: &ssm.Parameter{Value: aws.String("test-ami-id")},
+		Parameter: &ssm.Parameter{Value: aws.String(fmt.Sprintf("test-ami-id-%x", hc))},
 	}, nil
 }

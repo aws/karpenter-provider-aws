@@ -81,7 +81,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	if err != nil {
 		return nil, err
 	}
-	result := []cloudprovider.InstanceType{}
+	var result []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
 		offerings := p.createOfferings(instanceType, subnetZones, instanceTypeZones[instanceType.Name()])
 		if len(offerings) > 0 {

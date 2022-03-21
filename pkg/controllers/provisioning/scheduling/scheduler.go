@@ -74,6 +74,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 // the pods exceed one node's capacity.
 func (s *Scheduler) schedule(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Node {
 	var nodes []*Node
+
 	for _, pod := range pods {
 		isScheduled := false
 		for _, node := range nodes {

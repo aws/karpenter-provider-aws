@@ -17,6 +17,8 @@ package amifamily
 import (
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/aws-sdk-go/aws"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -35,7 +37,7 @@ type Bottlerocket struct {
 func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
 	arch := "x86_64"
 	amiSuffix := ""
-	if !instanceType.NvidiaGPUs().IsZero() {
+	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) {
 		amiSuffix = "-nvidia"
 	}
 	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {

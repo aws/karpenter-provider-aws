@@ -17,6 +17,8 @@ package amifamily
 import (
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/utils/resources"
+
 	"github.com/aws/aws-sdk-go/aws"
 	core "k8s.io/api/core/v1"
 
@@ -33,7 +35,7 @@ type AL2 struct {
 // SSMAlias returns the AMI Alias to query SSM
 func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) string {
 	amiSuffix := ""
-	if !instanceType.NvidiaGPUs().IsZero() || !instanceType.AWSNeurons().IsZero() {
+	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
 	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
 		amiSuffix = fmt.Sprintf("-%s", instanceType.Architecture())

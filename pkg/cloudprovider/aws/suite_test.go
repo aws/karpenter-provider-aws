@@ -36,7 +36,6 @@ import (
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -160,8 +159,8 @@ var _ = Describe("Allocation", func() {
 							v1.LabelInstanceTypeStable: "t3.large",
 						},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 						},
 					})) {
 					ExpectNotScheduled(ctx, env.Client, pod)
@@ -171,8 +170,8 @@ var _ = Describe("Allocation", func() {
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSPodENI: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
 						},
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
@@ -184,138 +183,63 @@ var _ = Describe("Allocation", func() {
 					Expect(supportsPodENI()).To(Equal(true))
 				}
 			})
-			// TODO(todd): this set of tests should move to scheduler once resource handling is made more generic
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 						},
 					}),
 					// Should pack onto same instance
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("2")},
+							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("2")},
 						},
 					}),
 					// Should pack onto a separate instance
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("4")},
+							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
 						},
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(nvidiaGPUResourceName, resource.MustParse("4")))
+					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
-			It("should launch pods with Nvidia and Neuron resources on different instances", func() {
-				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-						},
-					}),
-					// Should pack onto a different instance since no type has both Nvidia and Neuron
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-						},
-					})) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					nodeNames.Insert(node.Name)
-				}
-				Expect(nodeNames.Len()).To(Equal(2))
-			})
-			It("should fail to schedule a pod with both Nvidia and Neuron resources requests", func() {
-				pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1"), resources.AWSNeuron: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1"), resources.AWSNeuron: resource.MustParse("1")},
-						},
-					}))
-				ExpectNotScheduled(ctx, env.Client, pods[0])
-			})
-			It("should not schedule a non-GPU workload on a node w/GPU", func() {
-				Skip("enable after scheduling and binpacking are merged into the same process")
-				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								resources.NvidiaGPU: resource.MustParse("1"),
-								"cpu":               resource.MustParse("31"),
-							},
-							Limits: v1.ResourceList{
-								resources.NvidiaGPU: resource.MustParse("1"),
-								"cpu":               resource.MustParse("31"),
-							},
-						},
-					}),
-					// Can't pack onto the same instance due to consuming too much CPU
-					test.UnschedulablePod(test.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								"cpu": resource.MustParse("3"),
-							},
-							Limits: v1.ResourceList{
-								"cpu": resource.MustParse("3"),
-							},
-						},
-					}),
-				) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-
-					// This test has a GPU workload that nearly maxes out the test instance type.  It's intended to ensure
-					// that the second pod won't get a GPU node since it doesn't require one, even though it's compatible
-					// with the first pod that does require a GPU.
-					if _, isGpuPod := pod.Spec.Containers[0].Resources.Requests[resources.NvidiaGPU]; isGpuPod {
-						Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					} else {
-						Expect(node.Labels).ToNot(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					}
-					nodeNames.Insert(node.Name)
-				}
-				Expect(nodeNames.Len()).To(Equal(2))
-			})
-
 			It("should launch instances for AWS Neuron resource requests", func() {
 				nodeNames := sets.NewString()
 				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 						},
 					}),
 					// Should pack onto same instance
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 						},
 					}),
 					// Should pack onto a separate instance
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("4")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 						},
 					}),
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(awsNeuronResourceName, resource.MustParse("4")))
+					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -328,15 +252,15 @@ var _ = Describe("Allocation", func() {
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 						},
 					}),
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
 						},
 					}),
 				)
@@ -356,8 +280,8 @@ var _ = Describe("Allocation", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}}
 				pod := test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
-						Limits:   v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")},
+						Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 					},
 				})
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
@@ -415,8 +339,8 @@ var _ = Describe("Allocation", func() {
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
-							Limits:   v1.ResourceList{resources.AWSNeuron: resource.MustParse("2")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("2")},
 						},
 					}),
 				)[0]
@@ -479,9 +403,16 @@ var _ = Describe("Allocation", func() {
 					Effect:   "NoSchedule",
 				}
 
+				// constrain the packer to a single launch template type
+				rr := v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				}
+
 				pod1 := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
-						Tolerations: []v1.Toleration{t1, t2, t3},
+						Tolerations:          []v1.Toleration{t1, t2, t3},
+						ResourceRequirements: rr,
 					}),
 				)[0]
 				ExpectScheduled(ctx, env.Client, pod1)
@@ -490,7 +421,8 @@ var _ = Describe("Allocation", func() {
 
 				pod2 := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 					test.UnschedulablePod(test.PodOptions{
-						Tolerations: []v1.Toleration{t2, t3, t1},
+						Tolerations:          []v1.Toleration{t2, t3, t1},
+						ResourceRequirements: rr,
 					}),
 				)[0]
 
@@ -539,18 +471,23 @@ var _ = Describe("Allocation", func() {
 				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
 			})
-
 			It("should default to a generated launch template", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
+
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
-				createLaunchTemplateInput := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+
+				firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
 				launchTemplate := createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification
-				Expect(*launchTemplate.LaunchTemplateName).To(Equal(*createLaunchTemplateInput.LaunchTemplateName))
-				Expect(createLaunchTemplateInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
+				Expect(createFleetInput.LaunchTemplateConfigs).To(HaveLen(1))
+
+				Expect(*createFleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName).
+					To(Equal(*firstLt.LaunchTemplateName))
+				Expect(firstLt.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 				Expect(*launchTemplate.Version).To(Equal("$Latest"))
 			})
 			It("should allow a launch template to be specified", func() {
@@ -574,11 +511,21 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(input.LaunchTemplateConfigs).To(HaveLen(1))
-				Expect(input.LaunchTemplateConfigs[0].Overrides).To(ContainElements(
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-					&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
-				))
+
+				foundNonGPULT := false
+				for _, v := range input.LaunchTemplateConfigs {
+					for _, ov := range v.Overrides {
+						if *ov.InstanceType == "m5.large" {
+							foundNonGPULT = true
+							Expect(v.Overrides).To(ContainElements(
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+							))
+						}
+					}
+				}
+				Expect(foundNonGPULT).To(BeTrue())
 			})
 			It("should launch instances into subnet with the most available IP addresses", func() {
 				fakeEC2API.DescribeSubnetsOutput = &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
@@ -1074,13 +1021,4 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 func ProviderFromProvisioner(provisioner *v1alpha5.Provisioner) (*v1alpha1.AWS, error) {
 	constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
 	return constraints.AWS, err
-}
-
-func InstancesLaunchedFrom(createFleetInputIter <-chan interface{}) int {
-	instancesLaunched := 0
-	for input := range createFleetInputIter {
-		createFleetInput := input.(*ec2.CreateFleetInput)
-		instancesLaunched += int(*createFleetInput.TargetCapacitySpecification.TotalTargetCapacity)
-	}
-	return instancesLaunched
 }

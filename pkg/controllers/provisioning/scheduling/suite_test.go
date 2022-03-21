@@ -48,6 +48,7 @@ var provisioner *v1alpha5.Provisioner
 var provisioners *provisioning.Controller
 var selectionController *selection.Controller
 var env *test.Environment
+var cloudProv *fake.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -57,9 +58,9 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
-		provisioners = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
+		cloudProv = &fake.CloudProvider{}
+		registry.RegisterOrDie(ctx, cloudProv)
+		provisioners = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProv)
 		selectionController = selection.NewController(e.Client, provisioners)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -74,6 +75,9 @@ var _ = BeforeEach(func() {
 		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 		Spec:       v1alpha5.ProvisionerSpec{},
 	}
+	// reset instance types
+	cloudProv.InstanceTypes = fake.CloudProvider{}.InstanceTypes
+	cloudProv.CreateCalls = nil
 	provisioner.SetDefaults(ctx)
 })
 
@@ -1703,6 +1707,49 @@ var _ = Describe("Instance Type Compatibility", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
+	It("should launch pods with resources that aren't on any single instance type on different instances", func() {
+		cloudProv.InstanceTypes = fake.InstanceTypes(5)
+		const fakeGPU1 = "karpenter.sh/super-great-gpu"
+		const fakeGPU2 = "karpenter.sh/even-better-gpu"
+		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
+		cloudProv.InstanceTypes[1].Resources()[fakeGPU2] = resource.MustParse("25")
+
+		nodeNames := sets.NewString()
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Limits: v1.ResourceList{fakeGPU1: resource.MustParse("1")},
+				},
+			}),
+			// Should pack onto a different instance since no instance type has both GPUs
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Limits: v1.ResourceList{fakeGPU2: resource.MustParse("1")},
+				},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should fail to schedule a pod with resources requests that aren't on a single instance type", func() {
+		cloudProv.InstanceTypes = fake.InstanceTypes(5)
+		const fakeGPU1 = "karpenter.sh/super-great-gpu"
+		const fakeGPU2 = "karpenter.sh/even-better-gpu"
+		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
+		cloudProv.InstanceTypes[1].Resources()[fakeGPU2] = resource.MustParse("25")
+
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						fakeGPU1: resource.MustParse("1"),
+						fakeGPU2: resource.MustParse("1")},
+				},
+			}))
+		ExpectNotScheduled(ctx, env.Client, pods[0])
+	})
+
 })
 
 var _ = Describe("Networking constraints", func() {
@@ -1759,6 +1806,178 @@ var _ = Describe("Networking constraints", func() {
 			node2 := ExpectScheduled(ctx, env.Client, pod2)
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
+	})
+})
+
+var _ = Describe("Binpacking", func() {
+	It("should schedule a small pod on the smallest instance", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("100M"),
+				},
+			}}))[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
+	})
+	It("should schedule a small pod on the smallest possible instance type", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("2000M"),
+				},
+			}}))[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
+	})
+	It("should schedule multiple small pods on the smallest possible instance type", func() {
+		opts := test.PodOptions{
+			Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("10M"),
+				},
+			}}
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.Pods(5, opts)...)
+		nodeNames := sets.NewString()
+		for _, p := range pods {
+			node := ExpectScheduled(ctx, env.Client, p)
+			nodeNames.Insert(node.Name)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
+		}
+		Expect(nodeNames).To(HaveLen(1))
+	})
+	It("should create new nodes when a node is at capacity", func() {
+		opts := test.PodOptions{
+			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
+			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1.8G"),
+				},
+			}}
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.Pods(40, opts)...)
+		nodeNames := sets.NewString()
+		for _, p := range pods {
+			node := ExpectScheduled(ctx, env.Client, p)
+			nodeNames.Insert(node.Name)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("default-instance-type"))
+		}
+		Expect(nodeNames).To(HaveLen(20))
+	})
+	It("should pack small and large pods together", func() {
+		largeOpts := test.PodOptions{
+			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
+			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1.8G"),
+				},
+			}}
+		smallOpts := test.PodOptions{
+			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
+			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("400M"),
+				},
+			}}
+
+		// Two large pods are all that will fit on the default-instance type (the largest instance type) which will create
+		// twenty nodes. This leaves just enough room on each of those nodes for one additional small pod per node, so we
+		// should only end up with 20 nodes total.
+		provPods := append(test.Pods(40, largeOpts), test.Pods(20, smallOpts)...)
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, provPods...)
+		nodeNames := sets.NewString()
+		for _, p := range pods {
+			node := ExpectScheduled(ctx, env.Client, p)
+			nodeNames.Insert(node.Name)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("default-instance-type"))
+		}
+		Expect(nodeNames).To(HaveLen(20))
+	})
+	It("should pack nodes tightly", func() {
+		cloudProv.InstanceTypes = fake.InstanceTypes(5)
+		var nodes []*v1.Node
+		for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("4.5")},
+				},
+			}),
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				},
+			})) {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			nodes = append(nodes, node)
+		}
+		Expect(nodes).To(HaveLen(2))
+		// the first pod consumes nearly all CPU of the largest instance type with no room for the second pod, the
+		// second pod is much smaller in terms of resources and should get a smaller node
+		Expect(nodes[0].Labels[v1.LabelInstanceTypeStable]).ToNot(Equal(nodes[1].Labels[v1.LabelInstanceTypeStable]))
+	})
+	It("should handle zero-quantity resource requests", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+			test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{"foo.com/weird-resources": resource.MustParse("0")},
+					Limits:   v1.ResourceList{"foo.com/weird-resources": resource.MustParse("0")},
+				},
+			}))
+		// requesting a resource of quantity zero of a type unsupported by any instance is fine
+		ExpectScheduled(ctx, env.Client, pod[0])
+	})
+	It("should not schedule pods that exceed every instance type's capacity", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("2Ti"),
+				},
+			}}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("uses the create quantity argument for identical node creation", func() {
+		opts := test.PodOptions{
+			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
+			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1.8G"),
+				},
+			}}
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.Pods(40, opts)...)
+		nodeNames := sets.NewString()
+		for _, p := range pods {
+			node := ExpectScheduled(ctx, env.Client, p)
+			nodeNames.Insert(node.Name)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("default-instance-type"))
+		}
+		Expect(nodeNames).To(HaveLen(20))
+		// should get one call with a quantity of 20
+		Eventually(cloudProv.CreateCalls).Should(HaveLen(1))
+		Expect(cloudProv.CreateCalls[0].Quantity).To(Equal(20))
+	})
+	It("should create new nodes when a node is at capacity due to pod limits per node", func() {
+		opts := test.PodOptions{
+			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
+			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1m"),
+					v1.ResourceCPU:    resource.MustParse("1m"),
+				},
+			}}
+		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.Pods(25, opts)...)
+		nodeNames := sets.NewString()
+		// all of the test instance types support 5 pods each, so we use the 5 instances of the smallest one for our 25 pods
+		for _, p := range pods {
+			node := ExpectScheduled(ctx, env.Client, p)
+			nodeNames.Insert(node.Name)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("small-instance-type"))
+		}
+		Expect(nodeNames).To(HaveLen(5))
 	})
 })
 
