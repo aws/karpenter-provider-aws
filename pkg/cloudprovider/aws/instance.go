@@ -140,7 +140,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 	tags := v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
-		Context:               aws.String(*constraints.Context),
+		Context:               constraints.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),

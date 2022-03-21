@@ -31,7 +31,6 @@ const (
 	metadataOptionsPath         = "metadataOptions"
 	instanceProfilePath         = "instanceProfile"
 	blockDeviceMappingsPath     = "blockDeviceMappings"
-	contextPath                 = "context"
 )
 
 var (
