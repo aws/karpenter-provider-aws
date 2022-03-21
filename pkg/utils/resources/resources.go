@@ -60,12 +60,6 @@ func Quantity(value string) *resource.Quantity {
 	return &r
 }
 
-// Cmp implements lhs.Cmp(rhs). This method is provided to make some code a bit cleaner as the Quantity.Cmp takes
-// a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
-func Cmp(lhs, rhs resource.Quantity) int {
-	return lhs.Cmp(rhs)
-}
-
 // IsZero implements r.IsZero(). This method is provided to make some code a bit cleaner as the Quantity.IsZero() takes
 // a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
 func IsZero(r resource.Quantity) bool {
