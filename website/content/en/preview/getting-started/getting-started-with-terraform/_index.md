@@ -294,8 +294,54 @@ shapes. Karpenter makes scheduling and provisioning decisions based on pod
 attributes such as labels and affinity. In other words, Karpenter eliminates
 the need to manage many different node groups.
 
-Create a default provisioner using the command below. This provisioner
-configures instances to connect to your cluster's endpoint and discovers
+Create a default provisioner by adding the following to your main.tf file:
+```hcl
+resource "kubernetes_manifest" "provisioner_default" {
+  manifest = {
+    "apiVersion" = "karpenter.sh/v1alpha5"
+    "kind" = "Provisioner"
+    "metadata" = {
+      "name" = "default"
+    }
+    "spec" = {
+      "limits" = {
+        "resources" = {
+          "cpu" = "1k"
+        }
+      }
+      "provider" = {
+        "apiVersion" = "extensions.karpenter.sh/v1alpha1"
+        "kind"       = "AWS"
+        "securityGroupSelector" = {
+          "karpenter.sh/discovery" = var.cluster_name
+        }
+        "subnetSelector" = {
+          "karpenter.sh/discovery" = var.cluster_name
+        }
+      }
+      "requirements" = [
+        {
+          "key" = "karpenter.sh/capacity-type"
+          "operator" = "In"
+          "values" = [
+            "spot",
+          ]
+        },
+        {
+          "key" = "kubernetes.io/arch"
+          "operator" = "In"
+          "values"   = [
+              "amd64",
+          ]
+        },
+      ]
+      "ttlSecondsAfterEmpty" = 30
+    }
+  }
+}
+```
+
+This provisioner configures instances to connect to your cluster's endpoint and discovers
 resources like subnets and security groups using the cluster's name.
 
 The `ttlSecondsAfterEmpty` value configures Karpenter to terminate empty nodes.
@@ -306,28 +352,15 @@ Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more informa
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
+Now, deploy this provisioner by applying the new Terraform config.
+
 ```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  requirements:
-    - key: karpenter.sh/capacity-type
-      operator: In
-      values: ["spot"]
-  limits:
-    resources:
-      cpu: 1000
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-  ttlSecondsAfterEmpty: 30
-EOF
+terraform init
+terraform apply -var "cluster_name=${CLUSTER_NAME}"
 ```
+Note: The supplied `kubernetes_manifest` resource has values for the `provider.kind` and `provider.apiVersion` which 
+are normally not specified. These are defaulted by Karpenter and required when using Terraform to prevent an error from 
+occurring due to an unexpected field appearing in the resulting K8s manfest. 
 
 ## First Use
 
