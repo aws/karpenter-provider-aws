@@ -190,7 +190,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 	blockDeviceMappingsRequest := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
 	for _, blockDeviceMapping := range blockDeviceMappings {
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		bdmr := &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: blockDeviceMapping.DeviceName,
 			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
@@ -199,9 +199,13 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 				Iops:                blockDeviceMapping.EBS.IOPS,
 				Throughput:          blockDeviceMapping.EBS.Throughput,
 				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
-				VolumeSize:          aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga)),
+				SnapshotId:          blockDeviceMapping.EBS.SnapshotID,
 			},
-		})
+		}
+		if blockDeviceMapping.EBS.VolumeSize != nil {
+			bdmr.Ebs.VolumeSize = aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga))
+		}
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, bdmr)
 	}
 	return blockDeviceMappingsRequest
 }
