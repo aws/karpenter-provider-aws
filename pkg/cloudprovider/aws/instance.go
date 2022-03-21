@@ -70,8 +70,11 @@ func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceT
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
 func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
-	// Launch Instance
 	instanceTypes = p.filterInstanceTypes(instanceTypes)
+	if len(instanceTypes) > MaxInstanceTypes {
+		instanceTypes = instanceTypes[0:MaxInstanceTypes]
+	}
+
 	id, err := p.launchInstance(ctx, constraints, instanceTypes)
 	if err != nil {
 		return nil, err

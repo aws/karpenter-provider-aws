@@ -21,7 +21,6 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +32,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -50,7 +48,6 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
 		scheduler:     scheduling.NewScheduler(kubeClient),
-		packer:        binpacking.NewPacker(kubeClient, cloudProvider),
 	}
 	go func() {
 		for running.Err() == nil {
@@ -74,7 +71,6 @@ type Provisioner struct {
 	kubeClient    client.Client
 	coreV1Client  corev1.CoreV1Interface
 	scheduler     *scheduling.Scheduler
-	packer        *binpacking.Packer
 }
 
 // Add a pod to the provisioner and return a channel to block on. The caller is
@@ -105,24 +101,20 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("getting instance types, %w", err)
 	}
+
 	// Separate pods by scheduling constraints
 	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
+	if err != nil {
+		return err
+	}
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
-		packings, err := p.packer.Pack(ctx, nodes[i].Constraints, nodes[i].Pods, nodes[i].InstanceTypeOptions)
-		if err != nil {
-			logging.FromContext(ctx).Errorf("Could not pack pods, %s", err)
-			return
+		if err := p.launch(ctx, nodes[i]); err != nil {
+			logging.FromContext(ctx).Errorf("Launching node, %s", err)
 		}
-		workqueue.ParallelizeUntil(ctx, len(packings), len(packings), func(j int) {
-			if err := p.launch(ctx, nodes[i].Constraints, packings[j]); err != nil {
-				logging.FromContext(ctx).Errorf("Could not launch node, %s", err)
-				return
-			}
-		})
 	})
 	return nil
 }
@@ -142,7 +134,7 @@ func (p *Provisioner) isProvisionable(ctx context.Context, candidate *v1.Pod) (b
 	return !pod.IsScheduled(stored), nil
 }
 
-func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constraints, packing *binpacking.Packing) error {
+func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	// Check limits
 	latest := &v1alpha5.Provisioner{}
 	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(p.Provisioner), latest); err != nil {
@@ -151,19 +143,14 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 	if err := p.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
-	errs := make([]error, packing.NodeQuantity)
-	workqueue.ParallelizeUntil(ctx, packing.NodeQuantity, packing.NodeQuantity, func(i int) {
-		errs[i] = p.create(ctx, &cloudprovider.NodeRequest{Constraints: constraints, InstanceTypeOptions: packing.InstanceTypeOptions}, packing.Pods[i])
-	})
-	return multierr.Combine(errs...)
-}
 
-func (p *Provisioner) create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest, pods []*v1.Pod) error {
-	node, err := p.cloudProvider.Create(ctx, nodeRequest)
+	nodeRequest := &cloudprovider.NodeRequest{Constraints: &node.Constraints, InstanceTypeOptions: node.InstanceTypeOptions}
+	k8sNode, err := p.cloudProvider.Create(ctx, nodeRequest)
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
-	if err := mergo.Merge(node, nodeRequest.Constraints.ToNode()); err != nil {
+	logging.FromContext(ctx).Infof("Launched %s", node)
+	if err := mergo.Merge(k8sNode, nodeRequest.Constraints.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
 	// Idempotently create a node. In rare cases, nodes can come online and
@@ -171,12 +158,12 @@ func (p *Provisioner) create(ctx context.Context, nodeRequest *cloudprovider.Nod
 	// with the API server. In the common case, we create the node object
 	// ourselves to enforce the binding decision and enable images to be pulled
 	// before the node is fully Ready.
-	if _, err := p.coreV1Client.Nodes().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+	if _, err := p.coreV1Client.Nodes().Create(ctx, k8sNode, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("creating node %s, %w", node.Name, err)
+			return fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
 		}
 	}
-	if err := p.bind(ctx, node, pods); err != nil {
+	if err := p.bind(ctx, k8sNode, node.Pods); err != nil {
 		return fmt.Errorf("binding pods, %w", err)
 	}
 	return nil

@@ -43,7 +43,11 @@ func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
 
 // Merge the resources from the variadic into a single v1.ResourceList
 func Merge(resources ...v1.ResourceList) v1.ResourceList {
-	result := v1.ResourceList{}
+	if len(resources) == 0 {
+		return v1.ResourceList{}
+	}
+	// reserve some capacity to avoid some re-allocations
+	result := make(v1.ResourceList, len(resources[0]))
 	for _, resourceList := range resources {
 		for resourceName, quantity := range resourceList {
 			current := result[resourceName]
@@ -64,4 +68,8 @@ func Quantity(value string) *resource.Quantity {
 // a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
 func IsZero(r resource.Quantity) bool {
 	return r.IsZero()
+}
+
+func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
+	return lhs.Cmp(rhs)
 }
