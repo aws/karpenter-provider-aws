@@ -19,6 +19,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/aws/karpenter/pkg/utils/rand"
 )
 
 // Constraints are applied to all nodes created by the provisioner.
@@ -70,11 +72,12 @@ func (c *Constraints) GenerateLabels() map[string]string {
 	}
 	for key := range c.Requirements.Keys() {
 		if !IsRestrictedNodeLabel(key) {
-			// Ignore cases when values set is empty (i.e., DoesNotExist or <In, NotIn> cancling out)
-			if c.Requirements.Get(key).IsEmpty() {
-				continue
+			switch c.Requirements.Get(key).Type() {
+			case v1.NodeSelectorOpIn:
+				labels[key] = c.Requirements.Get(key).Values().UnsortedList()[0]
+			case v1.NodeSelectorOpExists:
+				labels[key] = rand.String(10)
 			}
-			labels[key] = c.Requirements.Label(key)
 		}
 	}
 	return labels
