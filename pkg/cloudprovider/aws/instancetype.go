@@ -74,9 +74,10 @@ func (i *InstanceType) Resources() v1.ResourceList {
 
 func (i *InstanceType) Price() float64 {
 	const (
-		GPUCostWeight      = 5
-		CPUCostWeight      = 1
-		MemoryMBCostWeight = 1024
+		GPUCostWeight       = 5
+		InferenceCostWeight = 5
+		CPUCostWeight       = 1
+		MemoryMBCostWeight  = 1 / 1024.0
 	)
 
 	gpuCount := 0.0
@@ -88,9 +89,18 @@ func (i *InstanceType) Price() float64 {
 		}
 	}
 
+	infCount := 0.0
+	if i.InferenceAcceleratorInfo != nil {
+		for _, acc := range i.InferenceAcceleratorInfo.Accelerators {
+			if acc.Count != nil {
+				infCount += float64(*acc.Count)
+			}
+		}
+	}
+
 	return CPUCostWeight*float64(*i.VCpuInfo.DefaultVCpus) +
 		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB) +
-		GPUCostWeight*gpuCount
+		GPUCostWeight*gpuCount + InferenceCostWeight*infCount
 }
 func (i *InstanceType) cpu() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
