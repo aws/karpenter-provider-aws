@@ -3,6 +3,8 @@ on:
   push:
   schedule:
     - cron: '22 18 * * 0'
+permissions:
+  id-token: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,8 +21,10 @@ jobs:
             ~/go/bin/
             ~/.kubebuilder/bin/k8s
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
-      - name: Running tests 10 times to find flaky tests
-        run: |
-          make nightly
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::842357152641:role/nightly
+          aws-region: us-east-1
+      - run: make nightly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

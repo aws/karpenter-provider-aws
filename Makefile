@@ -72,7 +72,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
-nightly: ## Generate nightly release manifests and publish a versioned container image.
+nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/nightly.sh
 
 toolchain: ## Install developer toolchain
