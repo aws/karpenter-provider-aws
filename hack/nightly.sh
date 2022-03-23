@@ -1,13 +1,10 @@
 #!/bin/bash -e
-
-git tag $(date "+nightly.%m.%d.%y")
-
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
-RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
+NIGHTLY_TAG_FMT="+%m%d%y"
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/g9p8i9g3/karpenter-nightly}
+RELEASE_VERSION=${RELEASE_VERSION:-$(date "${NIGHTLY_TAG_FMT}")}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
-DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
 if [ -z "$SOURCE_DATE_EPOCH" ]; then
     BUILD_DATE=$(date -u ${DATE_FMT})
 else
@@ -32,8 +29,6 @@ image() {
     yq e -i ".webhook.image = \"${WEBHOOK_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
     yq e -i ".version = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
-    COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
-    COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
 }
 
 image
