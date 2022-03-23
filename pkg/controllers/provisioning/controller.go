@@ -21,9 +21,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -104,7 +102,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
-		Add(requirements(instanceTypes)...).
+		Add(cloudprovider.Requirements(instanceTypes).Requirements...).
 		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
 	if err := provisioner.Spec.Requirements.Validate(); err != nil {
 		return fmt.Errorf("requirements are not compatible with cloud provider, %w", err)
@@ -143,30 +141,6 @@ func (c *Controller) List(ctx context.Context) []*Provisioner {
 	})
 	sort.Slice(provisioners, func(i, j int) bool { return provisioners[i].Name < provisioners[j].Name })
 	return provisioners
-}
-
-func requirements(instanceTypes []cloudprovider.InstanceType) []v1.NodeSelectorRequirement {
-	supported := map[string]sets.String{
-		v1.LabelInstanceTypeStable: sets.NewString(),
-		v1.LabelTopologyZone:       sets.NewString(),
-		v1.LabelArchStable:         sets.NewString(),
-		v1.LabelOSStable:           sets.NewString(),
-		v1alpha5.LabelCapacityType: sets.NewString(),
-	}
-	for _, instanceType := range instanceTypes {
-		for _, offering := range instanceType.Offerings() {
-			supported[v1.LabelTopologyZone].Insert(offering.Zone)
-			supported[v1alpha5.LabelCapacityType].Insert(offering.CapacityType)
-		}
-		supported[v1.LabelInstanceTypeStable].Insert(instanceType.Name())
-		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
-		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().List()...)
-	}
-	requirements := []v1.NodeSelectorRequirement{}
-	for key, values := range supported {
-		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
-	}
-	return requirements
 }
 
 // Register the controller to the manager

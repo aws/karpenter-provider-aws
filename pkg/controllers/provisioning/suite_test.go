@@ -16,12 +16,12 @@ package provisioning_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"strings"
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"

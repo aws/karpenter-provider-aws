@@ -38,7 +38,7 @@ func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovi
 
 	for _, it := range instanceTypeOptions {
 		// pre-filter our list of all possible instance types by what the provisioner allows
-		if !compatibleInstanceType(constraints.Requirements, it) {
+		if !cloudprovider.Compatible(it, constraints.Requirements) {
 			continue
 		}
 		n.InstanceTypeOptions = append(n.InstanceTypeOptions, it)
@@ -66,7 +66,7 @@ func (n Node) Compatible(pod *v1.Pod) error {
 	// Ensure that at least one instance type of the instance types that we are already narrowed down to based on the
 	// existing pods can support the pod resources and combined pod + provider requirements
 	for _, it := range n.InstanceTypeOptions {
-		if compatibleInstanceType(tightened, it) && n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
+		if cloudprovider.Compatible(it, tightened) && n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
 			return nil
 		}
 	}
@@ -80,7 +80,7 @@ func (n *Node) Add(pod *v1.Pod) {
 	n.Constraints = n.Constraints.Tighten(pod)
 	var instanceTypeOptions []cloudprovider.InstanceType
 	for _, it := range n.InstanceTypeOptions {
-		if compatibleInstanceType(n.Constraints.Requirements, it) &&
+		if cloudprovider.Compatible(it, n.Constraints.Requirements) &&
 			n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
 			instanceTypeOptions = append(instanceTypeOptions, it)
 		}
@@ -101,23 +101,4 @@ func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovi
 		}
 	}
 	return true
-}
-
-func compatibleInstanceType(requirements v1alpha5.Requirements, it cloudprovider.InstanceType) bool {
-	if !requirements.Get(v1.LabelInstanceTypeStable).Has(it.Name()) {
-		return false
-	}
-	if !requirements.Get(v1.LabelArchStable).Has(it.Architecture()) {
-		return false
-	}
-	if !requirements.Get(v1.LabelOSStable).HasAny(it.OperatingSystems().List()...) {
-		return false
-	}
-	// acceptable if we have any offering that is valid
-	for _, offering := range it.Offerings() {
-		if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType) {
-			return true
-		}
-	}
-	return false
 }
