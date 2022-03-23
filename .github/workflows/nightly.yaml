@@ -1,4 +1,4 @@
-name: Deflake
+name: Nightly
 on:
   push:
   schedule:
