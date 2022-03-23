@@ -199,11 +199,20 @@ func (p *LaunchTemplateProvider) blockDeviceMappings(blockDeviceMappings []*v1al
 				Iops:                blockDeviceMapping.EBS.IOPS,
 				Throughput:          blockDeviceMapping.EBS.Throughput,
 				KmsKeyId:            blockDeviceMapping.EBS.KMSKeyID,
-				VolumeSize:          aws.Int64(blockDeviceMapping.EBS.VolumeSize.ScaledValue(resource.Giga)),
+				SnapshotId:          blockDeviceMapping.EBS.SnapshotID,
+				VolumeSize:          p.volumeSize(blockDeviceMapping.EBS.VolumeSize),
 			},
 		})
 	}
 	return blockDeviceMappingsRequest
+}
+
+// volumeSize returns a Giga scaled value from a resource quantity or nil if the resource quantity passed in is nil
+func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 {
+	if quantity == nil {
+		return nil
+	}
+	return aws.Int64(quantity.ScaledValue(resource.Giga))
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

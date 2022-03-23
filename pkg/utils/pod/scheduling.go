@@ -68,16 +68,16 @@ func IsOwnedBy(pod *v1.Pod, gvks []schema.GroupVersionKind) bool {
 	return false
 }
 
-// HasPodAffinity returns true if a non-empty PodAffinity is defined in the pod spec
-func HasPodAffinity(pod *v1.Pod) bool {
+// HasRequiredPodAffinity returns true if a non-empty PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+// is defined in the pod spec
+func HasRequiredPodAffinity(pod *v1.Pod) bool {
 	return pod.Spec.Affinity.PodAffinity != nil &&
-		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
-			len(pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0)
+		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0)
 }
 
-// HasPodAntiAffinity returns true if a non-empty PodAntiAffinity is defined in the pod spec
-func HasPodAntiAffinity(pod *v1.Pod) bool {
+// HasRequiredPodAntiAffinity returns true if a non-empty PodAntiAffinity/RequiredDuringSchedulingIgnoredDuringExecution
+// is defined in the pod spec
+func HasRequiredPodAntiAffinity(pod *v1.Pod) bool {
 	return pod.Spec.Affinity.PodAntiAffinity != nil &&
-		(len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
-			len(pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0)
+		(len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0)
 }

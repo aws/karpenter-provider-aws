@@ -21,12 +21,12 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +118,7 @@ var _ = Describe("Provisioning", func() {
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "unknown"}}),
 				// Ignored, invalid capacity type
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.LabelCapacityType: "unknown"}}),
-				// Ignored, Will not match to any provisioner with undefined label
+				// Ignored, label selector does not match
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 			}
 			for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, schedulable...) {
@@ -126,6 +126,21 @@ var _ = Describe("Provisioning", func() {
 			}
 			for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, unschedulable...) {
 				ExpectNotScheduled(ctx, env.Client, pod)
+			}
+		})
+		It("should provision nodes for accelerators", func() {
+			for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner,
+				test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")}},
+				}),
+				test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAMDGPU: resource.MustParse("1")}},
+				}),
+				test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")}},
+				}),
+			) {
+				ExpectScheduled(ctx, env.Client, pod)
 			}
 		})
 		Context("Resource Limits", func() {

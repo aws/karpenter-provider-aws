@@ -18,7 +18,6 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
@@ -59,14 +58,14 @@ type InstanceType interface {
 	Offerings() []Offering
 	Architecture() string
 	OperatingSystems() sets.String
-	CPU() *resource.Quantity
-	Memory() *resource.Quantity
-	Pods() *resource.Quantity
-	NvidiaGPUs() *resource.Quantity
-	AMDGPUs() *resource.Quantity
-	AWSNeurons() *resource.Quantity
-	AWSPodENI() *resource.Quantity
+	// Resources are the full allocatable resource capacities for this instance type
+	Resources() v1.ResourceList
+	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside
+	// of Kubernetes.
 	Overhead() v1.ResourceList
+	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
+	// for the instance type, or just a weighting where lower 'prices' are preferred.
+	Price() float64
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties

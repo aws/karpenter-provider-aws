@@ -57,9 +57,6 @@ var _ = Describe("Set", func() {
 		})
 	})
 	Context("Functional Correctness", func() {
-		It("A should not be empty", func() {
-			Expect(setA.IsEmpty()).To(BeFalse())
-		})
 		It("size of AB should be 2", func() {
 			Expect(setAB.Len()).To(Equal(2))
 		})
