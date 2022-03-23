@@ -90,14 +90,15 @@ module "vpc" {
 
   private_subnet_tags = {
     "kubernetes.io/cluster/${local.cluster_name}" = "owned"
-    "karpenter.sh/discovery"                      = local.cluster_name # for Karpenter auto-discovery
+    # Tags subnets for Karpenter auto-discovery
+    "karpenter.sh/discovery" = local.cluster_name
   }
 }
 
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.11.0"
+  version = "18.13.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.21"
@@ -108,12 +109,21 @@ module "eks" {
   # Required for Karpenter role below
   enable_irsa = true
 
+  # We will rely only on the cluster security group created by the EKS service
+  # See note below for `tags`
+  create_cluster_security_group = false
+  create_node_security_group    = false
+
   # Only need one node to get Karpenter up and running.
   # This ensures core services such as VPC CNI, CoreDNS, etc. are up and running
   # so that Karpetner can be deployed and start managing compute capacity as required
   eks_managed_node_groups = {
     initial = {
       instance_types = ["t3.medium"]
+      # We don't need the node security group since we are using the
+      # cluster created security group which Karpenter will also use
+      create_security_group                 = false
+      attach_cluster_primary_security_group = true
 
       min_size     = 1
       max_size     = 1
@@ -123,12 +133,22 @@ module "eks" {
         # Required by Karpenter
         "arn:${local.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
       ]
+
+      tags = {
+        # Tag node group resources for Karpenter auto-discovery
+        "karpenter.sh/discovery" = local.cluster_name
+      }
     }
   }
+}
 
-  tags = {
-    "karpenter.sh/discovery" = local.cluster_name # for Karpenter auto-discovery
-  }
+resource "aws_ec2_tag" "cluster_primary_security_group" {
+  # Tag cluster created security group for Karpenter auto-discovery
+  # NOTE - if creating multiple security groups with this module, only tag the
+  # security group that Karpenter should utilize with the following tag
+  resource_id = module.eks.cluster_primary_security_group_id
+  key         = "karpenter.sh/discovery"
+  value       = local.cluster_name
 }
 ```
 
@@ -188,12 +208,12 @@ Add the following to your `main.tf` to create the IAM role for the Karpenter ser
 ```hcl
 module "karpenter_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "4.14.0"
+  version = "4.15.1"
 
   role_name                          = "karpenter-controller-${local.cluster_name}"
   attach_karpenter_controller_policy = true
 
-  karpenter_controller_cluster_ids        = [module.eks.cluster_id]
+  karpenter_controller_cluster_id = module.eks.cluster_id
   karpenter_controller_node_iam_role_arns = [
     module.eks.eks_managed_node_groups["initial"].iam_role_arn
   ]
@@ -316,6 +336,8 @@ spec:
     subnetSelector:
       karpenter.sh/discovery: ${CLUSTER_NAME}
     securityGroupSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    tags:
       karpenter.sh/discovery: ${CLUSTER_NAME}
   ttlSecondsAfterEmpty: 30
 EOF
