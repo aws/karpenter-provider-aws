@@ -166,6 +166,9 @@ type BlockDevice struct {
 	// KMSKeyID (ARN) of the symmetric Key Management Service (KMS) CMK used for encryption.
 	KMSKeyID *string `json:"kmsKeyID,omitempty"`
 
+	// SnapshotID is the ID of an EBS snapshot
+	SnapshotID *string `json:"snapshotID,omitempty"`
+
 	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
 	// Valid Range: Minimum value of 125. Maximum value of 1000.
 	Throughput *int64 `json:"throughput,omitempty"`

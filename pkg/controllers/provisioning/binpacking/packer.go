@@ -170,25 +170,19 @@ func (p *Packer) packWithLargestPod(unpackedPods []*v1.Pod, packables []*Packabl
 		return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, InstanceTypeOptions: bestInstances}, remainingPods
 	}
 
-	for i, packable := range packables {
+	for _, packable := range packables {
 		// check how many pods we can fit with the available capacity
 		if result := packable.Pack(unpackedPods); len(result.packed) == maxPodsPacked {
-			// Add all packable nodes that have more resources than this one
-			// Trim the bestInstances so that provisioning APIs in cloud providers are not overwhelmed by the number of instance type options
-			// For example, the AWS EC2 Fleet API only allows the request to be 145kb which equates to about 130 instance type options.
-			for j := i; j < len(packables) && j-i < MaxInstanceTypes; j++ {
-				// packable nodes are sorted lexicographically according to the order of [CPU, memory]
-				// It may result in cases where an instance type may have larger index value when it has more CPU but fewer memory
-				// Need to exclude instance type with smaller memory and fewer pods
-				if packables[i].Memory().Cmp(*packables[j].Memory()) <= 0 && packables[i].Pods().Cmp(*packables[j].Pods()) <= 0 {
-					bestInstances = append(bestInstances, packables[j])
-				}
-			}
+			bestInstances = append(bestInstances, packable)
 			bestPackedPods = result.packed
 			remainingPods = result.unpacked
-			break
+			// reached the max that we care about
+			if len(bestInstances) == MaxInstanceTypes {
+				break
+			}
 		}
 	}
+
 	return &Packing{Pods: [][]*v1.Pod{bestPackedPods}, InstanceTypeOptions: bestInstances, NodeQuantity: 1}, remainingPods
 }
 
