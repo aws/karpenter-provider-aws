@@ -98,7 +98,7 @@ module "vpc" {
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.13.0"
+  version = "18.14.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.21"
@@ -133,22 +133,15 @@ module "eks" {
         # Required by Karpenter
         "arn:${local.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
       ]
-
-      tags = {
-        # Tag node group resources for Karpenter auto-discovery
-        "karpenter.sh/discovery" = local.cluster_name
-      }
     }
   }
-}
 
-resource "aws_ec2_tag" "cluster_primary_security_group" {
-  # Tag cluster created security group for Karpenter auto-discovery
-  # NOTE - if creating multiple security groups with this module, only tag the
-  # security group that Karpenter should utilize with the following tag
-  resource_id = module.eks.cluster_primary_security_group_id
-  key         = "karpenter.sh/discovery"
-  value       = local.cluster_name
+  tags = {
+    # Tag node group resources for Karpenter auto-discovery
+    # NOTE - if creating multiple security groups with this module, only tag the
+    # security group that Karpenter should utilize with the following tag
+    "karpenter.sh/discovery" = local.cluster_name
+  }
 }
 ```
 
@@ -413,7 +406,6 @@ created LaunchTemplates.
 ```bash
 kubectl delete deployment inflate
 kubectl delete node -l karpenter.sh/provisioner-name=default
-helm uninstall karpenter --namespace karpenter
 terraform destroy
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
