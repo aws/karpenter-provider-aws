@@ -62,13 +62,14 @@ func (i *InstanceType) Architecture() string {
 
 func (i *InstanceType) Resources() v1.ResourceList {
 	return v1.ResourceList{
-		v1.ResourceCPU:             i.cpu(),
-		v1.ResourceMemory:          i.memory(),
-		v1.ResourcePods:            i.pods(),
-		v1alpha1.ResourceAWSPodENI: i.awsPodENI(),
-		v1alpha1.ResourceNVIDIAGPU: i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:    i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron: i.awsNeurons(),
+		v1.ResourceCPU:              i.cpu(),
+		v1.ResourceMemory:           i.memory(),
+		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
+		v1.ResourcePods:             i.pods(),
+		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(),
+		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
+		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
+		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
 	}
 }
 
@@ -112,6 +113,11 @@ func (i *InstanceType) memory() resource.Quantity {
 			float64(*i.MemoryInfo.SizeInMiB)*EC2VMAvailableMemoryFactor,
 		)),
 	)
+}
+
+// Setting ephemeral-storage to be arbitrarily large so it will be ignored during binpacking
+func (i *InstanceType) ephemeralStorage() resource.Quantity {
+	return resource.MustParse("100Pi")
 }
 
 func (i *InstanceType) pods() resource.Quantity {
