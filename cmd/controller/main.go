@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/utils/project"
+
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -73,6 +75,7 @@ func main() {
 	ctx = injection.WithConfig(ctx, config)
 	ctx = injection.WithOptions(ctx, opts)
 
+	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
