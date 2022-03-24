@@ -48,6 +48,7 @@ params:
   version_menu: Releases
   archived_version: false
   offlineSearch: true
+  prism_syntax_highlighting: true
   ui:
     sidebar_menu_compact: true
     sidebar_menu_foldable: true
