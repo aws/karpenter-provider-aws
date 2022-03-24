@@ -373,6 +373,81 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "linux")
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, "amd64")
 	})
+	It("should not schedule if no instance type matches selector (pod arch = arm)", func() {
+		// remove all Arm instance types
+		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
+			return i.Architecture() == v1alpha5.ArchitectureAmd64
+		})
+
+		Expect(len(cloudProv.InstanceTypes)).To(BeNumerically(">", 0))
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelArchStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.ArchitectureArm64},
+				},
+			}}))
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+		Expect(cloudProv.CreateCalls).To(HaveLen(0))
+	})
+	It("should not schedule if no instance type matches selector (pod arch = arm zone=test-zone-2)", func() {
+		// remove all Arm instance types in zone-2
+		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
+			for _, off := range i.Offerings() {
+				if off.Zone == "test-zone-2" {
+					return i.Architecture() == v1alpha5.ArchitectureAmd64
+				}
+			}
+			return true
+		})
+		Expect(len(cloudProv.InstanceTypes)).To(BeNumerically(">", 0))
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelArchStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{v1alpha5.ArchitectureArm64},
+				},
+				{
+					Key:      v1.LabelTopologyZone,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"test-zone-2"},
+				},
+			}}))
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+		Expect(cloudProv.CreateCalls).To(HaveLen(0))
+	})
+	It("should not schedule if no instance type matches selector (prov arch = arm / pod zone=test-zone-2)", func() {
+		// remove all Arm instance types in zone-2
+		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
+			for _, off := range i.Offerings() {
+				if off.Zone == "test-zone-2" {
+					return i.Architecture() == v1alpha5.ArchitectureAmd64
+				}
+			}
+			return true
+		})
+
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64},
+			},
+		}
+		Expect(len(cloudProv.InstanceTypes)).To(BeNumerically(">", 0))
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelTopologyZone,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"test-zone-2"},
+				},
+			}}))
+		ExpectNotScheduled(ctx, env.Client, pod[0])
+		Expect(cloudProv.CreateCalls).To(HaveLen(0))
+	})
 	It("should schedule on an instance with enough resources", func() {
 		// these values are constructed so that three of these pods can always fit on at least one of our instance types
 		for _, cpu := range []float64{0.1, 1.0, 2, 2.5, 4, 8, 16} {
@@ -404,6 +479,16 @@ var _ = Describe("Instance Type Selection", func() {
 		}
 	})
 })
+
+func filterInstanceTypes(types []cloudprovider.InstanceType, pred func(i cloudprovider.InstanceType) bool) []cloudprovider.InstanceType {
+	var ret []cloudprovider.InstanceType
+	for _, it := range types {
+		if pred(it) {
+			ret = append(ret, it)
+		}
+	}
+	return ret
+}
 
 func ExpectInstancesWithOffering(instanceTypes []cloudprovider.InstanceType, capacityType string, zone string) {
 	for _, it := range instanceTypes {
