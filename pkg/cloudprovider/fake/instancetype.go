@@ -68,14 +68,14 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	}
 }
 
-// InstanceTypesAssorted create 1000+ unique instance types with varying CPU/memory/architecture/OS/zone/capacity type.
+// InstanceTypesAssorted create many unique instance types with varying CPU/memory/architecture/OS/zone/capacity type.
 func InstanceTypesAssorted() []cloudprovider.InstanceType {
 	var instanceTypes []cloudprovider.InstanceType
 	for _, cpu := range []int{1, 2, 4, 8, 16, 32, 64} {
 		for _, mem := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
-			for _, zone := range []string{"test-zone-1", "test-zone-2"} {
+			for _, zone := range []string{"test-zone-1", "test-zone-2", "test-zone-3"} {
 				for _, ct := range []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand} {
-					for _, os := range []sets.String{sets.NewString("darwin"), sets.NewString("linux"), sets.NewString("windows")} {
+					for _, os := range []sets.String{sets.NewString("linux"), sets.NewString("windows")} {
 						for _, arch := range []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64} {
 							it := NewInstanceType(InstanceTypeOptions{
 								Name:             fmt.Sprintf("%d-cpu-%d-mem-%s-%s-%s-%s", cpu, mem, arch, strings.Join(os.List(), ","), zone, ct),
