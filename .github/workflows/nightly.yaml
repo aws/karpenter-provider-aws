@@ -23,7 +23,7 @@ jobs:
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
       - uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::842357152641:role/nightly
+          role-to-assume: arn:aws:iam::112855948879:role/stack3-Nightly-WSRJAWSFO7EL
           aws-region: us-east-1
       - run: make nightly
         env:
