@@ -713,6 +713,36 @@ var _ = Describe("Allocation", func() {
 				Expect(input.LaunchTemplateData.BlockDeviceMappings[1].Ebs.Iops).To(BeNil())
 			})
 		})
+		Context("Ephemeral Storage", func() {
+				It("should pack pods when a daemonset has an ephemeral-storage request", func() {
+					ExpectCreated(ctx, env.Client, test.DaemonSet(
+						test.DaemonSetOptions{PodOptions: test.PodOptions{
+							ResourceRequirements: v1.ResourceRequirements{
+								Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"),
+									v1.ResourceMemory:           resource.MustParse("1Gi"),
+									v1.ResourceEphemeralStorage: resource.MustParse("1Gi")}},
+						}},
+					))
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
+					ExpectScheduled(ctx, env.Client, pod[0])
+				})
+				It("should pack pods with any ephemeral-storage request", func() {
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+						test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+							Requests: map[v1.ResourceName]resource.Quantity{
+								v1.ResourceEphemeralStorage: resource.MustParse("1G"),
+							}}}))
+					ExpectScheduled(ctx, env.Client, pod[0])
+				})
+				It("should pack pods with large ephemeral-storage request", func() {
+					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+						test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+							Requests: map[v1.ResourceName]resource.Quantity{
+								v1.ResourceEphemeralStorage: resource.MustParse("1Pi"),
+							}}}))
+					ExpectScheduled(ctx, env.Client, pod[0])
+				})
+			})
 	})
 	Context("Defaulting", func() {
 		// Intent here is that if updates occur on the controller, the Provisioner doesn't need to be recreated
