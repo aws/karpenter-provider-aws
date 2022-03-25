@@ -16,6 +16,9 @@ package scheduling_test
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -28,8 +31,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"math"
-	"math/rand"
 )
 
 var _ = Describe("Instance Type Selection", func() {
@@ -82,7 +83,7 @@ var _ = Describe("Instance Type Selection", func() {
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
 		// ensure that the entire list of instance types match the label
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
 	})
 	It("should schedule on one of the cheapest instances (pod arch = arm64)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -93,7 +94,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
 	})
 	It("should schedule on one of the cheapest instances (prov arch = amd64)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -106,7 +107,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
 	})
 	It("should schedule on one of the cheapest instances (prov arch = arm64)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -119,7 +120,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
 	})
 	It("should schedule on one of the cheapest instances (prov os = windows)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -132,7 +133,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "windows")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "windows")
 	})
 	It("should schedule on one of the cheapest instances (pod os = windows)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -143,7 +144,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "windows")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "windows")
 	})
 	It("should schedule on one of the cheapest instances (prov os = windows)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -156,7 +157,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "windows")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "windows")
 	})
 	It("should schedule on one of the cheapest instances (pod os = linux)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -167,7 +168,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "linux")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "linux")
 	})
 	It("should schedule on one of the cheapest instances (pod os = linux)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -178,7 +179,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "linux")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "linux")
 	})
 	It("should schedule on one of the cheapest instances (prov zone = test-zone-2)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -191,7 +192,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelTopologyZone, "test-zone-2")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelTopologyZone, "test-zone-2")
 	})
 	It("should schedule on one of the cheapest instances (pod zone = test-zone-2)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -202,7 +203,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelTopologyZone, "test-zone-2")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelTopologyZone, "test-zone-2")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = spot)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -215,7 +216,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot)
 	})
 	It("should schedule on one of the cheapest instances (pod ct = spot)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -226,7 +227,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot)
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot)
 	})
 	It("should schedule on one of the cheapest instances (prov ct = ondemand, prov zone = test-zone-1)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -244,7 +245,7 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeOnDemand, "test-zone-1")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeOnDemand, "test-zone-1")
 	})
 	It("should schedule on one of the cheapest instances (pod ct = spot, pod zone = test-zone-1)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -261,7 +262,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeSpot, "test-zone-1")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-1")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = spot, pod zone = test-zone-2)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -279,7 +280,7 @@ var _ = Describe("Instance Type Selection", func() {
 			}}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeSpot, "test-zone-2")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-2")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = ondemand/test-zone-1/arm64/windows)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -307,9 +308,9 @@ var _ = Describe("Instance Type Selection", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeOnDemand, "test-zone-1")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "windows")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, "arm64")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeOnDemand, "test-zone-1")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "windows")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, "arm64")
 	})
 	It("should schedule on one of the cheapest instances (prov = spot/test-zone-2, pod = amd64/linux)", func() {
 		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
@@ -339,9 +340,9 @@ var _ = Describe("Instance Type Selection", func() {
 			}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeSpot, "test-zone-2")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "linux")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, "amd64")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-2")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "linux")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, "amd64")
 	})
 	It("should schedule on one of the cheapest instances (pod ct = spot/test-zone-2/amd64/linux)", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -369,9 +370,9 @@ var _ = Describe("Instance Type Selection", func() {
 			}}))
 		node := ExpectScheduled(ctx, env.Client, pod[0])
 		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypes, v1alpha1.CapacityTypeSpot, "test-zone-2")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelOSStable, "linux")
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, "amd64")
+		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-2")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "linux")
+		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, "amd64")
 	})
 	It("should not schedule if no instance type matches selector (pod arch = arm)", func() {
 		// remove all Arm instance types
@@ -468,7 +469,7 @@ var _ = Describe("Instance Type Selection", func() {
 				// should fit on one node
 				Expect(nodeNames).To(HaveLen(1))
 				totalPodResources := resources.RequestsForPods(pods...)
-				for _, it := range cloudProv.CreateCalls[0].InstanceTypes {
+				for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
 					totalReserved := resources.Merge(totalPodResources, it.Overhead())
 					// the total pod resources in CPU and memory + instance overhead should always be less than the
 					// resources available on every viable instance has

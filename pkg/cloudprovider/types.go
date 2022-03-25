@@ -25,13 +25,18 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
+// Options are injected into cloud providers' factories
+type Options struct {
+	ClientSet *kubernetes.Clientset
+}
+
 // CloudProvider interface is implemented by cloud providers to support provisioning.
 type CloudProvider interface {
-	// Create a set of nodes for each of the given constraints. This API uses a
+	// Create a node given constraints and instance type options. This API uses a
 	// callback pattern to enable cloudproviders to batch capacity creation
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request.
-	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) error
+	Create(context.Context, *NodeRequest) (*v1.Node, error)
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
@@ -45,9 +50,9 @@ type CloudProvider interface {
 	Name() string
 }
 
-// Options are injected into cloud providers' factories
-type Options struct {
-	ClientSet *kubernetes.Clientset
+type NodeRequest struct {
+	Constraints         *v1alpha5.Constraints
+	InstanceTypeOptions []InstanceType
 }
 
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type

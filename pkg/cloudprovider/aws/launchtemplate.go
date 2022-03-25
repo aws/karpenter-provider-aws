@@ -80,6 +80,8 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
+	p.Lock()
+	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if constraints.LaunchTemplateName != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplateName): instanceTypes}, nil
@@ -124,10 +126,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
-	// Ensure that multiple threads don't attempt to create the same launch template
-	p.Lock()
-	defer p.Unlock()
-
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	// Read from cache
