@@ -14,9 +14,10 @@ jobs:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
     - uses: actions/checkout@v2
+    - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.17
+        go-version: ${{ env.GO_VERSION }}
     - uses: actions/cache@v2
       with:
         path: |
