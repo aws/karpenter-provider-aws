@@ -16,18 +16,13 @@ package scheduling_test
 
 import (
 	"context"
-	"fmt"
-	"github.com/aws/karpenter/pkg/utils/resources"
-	"math"
-	"math/rand"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -2033,144 +2028,6 @@ var _ = Describe("Binpacking", func() {
 		Expect(possibleInstanceType).To(Equal(sets.NewString("small", "medium", "large")))
 	})
 })
-
-var _ = Describe("Instance Type Selection", func() {
-	var minPrice float64
-	var instanceTypePrices map[string]float64
-	nodePrice := func(n *v1.Node) float64 {
-		return instanceTypePrices[n.Labels[v1.LabelInstanceTypeStable]]
-	}
-
-	BeforeEach(func() {
-		// open up the provisioner to any instance types
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
-			},
-		}
-		cloudProv.CreateCalls = nil
-		cloudProv.InstanceTypes = nil
-		minPrice = math.MaxFloat64
-		// create 100+ instance types with varying CPU/memory/architecture
-		instanceTypePrices = map[string]float64{}
-		for _, cpu := range []int{1, 2, 4, 8, 16, 32, 64} {
-			for mem := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
-				for _, arch := range []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64} {
-					it := fake.NewInstanceType(fake.InstanceTypeOptions{
-						Name:             fmt.Sprintf("%d-cpu-%d-mem-%s", cpu, mem, arch),
-						Architecture:     arch,
-						OperatingSystems: sets.NewString("linux", "windows", "darwin"),
-						Resources: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", cpu)),
-							v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dGi", mem)),
-						},
-					})
-					instanceTypePrices[it.Name()] = it.Price()
-					if it.Price() < minPrice {
-						minPrice = it.Price()
-					}
-					cloudProv.InstanceTypes = append(cloudProv.InstanceTypes, it)
-				}
-			}
-		}
-		// add some randomness to instance type ordering to ensure we sort everywhere we need to
-		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
-			cloudProv.InstanceTypes[i], cloudProv.InstanceTypes[j] = cloudProv.InstanceTypes[j], cloudProv.InstanceTypes[i]
-		})
-	})
-
-	// This set of tests ensure that we schedule on the cheapest valid instance type while also ensuring that all of the
-	// instance types passed to the cloud provider are also valid per provisioner and node selector requirements.  In some
-	// ways they repeat some other tests, but the testing regarding checking against all possible instance types
-	// passed to the cloud provider is unique.
-	It("should schedule on one of the cheapest instances", func() {
-		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
-		node := ExpectScheduled(ctx, env.Client, pod[0])
-		Expect(nodePrice(node)).To(Equal(minPrice))
-	})
-	It("should schedule on one of the cheapest instances (pod arch = amd64)", func() {
-		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-			test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.ArchitectureAmd64},
-			}}}))
-		node := ExpectScheduled(ctx, env.Client, pod[0])
-		Expect(nodePrice(node)).To(Equal(minPrice))
-		// ensure that the entire list of instance types match the label
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
-	})
-	It("should schedule on one of the cheapest instances (pod arch = arm64)", func() {
-		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
-			test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.ArchitectureArm64},
-			}}}))
-		node := ExpectScheduled(ctx, env.Client, pod[0])
-		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
-	})
-	It("should schedule on one of the cheapest instances (prov arch = amd64)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.ArchitectureAmd64},
-			},
-		}
-		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
-		node := ExpectScheduled(ctx, env.Client, pod[0])
-		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
-	})
-	It("should schedule on one of the cheapest instances (prov arch = arm64)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelArchStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{v1alpha5.ArchitectureArm64},
-			},
-		}
-		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
-		node := ExpectScheduled(ctx, env.Client, pod[0])
-		Expect(nodePrice(node)).To(Equal(minPrice))
-		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypes, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
-	})
-	It("should schedule on an instance with enough resources", func() {
-		opts := test.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{Requests: map[v1.ResourceName]resource.Quantity{
-				v1.ResourceCPU:    resource.MustParse("1.5"),
-				v1.ResourceMemory: resource.MustParse("1.5Gi"),
-			}}}
-		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-			test.UnschedulablePod(opts), test.UnschedulablePod(opts), test.UnschedulablePod(opts))
-		nodeNames := sets.NewString()
-		for _, p := range pods {
-			node := ExpectScheduled(ctx, env.Client, p)
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames).To(HaveLen(1))
-		totalPodResources := resources.RequestsForPods(pods...)
-		for _, it := range cloudProv.CreateCalls[0].InstanceTypes {
-			// the total pod resources in CPU and memory should be less than any viable instance has
-			Expect(totalPodResources.Cpu().Cmp(it.Resources()[v1.ResourceCPU])).To(Equal(-1))
-		}
-	})
-})
-
-func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label string, value string) {
-	for _, it := range instanceTypes {
-		switch label {
-		case v1.LabelArchStable:
-			Expect(it.Architecture()).To(Equal(value))
-		default:
-			Fail(fmt.Sprintf("unsupported label %s in test", label))
-		}
-	}
-}
 
 func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
 	for i := 0; i < count; i++ {
