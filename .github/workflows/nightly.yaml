@@ -1,0 +1,29 @@
+name: Nightly
+on:
+  schedule:
+    - cron: '30 12 * * *'
+permissions:
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin/
+            ~/.kubebuilder/bin/k8s
+          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::112855948879:role/nightly
+          aws-region: us-east-1
+      - run: make nightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
