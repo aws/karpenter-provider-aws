@@ -21,6 +21,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,22 +151,21 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 	if err := p.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
-	// Create and Bind
-	pods := make(chan []*v1.Pod, len(packing.Pods))
-	defer close(pods)
-	for _, ps := range packing.Pods {
-		pods <- ps
-	}
-	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
-		if err := mergo.Merge(node, constraints.ToNode()); err != nil {
-			return fmt.Errorf("merging cloud provider node, %w", err)
-		}
-		return p.bind(ctx, node, <-pods)
+	errs := make([]error, packing.NodeQuantity)
+	workqueue.ParallelizeUntil(ctx, packing.NodeQuantity, packing.NodeQuantity, func(i int) {
+		errs[i] = p.create(ctx, &cloudprovider.NodeRequest{Constraints: constraints, InstanceTypeOptions: packing.InstanceTypeOptions}, packing.Pods[i])
 	})
+	return multierr.Combine(errs...)
 }
 
-func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
-	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+func (p *Provisioner) create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest, pods []*v1.Pod) error {
+	node, err := p.cloudProvider.Create(ctx, nodeRequest)
+	if err != nil {
+		return fmt.Errorf("creating cloud provider machine, %w", err)
+	}
+	if err := mergo.Merge(node, nodeRequest.Constraints.ToNode()); err != nil {
+		return fmt.Errorf("merging cloud provider node, %w", err)
+	}
 	// Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object
@@ -176,6 +176,14 @@ func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (
 			return fmt.Errorf("creating node %s, %w", node.Name, err)
 		}
 	}
+	if err := p.bind(ctx, node, pods); err != nil {
+		return fmt.Errorf("binding pods, %w", err)
+	}
+	return nil
+}
+
+func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
+	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	// Bind pods
 	var bound int64
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {

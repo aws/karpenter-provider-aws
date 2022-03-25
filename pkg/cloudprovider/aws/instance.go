@@ -37,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 const (
@@ -68,45 +69,33 @@ func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceT
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*v1.Node, error) {
+func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
 	// Launch Instance
-	ids, err := p.launchInstances(ctx, constraints, instanceTypes, quantity)
+	instanceTypes = p.filterInstanceTypes(instanceTypes)
+	id, err := p.launchInstance(ctx, constraints, instanceTypes)
 	if err != nil {
 		return nil, err
 	}
 	// Get Instance with backoff retry since EC2 is eventually consistent
-	instances := []*ec2.Instance{}
+	instance := &ec2.Instance{}
 	if err := retry.Do(
-		func() (err error) { instances, err = p.getInstances(ctx, ids); return err },
+		func() (err error) { instance, err = p.getInstance(ctx, aws.StringValue(id)); return err },
 		retry.Delay(1*time.Second),
 		retry.Attempts(6),
-	); err != nil && len(instances) == 0 {
+	); err != nil {
 		return nil, err
 	} else if err != nil {
-		logging.FromContext(ctx).Errorf("retrieving node name for %d/%d instances", quantity-len(instances), quantity)
+		logging.FromContext(ctx).Errorf("retrieving node name for instance %s", aws.StringValue(instance.InstanceId))
 	}
-
-	nodes := []*v1.Node{}
-	for _, instance := range instances {
-		logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
-			aws.StringValue(instance.InstanceId),
-			aws.StringValue(instance.PrivateDnsName),
-			aws.StringValue(instance.InstanceType),
-			aws.StringValue(instance.Placement.AvailabilityZone),
-			getCapacityType(instance),
-		)
-		// Convert Instance to Node
-		node, err := p.instanceToNode(ctx, instance, instanceTypes)
-		if err != nil {
-			logging.FromContext(ctx).Errorf("creating Node from an EC2 Instance: %s", err)
-			continue
-		}
-		nodes = append(nodes, node)
-	}
-	if len(nodes) == 0 {
-		return nil, fmt.Errorf("zero nodes were created")
-	}
-	return nodes, nil
+	logging.FromContext(ctx).Infof("Launched instance: %s, hostname: %s, type: %s, zone: %s, capacityType: %s",
+		aws.StringValue(instance.InstanceId),
+		aws.StringValue(instance.PrivateDnsName),
+		aws.StringValue(instance.InstanceType),
+		aws.StringValue(instance.Placement.AvailabilityZone),
+		getCapacityType(instance),
+	)
+	// Convert Instance to Node
+	return p.instanceToNode(ctx, instance, instanceTypes), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -125,9 +114,8 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int) ([]*string, error) {
+func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*string, error) {
 	capacityType := p.getCapacityType(constraints, instanceTypes)
-
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
 	if err != nil {
@@ -140,7 +128,7 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
-			TotalTargetCapacity:       aws.Int64(int64(quantity)),
+			TotalTargetCapacity:       aws.Int64(1),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{ResourceType: aws.String(ec2.ResourceTypeInstance), Tags: tags},
@@ -157,14 +145,10 @@ func (p *InstanceProvider) launchInstances(ctx context.Context, constraints *v1a
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
 	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
-	instanceIds := combineFleetInstances(*createFleetOutput)
-	if len(instanceIds) == 0 {
+	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
-	} else if len(instanceIds) != quantity {
-		logging.FromContext(ctx).Errorf("Failed to launch %d EC2 instances out of the %d EC2 instances requested: %s",
-			quantity-len(instanceIds), quantity, combineFleetErrors(createFleetOutput.Errors).Error())
 	}
-	return instanceIds, nil
+	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
@@ -239,34 +223,28 @@ func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.Inst
 	return overrides
 }
 
-func (p *InstanceProvider) getInstances(ctx context.Context, ids []*string) ([]*ec2.Instance, error) {
-	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: ids})
+func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Instance, error) {
+	describeInstancesOutput, err := p.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{InstanceIds: aws.StringSlice([]string{id})})
 	if isNotFound(err) {
 		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
 	}
-	describedInstances := combineReservations(describeInstancesOutput.Reservations)
-	if len(describedInstances) != len(ids) {
-		return nil, fmt.Errorf("expected %d instance(s), but got %d", len(ids), len(describedInstances))
+	if len(describeInstancesOutput.Reservations) != 1 || len(describeInstancesOutput.Reservations[0].Instances) != 1 {
+		return nil, fmt.Errorf("expected instance but got 0")
 	}
+	instance := describeInstancesOutput.Reservations[0].Instances[0]
 	if injection.GetOptions(ctx).GetAWSNodeNameConvention() == options.ResourceName {
-		return describedInstances, nil
+		return instance, nil
 	}
-
-	instances := []*ec2.Instance{}
-	for _, instance := range describedInstances {
-		if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
-			err = multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
-			continue
-		}
-		instances = append(instances, instance)
+	if len(aws.StringValue(instance.PrivateDnsName)) == 0 {
+		return nil, multierr.Append(err, fmt.Errorf("got instance %s but PrivateDnsName was not set", aws.StringValue(instance.InstanceId)))
 	}
-	return instances, err
+	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
@@ -310,10 +288,10 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 						OperatingSystem: v1alpha5.OperatingSystemLinux,
 					},
 				},
-			}, nil
+			}
 		}
 	}
-	return nil, fmt.Errorf("unrecognized instance type %s", aws.StringValue(instance.InstanceType))
+	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))
 }
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
@@ -340,6 +318,26 @@ func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, in
 	return v1alpha1.CapacityTypeOnDemand
 }
 
+// filterInstanceTypes is used to eliminate GPU instance types from the list of possible instance types when a
+// non-GPU instance type will work.  If the list of instance types consists of both GPU and non-GPU types, then only
+// the non-GPU types will be returned.  If it has only GPU types, the list will be returned unaltered.
+func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
+	var genericInstanceTypes []cloudprovider.InstanceType
+	for _, it := range instanceTypes {
+		itRes := it.Resources()
+		if resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) &&
+			resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) &&
+			resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+			genericInstanceTypes = append(genericInstanceTypes, it)
+		}
+	}
+	// if we got some subset of non-GPU types, then prefer to use those
+	if len(genericInstanceTypes) != 0 {
+		return genericInstanceTypes
+	}
+	return instanceTypes
+}
+
 func getInstanceID(node *v1.Node) (*string, error) {
 	id := strings.Split(node.Spec.ProviderID, "/")
 	if len(id) < 5 {
@@ -364,20 +362,4 @@ func getCapacityType(instance *ec2.Instance) string {
 		return v1alpha1.CapacityTypeSpot
 	}
 	return v1alpha1.CapacityTypeOnDemand
-}
-
-func combineFleetInstances(createFleetOutput ec2.CreateFleetOutput) []*string {
-	instanceIds := []*string{}
-	for _, reservation := range createFleetOutput.Instances {
-		instanceIds = append(instanceIds, reservation.InstanceIds...)
-	}
-	return instanceIds
-}
-
-func combineReservations(reservations []*ec2.Reservation) []*ec2.Instance {
-	instances := []*ec2.Instance{}
-	for _, reservation := range reservations {
-		instances = append(instances, reservation.Instances...)
-	}
-	return instances
 }

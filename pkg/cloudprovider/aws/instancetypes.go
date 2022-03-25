@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -42,6 +43,7 @@ const (
 )
 
 type InstanceTypeProvider struct {
+	sync.Mutex
 	ec2api         ec2iface.EC2API
 	subnetProvider *SubnetProvider
 	// Has two entries: one for all the instance types and one for all zones; values cached *before* considering insufficient capacity errors
@@ -62,6 +64,8 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 
 // Get all instance type options (the constraints are only used for tag filtering on subnets, not for Requirements filtering)
 func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+	p.Lock()
+	defer p.Unlock()
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {

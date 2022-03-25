@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -30,6 +31,7 @@ import (
 )
 
 type SubnetProvider struct {
+	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
 }
@@ -42,6 +44,8 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 }
 
 func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
+	p.Lock()
+	defer p.Unlock()
 	filters := getFilters(constraints)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {

@@ -1939,27 +1939,6 @@ var _ = Describe("Binpacking", func() {
 			}}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
-	It("uses the create quantity argument for identical node creation", func() {
-		opts := test.PodOptions{
-			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
-			Conditions:   []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}},
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceMemory: resource.MustParse("1.8G"),
-				},
-			}}
-		pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.Pods(40, opts)...)
-		nodeNames := sets.NewString()
-		for _, p := range pods {
-			node := ExpectScheduled(ctx, env.Client, p)
-			nodeNames.Insert(node.Name)
-			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("default-instance-type"))
-		}
-		Expect(nodeNames).To(HaveLen(20))
-		// should get one call with a quantity of 20
-		Eventually(cloudProv.CreateCalls).Should(HaveLen(1))
-		Expect(cloudProv.CreateCalls[0].Quantity).To(Equal(20))
-	})
 	It("should create new nodes when a node is at capacity due to pod limits per node", func() {
 		opts := test.PodOptions{
 			NodeSelector: map[string]string{v1.LabelArchStable: "amd64"},
@@ -2022,7 +2001,7 @@ var _ = Describe("Binpacking", func() {
 		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("large"))
 		// all three options should be passed to the cloud provider
 		possibleInstanceType := sets.NewString()
-		for _, it := range cloudProv.CreateCalls[0].InstanceTypes {
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
 			possibleInstanceType.Insert(it.Name())
 		}
 		Expect(possibleInstanceType).To(Equal(sets.NewString("small", "medium", "large")))

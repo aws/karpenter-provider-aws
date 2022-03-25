@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -29,6 +30,7 @@ import (
 )
 
 type SecurityGroupProvider struct {
+	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
 }
@@ -41,6 +43,8 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 }
 
 func (p *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
+	p.Lock()
+	defer p.Unlock()
 	// Get SecurityGroups
 	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(constraints))
 	if err != nil {
