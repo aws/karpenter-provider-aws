@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -41,6 +42,10 @@ var (
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
 	}
+	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 )
 
 var (

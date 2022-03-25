@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,7 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning/binpacking"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
@@ -157,30 +157,15 @@ func (p *Provisioner) launch(ctx context.Context, constraints *v1alpha5.Constrai
 		pods <- ps
 	}
 	return p.cloudProvider.Create(ctx, constraints, packing.InstanceTypeOptions, packing.NodeQuantity, func(node *v1.Node) error {
-		node.Labels = functional.UnionStringMaps(node.Labels, constraints.GenerateLabels())
-		node.Spec.Taints = append(node.Spec.Taints, constraints.Taints...)
+		if err := mergo.Merge(node, constraints.ToNode()); err != nil {
+			return fmt.Errorf("merging cloud provider node, %w", err)
+		}
 		return p.bind(ctx, node, <-pods)
 	})
 }
 
 func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
 	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-
-	// Add the Karpenter finalizer to the node to enable the termination workflow
-	node.Finalizers = append(node.Finalizers, v1alpha5.TerminationFinalizer)
-	// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-	// from scheduling pods before we're able to bind them ourselves. The kube
-	// scheduler has an eventually consistent cache of nodes and pods, so it's
-	// possible for it to see a provisioned node before it sees the pods bound
-	// to it. This creates an edge case where other pending pods may be bound to
-	// the node by the kube scheduler, causing OutOfCPU errors when the
-	// binpacked pods race to bind to the same node. The system eventually
-	// heals, but causes delays from additional provisioning (thrash). This
-	// taint will be removed by the node controller when a node is marked ready.
-	node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
-		Key:    v1alpha5.NotReadyTaintKey,
-		Effect: v1.TaintEffectNoSchedule,
-	})
 	// Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object

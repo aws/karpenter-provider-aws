@@ -117,8 +117,8 @@ Select security groups by name using a wildcard:
 Karpenter adds tags to all resources it creates, including EC2 Instances, EBS volumes, and Launch Templates. The default set of AWS tags are listed below.
 
 ```
-Name: karpenter.sh/cluster/<cluster-name>/provisioner/<provisioner-name>
-karpenter.sh/cluster/<cluster-name>: owned
+Name: karpenter.sh/provisioner/<provisioner-name>
+karpenter.sh/provisioner-name: <provisioner-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 

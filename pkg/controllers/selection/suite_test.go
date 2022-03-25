@@ -179,7 +179,7 @@ var _ = Describe("Preferential Fallback", func() {
 		})
 	})
 	Context("Preferred", func() {
-		It("should relax all terms", func() {
+		It("should relax all node affinity terms", func() {
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
@@ -197,6 +197,76 @@ var _ = Describe("Preferential Fallback", func() {
 			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// Remove second term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should relax all pod affinity terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{
+				PodAffinity: &v1.PodAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+					{
+						Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							TopologyKey:   v1.LabelTopologyZone,
+						}},
+					{
+						Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							TopologyKey:   v1.LabelHostname,
+						}},
+				}},
+				NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+					{
+						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+						}},
+					}}},
+			}
+			// Remove first pod affinity term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second pod affinity term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove node affinity term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Success
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should relax all pod anti-affinity terms", func() {
+			pod := test.UnschedulablePod()
+			pod.Spec.Affinity = &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+					{
+						Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							TopologyKey:   v1.LabelTopologyZone,
+						}},
+					{
+						Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							TopologyKey:   v1.LabelHostname,
+						}},
+				}},
+				NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
+					{
+						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"invalid"}},
+						}},
+					}}},
+			}
+			// Remove first pod anti-affinity term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove second pod anti-affinity term
+			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+			// Remove node affinity term
 			pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// Success
@@ -321,19 +391,19 @@ var _ = Describe("Pod Affinity and AntiAffinity", func() {
 		}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
-	It("should not schedule a pod with pod affinity preference", func() {
+	It("should schedule a pod with pod affinity preference", func() {
 		ExpectCreated(ctx, env.Client)
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
 			PodPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
 		}))[0]
-		ExpectNotScheduled(ctx, env.Client, pod)
+		ExpectScheduled(ctx, env.Client, pod)
 	})
-	It("should not schedule a pod with pod anti-affinity preference", func() {
+	It("should schedule a pod with pod anti-affinity preference", func() {
 		ExpectCreated(ctx, env.Client)
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
 			PodAntiPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
 		}))[0]
-		ExpectNotScheduled(ctx, env.Client, pod)
+		ExpectScheduled(ctx, env.Client, pod)
 	})
 	It("should schedule a pod with empty pod affinity and anti-affinity", func() {
 		ExpectCreated(ctx, env.Client)

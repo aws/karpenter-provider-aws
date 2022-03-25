@@ -55,21 +55,9 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 		}
 		packables = append(packables, packable)
 	}
-	// Sort in ascending order so that the packer can short circuit bin-packing for larger instance types
+	// Sort in ascending order by price
 	sort.Slice(packables, func(i, j int) bool {
-		// Check GPU equality assuming GPU classes are mutually exclusive
-		if packables[i].AMDGPUs().Equal(*packables[j].AMDGPUs()) ||
-			packables[i].NvidiaGPUs().Equal(*packables[j].NvidiaGPUs()) ||
-			packables[i].AWSNeurons().Equal(*packables[j].AWSNeurons()) {
-			if packables[i].CPU().Equal(*packables[j].CPU()) {
-				// check for memory
-				return packables[i].Memory().Cmp(*packables[j].Memory()) == -1
-			}
-			return packables[i].CPU().Cmp(*packables[j].CPU()) == -1
-		}
-		return packables[i].AMDGPUs().Cmp(*packables[j].AMDGPUs()) == -1 ||
-			packables[i].NvidiaGPUs().Cmp(*packables[j].NvidiaGPUs()) == -1 ||
-			packables[i].AWSNeurons().Cmp(*packables[j].AWSNeurons()) == -1
+		return packables[i].Price() < packables[j].Price()
 	})
 	return packables
 }
@@ -77,15 +65,7 @@ func PackablesFor(ctx context.Context, instanceTypes []cloudprovider.InstanceTyp
 func PackableFor(i cloudprovider.InstanceType) *Packable {
 	return &Packable{
 		InstanceType: i,
-		total: v1.ResourceList{
-			v1.ResourceCPU:      *i.CPU(),
-			v1.ResourceMemory:   *i.Memory(),
-			resources.NvidiaGPU: *i.NvidiaGPUs(),
-			resources.AMDGPU:    *i.AMDGPUs(),
-			resources.AWSNeuron: *i.AWSNeurons(),
-			resources.AWSPodENI: *i.AWSPodENI(),
-			v1.ResourcePods:     *i.Pods(),
-		},
+		total:        i.Resources().DeepCopy(),
 	}
 }
 
@@ -121,11 +101,8 @@ func (p *Packable) DeepCopy() *Packable {
 	}
 }
 
-// fits checks if adding the pod would overflow the total resources
-// available. It also ensures that instance types that could not
-// possibly satisfy the pod at all (for example if the pod needs
-// NvidiaGPUs and the instance type doesn't have any) will be
-// eliminated from consideration.
+// fits checks if adding the pod would overflow the total resources available. It also ensures that instance types that
+// could not possibly satisfy the pod at all will be eliminated from consideration.
 func (p *Packable) fits(pod *v1.Pod) bool {
 	minResourceList := resources.RequestsForPods(pod)
 	for resourceName, totalQuantity := range p.total {
@@ -157,7 +134,7 @@ func (p *Packable) reservePod(pod *v1.Pod) bool {
 }
 
 func packableNames(instanceTypes []*Packable) []string {
-	names := []string{}
+	var names []string
 	for _, instanceType := range instanceTypes {
 		names = append(names, instanceType.Name())
 	}
