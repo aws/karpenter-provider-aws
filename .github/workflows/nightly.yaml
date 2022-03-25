@@ -1,6 +1,5 @@
 name: Nightly
 on:
-  push:
   schedule:
     - cron: '30 12 * * *'
 permissions:
