@@ -2,7 +2,7 @@ name: Nightly
 on:
   push:
   schedule:
-    - cron: '22 18 * * 0'
+    - cron: '30 12 * * *'
 permissions:
   id-token: write
 jobs:
