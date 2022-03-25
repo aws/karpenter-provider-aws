@@ -1,5 +1,5 @@
 #!/bin/bash -e
-NIGHTLY_TAG_FMT="+%m%d%y"
+NIGHTLY_TAG_FMT="+%Y%m%d"
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z3c6l6z9/karpenter-nightly}
 RELEASE_VERSION=${RELEASE_VERSION:-$(date "${NIGHTLY_TAG_FMT}")}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
