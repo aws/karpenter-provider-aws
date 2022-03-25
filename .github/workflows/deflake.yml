@@ -1,7 +1,7 @@
 name: Deflake
 on:
   schedule:
-    - cron: '22 18 * * 0'
+    - cron: '0 12 * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
