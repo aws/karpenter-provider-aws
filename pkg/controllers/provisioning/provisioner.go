@@ -143,13 +143,13 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 		return err
 	}
 
-	nodeRequest := &cloudprovider.NodeRequest{Constraints: node.Constraints, InstanceTypeOptions: node.InstanceTypeOptions}
+	nodeRequest := &cloudprovider.NodeRequest{Constraints: node.ToConstraints(), InstanceTypeOptions: node.InstanceTypeOptions}
 	k8sNode, err := p.cloudProvider.Create(ctx, nodeRequest)
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
 
-	if err := mergo.Merge(k8sNode, nodeRequest.Constraints.ToNode()); err != nil {
+	if err := mergo.Merge(k8sNode, node.Constraints.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
 	// Idempotently create a node. In rare cases, nodes can come online and

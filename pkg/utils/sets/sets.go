@@ -31,6 +31,7 @@ import (
 type Set struct {
 	values     sets.String
 	complement bool
+	invalid    bool
 }
 
 func NewSet(values ...string) Set {
@@ -131,6 +132,9 @@ func (s Set) HasAny(values ...string) bool {
 
 // Intersection returns a new set containing the common values
 func (s Set) Intersection(set Set) Set {
+	if s.invalid || set.invalid {
+		return Set{invalid: true}
+	}
 	if s.complement {
 		if set.complement {
 			s.values = s.values.Union(set.values)
@@ -154,4 +158,19 @@ func (s Set) Len() int {
 		return math.MaxInt64 - s.values.Len()
 	}
 	return s.values.Len()
+}
+
+func (s Set) Insert(values ...string) {
+	if !s.complement {
+		s.values.Insert(values...)
+	} else {
+		s.values.Delete(values...)
+	}
+}
+
+func (s Set) IsInvalid() bool {
+	return s.invalid
+}
+func (s *Set) MarkInvalid() {
+	s.invalid = true
 }

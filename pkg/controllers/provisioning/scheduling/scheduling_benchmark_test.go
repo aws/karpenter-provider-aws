@@ -102,28 +102,20 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 		},
 	})
 
-	node := &scheduling.Node{
-		Constraints: v1alpha5.Constraints{
-			Requirements: v1alpha5.NewRequirements([]v1.NodeSelectorRequirement{
-				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}},
-				{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: instanceTypeNames},
-				{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64}},
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{"spot", "on-demand"}},
-				{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{"linux"}},
-			}...),
-		},
-		Pods: pods,
-	}
-
 	b.ResetTimer()
 	// Pack benchmark
 	for i := 0; i < b.N; i++ {
-		constraints := provisioner.Spec.Constraints.DeepCopy()
-		constraints.Requirements = node.Requirements
-		constraints.Taints = node.Taints
 		nodes, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
 		if err != nil || len(nodes) == 0 {
 			b.FailNow()
+		}
+
+		podCount := 0
+		for _, n := range nodes {
+			podCount += len(n.Pods)
+		}
+		if podCount != len(pods) {
+			b.Fatalf("expected %d scheduled pods, got %d", len(pods), podCount)
 		}
 		b.ReportMetric(float64(len(nodes)), "nodes")
 	}

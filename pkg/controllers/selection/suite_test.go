@@ -137,9 +137,9 @@ var _ = Describe("Volume Topology Requirements", func() {
 var _ = Describe("Preferential Fallback", func() {
 	Context("Required", func() {
 		It("should not relax the final term", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
-			)
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}},
+			}
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{MatchExpressions: []v1.NodeSelectorRequirement{
@@ -274,8 +274,8 @@ var _ = Describe("Preferential Fallback", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should relax to use lighter weights", func() {
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}})
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}
 			pod := test.UnschedulablePod()
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{

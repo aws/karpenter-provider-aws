@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -165,9 +167,10 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constra
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
+	reqs := scheduling.NewRequirements(constraints.Requirements...)
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, reqs.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -309,10 +312,11 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
 func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) string {
-	if constraints.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
+	reqs := scheduling.NewRequirements(constraints.Requirements...)
+	if reqs.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings() {
-				if constraints.Requirements.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
+				if reqs.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
 			}

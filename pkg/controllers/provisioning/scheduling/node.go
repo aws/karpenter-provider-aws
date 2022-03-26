@@ -28,14 +28,14 @@ import (
 // Node is a set of constraints, compatible pods, and possible instance types that could fulfill these constraints. This
 // will be turned into one or more actual node instances within the cluster after bin packing.
 type Node struct {
-	Constraints         *v1alpha5.Constraints
+	Constraints         *Constraints
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
 
 	requests v1.ResourceList
 }
 
-func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+func NewNode(constraints *Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	return &Node{
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
@@ -44,7 +44,7 @@ func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList,
 }
 
 func (n *Node) Add(pod *v1.Pod) error {
-	podRequirements := v1alpha5.NewPodRequirements(pod)
+	podRequirements := NewPodRequirements(pod)
 
 	if len(n.Pods) != 0 {
 		// TODO: remove this check for n.Pods once we properly support hostname topology spread
@@ -52,9 +52,10 @@ func (n *Node) Add(pod *v1.Pod) error {
 			return err
 		}
 	}
-	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
+	requirements := *n.Constraints.Requirements.DeepCopy()
+	requirements.Add(podRequirements)
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
-	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
+	instanceTypes := FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
 	if len(instanceTypes) == 0 {
 		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
 	}
@@ -78,4 +79,14 @@ func (n *Node) String() string {
 		fmt.Fprint(&itSb, it.Name())
 	}
 	return fmt.Sprintf("node with %d pods requesting %s from types %s", len(n.Pods), resources.String(n.requests), itSb.String())
+}
+
+func (n Node) ToConstraints() *v1alpha5.Constraints {
+	return &v1alpha5.Constraints{
+		Labels:               n.Constraints.Labels,
+		Taints:               n.Constraints.Taints,
+		Requirements:         n.Constraints.Requirements.ToNodeSelector(),
+		KubeletConfiguration: n.Constraints.KubeletConfiguration,
+		Provider:             n.Constraints.Provider,
+	}
 }

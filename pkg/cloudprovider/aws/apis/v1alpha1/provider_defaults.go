@@ -32,10 +32,12 @@ func (c *Constraints) defaultCapacityTypes() {
 	if _, ok := c.Labels[v1alpha5.LabelCapacityType]; ok {
 		return
 	}
-	if c.Requirements.Keys().Has(v1alpha5.LabelCapacityType) {
-		return
+	for _, req := range c.Requirements {
+		if req.Key == v1alpha5.LabelCapacityType {
+			return
+		}
 	}
-	c.Requirements = c.Requirements.Add(v1.NodeSelectorRequirement{
+	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
 		Key:      v1alpha5.LabelCapacityType,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{CapacityTypeOnDemand},
@@ -46,10 +48,13 @@ func (c *Constraints) defaultArchitecture() {
 	if _, ok := c.Labels[v1.LabelArchStable]; ok {
 		return
 	}
-	if c.Requirements.Keys().Has(v1.LabelArchStable) {
-		return
+
+	for _, req := range c.Requirements {
+		if req.Key == v1.LabelArchStable {
+			return
+		}
 	}
-	c.Requirements = c.Requirements.Add(v1.NodeSelectorRequirement{
+	c.Requirements = append(c.Requirements, v1.NodeSelectorRequirement{
 		Key:      v1.LabelArchStable,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{v1alpha5.ArchitectureAmd64},

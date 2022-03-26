@@ -63,11 +63,11 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-	constraints := provisioner.Spec.Constraints.DeepCopy()
 
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
+	constraints := NewConstraints(provisioner.Spec.Constraints)
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It

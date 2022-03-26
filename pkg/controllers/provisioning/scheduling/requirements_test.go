@@ -1,0 +1,187 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package scheduling_test
+
+import (
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+)
+
+var _ = Describe("Requirements", func() {
+	Context("Compatibility", func() {
+		It("A should be compatible to B, <In, In> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <In, In> operaton, no overlap", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <In, NotIn> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <In, NotIn> operator, cancel out", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <In, Exists> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <In, DoesNotExist> operator, conflicting", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <In, Empty> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements()
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <NotIn, In> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <NotIn, In> operator, cancel out", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <NotIn, NotIn> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <NotIn, Exists> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <NotIn, DoesNotExist> operator, conflicting", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"test", "foo"}})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <NotIn, Empty> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			B := scheduling.NewRequirements()
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <Exists, In> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <Exists, NotIn> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <Exists, Exists> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <Exists, DoesNotExist> operaton, conflicting", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <Exists, Empty> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			B := scheduling.NewRequirements()
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <DoesNotExist, In> operator, conflicting", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <DoesNotExist, NotIn> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <DoesNotExists, Exists> operator, conflicting", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <DoesNotExist, DoesNotExists> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should be compatible to B, <DoesNotExist, Empty> operator", func() {
+			A := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			B := scheduling.NewRequirements()
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <Empty, In> operator, indirectional", func() {
+			A := scheduling.NewRequirements()
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <Empty, NotIn> operator", func() {
+			A := scheduling.NewRequirements()
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn, Values: []string{"foo"}})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+		It("A should fail to be compatible to B, <Empty, Exists> operator, conflicting", func() {
+			A := scheduling.NewRequirements()
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists})
+			Expect(A.Compatible(B)).ToNot(Succeed())
+		})
+		It("A should be compatible to B, <Empty, DoesNotExist> operator", func() {
+			A := scheduling.NewRequirements()
+			B := scheduling.NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
+			Expect(A.Compatible(B)).To(Succeed())
+		})
+	})
+	Context("Labels", func() {
+		It("should normalize aliased labels", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelFailureDomainBetaZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+			}
+			Expect(scheduling.NewRequirements(provisioner.Spec.Requirements...).Keys().List()).To(Equal([]string{v1.LabelTopologyZone}))
+		})
+		It("should fail because no feasible value", func() {
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}},
+			}
+			Expect(scheduling.NewRequirements(provisioner.Spec.Requirements...).Validate()).ToNot(Succeed())
+		})
+		It("should ignore labels in IgnoredLabels", func() {
+			for label := range v1alpha5.IgnoredLabels {
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+				Expect(scheduling.NewRequirements(provisioner.Spec.Requirements...).Keys()).ToNot(ContainElements(label))
+			}
+		})
+	})
+})

@@ -114,19 +114,36 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
+	if err := ValidateRequirements(c.Requirements); err != nil {
+		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
+	}
+	return errs
+}
+
+func ValidateRequirements(requirements []v1.NodeSelectorRequirement) error {
 	var err error
-	for _, requirement := range c.Requirements.Requirements {
+	for _, requirement := range requirements {
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
 			err = multierr.Append(err, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
 		}
+		if IgnoredLabels.Has(requirement.Key) {
+			continue
+		}
 		if e := IsRestrictedLabel(requirement.Key); e != nil {
 			err = multierr.Append(err, e)
 		}
+		for _, errs := range validation.IsQualifiedName(requirement.Key) {
+			err = multierr.Append(err, fmt.Errorf("key %s is not a qualified name, %s", requirement.Key, errs))
+		}
+		for _, value := range requirement.Values {
+			for _, errs := range validation.IsValidLabelValue(value) {
+				err = multierr.Append(err, fmt.Errorf("invalid value %s for key %s, %s", value, requirement.Key, errs))
+			}
+		}
+		if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
+			err = multierr.Append(err, fmt.Errorf("operator %s not in %s for key %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key))
+		}
 	}
-	err = multierr.Append(err, c.Requirements.Validate())
-	if err != nil {
-		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
-	}
-	return errs
+	return err
 }

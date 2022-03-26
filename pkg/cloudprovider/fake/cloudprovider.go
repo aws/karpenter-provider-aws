@@ -20,6 +20,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/Pallinder/go-randomdata"
@@ -56,8 +58,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	name := strings.ToLower(randomdata.SillyName())
 	instance := nodeRequest.InstanceTypeOptions[0]
 	var zone, capacityType string
+	sr := scheduling.NewConstraints(*nodeRequest.Constraints)
 	for _, o := range instance.Offerings() {
-		if nodeRequest.Constraints.Requirements.CapacityTypes().Has(o.CapacityType) && nodeRequest.Constraints.Requirements.Zones().Has(o.Zone) {
+		if sr.Requirements.CapacityTypes().Has(o.CapacityType) && sr.Requirements.Zones().Has(o.Zone) {
 			zone = o.Zone
 			capacityType = o.CapacityType
 			break

@@ -23,8 +23,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 type NodeSet struct {
@@ -33,7 +31,7 @@ type NodeSet struct {
 	nodes           []*Node
 }
 
-func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints, client client.Client) (*NodeSet, error) {
+func NewNodeSet(ctx context.Context, constraints *Constraints, client client.Client) (*NodeSet, error) {
 	ns := &NodeSet{
 		client: client,
 	}
@@ -49,7 +47,7 @@ func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints, client c
 			continue
 		}
 		// or that aren't compatible with provisioner requirements
-		if err := constraints.Requirements.Compatible(v1alpha5.NewPodRequirements(d)); err != nil {
+		if err := constraints.Requirements.Compatible(NewPodRequirements(d)); err != nil {
 			continue
 		}
 		ns.daemonResources = resources.Merge(ns.daemonResources, resources.RequestsForPods(d))
@@ -57,7 +55,7 @@ func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints, client c
 	return ns, nil
 }
 
-func (s *NodeSet) getDaemons(ctx context.Context, constraints *v1alpha5.Constraints) ([]*v1.Pod, error) {
+func (s *NodeSet) getDaemons(ctx context.Context, constraints *Constraints) ([]*v1.Pod, error) {
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := s.client.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)

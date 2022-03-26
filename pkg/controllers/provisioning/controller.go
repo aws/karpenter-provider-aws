@@ -92,19 +92,21 @@ func (c *Controller) Delete(name string) {
 // Apply creates or updates the provisioner to the latest configuration
 func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
 	provisioner.SetDefaults(ctx)
-	if err := provisioner.Validate(ctx); err != nil {
-		return err
-	}
+
 	// Refresh global requirements using instance type availability
 	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 	if err != nil {
 		return err
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
-		Add(cloudprovider.Requirements(instanceTypes).Requirements...).
-		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
-	if err := provisioner.Spec.Requirements.Validate(); err != nil {
+
+	req := scheduling.NewRequirements(provisioner.Spec.Requirements...)
+	req.Add(scheduling.InstanceTypeRequirements(instanceTypes))
+	req.Add(scheduling.NewLabelRequirements(provisioner.Spec.Labels))
+	provisioner.Spec.Requirements = req.ToNodeSelector()
+
+	if err := req.Validate(); err != nil {
+		c.Delete(provisioner.Name)
 		return fmt.Errorf("requirements are not compatible with cloud provider, %w", err)
 	}
 	// Update the provisioner if anything has changed
