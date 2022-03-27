@@ -35,34 +35,13 @@ type Node struct {
 
 	podResources    v1.ResourceList
 	daemonResources v1.ResourceList
-	daemons         []daemon
 }
 
-type daemon struct {
-	pod          *v1.Pod
-	requirements v1alpha5.Requirements
-	resources    v1.ResourceList
-}
-
-func NewNode(constraints *v1alpha5.Constraints, daemons []*v1.Pod, instanceTypeOptions []cloudprovider.InstanceType, pods ...*v1.Pod) (*Node, error) {
+func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypeOptions []cloudprovider.InstanceType, pods ...*v1.Pod) (*Node, error) {
 	n := &Node{
-		Constraints: *constraints.DeepCopy(),
+		Constraints:     *constraints.DeepCopy(),
+		daemonResources: daemonResources,
 	}
-
-	for _, d := range daemons {
-		// skip any daemons that our provisioner configured taints would cause to not schedule
-		if err := n.Taints.Tolerates(d); err != nil {
-			continue
-		}
-		n.daemons = append(n.daemons, daemon{
-			pod:          d,
-			requirements: v1alpha5.NewPodRequirements(d),
-			resources:    resources.RequestsForPods(d),
-		})
-	}
-
-	// calculate daemon resource consumption so we can filter out instance types based on daemons + instance type overhead
-	n.recalculateDaemonResources()
 
 	for _, it := range instanceTypeOptions {
 		// If a zero-resource pod can't fit, don't consider this instance type.  This occurs if the node overhead +
@@ -131,7 +110,6 @@ func (n *Node) newPodCanFit(newSize v1.ResourceList, it cloudprovider.InstanceTy
 // node
 func (n *Node) Add(pod *v1.Pod) {
 	n.Requirements = n.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...)
-	n.recalculateDaemonResources()
 
 	podRequests := resources.RequestsForPods(pod)
 	var instanceTypeOptions []cloudprovider.InstanceType
@@ -163,18 +141,6 @@ func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovi
 		}
 	}
 	return true
-}
-
-func (n *Node) recalculateDaemonResources() {
-	n.daemonResources = nil
-	for _, daemon := range n.daemons {
-		// we intentionally do not check if the DaemonSet pod will fit on the node here, we want large DS pods to cause
-		// us to choose larger instance types
-		if err := n.Requirements.Compatible(daemon.requirements); err != nil {
-			continue
-		}
-		n.daemonResources = resources.Merge(n.daemonResources, daemon.resources)
-	}
 }
 
 func (n Node) String() string {

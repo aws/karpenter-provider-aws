@@ -17,6 +17,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/utils/resources"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -26,9 +27,9 @@ import (
 )
 
 type NodeSet struct {
-	client  client.Client
-	daemons []*v1.Pod
-	nodes   []*Node
+	client          client.Client
+	daemonResources v1.ResourceList
+	nodes           []*Node
 }
 
 func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints, client client.Client) (*NodeSet, error) {
@@ -40,7 +41,18 @@ func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints, client c
 	if err != nil {
 		return nil, err
 	}
-	ns.daemons = daemons
+
+	for _, d := range daemons {
+		// skip any daemons that our provisioner configured taints would cause to not schedule
+		if err := constraints.Taints.Tolerates(d); err != nil {
+			continue
+		}
+		// or that aren't compatible with provisioner requirements
+		if err := constraints.Requirements.Compatible(v1alpha5.NewPodRequirements(d)); err != nil {
+			continue
+		}
+		ns.daemonResources = resources.Merge(ns.daemonResources, resources.RequestsForPods(d))
+	}
 	return ns, nil
 }
 

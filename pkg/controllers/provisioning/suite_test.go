@@ -213,23 +213,6 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 			})
-			It("should ignore daemonsets that don't match pod constraints", func() {
-				ExpectCreated(ctx, env.Client, test.DaemonSet(
-					test.DaemonSetOptions{PodOptions: test.PodOptions{
-						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}},
-						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-					}},
-				))
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(
-					test.PodOptions{
-						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}},
-						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-					},
-				))[0]
-				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
-				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
-			})
 			It("should account daemonsets with NotIn operator and unspecified key", func() {
 				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{

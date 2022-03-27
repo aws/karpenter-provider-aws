@@ -93,7 +93,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 			}
 		}
 		if !isScheduled {
-			n, err := NewNode(constraints, nodeSet.daemons, instanceTypes, pod)
+			n, err := NewNode(constraints, nodeSet.daemonResources, instanceTypes, pod)
 			if err != nil {
 				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
 			} else {
