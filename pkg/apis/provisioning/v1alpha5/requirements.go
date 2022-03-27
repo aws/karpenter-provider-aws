@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -203,4 +204,25 @@ func (r *Requirements) UnmarshalJSON(b []byte) error {
 	}
 	*r = NewRequirements(requirements...)
 	return nil
+}
+
+func (r *Requirements) String() string {
+	var sb strings.Builder
+	for key, req := range r.requirements {
+		var values []string
+		if !req.IsComplement() {
+			values = req.Values().List()
+		} else {
+			values = req.ComplementValues().List()
+		}
+		if sb.Len() > 0 {
+			sb.WriteString(", ")
+		}
+		if len(values) > 5 {
+			values[5] = fmt.Sprintf("and %d others", len(values)-5)
+			values = values[0:6]
+		}
+		fmt.Fprintf(&sb, "%s %s %v", key, req.Type(), values)
+	}
+	return sb.String()
 }

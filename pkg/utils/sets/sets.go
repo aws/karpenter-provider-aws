@@ -100,6 +100,15 @@ func (s Set) Values() sets.String {
 	return s.values
 }
 
+// ComplementValues returns the values of the complement set.
+// If the set is not a complement set, it will panic
+func (s Set) ComplementValues() sets.String {
+	if !s.complement {
+		panic("infinite set")
+	}
+	return s.values
+}
+
 func (s Set) String() string {
 	if s.complement {
 		return fmt.Sprintf("%v' (complement set)", s.values.UnsortedList())

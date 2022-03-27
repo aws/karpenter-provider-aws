@@ -17,6 +17,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/karpenter/pkg/utils/resources"
 
 	appsv1 "k8s.io/api/apps/v1"

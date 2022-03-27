@@ -37,7 +37,7 @@ type Node struct {
 	daemonResources v1.ResourceList
 }
 
-func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypeOptions []cloudprovider.InstanceType, pods ...*v1.Pod) (*Node, error) {
+func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypeOptions []cloudprovider.InstanceType) *Node {
 	n := &Node{
 		Constraints:     *constraints.DeepCopy(),
 		daemonResources: daemonResources,
@@ -56,14 +56,7 @@ func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList,
 		}
 		n.InstanceTypeOptions = append(n.InstanceTypeOptions, it)
 	}
-
-	for _, p := range pods {
-		n.Add(p)
-	}
-	if len(n.InstanceTypeOptions) == 0 {
-		return nil, errors.New("no instance type satisfied requirements")
-	}
-	return n, nil
+	return n
 }
 
 func (n Node) Compatible(pod *v1.Pod) error {
@@ -108,7 +101,7 @@ func (n *Node) newPodCanFit(newSize v1.ResourceList, it cloudprovider.InstanceTy
 
 // Add adds a pod to the Node which tightens constraints, possibly reducing the available instance type options for this
 // node
-func (n *Node) Add(pod *v1.Pod) {
+func (n *Node) Add(pod *v1.Pod) error {
 	n.Requirements = n.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...)
 
 	podRequests := resources.RequestsForPods(pod)
@@ -126,6 +119,13 @@ func (n *Node) Add(pod *v1.Pod) {
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypeOptions
 	n.podResources = resources.Merge(n.podResources, resources.RequestsForPods(pod))
+
+	if len(n.InstanceTypeOptions) == 0 {
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s",
+			resources.String(resources.RequestsForPods(pod)),
+			n.Requirements.String())
+	}
+	return nil
 }
 
 // hasCompatibleResources tests if a given node selector and resource request list is compatible with an instance type
@@ -144,17 +144,11 @@ func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovi
 }
 
 func (n Node) String() string {
-	var resSb strings.Builder
-
 	var requiredResources v1.ResourceList
 	if len(n.InstanceTypeOptions) == 0 {
 		requiredResources = resources.Merge(n.daemonResources, n.podResources)
 	} else {
 		requiredResources = resources.Merge(n.daemonResources, n.InstanceTypeOptions[0].Overhead(), n.podResources)
-	}
-
-	for k, v := range requiredResources {
-		fmt.Fprintf(&resSb, "%s: %s ", k, v.String())
 	}
 
 	var itSb strings.Builder
@@ -169,5 +163,5 @@ func (n Node) String() string {
 		fmt.Fprint(&itSb, it.Name())
 	}
 
-	return fmt.Sprintf("with %d pods using resources %s from types %s", len(n.Pods), resSb.String(), itSb.String())
+	return fmt.Sprintf("with %d pods using resources %s from types %s", len(n.Pods), resources.String(requiredResources), itSb.String())
 }

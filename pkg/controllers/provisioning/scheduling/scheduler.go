@@ -87,14 +87,16 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 		isScheduled := false
 		for _, node := range nodeSet.nodes {
 			if err := node.Compatible(pod); err == nil {
-				node.Add(pod)
+				// Intentionally ignore this for now since we just checked compatibility
+				// TODO(todd): clean this up when we do hostname topoplogy correctly along with affinity/anti-affinity
+				_ = node.Add(pod)
 				isScheduled = true
 				break
 			}
 		}
 		if !isScheduled {
-			n, err := NewNode(constraints, nodeSet.daemonResources, instanceTypes, pod)
-			if err != nil {
+			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
+			if err := n.Add(pod); err != nil {
 				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
 			} else {
 				nodeSet.Add(n)

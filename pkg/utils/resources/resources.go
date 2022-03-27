@@ -15,6 +15,9 @@ limitations under the License.
 package resources
 
 import (
+	"fmt"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -72,4 +75,21 @@ func IsZero(r resource.Quantity) bool {
 
 func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
 	return lhs.Cmp(rhs)
+}
+
+// String returns a string version of the resource list suitable for presenting in a log
+func String(list v1.ResourceList) string {
+	if len(list) == 0 {
+		return "{none}"
+	}
+	var sb strings.Builder
+	sb.WriteByte('{')
+	for k, v := range list {
+		if sb.Len() > 1 {
+			sb.WriteByte(' ')
+		}
+		fmt.Fprintf(&sb, "%s: %s", k, v.String())
+	}
+	sb.WriteByte('}')
+	return sb.String()
 }

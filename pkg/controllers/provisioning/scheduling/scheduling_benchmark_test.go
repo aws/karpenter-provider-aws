@@ -56,7 +56,6 @@ func TestSchedulingPerformance(t *testing.T) {
 	totalPods := 0
 	totalNodes := 0
 	var totalTime time.Duration
-	//for _, instanceCount := range []int{10, 100, 200, 300, 400} {
 	for _, instanceCount := range []int{400} {
 		for _, podCount := range []int{10, 100, 500, 1000, 1500, 2000, 2500} {
 			start := time.Now()
