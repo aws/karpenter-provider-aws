@@ -66,7 +66,7 @@ func Compatible(it InstanceType, requirements v1alpha5.Requirements) bool {
 }
 
 func FilterInstanceTypes(instanceTypes []InstanceType, requirements v1alpha5.Requirements, requests v1.ResourceList) []InstanceType {
-	result := []InstanceType{}
+	var result []InstanceType
 	for _, instanceType := range instanceTypes {
 		if !Compatible(instanceType, requirements) {
 			continue

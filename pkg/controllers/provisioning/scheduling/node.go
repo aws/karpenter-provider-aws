@@ -37,7 +37,7 @@ type Node struct {
 
 func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	return &Node{
-		Constraints:         constraints,
+		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
 		requests:            daemonResources,
 	}
@@ -45,8 +45,12 @@ func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList,
 
 func (n *Node) Add(pod *v1.Pod) error {
 	podRequirements := v1alpha5.NewPodRequirements(pod)
-	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
-		return err
+
+	if len(n.Pods) != 0 {
+		// TODO: remove this check for n.Pods once we properly support hostname topology spread
+		if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
+			return err
+		}
 	}
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))

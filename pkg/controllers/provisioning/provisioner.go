@@ -17,7 +17,6 @@ package provisioning
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
@@ -173,15 +172,11 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
 	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	// Bind pods
-	var bound int64
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
 		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
 			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pods[i].Namespace, pods[i].Name, node.Name, err)
-		} else {
-			atomic.AddInt64(&bound, 1)
 		}
 	})
-	logging.FromContext(ctx).Infof("Bound %d pod(s) to node %s", bound, node.Name)
 	return nil
 }
 

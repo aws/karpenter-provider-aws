@@ -81,6 +81,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 		return nil, fmt.Errorf("constructing nodeset, %w", err)
 	}
 
+	unschedulableCount := 0
 	for _, pod := range pods {
 		isScheduled := false
 		for _, node := range nodeSet.nodes {
@@ -92,13 +93,17 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 		if !isScheduled {
 			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
 			if err := n.Add(pod); err != nil {
+				unschedulableCount++
 				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
 			} else {
 				nodeSet.Add(n)
 			}
 		}
 	}
-	logging.FromContext(ctx).Infof("Scheduled %d pods onto %d nodes", len(pods), len(nodeSet.nodes))
+
+	if unschedulableCount != 0 {
+		logging.FromContext(ctx).Errorf("Failed to schedule %d pods", unschedulableCount)
+	}
 	return nodeSet.nodes, nil
 }
 

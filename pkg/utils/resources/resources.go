@@ -79,9 +79,10 @@ func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
 	return lhs.Cmp(rhs)
 }
 
+// Fits returns true if the candidate set of resources is less than or equal to the total set of resources.
 func Fits(candidate, total v1.ResourceList) bool {
 	for resourceName, quantity := range candidate {
-		if Cmp(candidate[resourceName], quantity) < 0 {
+		if Cmp(quantity, total[resourceName]) > 0 {
 			return false
 		}
 	}
