@@ -15,33 +15,36 @@ limitations under the License.
 package resources
 
 import (
-	"fmt"
-	"strings"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 // RequestsForPods returns the total resources of a variadic list of podspecs.
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
-	resources := []v1.ResourceList{}
+	var resources []v1.ResourceList
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			resources = append(resources, container.Resources.Requests)
 		}
 	}
-	return Merge(resources...)
+	merged := Merge(resources...)
+	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
+	return merged
 }
 
 // LimitsForPods returns the total resources of a variadic list of podspecs
 func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
-	resources := []v1.ResourceList{}
+	var resources []v1.ResourceList
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			resources = append(resources, container.Resources.Limits)
 		}
 	}
-	return Merge(resources...)
+	merged := Merge(resources...)
+	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
+	return merged
 }
 
 // Merge the resources from the variadic into a single v1.ResourceList
@@ -49,7 +52,6 @@ func Merge(resources ...v1.ResourceList) v1.ResourceList {
 	if len(resources) == 0 {
 		return v1.ResourceList{}
 	}
-	// reserve some capacity to avoid some re-allocations
 	result := make(v1.ResourceList, len(resources[0]))
 	for _, resourceList := range resources {
 		for resourceName, quantity := range resourceList {
@@ -80,16 +82,7 @@ func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
 // String returns a string version of the resource list suitable for presenting in a log
 func String(list v1.ResourceList) string {
 	if len(list) == 0 {
-		return "{none}"
+		return "{}"
 	}
-	var sb strings.Builder
-	sb.WriteByte('{')
-	for k, v := range list {
-		if sb.Len() > 1 {
-			sb.WriteByte(' ')
-		}
-		fmt.Fprintf(&sb, "%s: %s", k, v.String())
-	}
-	sb.WriteByte('}')
-	return sb.String()
+	return pretty.Concise(list)
 }

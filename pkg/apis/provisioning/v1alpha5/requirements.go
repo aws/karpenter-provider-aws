@@ -206,7 +206,7 @@ func (r *Requirements) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (r *Requirements) String() string {
+func (r Requirements) String() string {
 	var sb strings.Builder
 	for key, req := range r.requirements {
 		var values []string

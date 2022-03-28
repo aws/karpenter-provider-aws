@@ -149,7 +149,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
-	logging.FromContext(ctx).Infof("Launched %s", node)
+
 	if err := mergo.Merge(k8sNode, nodeRequest.Constraints.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
@@ -163,6 +163,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 			return fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
 		}
 	}
+	logging.FromContext(ctx).Infof("Created %s", node)
 	if err := p.bind(ctx, k8sNode, node.Pods); err != nil {
 		return fmt.Errorf("binding pods, %w", err)
 	}

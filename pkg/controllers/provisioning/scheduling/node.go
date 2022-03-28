@@ -72,8 +72,7 @@ func (n Node) Compatible(pod *v1.Pod) error {
 	for _, it := range n.InstanceTypeOptions {
 		newSize := resources.Merge(n.reservedResources(it), podRequests)
 		if cloudprovider.Compatible(it, tightened) &&
-			n.newPodCanFit(newSize, it) &&
-			n.hasCompatibleResources(podRequests, it) {
+			n.newPodCanFit(newSize, it) {
 			return nil
 		}
 	}
@@ -85,16 +84,11 @@ func (n Node) reservedResources(it cloudprovider.InstanceType) v1.ResourceList {
 }
 
 func (n *Node) newPodCanFit(newSize v1.ResourceList, it cloudprovider.InstanceType) bool {
-	for resourceName, totalQuantity := range it.Resources() {
-		reservedQuantity := newSize[resourceName]
-		if reservedQuantity.Cmp(totalQuantity) > 0 {
+	instanceResources := it.Resources()
+	for resourceName, totalQuantity := range newSize {
+		if resources.Cmp(totalQuantity, instanceResources[resourceName]) > 0 {
 			return false
 		}
-	}
-
-	instancePodMax := it.Resources()[v1.ResourcePods]
-	if !instancePodMax.IsZero() && instancePodMax.CmpInt64(int64(len(n.Pods)+1)) < 0 {
-		return false
 	}
 	return true
 }
@@ -109,8 +103,7 @@ func (n *Node) Add(pod *v1.Pod) error {
 	for _, it := range n.InstanceTypeOptions {
 		newSize := resources.Merge(n.reservedResources(it), podRequests)
 		if cloudprovider.Compatible(it, n.Requirements) &&
-			n.newPodCanFit(newSize, it) &&
-			n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
+			n.newPodCanFit(newSize, it) {
 			instanceTypeOptions = append(instanceTypeOptions, it)
 		}
 	}
@@ -118,39 +111,17 @@ func (n *Node) Add(pod *v1.Pod) error {
 	// pod count
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypeOptions
-	n.podResources = resources.Merge(n.podResources, resources.RequestsForPods(pod))
+	n.podResources = resources.Merge(n.podResources, podRequests)
 
 	if len(n.InstanceTypeOptions) == 0 {
 		return fmt.Errorf("no instance type satisfied resources %s and requirements %s",
 			resources.String(resources.RequestsForPods(pod)),
-			n.Requirements.String())
+			n.Requirements)
 	}
 	return nil
 }
 
-// hasCompatibleResources tests if a given node selector and resource request list is compatible with an instance type
-func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovider.InstanceType) bool {
-	for name, quantity := range resourceList {
-		// we don't care if the pod is requesting zero quantity of some resource
-		if quantity.IsZero() {
-			continue
-		}
-		// instance must have a non-zero quantity
-		if resources.IsZero(it.Resources()[name]) {
-			return false
-		}
-	}
-	return true
-}
-
 func (n Node) String() string {
-	var requiredResources v1.ResourceList
-	if len(n.InstanceTypeOptions) == 0 {
-		requiredResources = resources.Merge(n.daemonResources, n.podResources)
-	} else {
-		requiredResources = resources.Merge(n.daemonResources, n.InstanceTypeOptions[0].Overhead(), n.podResources)
-	}
-
 	var itSb strings.Builder
 	for i, it := range n.InstanceTypeOptions {
 		// print the first 5 instance types only (indices 0-4)
@@ -163,5 +134,8 @@ func (n Node) String() string {
 		fmt.Fprint(&itSb, it.Name())
 	}
 
-	return fmt.Sprintf("with %d pods using resources %s from types %s", len(n.Pods), resources.String(requiredResources), itSb.String())
+	return fmt.Sprintf("with %d pods required %s pod resources and %s daemon resources from types %s", len(n.Pods),
+		resources.String(n.podResources),
+		resources.String(n.daemonResources),
+		itSb.String())
 }

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"knative.dev/pkg/logging"
 
@@ -65,7 +64,6 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
-	start := time.Now()
 
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
@@ -103,7 +101,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 			}
 		}
 	}
-	logging.FromContext(ctx).Infof("Scheduled %d pods onto %d nodes in %s", len(pods), len(nodeSet.nodes), time.Since(start))
+	logging.FromContext(ctx).Infof("Scheduled %d pods onto %d nodes", len(pods), len(nodeSet.nodes))
 	return nodeSet.nodes, nil
 }
 
