@@ -134,7 +134,7 @@ func (n Node) String() string {
 		fmt.Fprint(&itSb, it.Name())
 	}
 
-	return fmt.Sprintf("with %d pods required %s pod resources and %s daemon resources from types %s", len(n.Pods),
+	return fmt.Sprintf("Node with %d pods requesting %s pod resources and %s daemon resources from types %s", len(n.Pods),
 		resources.String(n.podResources),
 		resources.String(n.daemonResources),
 		itSb.String())
