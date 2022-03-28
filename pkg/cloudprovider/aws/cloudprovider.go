@@ -53,6 +53,8 @@ const (
 	CacheTTL = 60 * time.Second
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CacheCleanupInterval = 10 * time.Minute
+	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
+	MaxInstanceTypes = 20
 )
 
 func init() {

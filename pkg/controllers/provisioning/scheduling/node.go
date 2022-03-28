@@ -15,7 +15,8 @@ limitations under the License.
 package scheduling
 
 import (
-	"errors"
+	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -30,75 +31,51 @@ type Node struct {
 	Constraints         *v1alpha5.Constraints
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
-	unschedulable       bool // if true, the node will accept no more pods
+
+	requests v1.ResourceList
 }
 
-func NewNode(constraints *v1alpha5.Constraints, instanceTypeOptions []cloudprovider.InstanceType, pods ...*v1.Pod) *Node {
-	n := &Node{Constraints: constraints.DeepCopy()}
-
-	for _, it := range instanceTypeOptions {
-		// pre-filter our list of all possible instance types by what the provisioner allows
-		if !cloudprovider.Compatible(it, constraints.Requirements) {
-			continue
-		}
-		n.InstanceTypeOptions = append(n.InstanceTypeOptions, it)
+func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+	return &Node{
+		Constraints:         constraints.DeepCopy(),
+		InstanceTypeOptions: instanceTypes,
+		requests:            daemonResources,
 	}
-	// technically we might create some invalid construct here if the pod can't be supported by any instance type
-	// but this is ok as we just won't have any valid instance types, this pod won't be schedulable and nothing else
-	// will be compatible with this node
-	for _, p := range pods {
-		n.Add(p)
-	}
-	return n
 }
 
-func (n Node) Compatible(pod *v1.Pod) error {
-	if n.unschedulable {
-		return errors.New("node is unschedulable")
-	}
-
+func (n *Node) Add(pod *v1.Pod) error {
 	podRequirements := v1alpha5.NewPodRequirements(pod)
-	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
-		return err
-	}
 
-	tightened := n.Constraints.Requirements.Add(podRequirements.Requirements...)
-	// Ensure that at least one instance type of the instance types that we are already narrowed down to based on the
-	// existing pods can support the pod resources and combined pod + provider requirements
-	for _, it := range n.InstanceTypeOptions {
-		if cloudprovider.Compatible(it, tightened) && n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
-			return nil
+	if len(n.Pods) != 0 {
+		// TODO: remove this check for n.Pods once we properly support hostname topology spread
+		if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
+			return err
 		}
 	}
-	return errors.New("no matching instance type found")
-}
-
-// Add adds a pod to the Node which tightens constraints, possibly reducing the available instance type options for this
-// node
-func (n *Node) Add(pod *v1.Pod) {
+	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
+	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
+	if len(instanceTypes) == 0 {
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
+	}
 	n.Pods = append(n.Pods, pod)
-	n.Constraints = n.Constraints.Tighten(pod)
-	var instanceTypeOptions []cloudprovider.InstanceType
-	for _, it := range n.InstanceTypeOptions {
-		if cloudprovider.Compatible(it, n.Constraints.Requirements) &&
-			n.hasCompatibleResources(resources.RequestsForPods(pod), it) {
-			instanceTypeOptions = append(instanceTypeOptions, it)
-		}
-	}
-	n.InstanceTypeOptions = instanceTypeOptions
+	n.InstanceTypeOptions = instanceTypes
+	n.requests = requests
+	n.Constraints.Requirements = requirements
+	return nil
 }
 
-// hasCompatibleResources tests if a given node selector and resource request list is compatible with an instance type
-func (n Node) hasCompatibleResources(resourceList v1.ResourceList, it cloudprovider.InstanceType) bool {
-	for name, quantity := range resourceList {
-		// we don't care if the pod is requesting zero quantity of some resource
-		if quantity.IsZero() {
-			continue
+func (n *Node) String() string {
+	var itSb strings.Builder
+	for i, it := range n.InstanceTypeOptions {
+		// print the first 5 instance types only (indices 0-4)
+		if i > 4 {
+			fmt.Fprintf(&itSb, " and %d other(s)", len(n.InstanceTypeOptions)-i)
+			break
+		} else if i > 0 {
+			fmt.Fprint(&itSb, ", ")
 		}
-		// instance must have a non-zero quantity
-		if resources.IsZero(it.Resources()[name]) {
-			return false
-		}
+		fmt.Fprint(&itSb, it.Name())
 	}
-	return true
+	return fmt.Sprintf("node with %d pods requesting %s from types %s", len(n.Pods), resources.String(n.requests), itSb.String())
 }
