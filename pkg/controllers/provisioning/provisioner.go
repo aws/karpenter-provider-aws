@@ -144,7 +144,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 		return err
 	}
 
-	nodeRequest := &cloudprovider.NodeRequest{Constraints: &node.Constraints, InstanceTypeOptions: node.InstanceTypeOptions}
+	nodeRequest := &cloudprovider.NodeRequest{Constraints: node.Constraints, InstanceTypeOptions: node.InstanceTypeOptions}
 	k8sNode, err := p.cloudProvider.Create(ctx, nodeRequest)
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)

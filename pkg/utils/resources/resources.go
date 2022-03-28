@@ -79,6 +79,15 @@ func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
 	return lhs.Cmp(rhs)
 }
 
+func Fits(candidate, total v1.ResourceList) bool {
+	for resourceName, quantity := range candidate {
+		if Cmp(candidate[resourceName], quantity) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // String returns a string version of the resource list suitable for presenting in a log
 func String(list v1.ResourceList) string {
 	if len(list) == 0 {
