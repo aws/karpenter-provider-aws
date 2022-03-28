@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 func Requirements(instanceTypes []InstanceType) v1alpha5.Requirements {
@@ -62,4 +63,18 @@ func Compatible(it InstanceType, requirements v1alpha5.Requirements) bool {
 		}
 	}
 	return false
+}
+
+func FilterInstanceTypes(instanceTypes []InstanceType, requirements v1alpha5.Requirements, requests v1.ResourceList) []InstanceType {
+	result := []InstanceType{}
+	for _, instanceType := range instanceTypes {
+		if !Compatible(instanceType, requirements) {
+			continue
+		}
+		if !resources.Fits(resources.Merge(requests, instanceType.Overhead()), instanceType.Resources()) {
+			continue
+		}
+		result = append(result, instanceType)
+	}
+	return result
 }
