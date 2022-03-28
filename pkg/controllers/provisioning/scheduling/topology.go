@@ -83,6 +83,8 @@ func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1al
 		return t.computeHostnameTopology(topologyGroup, constraints)
 	case v1.LabelTopologyZone:
 		return t.computeZonalTopology(ctx, constraints, topologyGroup)
+	case v1alpha5.LabelCapacityType:
+		return t.computeLabelCapacity(ctx, constraints, topologyGroup)
 	default:
 		return nil
 	}
@@ -113,6 +115,14 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constra
 // set of nodes, topology calculations will rebalance the new set of zones.
 func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha5.Constraints, topologyGroup *TopologyGroup) error {
 	topologyGroup.Register(constraints.Requirements.Zones().UnsortedList()...)
+	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
+		return fmt.Errorf("getting matching pods, %w", err)
+	}
+	return nil
+}
+
+func (t *Topology) computeLabelCapacity(ctx context.Context, constraints *v1alpha5.Constraints, topologyGroup *TopologyGroup) error {
+	topologyGroup.Register(constraints.Requirements.CapacityTypes().UnsortedList()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}
