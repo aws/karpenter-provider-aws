@@ -131,7 +131,7 @@ func validate(p *v1.Pod) error {
 
 func validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone); !supported.Has(constraint.TopologyKey) {
+		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, v1alpha5.LabelCapacityType); !supported.Has(constraint.TopologyKey) {
 			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
 		}
 	}
