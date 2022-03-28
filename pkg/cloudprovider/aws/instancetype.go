@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,6 +38,12 @@ type InstanceType struct {
 	ec2.InstanceTypeInfo
 	AvailableOfferings []cloudprovider.Offering
 	MaxPods            *int32
+
+	overheadOnce sync.Once
+	overhead     v1.ResourceList
+
+	resourcesOnce sync.Once
+	resource      v1.ResourceList
 }
 
 func (i *InstanceType) Name() string {
@@ -61,16 +68,19 @@ func (i *InstanceType) Architecture() string {
 }
 
 func (i *InstanceType) Resources() v1.ResourceList {
-	return v1.ResourceList{
-		v1.ResourceCPU:              i.cpu(),
-		v1.ResourceMemory:           i.memory(),
-		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
-		v1.ResourcePods:             i.pods(),
-		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(),
-		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
-	}
+	i.resourcesOnce.Do(func() {
+		i.resource = v1.ResourceList{
+			v1.ResourceCPU:              i.cpu(),
+			v1.ResourceMemory:           i.memory(),
+			v1.ResourceEphemeralStorage: i.ephemeralStorage(),
+			v1.ResourcePods:             i.pods(),
+			v1alpha1.ResourceAWSPodENI:  i.awsPodENI(),
+			v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
+			v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
+			v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
+		}
+	})
+	return i.resource
 }
 
 func (i *InstanceType) Price() float64 {
@@ -175,43 +185,46 @@ func (i *InstanceType) awsNeurons() resource.Quantity {
 // While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
 // analysis can be performed
 func (i *InstanceType) Overhead() v1.ResourceList {
-	overhead := v1.ResourceList{
-		v1.ResourceCPU: *resource.NewMilliQuantity(
-			100, // system-reserved
-			resource.DecimalSI),
-		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// kube-reserved
-			((11*i.eniLimitedPods())+255)+
-				// system-reserved
-				100+
-				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
-				100,
-		)),
-	}
-	// kube-reserved Computed from
-	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
-	for _, cpuRange := range []struct {
-		start      int64
-		end        int64
-		percentage float64
-	}{
-		{start: 0, end: 1000, percentage: 0.06},
-		{start: 1000, end: 2000, percentage: 0.01},
-		{start: 2000, end: 4000, percentage: 0.005},
-		{start: 4000, end: 1 << 31, percentage: 0.0025},
-	} {
-		cpuSt := i.cpu()
-		if cpu := cpuSt.MilliValue(); cpu >= cpuRange.start {
-			r := float64(cpuRange.end - cpuRange.start)
-			if cpu < cpuRange.end {
-				r = float64(cpu - cpuRange.start)
-			}
-			cpuOverhead := overhead[v1.ResourceCPU]
-			cpuOverhead.Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
-			overhead[v1.ResourceCPU] = cpuOverhead
+	// use a sync.Once to avoid re-calculating this expensive function
+	i.overheadOnce.Do(func() {
+		i.overhead = v1.ResourceList{
+			v1.ResourceCPU: *resource.NewMilliQuantity(
+				100, // system-reserved
+				resource.DecimalSI),
+			v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
+				// kube-reserved
+				((11*i.eniLimitedPods())+255)+
+					// system-reserved
+					100+
+					// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
+					100,
+			)),
 		}
-	}
-	return overhead
+		// kube-reserved Computed from
+		// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
+		for _, cpuRange := range []struct {
+			start      int64
+			end        int64
+			percentage float64
+		}{
+			{start: 0, end: 1000, percentage: 0.06},
+			{start: 1000, end: 2000, percentage: 0.01},
+			{start: 2000, end: 4000, percentage: 0.005},
+			{start: 4000, end: 1 << 31, percentage: 0.0025},
+		} {
+			cpuSt := i.cpu()
+			if cpu := cpuSt.MilliValue(); cpu >= cpuRange.start {
+				r := float64(cpuRange.end - cpuRange.start)
+				if cpu < cpuRange.end {
+					r = float64(cpu - cpuRange.start)
+				}
+				cpuOverhead := i.overhead[v1.ResourceCPU]
+				cpuOverhead.Add(*resource.NewMilliQuantity(int64(r*cpuRange.percentage), resource.DecimalSI))
+				i.overhead[v1.ResourceCPU] = cpuOverhead
+			}
+		}
+	})
+	return i.overhead
 }
 
 // The number of pods per node is calculated using the formula:

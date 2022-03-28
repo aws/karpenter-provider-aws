@@ -174,9 +174,11 @@ func (i *InstanceType) OperatingSystems() sets.String {
 	return i.options.OperatingSystems
 }
 
+var fakeOverhead = v1.ResourceList{
+	v1.ResourceCPU:    resource.MustParse("100m"),
+	v1.ResourceMemory: resource.MustParse("10Mi"),
+}
+
 func (i *InstanceType) Overhead() v1.ResourceList {
-	return v1.ResourceList{
-		v1.ResourceCPU:    resource.MustParse("100m"),
-		v1.ResourceMemory: resource.MustParse("10Mi"),
-	}
+	return fakeOverhead
 }

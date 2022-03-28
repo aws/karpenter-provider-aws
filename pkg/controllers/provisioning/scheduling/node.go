@@ -57,7 +57,16 @@ func (n *Node) Add(pod *v1.Pod) error {
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
 	instanceTypes := FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
+		// We only report a user-friendly error message in the event of the first pod not fitting on the node.  In this
+		// case, the node will never be used as the pod is unschedulable given the current set of constraints.  The other
+		// case where a pod doesn't fit on a node are caused by compatibility reasons with the current pods on the node.  This
+		// occurs much more often and that error message is never shown to the user.  Constructing that error message ends up
+		// dominating runtime as it happens very frequently. We improve from scheduling 1200 pods/sec to 1900+ pods/sec with
+		// this change using our scheduling benchmark.
+		if len(n.Pods) == 0 {
+			return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
+		}
+		return fmt.Errorf("no instance type satisfied request")
 	}
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypes
