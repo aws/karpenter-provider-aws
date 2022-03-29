@@ -26,6 +26,7 @@ import (
 
 type EKS struct {
 	Options
+	ContainerRuntime string
 }
 
 func (e EKS) Script() string {
@@ -44,6 +45,9 @@ func (e EKS) Script() string {
 	if !e.AWSENILimitedPodDensity {
 		userData.WriteString(" \\\n--use-max-pods false")
 		kubeletExtraArgs += " --max-pods=110"
+	}
+	if e.ContainerRuntime != "" {
+		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
 	}
 	if kubeletExtraArgs = strings.Trim(kubeletExtraArgs, " "); len(kubeletExtraArgs) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", kubeletExtraArgs))

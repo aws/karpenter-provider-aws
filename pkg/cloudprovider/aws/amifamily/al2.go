@@ -47,8 +47,9 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
+		ContainerRuntime: a.containerRuntime(instanceTypes),
 		Options: bootstrap.Options{
 			ClusterName:             a.Options.ClusterName,
 			ClusterEndpoint:         a.Options.ClusterEndpoint,
@@ -59,6 +60,19 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []cor
 			CABundle:                caBundle,
 		},
 	}
+}
+
+// containerRuntime will return the proper container runtime based on the capabilities of the
+// instanceTypes passed in since the AL2 EKS Optimized AMI does not support GPUs w/ containerd.
+// this should be removed once the EKS Optimized AMI supports GPUs through containerd
+func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string {
+	instanceResources := instanceTypes[0].Resources()
+	if resources.IsZero(instanceResources[v1alpha1.ResourceNVIDIAGPU]) &&
+		resources.IsZero(instanceResources[v1alpha1.ResourceAMDGPU]) &&
+		resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
+		return "containerd"
+	}
+	return "dockerd"
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
