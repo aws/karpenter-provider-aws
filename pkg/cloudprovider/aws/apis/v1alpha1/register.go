@@ -16,10 +16,12 @@ package v1alpha1
 
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 var (
@@ -32,6 +34,18 @@ var (
 	AWSRestrictedLabelDomains = []string{
 		"k8s.aws",
 	}
+	AMIFamilyBottlerocket = "Bottlerocket"
+	AMIFamilyAL2          = "AL2"
+	AMIFamilyUbuntu       = "Ubuntu"
+	SupportedAMIFamilies  = []string{
+		AMIFamilyBottlerocket,
+		AMIFamilyAL2,
+		AMIFamilyUbuntu,
+	}
+	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 )
 
 var (

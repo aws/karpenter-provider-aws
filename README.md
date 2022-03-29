@@ -18,9 +18,9 @@ Karpenter works by:
 
 For most use cases, a cluster’s capacity can be managed by a single Karpenter Provisioner.
 However, you can define multiple Provisioners, enabling use cases like isolation, entitlements, and sharding.
-Using a combination of defaults and overrides, Karpenter determines the availability zone, instance type, capacity type, machine image, and scheduling constraints for pods it manages.
+Provisioner requirements are layered with pod requirements to launch a node with the right properties, including taints, labels, availability zone, instance type, operating system, and more.
 
-Come discuss Karpenter in the [#karpenter channel](https://kubernetes.slack.com/archives/C02SFFZSA2K) in the [Kubernetes slack](https://slack.k8s.io/)!
+Come discuss Karpenter in the [#karpenter](https://kubernetes.slack.com/archives/C02SFFZSA2K) channel in the [Kubernetes slack](https://slack.k8s.io/)!
 
 Check out the [Docs](https://karpenter.sh/) to learn more.
 
@@ -28,12 +28,6 @@ Check out the [Docs](https://karpenter.sh/) to learn more.
 
 Follow the setup recommendations of your cloud provider.
 - [AWS](https://karpenter.sh/docs/getting-started/)
-
-> ❗ Note: There may be backwards incompatible changes between versions when upgrading before v0.3.0. Karpenter follows [Kubernetes versioning guidelines](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-changes). Before upgrading, we recommend:
-> - Check the [release notes](https://github.com/aws/karpenter/releases)
-> - Uninstall Karpenter
-> - Remove all nodes launched by karpenter
-> - Reinstall Karpenter
 
 ## References
 - [Docs](https://karpenter.sh/docs/)
@@ -44,6 +38,7 @@ Follow the setup recommendations of your cloud provider.
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks
+- 03/25/2022 [Karpenter @ AWS Community Day 2022](https://youtu.be/sxDtmzbNHwE?t=3931)
 - 12/20/2021 [How To Auto-Scale Kubernetes Clusters With Karpenter](https://youtu.be/C-2v7HT-uSA)
 - 11/30/2021 [Karpenter vs Kubernetes Cluster Autoscaler](https://youtu.be/3QsVRHVdOnM)
 - 11/19/2021 [Karpenter @ Container Day](https://youtu.be/qxWJRUF6JJc)

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +34,7 @@ type VolumeTopology struct {
 }
 
 func (v *VolumeTopology) Inject(ctx context.Context, pod *v1.Pod) error {
-	var requirements v1alpha5.Requirements
+	var requirements []v1.NodeSelectorRequirement
 	for _, volume := range pod.Spec.Volumes {
 		req, err := v.getRequirements(ctx, pod, volume)
 		if err != nil {
@@ -58,14 +57,12 @@ func (v *VolumeTopology) Inject(ctx context.Context, pod *v1.Pod) error {
 	if len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
 		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = []v1.NodeSelectorTerm{{}}
 	}
-	for _, requirement := range requirements {
-		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(
-			pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, requirement)
-	}
+	pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions, requirements...)
 	return nil
 }
 
-func (v *VolumeTopology) getRequirements(ctx context.Context, pod *v1.Pod, volume v1.Volume) (v1alpha5.Requirements, error) {
+func (v *VolumeTopology) getRequirements(ctx context.Context, pod *v1.Pod, volume v1.Volume) ([]v1.NodeSelectorRequirement, error) {
 	// Get PVC
 	if volume.PersistentVolumeClaim == nil {
 		return nil, nil
@@ -93,12 +90,12 @@ func (v *VolumeTopology) getRequirements(ctx context.Context, pod *v1.Pod, volum
 	return nil, nil
 }
 
-func (v *VolumeTopology) getStorageClassRequirements(ctx context.Context, pvc *v1.PersistentVolumeClaim) (v1alpha5.Requirements, error) {
+func (v *VolumeTopology) getStorageClassRequirements(ctx context.Context, pvc *v1.PersistentVolumeClaim) ([]v1.NodeSelectorRequirement, error) {
 	storageClass := &storagev1.StorageClass{}
 	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: ptr.StringValue(pvc.Spec.StorageClassName)}, storageClass); err != nil {
 		return nil, fmt.Errorf("getting storage class %q, %w", ptr.StringValue(pvc.Spec.StorageClassName), err)
 	}
-	var requirements v1alpha5.Requirements
+	var requirements []v1.NodeSelectorRequirement
 	if len(storageClass.AllowedTopologies) > 0 {
 		// Terms are ORed, only use the first term
 		for _, requirement := range storageClass.AllowedTopologies[0].MatchLabelExpressions {
@@ -108,7 +105,7 @@ func (v *VolumeTopology) getStorageClassRequirements(ctx context.Context, pvc *v
 	return requirements, nil
 }
 
-func (v *VolumeTopology) getPersistentVolumeRequirements(ctx context.Context, pod *v1.Pod, pvc *v1.PersistentVolumeClaim) (v1alpha5.Requirements, error) {
+func (v *VolumeTopology) getPersistentVolumeRequirements(ctx context.Context, pod *v1.Pod, pvc *v1.PersistentVolumeClaim) ([]v1.NodeSelectorRequirement, error) {
 	pv := &v1.PersistentVolume{}
 	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName, Namespace: pod.Namespace}, pv); err != nil {
 		return nil, fmt.Errorf("getting persistent volume %q, %w", pvc.Spec.VolumeName, err)
@@ -119,7 +116,7 @@ func (v *VolumeTopology) getPersistentVolumeRequirements(ctx context.Context, po
 	if pv.Spec.NodeAffinity.Required == nil {
 		return nil, nil
 	}
-	var requirements v1alpha5.Requirements
+	var requirements []v1.NodeSelectorRequirement
 	if len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms) > 0 {
 		// Terms are ORed, only use the first term
 		requirements = append(requirements, pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions...)

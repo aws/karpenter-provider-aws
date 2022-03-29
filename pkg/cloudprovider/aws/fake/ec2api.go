@@ -25,10 +25,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	set "github.com/deckarep/golang-set"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	set "github.com/deckarep/golang-set"
 )
 
 type CapacityPool struct {
@@ -180,11 +181,11 @@ func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnet
 		return e.DescribeSubnetsOutput, nil
 	}
 	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"),
+		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"),
+		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
-		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c"),
+		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(100),
 			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}, {Key: aws.String("TestTag")}}},
 	}}, nil
 }
@@ -322,7 +323,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 					DefaultVCpus: aws.Int64(2),
 				},
 				MemoryInfo: &ec2.MemoryInfo{
-					SizeInMiB: aws.Int64(2 * 1024),
+					SizeInMiB: aws.Int64(4 * 1024),
 				},
 				NetworkInfo: &ec2.NetworkInfo{
 					MaximumNetworkInterfaces:  aws.Int64(4),
@@ -447,6 +448,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 			},
 			{
 				InstanceType: aws.String("inf1.6xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("c6g.large"),
 				Location:     aws.String("test-zone-1a"),
 			},
 		},

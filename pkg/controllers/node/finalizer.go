@@ -17,10 +17,11 @@ package node
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 // Finalizer is a subreconciler that ensures nodes have the termination

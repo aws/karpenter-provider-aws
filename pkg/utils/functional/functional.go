@@ -43,53 +43,6 @@ func StringSliceWithout(vals []string, remove ...string) []string {
 	return without
 }
 
-// IntersectStringSlice takes the intersection of the slices.
-// Semantically:
-// 1. [],[a,b] -> []: Empty set will always result in []
-// 2. nil,[a,b] -> [a,b]: Nil is the universal set and does not constrain
-// 3. ([a,b],[b]) -> [b]: Takes the intersection of the two sets
-func IntersectStringSlice(slices ...[]string) []string {
-	if len(slices) == 0 {
-		return nil
-	}
-	if len(slices) == 1 {
-		return UniqueStrings(slices[0])
-	}
-	if slices[0] == nil {
-		return IntersectStringSlice(slices[1:]...)
-	}
-	if slices[1] == nil {
-		sliced := append(slices[:1], slices[2:]...)
-		return IntersectStringSlice(sliced...)
-	}
-	counts := map[string]bool{}
-	for _, s := range slices[0] {
-		counts[s] = true
-	}
-	intersection := []string{}
-	for _, s := range slices[1] {
-		if _, ok := counts[s]; ok {
-			intersection = append(intersection, s)
-		}
-	}
-	return IntersectStringSlice(append(slices[2:], intersection)...)
-}
-
-func UniqueStrings(strings []string) []string {
-	if strings == nil {
-		return nil
-	}
-	exists := map[string]bool{}
-	for _, s := range strings {
-		exists[s] = true
-	}
-	unique := []string{}
-	for s := range exists {
-		unique = append(unique, s)
-	}
-	return unique
-}
-
 func ContainsString(strings []string, candidate string) bool {
 	for _, s := range strings {
 		if candidate == s {

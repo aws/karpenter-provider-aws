@@ -42,12 +42,12 @@ type ProvisionerSpec struct {
 	// +optional
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
-	Limits Limits `json:"limits,omitempty"`
+	Limits *Limits `json:"limits,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=provisioners,scope=Cluster
+// +kubebuilder:resource:path=provisioners,scope=Cluster,categories=karpenter
 // +kubebuilder:subresource:status
 type Provisioner struct {
 	metav1.TypeMeta   `json:",inline"`

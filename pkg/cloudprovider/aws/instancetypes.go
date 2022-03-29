@@ -17,19 +17,21 @@ package aws
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"knative.dev/pkg/ptr"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/ptr"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
@@ -41,6 +43,7 @@ const (
 )
 
 type InstanceTypeProvider struct {
+	sync.Mutex
 	ec2api         ec2iface.EC2API
 	subnetProvider *SubnetProvider
 	// Has two entries: one for all the instance types and one for all zones; values cached *before* considering insufficient capacity errors
@@ -61,6 +64,8 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 
 // Get all instance type options (the constraints are only used for tag filtering on subnets, not for Requirements filtering)
 func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+	p.Lock()
+	defer p.Unlock()
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
@@ -80,7 +85,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	if err != nil {
 		return nil, err
 	}
-	result := []cloudprovider.InstanceType{}
+	var result []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
 		offerings := p.createOfferings(instanceType, subnetZones, instanceTypeZones[instanceType.Name()])
 		if len(offerings) > 0 {

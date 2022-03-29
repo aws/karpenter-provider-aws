@@ -21,13 +21,12 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/resources"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,14 +69,13 @@ var _ = Describe("Provisioning", func() {
 		provisioner = &v1alpha5.Provisioner{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: v1alpha5.ProvisionerSpec{
-				Limits: v1alpha5.Limits{
+				Limits: &v1alpha5.Limits{
 					Resources: v1.ResourceList{
 						v1.ResourceCPU: *resource.NewScaledQuantity(10, 0),
 					},
 				},
 			},
 		}
-		provisioner.SetDefaults(ctx)
 	})
 
 	AfterEach(func() {
@@ -133,13 +131,13 @@ var _ = Describe("Provisioning", func() {
 		It("should provision nodes for accelerators", func() {
 			for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner,
 				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.NvidiaGPU: resource.MustParse("1")}},
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")}},
 				}),
 				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AMDGPU: resource.MustParse("1")}},
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAMDGPU: resource.MustParse("1")}},
 				}),
 				test.UnschedulablePod(test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{resources.AWSNeuron: resource.MustParse("1")}},
+					ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")}},
 				}),
 			) {
 				ExpectScheduled(ctx, env.Client, pod)
@@ -215,10 +213,10 @@ var _ = Describe("Provisioning", func() {
 				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
 				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 			})
-			It("should ignore daemonsets that don't match pod constraints", func() {
+			It("should account daemonsets with NotIn operator and unspecified key", func() {
 				ExpectCreated(ctx, env.Client, test.DaemonSet(
 					test.DaemonSetOptions{PodOptions: test.PodOptions{
-						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}},
+						NodeRequirements:     []v1.NodeSelectorRequirement{{Key: "foo", Operator: v1.NodeSelectorOpNotIn, Values: []string{"bar"}}},
 						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 					}},
 				))
@@ -229,8 +227,8 @@ var _ = Describe("Provisioning", func() {
 					},
 				))[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
-				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 			})
 		})
 		Context("Labels", func() {

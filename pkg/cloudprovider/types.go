@@ -17,21 +17,26 @@ package cloudprovider
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
+
+// Options are injected into cloud providers' factories
+type Options struct {
+	ClientSet *kubernetes.Clientset
+}
 
 // CloudProvider interface is implemented by cloud providers to support provisioning.
 type CloudProvider interface {
-	// Create a set of nodes for each of the given constraints. This API uses a
+	// Create a node given constraints and instance type options. This API uses a
 	// callback pattern to enable cloudproviders to batch capacity creation
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request.
-	Create(context.Context, *v1alpha5.Constraints, []InstanceType, int, func(*v1.Node) error) error
+	Create(context.Context, *NodeRequest) (*v1.Node, error)
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
@@ -45,9 +50,9 @@ type CloudProvider interface {
 	Name() string
 }
 
-// Options are injected into cloud providers' factories
-type Options struct {
-	ClientSet *kubernetes.Clientset
+type NodeRequest struct {
+	Constraints         *v1alpha5.Constraints
+	InstanceTypeOptions []InstanceType
 }
 
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type
@@ -58,14 +63,14 @@ type InstanceType interface {
 	Offerings() []Offering
 	Architecture() string
 	OperatingSystems() sets.String
-	CPU() *resource.Quantity
-	Memory() *resource.Quantity
-	Pods() *resource.Quantity
-	NvidiaGPUs() *resource.Quantity
-	AMDGPUs() *resource.Quantity
-	AWSNeurons() *resource.Quantity
-	AWSPodENI() *resource.Quantity
+	// Resources are the full allocatable resource capacities for this instance type
+	Resources() v1.ResourceList
+	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside
+	// of Kubernetes.
 	Overhead() v1.ResourceList
+	// Price is a metric that is used to optimize pod placement onto nodes.  This can be an actual monetary price per hour
+	// for the instance type, or just a weighting where lower 'prices' are preferred.
+	Price() float64
 }
 
 // An Offering describes where an InstanceType is available to be used, with the expectation that its properties

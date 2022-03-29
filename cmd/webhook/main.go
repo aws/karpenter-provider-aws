@@ -16,12 +16,8 @@ package main
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
@@ -35,6 +31,12 @@ import (
 	"knative.dev/pkg/webhook/configmaps"
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
+
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 var (
@@ -45,8 +47,8 @@ func main() {
 	config := knativeinjection.ParseAndGetRESTConfigOrDie()
 	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 		Port:        opts.WebhookPort,
-		ServiceName: "karpenter-webhook",
-		SecretName:  "karpenter-webhook-cert",
+		ServiceName: opts.KarpenterService,
+		SecretName:  fmt.Sprintf("%s-cert", opts.KarpenterService),
 	})
 
 	// Register the cloud provider to attach vendor specific validation logic.

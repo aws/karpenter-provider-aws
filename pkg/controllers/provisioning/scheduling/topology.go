@@ -21,15 +21,16 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 type Topology struct {
@@ -46,7 +47,9 @@ func (t *Topology) Inject(ctx context.Context, constraints *v1alpha5.Constraints
 			return fmt.Errorf("computing topology, %w", err)
 		}
 		for _, pod := range topologyGroup.Pods {
-			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.PodRequirements(pod)...).Requirement(topologyGroup.Constraint.TopologyKey))
+			domain := topologyGroup.NextDomain(constraints.Requirements.Add(v1alpha5.NewPodRequirements(pod).Requirements...).
+				Get(topologyGroup.Constraint.TopologyKey).
+				Values())
 			pod.Spec.NodeSelector = functional.UnionStringMaps(pod.Spec.NodeSelector, map[string]string{topologyGroup.Constraint.TopologyKey: domain})
 		}
 	}
@@ -79,7 +82,7 @@ func (t *Topology) computeCurrentTopology(ctx context.Context, constraints *v1al
 	case v1.LabelHostname:
 		return t.computeHostnameTopology(topologyGroup, constraints)
 	case v1.LabelTopologyZone:
-		return t.computeZonalTopology(ctx, constraints.Requirements, topologyGroup)
+		return t.computeZonalTopology(ctx, constraints, topologyGroup)
 	default:
 		return nil
 	}
@@ -99,8 +102,7 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constra
 	}
 	topologyGroup.Register(domains...)
 	// This is a bit of a hack that allows the constraints to recognize viable hostname topologies
-	constraints.Requirements = append(constraints.Requirements,
-		v1.NodeSelectorRequirement{Key: topologyGroup.Constraint.TopologyKey, Operator: v1.NodeSelectorOpIn, Values: domains})
+	constraints.Requirements = constraints.Requirements.Add(v1.NodeSelectorRequirement{Key: topologyGroup.Constraint.TopologyKey, Operator: v1.NodeSelectorOpIn, Values: domains})
 	return nil
 }
 
@@ -109,8 +111,8 @@ func (t *Topology) computeHostnameTopology(topologyGroup *TopologyGroup, constra
 // topology skew calculations will only include the current viable zone
 // selection. For example, if a cloud provider or provisioner changes the viable
 // set of nodes, topology calculations will rebalance the new set of zones.
-func (t *Topology) computeZonalTopology(ctx context.Context, requirements v1alpha5.Requirements, topologyGroup *TopologyGroup) error {
-	topologyGroup.Register(requirements.Zones().UnsortedList()...)
+func (t *Topology) computeZonalTopology(ctx context.Context, constraints *v1alpha5.Constraints, topologyGroup *TopologyGroup) error {
+	topologyGroup.Register(constraints.Requirements.Zones().UnsortedList()...)
 	if err := t.countMatchingPods(ctx, topologyGroup); err != nil {
 		return fmt.Errorf("getting matching pods, %w", err)
 	}

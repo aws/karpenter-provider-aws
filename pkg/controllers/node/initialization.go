@@ -19,13 +19,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
-	"github.com/aws/karpenter/pkg/utils/node"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/utils/node"
 )
 
 const InitializationTimeout = 15 * time.Minute

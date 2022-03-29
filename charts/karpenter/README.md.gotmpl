@@ -3,21 +3,31 @@
 
 {{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
 
+## Documentation
+
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v{{ template "chart.version" . }}/).
+
 ## Installing the Chart
 
-To install the chart with the release name `karpenter`:
+Before the chart can be installed the repo needs to be added to Helm, run the following commands to add the repo.
 
-```console
-$ helm repo add karpenter https://charts.karpenter.sh
-$ helm repo update
-$ helm upgrade --install karpenter karpenter/{{ template "chart.name" . }} --namespace karpenter \
-  --create-namespace --set serviceAccount.create=false --version {{ template "chart.version" . }} \
-  --set controller.clusterName=${CLUSTER_NAME} \
-  --set controller.clusterEndpoint=$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output json) \
-  --wait # for the defaulting webhook to install before creating a Provisioner  
+```bash
+helm repo add karpenter https://charts.karpenter.sh/
+helm repo update
 ```
 
-You can follow the detailed installation instruction [here](https://karpenter.sh/docs/getting-started/#install).
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v{{ template "chart.version" . }}/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+
+```bash
+helm upgrade --install --namespace karpenter --create-namespace \
+  karpenter karpenter/{{ template "chart.name" . }} \
+  --version {{ template "chart.version" . }} \
+  --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
+  --set clusterName=${CLUSTER_NAME} \
+  --set clusterEndpoint=${CLUSTER_ENDPOINT} \
+  --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+  --wait # for the defaulting webhook to install before creating a Provisioner
+```
 
 {{ template "chart.requirementsSection" . }}
 

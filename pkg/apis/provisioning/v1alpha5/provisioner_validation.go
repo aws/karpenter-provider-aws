@@ -17,18 +17,18 @@ package v1alpha5
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"knative.dev/pkg/apis"
-
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/ptr"
+	"knative.dev/pkg/ptr"
 )
 
 var (
-	SupportedNodeSelectorOps = []string{string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn)}
+	SupportedNodeSelectorOps sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
+	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -42,7 +42,7 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
-		s.Constraints.Validate(ctx),
+		s.Validate(ctx),
 	)
 }
 
@@ -78,34 +78,11 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 		for _, err := range validation.IsValidLabelValue(value) {
 			errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", value, err), fmt.Sprintf("labels[%s]", key)))
 		}
-		if RestrictedLabels.Has(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label is restricted"))
-		}
-		if _, ok := WellKnownLabels[key]; !ok && IsRestrictedLabelDomain(key) {
-			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", "label domain not allowed"))
+		if err := IsRestrictedLabel(key); err != nil {
+			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err.Error()))
 		}
 	}
 	return errs
-}
-
-func IsRestrictedLabelDomain(key string) bool {
-	labelDomain := getLabelDomain(key)
-	if AllowedLabelDomains.Has(labelDomain) {
-		return false
-	}
-	for restrictedLabelDomain := range RestrictedLabelDomains {
-		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
-			return true
-		}
-	}
-	return false
-}
-
-func getLabelDomain(key string) string {
-	if parts := strings.SplitN(key, "/", 2); len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
 }
 
 func (c *Constraints) validateTaints() (errs *apis.FieldError) {
@@ -133,29 +110,23 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
+// This function is used by the provisioner validation webhook to verify the provisioner requirements.
+// When this function is called, the provisioner's requirments do not include the requirements from labels.
+// Provisioner requirements only support well known labels.
 func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
-	for i, requirement := range c.Requirements {
-		if err := validateRequirement(requirement); err != nil {
-			errs = errs.Also(apis.ErrInvalidArrayValue(err, "requirements", i))
+	var err error
+	for _, requirement := range c.Requirements.Requirements {
+		// Ensure requirements operator is allowed
+		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
+			err = multierr.Append(err, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
+		}
+		if e := IsRestrictedLabel(requirement.Key); e != nil {
+			err = multierr.Append(err, e)
 		}
 	}
-	return errs
-}
-
-func validateRequirement(requirement v1.NodeSelectorRequirement) (errs *apis.FieldError) {
-	if !WellKnownLabels.Has(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidKeyName(fmt.Sprintf("%s not in %v", requirement.Key, WellKnownLabels.UnsortedList()), "key"))
-	}
-	for _, err := range validation.IsQualifiedName(requirement.Key) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s, %s", requirement.Key, err), "key"))
-	}
-	for i, value := range requirement.Values {
-		for _, err := range validation.IsValidLabelValue(value) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(fmt.Sprintf("%s, %s", value, err), "values", i))
-		}
-	}
-	if !functional.ContainsString(SupportedNodeSelectorOps, string(requirement.Operator)) {
-		errs = errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%s not in %s", requirement.Operator, SupportedNodeSelectorOps), "operator"))
+	err = multierr.Append(err, c.Requirements.Validate())
+	if err != nil {
+		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
 	}
 	return errs
 }

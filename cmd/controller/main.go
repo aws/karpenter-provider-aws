@@ -18,21 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
-	"github.com/aws/karpenter/pkg/cloudprovider/registry"
-	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/controllers/counter"
-	metricsnode "github.com/aws/karpenter/pkg/controllers/metrics/node"
-	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
-	"github.com/aws/karpenter/pkg/controllers/node"
-	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/selection"
-	"github.com/aws/karpenter/pkg/controllers/termination"
-	"github.com/aws/karpenter/pkg/utils/injection"
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/project"
+
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -48,6 +35,22 @@ import (
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
+	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/controllers"
+	"github.com/aws/karpenter/pkg/controllers/counter"
+	metricsnode "github.com/aws/karpenter/pkg/controllers/metrics/node"
+	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
+	"github.com/aws/karpenter/pkg/controllers/node"
+	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
+	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/selection"
+	"github.com/aws/karpenter/pkg/controllers/termination"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 var (
@@ -72,6 +75,7 @@ func main() {
 	ctx = injection.WithConfig(ctx, config)
 	ctx = injection.WithOptions(ctx, opts)
 
+	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
@@ -96,7 +100,7 @@ func main() {
 		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
-		panic(fmt.Sprintf("Unable to start manager, %s", err.Error()))
+		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
 }
 
@@ -110,7 +114,7 @@ func LoggingContextOrDie(config *rest.Config, clientSet *kubernetes.Clientset) c
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
 	if err := cmw.Start(ctx.Done()); err != nil {
-		logger.Fatalf("Failed to watch logging configuration, %s", err.Error())
+		logger.Fatalf("Failed to watch logging configuration, %s", err)
 	}
 	startinformers()
 	return ctx

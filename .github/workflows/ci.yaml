@@ -1,5 +1,9 @@
 name: CI
-on: [pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,9 +14,10 @@ jobs:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:
     - uses: actions/checkout@v2
+    - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.17
+        go-version: ${{ env.GO_VERSION }}
     - uses: actions/cache@v2
       with:
         path: |
@@ -20,13 +25,12 @@ jobs:
           ~/go/pkg/mod
           ~/go/bin/
           ~/.kubebuilder/bin/k8s
-        key: gocache
+        key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
     - name: CI - Verifications and Tests
       run: |
         make ci
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/upload-artifact@v2
+    - uses: shogo82148/actions-goveralls@v1
       with:
-        name: coverage
-        path: coverage.html
+        path-to-profile: coverage.out

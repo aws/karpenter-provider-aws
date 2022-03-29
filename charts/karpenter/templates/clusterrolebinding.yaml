@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "karpenter.fullname" . }}
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "karpenter.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "karpenter.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}

@@ -1,0 +1,5 @@
+{{ $file := .Get "file" }}
+{{ $version := index ( split .Page.Path `/` ) 0 }}
+{{ $fileContents := replace $file `{VERSION}` $version | readFile }}
+{{ $lang := .Get "language" }}
+{{ (print "```" $lang "\n" $fileContents "```") | safeHTML }}
