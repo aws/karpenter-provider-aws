@@ -25,6 +25,8 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::112855948879:role/Nightly
           aws-region: us-east-1
-      - run: make nightly
+      - run: |
+          make toolchain
+          make nightly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

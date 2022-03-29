@@ -1,8 +1,13 @@
 #!/bin/bash -e
 
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
-RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
+
+if [ "$1" = "nightly" ]; then
+    RELEASE_VERSION=${RELEASE_VERSION:-$(date "+%Y%m%d")}
+else
+    RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
+fi
 
 if [ -z "$CLOUD_PROVIDER" ]; then
     echo "CLOUD_PROVIDER environment variable is not set: 'export CLOUD_PROVIDER=aws'"
@@ -22,6 +27,9 @@ image() {
     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
     CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
     WEBHOOK_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/webhook)
+}
+
+injectAndCosign() {
     yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".webhook.image = \"${WEBHOOK_DIGEST}\"" charts/karpenter/values.yaml
     yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
@@ -45,6 +53,19 @@ website() {
     find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
 }
 
-image
-chart
-website
+nightly(){
+   image
+}
+
+release(){
+   image
+   injectAndCosign
+   chart
+   website
+}
+
+if [ "$1" = "nightly" ]; then
+   nightly
+else
+  release
+fi
