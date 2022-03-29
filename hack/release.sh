@@ -1,12 +1,12 @@
 #!/bin/bash -e
 
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
-
 if [ "$1" = "nightly" ]; then
     RELEASE_VERSION=${RELEASE_VERSION:-$(date "+%Y%m%d")}
+    RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z3c6l6z9/karpenter-nightly}
 else
     RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
+    RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
 fi
 
 if [ -z "$CLOUD_PROVIDER" ]; then
