@@ -152,7 +152,7 @@ func (i *InstanceType) amdGPUs() resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
 		for _, gpu := range i.GpuInfo.Gpus {
-			if *gpu.Manufacturer == "NVIDIA" {
+			if *gpu.Manufacturer == "AMD" {
 				count += *gpu.Count
 			}
 		}
