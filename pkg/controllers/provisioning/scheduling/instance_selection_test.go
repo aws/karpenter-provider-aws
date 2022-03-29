@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"fmt"
+	"github.com/mitchellh/hashstructure/v2"
 	"math"
 	"math/rand"
 
@@ -450,6 +451,18 @@ var _ = Describe("Instance Type Selection", func() {
 		Expect(cloudProv.CreateCalls).To(HaveLen(0))
 	})
 	It("should schedule on an instance with enough resources", func() {
+		// this is a pretty thorough exercise of scheduling, so we also check an invariant that scheduling doesn't
+		// modify the instance type's Overhead() or Resources() maps so they can return the same map every time instead
+		// of re-alllocating a new one per call
+		resourceHashes := map[string]uint64{}
+		overheadHashes := map[string]uint64{}
+		for _, it := range cloudProv.InstanceTypes {
+			var err error
+			resourceHashes[it.Name()], err = hashstructure.Hash(it.Resources(), hashstructure.FormatV2, nil)
+			Expect(err).To(BeNil())
+			overheadHashes[it.Name()], err = hashstructure.Hash(it.Overhead(), hashstructure.FormatV2, nil)
+		}
+
 		// these values are constructed so that three of these pods can always fit on at least one of our instance types
 		for _, cpu := range []float64{0.1, 1.0, 2, 2.5, 4, 8, 16} {
 			for _, mem := range []float64{0.1, 1.0, 2, 4, 8, 16, 32} {
@@ -477,6 +490,14 @@ var _ = Describe("Instance Type Selection", func() {
 					Expect(totalReserved.Memory().Cmp(it.Resources()[v1.ResourceMemory])).To(Equal(-1))
 				}
 			}
+		}
+		for _, it := range cloudProv.InstanceTypes {
+			resourceHash, err := hashstructure.Hash(it.Resources(), hashstructure.FormatV2, nil)
+			Expect(err).To(BeNil())
+			overheadHash, err := hashstructure.Hash(it.Overhead(), hashstructure.FormatV2, nil)
+			Expect(err).To(BeNil())
+			Expect(resourceHash).To(Equal(resourceHashes[it.Name()]), fmt.Sprintf("expected %s Resources() to not be modified by scheduling", it.Name()))
+			Expect(overheadHash).To(Equal(overheadHashes[it.Name()]), fmt.Sprintf("expected %s Overhead() to not be modified by scheduling", it.Name()))
 		}
 	})
 })
