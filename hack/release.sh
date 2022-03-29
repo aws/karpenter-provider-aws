@@ -65,7 +65,7 @@ release(){
 }
 
 if [ "$1" = "nightly" ]; then
-   nightly
+  nightly
 else
   release
 fi
