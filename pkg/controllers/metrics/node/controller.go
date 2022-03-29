@@ -262,7 +262,7 @@ func (c *Controller) record(ctx context.Context, node *v1.Node) error {
 		allocatableGaugeVec:    allocatable,
 	} {
 		if err := c.set(resourceList, node, gaugeVec); err != nil {
-			logging.FromContext(ctx).Errorf("Failed to generate gauge: %w", err)
+			logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
 		}
 	}
 	return nil

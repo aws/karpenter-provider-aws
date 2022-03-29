@@ -15,8 +15,12 @@ limitations under the License.
 package scheduling
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -28,41 +32,70 @@ import (
 // Node is a set of constraints, compatible pods, and possible instance types that could fulfill these constraints. This
 // will be turned into one or more actual node instances within the cluster after bin packing.
 type Node struct {
+	Name                string
 	Constraints         *v1alpha5.Constraints
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
 
 	requests v1.ResourceList
+	client   client.Client
 }
 
-func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
-	return &Node{
+var nodeID int64
+
+func NewNode(c client.Client, constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+	n := &Node{
+		Name:                fmt.Sprintf("node-%04d", atomic.AddInt64(&nodeID, 1)),
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
 		requests:            daemonResources,
+		client:              c,
 	}
+
+	n.Constraints.Requirements = n.Constraints.Requirements.Add(v1.NodeSelectorRequirement{
+		Key:      v1.LabelHostname,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{n.Name},
+	})
+	return n
 }
 
-func (n *Node) Add(pod *v1.Pod) error {
+func (n *Node) isCompatibleWith(pod *v1.Pod) (v1alpha5.Requirements, v1.ResourceList, []cloudprovider.InstanceType, error) {
 	podRequirements := v1alpha5.NewPodRequirements(pod)
-
-	if len(n.Pods) != 0 {
-		// TODO: remove this check for n.Pods once we properly support hostname topology spread
-		if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
-			return err
-		}
+	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
+		return v1alpha5.Requirements{}, nil, nil, err
 	}
+
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
 	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
+		return v1alpha5.Requirements{}, nil, nil, fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
 	}
+	return requirements, requests, instanceTypes, nil
+}
+func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
+	requirements, requests, instanceTypes, err := n.isCompatibleWith(pod)
+	if err != nil {
+		return err
+	}
+
+	if pod.Spec.NodeSelector == nil {
+		pod.Spec.NodeSelector = map[string]string{}
+	}
+	pod.Spec.NodeName = n.Name
+	pod.Spec.NodeSelector[v1.LabelHostname] = n.Name
+
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypes
 	n.requests = requests
 	n.Constraints.Requirements = requirements
 	return nil
+}
+
+func (n *Node) Compatible(ctx context.Context, pod *v1.Pod) error {
+	_, _, _, err := n.isCompatibleWith(pod)
+	return err
 }
 
 func (n *Node) String() string {

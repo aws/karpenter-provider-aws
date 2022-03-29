@@ -129,10 +129,12 @@ func validate(p *v1.Pod) error {
 	)
 }
 
+var validTopologyKeys = sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, v1alpha5.LabelCapacityType)
+
 func validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, v1alpha5.LabelCapacityType); !supported.Has(constraint.TopologyKey) {
-			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
+		if !validTopologyKeys.Has(constraint.TopologyKey) {
+			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key in topology spread, %s not in %s", constraint.TopologyKey, validTopologyKeys))
 		}
 	}
 	return errs
@@ -142,11 +144,13 @@ func validateAffinity(p *v1.Pod) (errs error) {
 	if p.Spec.Affinity == nil {
 		return nil
 	}
-	if pod.HasRequiredPodAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("pod affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
-	}
-	if pod.HasRequiredPodAntiAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
+	if p.Spec.Affinity.PodAffinity != nil {
+		for _, term := range p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term))
+		}
+		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term.PodAffinityTerm))
+		}
 	}
 	if p.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
@@ -159,6 +163,13 @@ func validateAffinity(p *v1.Pod) (errs error) {
 		}
 	}
 	return errs
+}
+
+func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
+	if !validTopologyKeys.Has(term.TopologyKey) {
+		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, validTopologyKeys)
+	}
+	return nil
 }
 
 func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
