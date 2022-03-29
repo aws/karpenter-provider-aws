@@ -20,6 +20,9 @@ package scheduling_test
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/test"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"math/rand"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -36,14 +39,41 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
-	"github.com/aws/karpenter/pkg/test"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	testclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestSchedulingPerformance(t *testing.T) {
+const MinPodsPerSec = 250.0
+
+var r = rand.New(rand.NewSource(42))
+
+func BenchmarkScheduling1(b *testing.B) {
+	benchmarkScheduler(b, 400, 1)
+}
+func BenchmarkScheduling50(b *testing.B) {
+	benchmarkScheduler(b, 400, 50)
+}
+func BenchmarkScheduling100(b *testing.B) {
+	benchmarkScheduler(b, 400, 100)
+}
+func BenchmarkScheduling500(b *testing.B) {
+	benchmarkScheduler(b, 400, 500)
+}
+func BenchmarkScheduling1000(b *testing.B) {
+	benchmarkScheduler(b, 400, 1000)
+}
+func BenchmarkScheduling2000(b *testing.B) {
+	benchmarkScheduler(b, 400, 2000)
+}
+func BenchmarkScheduling5000(b *testing.B) {
+	benchmarkScheduler(b, 400, 5000)
+}
+
+// TestSchedulingProfile is used to gather profiling metrics, benchmarking is primarily done with standard
+// Go benchmark functions
+// go test -tags=test_performance -run=SchedulingProfile
+func TestSchedulingProfile(t *testing.T) {
 	tw := tabwriter.NewWriter(os.Stdout, 8, 8, 2, ' ', 0)
 
 	cpuf, err := os.Create("schedule.cpuprofile")
@@ -52,6 +82,12 @@ func TestSchedulingPerformance(t *testing.T) {
 	}
 	pprof.StartCPUProfile(cpuf)
 	defer pprof.StopCPUProfile()
+
+	heapf, err := os.Create("schedule.heapprofile")
+	if err != nil {
+		t.Fatalf("error creating heap profile: %s", err)
+	}
+	defer pprof.WriteHeapProfile(heapf)
 
 	totalPods := 0
 	totalNodes := 0
@@ -69,6 +105,7 @@ func TestSchedulingPerformance(t *testing.T) {
 	}
 	fmt.Println("scheduled", totalPods, "against", totalNodes, "nodes in total in", totalTime, float64(totalPods)/totalTime.Seconds(), "pods/sec")
 	tw.Flush()
+
 }
 
 func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
@@ -93,39 +130,150 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	provisioners.Apply(ctx, provisioner)
 	scheduler := scheduling.NewScheduler(kubeClient)
 
-	pods := test.Pods(podCount, test.PodOptions{
-		ResourceRequirements: v1.ResourceRequirements{
-			Requests: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse(fmt.Sprintf("%d", 1)),
-				v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", 512)),
-			},
-		},
-	})
-
-	node := &scheduling.Node{
-		Constraints: v1alpha5.Constraints{
-			Requirements: v1alpha5.NewRequirements([]v1.NodeSelectorRequirement{
-				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2", "test-zone-3"}},
-				{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: instanceTypeNames},
-				{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64}},
-				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{"spot", "on-demand"}},
-				{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{"linux"}},
-			}...),
-		},
-		Pods: pods,
-	}
+	pods := makeDiversePods(podCount)
 
 	b.ResetTimer()
 	// Pack benchmark
+	start := time.Now()
 	for i := 0; i < b.N; i++ {
-		constraints := provisioner.Spec.Constraints.DeepCopy()
-		constraints.Requirements = node.Requirements
-		constraints.Taints = node.Taints
 		nodes, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
 		if err != nil || len(nodes) == 0 {
 			b.FailNow()
 		}
-		b.ReportMetric(float64(len(nodes)), "nodes")
+	}
+	duration := time.Since(start)
+	podsPerSec := float64(len(pods)) / (duration.Seconds() / float64(b.N))
+	b.ReportMetric(podsPerSec, "pods/sec")
+
+	// we don't care if it takes a bit of time to schedule a few pods as there is some setup time required for sorting
+	// instance types, computing topologies, etc.  We want to ensure that the larger batches of pods don't become too
+	// slow.
+	if len(pods) > 100 {
+		if podsPerSec < MinPodsPerSec {
+			b.Fatalf("scheduled %f pods/sec, expected at least %f", podsPerSec, MinPodsPerSec)
+		}
 	}
 
+}
+
+func makeDiversePods(count int) []*v1.Pod {
+	var pods []*v1.Pod
+	pods = append(pods, makeGenericPods(count/7)...)
+	pods = append(pods, makeTopologySpreadPods(count/7, v1.LabelTopologyZone)...)
+	pods = append(pods, makeTopologySpreadPods(count/7, v1.LabelHostname)...)
+	pods = append(pods, makePodAffinityPods(count/7, v1.LabelHostname)...)
+	pods = append(pods, makePodAffinityPods(count/7, v1.LabelTopologyZone)...)
+	pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelHostname)...)
+	pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelTopologyZone)...)
+
+	// fill out due to count being not evenly divisible with generic pods
+	nRemaining := count - len(pods)
+	pods = append(pods, makeGenericPods(nRemaining)...)
+	return pods
+}
+
+func makePodAntiAffinityPods(count int, key string) []*v1.Pod {
+	var pods []*v1.Pod
+	for i := 0; i < count; i++ {
+		pods = append(pods, test.Pod(
+			test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				PodAntiRequirements: []v1.PodAffinityTerm{
+					{
+						LabelSelector: &metav1.LabelSelector{MatchLabels: randomLabels()},
+						TopologyKey:   key,
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    randomCpu(),
+						v1.ResourceMemory: randomMemory(),
+					},
+				}}))
+	}
+	return pods
+}
+func makePodAffinityPods(count int, key string) []*v1.Pod {
+	var pods []*v1.Pod
+	for i := 0; i < count; i++ {
+		pods = append(pods, test.Pod(
+			test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				PodRequirements: []v1.PodAffinityTerm{
+					{
+						LabelSelector: &metav1.LabelSelector{MatchLabels: randomLabels()},
+						TopologyKey:   key,
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    randomCpu(),
+						v1.ResourceMemory: randomMemory(),
+					},
+				}}))
+	}
+	return pods
+}
+
+func makeTopologySpreadPods(count int, key string) []*v1.Pod {
+	var pods []*v1.Pod
+	for i := 0; i < count; i++ {
+		pods = append(pods, test.Pod(
+			test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       key,
+						WhenUnsatisfiable: v1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: randomLabels(),
+						},
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    randomCpu(),
+						v1.ResourceMemory: randomMemory(),
+					},
+				}}))
+	}
+	return pods
+}
+
+func makeGenericPods(count int) []*v1.Pod {
+	var pods []*v1.Pod
+	for i := 0; i < count; i++ {
+		pods = append(pods, test.Pod(
+			test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    randomCpu(),
+						v1.ResourceMemory: randomMemory(),
+					},
+				}}))
+	}
+	return pods
+}
+
+func randomLabels() map[string]string {
+	return map[string]string{
+		"my-label": randomLabelValue(),
+	}
+}
+
+func randomLabelValue() string {
+	labelValues := []string{"a", "b", "c", "d", "e", "f", "g"}
+	return labelValues[r.Intn(len(labelValues))]
+}
+
+func randomMemory() resource.Quantity {
+	mem := []int{100, 256, 512, 1024, 2048, 4096}
+	return resource.MustParse(fmt.Sprintf("%dMi", mem[r.Intn(len(mem))]))
+}
+
+func randomCpu() resource.Quantity {
+	cpu := []int{100, 250, 500, 1000, 1500}
+	return resource.MustParse(fmt.Sprintf("%dm", cpu[r.Intn(len(cpu))]))
 }

@@ -6,6 +6,13 @@ LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shel
 GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
+# detect nice binary
+NICE := $(shell command -v nice 2> /dev/null)
+NICE_PREFIX = ""
+ifdef NICE
+    NICE_PREFIX = ${NICE} -19
+endif
+
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
@@ -21,21 +28,24 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
+ci: toolchain verify licenses battletest benchmark ## Run all steps used by continuous integration
 
 test: ## Run tests
 	ginkgo -r
 
 strongertests:
-	# Run randomized, parallelized, racing, code coveraged, tests
+	# Run randomized, racing, code coveraged, tests
 	ginkgo -r \
 			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 			--randomizeAllSpecs --randomizeSuites -race
 
+benchmark:
+	${NICE_PREFIX} go test -tags=test_performance -run=NoTests -bench=. ./...
+
 deflake:
 	for i in {1..10}; do make strongertests || exit 1; done
 
-battletest: strongertests
+battletest: strongertests 
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
