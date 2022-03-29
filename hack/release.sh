@@ -4,6 +4,11 @@ RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
 RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
+if [ -z "$CLOUD_PROVIDER" ]; then
+    echo "CLOUD_PROVIDER environment variable is not set: 'export CLOUD_PROVIDER=aws'"
+    exit 1
+fi
+
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
 DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
 if [ -z "$SOURCE_DATE_EPOCH" ]; then
