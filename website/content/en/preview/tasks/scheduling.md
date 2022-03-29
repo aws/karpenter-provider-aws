@@ -244,7 +244,6 @@ Adding this to your podspec would result in:
 * No more than one pod difference in the number of pods on each host (`maxSkew`).
 For example, if there were three nodes and five pods the pods could be spread 1, 2, 2 or 2, 1, 2 and so on.
 If instead the spread were 5, pods could be 5, 0, 0 or 3, 2, 0, or 2, 1, 2 and so on.
-* Karpenter is always able to improve skew by launching new nodes in the right zones. Therefore, `whenUnsatisfiable` does not change provisioning behavior.
 
 The three supported `topologyKey` values that Karpenter supports are:
 - `topology.kubernetes.io/zone`

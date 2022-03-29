@@ -17,6 +17,7 @@ package pod
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func FailedToSchedule(pod *v1.Pod) bool {
@@ -26,6 +27,10 @@ func FailedToSchedule(pod *v1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func NamespacedName(p *v1.Pod) string {
+	return types.NamespacedName{Namespace: p.Namespace, Name: p.Name}.String()
 }
 
 func IsScheduled(pod *v1.Pod) bool {
@@ -68,16 +73,23 @@ func IsOwnedBy(pod *v1.Pod, gvks []schema.GroupVersionKind) bool {
 	return false
 }
 
-// HasRequiredPodAffinity returns true if a non-empty PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-// is defined in the pod spec
-func HasRequiredPodAffinity(pod *v1.Pod) bool {
-	return pod.Spec.Affinity.PodAffinity != nil &&
-		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0)
-}
-
 // HasRequiredPodAntiAffinity returns true if a non-empty PodAntiAffinity/RequiredDuringSchedulingIgnoredDuringExecution
 // is defined in the pod spec
 func HasRequiredPodAntiAffinity(pod *v1.Pod) bool {
-	return pod.Spec.Affinity.PodAntiAffinity != nil &&
-		(len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0)
+	return HasPodAntiAffinity(pod) &&
+		len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0
+}
+
+// HasPodAffinity returns true if a non-empty PodAffinity is defined in the pod spec
+func HasPodAffinity(pod *v1.Pod) bool {
+	return pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAffinity != nil &&
+		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
+			len(pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0)
+}
+
+// HasPodAntiAffinity returns true if a non-empty PodAntiAffinity is defined in the pod spec
+func HasPodAntiAffinity(pod *v1.Pod) bool {
+	return pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAntiAffinity != nil &&
+		(len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
+			len(pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0)
 }
