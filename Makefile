@@ -52,11 +52,16 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	$(WITH_GOFLAGS) go build -o karpenter cmd/controller/main.go
 	golicense hack/license-config.hcl karpenter
 
-apply: ## Deploy the controller into your ~/.kube/config cluster
+apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
 		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
+
+install:  ## Deploy the latest released version into your ~/.kube/config cluster
+	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
+	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
+		$(HELM_OPTS) 
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
@@ -71,6 +76,9 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
+
+nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
+	$(WITH_GOFLAGS) ./hack/nightly.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

@@ -131,7 +131,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	namespaces := &v1.NamespaceList{}
 	Expect(c.List(ctx, namespaces)).To(Succeed())
 	nodes := &v1.NodeList{}
-	Expect(c.List(ctx, nodes))
+	Expect(c.List(ctx, nodes)).To(Succeed())
 	for i := range nodes.Items {
 		nodes.Items[i].SetFinalizers([]string{})
 		Expect(c.Update(ctx, &nodes.Items[i])).To(Succeed())

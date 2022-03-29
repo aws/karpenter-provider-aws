@@ -66,17 +66,6 @@ func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	return nil
 }
 
-func (c *Constraints) Tighten(pod *v1.Pod) *Constraints {
-	requirements := c.Requirements.Add(NewPodRequirements(pod).Requirements...)
-	return &Constraints{
-		Labels:               c.Labels,
-		Requirements:         requirements,
-		Taints:               c.Taints,
-		Provider:             c.Provider,
-		KubeletConfiguration: c.KubeletConfiguration,
-	}
-}
-
 func (c *Constraints) ToNode() *v1.Node {
 	labels := map[string]string{}
 	for key, value := range c.Labels {

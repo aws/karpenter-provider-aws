@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mitchellh/hashstructure/v2"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -45,11 +47,28 @@ func NewComplementSet(values ...string) Set {
 	}
 }
 
+// Hash provides a hash function so we can generate a good hash for Set which has no public fields.
+func (s Set) Hash() (uint64, error) {
+	key := struct {
+		Values     sets.String
+		Complement bool
+	}{
+		s.values,
+		s.complement,
+	}
+	return hashstructure.Hash(key, hashstructure.FormatV2, nil)
+}
+
 // DeepCopy creates a deep copy of the set object
 // It is required by the Kubernetes CRDs code generation
 func (s Set) DeepCopy() Set {
+	// it's faster to manually copy this then to use UnsortedList() and the constructor
+	values := sets.NewString()
+	for k := range s.values {
+		values[k] = sets.Empty{}
+	}
 	return Set{
-		values:     sets.NewString(s.values.UnsortedList()...),
+		values:     values,
 		complement: s.complement,
 	}
 }
@@ -76,6 +95,15 @@ func (s Set) Type() v1.NodeSelectorOperator {
 // If the set is negatively defined, it will panic
 func (s Set) Values() sets.String {
 	if s.complement {
+		panic("infinite set")
+	}
+	return s.values
+}
+
+// ComplementValues returns the values of the complement set.
+// If the set is not a complement set, it will panic
+func (s Set) ComplementValues() sets.String {
+	if !s.complement {
 		panic("infinite set")
 	}
 	return s.values

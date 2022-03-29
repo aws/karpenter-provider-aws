@@ -17,6 +17,11 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"sort"
+
+	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
@@ -59,6 +64,10 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
+
+	sort.Slice(pods, byCPUAndMemoryDescending(pods))
+	sort.Slice(instanceTypes, byPrice(instanceTypes))
+
 	// Inject temporarily adds specific NodeSelectors to pods, which are then
 	// used by scheduling logic. This isn't strictly necessary, but is a useful
 	// trick to avoid passing topology decisions through the scheduling code. It
@@ -66,27 +75,63 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
 		return nil, fmt.Errorf("injecting topology, %w", err)
 	}
-	return s.schedule(constraints, instanceTypes, pods), nil
-}
 
-// schedule separates pods into a list of TheoreticalNodes that contain the pods. All pods in each theoretical node
-// contain isomorphic scheduling constraints and can be deployed together on the same node, or multiple similar nodes if
-// the pods exceed one node's capacity.
-func (s *Scheduler) schedule(constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) []*Node {
-	var nodes []*Node
+	nodeSet, err := NewNodeSet(ctx, constraints, s.kubeClient)
+	if err != nil {
+		return nil, fmt.Errorf("constructing nodeset, %w", err)
+	}
 
+	unschedulableCount := 0
 	for _, pod := range pods {
 		isScheduled := false
-		for _, node := range nodes {
-			if err := node.Compatible(pod); err == nil {
-				node.Add(pod)
+		for _, node := range nodeSet.nodes {
+			if err := node.Add(pod); err == nil {
 				isScheduled = true
 				break
 			}
 		}
 		if !isScheduled {
-			nodes = append(nodes, NewNode(constraints, instanceTypes, pod))
+			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
+			if err := n.Add(pod); err != nil {
+				unschedulableCount++
+				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
+			} else {
+				nodeSet.Add(n)
+			}
 		}
 	}
-	return nodes
+
+	if unschedulableCount != 0 {
+		logging.FromContext(ctx).Errorf("Failed to schedule %d pods", unschedulableCount)
+	}
+	return nodeSet.nodes, nil
+}
+
+func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {
+	return func(i, j int) bool {
+		return instanceTypes[i].Price() < instanceTypes[j].Price()
+	}
+}
+
+func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
+	return func(i, j int) bool {
+		lhs := resources.RequestsForPods(pods[i])
+		rhs := resources.RequestsForPods(pods[j])
+
+		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
+		if cpuCmp < 0 {
+			// LHS has less CPU, so it should be sorted after
+			return false
+		} else if cpuCmp > 0 {
+			return true
+		}
+		memCmp := resources.Cmp(lhs[v1.ResourceMemory], rhs[v1.ResourceMemory])
+
+		if memCmp < 0 {
+			return false
+		} else if memCmp > 0 {
+			return true
+		}
+		return false
+	}
 }

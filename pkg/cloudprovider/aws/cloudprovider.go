@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/karpenter/pkg/utils/resources"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
@@ -38,7 +36,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
 
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
@@ -56,6 +53,8 @@ const (
 	CacheTTL = 60 * time.Second
 	// CacheCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	CacheCleanupInterval = 10 * time.Minute
+	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
+	MaxInstanceTypes = 20
 )
 
 func init() {
@@ -101,24 +100,12 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, quantity int, callback func(*v1.Node) error) error {
-	vendorConstraints, err := v1alpha1.Deserialize(constraints)
+func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Constraints)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	instanceTypes = c.filterInstanceTypes(instanceTypes)
-
-	// Create will only return an error if zero nodes could be launched.
-	// Partial fulfillment will be logged
-	nodes, err := c.instanceProvider.Create(ctx, vendorConstraints, instanceTypes, quantity)
-	if err != nil {
-		return fmt.Errorf("launching instances, %w", err)
-	}
-	var errs error
-	for _, node := range nodes {
-		errs = multierr.Append(errs, callback(node))
-	}
-	return errs
+	return c.instanceProvider.Create(ctx, vendorConstraints, nodeRequest.InstanceTypeOptions)
 }
 
 // GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
@@ -159,26 +146,6 @@ func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Const
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
-}
-
-// filterInstanceTypes is used to eliminate GPU instance types from the list of possible instance types when a
-// non-GPU instance type will work.  If the list of instance types consists of both GPU and non-GPU types, then only
-// the non-GPU types will be returned.  If it has only GPU types, the list will be returned unaltered.
-func (c *CloudProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
-	var genericInstanceTypes []cloudprovider.InstanceType
-	for _, it := range instanceTypes {
-		itRes := it.Resources()
-		if resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) &&
-			resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) &&
-			resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
-			genericInstanceTypes = append(genericInstanceTypes, it)
-		}
-	}
-	// if we got some subset of non-GPU types, then prefer to use those
-	if len(genericInstanceTypes) != 0 {
-		return genericInstanceTypes
-	}
-	return instanceTypes
 }
 
 // get the current region from EC2 IMDS

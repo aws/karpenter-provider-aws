@@ -17,13 +17,12 @@ package test
 import (
 	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func ObjectMeta(options metav1.ObjectMeta) metav1.ObjectMeta {
 	if options.Name == "" {
-		options.Name = strings.ToLower(randomdata.SillyName())
+		options.Name = strings.ToLower(sequentialRandomName())
 	}
 	if options.Namespace == "" {
 		options.Namespace = "default"

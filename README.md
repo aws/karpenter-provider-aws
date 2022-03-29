@@ -38,6 +38,7 @@ Follow the setup recommendations of your cloud provider.
 - [Contributing](CONTRIBUTING.md)
 
 ## Talks
+- 03/25/2022 [Karpenter @ AWS Community Day 2022](https://youtu.be/sxDtmzbNHwE?t=3931)
 - 12/20/2021 [How To Auto-Scale Kubernetes Clusters With Karpenter](https://youtu.be/C-2v7HT-uSA)
 - 11/30/2021 [Karpenter vs Kubernetes Cluster Autoscaler](https://youtu.be/3QsVRHVdOnM)
 - 11/19/2021 [Karpenter @ Container Day](https://youtu.be/qxWJRUF6JJc)

@@ -21,8 +21,13 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
 * **Node expired**: Karpenter requests to delete the node after a set number of seconds, based on the provisioner `ttlSecondsUntilExpired`  value, from the time the node was provisioned. One use case for node expiry is to handle node upgrades. Old nodes (with a potentially outdated Kubernetes version or operating system) are deleted, and replaced with nodes on the current version (assuming that you requested the latest version, rather than a specific version).
 
     {{% alert title="Note" color="primary" %}}
-    Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for example, if a cluster
-    brings up all nodes at once, all the pods on those nodes would fall into the same batching window on expiration.
+    - Automated deprovisioning is configured through the ProvisionerSpec .ttlSecondsAfterEmpty
+    and .ttlSecondsUntilExpired fields. If either field is left empty, Karpenter will not
+    default a value and will not terminate nodes in that condition.
+
+    - Keep in mind that a small NodeExpiry results in a higher churn in cluster activity. So, for
+    example, if a cluster brings up all nodes at once, all the pods on those nodes would fall into
+    the same batching window on expiration.
     {{% /alert %}}
 
 * **Node deleted**: You could use `kubectl` to manually remove a single Karpenter node:

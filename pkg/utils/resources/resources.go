@@ -17,33 +17,42 @@ package resources
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
 // RequestsForPods returns the total resources of a variadic list of podspecs.
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
-	resources := []v1.ResourceList{}
+	var resources []v1.ResourceList
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			resources = append(resources, container.Resources.Requests)
 		}
 	}
-	return Merge(resources...)
+	merged := Merge(resources...)
+	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
+	return merged
 }
 
 // LimitsForPods returns the total resources of a variadic list of podspecs
 func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
-	resources := []v1.ResourceList{}
+	var resources []v1.ResourceList
 	for _, pod := range pods {
 		for _, container := range pod.Spec.Containers {
 			resources = append(resources, container.Resources.Limits)
 		}
 	}
-	return Merge(resources...)
+	merged := Merge(resources...)
+	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
+	return merged
 }
 
 // Merge the resources from the variadic into a single v1.ResourceList
 func Merge(resources ...v1.ResourceList) v1.ResourceList {
-	result := v1.ResourceList{}
+	if len(resources) == 0 {
+		return v1.ResourceList{}
+	}
+	result := make(v1.ResourceList, len(resources[0]))
 	for _, resourceList := range resources {
 		for resourceName, quantity := range resourceList {
 			current := result[resourceName]
@@ -64,4 +73,26 @@ func Quantity(value string) *resource.Quantity {
 // a pointer receiver and map index expressions aren't addressable, so it can't be called directly.
 func IsZero(r resource.Quantity) bool {
 	return r.IsZero()
+}
+
+func Cmp(lhs resource.Quantity, rhs resource.Quantity) int {
+	return lhs.Cmp(rhs)
+}
+
+// Fits returns true if the candidate set of resources is less than or equal to the total set of resources.
+func Fits(candidate, total v1.ResourceList) bool {
+	for resourceName, quantity := range candidate {
+		if Cmp(quantity, total[resourceName]) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// String returns a string version of the resource list suitable for presenting in a log
+func String(list v1.ResourceList) string {
+	if len(list) == 0 {
+		return "{}"
+	}
+	return pretty.Concise(list)
 }
