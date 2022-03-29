@@ -17,6 +17,9 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,16 +40,23 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
+const (
+	failedSchedulingTTL             = 60 * time.Second
+	failedSchedulingCleanupInterval = 10 * time.Minute
+)
+
 func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Provisioner {
 	running, stop := context.WithCancel(ctx)
+	failedSchedulingCache := cache.New(failedSchedulingTTL, failedSchedulingCleanupInterval)
 	p := &Provisioner{
-		Provisioner:   provisioner,
-		batcher:       NewBatcher(running),
-		Stop:          stop,
-		cloudProvider: cloudProvider,
-		kubeClient:    kubeClient,
-		coreV1Client:  coreV1Client,
-		scheduler:     scheduling.NewScheduler(kubeClient),
+		Provisioner:           provisioner,
+		Stop:                  stop,
+		batcher:               NewBatcher(running),
+		cloudProvider:         cloudProvider,
+		kubeClient:            kubeClient,
+		coreV1Client:          coreV1Client,
+		scheduler:             scheduling.NewScheduler(kubeClient),
+		failedSchedulingCache: failedSchedulingCache,
 	}
 	go func() {
 		for running.Err() == nil {
@@ -66,10 +76,11 @@ type Provisioner struct {
 	batcher *Batcher
 	Stop    context.CancelFunc
 	// Dependencies
-	cloudProvider cloudprovider.CloudProvider
-	kubeClient    client.Client
-	coreV1Client  corev1.CoreV1Interface
-	scheduler     *scheduling.Scheduler
+	cloudProvider         cloudprovider.CloudProvider
+	kubeClient            client.Client
+	coreV1Client          corev1.CoreV1Interface
+	scheduler             *scheduling.Scheduler
+	failedSchedulingCache *cache.Cache
 }
 
 // Add a pod to the provisioner and return a channel to block on. The caller is
@@ -80,12 +91,10 @@ func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
 
 func (p *Provisioner) provision(ctx context.Context) error {
 	// Batch pods
-	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	items, window := p.batcher.Wait()
 	defer p.batcher.Flush()
-	logging.FromContext(ctx).Infof("Batched %d pods in %s", len(items), window)
 	// Filter pods
-	pods := []*v1.Pod{}
+	var pods []*v1.Pod
 	for _, item := range items {
 		provisionable, err := p.isProvisionable(ctx, item.(*v1.Pod))
 		if err != nil {
@@ -95,6 +104,14 @@ func (p *Provisioner) provision(ctx context.Context) error {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
+	// if we fail to schedule a pod it remains unschedulable and gets batched a few seconds later, we do this to prevent
+	// log spamming
+	if len(pods) > 0 {
+		logging.FromContext(ctx).Infof("Batched %d provisionable pod(s) of %d pod(s) in %s", len(pods), len(items), window)
+	} else {
+		return nil
+	}
+
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
 	if err != nil {
@@ -102,13 +119,16 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	}
 
 	// Separate pods by scheduling constraints
-	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	nodes, failedPods, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
-	if err != nil {
-		return err
+
+	// mark these pods as failed so we won't immediately try to reschedule them generating a new batch of warnings/errors
+	for _, pd := range failedPods {
+		p.failedSchedulingCache.SetDefault(pod.NamespacedName(pd), struct{}{})
 	}
+
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		if err := p.launch(ctx, nodes[i]); err != nil {
@@ -123,6 +143,9 @@ func (p *Provisioner) provision(ctx context.Context) error {
 // between the time it was ingested into the scheduler and the time it is included
 // in a provisioner batch.
 func (p *Provisioner) isProvisionable(ctx context.Context, candidate *v1.Pod) (bool, error) {
+	if _, failedRecently := p.failedSchedulingCache.Get(pod.NamespacedName(candidate)); failedRecently {
+		return false, nil
+	}
 	stored := &v1.Pod{}
 	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(candidate), stored); err != nil {
 		if errors.IsNotFound(err) {

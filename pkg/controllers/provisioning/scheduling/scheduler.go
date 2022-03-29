@@ -51,60 +51,69 @@ func init() {
 
 type Scheduler struct {
 	kubeClient client.Client
-	topology   *Topology
 }
 
 func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
 		kubeClient: kubeClient,
-		topology:   &Topology{kubeClient: kubeClient},
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (nodes []*Node, failedPods []*v1.Pod, err error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
-	// Inject temporarily adds specific NodeSelectors to pods, which are then
-	// used by scheduling logic. This isn't strictly necessary, but is a useful
-	// trick to avoid passing topology decisions through the scheduling code. It
-	// lets us treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
-		return nil, fmt.Errorf("injecting topology, %w", err)
-	}
-
-	nodeSet, err := NewNodeSet(ctx, constraints, s.kubeClient)
+	nodeSet, err := NewNodeSet(ctx, constraints, instanceTypes, s.kubeClient)
 	if err != nil {
-		return nil, fmt.Errorf("constructing nodeset, %w", err)
+		return nil, pods, fmt.Errorf("constructing nodeset, %w", err)
 	}
 
-	unschedulableCount := 0
-	for _, pod := range pods {
-		isScheduled := false
-		for _, node := range nodeSet.nodes {
-			if err := node.Add(pod); err == nil {
-				isScheduled = true
-				break
+	if err := nodeSet.TrackTopologies(ctx, pods); err != nil {
+		return nil, pods, fmt.Errorf("tracking topology counts, %w", err)
+	}
+
+	type unschedulablePod struct {
+		pod    *v1.Pod
+		reason error
+	}
+	var unschedulablePods []unschedulablePod
+	for _, p := range pods {
+		unschedulablePods = append(unschedulablePods, unschedulablePod{pod: p, reason: nil})
+	}
+	previousUnschedulableCount := 0
+	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
+	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
+	// solve the problem of scheduling pods where a paritcular order is needed to prevent a max-skew violation. E.g. if we
+	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
+	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
+	for {
+		previousUnschedulableCount = len(unschedulablePods)
+		var newUnschedulablePods []unschedulablePod
+		for _, up := range unschedulablePods {
+			if err := nodeSet.SchedulePod(ctx, up.pod); err != nil {
+				newUnschedulablePods = append(newUnschedulablePods, unschedulablePod{pod: up.pod, reason: err})
 			}
 		}
-		if !isScheduled {
-			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
-			if err := n.Add(pod); err != nil {
-				unschedulableCount++
-				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
-			} else {
-				nodeSet.Add(n)
-			}
+		unschedulablePods = newUnschedulablePods
+		// if there are no more pods to attempt scheduling, or we tried each pod in a scheduling round
+		// and made no progress, we are finished
+		if len(unschedulablePods) == 0 || len(unschedulablePods) == previousUnschedulableCount {
+			break
 		}
 	}
 
-	if unschedulableCount != 0 {
-		logging.FromContext(ctx).Errorf("Failed to schedule %d pods", unschedulableCount)
+	if len(unschedulablePods) != 0 {
+		for _, up := range unschedulablePods {
+			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up.pod)).Errorf("Scheduling pod, %s", up.reason)
+			failedPods = append(failedPods, up.pod)
+		}
+		logging.FromContext(ctx).Errorf("Failed to schedule %d pod(s)", len(unschedulablePods))
 	}
-	return nodeSet.nodes, nil
+
+	return nodeSet.nodes, failedPods, nil
 }
 
 func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {

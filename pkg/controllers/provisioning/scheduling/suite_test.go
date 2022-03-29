@@ -719,7 +719,6 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2))
 		})
 		It("should not violate max-skew when unsat = do not schedule", func() {
-			Skip("enable after scheduler no longer violates max-skew")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -807,7 +806,6 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
 		})
 		It("should handle interdependent selectors", func() {
-			Skip("enable after scheduler handles non-self selecting topology")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -894,10 +892,49 @@ var _ = Describe("Topology", func() {
 			}
 			nodes := v1.NodeList{}
 			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
-			// TODO(todd): re-enable this check when topology is fully fixed, we currently create four nodes when
-			// only two are required
 			// this wasn't part of #1425, but ensures that we launch the minimum number of nodes
-			//Expect(nodes.Items).To(HaveLen(2))
+			Expect(nodes.Items).To(HaveLen(2))
+		})
+		It("balance multiple deployments with hostname topology spread & varying arch", func() {
+			// Issue #1425
+			spreadPod := func(appName, arch string) test.PodOptions {
+				return test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": appName,
+						},
+					},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{arch},
+						},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       v1.LabelHostname,
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": appName},
+							},
+						},
+					},
+				}
+			}
+
+			scheduled := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(spreadPod("app1", v1alpha5.ArchitectureAmd64)), test.UnschedulablePod(spreadPod("app1", v1alpha5.ArchitectureAmd64)),
+				test.UnschedulablePod(spreadPod("app2", v1alpha5.ArchitectureArm64)), test.UnschedulablePod(spreadPod("app2", v1alpha5.ArchitectureArm64)))
+
+			for _, p := range scheduled {
+				ExpectScheduled(ctx, env.Client, p)
+			}
+			nodes := v1.NodeList{}
+			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+			// same test as the previous one, but now the architectures are different so we need four node in total
+			Expect(nodes.Items).To(HaveLen(4))
 		})
 	})
 
@@ -935,7 +972,6 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2))
 		})
 		It("should not violate max-skew when unsat = do not schedule", func() {
-			Skip("enable after scheduler no longer violates max-skew")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1023,7 +1059,6 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
 		})
 		It("should handle interdependent selectors", func() {
-			Skip("enable after scheduler handles non-self selecting topology")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1310,7 +1345,7 @@ var _ = Describe("Topology", func() {
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(5, 5))
 		})
-		It("should limit spread options by node affinity", func() {
+		It("should limit spread options by node affinity (capacity type)", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1357,9 +1392,8 @@ var _ = Describe("Topology", func() {
 		})
 	})
 
-	Context("Pod Affinity", func() {
+	Context("Pod Affinity/Anti-Affinity", func() {
 		It("should schedule a pod with empty pod affinity and anti-affinity", func() {
-			Skip("enable after pod-affinity is finished")
 			ExpectCreated(ctx, env.Client)
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
 				PodRequirements:     []v1.PodAffinityTerm{},
@@ -1368,7 +1402,6 @@ var _ = Describe("Topology", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should respect pod affinity", func() {
-			Skip("enable after pod-affinity is finished")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1401,8 +1434,7 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
-		It("should respect self pod affinity", func() {
-			Skip("enable after pod-affinity is finished")
+		It("should respect self pod affinity (hostname)", func() {
 			affLabels := map[string]string{"security": "s2"}
 
 			pods := MakePods(3, test.PodOptions{
@@ -1425,8 +1457,91 @@ var _ = Describe("Topology", func() {
 			}
 			Expect(len(nodeNames)).To(Equal(1))
 		})
+		It("should respect self pod affinity for first empty topology domain only (hostname)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			pods := MakePods(10, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: affLabels,
+				},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelHostname,
+				}},
+			})
+			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+			nodeNames := map[string]struct{}{}
+			unscheduledCount := 0
+			scheduledCount := 0
+			for _, p := range pods {
+				p = ExpectPodExists(ctx, env.Client, p.Name, p.Namespace)
+				if p.Spec.NodeName == "" {
+					unscheduledCount++
+				} else {
+					nodeNames[p.Spec.NodeName] = struct{}{}
+					scheduledCount++
+				}
+			}
+			// the node can only hold 5 pods, so we should get a single node with 5 pods and 5 unschedulable pods
+			Expect(len(nodeNames)).To(Equal(1))
+			Expect(scheduledCount).To(BeNumerically("==", 5))
+			Expect(unscheduledCount).To(BeNumerically("==", 5))
+		})
+		It("should respect self pod affinity (zone)", func() {
+			affLabels := map[string]string{"security": "s2"}
+
+			pods := MakePods(3, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: affLabels,
+				},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelTopologyZone,
+				}},
+			})
+
+			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+			nodeNames := map[string]struct{}{}
+			for _, p := range pods {
+				n := ExpectScheduled(ctx, env.Client, p)
+				nodeNames[n.Name] = struct{}{}
+			}
+			Expect(len(nodeNames)).To(Equal(1))
+		})
+		It("should respect self pod affinity (zone w/ constraint)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			// the pod needs to provide it's own zonal affinity, but we further limit it to only being on test-zone-3
+			pods := MakePods(3, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: affLabels,
+				},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelTopologyZone,
+				}},
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"test-zone-3"},
+					},
+				},
+			})
+			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+			nodeNames := map[string]struct{}{}
+			for _, p := range pods {
+				n := ExpectScheduled(ctx, env.Client, p)
+				nodeNames[n.Name] = struct{}{}
+				Expect(n.Labels[v1.LabelTopologyZone]).To(Equal("test-zone-3"))
+			}
+			Expect(len(nodeNames)).To(Equal(1))
+		})
 		It("should allow violation of preferred pod affinity", func() {
-			Skip("enable after pod-affinity is finished")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1453,13 +1568,12 @@ var _ = Describe("Topology", func() {
 			pods = append(pods, affPod2)
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
-			// should be scheduled as the pod it has affinity doesn't exist, but it's only a preference and not a
+			// should be scheduled as the pod it has affinity to doesn't exist, but it's only a preference and not a
 			// hard constraints
 			ExpectScheduled(ctx, env.Client, affPod2)
 
 		})
 		It("should allow violation of preferred pod anti-affinity", func() {
-			Skip("enable after pod-affinity is finished")
 			affPods := MakePods(10, test.PodOptions{PodAntiPreferences: []v1.WeightedPodAffinityTerm{
 				{
 					Weight: 50,
@@ -1492,98 +1606,139 @@ var _ = Describe("Topology", func() {
 
 		})
 		It("should separate nodes using simple pod anti-affinity on hostname", func() {
-			Skip("enable after pod-affinity is finished")
 			affLabels := map[string]string{"security": "s2"}
+			// pod affinity/anti-affinity are bidirectional, so run this a few times to ensure we handle it regardless
+			// of pod scheduling order
+			for i := 0; i < 10; i++ {
+				affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
+				// affPod2 will avoid affPod1
+				affPod2 := test.UnschedulablePod(test.PodOptions{PodAntiRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelHostname,
+				}}})
 
-			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
-			// affPod2 will avoid affPod1
-			affPod2 := test.UnschedulablePod(test.PodOptions{PodAntiRequirements: []v1.PodAffinityTerm{{
+				ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPod2, affPod1)
+				n1 := ExpectScheduled(ctx, env.Client, affPod1)
+				n2 := ExpectScheduled(ctx, env.Client, affPod2)
+				// should not be scheduled on the same node
+				Expect(n1.Name).ToNot(Equal(n2.Name))
+			}
+		})
+		It("should not violate pod anti-affinity on zone", func() {
+			affLabels := map[string]string{"security": "s2"}
+			z1Pod := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
+				NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
+			z2Pod := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
+				NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
+			z3Pod := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
+				NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-3"}})
+
+			affPod := test.UnschedulablePod(test.PodOptions{
+				PodAntiRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelTopologyZone,
+				}}})
+
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, z1Pod, z2Pod, z3Pod, affPod)
+			// the three larger zone specific pods should get scheduled first due to first fit desecnding onto one
+			// node per zone.
+			ExpectScheduled(ctx, env.Client, z1Pod)
+			ExpectScheduled(ctx, env.Client, z2Pod)
+			ExpectScheduled(ctx, env.Client, z3Pod)
+			// the pod with anti-affinity
+			ExpectNotScheduled(ctx, env.Client, affPod)
+		})
+		It("should not violate pod anti-affinity on zone (reverse)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			anti := []v1.PodAffinityTerm{{
 				LabelSelector: &metav1.LabelSelector{
 					MatchLabels: affLabels,
 				},
-				TopologyKey: v1.LabelHostname,
-			}}})
+				TopologyKey: v1.LabelTopologyZone,
+			}}
+			rr := v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+			}
+			z1Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
+			z2Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
+			z3Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-3"}})
 
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPod1, affPod2)
-			n1 := ExpectScheduled(ctx, env.Client, affPod1)
-			n2 := ExpectScheduled(ctx, env.Client, affPod2)
-			// should not be scheduled on the same node
-			Expect(n1.Name).ToNot(Equal(n2.Name))
+			affPod := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
+
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, z1Pod, z2Pod, z3Pod, affPod)
+			// three pods with anti-affinity will schedule first due to first fit-descending
+			ExpectScheduled(ctx, env.Client, z1Pod)
+			ExpectScheduled(ctx, env.Client, z2Pod)
+			ExpectScheduled(ctx, env.Client, z3Pod)
+			// this pod with no anti-affinity rules can't schedule. It has no anti-affinity rules, but every zone has a
+			// pod with anti-affinity rules that prevent it from scheduling
+			ExpectNotScheduled(ctx, env.Client, affPod)
 		})
-		It("should choose the node with the highest weight when using multiple weighted preferences", func() {
-			Skip("enable after pod-affinity is finished")
-			dbLabels := map[string]string{"type": "db", "spread": "spread"}
-			webLabels := map[string]string{"type": "web", "spread": "spread"}
-			cacheLabels := map[string]string{"type": "cache", "spread": "spread"}
-
-			// ensure our three target pods are spread across nodes
-			tsc := []v1.TopologySpreadConstraint{
-				{
-					MaxSkew:           1,
-					TopologyKey:       v1.LabelHostname,
-					WhenUnsatisfiable: v1.DoNotSchedule,
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"spread": "spread"},
-					},
+		It("should not violate pod anti-affinity on zone (reverse w/existing nodes)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			anti := []v1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: affLabels,
 				},
+				TopologyKey: v1.LabelTopologyZone,
+			}}
+			rr := v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
 			}
+			z1Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-1"}})
+			z2Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-2"}})
+			z3Pod := test.UnschedulablePod(test.PodOptions{
+				ResourceRequirements: rr,
+				PodAntiRequirements:  anti,
+				NodeSelector:         map[string]string{v1.LabelTopologyZone: "test-zone-3"}})
 
-			var targetPods []*v1.Pod
-			// 50 pods we can land on, but prefer not to
-			targetPods = append(targetPods, MakePods(25, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dbLabels}, TopologySpreadConstraints: tsc})...)
-			targetPods = append(targetPods, MakePods(25, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: cacheLabels}, TopologySpreadConstraints: tsc})...)
-			// one pod we prefer with the highest weight
-			targetPods = append(targetPods, test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: webLabels}, TopologySpreadConstraints: tsc}))
-			// and the pod that wants to land on the web node
-			targetPods = append(targetPods, test.UnschedulablePod(test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{Name: "affinity-pod"},
-				PodPreferences: []v1.WeightedPodAffinityTerm{
-					{
-						Weight: 25,
-						PodAffinityTerm: v1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: dbLabels,
-							},
-							TopologyKey: v1.LabelHostname,
-						},
-					},
-					{
-						Weight: 50,
-						PodAffinityTerm: v1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: webLabels,
-							},
-							TopologyKey: v1.LabelHostname,
-						},
-					},
-					{
-						Weight: 49,
-						PodAffinityTerm: v1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: cacheLabels,
-							},
-							TopologyKey: v1.LabelHostname,
-						},
-					},
-				}}))
+			affPod := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
 
-			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, targetPods...)
-			var webNodeName string
-			var affNodeName string
-			for _, p := range pods {
-				ExpectScheduled(ctx, env.Client, p)
-				if p.Labels["type"] == "web" {
-					webNodeName = p.Spec.NodeName
-				} else if _, ok := p.Labels["type"]; !ok {
-					affNodeName = p.Spec.NodeName
-				}
-			}
-			Expect(webNodeName).To(Equal(affNodeName))
+			// provision these so we get three nodes that exist in the cluster with anti-affinity to a pod that we will
+			// then try to schedule
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, z1Pod, z2Pod, z3Pod)
+			ExpectScheduled(ctx, env.Client, z1Pod)
+			ExpectScheduled(ctx, env.Client, z2Pod)
+			ExpectScheduled(ctx, env.Client, z3Pod)
+
+			// this pod with no anti-affinity rules can't schedule. It has no anti-affinity rules, but every zone has an
+			// existing pod (not from this batch) with anti-affinity rules that prevent it from scheduling
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPod)
+			ExpectNotScheduled(ctx, env.Client, affPod)
 		})
 		It("should allow violation of a pod affinity preference with a conflicting required constraint", func() {
-			Skip("enable after pod-affinity is finished")
 			affLabels := map[string]string{"security": "s2"}
-
 			constraint := v1.TopologySpreadConstraint{
 				MaxSkew:           1,
 				TopologyKey:       v1.LabelHostname,
@@ -1616,7 +1771,6 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "", &constraint).To(ConsistOf(1, 1, 1))
 		})
 		It("should support pod anti-affinity with a zone topology", func() {
-			Skip("enable after pod-affinity is finished")
 			affLabels := map[string]string{"security": "s2"}
 
 			// affPods will avoid being scheduled in the same zone
@@ -1636,11 +1790,8 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(1, 1, 1))
 		})
 		It("should not schedule pods with affinity to a non-existent pod", func() {
-			Skip("enable after pod-affinity is finished")
 			affLabels := map[string]string{"security": "s2"}
-
 			affPods := MakePods(10, test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
 				PodRequirements: []v1.PodAffinityTerm{{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: affLabels,
@@ -1649,13 +1800,12 @@ var _ = Describe("Topology", func() {
 				}}})
 
 			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPods...)
-			// the pod we have affinity to is not on the cluster, so all of these pods are unschedulable
+			// the pod we have affinity to is not in the cluster, so all of these pods are unschedulable
 			for _, p := range pods {
 				ExpectNotScheduled(ctx, env.Client, p)
 			}
 		})
 		It("should support pod affinity with zone topology", func() {
-			Skip("enable after pod-affinity is finished")
 			affLabels := map[string]string{"security": "s2"}
 
 			// the pod that the others have an affinity to
@@ -1677,31 +1827,38 @@ var _ = Describe("Topology", func() {
 			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(11))
 		})
 		It("should handle multiple dependent affinities", func() {
-			Skip("enable after pod-affinity is finished")
 			dbLabels := map[string]string{"type": "db", "spread": "spread"}
 			webLabels := map[string]string{"type": "web", "spread": "spread"}
 			cacheLabels := map[string]string{"type": "cache", "spread": "spread"}
+			uiLabels := map[string]string{"type": "ui", "spread": "spread"}
 
-			// we have to schedule DB -> Web -> Cache in that order or else there are pod affinity violations
-			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dbLabels}}),
-				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: cacheLabels},
-					PodRequirements: []v1.PodAffinityTerm{{
-						LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"type": "web"}},
-						TopologyKey:   v1.LabelHostname},
-					}}),
-				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: webLabels},
-					PodRequirements: []v1.PodAffinityTerm{{
-						LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"type": "db"}},
-						TopologyKey:   v1.LabelHostname},
-					}}),
-			)
-			for _, pod := range pods {
-				ExpectScheduled(ctx, env.Client, pod)
+			for i := 0; i < 50; i++ {
+				// we have to schedule DB -> Web -> Cache -> UI in that order or else there are pod affinity violations
+				pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dbLabels}}),
+					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: webLabels},
+						PodRequirements: []v1.PodAffinityTerm{{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: dbLabels},
+							TopologyKey:   v1.LabelHostname},
+						}}),
+					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: cacheLabels},
+						PodRequirements: []v1.PodAffinityTerm{{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: webLabels},
+							TopologyKey:   v1.LabelHostname},
+						}}),
+					test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: uiLabels},
+						PodRequirements: []v1.PodAffinityTerm{{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: cacheLabels},
+							TopologyKey:   v1.LabelHostname},
+						}}),
+				)
+				for _, pod := range pods {
+					ExpectScheduled(ctx, env.Client, pod)
+					ExpectDeleted(ctx, env.Client, pod)
+				}
 			}
 		})
 		It("should filter pod affinity topologies by namespace, no matching pods", func() {
-			Skip("enable after pod-affinity is finished")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1739,7 +1896,6 @@ var _ = Describe("Topology", func() {
 			ExpectNotScheduled(ctx, env.Client, affPod2)
 		})
 		It("should filter pod affinity topologies by namespace, matching pods namespace list", func() {
-			Skip("enable after pod-affinity is finished")
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1778,7 +1934,9 @@ var _ = Describe("Topology", func() {
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
 		It("should filter pod affinity topologies by namespace, matching pods namespace selector", func() {
-			Skip("enable after pod-affinity is finished")
+			if env.K8sVer.Minor() < 21 {
+				Skip("namespace selector is only supported on K8s >= 1.21.x")
+			}
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,

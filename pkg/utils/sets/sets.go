@@ -129,6 +129,15 @@ func (s Set) HasAny(values ...string) bool {
 	return s.values.HasAny(values...)
 }
 
+func (s Set) HasAnyOfSet(v sets.String) bool {
+	for k := range v {
+		if s.values.Has(k) {
+			return true
+		}
+	}
+	return false
+}
+
 // Intersection returns a new set containing the common values
 func (s Set) Intersection(set Set) Set {
 	if s.complement {

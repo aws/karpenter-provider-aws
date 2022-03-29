@@ -15,7 +15,11 @@ package test
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
+
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -54,6 +58,7 @@ type Environment struct {
 	envtest.Environment
 	Client client.Client
 	Ctx    context.Context
+	K8sVer *version.Version
 
 	options []EnvironmentOption
 	stop    context.CancelFunc
@@ -79,6 +84,22 @@ func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environm
 }
 
 func (e *Environment) Start() (err error) {
+	k8sVerStr := "1.21.x"
+	if envVer := os.Getenv("K8S_VERSION"); envVer != "" {
+		k8sVerStr = envVer
+	}
+	// turn it into a valid semver
+	k8sVerStr = strings.Replace(k8sVerStr, ".x", ".0", -1)
+
+	e.K8sVer = version.MustParseSemantic(k8sVerStr)
+	if e.K8sVer.Minor() >= 21 {
+		// PodAffinityNamespaceSelector is used for label selectors in pod affinities.  If the feature-gate is turned off,
+		// the api-server just clears out the label selector so we never see it.  If we turn it on, the label selectors
+		// are passed to us and we handle them. This feature is alpha in v1.21, beta in v1.22 and will be GA in 1.24. See
+		// https://github.com/kubernetes/enhancements/issues/2249 for more info.
+		e.Environment.ControlPlane.GetAPIServer().Configure().Set("feature-gates", "PodAffinityNamespaceSelector=true")
+	}
+
 	// Environment
 	if _, err = e.Environment.Start(); err != nil {
 		return fmt.Errorf("starting environment, %w", err)
