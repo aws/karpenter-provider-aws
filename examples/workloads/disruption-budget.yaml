@@ -1,0 +1,33 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pdb
+spec:
+  minAvailable: "80%"
+  selector:
+    matchLabels:
+      app: pdb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdb
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: pdb
+  template:
+    metadata:
+      labels:
+        app: pdb
+    spec:
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: pdb
+        resources:
+          requests:
+            cpu: "1"
+            memory: 256M
+      nodeSelector:
+        kubernetes.io/arch: amd64
