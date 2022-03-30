@@ -21,7 +21,7 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: toolchain verify licenses battletest benchmark ## Run all steps used by continuous integration
+ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
 
 test: ## Run tests
 	ginkgo -r
