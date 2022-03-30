@@ -19,10 +19,12 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+
+	"github.com/Pallinder/go-randomdata"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/Pallinder/go-randomdata"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -34,6 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var sequentialNodeID uint64
 
 type CloudProvider struct {
 	InstanceTypes []cloudprovider.InstanceType
@@ -53,7 +57,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	c.mu.Lock()
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)
 	c.mu.Unlock()
-	name := strings.ToLower(randomdata.SillyName())
+	name := fmt.Sprintf("n%04d-%s", atomic.AddUint64(&sequentialNodeID, 1), strings.ToLower(randomdata.SillyName()))
 	instance := nodeRequest.InstanceTypeOptions[0]
 	var zone, capacityType string
 	for _, o := range instance.Offerings() {
