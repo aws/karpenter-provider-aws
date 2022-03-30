@@ -6,13 +6,6 @@ LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shel
 GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
-# detect nice binary
-NICE := $(shell command -v nice 2> /dev/null)
-NICE_PREFIX = ""
-ifdef NICE
-    NICE_PREFIX = ${NICE} -19
-endif
-
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
@@ -40,7 +33,7 @@ strongertests:
 			--randomizeAllSpecs --randomizeSuites -race
 
 benchmark:
-	${NICE_PREFIX} go test -tags=test_performance -run=NoTests -bench=. ./...
+	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake:
 	for i in {1..10}; do make strongertests || exit 1; done
