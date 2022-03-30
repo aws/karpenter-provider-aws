@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nvidia-gpu
+  name: gpu-nvidia
 spec:
   replicas: 0
   selector:
     matchLabels:
-      app: nvidia-gpu
+      app: gpu-nvidia
   template:
     metadata:
       labels:
-        app: nvidia-gpu
+        app: gpu-nvidia
     spec:
       containers:
       - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
-        name: nvidia-gpu
+        name: gpu-nvidia
         resources:
           limits:
             nvidia.com/gpu: "1"

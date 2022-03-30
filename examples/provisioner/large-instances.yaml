@@ -1,3 +1,5 @@
+# This example provisioner will avoid small instance types in the cluster
+
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -74,8 +76,11 @@ spec:
       - t4g.nano
       - t4g.small
   provider:
+    # replace with your worker node instance profile
+    instanceProfile: "KarpenterNodeRole"
     subnetSelector:
-      karpenter.sh/discovery: merhaba-karpenter
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"
     securityGroupSelector:
-      karpenter.sh/discovery: merhaba-karpenter
-  ttlSecondsAfterEmpty: 30
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"

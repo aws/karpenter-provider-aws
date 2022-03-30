@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inflate-spot
+  name: spot
 spec:
   replicas: 0
   selector:
     matchLabels:
-      app: inflate-spot
+      app: spot
   template:
     metadata:
       labels:
-        app: inflate-spot
+        app: spot
     spec:
       containers:
       - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
-        name: inflate-spot
+        name: spot
         resources:
           requests:
             cpu: "1"
             memory: 256M
       nodeSelector:
-        node.k8s.aws/capacity-type: spot
+        karpenter.sh/capacity-type: spot
