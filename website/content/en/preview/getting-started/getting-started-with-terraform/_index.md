@@ -42,7 +42,6 @@ After setting up the tools, set the following environment variables to store
 commonly used values.
 
 ```bash
-export CLUSTER_NAME="karpenter-demo"
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
@@ -309,31 +308,60 @@ This behavior can be disabled by leaving the value undefined.
 Review the [provisioner CRD]({{<ref "../../provisioner.md" >}}) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
+Add the following to your `main.tf` to deploy the Karpenter provisioner.
+
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
 
+```hcl
+provider "kubectl" {
+  apply_retry_count      = 5
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1alpha1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_id]
+  }
+}
+
+resource "kubectl_manifest" "karpenter_provisioner" {
+  yaml_body = <<-YAML
+  apiVersion: karpenter.sh/v1alpha5
+  kind: Provisioner
+  metadata:
+    name: default
+  spec:
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot"]
+    limits:
+      resources:
+        cpu: 1000
+    provider:
+      subnetSelector:
+        karpenter.sh/discovery: ${local.name}
+      securityGroupSelector:
+        karpenter.sh/discovery: ${local.name}
+      tags:
+        karpenter.sh/discovery: ${local.name}
+    ttlSecondsAfterEmpty: 30
+  YAML
+
+  depends_on = [
+    helm_release.karpenter
+  ]
+}
+```
+
+Since we've added a new provider (kubectl), you'll need to run `terraform init` again
+before applying the changes to deploy the Karpenter provisioner.
+
 ```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
-metadata:
-  name: default
-spec:
-  requirements:
-    - key: karpenter.sh/capacity-type
-      operator: In
-      values: ["spot"]
-  limits:
-    resources:
-      cpu: 1000
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    tags:
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-  ttlSecondsAfterEmpty: 30
-EOF
+terraform init
+terraform apply
 ```
 
 ## First Use
@@ -409,6 +437,6 @@ kubectl delete node -l karpenter.sh/provisioner-name=default
 terraform destroy
 aws ec2 describe-launch-templates \
     | jq -r ".LaunchTemplates[].LaunchTemplateName" \
-    | grep -i "Karpenter-${CLUSTER_NAME}" \
+    | grep -i "Karpenter-karpenter-demo" \
     | xargs -I{} aws ec2 delete-launch-template --launch-template-name {}
 ```
