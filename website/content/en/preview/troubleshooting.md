@@ -104,7 +104,12 @@ This issue was addressed in later Karpenter releases by [PR #1155](https://githu
 
 ## Unspecified resource requests cause scheduling/bin-pack failures
 
-Not setting Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) on pods can cause Karpenter to fail to schedule or properly bin-pack pods.
+Not using the Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) feature to enforce minimum resource request sizes will allow pods with very low or non-existent resource requests to be scheduled.
+This can cause issues as Karpenter bin-packs pods based on the resource requests.
+
+If the resource requests do not reflect the actual resource usage of the pod, Karpenter will place too many of these pods onto the same node resulting in the pods getting CPU throttled or terminated due to the OOM killer.
+This behavior is not unique to Karpenter and can also occur with the standard `kube-scheduler` with pods that don't have accurate resource requests.
+
 To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
 See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
 
