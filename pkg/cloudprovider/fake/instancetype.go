@@ -33,6 +33,12 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if options.Resources == nil {
 		options.Resources = map[v1.ResourceName]resource.Quantity{}
 	}
+	if options.Overhead == nil {
+		options.Overhead = v1.ResourceList{
+			v1.ResourceCPU:    resource.MustParse("100m"),
+			v1.ResourceMemory: resource.MustParse("10Mi"),
+		}
+	}
 	if len(options.Offerings) == 0 {
 		options.Offerings = []cloudprovider.Offering{
 			{CapacityType: "spot", Zone: "test-zone-1"},
@@ -64,6 +70,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 			Architecture:     options.Architecture,
 			OperatingSystems: options.OperatingSystems,
 			Resources:        options.Resources,
+			Overhead:         options.Overhead,
 			Price:            options.Price},
 	}
 }
@@ -127,6 +134,7 @@ type InstanceTypeOptions struct {
 	Offerings        []cloudprovider.Offering
 	Architecture     string
 	OperatingSystems sets.String
+	Overhead         v1.ResourceList
 	Resources        v1.ResourceList
 	Price            float64
 }
@@ -175,8 +183,5 @@ func (i *InstanceType) OperatingSystems() sets.String {
 }
 
 func (i *InstanceType) Overhead() v1.ResourceList {
-	return v1.ResourceList{
-		v1.ResourceCPU:    resource.MustParse("100m"),
-		v1.ResourceMemory: resource.MustParse("10Mi"),
-	}
+	return i.options.Overhead
 }

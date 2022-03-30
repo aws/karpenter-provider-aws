@@ -27,15 +27,18 @@ test: ## Run tests
 	ginkgo -r
 
 strongertests:
-	# Run randomized, parallelized, racing, code coveraged, tests
+	# Run randomized, racing, code coveraged, tests
 	ginkgo -r \
 			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
 			--randomizeAllSpecs --randomizeSuites -race
 
+benchmark:
+	go test -tags=test_performance -run=NoTests -bench=. ./...
+
 deflake:
 	for i in {1..10}; do make strongertests || exit 1; done
 
-battletest: strongertests
+battletest: strongertests 
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
