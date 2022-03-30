@@ -37,6 +37,15 @@ type InstanceType struct {
 	ec2.InstanceTypeInfo
 	AvailableOfferings []cloudprovider.Offering
 	MaxPods            *int32
+	resources          v1.ResourceList
+	overhead           v1.ResourceList
+}
+
+func newInstanceType(info ec2.InstanceTypeInfo) *InstanceType {
+	it := &InstanceType{InstanceTypeInfo: info}
+	it.resources = it.computeResources()
+	it.overhead = it.computeOverhead()
+	return it
 }
 
 func (i *InstanceType) Name() string {
@@ -61,6 +70,10 @@ func (i *InstanceType) Architecture() string {
 }
 
 func (i *InstanceType) Resources() v1.ResourceList {
+	return i.resources
+}
+
+func (i *InstanceType) computeResources() v1.ResourceList {
 	return v1.ResourceList{
 		v1.ResourceCPU:              i.cpu(),
 		v1.ResourceMemory:           i.memory(),
@@ -175,6 +188,9 @@ func (i *InstanceType) awsNeurons() resource.Quantity {
 // While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
 // analysis can be performed
 func (i *InstanceType) Overhead() v1.ResourceList {
+	return i.overhead
+}
+func (i *InstanceType) computeOverhead() v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
 			100, // system-reserved

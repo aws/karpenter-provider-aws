@@ -151,7 +151,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = &InstanceType{InstanceTypeInfo: *instanceType}
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType)
 			}
 		}
 		return true
