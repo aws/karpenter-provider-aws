@@ -86,3 +86,42 @@ Your security groups are not blocking you from reaching your webhook.
 
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
+
+## Daemonsets can result in deployment failures
+
+For Karpenter versions 0.53 and earlier, daemonsets were not properly considered when provisioning nodes.
+This sometimes caused nodes to be deployed that could not meet the needs of the requested daemonsets.
+The result could be log messages like the following:
+
+```text
+Excluding instance type r3.8xlarge because there are not enough resources for daemons {"commit": "7e79a67", "provisioner": "default"}
+```
+
+One workaround is to set your provisioner to only use larger instance types.
+For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
+Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
+This issue was addressed in later Karpenter releases by [PR #1155](https://github.com/aws/karpenter/pull/1155).
+
+## Unspecified resource requests cause scheduling/bin-pack failures
+
+Not setting Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) on pods can cause Karpenter to fail to schedule or properly bin-pack pods.
+To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
+See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
+
+## Missing discovery tags causes provisioning failures
+
+Starting with Karpenter v0.5.5, provisioners require discovery tags in this form, as described in [Provisioner](https://karpenter.sh/v0.7.3/getting-started/getting-started-with-eksctl/#provisioner) documentation:
+
+```text
+provider:
+    subnetSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    securityGroupSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+```
+
+Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
+
+```text
+ field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
+```
