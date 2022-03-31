@@ -1,0 +1,86 @@
+# This example provisioner will avoid small instance types in the cluster
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:
+    - key: "node.kubernetes.io/instance-type"
+      operator: NotIn
+      values:
+      # exclude instances with < 4 cores and < 8gb memory
+      # got list from
+      # ec2-instance-selector --vcpus-max 4 --memory-max 8 --service eks --max-results 100
+      - a1.large
+      - a1.medium
+      - a1.xlarge
+      - c3.large
+      - c3.xlarge
+      - c4.large
+      - c4.xlarge
+      - c5.large
+      - c5.xlarge
+      - c5a.large
+      - c5a.xlarge
+      - c5ad.large
+      - c5ad.xlarge
+      - c5d.large
+      - c5d.xlarge
+      - c5n.large
+      - c6g.large
+      - c6g.medium
+      - c6g.xlarge
+      - c6gd.large
+      - c6gd.medium
+      - c6gd.xlarge
+      - c6gn.large
+      - c6gn.medium
+      - c6gn.xlarge
+      - inf1.xlarge
+      - m3.large
+      - m3.medium
+      - m4.large
+      - m5.large
+      - m5a.large
+      - m5ad.large
+      - m5d.large
+      - m5dn.large
+      - m5n.large
+      - m5zn.large
+      - m6g.large
+      - m6g.medium
+      - m6gd.large
+      - m6gd.medium
+      - m6i.large
+      - r6g.medium
+      - r6gd.medium
+      - t2.large
+      - t2.medium
+      - t2.micro
+      - t2.nano
+      - t2.small
+      - t3.large
+      - t3.medium
+      - t3.micro
+      - t3.nano
+      - t3.small
+      - t3a.large
+      - t3a.medium
+      - t3a.micro
+      - t3a.nano
+      - t3a.small
+      - t4g.large
+      - t4g.medium
+      - t4g.micro
+      - t4g.nano
+      - t4g.small
+  provider:
+    # replace with your worker node instance profile
+    instanceProfile: "KarpenterNodeRole"
+    subnetSelector:
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"
+    securityGroupSelector:
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"

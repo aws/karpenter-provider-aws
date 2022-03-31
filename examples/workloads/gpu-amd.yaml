@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-amd
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: gpu-amd
+  template:
+    metadata:
+      labels:
+        app: gpu-amd
+    spec:
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: gpu-amd
+        resources:
+          limits:
+            amd.com/gpu: "1"
+          requests:
+            cpu: "1"
+            memory: 256M

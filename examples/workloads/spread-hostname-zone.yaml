@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host-zone-spread
+spec:
+  replicas: 50
+  selector:
+    matchLabels:
+      app: host-zone-spread
+  template:
+    metadata:
+      labels:
+        app: host-zone-spread
+    spec:
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: host-zone-spread
+        resources:
+          requests:
+            cpu: "1"
+            memory: 256M
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app: host-zone-spread
+        maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+      - labelSelector:
+          matchLabels:
+            app: host-zone-spread
+        maxSkew: 5
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
