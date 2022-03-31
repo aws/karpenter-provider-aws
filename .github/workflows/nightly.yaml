@@ -5,7 +5,8 @@ on:
 permissions:
   id-token: write
 jobs:
-  build:
+  nightly:
+    if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

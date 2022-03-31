@@ -8,6 +8,7 @@ on:
 
 jobs:
   analyze:
+    if: github.repository == 'aws/karpenter'
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
