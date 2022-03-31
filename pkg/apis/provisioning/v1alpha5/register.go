@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	DefaultHook  = func(ctx context.Context, constraints *Constraints) {}
-	ValidateHook = func(ctx context.Context, constraints *Constraints) *apis.FieldError { return nil }
+	DefaultHook  = func(ctx context.Context, provisoner *Provisioner) {}
+	ValidateHook = func(ctx context.Context, provisoner *Provisioner) *apis.FieldError { return nil }
 )
 
 var (

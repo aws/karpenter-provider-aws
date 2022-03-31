@@ -163,10 +163,6 @@ func (r Requirements) Validate() (errs error) {
 		if !SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
 			errs = multierr.Append(errs, fmt.Errorf("operator %s not in %s for key %s", requirement.Operator, SupportedNodeSelectorOps.UnsortedList(), requirement.Key))
 		}
-		// Combined requirements must have some possible value unless Operator=DoesNotExist.
-		if values := r.Get(requirement.Key); values.Len() == 0 && requirement.Operator != v1.NodeSelectorOpDoesNotExist {
-			errs = multierr.Append(errs, fmt.Errorf("no feasible value for key %s", requirement.Key))
-		}
 	}
 	return errs
 }
