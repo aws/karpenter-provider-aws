@@ -48,6 +48,25 @@ export AWS_DEFAULT_REGION="us-east-1"
 The first thing we need to do is create our `main.tf` file and place the following in it.
 
 ```hcl
+terraform {
+  required_version = "~> 1.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.4"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
+  }
+}
+
 provider "aws" {
   region = "us-east-1"
 }
@@ -97,7 +116,7 @@ module "vpc" {
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.16.0"
+  version = "18.17.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.21"
@@ -342,11 +361,11 @@ resource "kubectl_manifest" "karpenter_provisioner" {
         cpu: 1000
     provider:
       subnetSelector:
-        karpenter.sh/discovery: ${local.name}
+        karpenter.sh/discovery: ${local.cluster_name}
       securityGroupSelector:
-        karpenter.sh/discovery: ${local.name}
+        karpenter.sh/discovery: ${local.cluster_name}
       tags:
-        karpenter.sh/discovery: ${local.name}
+        karpenter.sh/discovery: ${local.cluster_name}
     ttlSecondsAfterEmpty: 30
   YAML
 
