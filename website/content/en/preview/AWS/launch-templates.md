@@ -69,7 +69,7 @@ when building a custom base image.
 --kubelet-extra-args <'--max-pods=40'> \
 --b64-cluster-ca <certificateAuthority> \
 --apiserver-endpoint <endpoint> \
---dns-cluster-ip <serviceIpv4Cidr> \
+--dns-cluster-ip <dnsClusterIP> \
 --use-max-pods false
 ```
 
