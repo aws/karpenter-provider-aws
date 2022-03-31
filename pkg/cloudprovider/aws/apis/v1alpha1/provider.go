@@ -24,12 +24,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
-// Constraints wraps generic constraints with AWS specific parameters
-type Constraints struct {
-	*v1alpha5.Constraints
-	*AWS
-}
-
 // AWS contains parameters specific to this cloud provider
 // +kubebuilder:object:root=true
 type AWS struct {
@@ -192,29 +186,29 @@ type BlockDevice struct {
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
-func Deserialize(constraints *v1alpha5.Constraints) (*Constraints, error) {
-	if constraints.Provider == nil {
+func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
+	if provider == nil {
 		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
 	}
-	aws := &AWS{}
-	_, gvk, err := Codec.UniversalDeserializer().Decode(constraints.Provider.Raw, nil, aws)
+	a := &AWS{}
+	_, gvk, err := Codec.UniversalDeserializer().Decode(provider.Raw, nil, a)
 	if err != nil {
 		return nil, err
 	}
 	if gvk != nil {
-		aws.SetGroupVersionKind(*gvk)
+		a.SetGroupVersionKind(*gvk)
 	}
-	return &Constraints{constraints, aws}, nil
+	return a, nil
 }
 
-func (a *AWS) Serialize(constraints *v1alpha5.Constraints) error {
-	if constraints.Provider == nil {
+func (a *AWS) Serialize(provider *v1alpha5.Provider) error {
+	if provider == nil {
 		return fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
 	}
 	bytes, err := json.Marshal(a)
 	if err != nil {
 		return err
 	}
-	constraints.Provider.Raw = bytes
+	provider.Raw = bytes
 	return nil
 }

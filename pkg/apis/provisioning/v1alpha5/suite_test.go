@@ -185,13 +185,6 @@ var _ = Describe("Validation", func() {
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			}
 		})
-		It("should fail because no feasible value", func() {
-			provisioner.Spec.Requirements = NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"bar"}},
-			)
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-		})
 		It("should allow non-empty set after removing overlapped value", func() {
 			provisioner.Spec.Requirements = NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test", "foo"}},

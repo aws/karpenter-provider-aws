@@ -69,13 +69,13 @@ func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceT
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*v1.Node, error) {
-	instanceTypes = p.filterInstanceTypes(instanceTypes)
-	if len(instanceTypes) > MaxInstanceTypes {
-		instanceTypes = instanceTypes[0:MaxInstanceTypes]
+func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+	nodeRequest.InstanceTypeOptions = p.filterInstanceTypes(nodeRequest.InstanceTypeOptions)
+	if len(nodeRequest.InstanceTypeOptions) > MaxInstanceTypes {
+		nodeRequest.InstanceTypeOptions = nodeRequest.InstanceTypeOptions[0:MaxInstanceTypes]
 	}
 
-	id, err := p.launchInstance(ctx, constraints, instanceTypes)
+	id, err := p.launchInstance(ctx, provider, nodeRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (p *InstanceProvider) Create(ctx context.Context, constraints *v1alpha1.Con
 		getCapacityType(instance),
 	)
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, instanceTypes), nil
+	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -117,15 +117,15 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) (*string, error) {
-	capacityType := p.getCapacityType(constraints, instanceTypes)
+func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
+	capacityType := p.getCapacityType(nodeRequest)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
-	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, constraints, instanceTypes, capacityType)
+	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	// Create fleet
-	tags := v1alpha1.MergeTags(ctx, constraints.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
+	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		LaunchTemplateConfigs: launchTemplateConfigs,
@@ -154,20 +154,20 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, constraints *v1al
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
 }
 
-func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
+func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	// Get subnets given the constraints
-	subnets, err := p.subnetProvider.Get(ctx, constraints.AWS)
+	subnets, err := p.subnetProvider.Get(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("getting subnets, %w", err)
 	}
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, err := p.launchTemplateProvider.Get(ctx, constraints, instanceTypes, map[string]string{v1alpha5.LabelCapacityType: capacityType})
+	launchTemplates, err := p.launchTemplateProvider.Get(ctx, provider, nodeRequest, map[string]string{v1alpha5.LabelCapacityType: capacityType})
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, constraints.Requirements.Zones(), capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, nodeRequest.Template.Requirements.Zones(), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -308,11 +308,11 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // getCapacityType selects spot if both constraints are flexible and there is an
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
-func (p *InstanceProvider) getCapacityType(constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType) string {
-	if constraints.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
-		for _, instanceType := range instanceTypes {
+func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
+	if nodeRequest.Template.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
+		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range instanceType.Offerings() {
-				if constraints.Requirements.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
+				if nodeRequest.Template.Requirements.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
 			}

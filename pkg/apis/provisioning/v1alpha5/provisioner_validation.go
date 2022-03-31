@@ -35,6 +35,7 @@ func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		apis.ValidateObjectMetadata(p).ViaField("metadata"),
 		p.Spec.validate(ctx).ViaField("spec"),
+		ValidateHook(ctx, p),
 	)
 }
 
@@ -61,17 +62,16 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 }
 
 // Validate the constraints
-func (c *Constraints) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
-		c.validateLabels(),
-		c.validateTaints(),
-		c.validateRequirements(),
-		ValidateHook(ctx, c),
+		s.validateLabels(),
+		s.validateTaints(),
+		s.validateRequirements(),
 	)
 }
 
-func (c *Constraints) validateLabels() (errs *apis.FieldError) {
-	for key, value := range c.Labels {
+func (s *ProvisionerSpec) validateLabels() (errs *apis.FieldError) {
+	for key, value := range s.Labels {
 		for _, err := range validation.IsQualifiedName(key) {
 			errs = errs.Also(apis.ErrInvalidKeyName(key, "labels", err))
 		}
@@ -85,8 +85,8 @@ func (c *Constraints) validateLabels() (errs *apis.FieldError) {
 	return errs
 }
 
-func (c *Constraints) validateTaints() (errs *apis.FieldError) {
-	for i, taint := range c.Taints {
+func (s *ProvisionerSpec) validateTaints() (errs *apis.FieldError) {
+	for i, taint := range s.Taints {
 		// Validate Key
 		if len(taint.Key) == 0 {
 			errs = errs.Also(apis.ErrInvalidArrayValue(errs, "taints", i))
@@ -113,9 +113,9 @@ func (c *Constraints) validateTaints() (errs *apis.FieldError) {
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
-func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
+func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
 	var err error
-	for _, requirement := range c.Requirements.Requirements {
+	for _, requirement := range s.Requirements.Requirements {
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
 			err = multierr.Append(err, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
@@ -124,7 +124,7 @@ func (c *Constraints) validateRequirements() (errs *apis.FieldError) {
 			err = multierr.Append(err, e)
 		}
 	}
-	err = multierr.Append(err, c.Requirements.Validate())
+	err = multierr.Append(err, s.Requirements.Validate())
 	if err != nil {
 		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
 	}

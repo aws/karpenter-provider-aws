@@ -61,7 +61,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	instance := nodeRequest.InstanceTypeOptions[0]
 	var zone, capacityType string
 	for _, o := range instance.Offerings() {
-		if nodeRequest.Constraints.Requirements.CapacityTypes().Has(o.CapacityType) && nodeRequest.Constraints.Requirements.Zones().Has(o.Zone) {
+		if nodeRequest.Template.Requirements.CapacityTypes().Has(o.CapacityType) && nodeRequest.Template.Requirements.Zones().Has(o.Zone) {
 			zone = o.Zone
 			capacityType = o.CapacityType
 			break
@@ -147,10 +147,10 @@ func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
 	return nil
 }
 
-func (c *CloudProvider) Default(context.Context, *v1alpha5.Constraints) {
+func (c *CloudProvider) Default(context.Context, *v1alpha5.Provisioner) {
 }
 
-func (c *CloudProvider) Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError {
+func (c *CloudProvider) Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError {
 	return nil
 }
 

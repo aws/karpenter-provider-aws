@@ -101,20 +101,20 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Constraints)
+	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Template.Provider)
 	if err != nil {
 		return nil, err
 	}
-	return c.instanceProvider.Create(ctx, vendorConstraints, nodeRequest.InstanceTypeOptions)
+	return c.instanceProvider.Create(ctx, vendorConstraints, nodeRequest)
 }
 
 // GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
-	vendorConstraints, err := v1alpha1.Deserialize(&v1alpha5.Constraints{Provider: provider})
+	aws, err := v1alpha1.Deserialize(provider)
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
-	return c.instanceTypeProvider.Get(ctx, vendorConstraints.AWS)
+	return c.instanceTypeProvider.Get(ctx, aws)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -122,24 +122,38 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 // Validate the provisioner
-func (c *CloudProvider) Validate(ctx context.Context, constraints *v1alpha5.Constraints) *apis.FieldError {
-	vendorConstraints, err := v1alpha1.Deserialize(constraints)
+func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return vendorConstraints.AWS.Validate()
+	return provider.Validate()
 }
 
 // Default the provisioner
-func (c *CloudProvider) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
-	vendorConstraints, err := v1alpha1.Deserialize(constraints)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Failed to deserialize provider, %s", err)
-		return
-	}
-	vendorConstraints.Default(ctx)
-	if err := vendorConstraints.Serialize(constraints); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to serialize provider, %s", err)
+func (c *CloudProvider) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
+	defaultLabels(provisioner)
+}
+
+func defaultLabels(provisioner *v1alpha5.Provisioner) {
+	for key, value := range map[string]string{
+		v1alpha5.LabelCapacityType: ec2.DefaultTargetCapacityTypeOnDemand,
+		v1.LabelArchStable:         v1alpha5.ArchitectureAmd64,
+	} {
+		hasLabel := false
+		if _, ok := provisioner.Spec.Labels[key]; ok {
+			hasLabel = true
+		}
+		for _, requirement := range provisioner.Spec.Requirements.Requirements {
+			if requirement.Key == key {
+				hasLabel = true
+			}
+		}
+		if !hasLabel {
+			provisioner.Spec.Requirements.Requirements = append(provisioner.Spec.Requirements.Requirements, v1.NodeSelectorRequirement{
+				Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value},
+			})
+		}
 	}
 }
 

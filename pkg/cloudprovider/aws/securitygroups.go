@@ -42,11 +42,11 @@ func NewSecurityGroupProvider(ec2api ec2iface.EC2API) *SecurityGroupProvider {
 	}
 }
 
-func (p *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints) ([]string, error) {
+func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
-	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(constraints))
+	securityGroups, err := p.getSecurityGroups(ctx, p.getFilters(provider))
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,9 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, constraints *v1alpha1.C
 	return securityGroupIds, nil
 }
 
-func (p *SecurityGroupProvider) getFilters(constraints *v1alpha1.Constraints) []*ec2.Filter {
+func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
-	for key, value := range constraints.SecurityGroupSelector {
+	for key, value := range provider.SecurityGroupSelector {
 		filters = append(filters, &ec2.Filter{
 			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
 			Values: []*string{aws.String(value)},

@@ -774,15 +774,15 @@ var _ = Describe("Allocation", func() {
 		// Intent here is that if updates occur on the controller, the Provisioner doesn't need to be recreated
 		It("should not set the InstanceProfile with the default if none provided in Provisioner", func() {
 			provisioner.SetDefaults(ctx)
-			constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
+			constraints, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(constraints.InstanceProfile).To(BeNil())
 		})
 
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(provisioner.Spec.Requirements.CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(provisioner.Spec.Requirements.Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {
@@ -1075,6 +1075,5 @@ func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alph
 }
 
 func ProviderFromProvisioner(provisioner *v1alpha5.Provisioner) (*v1alpha1.AWS, error) {
-	constraints, err := v1alpha1.Deserialize(&provisioner.Spec.Constraints)
-	return constraints.AWS, err
+	return v1alpha1.Deserialize(provisioner.Spec.Provider)
 }

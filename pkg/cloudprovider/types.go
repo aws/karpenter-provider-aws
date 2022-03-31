@@ -43,16 +43,24 @@ type CloudProvider interface {
 	// Availability of types or zone may vary by provisioner or over time.
 	GetInstanceTypes(context.Context, *v1alpha5.Provider) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
-	Default(context.Context, *v1alpha5.Constraints)
+	Default(context.Context, *v1alpha5.Provisioner)
 	// Validate is a hook for additional validation logic at webhook time.
-	Validate(context.Context, *v1alpha5.Constraints) *apis.FieldError
+	Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError
 	// Name returns the CloudProvider implementation name.
 	Name() string
 }
 
 type NodeRequest struct {
-	Constraints         *v1alpha5.Constraints
+	Template            *NodeTemplate
 	InstanceTypeOptions []InstanceType
+}
+
+type NodeTemplate struct {
+	Provider             *v1alpha5.Provider
+	Labels               map[string]string
+	Taints               []v1.Taint
+	Requirements         v1alpha5.Requirements
+	KubeletConfiguration *v1alpha5.KubeletConfiguration
 }
 
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type

@@ -101,7 +101,7 @@ func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisione
 		return err
 	}
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-	provisioner.Spec.Requirements = provisioner.Spec.Requirements.
+	provisioner.Spec.Requirements = v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).
 		Add(cloudprovider.Requirements(instanceTypes).Requirements...).
 		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
 	if err := provisioner.Spec.Requirements.Validate(); err != nil {

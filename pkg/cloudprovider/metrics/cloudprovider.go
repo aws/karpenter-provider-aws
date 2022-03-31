@@ -82,12 +82,12 @@ func (d *decorator) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Pro
 	return d.CloudProvider.GetInstanceTypes(ctx, provider)
 }
 
-func (d *decorator) Default(ctx context.Context, constraints *v1alpha5.Constraints) {
+func (d *decorator) Default(ctx context.Context, provisioner *v1alpha5.Provisioner) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "Default", d.Name()))()
-	d.CloudProvider.Default(ctx, constraints)
+	d.CloudProvider.Default(ctx, provisioner)
 }
 
-func (d *decorator) Validate(ctx context.Context, constraints *v1alpha5.Constraints) *apis.FieldError {
+func (d *decorator) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "Validate", d.Name()))()
-	return d.CloudProvider.Validate(ctx, constraints)
+	return d.CloudProvider.Validate(ctx, provisioner)
 }
