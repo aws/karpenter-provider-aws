@@ -1,0 +1,17 @@
+# This example provisioner will provision instances
+# that are replaced every 7 days and drain after 1 minute
+# with no workloads
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  provider:
+    # expire nodes after 7 days
+    # 7 days (in seconds) = 7 * 60 * 60 * 24
+    ttlSecondsUntilExpired: 604800
+    ttlSecondsAfterEmpty: 60
+    securityGroupSelector:
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"

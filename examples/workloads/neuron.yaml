@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neuron
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: neuron
+  template:
+    metadata:
+      labels:
+        app: neuron
+    spec:
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: neuron
+        resources:
+          limits:
+            aws.amazon.com/neuron: "1"
+          requests:
+            cpu: "1"
+            memory: 256M

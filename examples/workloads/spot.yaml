@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spot
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: spot
+  template:
+    metadata:
+      labels:
+        app: spot
+    spec:
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: spot
+        resources:
+          requests:
+            cpu: "1"
+            memory: 256M
+      nodeSelector:
+        karpenter.sh/capacity-type: spot

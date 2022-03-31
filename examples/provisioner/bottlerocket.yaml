@@ -1,0 +1,14 @@
+# This example provisioner will provision instances
+# running Bottlerocket OS
+
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  provider:
+    amiFamily: Bottlerocket
+    # replace with your worker node instance profile
+    securityGroupSelector:
+    # replace with your cluster name
+      karpenter.sh/discovery: "CLUSTER_NAME"
