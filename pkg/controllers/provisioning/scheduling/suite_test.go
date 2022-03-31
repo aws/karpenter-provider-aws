@@ -2763,6 +2763,41 @@ var _ = Describe("Binpacking", func() {
 		}
 		Expect(nodeNames).To(HaveLen(5))
 	})
+	It("should take into account initContainer resource requests when binpacking", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+					v1.ResourceCPU:    resource.MustParse("1"),
+				},
+			},
+				InitResourceRequirements: v1.ResourceRequirements{
+					Requests: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceMemory: resource.MustParse("1Gi"),
+						v1.ResourceCPU:    resource.MustParse("2"),
+					},
+				},
+			}))[0]
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("default-instance-type"))
+	})
+	It("should not schedule pods when initContainer resource requests are greater than available instance types", func() {
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
+			test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceMemory: resource.MustParse("1Gi"),
+					v1.ResourceCPU:    resource.MustParse("1"),
+				},
+			},
+				InitResourceRequirements: v1.ResourceRequirements{
+					Requests: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceMemory: resource.MustParse("1Ti"),
+						v1.ResourceCPU:    resource.MustParse("2"),
+					},
+				},
+			}))[0]
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
 	It("should select for valid instance types, regardless of price", func() {
 		// capacity sizes and prices don't correlate here, regardless we should filter and see that all three instance types
 		// are valid before preferring the cheapest one 'large'
