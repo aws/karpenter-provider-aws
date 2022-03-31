@@ -115,8 +115,8 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, provisioners require [subnetSelector](./aws/provisioning/#subnetselector) and [securityGroupSelector](./aws/provisioning/#securitygroupselector) tags be set to match your cluster.
-The [Provisioner](./getting-started/getting-started-with-eksctl/#provisioner) example in the Karpenter Getting Started Guide uses the following:
+Starting with Karpenter v0.5.5, provisioners require that [subnetSelector]({{<ref "./aws/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./aws/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
+The [Provisioner](./getting-started/getting-started-with-eksctl/#provisioner) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
 provider:
