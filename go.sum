@@ -595,8 +595,8 @@ github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTK
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
 github.com/pelletier/go-toml v1.2.0 h1:T5zMGML61Wp+FlcbWjRDT7yAxhJNAiPPLOFECq181zc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
-github.com/pelletier/go-toml/v2 v2.0.0-beta.5 h1:zRY68WYiDE9YZLflUWuyOny5YA+DwvyFzZBfb8E/9wk=
-github.com/pelletier/go-toml/v2 v2.0.0-beta.5/go.mod h1:ke6xncR3W76Ba8xnVxkrZG0js6Rd2BsQEAYrfgJ6eQA=
+github.com/pelletier/go-toml/v2 v2.0.0-beta.6 h1:JFNqj2afbbhCqTiyN16D7Tudc/aaDzE2FBDk+VlBQnE=
+github.com/pelletier/go-toml/v2 v2.0.0-beta.6/go.mod h1:ke6xncR3W76Ba8xnVxkrZG0js6Rd2BsQEAYrfgJ6eQA=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
 github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1/go.mod h1:3/3N9NVKO0jef7pBehbT1qWhCMrIgbYNnFAZCqQ5LRc=
 github.com/pierrec/lz4 v2.6.1+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
