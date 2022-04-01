@@ -260,8 +260,8 @@ func (t *Topology) UpdateFromCluster(ctx context.Context, kubeClient client.Clie
 	return nil
 }
 
-func (t *Topology) EmptyDomain(reqts v1alpha5.Requirements) string {
-	requirement := reqts.Get(t.Key)
+func (t *Topology) EmptyDomain(requirements v1alpha5.Requirements) string {
+	requirement := requirements.Get(t.Key)
 	for domain, count := range t.domains {
 		if !requirement.Has(domain) {
 			continue
