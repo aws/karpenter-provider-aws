@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+
 	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -42,8 +44,8 @@ const controllerName = "selection"
 type Controller struct {
 	kubeClient     client.Client
 	provisioners   *provisioning.Controller
-	preferences    *Preferences
 	volumeTopology *VolumeTopology
+	preferences    *scheduling.Preferences
 }
 
 // NewController constructs a controller instance
@@ -51,8 +53,8 @@ func NewController(kubeClient client.Client, provisioners *provisioning.Controll
 	return &Controller{
 		kubeClient:     kubeClient,
 		provisioners:   provisioners,
-		preferences:    NewPreferences(),
 		volumeTopology: NewVolumeTopology(kubeClient),
+		preferences:    scheduling.NewPreferences(),
 	}
 }
 
