@@ -89,18 +89,13 @@ approach, and now it's much more restrictive.
 
 ## DaemonSets can result in deployment failures
 
-For Karpenter versions 0.5.3 and earlier, Daemonsets were not properly considered when provisioning nodes.
-This sometimes caused nodes to be deployed that could not meet the needs of the requested Daemonsets.
-The result could be log messages like the following:
+For Karpenter versions 0.5.3 and earlier, DaemonSets were not properly considered when provisioning nodes.
+This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
+This issue no longer occurs after Karpenter version 0.5.3 (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
 
-```text
-Excluding instance type r3.8xlarge because there are not enough resources for daemons {"commit": "7e79a67", "provisioner": "default"}
-```
-
-One workaround is to set your provisioner to only use larger instance types.
+If you are using a pre-0.5.3 version of Karpenter, one workaround is to set your provisioner to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
 For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
 Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
-This issue was addressed in later Karpenter releases by [PR #1155](https://github.com/aws/karpenter/pull/1155).
 
 ## Unspecified resource requests cause scheduling/bin-pack failures
 
@@ -115,7 +110,7 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, provisioners require that [subnetSelector]({{<ref "./aws/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./aws/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./aws/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./aws/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
 The [Provisioner](./getting-started/getting-started-with-eksctl/#provisioner) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
@@ -131,3 +126,5 @@ Provisioners created without those tags and run in more recent Karpenter version
 ```text
  field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
 ```
+If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
+However, specifying a `securityGroupSelector` will cause a validation error.
