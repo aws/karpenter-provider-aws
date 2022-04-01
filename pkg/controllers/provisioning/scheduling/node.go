@@ -20,8 +20,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -38,18 +36,16 @@ type Node struct {
 	Pods                []*v1.Pod
 
 	requests v1.ResourceList
-	client   client.Client
 }
 
 var nodeID int64
 
-func NewNode(c client.Client, constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	n := &Node{
-		Name:                fmt.Sprintf("node-%04d", atomic.AddInt64(&nodeID, 1)),
+		Name:                fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
 		requests:            daemonResources,
-		client:              c,
 	}
 
 	n.Constraints.Requirements = n.Constraints.Requirements.Add(v1.NodeSelectorRequirement{

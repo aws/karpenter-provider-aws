@@ -22,7 +22,6 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/logging"
@@ -47,21 +46,19 @@ type NodeSet struct {
 	// that zone, even though bar has no anti affinity terms on it. For this to work, we need to separately track the
 	// topologies of pods with anti-affinity terms, so we can prevent scheduling the pods they have anti-affinity to
 	// in some cases.
-	existingAntiAffinities map[uint64]*Topology
-	constraints            *v1alpha5.Constraints
-	instanceTypes          []cloudprovider.InstanceType
-	logger                 *zap.SugaredLogger
+	inverseAntiAffinityTopologies map[uint64]*Topology
+	constraints                   *v1alpha5.Constraints
+	instanceTypes                 []cloudprovider.InstanceType
 }
 
 func NewNodeSet(ctx context.Context, constraints *v1alpha5.Constraints,
 	instanceTypes []cloudprovider.InstanceType, client client.Client) (*NodeSet, error) {
 	ns := &NodeSet{
-		kubeClient:             client,
-		constraints:            constraints,
-		instanceTypes:          instanceTypes,
-		topologies:             map[uint64]*Topology{},
-		existingAntiAffinities: map[uint64]*Topology{},
-		logger:                 logging.FromContext(ctx),
+		kubeClient:                    client,
+		constraints:                   constraints,
+		instanceTypes:                 instanceTypes,
+		topologies:                    map[uint64]*Topology{},
+		inverseAntiAffinityTopologies: map[uint64]*Topology{},
 	}
 
 	daemons, err := ns.getDaemons(ctx, constraints)
@@ -103,7 +100,7 @@ func (s *NodeSet) Add(node *Node) {
 	s.nodes = append(s.nodes, node)
 }
 
-func (s *NodeSet) SchedulePod(ctx context.Context, pod *v1.Pod) error {
+func (s *NodeSet) Schedule(ctx context.Context, pod *v1.Pod) error {
 	// copy the pod as this method modifies the pod's node selectors to force it to meet topology constraints
 	pod = pod.DeepCopy()
 
@@ -127,7 +124,7 @@ func (s *NodeSet) SchedulePod(ctx context.Context, pod *v1.Pod) error {
 			return fmt.Errorf("adding pod to node, %w", err)
 		}
 	} else {
-		n := NewNode(s.kubeClient, s.constraints, s.daemonResources, s.instanceTypes)
+		n := NewNode(s.constraints, s.daemonResources, s.instanceTypes)
 		if err := n.Add(ctx, pod); err != nil {
 			return fmt.Errorf("adding pod to node, %w", err)
 		}
@@ -135,7 +132,7 @@ func (s *NodeSet) SchedulePod(ctx context.Context, pod *v1.Pod) error {
 	}
 
 	if err := s.recordTopologyDecisions(pod); err != nil {
-		s.logger.Errorf("recording topology decision, %s", err)
+		logging.FromContext(ctx).Errorf("recording topology decision, %s", err)
 	}
 
 	return nil
@@ -150,7 +147,6 @@ func (s *NodeSet) TrackTopologies(ctx context.Context, pods []*v1.Pod) error {
 		if err := s.trackTopologySpread(ctx, p); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
 		}
-
 		if err := s.trackPodAffinityTopology(ctx, p); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
 		}
@@ -234,7 +230,7 @@ func (s *NodeSet) trackExistingPodAntiAffinityTopology(ctx context.Context, node
 		if err != nil {
 			return fmt.Errorf("hashing topology constraint: %w", err)
 		}
-		tsc, found := s.existingAntiAffinities[hash]
+		tsc, found := s.inverseAntiAffinityTopologies[hash]
 		if !found {
 			var cs v1.TopologySpreadConstraint
 			cs.TopologyKey = key.TopologyKey
@@ -248,7 +244,7 @@ func (s *NodeSet) trackExistingPodAntiAffinityTopology(ctx context.Context, node
 			}
 			topology.Type = TopologyTypePodAntiAffinity
 			tsc = topology
-			s.existingAntiAffinities[hash] = topology
+			s.inverseAntiAffinityTopologies[hash] = topology
 		}
 		if node != nil {
 			tsc.RecordUsage(node.Labels[tsc.Key])
@@ -430,7 +426,7 @@ func (s *NodeSet) recordTopologyDecisions(p *v1.Pod) error {
 
 	// for anti-affinities, we need to also record where the pods with the anti-affinity are
 	key := client.ObjectKeyFromObject(p)
-	for _, tc := range s.existingAntiAffinities {
+	for _, tc := range s.inverseAntiAffinityTopologies {
 		if tc.IsOwnedBy(key) {
 			domain, ok := p.Spec.NodeSelector[tc.Key]
 			if !ok || domain == "" {
@@ -453,7 +449,7 @@ type matchingTopology struct {
 // topology constraints (topology spread, pod affinity & pod anti-affinity) and an error.  If the list of returned nodes
 // is empty, then the constraints can't be satisfied given the existing nodes and a new node must be created. If error
 // is non-nil then the topology constraints can't be satisfied even by creating a new node and the pod is unschedulable.
-//gocyclo: ignore
+//gocyclo:ignore
 func (s *NodeSet) filterByTopologies(ctx context.Context, tightened v1alpha5.Requirements, p *v1.Pod, nodes []*Node) ([]*Node, error) {
 	if p.Spec.NodeSelector == nil {
 		p.Spec.NodeSelector = map[string]string{}
@@ -628,7 +624,7 @@ func (s *NodeSet) getMatchingTopologies(p *v1.Pod) []matchingTopology {
 			})
 		}
 	}
-	for _, tc := range s.existingAntiAffinities {
+	for _, tc := range s.inverseAntiAffinityTopologies {
 		if tc.Matches(p.Namespace, p.Labels) {
 			matchingTopologies = append(matchingTopologies, matchingTopology{
 				topology:              tc,
