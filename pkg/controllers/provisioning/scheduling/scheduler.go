@@ -59,7 +59,7 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (nodes []*Node, failedPods []*v1.Pod, err error) {
+func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (nodes []*Node, err error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	constraints := provisioner.Spec.Constraints.DeepCopy()
 
@@ -68,11 +68,11 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 
 	nodeSet, err := NewNodeSet(ctx, constraints, instanceTypes, s.kubeClient)
 	if err != nil {
-		return nil, pods, fmt.Errorf("constructing nodeset, %w", err)
+		return nil, fmt.Errorf("constructing nodeset, %w", err)
 	}
 
 	if err := nodeSet.TrackTopologies(ctx, pods); err != nil {
-		return nil, pods, fmt.Errorf("tracking topology counts, %w", err)
+		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
 	type unschedulablePod struct {
@@ -93,7 +93,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 		previousUnschedulableCount = len(unschedulablePods)
 		var newUnschedulablePods []unschedulablePod
 		for _, up := range unschedulablePods {
-			if err := nodeSet.SchedulePod(ctx, up.pod); err != nil {
+			if err := nodeSet.Schedule(ctx, up.pod); err != nil {
 				newUnschedulablePods = append(newUnschedulablePods, unschedulablePod{pod: up.pod, reason: err})
 			}
 		}
@@ -108,12 +108,11 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	if len(unschedulablePods) != 0 {
 		for _, up := range unschedulablePods {
 			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up.pod)).Errorf("Scheduling pod, %s", up.reason)
-			failedPods = append(failedPods, up.pod)
 		}
 		logging.FromContext(ctx).Errorf("Failed to schedule %d pod(s)", len(unschedulablePods))
 	}
 
-	return nodeSet.nodes, failedPods, nil
+	return nodeSet.nodes, nil
 }
 
 func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {

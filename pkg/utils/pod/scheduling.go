@@ -17,7 +17,6 @@ package pod
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func FailedToSchedule(pod *v1.Pod) bool {
@@ -27,10 +26,6 @@ func FailedToSchedule(pod *v1.Pod) bool {
 		}
 	}
 	return false
-}
-
-func NamespacedName(p *v1.Pod) string {
-	return types.NamespacedName{Namespace: p.Namespace, Name: p.Name}.String()
 }
 
 func IsScheduled(pod *v1.Pod) bool {

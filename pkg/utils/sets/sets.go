@@ -124,12 +124,7 @@ func (s Set) Has(value string) bool {
 	return s.values.Has(value)
 }
 
-// HasAny returns true if any of the supplied values are in the set.
-func (s Set) HasAny(values ...string) bool {
-	return s.values.HasAny(values...)
-}
-
-func (s Set) HasAnyOfSet(v sets.String) bool {
+func (s Set) HasAny(v sets.String) bool {
 	for k := range v {
 		if s.values.Has(k) {
 			return true

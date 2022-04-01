@@ -53,7 +53,7 @@ func Compatible(it InstanceType, requirements v1alpha5.Requirements) bool {
 	if !requirements.Get(v1.LabelArchStable).Has(it.Architecture()) {
 		return false
 	}
-	if !requirements.Get(v1.LabelOSStable).HasAnyOfSet(it.OperatingSystems()) {
+	if !requirements.Get(v1.LabelOSStable).HasAny(it.OperatingSystems()) {
 		return false
 	}
 	// acceptable if we have any offering that is valid

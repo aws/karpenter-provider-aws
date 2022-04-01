@@ -24,7 +24,6 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -129,12 +128,10 @@ func validate(p *v1.Pod) error {
 	)
 }
 
-var validTopologyKeys = sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, v1alpha5.LabelCapacityType)
-
 func validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if !validTopologyKeys.Has(constraint.TopologyKey) {
-			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key in topology spread, %s not in %s", constraint.TopologyKey, validTopologyKeys))
+		if !v1alpha5.ValidTopologyKeys.Has(constraint.TopologyKey) {
+			errs = multierr.Append(errs, fmt.Errorf("unsupported topology spread constraint key, %s not in %s", constraint.TopologyKey, v1alpha5.ValidTopologyKeys))
 		}
 	}
 	return errs
@@ -166,8 +163,8 @@ func validateAffinity(p *v1.Pod) (errs error) {
 }
 
 func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
-	if !validTopologyKeys.Has(term.TopologyKey) {
-		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, validTopologyKeys)
+	if !v1alpha5.ValidTopologyKeys.Has(term.TopologyKey) {
+		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, v1alpha5.ValidTopologyKeys)
 	}
 	return nil
 }
