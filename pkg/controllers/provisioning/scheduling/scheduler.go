@@ -50,12 +50,14 @@ func init() {
 }
 
 type Scheduler struct {
-	kubeClient client.Client
+	kubeClient  client.Client
+	preferences *Preferences
 }
 
 func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
-		kubeClient: kubeClient,
+		kubeClient:  kubeClient,
+		preferences: NewPreferences(),
 	}
 }
 
@@ -66,35 +68,42 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
-	nodeSet, err := NewNodeSet(ctx, constraints, instanceTypes, s.kubeClient)
+	topology := NewTopology(s.kubeClient, constraints)
+
+	nodeSet, err := NewNodeSet(ctx, topology, constraints, instanceTypes, s.kubeClient)
 	if err != nil {
 		return nil, fmt.Errorf("constructing nodeset, %w", err)
 	}
 
-	if err := nodeSet.TrackTopologies(ctx, pods); err != nil {
+	if err := topology.TrackTopologies(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
-	type unschedulablePod struct {
-		pod    *v1.Pod
-		reason error
-	}
-	var unschedulablePods []unschedulablePod
-	for _, p := range pods {
-		unschedulablePods = append(unschedulablePods, unschedulablePod{pod: p, reason: nil})
-	}
+	lastErrors := map[*v1.Pod]error{}
+
+	var unschedulablePods []*v1.Pod
+	unschedulablePods = append(unschedulablePods, pods...)
+
 	previousUnschedulableCount := 0
 	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
 	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
-	// solve the problem of scheduling pods where a paritcular order is needed to prevent a max-skew violation. E.g. if we
+	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
 	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
 	for {
 		previousUnschedulableCount = len(unschedulablePods)
-		var newUnschedulablePods []unschedulablePod
-		for _, up := range unschedulablePods {
-			if err := nodeSet.Schedule(ctx, up.pod); err != nil {
-				newUnschedulablePods = append(newUnschedulablePods, unschedulablePod{pod: up.pod, reason: err})
+		var newUnschedulablePods []*v1.Pod
+		for _, p := range unschedulablePods {
+			// Relax preferences if pod has previously failed to schedule.
+			if s.preferences.Relax(ctx, p) {
+				// keep resetting our count so as long as we are successfully relaxing a failed to schedule pod,
+				// we'll keep trying to schedule
+				topology.Relax(p)
+				previousUnschedulableCount++
+			}
+			if err := nodeSet.Schedule(ctx, p); err != nil {
+				lastErrors[p] = err
+				newUnschedulablePods = append(newUnschedulablePods, p)
 			}
 		}
 		unschedulablePods = newUnschedulablePods
@@ -107,7 +116,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 
 	if len(unschedulablePods) != 0 {
 		for _, up := range unschedulablePods {
-			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up.pod)).Errorf("Scheduling pod, %s", up.reason)
+			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up)).Errorf("Scheduling pod, %s", lastErrors[up])
 		}
 		logging.FromContext(ctx).Errorf("Failed to schedule %d pod(s)", len(unschedulablePods))
 	}
