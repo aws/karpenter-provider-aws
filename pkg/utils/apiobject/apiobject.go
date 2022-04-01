@@ -15,8 +15,10 @@ limitations under the License.
 package apiobject
 
 import (
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,4 +28,10 @@ func PodNamespacedNames(pods []*v1.Pod) []types.NamespacedName {
 		namespacedNames = append(namespacedNames, client.ObjectKeyFromObject(pod))
 	}
 	return namespacedNames
+}
+
+func MustHash(object interface{}) uint64 {
+	hash, err := hashstructure.Hash(object, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	runtime.Must(err)
+	return hash
 }

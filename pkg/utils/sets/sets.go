@@ -159,3 +159,7 @@ func (s Set) Len() int {
 	}
 	return s.values.Len()
 }
+
+func (s Set) Insert(items ...string) {
+	s.values.Insert(items...)
+}

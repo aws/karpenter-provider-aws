@@ -15,7 +15,6 @@ limitations under the License.
 package scheduling
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -56,42 +55,31 @@ func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList,
 	return n
 }
 
-func (n *Node) isCompatibleWith(pod *v1.Pod) (v1alpha5.Requirements, v1.ResourceList, []cloudprovider.InstanceType, error) {
-	podRequirements := v1alpha5.NewPodRequirements(pod)
+func (n *Node) Add(topology *Topology, p *v1.Pod) error {
+	podRequirements := v1alpha5.NewPodRequirements(p)
 	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
-		return v1alpha5.Requirements{}, nil, nil, err
+		return err
 	}
 
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
-	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
-	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
-	if len(instanceTypes) == 0 {
-		return v1alpha5.Requirements{}, nil, nil, fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
-	}
-	return requirements, requests, instanceTypes, nil
-}
-func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
-	requirements, requests, instanceTypes, err := n.isCompatibleWith(pod)
+
+	var err error
+	requirements, err = topology.Requirements(requirements, n.Name, p)
 	if err != nil {
 		return err
 	}
 
-	if pod.Spec.NodeSelector == nil {
-		pod.Spec.NodeSelector = map[string]string{}
+	requests := resources.Merge(n.requests, resources.RequestsForPods(p))
+	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
+	if len(instanceTypes) == 0 {
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(p)), n.Constraints.Requirements)
 	}
-	pod.Spec.NodeName = n.Name
-	pod.Spec.NodeSelector[v1.LabelHostname] = n.Name
 
-	n.Pods = append(n.Pods, pod)
+	n.Pods = append(n.Pods, p)
 	n.InstanceTypeOptions = instanceTypes
 	n.requests = requests
 	n.Constraints.Requirements = requirements
 	return nil
-}
-
-func (n *Node) Compatible(ctx context.Context, pod *v1.Pod) error {
-	_, _, _, err := n.isCompatibleWith(pod)
-	return err
 }
 
 func (n *Node) String() string {
