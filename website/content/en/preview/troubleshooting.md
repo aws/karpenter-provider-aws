@@ -86,3 +86,56 @@ Your security groups are not blocking you from reaching your webhook.
 
 This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
 approach, and now it's much more restrictive.
+
+## DaemonSets can result in deployment failures
+
+For Karpenter versions 0.5.3 and earlier, DaemonSets were not properly considered when provisioning nodes.
+This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
+This issue no longer occurs after Karpenter version 0.5.3 (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
+
+If you are using a pre-0.5.3 version of Karpenter, one workaround is to set your provisioner to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
+For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
+Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
+
+## Unspecified resource requests cause scheduling/bin-pack failures
+
+Not using the Kubernetes [LimitRanges](https://kubernetes.io/docs/concepts/policy/limit-range/) feature to enforce minimum resource request sizes will allow pods with very low or non-existent resource requests to be scheduled.
+This can cause issues as Karpenter bin-packs pods based on the resource requests.
+
+If the resource requests do not reflect the actual resource usage of the pod, Karpenter will place too many of these pods onto the same node resulting in the pods getting CPU throttled or terminated due to the OOM killer.
+This behavior is not unique to Karpenter and can also occur with the standard `kube-scheduler` with pods that don't have accurate resource requests.
+
+To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
+See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
+
+## Missing subnetSelector and securityGroupSelector tags causes provisioning failures
+
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./aws/provisioning/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./aws/provisioning/#securitygroupselector" >}}) tags be set to match your cluster.
+The [Provisioner](./getting-started/getting-started-with-eksctl/#provisioner) section in the Karpenter Getting Started Guide uses the following example:
+
+```text
+provider:
+    subnetSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    securityGroupSelector:
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+```
+To check your subnet and security group selectors, type the following:
+
+```bash
+aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns subnets matching the selector*
+
+```bash
+aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns security groups matching the selector*
+
+Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
+
+```text
+ field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
+```
+If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
+However, specifying a `securityGroupSelector` will cause a validation error.
