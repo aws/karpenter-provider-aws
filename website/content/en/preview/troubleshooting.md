@@ -120,6 +120,17 @@ provider:
     securityGroupSelector:
       karpenter.sh/discovery: ${CLUSTER_NAME}
 ```
+To check your subnet and security group selectors, type the following:
+
+```bash
+aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns subnets matching the selector*
+
+```bash
+aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
+```
+*Returns security groups matching the selector*
 
 Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
 
