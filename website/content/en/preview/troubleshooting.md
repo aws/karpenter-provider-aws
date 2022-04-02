@@ -139,3 +139,103 @@ Provisioners created without those tags and run in more recent Karpenter version
 ```
 If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
 However, specifying a `securityGroupSelector` will cause a validation error.
+
+## Reapply credentials with Terraform connection failure
+
+If you are using the [Getting Started with Terraform]({{<ref "./getting-started/getting-started-with-terraform/" >}}) instructions and you see the following error:
+
+```text
+63: resource "kubernetes_config_map" "aws_auth" {
+Error: Post "http://localhost/api/v1/namespaces/kube-system/configmaps": dial tcp 127.0.0.1:80: connect: connection refused
+with module.eks.kubernetes_config_map.aws_auth[0],
+on .terraform/modules/eks/aws_auth.tf line 63, in resource "kubernetes_config_map" "aws_auth":
+```
+
+You can fix the problem by exporting your kubeconfig credentials:
+
+```text
+export KUBECONFIG=${PWD}/kubeconfig_${CLUSTER_NAME}
+export KUBE_CONFIG_PATH=$KUBECONFIG
+```
+
+or you could run the following aws command:
+
+```text
+aws eks --region  $AWS_DEFAULT_REGION  update-kubeconfig --name $CLUSTER_NAME
+```
+
+Then rerun:
+
+```text
+terraform apply -var cluster_name=$CLUSTER_NAME
+```
+
+## Terraform fails to create instance profile when name is too long
+
+In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role ({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
+
+```text
+Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
+on .terraform/modules/eks/main.tf line 131, in resource "aws_iam_role" "cluster":
+131: name_prefix = var.cluster_iam_role_name != "" ? null : var.cluster_name
+```
+
+Note that it can be easy to run over the 38-character limit considering that the example includes KarpenterNodeInstanceProfile- (29 characters) and -karpenter-demo (15 characters).
+That leaves only four characters for your user name.
+You can reduce the number of characters consumed by changing `KarpenterNodeInstanceProfile-` to something like `KarpenterNode-`.
+
+## Karpenter Role names exceeding 64-character limit
+
+If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
+
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
+
+Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
+Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
+
+## Node terminates before ready on failed encrypted EBS volume
+If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS custom managed key (CMK) for the EC2 EBS root volume.
+As a result, the node terminates almost immediately upon creation.
+To correct this, you can use the approach that AWS EBS uses, which avoids adding particular roles to the KMS policy:
+
+```text
+[
+{
+"Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
+"Effect": "Allow",
+"Principal": {
+"AWS": ""
+},
+"Action": [
+"kms:Encrypt",
+"kms:Decrypt",
+"kms:ReEncrypt",
+"kms:GenerateDataKey*",
+"kms:CreateGrant",
+"kms:DescribeKey"
+],
+"Resource": "",
+"Condition": {
+"StringEquals": {
+"kms:ViaService": "ec2.eu-west-1.amazonaws.com",
+"kms:CallerAccount": "618668373247"
+}
+}
+},
+{
+"Sid": "Allow direct access to key metadata to the account",
+"Effect": "Allow",
+"Principal": {
+"AWS": "arn:aws:iam::618668373247:root"
+},
+"Action": [
+"kms:Describe",
+"kms:Get*",
+"kms:List*",
+"kms:RevokeGrant"
+],
+"Resource": "*"
+}
+]
+```
