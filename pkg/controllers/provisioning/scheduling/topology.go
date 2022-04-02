@@ -53,7 +53,9 @@ func NewTopology(kubeClient client.Client, constraints *v1alpha5.Constraints) *T
 	}
 }
 
-func (t *Topology) TrackTopologies(ctx context.Context, pods ...*v1.Pod) error {
+// Update scans the pods provided and creates topology groups for any topologies that we need to track based off of
+// topology spreads, affinities, and anti-affinities specified in the pods.
+func (t *Topology) Update(ctx context.Context, pods ...*v1.Pod) error {
 	var errs error
 	errs = multierr.Append(errs, t.trackExistingAntiAffinities(ctx))
 	for _, p := range pods {

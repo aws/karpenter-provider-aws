@@ -75,14 +75,12 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 		return nil, fmt.Errorf("constructing nodeset, %w", err)
 	}
 
-	if err := topology.TrackTopologies(ctx, pods...); err != nil {
+	if err := topology.Update(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
-	lastErrors := map[*v1.Pod]error{}
-
-	var unschedulablePods []*v1.Pod
-	unschedulablePods = append(unschedulablePods, pods...)
+	schedulingErrors := map[*v1.Pod]error{}
+	unschedulablePods := append([]*v1.Pod{}, pods...)
 
 	previousUnschedulableCount := 0
 	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
@@ -90,7 +88,7 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
 	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
-	for {
+	for len(unschedulablePods) > 0 && len(unschedulablePods) != previousUnschedulableCount {
 		previousUnschedulableCount = len(unschedulablePods)
 		var newUnschedulablePods []*v1.Pod
 		for _, p := range unschedulablePods {
@@ -102,21 +100,16 @@ func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner
 				previousUnschedulableCount++
 			}
 			if err := nodeSet.Schedule(ctx, p); err != nil {
-				lastErrors[p] = err
+				schedulingErrors[p] = err
 				newUnschedulablePods = append(newUnschedulablePods, p)
 			}
 		}
 		unschedulablePods = newUnschedulablePods
-		// if there are no more pods to attempt scheduling, or we tried each pod in a scheduling round
-		// and made no progress, we are finished
-		if len(unschedulablePods) == 0 || len(unschedulablePods) == previousUnschedulableCount {
-			break
-		}
 	}
 
 	if len(unschedulablePods) != 0 {
 		for _, up := range unschedulablePods {
-			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up)).Errorf("Scheduling pod, %s", lastErrors[up])
+			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up)).Errorf("Scheduling pod, %s", schedulingErrors[up])
 		}
 		logging.FromContext(ctx).Errorf("Failed to schedule %d pod(s)", len(unschedulablePods))
 	}
