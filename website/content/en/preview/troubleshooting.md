@@ -172,7 +172,7 @@ terraform apply -var cluster_name=$CLUSTER_NAME
 
 ## Terraform fails to create instance profile when name is too long
 
-In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role ({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
+In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
 
 ```text
 Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
