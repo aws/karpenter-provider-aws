@@ -44,7 +44,7 @@ import (
 	testclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-const MinPodsPerSec = 1.0
+const MinPodsPerSec = 100.0
 
 var r = rand.New(rand.NewSource(42))
 
@@ -93,8 +93,7 @@ func TestSchedulingProfile(t *testing.T) {
 	totalNodes := 0
 	var totalTime time.Duration
 	for _, instanceCount := range []int{400} {
-		//for _, podCount := range []int{10, 100, 500, 1000, 1500, 2000, 2500} {
-		for _, podCount := range []int{500} {
+		for _, podCount := range []int{10, 100, 500, 1000, 1500, 2000, 2500} {
 			start := time.Now()
 			res := testing.Benchmark(func(b *testing.B) { benchmarkScheduler(b, instanceCount, podCount) })
 			totalTime += time.Since(start) / time.Duration(res.N)
@@ -138,7 +137,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	start := time.Now()
 	podsScheduledInRound1 := 0
 	for i := 0; i < b.N; i++ {
-		nodes, _, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
+		nodes, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
 		if err != nil || len(nodes) == 0 {
 			b.FailNow()
 		}
