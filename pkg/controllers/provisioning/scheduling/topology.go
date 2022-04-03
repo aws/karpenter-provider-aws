@@ -497,3 +497,9 @@ func (t *Topology) Relax(p *v1.Pod) {
 		topology.RemoveOwner(podKey)
 	}
 }
+
+type matchingTopology struct {
+	topology              *TopologyGroup
+	controlsPodScheduling bool
+	selectsPod            bool
+}

@@ -76,12 +76,12 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 
 func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
-		func(pod *v1.Pod) *string { return p.removeTopologySpreadScheduleAnyway(pod) },
-		func(pod *v1.Pod) *string { return p.removePreferredPodAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removePreferredPodAntiAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.toleratePreferNoScheduleTaints(pod) },
+		p.removeTopologySpreadScheduleAnyway,
+		p.removePreferredPodAffinityTerm,
+		p.removePreferredPodAntiAffinityTerm,
+		p.removePreferredNodeAffinityTerm,
+		p.removeRequiredNodeAffinityTerm,
+		p.toleratePreferNoScheduleTaints,
 	} {
 		if reason := relaxFunc(pod); reason != nil {
 			logging.FromContext(ctx).Debugf("Relaxing soft constraints for pod since it previously failed to schedule, %s", ptr.StringValue(reason))

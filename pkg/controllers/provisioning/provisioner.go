@@ -108,7 +108,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	}
 
 	// Separate pods by scheduling constraints
-	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	nodes, err := p.scheduler.Solve(ctx, &p.Provisioner.Spec.Constraints, instanceTypes, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
