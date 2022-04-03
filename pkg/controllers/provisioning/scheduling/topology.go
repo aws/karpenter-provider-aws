@@ -60,9 +60,9 @@ type matchingTopology struct {
 	selectsPod            bool
 }
 
-// Update scans the pods provided and creates topology groups for any topologies that we need to track based off of
+// Initialize scans the pods provided and creates topology groups for any topologies that we need to track based off of
 // topology spreads, affinities, and anti-affinities specified in the pods.
-func (t *Topology) Update(ctx context.Context, pods ...*v1.Pod) error {
+func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) error {
 	var errs error
 	errs = multierr.Append(errs, t.trackExistingAntiAffinities(ctx))
 	for _, p := range pods {
@@ -474,6 +474,9 @@ func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName str
 	return requirements, nil
 }
 
+// Relax removes the pod as an owner of any topologies for which a soft topology constraints no longer exists.  This allows
+// the relaxation process which may have removed some terms that affect topology to be cause those topology constraints to
+// no longer be enforced during scheduling.
 func (t *Topology) Relax(p *v1.Pod) {
 	matching := map[uint64]*TopologyGroup{}
 	podKey := client.ObjectKeyFromObject(p)
