@@ -80,6 +80,7 @@ func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
 
 func (p *Provisioner) provision(ctx context.Context) error {
 	// Batch pods
+	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	items, window := p.batcher.Wait()
 	defer p.batcher.Flush()
 	// Filter pods
@@ -93,13 +94,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
-	// if we fail to schedule a pod it remains unschedulable and gets batched a few seconds later, we do this to prevent
-	// log spamming
-	if len(pods) > 0 {
-		logging.FromContext(ctx).Infof("Batched %d provisionable pod(s) of %d pod(s) in %s", len(pods), len(items), window)
-	} else {
-		return nil
-	}
+	logging.FromContext(ctx).Infof("Batched %d provisionable pod(s) of %d pod(s) in %s", len(pods), len(items), window)
 
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
