@@ -41,7 +41,8 @@ type Topology struct {
 	// topologies of pods with anti-affinity terms, so we can prevent scheduling the pods they have anti-affinity to
 	// in some cases.
 	inverseTopologies map[uint64]*TopologyGroup
-	requirements      *v1alpha5.Requirements
+	// Universe of options used to compute domains
+	requirements *v1alpha5.Requirements
 }
 
 func NewTopology(kubeClient client.Client, requirements *v1alpha5.Requirements) *Topology {
@@ -61,25 +62,63 @@ type matchingTopology struct {
 
 // Update scans the pods provided and creates topology groups for any topologies that we need to track based off of
 // topology spreads, affinities, and anti-affinities specified in the pods.
-func (t *Topology) Update(ctx context.Context, pods ...*v1.Pod) error {
-	var errs error
-	errs = multierr.Append(errs, t.updateAntiAffinity(ctx))
-	for _, p := range pods {
-		// need to first ensure that we know all of the topology constraints.  This may require looking up
-		// existing pods in the running cluster to determine zonal topology skew.
-		if err := t.updateTopologySpread(ctx, p); err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
-		}
-		if err := t.updateAffinity(ctx, p); err != nil {
-			errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
-		}
+func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error) {
+	errs = multierr.Append(errs, t.updateInverseAffinities(ctx))
+	for i := range pods {
+		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
 	}
 	return errs
 }
 
-// updateAntiAffinity is used to identify pods with anti-affinity terms so we can track those topologies.  We
+func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
+	// need to first ensure that we know all of the topology constraints.  This may require looking up
+	// existing pods in the running cluster to determine zonal topology skew.
+	if err := t.updateTopologySpread(ctx, p); err != nil {
+		errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
+	}
+	if err := t.updateAffinity(ctx, p); err != nil {
+		errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
+	}
+	return errs
+}
+
+// Update removes the pod as an owner of any topologies for which a soft topology constraints no longer exists.  This allows
+// the relaxation process which may have removed some terms that affect topology to be cause those topology constraints to
+// no longer be enforced during scheduling.
+func (t *Topology) Relax(p *v1.Pod) {
+	// TODO(tzneal) Dedup w/ Update. Deregister all topologies, and recompute for this pod
+	matching := map[uint64]*TopologyGroup{}
+	for _, topology := range t.topologies {
+		if !topology.IsOwnedBy(p.UID) || !topology.preferred {
+			continue
+		}
+		matching[topology.originatorHash] = topology
+	}
+
+	for _, tsc := range p.Spec.TopologySpreadConstraints {
+		if tsc.WhenUnsatisfiable != v1.ScheduleAnyway {
+			continue
+		}
+		delete(matching, apiobject.MustHash(tsc))
+	}
+	if pod.HasPodAffinity(p) {
+		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			delete(matching, apiobject.MustHash(term))
+		}
+	}
+	if pod.HasPodAntiAffinity(p) {
+		for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			delete(matching, apiobject.MustHash(term))
+		}
+	}
+	for _, topology := range matching {
+		topology.RemoveOwner(p.UID)
+	}
+}
+
+// updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
 // have to look at every pod in the cluster as there is no way to query for a pod with anti-affinity terms.
-func (t *Topology) updateAntiAffinity(ctx context.Context) error {
+func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 	var nodeList v1.NodeList
 	if err := t.kubeClient.List(ctx, &nodeList); err != nil {
 		return fmt.Errorf("listing nodes, %w", err)
@@ -120,7 +159,7 @@ func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
 		} else {
 			topologyGroup = existing
 		}
-		topologyGroup.AddOwner(client.ObjectKeyFromObject(p))
+		topologyGroup.AddOwner(p.UID)
 	}
 	return nil
 }
@@ -138,7 +177,7 @@ func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint
 		selector:    selector,
 		domains:     map[string]int32{},
 		namespaces:  sets.NewString(namespace),
-		owners:      map[client.ObjectKey]struct{}{},
+		owners:      map[types.UID]struct{}{},
 	}, nil
 }
 
@@ -155,7 +194,7 @@ func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.Strin
 		selector:   selector,
 		domains:    map[string]int32{},
 		namespaces: namespaces,
-		owners:     map[client.ObjectKey]struct{}{},
+		owners:     map[types.UID]struct{}{},
 	}, nil
 }
 
@@ -188,7 +227,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node,
 		if node != nil {
 			topologyGroup.RecordUsage(node.Labels[topologyGroup.Key])
 		}
-		topologyGroup.AddOwner(client.ObjectKeyFromObject(p))
+		topologyGroup.AddOwner(p.UID)
 	}
 	return nil
 }
@@ -226,7 +265,7 @@ func (t *Topology) updateAffinity(ctx context.Context, p *v1.Pod) error {
 		} else {
 			tg = existing
 		}
-		tg.AddOwner(client.ObjectKeyFromObject(p))
+		tg.AddOwner(p.UID)
 	}
 	return err
 }
@@ -348,9 +387,8 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 		}
 	}
 	// for anti-affinities, we need to also record where the pods with the anti-affinity are
-	key := client.ObjectKeyFromObject(p)
 	for _, tc := range t.inverseTopologies {
-		if tc.IsOwnedBy(key) {
+		if tc.IsOwnedBy(p.UID) {
 			domains := requirements.Get(tc.Key)
 			if domains.Len() != 0 {
 				if domain := domains.Values().List()[0]; domain != "" {
@@ -371,7 +409,7 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 func (t *Topology) getMatchingTopologies(p *v1.Pod) []matchingTopology {
 	var matchingTopologies []matchingTopology
 	for _, tc := range t.topologies {
-		controlsPodScheduling := tc.IsOwnedBy(client.ObjectKeyFromObject(p))
+		controlsPodScheduling := tc.IsOwnedBy(p.UID)
 		matchesPod := tc.Matches(p.Namespace, p.Labels)
 		if controlsPodScheduling || matchesPod {
 			matchingTopologies = append(matchingTopologies, matchingTopology{
@@ -466,40 +504,6 @@ func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName str
 		})
 	}
 	return requirements, nil
-}
-
-// Relax removes the pod as an owner of any topologies for which a soft topology constraints no longer exists.  This allows
-// the relaxation process which may have removed some terms that affect topology to be cause those topology constraints to
-// no longer be enforced during scheduling.
-func (t *Topology) Relax(p *v1.Pod) {
-	matching := map[uint64]*TopologyGroup{}
-	podKey := client.ObjectKeyFromObject(p)
-	for _, topology := range t.topologies {
-		if !topology.IsOwnedBy(podKey) || !topology.preferred {
-			continue
-		}
-		matching[topology.originatorHash] = topology
-	}
-
-	for _, tsc := range p.Spec.TopologySpreadConstraints {
-		if tsc.WhenUnsatisfiable != v1.ScheduleAnyway {
-			continue
-		}
-		delete(matching, apiobject.MustHash(tsc))
-	}
-	if pod.HasPodAffinity(p) {
-		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			delete(matching, apiobject.MustHash(term))
-		}
-	}
-	if pod.HasPodAntiAffinity(p) {
-		for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			delete(matching, apiobject.MustHash(term))
-		}
-	}
-	for _, topology := range matching {
-		topology.RemoveOwner(podKey)
-	}
 }
 
 func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) *client.ListOptions {

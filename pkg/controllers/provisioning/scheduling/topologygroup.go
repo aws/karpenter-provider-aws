@@ -21,9 +21,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/sets"
@@ -51,19 +51,22 @@ func (t TopologyType) String() string {
 
 // Topology is used to track pod counts that match a selector by the topology domain (e.g. SELECT COUNT(*) FROM pods GROUP BY(topology_ke
 type TopologyGroup struct {
-	Key     string
-	MaxSkew int32
-	Type    TopologyType
+	// Hashed Fields
+	Key         string
+	Type        TopologyType
+	namespaces  utilsets.String
+	rawSelector *metav1.LabelSelector // stored so we can easily hash
+	MaxSkew     int32
+	// Pod Index
+	owners map[types.UID]struct{} // Pods that have this topology as a scheduling rule
+	// Internal state
+	selector labels.Selector  // TODO(tzneal) consider optimizing later.
+	domains  map[string]int32 // TODO(ellistarn) explore replacing with a minheap
 
-	rawSelector    *metav1.LabelSelector // stored so we can easily hash
-	selector       labels.Selector       // non-hashable, but fast version used for selecting
-	domains        map[string]int32      // TODO(ellistarn) explore replacing with a minheap
-	maxCount       int32
-	namespaces     utilsets.String
-	owners         map[client.ObjectKey]struct{}
-	isInverse      bool // if true, this is tracking an inverse anti-affinity
-	originatorHash uint64
-	preferred      bool
+	maxCount       int32  // TODO(tzneal) deprecate and compute in place
+	isInverse      bool   // TODO(tzneal) consider deduping with inverseTopologies
+	originatorHash uint64 // TODO(tzneal) remove in favor of simplified relaxation
+	preferred      bool   // TODO(tzneal) remove in favor of simplified relaxation
 }
 
 func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
@@ -222,16 +225,16 @@ func (t *TopologyGroup) HasNonEmptyDomains() bool {
 	return false
 }
 
-func (t *TopologyGroup) AddOwner(key client.ObjectKey) {
+func (t *TopologyGroup) AddOwner(key types.UID) {
 	t.owners[key] = struct{}{}
 }
 
-func (t *TopologyGroup) RemoveOwner(key client.ObjectKey) {
+func (t *TopologyGroup) RemoveOwner(key types.UID) {
 	delete(t.owners, key)
 }
 
-func (t *TopologyGroup) IsOwnedBy(object client.ObjectKey) bool {
-	_, ok := t.owners[object]
+func (t *TopologyGroup) IsOwnedBy(key types.UID) bool {
+	_, ok := t.owners[key]
 	return ok
 }
 
