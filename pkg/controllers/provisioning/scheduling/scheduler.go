@@ -92,8 +92,6 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			progressing = false
 			// Relax preferences if pod has previously failed to schedule.
 			if s.preferences.Relax(ctx, pod) {
-				// keep resetting our count so as long as we are successfully relaxing a failed to schedule pod,
-				// we'll keep trying to schedule
 				topology.Relax(pod)
 				progressing = true
 			}
