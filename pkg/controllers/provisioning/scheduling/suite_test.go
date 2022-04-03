@@ -2045,7 +2045,7 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
-		It("should filter pod affinity topologies by namespace, matching pods namespace selector", func() {
+		It("should filter pod affinity topologies by namespace, empty namespace selector", func() {
 			if env.K8sVer.Minor() < 21 {
 				Skip("namespace selector is only supported on K8s >= 1.21.x")
 			}
@@ -2056,32 +2056,19 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 
-			ExpectCreated(ctx, env.Client, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other-ns-selector", Labels: map[string]string{"foo": "bar"}}})
+			ExpectCreated(ctx, env.Client, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "empty-ns-selector", Labels: map[string]string{"foo": "bar"}}})
 			affLabels := map[string]string{"security": "s2"}
 
-			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels, Namespace: "other-ns-selector"}})
+			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels, Namespace: "empty-ns-selector"}})
 			// affPod2 will try to get scheduled with affPod1
-			affPod2 := test.UnschedulablePod(test.PodOptions{
-				PodRequirements: []v1.PodAffinityTerm{{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: affLabels,
-					},
-					// select all pods, in all namespaces that match this selector
-					NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
-					// NamespaceSelector and Namespaces do overlap
-					Namespaces:        []string{"other-ns-selector"},
-					TopologyKey:       v1.LabelHostname,
-				}}})
-			affPod3 := test.UnschedulablePod(test.PodOptions{
-				PodRequirements: []v1.PodAffinityTerm{{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: affLabels,
-					},
-					// NamespaceSelector and Namespaces do not overlap
-					NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
-					Namespaces:        []string{"default"},
-					TopologyKey:       v1.LabelHostname,
-				}}})
+			affPod2 := test.UnschedulablePod(test.PodOptions{PodRequirements: []v1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: affLabels,
+				},
+				// select all pods in all namespaces since the selector is empty
+				NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{}},
+				TopologyKey:       v1.LabelHostname,
+			}}})
 
 			var pods []*v1.Pod
 			// create 10 nodes
@@ -2090,13 +2077,14 @@ var _ = Describe("Topology", func() {
 				TopologySpreadConstraints: topology,
 			})...)
 			// put our target pod on one of them
-			pods = append(pods, affPod1, affPod2, affPod3)
+			pods = append(pods, affPod1)
+			// and our pod with affinity should schedule on the same node
+			pods = append(pods, affPod2)
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
 			n1 := ExpectScheduled(ctx, env.Client, affPod1)
 			n2 := ExpectScheduled(ctx, env.Client, affPod2)
-			ExpectNotScheduled(ctx, env.Client, affPod3)
-			// should be scheduled on the same node due to the namespace selector
+			// should be scheduled on the same node due to the empty namespace selector
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
 	})
