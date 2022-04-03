@@ -253,15 +253,15 @@ func (t *TopologyGroup) Hash() uint64 {
 
 // InitializeWellKnown causes the topology group to initialize its domains with the valid well known domains from the
 // provisioner spec
-func (t *TopologyGroup) InitializeWellKnown(constraints *v1alpha5.Constraints) {
+func (t *TopologyGroup) InitializeWellKnown(requirements *v1alpha5.Requirements) {
 	// add our well known domain values
 	if t.Key == v1.LabelTopologyZone {
 		// we know about the zones that we can schedule to regardless of if nodes exist there
-		for _, zone := range constraints.Requirements.Zones().List() {
+		for _, zone := range requirements.Zones().List() {
 			t.RegisterDomain(zone)
 		}
 	} else if t.Key == v1alpha5.LabelCapacityType {
-		for _, ct := range constraints.Requirements.CapacityTypes().List() {
+		for _, ct := range requirements.CapacityTypes().List() {
 			t.RegisterDomain(ct)
 		}
 	}
