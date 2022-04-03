@@ -68,7 +68,7 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
-	topology := NewTopology(s.kubeClient, constraints)
+	topology := NewTopology(s.kubeClient, &constraints.Requirements)
 	if err := topology.Update(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}

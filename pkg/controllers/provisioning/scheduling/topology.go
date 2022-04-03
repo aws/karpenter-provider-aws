@@ -41,13 +41,13 @@ type Topology struct {
 	// topologies of pods with anti-affinity terms, so we can prevent scheduling the pods they have anti-affinity to
 	// in some cases.
 	inverseTopologies map[uint64]*TopologyGroup
-	constraints       *v1alpha5.Constraints
+	requirements      *v1alpha5.Requirements
 }
 
-func NewTopology(kubeClient client.Client, constraints *v1alpha5.Constraints) *Topology {
+func NewTopology(kubeClient client.Client, requirements *v1alpha5.Requirements) *Topology {
 	return &Topology{
 		kubeClient:        kubeClient,
-		constraints:       constraints,
+		requirements:      requirements,
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
@@ -268,7 +268,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 // initializeTopologyGroup initializes the topology group by registereding any well-domains and performing pod counts
 // against the cluster for any existing pods.
 func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGroup) error {
-	tg.InitializeWellKnown(t.constraints)
+	tg.InitializeWellKnown(t.requirements)
 	if tg.isInverse {
 		return nil
 	}
