@@ -94,7 +94,10 @@ func (p *Provisioner) provision(ctx context.Context) error {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
-	logging.FromContext(ctx).Infof("Batched %d provisionable pod(s) of %d pod(s) in %s", len(pods), len(items), window)
+	if len(pods) == 0 {
+		return nil
+	}
+	logging.FromContext(ctx).Infof("Batched %d pod(s) in %s", len(pods), window)
 
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
