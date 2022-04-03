@@ -72,7 +72,6 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	if err := topology.Initialize(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
-
 	daemonOverhead, err := s.getDaemonOverhead(ctx, constraints)
 	if err != nil {
 		return nil, err
@@ -92,7 +91,7 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			progressing = false
 			// Relax preferences if pod has previously failed to schedule.
 			if s.preferences.Relax(ctx, pod) {
-				topology.Relax(pod)
+				topology.Update(ctx, pod)
 				progressing = true
 			}
 
