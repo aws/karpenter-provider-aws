@@ -105,7 +105,6 @@ func TestSchedulingProfile(t *testing.T) {
 	}
 	fmt.Println("scheduled", totalPods, "against", totalNodes, "nodes in total in", totalTime, float64(totalPods)/totalTime.Seconds(), "pods/sec")
 	tw.Flush()
-
 }
 
 func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
@@ -136,14 +135,16 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	// Pack benchmark
 	start := time.Now()
 	podsScheduledInRound1 := 0
+	nodesInRound1 := 0
 	for i := 0; i < b.N; i++ {
-		nodes, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
-		if err != nil || len(nodes) == 0 {
+		nodes, err := scheduler.Solve(ctx, &provisioner.Spec.Constraints, instanceTypes, pods)
+		if err != nil {
 			b.FailNow()
 		}
 		if i == 0 {
 			for _, n := range nodes {
 				podsScheduledInRound1 += len(n.Pods)
+				nodesInRound1 = len(nodes)
 			}
 		}
 	}
@@ -151,6 +152,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	podsPerSec := float64(len(pods)) / (duration.Seconds() / float64(b.N))
 	b.ReportMetric(podsPerSec, "pods/sec")
 	b.ReportMetric(float64(podsScheduledInRound1), "pods")
+	b.ReportMetric(float64(nodesInRound1), "nodes")
 
 	// we don't care if it takes a bit of time to schedule a few pods as there is some setup time required for sorting
 	// instance types, computing topologies, etc.  We want to ensure that the larger batches of pods don't become too
