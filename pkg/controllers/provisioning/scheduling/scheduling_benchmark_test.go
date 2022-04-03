@@ -46,7 +46,7 @@ import (
 )
 
 const MinPodsPerSec = 100.0
-const PrintStats = true
+const PrintStats = false
 
 var r = rand.New(rand.NewSource(42))
 

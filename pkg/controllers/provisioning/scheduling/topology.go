@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/apiobject"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -54,13 +53,7 @@ func NewTopology(kubeClient client.Client, requirements *v1alpha5.Requirements) 
 	}
 }
 
-type matchingTopology struct {
-	topology              *TopologyGroup
-	controlsPodScheduling bool
-	selectsPod            bool
-}
-
-// Update scans the pods provided and creates topology groups for any topologies that we need to track based off of
+// Initialize scans the pods provided and creates topology groups for any topologies that we need to track based off of
 // topology spreads, affinities, and anti-affinities specified in the pods.
 func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error) {
 	errs = multierr.Append(errs, t.updateInverseAffinities(ctx))
@@ -71,6 +64,12 @@ func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error)
 }
 
 func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
+	for _, topology := range t.topologies {
+		if topology.IsOwnedBy(p.UID) {
+			topology.RemoveOwner(p.UID)
+		}
+	}
+
 	// need to first ensure that we know all of the topology constraints.  This may require looking up
 	// existing pods in the running cluster to determine zonal topology skew.
 	if err := t.updateTopologySpread(ctx, p); err != nil {
@@ -80,40 +79,6 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
 		errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
 	}
 	return errs
-}
-
-// Update removes the pod as an owner of any topologies for which a soft topology constraints no longer exists.  This allows
-// the relaxation process which may have removed some terms that affect topology to be cause those topology constraints to
-// no longer be enforced during scheduling.
-func (t *Topology) Relax(p *v1.Pod) {
-	// TODO(tzneal) Dedup w/ Update. Deregister all topologies, and recompute for this pod
-	matching := map[uint64]*TopologyGroup{}
-	for _, topology := range t.topologies {
-		if !topology.IsOwnedBy(p.UID) || !topology.preferred {
-			continue
-		}
-		matching[topology.originatorHash] = topology
-	}
-
-	for _, tsc := range p.Spec.TopologySpreadConstraints {
-		if tsc.WhenUnsatisfiable != v1.ScheduleAnyway {
-			continue
-		}
-		delete(matching, apiobject.MustHash(tsc))
-	}
-	if pod.HasPodAffinity(p) {
-		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			delete(matching, apiobject.MustHash(term))
-		}
-	}
-	if pod.HasPodAntiAffinity(p) {
-		for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			delete(matching, apiobject.MustHash(term))
-		}
-	}
-	for _, topology := range matching {
-		topology.RemoveOwner(p.UID)
-	}
 }
 
 // updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
@@ -145,11 +110,6 @@ func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
 		if err != nil {
 			return err
 		}
-		// a preferred constraint that may be relaxed
-		if cs.WhenUnsatisfiable == v1.ScheduleAnyway {
-			topologyGroup.originatorHash = apiobject.MustHash(cs)
-			topologyGroup.preferred = true
-		}
 		hash := topologyGroup.Hash()
 		if existing, ok := t.topologies[hash]; !ok {
 			if err := t.initializeTopologyGroup(ctx, topologyGroup); err != nil {
@@ -165,16 +125,16 @@ func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
 }
 
 func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint) (*TopologyGroup, error) {
-	selector, err := metav1.LabelSelectorAsSelector(cs.LabelSelector)
+	// validate our label selector that the topology group will later create as needed
+	_, err := metav1.LabelSelectorAsSelector(cs.LabelSelector)
 	if err != nil {
 		return nil, fmt.Errorf("creating label selector: %w", err)
 	}
 	return &TopologyGroup{
 		Key:         cs.TopologyKey,
-		MaxSkew:     cs.MaxSkew,
+		maxSkew:     cs.MaxSkew,
 		Type:        TopologyTypeSpread,
 		rawSelector: cs.LabelSelector,
-		selector:    selector,
 		domains:     map[string]int32{},
 		namespaces:  sets.NewString(namespace),
 		owners:      map[types.UID]struct{}{},
@@ -182,19 +142,19 @@ func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint
 }
 
 func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.String, topoType TopologyType) (*TopologyGroup, error) {
-	selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+	_, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
 	if err != nil {
 		return nil, fmt.Errorf("creating label selector: %w", err)
 	}
 
 	return &TopologyGroup{
-		Key:        term.TopologyKey,
-		MaxSkew:    math.MaxInt32,
-		Type:       topoType,
-		selector:   selector,
-		domains:    map[string]int32{},
-		namespaces: namespaces,
-		owners:     map[types.UID]struct{}{},
+		Key:         term.TopologyKey,
+		maxSkew:     math.MaxInt32,
+		Type:        topoType,
+		rawSelector: term.LabelSelector,
+		domains:     map[string]int32{},
+		namespaces:  namespaces,
+		owners:      map[types.UID]struct{}{},
 	}, nil
 }
 
@@ -214,13 +174,10 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node,
 			return err
 		}
 
-		topologyGroup.isInverse = true
 		hash := topologyGroup.Hash()
 		if existing, ok := t.inverseTopologies[hash]; !ok {
 			t.inverseTopologies[hash] = topologyGroup
-			if err := t.initializeTopologyGroup(ctx, topologyGroup); err != nil {
-				return err
-			}
+			topologyGroup.InitializeWellKnown(t.requirements)
 		} else {
 			topologyGroup = existing
 		}
@@ -295,10 +252,6 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 		if err != nil {
 			return nil, err
 		}
-		// we only store the originator for preferred terms as those are the only topologies that we may need
-		// to stop tracking mid-schedule
-		topology.originatorHash = apiobject.MustHash(term)
-		topology.preferred = true
 		topologyGroups = append(topologyGroups, topology)
 	}
 	return topologyGroups, nil
@@ -308,9 +261,6 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 // against the cluster for any existing pods.
 func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGroup) error {
 	tg.InitializeWellKnown(t.requirements)
-	if tg.isInverse {
-		return nil
-	}
 
 	podList := &v1.PodList{}
 	// collect the pods from all the specified namespaces (don't see a way to query multiple namespaces
@@ -377,7 +327,7 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 	for _, tc := range t.topologies {
 		if tc.Matches(p.Namespace, podLabels) {
 			domains := requirements.Get(tc.Key)
-			if domains.Len() != 0 {
+			if domains.Len() == 1 {
 				if domain := domains.Values().List()[0]; domain != "" {
 					tc.RecordUsage(domain)
 				}
@@ -388,13 +338,18 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 	for _, tc := range t.inverseTopologies {
 		if tc.IsOwnedBy(p.UID) {
 			domains := requirements.Get(tc.Key)
-			if domains.Len() != 0 {
+			if domains.Len() == 1 {
 				if domain := domains.Values().List()[0]; domain != "" {
 					tc.RecordUsage(domain)
 				} else {
 					err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
 				}
 			} else {
+				// TODO(todd): try to construct a case to get here, or convince myself it's not possible.  We treat anti-affinities
+				// somewhat like a topology spread in that we need to land in any empty domain.  Topology spread does this so it can
+				// keep count, the anti-affinity could create a node selector like in [zone-a, zone-b, zone-c], but currently
+				// we just choose one and commit.  If we don't do that, we would need to record usage in all of those domains and prevent
+				// some other pods from scheduling this round.
 				err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
 			}
 		}
@@ -404,26 +359,16 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
-func (t *Topology) getMatchingTopologies(p *v1.Pod) []matchingTopology {
-	var matchingTopologies []matchingTopology
+func (t *Topology) getMatchingTopologies(p *v1.Pod) []*TopologyGroup {
+	var matchingTopologies []*TopologyGroup
 	for _, tc := range t.topologies {
-		controlsPodScheduling := tc.IsOwnedBy(p.UID)
-		matchesPod := tc.Matches(p.Namespace, p.Labels)
-		if controlsPodScheduling || matchesPod {
-			matchingTopologies = append(matchingTopologies, matchingTopology{
-				topology:              tc,
-				controlsPodScheduling: controlsPodScheduling,
-				selectsPod:            matchesPod,
-			})
+		if tc.IsOwnedBy(p.UID) {
+			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}
 	for _, tc := range t.inverseTopologies {
 		if tc.Matches(p.Namespace, p.Labels) {
-			matchingTopologies = append(matchingTopologies, matchingTopology{
-				topology:              tc,
-				controlsPodScheduling: true,
-				selectsPod:            true,
-			})
+			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}
 	return matchingTopologies
@@ -434,65 +379,14 @@ func (t *Topology) getMatchingTopologies(p *v1.Pod) []matchingTopology {
 // the case of a set of requirements that cannot be satisfied.
 //gocyclo: ignore
 func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName string, p *v1.Pod) (v1alpha5.Requirements, error) {
-	for _, match := range t.getMatchingTopologies(p) {
-		topology := match.topology
+	for _, topology := range t.getMatchingTopologies(p) {
 		if topology.Key == v1.LabelHostname {
 			topology.RegisterDomain(nodeName)
 		}
 
-		// There is a pod that wants to avoid this pod. To ensure this occurs, we can't leave the topology domain for
-		// this pod flexible (e.g zone in [zone-1, zone-2, zone-3] and have to commit.  If we didn't to this, we would
-		// need to pre-scan the batch of pods to determine if the pod A has anti-affinity to pod B relationship exists,
-		// and fail scheduling pod A until the next batch cycle.
-		// TODO: is this worthwhile?  We already fail to schedule the case pod A has affinity to pod B if pod B is not  fully committed
-		if match.selectsPod && !match.controlsPodScheduling && topology.Type == TopologyTypePodAntiAffinity {
-			nextDomain, _, _ := topology.NextDomainMinimizeSkew(requirements)
-			if nextDomain == "" {
-				return v1alpha5.Requirements{}, fmt.Errorf("unsatisfiable %s topology constraint for key %s", topology.Type, topology.Key)
-			}
-			requirements = requirements.Add(v1.NodeSelectorRequirement{
-				Key:      topology.Key,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{nextDomain},
-			})
-			continue
-		}
-
-		if !match.controlsPodScheduling {
-			continue
-		}
-
-		selfSelectingPodAffinity := topology.Type == TopologyTypePodAffinity &&
-			match.selectsPod && match.controlsPodScheduling &&
-			!topology.HasNonEmptyDomains()
-
-		var nextDomain string
-		var maxSkew int32
-		var increasingSkew bool
-		switch topology.Type {
-		case TopologyTypeSpread:
-			nextDomain, maxSkew, increasingSkew = topology.NextDomainMinimizeSkew(requirements)
-			if maxSkew > topology.MaxSkew && increasingSkew {
-				if topology.Key == v1.LabelHostname {
-					// we can always create a new hostname, so instead of refusing to schedule, create a new node
-					nextDomain = ""
-				} else {
-					return v1alpha5.Requirements{}, fmt.Errorf("would violate max-skew for topology key %s", topology.Key)
-				}
-			}
-		case TopologyTypePodAffinity:
-			nextDomain = topology.MaxNonZeroDomain(requirements)
-			// we don't have a valid domain, but it's pod affinity and the pod itself will satisfy the topology
-			// constraint, so check for any domain
-			if nextDomain == "" && selfSelectingPodAffinity {
-				nextDomain = topology.AnyDomain(requirements)
-			}
-		case TopologyTypePodAntiAffinity:
-			nextDomain = topology.EmptyDomain(requirements)
-		}
-
-		if nextDomain == "" {
-			return v1alpha5.Requirements{}, fmt.Errorf("unsatisfiable %s topology constraint for key %s", topology.Type, topology.Key)
+		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
+		if err != nil {
+			return v1alpha5.Requirements{}, err
 		}
 
 		requirements = requirements.Add(v1.NodeSelectorRequirement{
