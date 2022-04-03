@@ -63,7 +63,7 @@ func (s Set) Hash() (uint64, error) {
 // It is required by the Kubernetes CRDs code generation
 func (s Set) DeepCopy() Set {
 	// it's faster to manually copy this then to use UnsortedList() and the constructor
-	values := sets.NewString()
+	values := make(sets.String, len(s.values))
 	for k := range s.values {
 		values[k] = sets.Empty{}
 	}
