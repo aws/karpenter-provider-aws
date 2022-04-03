@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/prometheus/client_golang/prometheus"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -61,60 +62,98 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) (nodes []*Node, err error) {
+func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-	constraints := provisioner.Spec.Constraints.DeepCopy()
 
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
 	topology := NewTopology(s.kubeClient, constraints)
-
-	nodeSet, err := NewNodeSet(ctx, topology, constraints, instanceTypes, s.kubeClient)
-	if err != nil {
-		return nil, fmt.Errorf("constructing nodeset, %w", err)
-	}
-
 	if err := topology.Update(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
-	schedulingErrors := map[*v1.Pod]error{}
-	unschedulablePods := append([]*v1.Pod{}, pods...)
+	daemonOverhead, err := s.getDaemonOverhead(ctx, constraints)
+	if err != nil {
+		return nil, err
+	}
 
-	previousUnschedulableCount := 0
 	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
 	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
 	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
 	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
-	for len(unschedulablePods) > 0 && len(unschedulablePods) != previousUnschedulableCount {
-		previousUnschedulableCount = len(unschedulablePods)
-		var newUnschedulablePods []*v1.Pod
-		for _, p := range unschedulablePods {
+	var nodes []*Node
+	progressing := true
+	errors := map[*v1.Pod]error{}
+	for len(pods) > 0 && progressing {
+		var unschedulable []*v1.Pod
+		for _, pod := range pods {
+			progressing = false
 			// Relax preferences if pod has previously failed to schedule.
-			if s.preferences.Relax(ctx, p) {
+			if s.preferences.Relax(ctx, pod) {
 				// keep resetting our count so as long as we are successfully relaxing a failed to schedule pod,
 				// we'll keep trying to schedule
-				topology.Relax(p)
-				previousUnschedulableCount++
+				topology.Relax(pod)
+				progressing = true
 			}
-			if err := nodeSet.Schedule(ctx, p); err != nil {
-				schedulingErrors[p] = err
-				newUnschedulablePods = append(newUnschedulablePods, p)
+
+			// Use existing node or create a node one
+			node := s.scheduleExisting(pod, nodes, topology)
+			if node == nil {
+				node = NewNode(constraints, daemonOverhead, instanceTypes)
+				if err := node.Add(topology, pod); err != nil {
+					unschedulable = append(unschedulable, pod)
+					errors[pod] = err
+					continue
+				}
+				nodes = append(nodes, node)
 			}
+
+			// Record topology decision for future pods
+			if err := topology.Record(pod, node.Constraints.Requirements); err != nil {
+				return nil, fmt.Errorf("recording topology decision, %w", err)
+			}
+			progressing = true
 		}
-		unschedulablePods = newUnschedulablePods
+		pods = unschedulable
 	}
 
-	if len(unschedulablePods) != 0 {
-		for _, up := range unschedulablePods {
-			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(up)).Errorf("Scheduling pod, %s", schedulingErrors[up])
-		}
-		logging.FromContext(ctx).Errorf("Failed to schedule %d pod(s)", len(unschedulablePods))
+	// Any remaining pods have failed to schedule
+	for _, pod := range pods {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", errors[pod])
 	}
+	return nodes, nil
+}
 
-	return nodeSet.nodes, nil
+func (s *Scheduler) scheduleExisting(pod *v1.Pod, nodes []*Node, topology *Topology) *Node {
+	// Try nodes in ascending order of number of pods to more evenly distribute nodes, 100ms at 2000 nodes.
+	sort.Slice(nodes, func(a, b int) bool { return len(nodes[a].Pods) < len(nodes[b].Pods) })
+	for _, node := range nodes {
+		if err := node.Add(topology, pod); err == nil {
+			return node
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) getDaemonOverhead(ctx context.Context, constraints *v1alpha5.Constraints) (v1.ResourceList, error) {
+	daemonSetList := &appsv1.DaemonSetList{}
+	if err := s.kubeClient.List(ctx, daemonSetList); err != nil {
+		return nil, fmt.Errorf("listing daemonsets, %w", err)
+	}
+	var daemons []*v1.Pod
+	for _, daemonSet := range daemonSetList.Items {
+		p := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
+		if err := constraints.Taints.Tolerates(p); err != nil {
+			continue
+		}
+		if err := constraints.Requirements.Compatible(v1alpha5.NewPodRequirements(p)); err != nil {
+			continue
+		}
+		daemons = append(daemons, p)
+	}
+	return resources.RequestsForPods(daemons...), nil
 }
 
 func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {
