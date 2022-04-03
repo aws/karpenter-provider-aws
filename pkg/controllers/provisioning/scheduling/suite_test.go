@@ -2061,14 +2061,27 @@ var _ = Describe("Topology", func() {
 
 			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels, Namespace: "other-ns-selector"}})
 			// affPod2 will try to get scheduled with affPod1
-			affPod2 := test.UnschedulablePod(test.PodOptions{PodRequirements: []v1.PodAffinityTerm{{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: affLabels,
-				},
-				// select all pods, in all namespaces that match this selector
-				NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
-				TopologyKey:       v1.LabelHostname,
-			}}})
+			affPod2 := test.UnschedulablePod(test.PodOptions{
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					// select all pods, in all namespaces that match this selector
+					NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+					// NamespaceSelector and Namespaces do overlap
+					Namespaces:        []string{"other-ns-selector"},
+					TopologyKey:       v1.LabelHostname,
+				}}})
+			affPod3 := test.UnschedulablePod(test.PodOptions{
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					// NamespaceSelector and Namespaces do not overlap
+					NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+					Namespaces:        []string{"default"},
+					TopologyKey:       v1.LabelHostname,
+				}}})
 
 			var pods []*v1.Pod
 			// create 10 nodes
@@ -2077,13 +2090,12 @@ var _ = Describe("Topology", func() {
 				TopologySpreadConstraints: topology,
 			})...)
 			// put our target pod on one of them
-			pods = append(pods, affPod1)
-			// and our pod with affinity should schedule on the same node
-			pods = append(pods, affPod2)
+			pods = append(pods, affPod1, affPod2, affPod3)
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
 			n1 := ExpectScheduled(ctx, env.Client, affPod1)
 			n2 := ExpectScheduled(ctx, env.Client, affPod2)
+			ExpectNotScheduled(ctx, env.Client, affPod3)
 			// should be scheduled on the same node due to the namespace selector
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
