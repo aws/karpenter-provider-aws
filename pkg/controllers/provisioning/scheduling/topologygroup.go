@@ -26,11 +26,8 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
-	"github.com/aws/karpenter/pkg/utils/pod"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -259,9 +256,9 @@ func (t *TopologyGroup) Hash() uint64 {
 	return hash
 }
 
-// initializeWellKnown causes the topology group to initialize its domains with the valid well known domains from the
+// InitializeWellKnown causes the topology group to initialize its domains with the valid well known domains from the
 // provisioner spec
-func (t *TopologyGroup) initializeWellKnown(constraints *v1alpha5.Constraints) {
+func (t *TopologyGroup) InitializeWellKnown(constraints *v1alpha5.Constraints) {
 	// add our well known domain values
 	if t.Key == v1.LabelTopologyZone {
 		// we know about the zones that we can schedule to regardless of if nodes exist there
@@ -273,24 +270,4 @@ func (t *TopologyGroup) initializeWellKnown(constraints *v1alpha5.Constraints) {
 			t.RegisterDomain(ct)
 		}
 	}
-}
-
-func IgnoredForTopology(p *v1.Pod) bool {
-	return !pod.IsScheduled(p) || pod.IsTerminal(p) || pod.IsTerminating(p)
-}
-
-func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) *client.ListOptions {
-	selector := labels.Everything()
-	if labelSelector == nil {
-		return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
-	}
-	for key, value := range labelSelector.MatchLabels {
-		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
-		selector = selector.Add(*requirement)
-	}
-	for _, expression := range labelSelector.MatchExpressions {
-		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
-		selector = selector.Add(*requirement)
-	}
-	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 }
