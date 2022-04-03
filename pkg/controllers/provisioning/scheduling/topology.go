@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -51,6 +52,12 @@ func NewTopology(kubeClient client.Client, constraints *v1alpha5.Constraints) *T
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
+}
+
+type matchingTopology struct {
+	topology              *TopologyGroup
+	controlsPodScheduling bool
+	selectsPod            bool
 }
 
 // Update scans the pods provided and creates topology groups for any topologies that we need to track based off of
@@ -272,7 +279,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 // initializeTopologyGroup initializes the topology group by registereding any well-domains and performing pod counts
 // against the cluster for any existing pods.
 func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGroup) error {
-	tg.initializeWellKnown(t.constraints)
+	tg.InitializeWellKnown(t.constraints)
 	if tg.isInverse {
 		return nil
 	}
@@ -498,8 +505,22 @@ func (t *Topology) Relax(p *v1.Pod) {
 	}
 }
 
-type matchingTopology struct {
-	topology              *TopologyGroup
-	controlsPodScheduling bool
-	selectsPod            bool
+func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) *client.ListOptions {
+	selector := labels.Everything()
+	if labelSelector == nil {
+		return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+	}
+	for key, value := range labelSelector.MatchLabels {
+		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
+		selector = selector.Add(*requirement)
+	}
+	for _, expression := range labelSelector.MatchExpressions {
+		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+		selector = selector.Add(*requirement)
+	}
+	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+}
+
+func IgnoredForTopology(p *v1.Pod) bool {
+	return !pod.IsScheduled(p) || pod.IsTerminal(p) || pod.IsTerminating(p)
 }
