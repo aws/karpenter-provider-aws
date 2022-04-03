@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/aws/karpenter/pkg/test"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"math"
 	"math/rand"
 	"os"
 	"runtime/pprof"
@@ -45,6 +46,7 @@ import (
 )
 
 const MinPodsPerSec = 100.0
+const PrintStats = true
 
 var r = rand.New(rand.NewSource(42))
 
@@ -142,9 +144,31 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 			b.FailNow()
 		}
 		if i == 0 {
+
+			minPods := math.MaxInt64
+			maxPods := 0
+			var podCounts []int
 			for _, n := range nodes {
+				podCounts = append(podCounts, len(n.Pods))
 				podsScheduledInRound1 += len(n.Pods)
 				nodesInRound1 = len(nodes)
+				if len(n.Pods) > maxPods {
+					maxPods = len(n.Pods)
+				}
+				if len(n.Pods) < minPods {
+					minPods = len(n.Pods)
+				}
+			}
+			if PrintStats {
+				meanPodsPerNode := float64(podsScheduledInRound1) / float64(nodesInRound1)
+				variance := 0.0
+				for _, pc := range podCounts {
+					variance += math.Pow(float64(pc)-meanPodsPerNode, 2.0)
+				}
+				variance /= float64(nodesInRound1)
+				stddev := math.Sqrt(variance)
+				fmt.Printf("%d instance types %d pods resulted in %d nodes with pods per node min=%d max=%d mean=%f stddev=%f\n",
+					instanceCount, podCount, nodesInRound1, minPods, maxPods, meanPodsPerNode, stddev)
 			}
 		}
 	}
