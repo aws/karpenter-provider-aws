@@ -365,9 +365,7 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 	for _, namespace := range namespaceList.Items {
 		selected.Insert(namespace.Name)
 	}
-	if len(namespaces) > 0 {
-		return selected.Intersection(sets.NewString(namespaces...)), nil
-	}
+	selected.Insert(namespaces...)
 	return selected, nil
 }
 
