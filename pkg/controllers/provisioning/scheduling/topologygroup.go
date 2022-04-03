@@ -15,20 +15,18 @@ limitations under the License.
 package scheduling
 
 import (
-	"k8s.io/apimachinery/pkg/util/runtime"
-
-	"github.com/aws/karpenter/pkg/utils/sets"
-
 	"math"
 
 	"github.com/mitchellh/hashstructure/v2"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type TopologyType byte
@@ -61,7 +59,7 @@ type TopologyGroup struct {
 	selector       labels.Selector       // non-hashable, but fast version used for selecting
 	domains        map[string]int32      // TODO(ellistarn) explore replacing with a minheap
 	maxCount       int32
-	namespaces     sets.Set
+	namespaces     utilsets.String
 	owners         map[client.ObjectKey]struct{}
 	isInverse      bool // if true, this is tracking an inverse anti-affinity
 	originatorHash uint64
@@ -69,10 +67,7 @@ type TopologyGroup struct {
 }
 
 func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
-	if !t.namespaces.Has(namespace) {
-		return false
-	}
-	return t.selector.Matches(podLabels)
+	return t.namespaces.Has(namespace) && t.selector.Matches(podLabels)
 }
 
 func (t *TopologyGroup) RecordUsage(domain string) {
@@ -244,7 +239,7 @@ func (t *TopologyGroup) Hash() uint64 {
 	hash, err := hashstructure.Hash(struct {
 		TopologyKey   string
 		Type          TopologyType
-		Namespaces    sets.Set
+		Namespaces    utilsets.String
 		LabelSelector *metav1.LabelSelector
 	}{
 		TopologyKey:   t.Key,
