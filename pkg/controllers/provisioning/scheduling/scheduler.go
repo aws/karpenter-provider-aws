@@ -98,6 +98,9 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 		node := s.scheduleExisting(pod, nodes)
 		if node == nil {
 			node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
+			// we created a new hostname, so ensure all topologies are aware
+			topology.Register(v1.LabelHostname, node.Hostname)
+
 			if errors[pod] = node.Add(pod); errors[pod] != nil {
 				relaxed := s.preferences.Relax(ctx, pod)
 				if relaxed {

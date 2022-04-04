@@ -119,13 +119,10 @@ func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
 	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
 }
 
-// Register ensures that the topology is aware of the given domain names.  If the domain already exists, the count is not
-// modified.
+// Register ensures that the topology is aware of the given domain names.
 func (t *TopologyGroup) Register(domains ...string) {
 	for _, domain := range domains {
-		if _, ok := t.domains[domain]; !ok {
-			t.domains[domain] = 0
-		}
+		t.domains[domain] = 0
 	}
 }
 

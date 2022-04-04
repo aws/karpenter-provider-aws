@@ -123,14 +123,8 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 // Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
 // affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
 // the case of a set of requirements that cannot be satisfied.
-func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeHostname string, p *v1.Pod) (v1alpha5.Requirements, error) {
+func (t *Topology) Requirements(requirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
 	for _, topology := range t.getMatchingTopologies(p) {
-		// the node name may be brand new and unknown to the topology, so we need to ensure that the topology
-		// is aware that it's a valid hostname
-		if topology.Key == v1.LabelHostname {
-			topology.Register(nodeHostname)
-		}
-
 		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
 		if err != nil {
 			return v1alpha5.Requirements{}, err
@@ -143,6 +137,20 @@ func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeHostname
 		})
 	}
 	return requirements, nil
+}
+
+// Register is used to register a domain as available across topologies for the given topology key.
+func (t *Topology) Register(topologyKey string, domain string) {
+	for _, topology := range t.topologies {
+		if topology.Key == topologyKey {
+			topology.Register(domain)
+		}
+	}
+	for _, topology := range t.inverseTopologies {
+		if topology.Key == topologyKey {
+			topology.Register(domain)
+		}
+	}
 }
 
 // updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
