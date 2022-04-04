@@ -68,6 +68,10 @@ func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error)
 	return errs
 }
 
+// Update unregisters the pod as the owner of all affinities and then creates any new topologies based on the pod spec
+// registered the pod as the owner of all associated affinities, new or old.  This allows Update() to be called after
+// relaxation of a preference to properly break the topology <-> owner relationship so that the preferred topology will
+// no longer influence scheduling.
 func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 	for _, topology := range t.topologies {
 		topology.RemoveOwner(p.UID)
@@ -101,7 +105,7 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 	return nil
 }
 
-// Record records the topology changes given that pod p schedule on node n
+// Record records the topology changes given that pod p schedule on a node with the given requirements
 func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	// once we've now committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
