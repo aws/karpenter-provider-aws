@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -1204,6 +1205,8 @@ var _ = Describe("Topology", func() {
 
 	Context("Combined Hostname, Zonal, and Capacity Type Topology", func() {
 		It("should spread pods while respecting all constraints", func() {
+			// ensure we've got an instance type for every zone/capacity-type pair
+			cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1220,33 +1223,19 @@ var _ = Describe("Topology", func() {
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
 				MaxSkew:           3,
 			}}
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(2, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
-			)
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).ToNot(ContainElements(BeNumerically(">", 1)))
-			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 2)))
-			ExpectSkew(ctx, env.Client, "default", &topology[2]).ToNot(ContainElements(BeNumerically(">", 3)))
 
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(3, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
-			)
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).ToNot(ContainElements(BeNumerically(">", 3)))
-			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 2)))
-			ExpectSkew(ctx, env.Client, "default", &topology[2]).ToNot(ContainElements(BeNumerically(">", 3)))
-
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(5, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
-			)
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).ToNot(ContainElements(BeNumerically(">", 5)))
-			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 4)))
-			ExpectSkew(ctx, env.Client, "default", &topology[2]).ToNot(ContainElements(BeNumerically(">", 5)))
-
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(11, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
-			)
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).ToNot(ContainElements(BeNumerically(">", 11)))
-			ExpectSkew(ctx, env.Client, "default", &topology[1]).ToNot(ContainElements(BeNumerically(">", 8)))
-			ExpectSkew(ctx, env.Client, "default", &topology[2]).ToNot(ContainElements(BeNumerically(">", 9)))
+			// add varying numbers of pods, checking after each scheduling to ensure that our max required max skew
+			// has not been violated for each constraint
+			for i := 1; i < 25; i++ {
+				pods := MakePods(i, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})
+				ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+				ExpectMaxSkew(ctx, env.Client, "default", &topology[0]).To(BeNumerically("<=", 1))
+				ExpectMaxSkew(ctx, env.Client, "default", &topology[1]).To(BeNumerically("<=", 2))
+				ExpectMaxSkew(ctx, env.Client, "default", &topology[2]).To(BeNumerically("<=", 3))
+				for _, pod := range pods {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
+			}
 		})
 	})
 
@@ -1403,7 +1392,7 @@ var _ = Describe("Topology", func() {
 			}))[0]
 			ExpectScheduled(ctx, env.Client, pod)
 		})
-		It("should respect pod affinity", func() {
+		It("should respect pod affinity (hostname)", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelHostname,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -2668,6 +2657,47 @@ func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
 	return pods
 }
 
+func ExpectMaxSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
+	nodes := &v1.NodeList{}
+	Expect(c.List(ctx, nodes)).To(Succeed())
+	pods := &v1.PodList{}
+	Expect(c.List(ctx, pods, scheduling.TopologyListOptions(namespace, constraint.LabelSelector))).To(Succeed())
+	skew := map[string]int{}
+	for i, pod := range pods.Items {
+		if scheduling.IgnoredForTopology(&pods.Items[i]) {
+			continue
+		}
+		for _, node := range nodes.Items {
+			if pod.Spec.NodeName == node.Name {
+				if constraint.TopologyKey == v1.LabelHostname {
+					skew[node.Name]++ // Check node name since hostname labels aren't applied
+				}
+				if constraint.TopologyKey == v1.LabelTopologyZone {
+					if key, ok := node.Labels[constraint.TopologyKey]; ok {
+						skew[key]++
+					}
+				}
+				if constraint.TopologyKey == v1alpha5.LabelCapacityType {
+					if key, ok := node.Labels[constraint.TopologyKey]; ok {
+						skew[key]++
+					}
+				}
+			}
+		}
+	}
+
+	var minCount = math.MaxInt
+	var maxCount = math.MinInt
+	for _, count := range skew {
+		if count < minCount {
+			minCount = count
+		}
+		if count > maxCount {
+			maxCount = count
+		}
+	}
+	return Expect(maxCount - minCount)
+}
 func ExpectSkew(ctx context.Context, c client.Client, namespace string, constraint *v1.TopologySpreadConstraint) Assertion {
 	nodes := &v1.NodeList{}
 	Expect(c.List(ctx, nodes)).To(Succeed())
