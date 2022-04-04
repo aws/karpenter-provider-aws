@@ -70,7 +70,7 @@ func NewTopologyGroup(topologyType TopologyType, key string, namespaces utilsets
 		domainCounts[domain] = 0
 	}
 	return &TopologyGroup{
-		Type:       TopologyTypeSpread,
+		Type:       topologyType,
 		Key:        key,
 		namespaces: namespaces,
 		selector:   labelSelector,
@@ -119,9 +119,13 @@ func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
 	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
 }
 
+// Register ensures that the topology is aware of the given domain names.  If the domain already exists, the count is not
+// modified.
 func (t *TopologyGroup) Register(domains ...string) {
 	for _, domain := range domains {
-		t.domains[domain] = 0
+		if _, ok := t.domains[domain]; !ok {
+			t.domains[domain] = 0
+		}
 	}
 }
 
