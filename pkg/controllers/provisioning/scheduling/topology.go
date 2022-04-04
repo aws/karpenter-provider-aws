@@ -70,6 +70,12 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 		topology.RemoveOwner(p.UID)
 	}
 
+	if pod.HasPodAntiAffinity(p) {
+		if err := t.updateInverseAntiAffinity(ctx, p, nil); err != nil {
+			return fmt.Errorf("updating inverse anti-affinities, %w", err)
+		}
+	}
+
 	topologies := t.newForTopologies(p)
 	affinities, err := t.newForAffinities(ctx, p)
 	if err != nil {
