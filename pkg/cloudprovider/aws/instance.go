@@ -321,20 +321,24 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 	return v1alpha1.CapacityTypeOnDemand
 }
 
-// filterInstanceTypes is used to eliminate GPU instance types from the list of possible instance types when a
-// non-GPU instance type will work.  If the list of instance types consists of both GPU and non-GPU types, then only
-// the non-GPU types will be returned.  If it has only GPU types, the list will be returned unaltered.
+// filterInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
+// a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
+// of instance types are returned.
 func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		itRes := it.Resources()
-		if resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) &&
-			resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) &&
-			resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
-			genericInstanceTypes = append(genericInstanceTypes, it)
+		if aws.BoolValue(it.(*InstanceType).BareMetal) {
+			continue
 		}
+		itRes := it.Resources()
+		if !resources.IsZero(itRes[v1alpha1.ResourceAWSNeuron]) ||
+			!resources.IsZero(itRes[v1alpha1.ResourceAMDGPU]) ||
+			!resources.IsZero(itRes[v1alpha1.ResourceNVIDIAGPU]) {
+			continue
+		}
+		genericInstanceTypes = append(genericInstanceTypes, it)
 	}
-	// if we got some subset of non-GPU types, then prefer to use those
+	// if we got some subset of instance types, then prefer to use those
 	if len(genericInstanceTypes) != 0 {
 		return genericInstanceTypes
 	}
