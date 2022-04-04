@@ -1425,6 +1425,29 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
+		It("should respect pod affinity (zone)", func() {
+			// TODO: We can pass this test, but it's probably not worth the effort.  We know that the zonal affinity is
+			// satisfied since the pods can end up on the same node. I can't think of a good way to make this work other
+			// that possibly tightening constraints to (e.g. zonal -> hostname) see if that would help in a scheduling
+			// after everything else fails.
+			Skip("skip until we make a decision")
+			affLabels := map[string]string{"security": "s2"}
+			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
+			// affPod2 will try to get scheduled with affPod1
+			affPod2 := test.UnschedulablePod(test.PodOptions{PodRequirements: []v1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: affLabels,
+				},
+				TopologyKey: v1.LabelTopologyZone,
+			}}})
+
+			// create
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPod1, affPod2)
+			n1 := ExpectScheduled(ctx, env.Client, affPod1)
+			n2 := ExpectScheduled(ctx, env.Client, affPod2)
+			// should be scheduled on the same node
+			Expect(n1.Name).To(Equal(n2.Name))
+		})
 		It("should respect self pod affinity (hostname)", func() {
 			affLabels := map[string]string{"security": "s2"}
 
