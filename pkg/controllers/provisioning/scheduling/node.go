@@ -66,7 +66,7 @@ func (n *Node) Add(p *v1.Pod) error {
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
 
 	var err error
-	requirements, err = n.topology.Requirements(requirements, n.Hostname, p)
+	requirements, err = n.topology.Requirements(requirements, p)
 	if err != nil {
 		return err
 	}
