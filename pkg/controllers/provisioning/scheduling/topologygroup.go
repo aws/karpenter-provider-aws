@@ -64,14 +64,20 @@ type TopologyGroup struct {
 	domains map[string]int32 // TODO(ellistarn) explore replacing with a minheap
 }
 
-func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
-	selector, err := metav1.LabelSelectorAsSelector(t.selector)
-	runtime.Must(err)
-	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
-}
-
-func (t *TopologyGroup) Record(domain string) {
-	t.domains[domain]++
+func NewTopologyGroup(topologyType TopologyType, key string, namespaces utilsets.String, labelSelector *metav1.LabelSelector, maxSkew int32, domains utilsets.String) *TopologyGroup {
+	domainCounts := map[string]int32{}
+	for domain := range domains {
+		domainCounts[domain] = 0
+	}
+	return &TopologyGroup{
+		Type:       TopologyTypeSpread,
+		Key:        key,
+		namespaces: namespaces,
+		selector:   labelSelector,
+		maxSkew:    maxSkew,
+		domains:    domainCounts,
+		owners:     map[types.UID]struct{}{},
+	}
 }
 
 func (t *TopologyGroup) Next(requirements v1alpha5.Requirements, selfSelecting bool) (string, error) {
@@ -101,9 +107,21 @@ func (t *TopologyGroup) Next(requirements v1alpha5.Requirements, selfSelecting b
 	return nextDomain, nil
 }
 
-func (t *TopologyGroup) RegisterDomain(zone string) {
-	if _, ok := t.domains[zone]; !ok {
-		t.domains[zone] = 0
+func (t *TopologyGroup) Record(domains ...string) {
+	for _, domain := range domains {
+		t.domains[domain]++
+	}
+}
+
+func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
+	selector, err := metav1.LabelSelectorAsSelector(t.selector)
+	runtime.Must(err)
+	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
+}
+
+func (t *TopologyGroup) Register(domains ...string) {
+	for _, domain := range domains {
+		t.domains[domain] = 0
 	}
 }
 
@@ -138,22 +156,6 @@ func (t *TopologyGroup) Hash() uint64 {
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	runtime.Must(err)
 	return hash
-}
-
-// InitializeWellKnown causes the topology group to initialize its domains with the valid well known domains from the
-// provisioner spec
-func (t *TopologyGroup) InitializeWellKnown(requirements *v1alpha5.Requirements) {
-	// add our well known domain values
-	if t.Key == v1.LabelTopologyZone {
-		// we know about the zones that we can schedule to regardless of if nodes exist there
-		for _, zone := range requirements.Zones().List() {
-			t.RegisterDomain(zone)
-		}
-	} else if t.Key == v1alpha5.LabelCapacityType {
-		for _, ct := range requirements.CapacityTypes().List() {
-			t.RegisterDomain(ct)
-		}
-	}
 }
 
 // nextDomainMinimizeSkew returns the best domain to choose next and what the max-skew would be if we

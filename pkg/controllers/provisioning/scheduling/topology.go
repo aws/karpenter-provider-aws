@@ -65,55 +65,50 @@ func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error)
 	return errs
 }
 
-func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
+func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 	for _, topology := range t.topologies {
 		topology.RemoveOwner(p.UID)
 	}
-	if err := t.updateTopologySpread(ctx, p); err != nil {
-		errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
+
+	topologies := t.newForTopologies(p)
+	affinities, err := t.newForAffinities(ctx, p)
+	if err != nil {
+		return fmt.Errorf("updating affinities, %w", err)
 	}
-	if err := t.updateAffinity(ctx, p); err != nil {
-		errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
+
+	for _, tg := range append(topologies, affinities...) {
+		hash := tg.Hash()
+		// Avoid recomputing topology counts if we've already seen this group
+		if existing, ok := t.topologies[hash]; !ok {
+			if err := t.countDomains(ctx, tg); err != nil {
+				return err
+			}
+			t.topologies[hash] = tg
+		} else {
+			tg = existing
+		}
+		tg.AddOwner(p.UID)
 	}
-	return errs
+	return nil
 }
 
 // Record records the topology changes given that pod p schedule on node n
-func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
+func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	// once we've now committed to a domain, we record the usage in every topology that cares about it
-	var err error
-	podLabels := labels.Set(p.Labels)
 	for _, tc := range t.topologies {
-		if tc.Matches(p.Namespace, podLabels) {
-			domains := requirements.Get(tc.Key)
-			if domains.Len() == 1 {
-				if domain := domains.Values().List()[0]; domain != "" {
-					tc.Record(domain)
-				}
+		if tc.Matches(p.Namespace, labels.Set(p.Labels)) {
+			if domains := requirements.Get(tc.Key); domains.Len() == 1 {
+				tc.Record(domains.Values().UnsortedList()[0])
 			}
 		}
 	}
-	// for anti-affinities, we need to also record where the pods with the anti-affinity are
+	// for anti-affinities, we record where the pods could be, even if
+	// requirements haven't collapsed to a single value.
 	for _, tc := range t.inverseTopologies {
 		if tc.IsOwnedBy(p.UID) {
-			domains := requirements.Get(tc.Key)
-			if domains.Len() == 1 {
-				if domain := domains.Values().List()[0]; domain != "" {
-					tc.Record(domain)
-				} else {
-					err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
-				}
-			} else {
-				// TODO(todd): try to construct a case to get here, or convince myself it's not possible.  We treat anti-affinities
-				// somewhat like a topology spread in that we need to land in any empty domain.  Topology spread does this so it can
-				// keep count, the anti-affinity could create a node selector like in [zone-a, zone-b, zone-c], but currently
-				// we just choose one and commit.  If we don't do that, we would need to record usage in all of those domains and prevent
-				// some other pods from scheduling this round.
-				err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
-			}
+			tc.Record(requirements.Get(tc.Key).Values().UnsortedList()...)
 		}
 	}
-	return err
 }
 
 // Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
@@ -122,7 +117,7 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
 func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName string, p *v1.Pod) (v1alpha5.Requirements, error) {
 	for _, topology := range t.getMatchingTopologies(p) {
 		if topology.Key == v1.LabelHostname {
-			topology.RegisterDomain(nodeName)
+			topology.Register(nodeName)
 		}
 
 		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
@@ -153,7 +148,7 @@ func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 		}
 		for j := range podlist.Items {
 			if pod.HasRequiredPodAntiAffinity(&podlist.Items[j]) {
-				if err := t.updateInverseAntiAffinity(ctx, &nodeList.Items[i], &podlist.Items[j]); err != nil {
+				if err := t.updateInverseAntiAffinity(ctx, &podlist.Items[j], nodeList.Items[i].Labels); err != nil {
 					return fmt.Errorf("tracking existing pod anti-affinity, %w", err)
 				}
 			}
@@ -162,142 +157,37 @@ func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 	return nil
 }
 
-func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
-	for _, cs := range p.Spec.TopologySpreadConstraints {
-		topologyGroup := t.newForSpread(p.Namespace, cs)
-		hash := topologyGroup.Hash()
-		if existing, ok := t.topologies[hash]; !ok {
-			if err := t.initializeTopologyGroup(ctx, topologyGroup); err != nil {
-				return err
-			}
-			t.topologies[hash] = topologyGroup
-		} else {
-			topologyGroup = existing
-		}
-		topologyGroup.AddOwner(p.UID)
-	}
-	return nil
-}
-
-func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint) *TopologyGroup {
-	return &TopologyGroup{
-		Key:        cs.TopologyKey,
-		maxSkew:    cs.MaxSkew,
-		Type:       TopologyTypeSpread,
-		selector:   cs.LabelSelector,
-		domains:    map[string]int32{},
-		namespaces: sets.NewString(namespace),
-		owners:     map[types.UID]struct{}{},
-	}
-}
-
-func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.String, topoType TopologyType) *TopologyGroup {
-	return &TopologyGroup{
-		Key:        term.TopologyKey,
-		maxSkew:    math.MaxInt32,
-		Type:       topoType,
-		selector:   term.LabelSelector,
-		domains:    map[string]int32{},
-		namespaces: namespaces,
-		owners:     map[types.UID]struct{}{},
-	}
-}
-
 // updateInverseAntiAffinity is used to track topologies of inverse anti-affinities. Here the domains & counts track the
 // pods with the anti-affinity.
-func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node, p *v1.Pod) error {
-	// We intentionally don't track inverse anti-affinity preferences.  We're not required to enforce them so it
-	// just adds complexity for very little value.  The problem with them comes from the relaxation process, the pod we
-	// are relaxing is not the pod with the anti-affinity term.
-	for _, term := range p.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-		namespaces, err := t.buildNamespaceList(ctx, p.Namespace, term.Namespaces, term.NamespaceSelector)
+func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, domains map[string]string) error {
+	// We intentionally don't track inverse anti-affinity preferences. We're not
+	// required to enforce them so it just adds complexity for very little
+	// value.  The problem with them comes from the relaxation process, the pod
+	// we are relaxing is not the pod with the anti-affinity term.
+	for _, term := range pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+		namespaces, err := t.buildNamespaceList(ctx, pod.Namespace, term.Namespaces, term.NamespaceSelector)
 		if err != nil {
 			return err
 		}
+		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.requirements.Get(term.TopologyKey).Values())
 
-		topologyGroup := t.newForAffinity(term, namespaces, TopologyTypePodAntiAffinity)
-		hash := topologyGroup.Hash()
-		if existing, ok := t.inverseTopologies[hash]; !ok {
-			t.inverseTopologies[hash] = topologyGroup
-			topologyGroup.InitializeWellKnown(t.requirements)
-		} else {
-			topologyGroup = existing
-		}
-		if node != nil {
-			topologyGroup.Record(node.Labels[topologyGroup.Key])
-		}
-		topologyGroup.AddOwner(p.UID)
-	}
-	return nil
-}
-
-func (t *Topology) updateAffinity(ctx context.Context, p *v1.Pod) error {
-	var topologyGroups []*TopologyGroup
-	if pod.HasPodAffinity(p) {
-		groups, err := t.newForAffinities(ctx, p, p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
-			p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution, TopologyTypePodAffinity)
-		if err != nil {
-			return err
-		}
-		topologyGroups = append(topologyGroups, groups...)
-	}
-
-	if pod.HasPodAntiAffinity(p) {
-		if err := t.updateInverseAntiAffinity(ctx, nil, p); err != nil {
-			return fmt.Errorf("tracking existing pod anti-affinity, %w", err)
-		}
-		groups, err := t.newForAffinities(ctx, p, p.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
-			p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution, TopologyTypePodAntiAffinity)
-		if err != nil {
-			return err
-		}
-		topologyGroups = append(topologyGroups, groups...)
-	}
-
-	var err error
-	for _, tg := range topologyGroups {
 		hash := tg.Hash()
-		// is this a new topology we aren't tracking yet?
-		if existing, ok := t.topologies[hash]; !ok {
-			t.topologies[hash] = tg
-			err = multierr.Append(err, t.initializeTopologyGroup(ctx, tg))
+		if existing, ok := t.inverseTopologies[hash]; !ok {
+			t.inverseTopologies[hash] = tg
 		} else {
 			tg = existing
 		}
-		tg.AddOwner(p.UID)
+		if domain, ok := domains[tg.Key]; ok {
+			tg.Record(domain)
+		}
+		tg.AddOwner(pod.UID)
 	}
-	return err
+	return nil
 }
 
-// newForAffinities returns a list of topology groups that have been constructed based on the input pod and required/preferred affinity terms
-func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v1.PodAffinityTerm, preferred []v1.WeightedPodAffinityTerm,
-	topoType TopologyType) ([]*TopologyGroup, error) {
-	var topologyGroups []*TopologyGroup
-	for _, term := range required {
-		namespaces, err := t.buildNamespaceList(ctx, p.Namespace, term.Namespaces, term.NamespaceSelector)
-		if err != nil {
-			return nil, err
-		}
-		topology := t.newForAffinity(term, namespaces, topoType)
-		topologyGroups = append(topologyGroups, topology)
-	}
-
-	for _, term := range preferred {
-		namespaces, err := t.buildNamespaceList(ctx, p.Namespace, term.PodAffinityTerm.Namespaces, term.PodAffinityTerm.NamespaceSelector)
-		if err != nil {
-			return nil, err
-		}
-		topology := t.newForAffinity(term.PodAffinityTerm, namespaces, topoType)
-		topologyGroups = append(topologyGroups, topology)
-	}
-	return topologyGroups, nil
-}
-
-// initializeTopologyGroup initializes the topology group by registereding any well-domains and performing pod counts
+// countDomains initializes the topology group by registereding any well-domains and performing pod counts
 // against the cluster for any existing pods.
-func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGroup) error {
-	tg.InitializeWellKnown(t.requirements)
-
+func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 	podList := &v1.PodList{}
 	// collect the pods from all the specified namespaces (don't see a way to query multiple namespaces
 	// simultaneously)
@@ -313,6 +203,7 @@ func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGrou
 		if IgnoredForTopology(&pods[i]) {
 			continue
 		}
+		// TODO(tzneal) consider removing this perf optimization
 		if tg.Key == v1.LabelHostname {
 			tg.Record(p.Spec.NodeName)
 			continue
@@ -330,6 +221,66 @@ func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGrou
 	return nil
 }
 
+func (t *Topology) newForTopologies(p *v1.Pod) []*TopologyGroup {
+	var topologyGroups []*TopologyGroup
+	for _, cs := range p.Spec.TopologySpreadConstraints {
+		topologyGroups = append(topologyGroups, NewTopologyGroup(
+			TopologyTypeSpread,
+			cs.TopologyKey,
+			sets.NewString(p.Namespace),
+			cs.LabelSelector,
+			cs.MaxSkew,
+			t.requirements.Get(cs.TopologyKey).Values()),
+		)
+	}
+	return topologyGroups
+}
+
+// newForAffinities returns a list of topology groups that have been constructed based on the input pod and required/preferred affinity terms
+func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod) ([]*TopologyGroup, error) {
+	var topologyGroups []*TopologyGroup
+	// No affinity defined
+	if p.Spec.Affinity == nil {
+		return topologyGroups, nil
+	}
+	affinityTerms := map[TopologyType][]v1.PodAffinityTerm{}
+
+	// include both soft and hard affinity terms
+	if p.Spec.Affinity.PodAffinity != nil {
+		affinityTerms[TopologyTypePodAffinity] = append(affinityTerms[TopologyTypePodAffinity], p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution...)
+		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			affinityTerms[TopologyTypePodAffinity] = append(affinityTerms[TopologyTypePodAffinity], term.PodAffinityTerm)
+		}
+	}
+
+	// include both soft and hard antiaffinity terms
+	if p.Spec.Affinity.PodAntiAffinity != nil {
+		affinityTerms[TopologyTypePodAntiAffinity] = append(affinityTerms[TopologyTypePodAntiAffinity], p.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution...)
+		for _, term := range p.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			affinityTerms[TopologyTypePodAntiAffinity] = append(affinityTerms[TopologyTypePodAntiAffinity], term.PodAffinityTerm)
+		}
+	}
+
+	// build topologies
+	for topologyType, terms := range affinityTerms {
+		for _, term := range terms {
+			namespaces, err := t.buildNamespaceList(ctx, p.Namespace, term.Namespaces, term.NamespaceSelector)
+			if err != nil {
+				return nil, err
+			}
+			topologyGroups = append(topologyGroups, NewTopologyGroup(
+				topologyType,
+				term.TopologyKey,
+				namespaces,
+				term.LabelSelector,
+				math.MaxInt32,
+				t.requirements.Get(term.TopologyKey).Values()),
+			)
+		}
+	}
+	return topologyGroups, nil
+}
+
 // buildNamespaceList constructs a unique list of namespaces consisting of the pod's namespace and the optional list of
 // namespaces and those selected by the namespace selector
 func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, namespaces []string, selector *metav1.LabelSelector) (sets.String, error) {
@@ -341,11 +292,9 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 	}
 	var namespaceList v1.NamespaceList
 	labelSelector, err := metav1.LabelSelectorAsSelector(selector)
-	if err != nil {
-		return nil, err
-	}
+	runtime.Must(err)
 	if err := t.kubeClient.List(ctx, &namespaceList, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing namespaces, %w", err)
 	}
 	selected := sets.NewString()
 	for _, namespace := range namespaceList.Items {
