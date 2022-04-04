@@ -26,58 +26,42 @@ import (
 // in scheduling. This is sometimes required to maintain zonal topology spreads with constrained pods, and can satisfy
 // pod affinities that occur in a batch of pods if there are enough constraints provided.
 type Queue struct {
-	pods             []*v1.Pod
-	errors           map[*v1.Pod]error
-	overrideProgress bool
-	lastRoundCount   int
+	pods       []*v1.Pod
+	lastPopped *v1.Pod
+	attempts   int
 }
 
 // NewQueue constructs a new queue given the input pods, sorting them to optimize for bin-packing into nodes.
 func NewQueue(pods ...*v1.Pod) *Queue {
 	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	return &Queue{
-		pods:   pods,
-		errors: map[*v1.Pod]error{},
+		pods:     pods,
+		attempts: len(pods),
 	}
 }
 
-// IsProgressing returns true if scheduling made progress on the last scheduling round.  This is determined by checking
-// if we have scheduled if we still have pods remaining, but have fewer pods remaining than were scheduled in the previous
-// round.  This can be overriden for a scheduling round by the MarkProgress method.
-func (q *Queue) IsProgressing() bool {
-	return q.overrideProgress || (len(q.pods) > 0 && q.lastRoundCount != len(q.pods))
+// Next returns the next pod or false if no longer making progress
+func (q *Queue) Pop() (*v1.Pod, bool) {
+	if len(q.pods) == 0 || q.attempts == 0 {
+		return nil, false
+	}
+	q.lastPopped = q.pods[0]
+	q.pods = q.pods[1:]
+	return q.lastPopped, true
 }
 
-// MarkProgress forces the IsProgressing method to return true for the next scheduling round.  This is used when we think
-// we may continue to make progress in scheduling, even though we didn't schedule any additional pods this round
-// (e.g. successfully relaxing a pod may cause it to schedule in the next round)
-func (q *Queue) MarkProgress() {
-	q.overrideProgress = true
-}
-
-// PopAll pops all pods from the queue, resetting it for the next scheduling round.
-func (q *Queue) PopAll() []*v1.Pod {
-	q.lastRoundCount = len(q.pods)
-	result := q.pods
-	q.pods = nil
-	q.overrideProgress = false
-	return result
-}
-
-// PushWithError is used to record pods that have failed to schedule along with the error received.  These pods will be
-// tried in future scheduling rounds (calls to PopAll), and once scheduling has finished any unschedulable pods and their
-// errors can be retrieved with ForEach
-func (q *Queue) PushWithError(pod *v1.Pod, err error) {
-	q.errors[pod] = err
+// Push a pod onto the queue, counting each time a pod is immediately requeued. This is used to detect staleness.
+func (q *Queue) Push(pod *v1.Pod, relaxed bool) {
 	q.pods = append(q.pods, pod)
+	if relaxed || q.lastPopped != pod {
+		q.attempts = len(q.pods)
+	} else {
+		q.attempts--
+	}
 }
 
-// ForEach is a non-mutating method that iterates over the current set of pods and calls the function provided with each
-// pod and the last error recorded for this pod with PushWithError
-func (q *Queue) ForEach(fn func(p *v1.Pod, err error)) {
-	for _, p := range q.pods {
-		fn(p, q.errors[p])
-	}
+func (q *Queue) List() []*v1.Pod {
+	return q.pods
 }
 
 func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {

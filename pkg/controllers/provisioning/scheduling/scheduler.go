@@ -70,6 +70,12 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	if err := topology.Initialize(ctx, pods...); err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
+
+	// TODO: Remove the need for this setup. The first call prepares relaxation, further calls actually perform the relaxation.
+	for _, pod := range pods {
+		s.preferences.Relax(ctx, pod)
+	}
+
 	daemonOverhead, err := s.getDaemonOverhead(ctx, constraints)
 	if err != nil {
 		return nil, err
@@ -81,44 +87,41 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
 	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
 	var nodes []*Node
+	errors := map[*v1.Pod]error{}
 	q := NewQueue(pods...)
-	for q.IsProgressing() {
-		for _, pod := range q.PopAll() {
-			// Relax preferences if pod has previously failed to schedule.  The first call prepares relaxation, further
-			// calls actually perform the relaxation.
-			if s.preferences.Relax(ctx, pod) {
-				if err := topology.Update(ctx, pod); err != nil {
-					logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %s", err)
+	for {
+		pod, ok := q.Pop()
+		if !ok {
+			break
+		}
+		// Use existing node or create a node one
+		node := s.scheduleExisting(pod, nodes)
+		if node == nil {
+			node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
+			if errors[pod] = node.Add(pod); errors[pod] != nil {
+				relaxed := s.preferences.Relax(ctx, pod)
+				if relaxed {
+					// The pod has changed, so topology needs to be recomputed
+					if err := topology.Update(ctx, pod); err != nil {
+						logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %w", err)
+					}
 				}
-				// even if the unschedulable pod count doesn't change, some progress was still made as we relaxed the pod
-				// and it may schedule in the future
-				q.MarkProgress()
+				q.Push(pod, relaxed)
+				continue
 			}
+			nodes = append(nodes, node)
+		}
 
-			// Use existing node or create a node one
-			node := s.scheduleExisting(pod, nodes)
-			if node == nil {
-				node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
-				if err := node.Add(pod); err != nil {
-					// Push the pod back on the queue with its last seen error. If the pod continues to fail to schedule
-					// we can retrieve this pod and error from the queue for logging
-					q.PushWithError(pod, err)
-					continue
-				}
-				nodes = append(nodes, node)
-			}
-
-			// Record topology decision for future pods
-			if err := topology.Record(pod, node.Constraints.Requirements); err != nil {
-				return nil, fmt.Errorf("recording topology decision, %w", err)
-			}
+		// Record topology decision for future pods
+		if err := topology.Record(pod, node.Constraints.Requirements); err != nil {
+			return nil, fmt.Errorf("recording topology decision, %w", err)
 		}
 	}
 
 	// Any remaining pods have failed to schedule
-	q.ForEach(func(p *v1.Pod, err error) {
-		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(p)).Errorf("Scheduling pod, %s", err)
-	})
+	for _, pod := range q.List() {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
+	}
 	return nodes, nil
 }
 
