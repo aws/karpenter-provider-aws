@@ -36,6 +36,9 @@ import (
 
 type Topology struct {
 	kubeClient client.Client
+	// Both the topologies and inverseTopologies are maps of the hash from TopologyGroup.Hash() to the topology group
+	// itself. This is used to allow us to store one topology group that tracks the topology of many pods instead of
+	// having a 1<->1 mapping between topology groups and pods owned/selected by that group.
 	topologies map[uint64]*TopologyGroup
 	// Anti-affinity works both ways (if a zone has a pod foo with anti-affinity to a pod bar, we can't schedule bar to
 	// that zone, even though bar has no anti affinity terms on it. For this to work, we need to separately track the
@@ -102,7 +105,7 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	// once we've now committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
-		if tc.Matches(p.Namespace, labels.Set(p.Labels)) {
+		if tc.Matches(p.Namespace, p.Labels) {
 			if domains := requirements.Get(tc.Key); domains.Len() == 1 {
 				tc.Record(domains.Values().UnsortedList()[0])
 			}
@@ -120,10 +123,12 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 // Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
 // affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
 // the case of a set of requirements that cannot be satisfied.
-func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName string, p *v1.Pod) (v1alpha5.Requirements, error) {
+func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeHostname string, p *v1.Pod) (v1alpha5.Requirements, error) {
 	for _, topology := range t.getMatchingTopologies(p) {
+		// the node name may be brand new and unknown to the topology, so we need to ensure that the topology
+		// is aware that it's a valid hostname
 		if topology.Key == v1.LabelHostname {
-			topology.Register(nodeName)
+			topology.Register(nodeHostname)
 		}
 
 		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
@@ -207,11 +212,6 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 
 	for i, p := range pods {
 		if IgnoredForTopology(&pods[i]) {
-			continue
-		}
-		// TODO(tzneal) consider removing this perf optimization
-		if tg.Key == v1.LabelHostname {
-			tg.Record(p.Spec.NodeName)
 			continue
 		}
 		node := &v1.Node{}

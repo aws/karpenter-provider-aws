@@ -29,7 +29,7 @@ import (
 // Node is a set of constraints, compatible pods, and possible instance types that could fulfill these constraints. This
 // will be turned into one or more actual node instances within the cluster after bin packing.
 type Node struct {
-	Name                string
+	Hostname            string
 	Constraints         *v1alpha5.Constraints
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
@@ -42,7 +42,7 @@ var nodeID int64
 
 func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	n := &Node{
-		Name:                fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
+		Hostname:            fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
 		topology:            topoplogy,
@@ -52,7 +52,7 @@ func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResou
 	n.Constraints.Requirements = n.Constraints.Requirements.Add(v1.NodeSelectorRequirement{
 		Key:      v1.LabelHostname,
 		Operator: v1.NodeSelectorOpIn,
-		Values:   []string{n.Name},
+		Values:   []string{n.Hostname},
 	})
 	return n
 }
@@ -66,7 +66,7 @@ func (n *Node) Add(p *v1.Pod) error {
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
 
 	var err error
-	requirements, err = n.topology.Requirements(requirements, n.Name, p)
+	requirements, err = n.topology.Requirements(requirements, n.Hostname, p)
 	if err != nil {
 		return err
 	}
