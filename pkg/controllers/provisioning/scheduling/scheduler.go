@@ -64,8 +64,6 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 
 func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-
-	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
 	topology := NewTopology(s.kubeClient, &constraints.Requirements)
@@ -83,16 +81,18 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
 	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
 	var nodes []*Node
-	progressing := true
-	errors := map[*v1.Pod]error{}
-	for len(pods) > 0 && progressing {
-		var unschedulable []*v1.Pod
-		for _, pod := range pods {
-			progressing = false
-			// Relax preferences if pod has previously failed to schedule.
+	q := NewQueue(pods...)
+	for q.IsProgressing() {
+		for _, pod := range q.PopAll() {
+			// Relax preferences if pod has previously failed to schedule.  The first call prepares relaxation, further
+			// calls actually perform the relaxation.
 			if s.preferences.Relax(ctx, pod) {
-				topology.Update(ctx, pod)
-				progressing = true
+				if err := topology.Update(ctx, pod); err != nil {
+					logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %s", err)
+				}
+				// even if the unschedulable pod count doesn't change, some progress was still made as we relaxed the pod
+				// and it may schedule in the future
+				q.MarkProgress()
 			}
 
 			// Use existing node or create a node one
@@ -100,8 +100,9 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			if node == nil {
 				node = NewNode(constraints, daemonOverhead, instanceTypes)
 				if err := node.Add(topology, pod); err != nil {
-					unschedulable = append(unschedulable, pod)
-					errors[pod] = err
+					// Push the pod back on the queue with its last seen error. If the pod continues to fail to schedule
+					// we can retrieve this pod and error from the queue for logging
+					q.PushWithError(pod, err)
 					continue
 				}
 				nodes = append(nodes, node)
@@ -111,15 +112,13 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			if err := topology.Record(pod, node.Constraints.Requirements); err != nil {
 				return nil, fmt.Errorf("recording topology decision, %w", err)
 			}
-			progressing = true
 		}
-		pods = unschedulable
 	}
 
 	// Any remaining pods have failed to schedule
-	for _, pod := range pods {
-		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", errors[pod])
-	}
+	q.ForEach(func(p *v1.Pod, err error) {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(p)).Errorf("Scheduling pod, %s", err)
+	})
 	return nodes, nil
 }
 
@@ -156,28 +155,5 @@ func (s *Scheduler) getDaemonOverhead(ctx context.Context, constraints *v1alpha5
 func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {
 	return func(i, j int) bool {
 		return instanceTypes[i].Price() < instanceTypes[j].Price()
-	}
-}
-
-func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
-	return func(i, j int) bool {
-		lhs := resources.RequestsForPods(pods[i])
-		rhs := resources.RequestsForPods(pods[j])
-
-		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
-		if cpuCmp < 0 {
-			// LHS has less CPU, so it should be sorted after
-			return false
-		} else if cpuCmp > 0 {
-			return true
-		}
-		memCmp := resources.Cmp(lhs[v1.ResourceMemory], rhs[v1.ResourceMemory])
-
-		if memCmp < 0 {
-			return false
-		} else if memCmp > 0 {
-			return true
-		}
-		return false
 	}
 }
