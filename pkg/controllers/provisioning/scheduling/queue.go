@@ -40,7 +40,7 @@ func NewQueue(pods ...*v1.Pod) *Queue {
 	}
 }
 
-// Next returns the next pod or false if no longer making progress
+// Pop returns the next pod or false if no longer making progress
 func (q *Queue) Pop() (*v1.Pod, bool) {
 	if len(q.pods) == 0 || q.attempts == 0 {
 		return nil, false

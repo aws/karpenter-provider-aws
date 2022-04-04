@@ -62,6 +62,7 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
+//gocyclo:ignore
 func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
@@ -103,7 +104,7 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 				if relaxed {
 					// The pod has changed, so topology needs to be recomputed
 					if err := topology.Update(ctx, pod); err != nil {
-						logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %w", err)
+						logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %s", err)
 					}
 				}
 				q.Push(pod, relaxed)
@@ -112,7 +113,7 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			nodes = append(nodes, node)
 		}
 
-		// Record topology decision for future pods
+		// Successfully scheduled the pod on a node, so record topology decision for future pods
 		if err := topology.Record(pod, node.Constraints.Requirements); err != nil {
 			return nil, fmt.Errorf("recording topology decision, %w", err)
 		}
