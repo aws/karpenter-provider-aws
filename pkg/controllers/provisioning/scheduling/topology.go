@@ -67,11 +67,8 @@ func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error)
 
 func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
 	for _, topology := range t.topologies {
-		if topology.IsOwnedBy(p.UID) {
-			topology.RemoveOwner(p.UID)
-		}
+		topology.RemoveOwner(p.UID)
 	}
-
 	if err := t.updateTopologySpread(ctx, p); err != nil {
 		errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
 	}
@@ -79,6 +76,67 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
 		errs = multierr.Append(errs, fmt.Errorf("tracking affinity topology, %w", err))
 	}
 	return errs
+}
+
+// Record records the topology changes given that pod p schedule on node n
+func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
+	// once we've now committed to a domain, we record the usage in every topology that cares about it
+	var err error
+	podLabels := labels.Set(p.Labels)
+	for _, tc := range t.topologies {
+		if tc.Matches(p.Namespace, podLabels) {
+			domains := requirements.Get(tc.Key)
+			if domains.Len() == 1 {
+				if domain := domains.Values().List()[0]; domain != "" {
+					tc.Record(domain)
+				}
+			}
+		}
+	}
+	// for anti-affinities, we need to also record where the pods with the anti-affinity are
+	for _, tc := range t.inverseTopologies {
+		if tc.IsOwnedBy(p.UID) {
+			domains := requirements.Get(tc.Key)
+			if domains.Len() == 1 {
+				if domain := domains.Values().List()[0]; domain != "" {
+					tc.Record(domain)
+				} else {
+					err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
+				}
+			} else {
+				// TODO(todd): try to construct a case to get here, or convince myself it's not possible.  We treat anti-affinities
+				// somewhat like a topology spread in that we need to land in any empty domain.  Topology spread does this so it can
+				// keep count, the anti-affinity could create a node selector like in [zone-a, zone-b, zone-c], but currently
+				// we just choose one and commit.  If we don't do that, we would need to record usage in all of those domains and prevent
+				// some other pods from scheduling this round.
+				err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
+			}
+		}
+	}
+	return err
+}
+
+// Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
+// affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
+// the case of a set of requirements that cannot be satisfied.
+func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName string, p *v1.Pod) (v1alpha5.Requirements, error) {
+	for _, topology := range t.getMatchingTopologies(p) {
+		if topology.Key == v1.LabelHostname {
+			topology.RegisterDomain(nodeName)
+		}
+
+		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
+		if err != nil {
+			return v1alpha5.Requirements{}, err
+		}
+
+		requirements = requirements.Add(v1.NodeSelectorRequirement{
+			Key:      topology.Key,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{nextDomain},
+		})
+	}
+	return requirements, nil
 }
 
 // updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
@@ -165,7 +223,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node,
 			topologyGroup = existing
 		}
 		if node != nil {
-			topologyGroup.RecordUsage(node.Labels[topologyGroup.Key])
+			topologyGroup.Record(node.Labels[topologyGroup.Key])
 		}
 		topologyGroup.AddOwner(p.UID)
 	}
@@ -255,7 +313,7 @@ func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGrou
 			continue
 		}
 		if tg.Key == v1.LabelHostname {
-			tg.RecordUsage(p.Spec.NodeName)
+			tg.Record(p.Spec.NodeName)
 			continue
 		}
 		node := &v1.Node{}
@@ -266,7 +324,7 @@ func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGrou
 		if !ok {
 			continue // Don't include pods if node doesn't contain domain https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#conventions
 		}
-		tg.RecordUsage(domain)
+		tg.Record(domain)
 	}
 	return nil
 }
@@ -296,44 +354,6 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 	return selected, nil
 }
 
-// Record records the topology changes given that pod p schedule on node n
-func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) error {
-	// once we've now committed to a domain, we record the usage in every topology that cares about it
-	var err error
-	podLabels := labels.Set(p.Labels)
-	for _, tc := range t.topologies {
-		if tc.Matches(p.Namespace, podLabels) {
-			domains := requirements.Get(tc.Key)
-			if domains.Len() == 1 {
-				if domain := domains.Values().List()[0]; domain != "" {
-					tc.RecordUsage(domain)
-				}
-			}
-		}
-	}
-	// for anti-affinities, we need to also record where the pods with the anti-affinity are
-	for _, tc := range t.inverseTopologies {
-		if tc.IsOwnedBy(p.UID) {
-			domains := requirements.Get(tc.Key)
-			if domains.Len() == 1 {
-				if domain := domains.Values().List()[0]; domain != "" {
-					tc.RecordUsage(domain)
-				} else {
-					err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
-				}
-			} else {
-				// TODO(todd): try to construct a case to get here, or convince myself it's not possible.  We treat anti-affinities
-				// somewhat like a topology spread in that we need to land in any empty domain.  Topology spread does this so it can
-				// keep count, the anti-affinity could create a node selector like in [zone-a, zone-b, zone-c], but currently
-				// we just choose one and commit.  If we don't do that, we would need to record usage in all of those domains and prevent
-				// some other pods from scheduling this round.
-				err = multierr.Append(err, fmt.Errorf("empty or missing domain for topology key %s", tc.Key))
-			}
-		}
-	}
-	return err
-}
-
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
 func (t *Topology) getMatchingTopologies(p *v1.Pod) []*TopologyGroup {
@@ -349,30 +369,6 @@ func (t *Topology) getMatchingTopologies(p *v1.Pod) []*TopologyGroup {
 		}
 	}
 	return matchingTopologies
-}
-
-// Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
-// affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
-// the case of a set of requirements that cannot be satisfied.
-//gocyclo: ignore
-func (t *Topology) Requirements(requirements v1alpha5.Requirements, nodeName string, p *v1.Pod) (v1alpha5.Requirements, error) {
-	for _, topology := range t.getMatchingTopologies(p) {
-		if topology.Key == v1.LabelHostname {
-			topology.RegisterDomain(nodeName)
-		}
-
-		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
-		if err != nil {
-			return v1alpha5.Requirements{}, err
-		}
-
-		requirements = requirements.Add(v1.NodeSelectorRequirement{
-			Key:      topology.Key,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{nextDomain},
-		})
-	}
-	return requirements, nil
 }
 
 func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) *client.ListOptions {

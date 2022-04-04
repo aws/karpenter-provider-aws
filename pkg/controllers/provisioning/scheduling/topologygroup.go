@@ -70,7 +70,7 @@ func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
 	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
 }
 
-func (t *TopologyGroup) RecordUsage(domain string) {
+func (t *TopologyGroup) Record(domain string) {
 	t.domains[domain]++
 }
 
