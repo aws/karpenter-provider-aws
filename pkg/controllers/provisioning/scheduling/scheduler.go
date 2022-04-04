@@ -96,10 +96,10 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 			}
 
 			// Use existing node or create a node one
-			node := s.scheduleExisting(pod, nodes, topology)
+			node := s.scheduleExisting(pod, nodes)
 			if node == nil {
-				node = NewNode(constraints, daemonOverhead, instanceTypes)
-				if err := node.Add(topology, pod); err != nil {
+				node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
+				if err := node.Add(pod); err != nil {
 					// Push the pod back on the queue with its last seen error. If the pod continues to fail to schedule
 					// we can retrieve this pod and error from the queue for logging
 					q.PushWithError(pod, err)
@@ -122,11 +122,11 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	return nodes, nil
 }
 
-func (s *Scheduler) scheduleExisting(pod *v1.Pod, nodes []*Node, topology *Topology) *Node {
+func (s *Scheduler) scheduleExisting(pod *v1.Pod, nodes []*Node) *Node {
 	// Try nodes in ascending order of number of pods to more evenly distribute nodes, 100ms at 2000 nodes.
 	sort.Slice(nodes, func(a, b int) bool { return len(nodes[a].Pods) < len(nodes[b].Pods) })
 	for _, node := range nodes {
-		if err := node.Add(topology, pod); err == nil {
+		if err := node.Add(pod); err == nil {
 			return node
 		}
 	}

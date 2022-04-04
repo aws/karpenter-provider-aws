@@ -34,16 +34,18 @@ type Node struct {
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
 
+	topology *Topology
 	requests v1.ResourceList
 }
 
 var nodeID int64
 
-func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	n := &Node{
 		Name:                fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
+		topology:            topoplogy,
 		requests:            daemonResources,
 	}
 
@@ -55,7 +57,7 @@ func NewNode(constraints *v1alpha5.Constraints, daemonResources v1.ResourceList,
 	return n
 }
 
-func (n *Node) Add(topology *Topology, p *v1.Pod) error {
+func (n *Node) Add(p *v1.Pod) error {
 	podRequirements := v1alpha5.NewPodRequirements(p)
 	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
 		return err
@@ -64,7 +66,7 @@ func (n *Node) Add(topology *Topology, p *v1.Pod) error {
 	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
 
 	var err error
-	requirements, err = topology.Requirements(requirements, n.Name, p)
+	requirements, err = n.topology.Requirements(requirements, n.Name, p)
 	if err != nil {
 		return err
 	}
