@@ -76,11 +76,11 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 
 func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
-		p.removeTopologySpreadScheduleAnyway,
+		p.removeRequiredNodeAffinityTerm,
 		p.removePreferredPodAffinityTerm,
 		p.removePreferredPodAntiAffinityTerm,
 		p.removePreferredNodeAffinityTerm,
-		p.removeRequiredNodeAffinityTerm,
+		p.removeTopologySpreadScheduleAnyway,
 		p.toleratePreferNoScheduleTaints,
 	} {
 		if reason := relaxFunc(pod); reason != nil {
