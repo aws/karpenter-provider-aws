@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math"
 
+	"k8s.io/apimachinery/pkg/util/runtime"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,8 +72,6 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) (errs error) {
 		}
 	}
 
-	// need to first ensure that we know all of the topology constraints.  This may require looking up
-	// existing pods in the running cluster to determine zonal topology skew.
 	if err := t.updateTopologySpread(ctx, p); err != nil {
 		errs = multierr.Append(errs, fmt.Errorf("tracking topology spread, %w", err))
 	}
@@ -106,10 +106,7 @@ func (t *Topology) updateInverseAffinities(ctx context.Context) error {
 
 func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
 	for _, cs := range p.Spec.TopologySpreadConstraints {
-		topologyGroup, err := t.newForSpread(p.Namespace, cs)
-		if err != nil {
-			return err
-		}
+		topologyGroup := t.newForSpread(p.Namespace, cs)
 		hash := topologyGroup.Hash()
 		if existing, ok := t.topologies[hash]; !ok {
 			if err := t.initializeTopologyGroup(ctx, topologyGroup); err != nil {
@@ -124,38 +121,28 @@ func (t *Topology) updateTopologySpread(ctx context.Context, p *v1.Pod) error {
 	return nil
 }
 
-func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint) (*TopologyGroup, error) {
-	// validate our label selector that the topology group will later create as needed
-	_, err := metav1.LabelSelectorAsSelector(cs.LabelSelector)
-	if err != nil {
-		return nil, fmt.Errorf("creating label selector: %w", err)
-	}
+func (t *Topology) newForSpread(namespace string, cs v1.TopologySpreadConstraint) *TopologyGroup {
 	return &TopologyGroup{
-		Key:         cs.TopologyKey,
-		maxSkew:     cs.MaxSkew,
-		Type:        TopologyTypeSpread,
-		rawSelector: cs.LabelSelector,
-		domains:     map[string]int32{},
-		namespaces:  sets.NewString(namespace),
-		owners:      map[types.UID]struct{}{},
-	}, nil
+		Key:        cs.TopologyKey,
+		maxSkew:    cs.MaxSkew,
+		Type:       TopologyTypeSpread,
+		selector:   cs.LabelSelector,
+		domains:    map[string]int32{},
+		namespaces: sets.NewString(namespace),
+		owners:     map[types.UID]struct{}{},
+	}
 }
 
-func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.String, topoType TopologyType) (*TopologyGroup, error) {
-	_, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
-	if err != nil {
-		return nil, fmt.Errorf("creating label selector: %w", err)
-	}
-
+func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.String, topoType TopologyType) *TopologyGroup {
 	return &TopologyGroup{
-		Key:         term.TopologyKey,
-		maxSkew:     math.MaxInt32,
-		Type:        topoType,
-		rawSelector: term.LabelSelector,
-		domains:     map[string]int32{},
-		namespaces:  namespaces,
-		owners:      map[types.UID]struct{}{},
-	}, nil
+		Key:        term.TopologyKey,
+		maxSkew:    math.MaxInt32,
+		Type:       topoType,
+		selector:   term.LabelSelector,
+		domains:    map[string]int32{},
+		namespaces: namespaces,
+		owners:     map[types.UID]struct{}{},
+	}
 }
 
 // updateInverseAntiAffinity is used to track topologies of inverse anti-affinities. Here the domains & counts track the
@@ -169,11 +156,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node,
 			return err
 		}
 
-		topologyGroup, err := t.newForAffinity(term, namespaces, TopologyTypePodAntiAffinity)
-		if err != nil {
-			return err
-		}
-
+		topologyGroup := t.newForAffinity(term, namespaces, TopologyTypePodAntiAffinity)
 		hash := topologyGroup.Hash()
 		if existing, ok := t.inverseTopologies[hash]; !ok {
 			t.inverseTopologies[hash] = topologyGroup
@@ -236,10 +219,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 		if err != nil {
 			return nil, err
 		}
-		topology, err := t.newForAffinity(term, namespaces, topoType)
-		if err != nil {
-			return nil, err
-		}
+		topology := t.newForAffinity(term, namespaces, topoType)
 		topologyGroups = append(topologyGroups, topology)
 	}
 
@@ -248,10 +228,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod, required []v
 		if err != nil {
 			return nil, err
 		}
-		topology, err := t.newForAffinity(term.PodAffinityTerm, namespaces, topoType)
-		if err != nil {
-			return nil, err
-		}
+		topology := t.newForAffinity(term.PodAffinityTerm, namespaces, topoType)
 		topologyGroups = append(topologyGroups, topology)
 	}
 	return topologyGroups, nil
@@ -267,7 +244,7 @@ func (t *Topology) initializeTopologyGroup(ctx context.Context, tg *TopologyGrou
 	// simultaneously)
 	var pods []v1.Pod
 	for _, ns := range tg.namespaces.UnsortedList() {
-		if err := t.kubeClient.List(ctx, podList, TopologyListOptions(ns, tg.rawSelector)); err != nil {
+		if err := t.kubeClient.List(ctx, podList, TopologyListOptions(ns, tg.selector)); err != nil {
 			return fmt.Errorf("listing pods, %w", err)
 		}
 		pods = append(pods, podList.Items...)
@@ -404,11 +381,13 @@ func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) 
 		return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 	}
 	for key, value := range labelSelector.MatchLabels {
-		requirement, _ := labels.NewRequirement(key, selection.Equals, []string{value})
+		requirement, err := labels.NewRequirement(key, selection.Equals, []string{value})
+		runtime.Must(err)
 		selector = selector.Add(*requirement)
 	}
 	for _, expression := range labelSelector.MatchExpressions {
-		requirement, _ := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+		requirement, err := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+		runtime.Must(err)
 		selector = selector.Add(*requirement)
 	}
 	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}

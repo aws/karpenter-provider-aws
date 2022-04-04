@@ -195,8 +195,7 @@ func makeDiversePods(count int) []*v1.Pod {
 	pods = append(pods, makeTopologySpreadPods(count/7, v1.LabelHostname)...)
 	pods = append(pods, makePodAffinityPods(count/7, v1.LabelHostname)...)
 	pods = append(pods, makePodAffinityPods(count/7, v1.LabelTopologyZone)...)
-	pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelHostname)...)
-	// We intentionally don't do anti-affinity by zone as that creates tons of unschedulable pods
+	// We intentionally don't do anti-affinity by zone as that creates tons of unschedulable pods.
 	//pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelTopologyZone)...)
 
 	// fill out due to count being not evenly divisible with generic pods

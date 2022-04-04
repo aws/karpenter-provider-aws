@@ -53,11 +53,11 @@ func (t TopologyType) String() string {
 // TopologyGroup is used to track pod counts that match a selector by the topology domain (e.g. SELECT COUNT(*) FROM pods GROUP BY(topology_ke
 type TopologyGroup struct {
 	// Hashed Fields
-	Key         string
-	Type        TopologyType
-	maxSkew     int32
-	namespaces  utilsets.String
-	rawSelector *metav1.LabelSelector // stored so we can easily hash
+	Key        string
+	Type       TopologyType
+	maxSkew    int32
+	namespaces utilsets.String
+	selector   *metav1.LabelSelector
 	// Pod Index
 	owners map[types.UID]struct{} // Pods that have this topology as a scheduling rule
 	// Internal state
@@ -65,7 +65,8 @@ type TopologyGroup struct {
 }
 
 func (t *TopologyGroup) Matches(namespace string, podLabels labels.Set) bool {
-	selector, _ := metav1.LabelSelectorAsSelector(t.rawSelector)
+	selector, err := metav1.LabelSelectorAsSelector(t.selector)
+	runtime.Must(err)
 	return t.namespaces.Has(namespace) && selector.Matches(podLabels)
 }
 
@@ -273,7 +274,7 @@ func (t *TopologyGroup) Hash() uint64 {
 		TopologyKey:   t.Key,
 		Type:          t.Type,
 		Namespaces:    t.namespaces,
-		LabelSelector: t.rawSelector,
+		LabelSelector: t.selector,
 		MaxSkew:       t.maxSkew,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	runtime.Must(err)
