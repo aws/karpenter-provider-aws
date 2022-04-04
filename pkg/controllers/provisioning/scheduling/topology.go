@@ -207,7 +207,8 @@ func (t *Topology) newForAffinity(term v1.PodAffinityTerm, namespaces sets.Strin
 // pods with the anti-affinity.
 func (t *Topology) updateInverseAntiAffinity(ctx context.Context, node *v1.Node, p *v1.Pod) error {
 	// We intentionally don't track inverse anti-affinity preferences.  We're not required to enforce them so it
-	// just adds complexity for very little value.
+	// just adds complexity for very little value.  The problem with them comes from the relaxation process, the pod we
+	// are relaxing is not the pod with the anti-affinity term.
 	for _, term := range p.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
 		namespaces, err := t.buildNamespaceList(ctx, p.Namespace, term.Namespaces, term.NamespaceSelector)
 		if err != nil {
