@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -192,7 +191,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 		if err != nil {
 			return err
 		}
-		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.requirements.Get(term.TopologyKey).Values())
+		tg := NewTopologyGroup(pod, TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.requirements.Get(term.TopologyKey).Values())
 
 		hash := tg.Hash()
 		if existing, ok := t.inverseTopologies[hash]; !ok {
@@ -212,6 +211,30 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 // against the cluster for any existing pods.
 func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 	podList := &v1.PodList{}
+
+	// collect all of the nodes so we can identify every domain
+	var nodeList v1.NodeList
+	if err := t.kubeClient.List(ctx, &nodeList); err != nil {
+		return fmt.Errorf("listing nodes, %w", err)
+	}
+
+	// "The scheduler will skip the non-matching nodes from the skew calculations if the incoming Pod has spec.nodeSelector
+	// or spec.affinity.nodeAffinity defined" per
+	// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
+	// because of this we only count pods that are on nodes that the pod is possibly schedulable to considering the nodeSelector and
+	// required node affinity
+	nodes := map[string]*v1.Node{}
+	for i, node := range nodeList.Items {
+		if matched, _ := tg.requiredNodeAffinity.Match(&nodeList.Items[i]); matched {
+			domain, ok := node.Labels[tg.Key]
+			if !ok {
+				continue // Don't include pods if node doesn't contain domain
+			}
+			nodes[node.Name] = &nodeList.Items[i]
+			tg.Register(domain)
+		}
+	}
+
 	// collect the pods from all the specified namespaces (don't see a way to query multiple namespaces
 	// simultaneously)
 	var pods []v1.Pod
@@ -226,9 +249,11 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		if IgnoredForTopology(&pods[i]) {
 			continue
 		}
-		node := &v1.Node{}
-		if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: p.Spec.NodeName}, node); err != nil {
-			return fmt.Errorf("getting node %s, %w", p.Spec.NodeName, err)
+
+		node, ok := nodes[p.Spec.NodeName]
+		if !ok {
+			// we don't count any pods on this node as it didn't match any affinity
+			continue
 		}
 		domain, ok := node.Labels[tg.Key]
 		if !ok {
@@ -243,6 +268,7 @@ func (t *Topology) newForTopologies(p *v1.Pod) []*TopologyGroup {
 	var topologyGroups []*TopologyGroup
 	for _, cs := range p.Spec.TopologySpreadConstraints {
 		topologyGroups = append(topologyGroups, NewTopologyGroup(
+			p,
 			TopologyTypeSpread,
 			cs.TopologyKey,
 			sets.NewString(p.Namespace),
@@ -287,6 +313,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod) ([]*Topology
 				return nil, err
 			}
 			topologyGroups = append(topologyGroups, NewTopologyGroup(
+				p,
 				topologyType,
 				term.TopologyKey,
 				namespaces,
