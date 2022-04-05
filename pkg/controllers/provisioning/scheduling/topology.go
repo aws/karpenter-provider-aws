@@ -19,18 +19,19 @@ import (
 	"fmt"
 	"math"
 
-	"k8s.io/apimachinery/pkg/util/runtime"
-
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type Topology struct {
@@ -126,18 +127,17 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 // Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
 // affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
 // the case of a set of requirements that cannot be satisfied.
-func (t *Topology) Requirements(requirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
+func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
 	for _, topology := range t.getMatchingTopologies(p) {
-		nextDomain, err := topology.Next(requirements, topology.Matches(p.Namespace, p.Labels))
-		if err != nil {
-			return v1alpha5.Requirements{}, err
+		domains := sets.NewComplementSet()
+		if requirements.Has(topology.Key) {
+			domains = requirements.Get(topology.Key)
 		}
-
-		requirements = requirements.Add(v1.NodeSelectorRequirement{
-			Key:      topology.Key,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{nextDomain},
-		})
+		domains = topology.Next(p, domains)
+		if domains.Len() == 0 {
+			return v1alpha5.Requirements{}, fmt.Errorf("todo topology error")
+		}
+		requirements = requirements.Add(v1.NodeSelectorRequirement{Key: topology.Key, Operator: v1.NodeSelectorOpIn, Values: domains.Values().List()})
 	}
 	return requirements, nil
 }
@@ -212,28 +212,28 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 	podList := &v1.PodList{}
 
-	// collect all of the nodes so we can identify every domain
-	var nodeList v1.NodeList
-	if err := t.kubeClient.List(ctx, &nodeList); err != nil {
-		return fmt.Errorf("listing nodes, %w", err)
-	}
+	// // collect all of the nodes so we can identify every domain
+	// var nodeList v1.NodeList
+	// if err := t.kubeClient.List(ctx, &nodeList); err != nil {
+	// 	return fmt.Errorf("listing nodes, %w", err)
+	// }
 
-	// "The scheduler will skip the non-matching nodes from the skew calculations if the incoming Pod has spec.nodeSelector
-	// or spec.affinity.nodeAffinity defined" per
-	// https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
-	// because of this we only count pods that are on nodes that the pod is possibly schedulable to considering the nodeSelector and
-	// required node affinity
-	nodes := map[string]*v1.Node{}
-	for i, node := range nodeList.Items {
-		if matched, _ := tg.requiredNodeAffinity.Match(&nodeList.Items[i]); matched {
-			domain, ok := node.Labels[tg.Key]
-			if !ok {
-				continue // Don't include pods if node doesn't contain domain
-			}
-			nodes[node.Name] = &nodeList.Items[i]
-			tg.Register(domain)
-		}
-	}
+	// // "The scheduler will skip the non-matching nodes from the skew calculations if the incoming Pod has spec.nodeSelector
+	// // or spec.affinity.nodeAffinity defined" per
+	// // https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
+	// // because of this we only count pods that are on nodes that the pod is possibly schedulable to considering the nodeSelector and
+	// // required node affinity
+	// nodes := map[string]*v1.Node{}
+	// for i, node := range nodeList.Items {
+	// 	if matched, _ := tg.requiredNodeAffinity.Match(&nodeList.Items[i]); matched {
+	// 		domain, ok := node.Labels[tg.Key]
+	// 		if !ok {
+	// 			continue // Don't include pods if node doesn't contain domain
+	// 		}
+	// 		nodes[node.Name] = &nodeList.Items[i]
+	// 		tg.Register(domain)
+	// 	}
+	// }
 
 	// collect the pods from all the specified namespaces (don't see a way to query multiple namespaces
 	// simultaneously)
@@ -249,11 +249,9 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		if IgnoredForTopology(&pods[i]) {
 			continue
 		}
-
-		node, ok := nodes[p.Spec.NodeName]
-		if !ok {
-			// we don't count any pods on this node as it didn't match any affinity
-			continue
+		node := &v1.Node{}
+		if err := t.kubeClient.Get(ctx, types.NamespacedName{Name: p.Spec.NodeName}, node); err != nil {
+			return fmt.Errorf("getting node %s, %w", p.Spec.NodeName, err)
 		}
 		domain, ok := node.Labels[tg.Key]
 		if !ok {
@@ -271,7 +269,7 @@ func (t *Topology) newForTopologies(p *v1.Pod) []*TopologyGroup {
 			p,
 			TopologyTypeSpread,
 			cs.TopologyKey,
-			sets.NewString(p.Namespace),
+			utilsets.NewString(p.Namespace),
 			cs.LabelSelector,
 			cs.MaxSkew,
 			t.requirements.Get(cs.TopologyKey).Values()),
@@ -328,12 +326,12 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod) ([]*Topology
 
 // buildNamespaceList constructs a unique list of namespaces consisting of the pod's namespace and the optional list of
 // namespaces and those selected by the namespace selector
-func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, namespaces []string, selector *metav1.LabelSelector) (sets.String, error) {
+func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, namespaces []string, selector *metav1.LabelSelector) (utilsets.String, error) {
 	if len(namespaces) == 0 && selector == nil {
-		return sets.NewString(namespace), nil
+		return utilsets.NewString(namespace), nil
 	}
 	if selector == nil {
-		return sets.NewString(namespaces...), nil
+		return utilsets.NewString(namespaces...), nil
 	}
 	var namespaceList v1.NamespaceList
 	labelSelector, err := metav1.LabelSelectorAsSelector(selector)
@@ -341,7 +339,7 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 	if err := t.kubeClient.List(ctx, &namespaceList, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
 		return nil, fmt.Errorf("listing namespaces, %w", err)
 	}
-	selected := sets.NewString()
+	selected := utilsets.NewString()
 	for _, namespace := range namespaceList.Items {
 		selected.Insert(namespace.Name)
 	}
