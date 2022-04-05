@@ -77,9 +77,21 @@ func NewTopologyGroup(pod *v1.Pod, topologyType TopologyType, topologyKey string
 	}
 }
 
-func (t *TopologyGroup) Next(pod *v1.Pod, domains sets.Set) sets.Set {
+func (t *TopologyGroup) Next(pod *v1.Pod, nodeHostname string, domains sets.Set) sets.Set {
 	switch t.Type {
 	case TopologyTypeSpread:
+		// We are only considering putting the pod on a single node. Intersecting the list of viable domains with the node's
+		// hostname solves a problem where we have multiple nodes that the pod could land on because of a min-domain tie, but
+		// some of them are not viable due to arch/os.  Since we look at each node one at a time and this returns a min
+		// domain at random, we potentially fail to schedule as it may return a node hostname that doesn't correspond to the
+		// node that we are considering.  We can't add a node selector upstream to limit our available domains to just the node
+		// under consideration as this as would break pod self-affinity since it needs to consider the universe of valid
+		// domains to ensure that it only satisfies pod self-affinity the first time.  With the additional node selector, the
+		// universe of domains would always be a single hostname and it would repeatedly allow pods to provide self affinity
+		// across different nodes
+		if t.Key == v1.LabelHostname {
+			domains = domains.Intersection(sets.NewSet(nodeHostname))
+		}
 		return t.nextDomainTopologySpread(domains)
 	case TopologyTypePodAffinity:
 		return t.nextDomainAffinity(pod, domains)
