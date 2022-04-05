@@ -748,6 +748,37 @@ var _ = Describe("Topology", func() {
 			// pod in zone-3 it can put a max of two per zone before it would violate max skew
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
+		It("should schedule to the non-minimum domain if its all that's available", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           5,
+			}}
+			// force this pod onto zone-1
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+
+			// force this pod onto zone-2
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}})
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}))
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+
+			// now only allow scheduling pods on zone-3
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-3"}})
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
+			)
+
+			// max skew of 5, so test-zone-1/2 will have 1 pod each, test-zone-3 will have 6, and the rest will fail to schedule
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 6))
+		})
 		It("should not violate max-skew when unsat = do not schedule", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
@@ -1002,7 +1033,9 @@ var _ = Describe("Topology", func() {
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(2, 2))
 		})
-		It("should not violate max-skew when unsat = do not schedule", func() {
+		It("should not violate max-skew when unsat = do not schedule (capacity type)", func() {
+			// this test can pass in a flaky manner if we don't restrict our min domain selection to valid choices
+			// per the provisioner spec
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
 				WhenUnsatisfiable: v1.DoNotSchedule,
@@ -1323,10 +1356,6 @@ var _ = Describe("Topology", func() {
 				MaxSkew:           1,
 			}}
 
-			// need to limit the provisioner to only zone-1, zone-2 or else it will know that test-zone-3 has 0 pods and won't violate
-			// the max-skew
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}})
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				MakePods(6, test.PodOptions{
 					ObjectMeta:                metav1.ObjectMeta{Labels: labels},

@@ -100,6 +100,17 @@ func (s Set) Values() sets.String {
 	return s.values
 }
 
+func (s Set) Any() (string, bool) {
+	if s.complement || len(s.values) == 0 {
+		return "", false
+	}
+	for k := range s.values {
+		return k, true
+	}
+	// unreachable
+	return "", false
+}
+
 // ComplementValues returns the values of the complement set.
 // If the set is not a complement set, it will panic
 func (s Set) ComplementValues() sets.String {

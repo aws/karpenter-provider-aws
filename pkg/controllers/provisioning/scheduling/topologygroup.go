@@ -61,7 +61,7 @@ type TopologyGroup struct {
 	domains map[string]int32       // TODO(ellistarn) explore replacing with a minheap
 }
 
-func NewTopologyGroup(pod *v1.Pod, topologyType TopologyType, topologyKey string, namespaces utilsets.String, labelSelector *metav1.LabelSelector, maxSkew int32, domains utilsets.String) *TopologyGroup {
+func NewTopologyGroup(topologyType TopologyType, topologyKey string, namespaces utilsets.String, labelSelector *metav1.LabelSelector, maxSkew int32, domains utilsets.String) *TopologyGroup {
 	domainCounts := map[string]int32{}
 	for domain := range domains {
 		domainCounts[domain] = 0
@@ -77,21 +77,9 @@ func NewTopologyGroup(pod *v1.Pod, topologyType TopologyType, topologyKey string
 	}
 }
 
-func (t *TopologyGroup) Next(pod *v1.Pod, nodeHostname string, domains sets.Set) sets.Set {
+func (t *TopologyGroup) Next(pod *v1.Pod, domains sets.Set) sets.Set {
 	switch t.Type {
 	case TopologyTypeSpread:
-		// We are only considering putting the pod on a single node. Intersecting the list of viable domains with the node's
-		// hostname solves a problem where we have multiple nodes that the pod could land on because of a min-domain tie, but
-		// some of them are not viable due to arch/os.  Since we look at each node one at a time and this returns a min
-		// domain at random, we potentially fail to schedule as it may return a node hostname that doesn't correspond to the
-		// node that we are considering.  We can't add a node selector upstream to limit our available domains to just the node
-		// under consideration as this as would break pod self-affinity since it needs to consider the universe of valid
-		// domains to ensure that it only satisfies pod self-affinity the first time.  With the additional node selector, the
-		// universe of domains would always be a single hostname and it would repeatedly allow pods to provide self affinity
-		// across different nodes
-		if t.Key == v1.LabelHostname {
-			domains = domains.Intersection(sets.NewSet(nodeHostname))
-		}
 		return t.nextDomainTopologySpread(domains)
 	case TopologyTypePodAffinity:
 		return t.nextDomainAffinity(pod, domains)
@@ -155,21 +143,58 @@ func (t *TopologyGroup) Hash() uint64 {
 }
 
 func (t *TopologyGroup) nextDomainTopologySpread(domains sets.Set) sets.Set {
-	// Pick the domain that minimizes skew.
-	min := int32(math.MaxInt32)
-	minDomain := ""
+	// Return all domains that don't violate max-skew.  This is necessary as the provisioner may or may not be
+	// able to schedule to the domain that has the minimum skew, but can schedule to any that don't violate the
+	// max-skew.
+	min, max := t.domainMinMaxCounts(domains)
 
-	// Need to count skew for hostname
+	options := sets.NewSet()
+	currentSkew := max - min
 	for domain := range t.domains {
-		if domains.Has(domain) && t.domains[domain] < min {
-			min = t.domains[domain]
-			minDomain = domain
+		if domains.Has(domain) {
+			count := t.domains[domain]
+			// calculate what the skew will be if we choose this domain
+			nextSkew := currentSkew
+			decreasing := false
+			if count == min {
+				// adding to the min domain, so we're decreasing skew
+				nextSkew = currentSkew - 1
+				decreasing = true
+			} else if count == max {
+				// adding to the max domain, so we're increasing skew
+				nextSkew = currentSkew + 1
+			}
+
+			// if choosing it leaves us under the max-skew, or over it but still decreasing, it's a valid choice
+			if nextSkew <= t.maxSkew || decreasing {
+				options.Insert(domain)
+			}
 		}
 	}
-	if t.Key == v1.LabelHostname && min+1 > t.maxSkew {
-		return sets.NewSet()
+	return options
+}
+
+func (t *TopologyGroup) domainMinMaxCounts(domains sets.Set) (min int32, max int32) {
+	max = int32(0)
+	min = int32(math.MaxInt32)
+
+	// determine our current skew
+	for domain, count := range t.domains {
+		if domains.Has(domain) {
+			if count > max {
+				max = count
+			}
+			if count < min {
+				min = count
+			}
+		}
 	}
-	return sets.NewSet(minDomain)
+
+	// hostname based topologies always have a min pod count of zero since we can create one
+	if t.Key == v1.LabelHostname {
+		min = 0
+	}
+	return
 }
 
 func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, domains sets.Set) sets.Set {
