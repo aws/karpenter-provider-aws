@@ -73,9 +73,10 @@ func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node
 	return ExpectNodeExists(ctx, c, p.Spec.NodeName)
 }
 
-func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) {
+func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Pod {
 	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
 	Eventually(p.Spec.NodeName).Should(BeEmpty(), fmt.Sprintf("expected %s/%s to not be scheduled", pod.Namespace, pod.Name))
+	return p
 }
 
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {

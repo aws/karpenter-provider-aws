@@ -394,14 +394,16 @@ var _ = Describe("Pod Affinity and AntiAffinity", func() {
 	It("should schedule a pod with pod affinity preference", func() {
 		ExpectCreated(ctx, env.Client)
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
-			PodPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+			PodPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1,
+				PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: v1.LabelTopologyZone}}},
 		}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
+		ExpectDeleted(ctx, env.Client, pod)
 	})
 	It("should schedule a pod with pod anti-affinity preference", func() {
 		ExpectCreated(ctx, env.Client)
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
-			PodAntiPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: "foo"}}},
+			PodAntiPreferences: []v1.WeightedPodAffinityTerm{{Weight: 1, PodAffinityTerm: v1.PodAffinityTerm{TopologyKey: v1.LabelTopologyZone}}},
 		}))[0]
 		ExpectScheduled(ctx, env.Client, pod)
 	})
