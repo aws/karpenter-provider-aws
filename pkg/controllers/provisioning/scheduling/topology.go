@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"math"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,27 +46,42 @@ type Topology struct {
 	// topologies of pods with anti-affinity terms, so we can prevent scheduling the pods they have anti-affinity to
 	// in some cases.
 	inverseTopologies map[uint64]*TopologyGroup
-	// Universe of options used to compute domains
-	requirements *v1alpha5.Requirements
+	// The universe of domains by topology key
+	domains map[string]utilsets.String
 }
 
-func NewTopology(kubeClient client.Client, requirements *v1alpha5.Requirements) *Topology {
-	return &Topology{
+func NewTopology(ctx context.Context, kubeClient client.Client, requirements *v1alpha5.Requirements, pods []*v1.Pod) (*Topology, error) {
+	t := &Topology{
 		kubeClient:        kubeClient,
-		requirements:      requirements,
+		domains:           map[string]utilsets.String{},
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
-}
+	var nodeList v1.NodeList
+	if err := kubeClient.List(ctx, &nodeList); err != nil {
+		return nil, fmt.Errorf("listing nodes, %w", err)
+	}
 
-// Initialize scans the pods provided and creates topology groups for any topologies that we need to track based off of
-// topology spreads, affinities, and anti-affinities specified in the pods.
-func (t *Topology) Initialize(ctx context.Context, pods ...*v1.Pod) (errs error) {
-	errs = multierr.Append(errs, t.updateInverseAffinities(ctx))
+	// generate the universe domains which is the union of the ones specified in the provisioner spec and the ones that
+	// exist
+	for topologyKey := range requirements.Keys() {
+		domains := utilsets.NewString()
+		for _, node := range nodeList.Items {
+			if domain, ok := node.Labels[topologyKey]; ok {
+				domains.Insert(domain)
+			}
+		}
+		domains = domains.Union(requirements.Get(topologyKey).Values())
+		t.domains[topologyKey] = domains
+	}
+	errs := t.updateInverseAffinities(ctx)
 	for i := range pods {
 		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
 	}
-	return errs
+	if errs != nil {
+		return nil, errs
+	}
+	return t, nil
 }
 
 // Update unregisters the pod as the owner of all affinities and then creates any new topologies based on the pod spec
@@ -192,7 +208,8 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 		if err != nil {
 			return err
 		}
-		tg := NewTopologyGroup(pod, TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.requirements.Get(term.TopologyKey).Values())
+
+		tg := NewTopologyGroup(pod, TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.domains[term.TopologyKey])
 
 		hash := tg.Hash()
 		if existing, ok := t.inverseTopologies[hash]; !ok {
@@ -250,7 +267,7 @@ func (t *Topology) newForTopologies(p *v1.Pod) []*TopologyGroup {
 			utilsets.NewString(p.Namespace),
 			cs.LabelSelector,
 			cs.MaxSkew,
-			t.requirements.Get(cs.TopologyKey).Values()),
+			t.domains[cs.TopologyKey]),
 		)
 	}
 	return topologyGroups
@@ -295,7 +312,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod) ([]*Topology
 				namespaces,
 				term.LabelSelector,
 				math.MaxInt32,
-				t.requirements.Get(term.TopologyKey).Values()),
+				t.domains[term.TopologyKey]),
 			)
 		}
 	}

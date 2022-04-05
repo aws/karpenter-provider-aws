@@ -66,8 +66,8 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
-	topology := NewTopology(s.kubeClient, &constraints.Requirements)
-	if err := topology.Initialize(ctx, pods...); err != nil {
+	topology, err := NewTopology(ctx, s.kubeClient, &constraints.Requirements, pods)
+	if err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 

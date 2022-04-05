@@ -772,6 +772,29 @@ var _ = Describe("Topology", func() {
 			// max skew of 1, so test-zone-2/3 will have 2 nodes each and the rest of the pods will fail to schedule
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
+		It("should not violate max-skew when unsat = do not schedule (discover domains)", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			// force this pod onto zone-1 so that the cluster is aware zone-1 exists
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
+
+			// now only allow scheduling pods on zone-2 and zone-3
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2", "test-zone-3"}})
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
+			)
+
+			// max skew of 1, so test-zone-2/3 will have 1 nodes each and the rest of the pods will fail to schedule since
+			// test-zone-1 has zero pods in it.
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
 			wrongNamespace := strings.ToLower(randomdata.SillyName())
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}})
