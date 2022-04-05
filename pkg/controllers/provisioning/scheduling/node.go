@@ -59,7 +59,7 @@ func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResou
 
 func (n *Node) Add(pod *v1.Pod) error {
 	// Include topology requirements
-	requirements, err := n.topology.AddRequirements(v1alpha5.NewPodRequirements(pod), pod)
+	requirements, err := n.topology.AddRequirements(v1alpha5.NewPodRequirements(pod), pod, n.Hostname)
 	if err != nil {
 		return err
 	}

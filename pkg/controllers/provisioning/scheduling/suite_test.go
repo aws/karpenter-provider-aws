@@ -743,30 +743,6 @@ var _ = Describe("Topology", func() {
 			// max skew of 1, so test-zone-2/3 will have 2 nodes each and the rest of the pods will fail to schedule
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
-		It("should violate max-skew when unsat = schedule anyway (zone)", func() {
-			topology := []v1.TopologySpreadConstraint{{
-				TopologyKey:       v1.LabelTopologyZone,
-				WhenUnsatisfiable: v1.ScheduleAnyway,
-				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
-				MaxSkew:           1,
-			}}
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}))
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
-
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2", "test-zone-3"}})
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
-				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
-			)
-
-			// max skew of 1, so test-zone-2/3 will have end up with 5 pods each even though test-1 has a single pod
-			// Node: this test result is somewhat of a fluke. If we got a spread of (1,10) it would still be a valid scheduling. If this test
-			// fails because of scheduler changes, reconsider this expectation.
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 5, 5))
-		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
 			wrongNamespace := strings.ToLower(randomdata.SillyName())
 			firstNode := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}})
@@ -936,7 +912,7 @@ var _ = Describe("Topology", func() {
 			}
 			nodes := v1.NodeList{}
 			Expect(env.Client.List(ctx, &nodes)).To(Succeed())
-			// same test as the previous one, but now the architectures are different so we need four node in total
+			// same test as the previous one, but now the architectures are different so we need four nodes in total
 			Expect(nodes.Items).To(HaveLen(4))
 		})
 	})
@@ -1525,6 +1501,62 @@ var _ = Describe("Topology", func() {
 			Expect(scheduledCount).To(BeNumerically("==", 5))
 			Expect(unscheduledCount).To(BeNumerically("==", 5))
 		})
+		It("should respect self pod affinity for first empty topology domain only (hostname/constrained zones)", func() {
+			affLabels := map[string]string{"security": "s2"}
+
+			// put one pod in test-zone-1, this shouldn't affect the remainder of the test as the node selectors are
+			// disjoint between this pod and the other 10 pods
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: affLabels,
+				},
+				NodeSelector: map[string]string{
+					v1.LabelTopologyZone: "test-zone-1",
+				},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelHostname,
+				}},
+			}))
+
+			pods := MakePods(10, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: affLabels,
+				},
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"test-zone-2", "test-zone-3"},
+					},
+				},
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelHostname,
+				}},
+			})
+			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+			nodeNames := map[string]struct{}{}
+			unscheduledCount := 0
+			scheduledCount := 0
+			for _, p := range pods {
+				p = ExpectPodExists(ctx, env.Client, p.Name, p.Namespace)
+				if p.Spec.NodeName == "" {
+					unscheduledCount++
+				} else {
+					nodeNames[p.Spec.NodeName] = struct{}{}
+					scheduledCount++
+				}
+			}
+			// the node can only hold 5 pods, so we should get a single node with 5 pods and 5 unschedulable pods
+			Expect(len(nodeNames)).To(Equal(1))
+			Expect(scheduledCount).To(BeNumerically("==", 5))
+			Expect(unscheduledCount).To(BeNumerically("==", 5))
+		})
 		It("should respect self pod affinity (zone)", func() {
 			affLabels := map[string]string{"security": "s2"}
 
@@ -1924,19 +1956,38 @@ var _ = Describe("Topology", func() {
 			affLabels := map[string]string{"security": "s2"}
 
 			// affPods will avoid being scheduled in the same zone
-			affPods := MakePods(10, test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
-				PodAntiRequirements: []v1.PodAffinityTerm{{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: affLabels,
-					},
-					TopologyKey: v1.LabelTopologyZone,
-				}}})
+			createPods := func() []*v1.Pod {
+				return MakePods(3, test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: affLabels,
+						},
+						TopologyKey: v1.LabelTopologyZone,
+					}}})
+			}
 
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPods...)
-
-			// we should get one pod per zone, and 7 failed to schedule pods
 			top := &v1.TopologySpreadConstraint{TopologyKey: v1.LabelTopologyZone}
+
+			// One of the downsides of late committal is that absent other constraints, it takes multiple batches of
+			// scheduling for zonal anti-affinities to work themselves out.  The first schedule, we know that the pod
+			// will land in test-zone-1, test-zone-2, or test-zone-3, but don't know which it collapses to until the
+			// node is actually created.
+
+			// one pod pod will schedule
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
+			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(1))
+
+			// second pod in a second zone
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
+			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(1, 1))
+
+			// third pod in the last zone
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
+			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(1, 1, 1))
+
+			// and nothing else can schedule
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
 			ExpectSkew(ctx, env.Client, "default", top).To(ConsistOf(1, 1, 1))
 		})
 		It("should not schedule pods with affinity to a non-existent pod", func() {

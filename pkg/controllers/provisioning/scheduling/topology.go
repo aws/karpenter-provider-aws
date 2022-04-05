@@ -125,15 +125,16 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 }
 
 // AddRequirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
-// affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
-// the case of a set of requirements that cannot be satisfied.
-func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
+// affinities, anti-affinities or inverse anti-affinities.  The nostHostname is the hostname that we are currently considering
+// placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
+// cannot be satisfied.
+func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod, nodeHostname string) (v1alpha5.Requirements, error) {
 	for _, topology := range t.getMatchingTopologies(p) {
 		domains := sets.NewComplementSet()
 		if requirements.Has(topology.Key) {
 			domains = requirements.Get(topology.Key)
 		}
-		domains = topology.Next(p, domains)
+		domains = topology.Next(p, nodeHostname, domains)
 		if domains.Len() == 0 {
 			return v1alpha5.Requirements{}, fmt.Errorf("todo topology error")
 		}
