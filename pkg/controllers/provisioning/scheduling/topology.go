@@ -124,7 +124,7 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	}
 }
 
-// Requirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
+// AddRequirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
 // affinities, anti-affinities or inverse anti-affinities.  It returns these newly tightened requirements, or an error in
 // the case of a set of requirements that cannot be satisfied.
 func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
