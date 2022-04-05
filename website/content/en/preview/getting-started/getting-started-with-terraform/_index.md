@@ -139,7 +139,7 @@ module "eks" {
     initial = {
       instance_types = ["t3.medium"]
       # We don't need the node security group since we are using the
-      # cluster created security group which Karpenter will also use
+      # cluster-created security group, which Karpenter will also use
       create_security_group                 = false
       attach_cluster_primary_security_group = true
 
