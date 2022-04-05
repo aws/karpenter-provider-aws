@@ -125,7 +125,7 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 }
 
 // AddRequirements tightens the input requirements by adding additional requirements that are being enforced by topology spreads
-// affinities, anti-affinities or inverse anti-affinities.  The nostHostname is the hostname that we are currently considering
+// affinities, anti-affinities or inverse anti-affinities.  The nodeHostname is the hostname that we are currently considering
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
 func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod, nodeHostname string) (v1alpha5.Requirements, error) {
@@ -136,7 +136,7 @@ func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod
 		}
 		domains = topology.Next(p, nodeHostname, domains)
 		if domains.Len() == 0 {
-			return v1alpha5.Requirements{}, fmt.Errorf("todo topology error")
+			return v1alpha5.Requirements{}, fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
 		}
 		requirements = requirements.Add(v1.NodeSelectorRequirement{Key: topology.Key, Operator: v1.NodeSelectorOpIn, Values: domains.Values().List()})
 	}
@@ -212,29 +212,6 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 // against the cluster for any existing pods.
 func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 	podList := &v1.PodList{}
-
-	// // collect all of the nodes so we can identify every domain
-	// var nodeList v1.NodeList
-	// if err := t.kubeClient.List(ctx, &nodeList); err != nil {
-	// 	return fmt.Errorf("listing nodes, %w", err)
-	// }
-
-	// // "The scheduler will skip the non-matching nodes from the skew calculations if the incoming Pod has spec.nodeSelector
-	// // or spec.affinity.nodeAffinity defined" per
-	// // https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#interaction-with-node-affinity-and-node-selectors
-	// // because of this we only count pods that are on nodes that the pod is possibly schedulable to considering the nodeSelector and
-	// // required node affinity
-	// nodes := map[string]*v1.Node{}
-	// for i, node := range nodeList.Items {
-	// 	if matched, _ := tg.requiredNodeAffinity.Match(&nodeList.Items[i]); matched {
-	// 		domain, ok := node.Labels[tg.Key]
-	// 		if !ok {
-	// 			continue // Don't include pods if node doesn't contain domain
-	// 		}
-	// 		nodes[node.Name] = &nodeList.Items[i]
-	// 		tg.Register(domain)
-	// 	}
-	// }
 
 	// collect the pods from all the specified namespaces (don't see a way to query multiple namespaces
 	// simultaneously)
