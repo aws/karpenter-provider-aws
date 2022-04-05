@@ -75,13 +75,6 @@ func HasRequiredPodAntiAffinity(pod *v1.Pod) bool {
 		len(pod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0
 }
 
-// HasPodAffinity returns true if a non-empty PodAffinity is defined in the pod spec
-func HasPodAffinity(pod *v1.Pod) bool {
-	return pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAffinity != nil &&
-		(len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 ||
-			len(pod.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution) != 0)
-}
-
 // HasPodAntiAffinity returns true if a non-empty PodAntiAffinity is defined in the pod spec
 func HasPodAntiAffinity(pod *v1.Pod) bool {
 	return pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAntiAffinity != nil &&

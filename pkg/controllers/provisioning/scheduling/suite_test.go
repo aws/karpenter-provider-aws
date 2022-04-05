@@ -353,7 +353,7 @@ var _ = Describe("Custom Constraints", func() {
 			}
 		})
 		It("should schedule pods that have node selectors with label in restricted domains exceptions list", func() {
-			requirements := []v1.NodeSelectorRequirement{}
+			var requirements []v1.NodeSelectorRequirement
 			for domain := range v1alpha5.LabelDomainExceptions {
 				requirements = append(requirements, v1.NodeSelectorRequirement{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
 			}
@@ -1244,7 +1244,7 @@ var _ = Describe("Topology", func() {
 		It("should limit spread options by nodeSelector", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
-				WhenUnsatisfiable: v1.ScheduleAnyway,
+				WhenUnsatisfiable: v1.DoNotSchedule,
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
 				MaxSkew:           1,
 			}}
@@ -1255,13 +1255,36 @@ var _ = Describe("Topology", func() {
 						TopologySpreadConstraints: topology,
 						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-1"},
 					}),
-					MakePods(5, test.PodOptions{
+					MakePods(10, test.PodOptions{
 						ObjectMeta:                metav1.ObjectMeta{Labels: labels},
 						TopologySpreadConstraints: topology,
 						NodeSelector:              map[string]string{v1.LabelTopologyZone: "test-zone-2"},
 					})...,
 				)...,
 			)
+			// we limit the zones of each pod via node selectors, which causes the topology spreads to only consider
+			// the single zone as the only valid domain for the topology spread allowing us to schedule multiple pods per domain
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(5, 10))
+		})
+		It("should limit spread options by node requirements", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				MakePods(10, test.PodOptions{
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
+					TopologySpreadConstraints: topology,
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelTopologyZone,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"test-zone-1", "test-zone-2"},
+						},
+					},
+				})...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(5, 5))
 		})
 		It("should limit spread options by node affinity", func() {

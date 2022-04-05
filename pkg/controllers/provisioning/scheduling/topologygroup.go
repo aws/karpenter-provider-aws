@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"math"
 
+	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
+
 	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,30 +55,58 @@ func (t TopologyType) String() string {
 // TopologyGroup is used to track pod counts that match a selector by the topology domain (e.g. SELECT COUNT(*) FROM pods GROUP BY(topology_ke
 type TopologyGroup struct {
 	// Hashed Fields
-	Key        string
-	Type       TopologyType
-	maxSkew    int32
-	namespaces utilsets.String
-	selector   *metav1.LabelSelector
+	Key                  string
+	Type                 TopologyType
+	maxSkew              int32
+	namespaces           utilsets.String
+	selector             *metav1.LabelSelector
+	nodeSelectors        map[string]string
+	nodeRequiredAffinity *v1.NodeSelector
+	// compiled matcher which matches against the node selectors and required affinity
+	requiredNodeAffinity nodeaffinity.RequiredNodeAffinity
+	domainFilter         domainFilter
 	// Pod Index
 	owners map[types.UID]struct{} // Pods that have this topology as a scheduling rule
 	// Internal state
 	domains map[string]int32 // TODO(ellistarn) explore replacing with a minheap
 }
 
-func NewTopologyGroup(topologyType TopologyType, key string, namespaces utilsets.String, labelSelector *metav1.LabelSelector, maxSkew int32, domains utilsets.String) *TopologyGroup {
+func NewTopologyGroup(pod *v1.Pod, topologyType TopologyType, topologyKey string, namespaces utilsets.String, labelSelector *metav1.LabelSelector, maxSkew int32, domains utilsets.String) *TopologyGroup {
+	// if the pod has spec.nodeSelector or spec.affinity.nodeAffinity, those limit what the global possible set of domains
+	// are for this topology
+	filter := newDomainFilter(pod, topologyKey)
 	domainCounts := map[string]int32{}
 	for domain := range domains {
-		domainCounts[domain] = 0
+		if filter.Matches(domain) {
+			domainCounts[domain] = 0
+		}
 	}
+
+	// since the global set of topologies varies based on spec.nodeSelector or spec.affinity.nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+	// we need to include them in our hash to generate unique topology groups
+	var nodeRequiredAffinity *v1.NodeSelector
+	if pod.Spec.Affinity != nil &&
+		pod.Spec.Affinity.NodeAffinity != nil &&
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		nodeRequiredAffinity = pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	}
+
+	// TODO: we use nodeaffinity.GetRequiredNodeAffinity to save us from having to write a bunch of code to match fields
+	// & labels.  We could almost reuse our domainFilter, except it doesn't consider MatchFields on the existing nodes
+	// and would only support MatchLabels.
+
 	return &TopologyGroup{
-		Type:       topologyType,
-		Key:        key,
-		namespaces: namespaces,
-		selector:   labelSelector,
-		maxSkew:    maxSkew,
-		domains:    domainCounts,
-		owners:     map[types.UID]struct{}{},
+		Type:                 topologyType,
+		Key:                  topologyKey,
+		nodeSelectors:        pod.Spec.NodeSelector,
+		domainFilter:         filter,
+		requiredNodeAffinity: nodeaffinity.GetRequiredNodeAffinity(pod),
+		nodeRequiredAffinity: nodeRequiredAffinity,
+		namespaces:           namespaces,
+		selector:             labelSelector,
+		maxSkew:              maxSkew,
+		domains:              domainCounts,
+		owners:               map[types.UID]struct{}{},
 	}
 }
 
@@ -109,6 +139,11 @@ func (t *TopologyGroup) Next(requirements v1alpha5.Requirements, selfSelecting b
 
 func (t *TopologyGroup) Record(domains ...string) {
 	for _, domain := range domains {
+		// pods are matched by labels across thetopology groups, but are only counted in a subset of domains depending on the
+		// pod's node selectors and required node affinities
+		if !t.domainFilter.Matches(domain) {
+			continue
+		}
 		t.domains[domain]++
 	}
 }
@@ -143,17 +178,21 @@ func (t *TopologyGroup) IsOwnedBy(key types.UID) bool {
 // with self anti-affinity, we track that as a single topology with 100 owners instead of 100x topologies.
 func (t *TopologyGroup) Hash() uint64 {
 	hash, err := hashstructure.Hash(struct {
-		TopologyKey   string
-		Type          TopologyType
-		Namespaces    utilsets.String
-		LabelSelector *metav1.LabelSelector
-		MaxSkew       int32
+		TopologyKey          string
+		Type                 TopologyType
+		Namespaces           utilsets.String
+		LabelSelector        *metav1.LabelSelector
+		MaxSkew              int32
+		NodeRequiredAffinity *v1.NodeSelector
+		NodeSelector         map[string]string
 	}{
-		TopologyKey:   t.Key,
-		Type:          t.Type,
-		Namespaces:    t.namespaces,
-		LabelSelector: t.selector,
-		MaxSkew:       t.maxSkew,
+		TopologyKey:          t.Key,
+		Type:                 t.Type,
+		Namespaces:           t.namespaces,
+		LabelSelector:        t.selector,
+		MaxSkew:              t.maxSkew,
+		NodeRequiredAffinity: t.nodeRequiredAffinity,
+		NodeSelector:         t.nodeSelectors,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	runtime.Must(err)
 	return hash
