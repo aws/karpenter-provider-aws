@@ -95,7 +95,7 @@ Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisio
 
 ### Can I use Bare Metal instance types?
 
-Yes, Karpenter supports provisioning metal instance types when a Provisioner's `node.kubernetes.io/instance-type` Requirements only include `metal` instance types. If a Provisioner's instance types are not constrained, then Karpenter will not provision metal instance types.
+Yes, Karpenter supports provisioning metal instance types when a Provisioner's `node.kubernetes.io/instance-type` Requirements only include `metal` instance types. If other instance types fulfill pod requirements, then Karpenter will prioritize all non-metal instance types before metal ones are provisioned.
 
 ### How does Karpenter dynamically select instance types?
 
