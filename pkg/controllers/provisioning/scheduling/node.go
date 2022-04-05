@@ -57,27 +57,26 @@ func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResou
 	return n
 }
 
-func (n *Node) Add(p *v1.Pod) error {
-	podRequirements := v1alpha5.NewPodRequirements(p)
-	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
-		return err
-	}
-
-	requirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
-
-	var err error
-	requirements, err = n.topology.Requirements(requirements, p)
+func (n *Node) Add(pod *v1.Pod) error {
+	// Include topology requirements
+	requirements, err := n.topology.AddRequirements(v1alpha5.NewPodRequirements(pod), pod)
 	if err != nil {
 		return err
 	}
-
-	requests := resources.Merge(n.requests, resources.RequestsForPods(p))
+	// Check node compatibility
+	if err = n.Constraints.Requirements.Compatible(requirements); err != nil {
+		return err
+	}
+	// Tighten requirements
+	requirements = n.Constraints.Requirements.Add(requirements.Requirements...)
+	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	// Check instance type combinations
 	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(p)), n.Constraints.Requirements)
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Constraints.Requirements)
 	}
-
-	n.Pods = append(n.Pods, p)
+	// Update node
+	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypes
 	n.requests = requests
 	n.Constraints.Requirements = requirements
