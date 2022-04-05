@@ -40,12 +40,12 @@ type Node struct {
 
 var nodeID int64
 
-func NewNode(constraints *v1alpha5.Constraints, topoplogy *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+func NewNode(constraints *v1alpha5.Constraints, topology *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
 	n := &Node{
 		Hostname:            fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
 		Constraints:         constraints.DeepCopy(),
 		InstanceTypeOptions: instanceTypes,
-		topology:            topoplogy,
+		topology:            topology,
 		requests:            daemonResources,
 	}
 
