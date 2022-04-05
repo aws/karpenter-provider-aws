@@ -199,43 +199,43 @@ If you are using a custom launch template and an encrypted EBS volume, the IAM p
 As a result, the node terminates almost immediately upon creation.
 To correct this, you can use the approach that AWS EBS uses, which avoids adding particular roles to the KMS policy:
 
-```text
+```json
 [
-{
-"Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
-"Effect": "Allow",
-"Principal": {
-"AWS": ""
-},
-"Action": [
-"kms:Encrypt",
-"kms:Decrypt",
-"kms:ReEncrypt",
-"kms:GenerateDataKey*",
-"kms:CreateGrant",
-"kms:DescribeKey"
-],
-"Resource": "",
-"Condition": {
-"StringEquals": {
-"kms:ViaService": "ec2.eu-west-1.amazonaws.com",
-"kms:CallerAccount": "618668373247"
-}
-}
-},
-{
-"Sid": "Allow direct access to key metadata to the account",
-"Effect": "Allow",
-"Principal": {
-"AWS": "arn:aws:iam::618668373247:root"
-},
-"Action": [
-"kms:Describe",
-"kms:Get*",
-"kms:List*",
-"kms:RevokeGrant"
-],
-"Resource": "*"
-}
+    {
+        "Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
+        "Effect": "Allow",
+        "Principal": {
+            "AWS": ""
+        },
+        "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+        ],
+        "Resource": "",
+        "Condition": {
+            "StringEquals": {
+            "kms:ViaService": "ec2.${REGION}.amazonaws.com",
+            "kms:CallerAccount": "${AWS_ACCOUNT_ID}"
+            }
+        }
+    },
+    {
+        "Sid": "Allow direct access to key metadata to the account",
+        "Effect": "Allow",
+        "Principal": {
+            "AWS": "arn:aws:iam::${AWS_ACCOUNT_ID}:root"
+        },
+        "Action": [
+            "kms:Describe",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+        ],
+        "Resource": "*"
+    }
 ]
 ```
