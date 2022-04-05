@@ -1783,24 +1783,29 @@ var _ = Describe("Topology", func() {
 				},
 				TopologyKey: v1.LabelTopologyZone,
 			}}
-			rr := v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
-			}
 			zoneAnywherePod := test.UnschedulablePod(test.PodOptions{
 				PodAntiRequirements: anti,
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				},
 			})
 
-			affPod := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
-				ResourceRequirements: rr,
-			})
+			affPod := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
 
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, zoneAnywherePod, affPod)
-			// the anti-affinity will schedule first due to first fit-descending, but we don't know which zone it landed in
+			// the pod with anti-affinity will schedule first due to first fit-descending, but we don't know which zone it landed in
 			node1 := ExpectScheduled(ctx, env.Client, zoneAnywherePod)
 
-			// this pod can schedule since we early bind anti-affinity rules
+			// this pod cannot schedule since the pod with anti-affinity could potentially be in any zone
+			affPod = ExpectNotScheduled(ctx, env.Client, affPod)
+
+			// a second batching will now allow the pod to schedule as the zoneAnywherePod has been committed to a zone
+			// by the actual node creation
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, affPod)
 			node2 := ExpectScheduled(ctx, env.Client, affPod)
+
 			Expect(node1.Labels[v1.LabelTopologyZone]).ToNot(Equal(node2.Labels[v1.LabelTopologyZone]))
+
 		})
 		It("should not violate pod anti-affinity on zone (inverse w/existing nodes)", func() {
 			affLabels := map[string]string{"security": "s2"}
