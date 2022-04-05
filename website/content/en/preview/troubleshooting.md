@@ -196,8 +196,14 @@ Instead using of the eksctl role, you can shorten the name to anything you like,
 
 ## Node terminates before ready on failed encrypted EBS volume
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS custom managed key (CMK) for the EC2 EBS root volume.
-As a result, the node terminates almost immediately upon creation.
-To correct this, you can use the approach that AWS EBS uses, which avoids adding particular roles to the KMS policy:
+This issue also applies to [Block Device Mappings]({{<ref "./aws/provisioning/#block-device-mappings" >}}) specified in the Provisioner.
+In either case, this results in the node terminating almost immediately upon creation.
+
+Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
+EBS encryption could have been enabled by an account administrator or by default on a per region basis.
+See [Encryption by default](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#encryption-by-default) for details.
+
+To correct the problem if it occurs, you can use the approach that AWS EBS uses, which avoids adding particular roles to the KMS policy:
 
 ```json
 [
