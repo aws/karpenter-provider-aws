@@ -93,6 +93,10 @@ Yes, see [Example Provisioner Resource]({{< ref "./provisioner/#example-provisio
 * Attribute-based requests are currently not possible.
 * You can select instances with special hardware, such as gpu.
 
+### Can I use Bare Metal instance types?
+
+Yes, Karpenter supports provisioning metal instance types when a Provisioner's `node.kubernetes.io/instance-type` Requirements only include `metal` instance types. If a Provisioner's instance types are not constrained, then Karpenter will not provision metal instance types.
+
 ### How does Karpenter dynamically select instance types?
 
 Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemon sets that will be packed when bringing up a new node.
