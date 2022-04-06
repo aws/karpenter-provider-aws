@@ -66,14 +66,14 @@ This means that your CNI plugin is out of date. You can find instructions on how
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
-Verify that the webhook is running (should see 2/2 containers with a "Ready" status)
+Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
 ```text
 kubectl get po -A -l app.kubernetes.io/name=karpenter
 NAME                       READY   STATUS    RESTARTS   AGE
 karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
 ```
 
-Webhook service has endpoints assigned to it
+Karpenter service has endpoints assigned to it
 ```text
 kubectl get ep -A -l app.kubernetes.io/name=karpenter
 NAMESPACE   NAME        ENDPOINTS                               AGE
