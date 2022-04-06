@@ -53,7 +53,7 @@ func NewLabelRequirements(labels map[string]string) Requirements {
 
 // NewPodRequirements constructs requirements from a pod
 func NewPodRequirements(pod *v1.Pod) Requirements {
-	requirements := []v1.NodeSelectorRequirement{}
+	var requirements []v1.NodeSelectorRequirement
 	for key, value := range pod.Spec.NodeSelector {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}

@@ -876,10 +876,10 @@ var _ = Describe("Topology", func() {
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
 				MaxSkew:           1,
 			}}
-			// force this pod onto zone-1 so that the cluster is aware zone-1 exists
+			// force this pod onto zone-1
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
-			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}}))
 
 			// now only allow scheduling pods on zone-2 and zone-3
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -888,9 +888,9 @@ var _ = Describe("Topology", func() {
 				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})...,
 			)
 
-			// max skew of 1, so test-zone-2/3 will have 1 nodes each and the rest of the pods will fail to schedule since
-			// test-zone-1 has zero pods in it.
-			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+			// max skew of 1, so test-zone-2/3 will have 2 nodes each and the rest of the pods will fail to schedule since
+			// test-zone-1 has 1 pods in it.
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2, 2))
 		})
 		It("should only count running/scheduled pods with matching labels scheduled to nodes with a corresponding domain", func() {
 			wrongNamespace := strings.ToLower(randomdata.SillyName())
@@ -1211,6 +1211,85 @@ var _ = Describe("Topology", func() {
 			}
 			Expect(nodeNames).To(HaveLen(1))
 		})
+		It("should balance pods across capacity-types (node required affinity constrained)", func() {
+			// launch this on-demand pod in zone-1
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}})
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, MakePods(1, test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"on-demand"},
+					},
+				},
+			})...)
+			ExpectScheduled(ctx, env.Client, pod[0])
+
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1alpha5.LabelCapacityType,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+
+			// limit our provisioner to only creating spot nodes
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{"spot"}})
+
+			// Try to run 5 pods, with a node selector restricted to test-zone-2, they should all schedule on the same
+			// spot node. This doesn't violate the max-skew of 1 as the node selector requirement here excludes the
+			// existing on-demand pod from counting within this topology.
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				MakePods(5, test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: labels},
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelTopologyZone,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"test-zone-2"},
+						},
+					},
+					TopologySpreadConstraints: topology,
+				})...,
+			)
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 5))
+		})
+		It("should balance pods across capacity-types (no constraints)", func() {
+			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1alpha5.LabelCapacityType,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"on-demand"},
+					},
+				},
+			}))
+			ExpectScheduled(ctx, env.Client, pod[0])
+
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1alpha5.LabelCapacityType,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+
+			// limit our provisioner to only creating spot nodes
+			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
+				v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{"spot"}})
+
+			// since there is no node selector on this pod, the topology can see the single on-demand node that already
+			// exists and that limits us to scheduling 2 more spot pods before we would violate max-skew
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				MakePods(5, test.PodOptions{
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
+					TopologySpreadConstraints: topology,
+				})...,
+			)
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2))
+		})
 	})
 
 	Context("Combined Hostname and Zonal Topology", func() {
@@ -1353,7 +1432,7 @@ var _ = Describe("Topology", func() {
 
 			// add varying numbers of pods, checking after each scheduling to ensure that our max required max skew
 			// has not been violated for each constraint
-			for i := 1; i < 25; i++ {
+			for i := 1; i < 15; i++ {
 				pods := MakePods(i, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology})
 				ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
 				ExpectMaxSkew(ctx, env.Client, "default", &topology[0]).To(BeNumerically("<=", 1))
@@ -1619,18 +1698,20 @@ var _ = Describe("Topology", func() {
 		})
 		It("should respect self pod affinity for first empty topology domain only (hostname)", func() {
 			affLabels := map[string]string{"security": "s2"}
-			pods := MakePods(10, test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: affLabels,
-				},
-				PodRequirements: []v1.PodAffinityTerm{{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: affLabels,
+			createPods := func() []*v1.Pod {
+				return MakePods(10, test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: affLabels,
 					},
-					TopologyKey: v1.LabelHostname,
-				}},
-			})
-			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
+					PodRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: affLabels,
+						},
+						TopologyKey: v1.LabelHostname,
+					}},
+				})
+			}
+			pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
 			nodeNames := map[string]struct{}{}
 			unscheduledCount := 0
 			scheduledCount := 0
@@ -1643,16 +1724,21 @@ var _ = Describe("Topology", func() {
 					scheduledCount++
 				}
 			}
-			// the node can only hold 5 pods, so we should get a single node with 5 pods and 5 unschedulable pods
+			// the node can only hold 5 pods, so we should get a single node with 5 pods and 5 unschedulable pods from that batch
 			Expect(len(nodeNames)).To(Equal(1))
 			Expect(scheduledCount).To(BeNumerically("==", 5))
 			Expect(unscheduledCount).To(BeNumerically("==", 5))
+
+			// and pods in a different batch should not schedule as well even if the node is not ready yet
+			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, createPods()...)
+			for _, p := range pods {
+				ExpectNotScheduled(ctx, env.Client, p)
+			}
 		})
 		It("should respect self pod affinity for first empty topology domain only (hostname/constrained zones)", func() {
 			affLabels := map[string]string{"security": "s2"}
-
-			// put one pod in test-zone-1, this shouldn't affect the remainder of the test as the node selectors are
-			// disjoint between this pod and the other 10 pods
+			// put one pod in test-zone-1, this does affect pod affinity even though we have different node selectors.
+			// The node selector and required node affinity restrictions to topology counting only apply to topology spread.
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: affLabels,
@@ -1687,22 +1773,10 @@ var _ = Describe("Topology", func() {
 				}},
 			})
 			pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...)
-			nodeNames := map[string]struct{}{}
-			unscheduledCount := 0
-			scheduledCount := 0
 			for _, p := range pods {
-				p = ExpectPodExists(ctx, env.Client, p.Name, p.Namespace)
-				if p.Spec.NodeName == "" {
-					unscheduledCount++
-				} else {
-					nodeNames[p.Spec.NodeName] = struct{}{}
-					scheduledCount++
-				}
+				// none of this should schedule
+				ExpectNotScheduled(ctx, env.Client, p)
 			}
-			// the node can only hold 5 pods, so we should get a single node with 5 pods and 5 unschedulable pods
-			Expect(len(nodeNames)).To(Equal(1))
-			Expect(scheduledCount).To(BeNumerically("==", 5))
-			Expect(unscheduledCount).To(BeNumerically("==", 5))
 		})
 		It("should respect self pod affinity (zone)", func() {
 			affLabels := map[string]string{"security": "s2"}

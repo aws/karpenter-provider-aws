@@ -57,23 +57,13 @@ func NewTopology(ctx context.Context, kubeClient client.Client, requirements *v1
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
-	var nodeList v1.NodeList
-	if err := kubeClient.List(ctx, &nodeList); err != nil {
-		return nil, fmt.Errorf("listing nodes, %w", err)
+
+	// Update the universe of valid domains per the provisioner spec.  We can't pull all the domains from all of the nodes
+	// here as these are passed on to topology spreads which can be limited by node selector/required node affinities.
+	for topologyKey := range v1alpha5.ValidTopologyKeys {
+		t.domains[topologyKey] = requirements.Get(topologyKey).Values()
 	}
 
-	// generate the universe domains which is the union of the ones specified in the provisioner spec and the ones that
-	// exist
-	for topologyKey := range requirements.Keys() {
-		domains := utilsets.NewString()
-		for _, node := range nodeList.Items {
-			if domain, ok := node.Labels[topologyKey]; ok {
-				domains.Insert(domain)
-			}
-		}
-		domains = domains.Union(requirements.Get(topologyKey).Values())
-		t.domains[topologyKey] = domains
-	}
 	errs := t.updateInverseAffinities(ctx)
 	for i := range pods {
 		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
@@ -125,7 +115,7 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	// once we've committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
-		if tc.Matches(p.Namespace, p.Labels) {
+		if tc.CountsPod(p, requirements) {
 			domains := requirements.Get(tc.Key)
 			if tc.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
@@ -153,17 +143,17 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 // cannot be satisfied.
 func (t *Topology) AddRequirements(podRequirements, nodeRequirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
 	requirements := nodeRequirements
-	for _, topology := range t.getMatchingTopologies(p) {
-		domains := sets.NewComplementSet()
+	for _, topology := range t.getMatchingTopologies(p, nodeRequirements) {
+		podDomains := sets.NewComplementSet()
 		if podRequirements.Has(topology.Key) {
-			domains = podRequirements.Get(topology.Key)
+			podDomains = podRequirements.Get(topology.Key)
 		}
 		nodeDomains := sets.NewComplementSet()
 		if nodeRequirements.Has(topology.Key) {
 			nodeDomains = nodeRequirements.Get(topology.Key)
 		}
 
-		domains = topology.Get(p, domains, nodeDomains)
+		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
 			return v1alpha5.Requirements{}, fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
 		}
@@ -222,7 +212,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 			return err
 		}
 
-		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.domains[term.TopologyKey])
+		tg := NewTopologyGroup(TopologyTypePodAntiAffinity, term.TopologyKey, pod, namespaces, term.LabelSelector, math.MaxInt32, t.domains[term.TopologyKey])
 
 		hash := tg.Hash()
 		if existing, ok := t.inverseTopologies[hash]; !ok {
@@ -262,8 +252,21 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 			return fmt.Errorf("getting node %s, %w", p.Spec.NodeName, err)
 		}
 		domain, ok := node.Labels[tg.Key]
+		// Kubelet sets the hostname label, but the node may not be ready yet so there is no label.  We fall back and just
+		// treat the node name as the label.  It probably is in most cases, but even if not we at least count the existence
+		// of the pods in some domain, even if not in the correct one.  This is needed to handle the case of pods with
+		// self-affinity only fulfilling that affinity if all domains are empty.
+		if !ok && tg.Key == v1.LabelHostname {
+			domain = node.Name
+			ok = true
+		}
 		if !ok {
 			continue // Don't include pods if node doesn't contain domain https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#conventions
+		}
+		// nodes may or may not be considered for counting purposes for topology spread constraints depending on if they
+		// are selected by the pod's node selectors and required node affinities.  If these are unset, the node always counts.
+		if !tg.nodeSelector.Matches(node) {
+			continue
 		}
 		tg.Record(domain)
 	}
@@ -273,7 +276,7 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 func (t *Topology) newForTopologies(p *v1.Pod) []*TopologyGroup {
 	var topologyGroups []*TopologyGroup
 	for _, cs := range p.Spec.TopologySpreadConstraints {
-		topologyGroups = append(topologyGroups, NewTopologyGroup(TopologyTypeSpread, cs.TopologyKey, utilsets.NewString(p.Namespace), cs.LabelSelector, cs.MaxSkew, t.domains[cs.TopologyKey]))
+		topologyGroups = append(topologyGroups, NewTopologyGroup(TopologyTypeSpread, cs.TopologyKey, p, utilsets.NewString(p.Namespace), cs.LabelSelector, cs.MaxSkew, t.domains[cs.TopologyKey]))
 	}
 	return topologyGroups
 }
@@ -310,7 +313,7 @@ func (t *Topology) newForAffinities(ctx context.Context, p *v1.Pod) ([]*Topology
 			if err != nil {
 				return nil, err
 			}
-			topologyGroups = append(topologyGroups, NewTopologyGroup(topologyType, term.TopologyKey, namespaces, term.LabelSelector, math.MaxInt32, t.domains[term.TopologyKey]))
+			topologyGroups = append(topologyGroups, NewTopologyGroup(topologyType, term.TopologyKey, p, namespaces, term.LabelSelector, math.MaxInt32, t.domains[term.TopologyKey]))
 		}
 	}
 	return topologyGroups, nil
@@ -341,7 +344,7 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
-func (t *Topology) getMatchingTopologies(p *v1.Pod) []*TopologyGroup {
+func (t *Topology) getMatchingTopologies(p *v1.Pod, requirements v1alpha5.Requirements) []*TopologyGroup {
 	var matchingTopologies []*TopologyGroup
 	for _, tc := range t.topologies {
 		if tc.IsOwnedBy(p.UID) {
@@ -349,7 +352,7 @@ func (t *Topology) getMatchingTopologies(p *v1.Pod) []*TopologyGroup {
 		}
 	}
 	for _, tc := range t.inverseTopologies {
-		if tc.Matches(p.Namespace, p.Labels) {
+		if tc.CountsPod(p, requirements) {
 			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}
