@@ -43,7 +43,7 @@ There are both automated and manual ways of deprovisioning nodes provisioned by 
     kubectl delete nodes -l karpenter.sh/provisioner-name=$PROVISIONER_NAME
     ```
 
-Whether through node expiry or manual deletion, Karpenter seeks to follow graceful termination procedures as described in Kubernetes [Graceful node shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdow) documentation.
+Whether through node expiry or manual deletion, Karpenter seeks to follow graceful termination procedures as described in Kubernetes [Graceful node shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) documentation.
 If the Karpenter controller is removed or fails, the finalizers on the nodes are orphaned and will require manual removal.
 
 
