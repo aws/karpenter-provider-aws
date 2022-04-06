@@ -1,7 +1,7 @@
 
 ---
-title: "Getting started with eksctl"
-linkTitle: "Getting started with eksctl"
+title: "Getting Started with eksctl"
+linkTitle: "Getting Started with eksctl"
 weight: 10
 ---
 
