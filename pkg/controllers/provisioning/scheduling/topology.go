@@ -394,11 +394,27 @@ func TopologyListOptions(namespace string, labelSelector *metav1.LabelSelector) 
 		selector = selector.Add(*requirement)
 	}
 	for _, expression := range labelSelector.MatchExpressions {
-		requirement, err := labels.NewRequirement(expression.Key, selection.Operator(expression.Operator), expression.Values)
+		requirement, err := labels.NewRequirement(expression.Key, mapOperator(expression.Operator), expression.Values)
 		runtime.Must(err)
 		selector = selector.Add(*requirement)
 	}
 	return &client.ListOptions{Namespace: namespace, LabelSelector: selector}
+}
+
+func mapOperator(operator metav1.LabelSelectorOperator) selection.Operator {
+	switch operator {
+	case metav1.LabelSelectorOpIn:
+		return selection.In
+	case metav1.LabelSelectorOpNotIn:
+		return selection.NotIn
+	case metav1.LabelSelectorOpExists:
+		return selection.Exists
+	case metav1.LabelSelectorOpDoesNotExist:
+		return selection.DoesNotExist
+	}
+	// this shouldn't occur as we cover all valid cases of LabelSelectorOperator that the API allows.  If it still
+	// does occur somehow we'll panic just later when the requirement throws an error.,
+	return ""
 }
 
 func IgnoredForTopology(p *v1.Pod) bool {

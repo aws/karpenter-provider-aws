@@ -687,12 +687,35 @@ var _ = Describe("Topology", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	Context("Zonal", func() {
-		It("should balance pods across zones", func() {
+		It("should balance pods across zones (match labels)", func() {
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1.LabelTopologyZone,
 				WhenUnsatisfiable: v1.DoNotSchedule,
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
 				MaxSkew:           1,
+			}}
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
+			)
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 2))
+		})
+		It("should balance pods across zones (match expressions)", func() {
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "test",
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"test"},
+						},
+					},
+				},
+				MaxSkew: 1,
 			}}
 			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
