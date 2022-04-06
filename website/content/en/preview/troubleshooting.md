@@ -66,20 +66,18 @@ This means that your CNI plugin is out of date. You can find instructions on how
 
 If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.provisioners.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
 
-Verify that webhook is running
+Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
 ```text
-kubectl get po -A -l karpenter=webhook
-NAMESPACE   NAME                                READY   STATUS    RESTARTS   AGE
-karpenter   karpenter-webhook-d644c7567-cdc4d   1/1     Running   0          37m
-karpenter   karpenter-webhook-d644c7567-dn9xw   1/1     Running   0          37m
+kubectl get po -A -l app.kubernetes.io/name=karpenter
+NAME                       READY   STATUS    RESTARTS   AGE
+karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
 ```
 
-Webhook service has endpoints assigned to it
+Karpenter service has endpoints assigned to it
 ```text
-kubectl get ep -A -l app.kubernetes.io/component=karpenter
-NAMESPACE   NAME                ENDPOINTS                        AGE
-karpenter   karpenter-metrics   10.0.13.104:8080                 38m
-karpenter   karpenter-webhook   10.0.1.25:8443,10.0.30.46:8443   38m
+kubectl get ep -A -l app.kubernetes.io/name=karpenter
+NAMESPACE   NAME        ENDPOINTS                               AGE
+karpenter   karpenter   192.168.39.88:8443,192.168.39.88:8080   16d
 ```
 
 Your security groups are not blocking you from reaching your webhook.
