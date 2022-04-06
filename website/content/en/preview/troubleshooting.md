@@ -138,36 +138,6 @@ Provisioners created without those tags and run in more recent Karpenter version
 If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
 However, specifying a `securityGroupSelector` will cause a validation error.
 
-## Reapply credentials with Terraform connection failure
-
-If you are using the [Getting Started with Terraform]({{<ref "./getting-started/getting-started-with-terraform/" >}}) instructions and you see the following error:
-
-```text
-63: resource "kubernetes_config_map" "aws_auth" {
-Error: Post "http://localhost/api/v1/namespaces/kube-system/configmaps": dial tcp 127.0.0.1:80: connect: connection refused
-with module.eks.kubernetes_config_map.aws_auth[0],
-on .terraform/modules/eks/aws_auth.tf line 63, in resource "kubernetes_config_map" "aws_auth":
-```
-
-You can fix the problem by exporting your kubeconfig credentials:
-
-```text
-export KUBECONFIG=${PWD}/kubeconfig_${CLUSTER_NAME}
-export KUBE_CONFIG_PATH=$KUBECONFIG
-```
-
-or you could run the following aws command:
-
-```text
-aws eks --region  $AWS_DEFAULT_REGION  update-kubeconfig --name $CLUSTER_NAME
-```
-
-Then rerun:
-
-```text
-terraform apply -var cluster_name=$CLUSTER_NAME
-```
-
 ## Terraform fails to create instance profile when name is too long
 
 In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
@@ -222,7 +192,7 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
         "Resource": "",
         "Condition": {
             "StringEquals": {
-            "kms:ViaService": "ec2.${REGION}.amazonaws.com",
+            "kms:ViaService": "ec2.${AWS_REGION}.amazonaws.com",
             "kms:CallerAccount": "${AWS_ACCOUNT_ID}"
             }
         }
