@@ -137,3 +137,24 @@ Provisioners created without those tags and run in more recent Karpenter version
 ```
 If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
 However, specifying a `securityGroupSelector` will cause a validation error.
+
+## Pods using Security Groups for Pods stuck in "Pending" state for up to 30 minutes before transitioning to "Running"
+
+When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "Pending" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
+
+To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter Provisioner spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  labels:
+    vpc.amazonaws.com/has-trunk-attached: "false"
+  provider:
+    subnetSelector:
+      karpenter.sh/discovery: karpenter-demo
+    securityGroupSelector:
+      karpenter.sh/discovery: karpenter-demo
+  ttlSecondsAfterEmpty: 30
+```
