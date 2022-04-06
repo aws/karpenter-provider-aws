@@ -58,26 +58,25 @@ func NewNode(constraints *v1alpha5.Constraints, topology *Topology, daemonResour
 }
 
 func (n *Node) Add(pod *v1.Pod) error {
+	podRequirements := v1alpha5.NewPodRequirements(pod)
+	// Check initial compatibility
+	if err := n.Constraints.Requirements.Compatible(podRequirements); err != nil {
+		return err
+	}
+	nodeRequirements := n.Constraints.Requirements.Add(podRequirements.Requirements...)
+
 	// Include topology requirements
-	results, err := n.topology.AddRequirements(v1alpha5.NewPodRequirements(pod), pod)
+	requirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
 	if err != nil {
 		return err
 	}
 	// Check node compatibility
-	if err = n.Constraints.Requirements.Compatible(results.requirements); err != nil {
+	if err = n.Constraints.Requirements.Compatible(requirements); err != nil {
 		return err
 	}
 	// Tighten requirements
-	requirements := n.Constraints.Requirements.Add(results.requirements.Requirements...)
+	requirements = n.Constraints.Requirements.Add(requirements.Requirements...)
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
-
-	// Collapse any topology spreads which have now been limited to the intersection of the domains that don't violate
-	// max-skew and the domains that the provisioner can provision for.  If we just picked a minimum domain from all of the
-	// minimum domains, it could potentially not be one that the provisioner could not provision.
-	requirements, err = results.Collapse(requirements)
-	if err != nil {
-		return err
-	}
 
 	// Check instance type combinations
 	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)

@@ -77,14 +77,14 @@ func NewTopologyGroup(topologyType TopologyType, topologyKey string, namespaces 
 	}
 }
 
-func (t *TopologyGroup) Next(pod *v1.Pod, domains sets.Set) sets.Set {
+func (t *TopologyGroup) Get(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.Set {
 	switch t.Type {
 	case TopologyTypeSpread:
-		return t.nextDomainTopologySpread(domains)
+		return t.nextDomainTopologySpread(pod, podDomains, nodeDomains)
 	case TopologyTypePodAffinity:
-		return t.nextDomainAffinity(pod, domains)
+		return t.nextDomainAffinity(pod, podDomains)
 	case TopologyTypePodAntiAffinity:
-		return t.nextDomainAntiAffinity(domains)
+		return t.nextDomainAntiAffinity(podDomains)
 	default:
 		return sets.NewSet()
 	}
@@ -142,59 +142,51 @@ func (t *TopologyGroup) Hash() uint64 {
 	return hash
 }
 
-func (t *TopologyGroup) nextDomainTopologySpread(domains sets.Set) sets.Set {
-	// Return all domains that don't violate max-skew.  This is necessary as the provisioner may or may not be
-	// able to schedule to the domain that has the minimum skew, but can schedule to any that don't violate the
-	// max-skew.
-	min, max := t.domainMinMaxCounts(domains)
+func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.Set {
+	// min count is calculated across all domains
+	min := t.domainMinCount(podDomains)
+	selfSelecting := t.Matches(pod.Namespace, pod.Labels)
 
-	options := sets.NewSet()
-	currentSkew := max - min
+	minDomain := ""
+	minCount := int32(math.MaxInt32)
 	for domain := range t.domains {
-		if domains.Has(domain) {
+		// but we can only choose from the node domains
+		if nodeDomains.Has(domain) {
+			// comment from kube-scheduler regarding the viable choices to schedule to based on skew is:
+			// 'existing matching num' + 'if self-match (1 or 0)' - 'global min matching num' <= 'maxSkew'
 			count := t.domains[domain]
-			// calculate what the skew will be if we choose this domain
-			nextSkew := currentSkew
-			decreasing := false
-			if count == min {
-				// adding to the min domain, so we're decreasing skew
-				nextSkew = currentSkew - 1
-				decreasing = true
-			} else if count == max {
-				// adding to the max domain, so we're increasing skew
-				nextSkew = currentSkew + 1
+			if selfSelecting {
+				count++
 			}
-
-			// if choosing it leaves us under the max-skew, or over it but still decreasing, it's a valid choice
-			if nextSkew <= t.maxSkew || decreasing {
-				options.Insert(domain)
+			if count-min <= t.maxSkew && count < minCount {
+				minDomain = domain
+				minCount = count
 			}
 		}
 	}
-	return options
+	if minDomain == "" {
+		// avoids an error message about 'zone in [""]', preferring 'zone in []'
+		return sets.NewSet()
+	}
+	return sets.NewSet(minDomain)
 }
 
-func (t *TopologyGroup) domainMinMaxCounts(domains sets.Set) (min int32, max int32) {
-	max = int32(0)
-	min = int32(math.MaxInt32)
+func (t *TopologyGroup) domainMinCount(domains sets.Set) int32 {
+	// hostname based topologies always have a min pod count of zero since we can create one
+	if t.Key == v1.LabelHostname {
+		return 0
+	}
 
-	// determine our current skew
+	min := int32(math.MaxInt32)
+	// determine our current min count
 	for domain, count := range t.domains {
 		if domains.Has(domain) {
-			if count > max {
-				max = count
-			}
 			if count < min {
 				min = count
 			}
 		}
 	}
-
-	// hostname based topologies always have a min pod count of zero since we can create one
-	if t.Key == v1.LabelHostname {
-		min = 0
-	}
-	return
+	return min
 }
 
 func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, domains sets.Set) sets.Set {
