@@ -138,6 +138,82 @@ Provisioners created without those tags and run in more recent Karpenter version
 If you are providing a [custom launch template]({{<ref "./aws/launch-templates" >}}), specifiying a `subnetSelector` is still required.
 However, specifying a `securityGroupSelector` will cause a validation error.
 
+## Terraform fails to create instance profile when name is too long
+
+In the Getting Started with Terraform instructions to [Configure the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-terraform/#configure-the-karpenternode-iam-role" >}}), the name assigned to the aws_iam_instance_profile cannot exceed 38 characters. If it does, it will fail with a message similar to:
+
+```text
+Error: expected length of name_prefix to be in the range (1 - 38), got with module.eks.aws_iam_role.cluster[0],
+on .terraform/modules/eks/main.tf line 131, in resource "aws_iam_role" "cluster":
+131: name_prefix = var.cluster_iam_role_name != "" ? null : var.cluster_name
+```
+
+Note that it can be easy to run over the 38-character limit considering that the example includes KarpenterNodeInstanceProfile- (29 characters) and -karpenter-demo (15 characters).
+That leaves only four characters for your user name.
+You can reduce the number of characters consumed by changing `KarpenterNodeInstanceProfile-` to something like `KarpenterNode-`.
+
+## Karpenter Role names exceeding 64-character limit
+
+If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
+
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
+
+Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
+Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
+
+## Node terminates before ready on failed encrypted EBS volume
+If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS custom managed key (CMK) for the EC2 EBS root volume.
+This issue also applies to [Block Device Mappings]({{<ref "./aws/provisioning/#block-device-mappings" >}}) specified in the Provisioner.
+In either case, this results in the node terminating almost immediately upon creation.
+
+Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
+EBS encryption could have been enabled by an account administrator or by default on a per region basis.
+See [Encryption by default](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#encryption-by-default) for details.
+
+To correct the problem if it occurs, you can use the approach that AWS EBS uses, which avoids adding particular roles to the KMS policy:
+
+```json
+[
+    {
+        "Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
+        "Effect": "Allow",
+        "Principal": {
+            "AWS": ""
+        },
+        "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+        ],
+        "Resource": "",
+        "Condition": {
+            "StringEquals": {
+            "kms:ViaService": "ec2.${AWS_REGION}.amazonaws.com",
+            "kms:CallerAccount": "${AWS_ACCOUNT_ID}"
+            }
+        }
+    },
+    {
+        "Sid": "Allow direct access to key metadata to the account",
+        "Effect": "Allow",
+        "Principal": {
+            "AWS": "arn:aws:iam::${AWS_ACCOUNT_ID}:root"
+        },
+        "Action": [
+            "kms:Describe",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+        ],
+        "Resource": "*"
+    }
+]
+```
+
 ## Pods using Security Groups for Pods stuck in "Pending" state for up to 30 minutes before transitioning to "Running"
 
 When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "Pending" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
