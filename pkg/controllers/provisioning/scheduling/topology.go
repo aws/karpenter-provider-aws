@@ -123,11 +123,18 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 
 // Record records the topology changes given that pod p schedule on a node with the given requirements
 func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
-	// once we've now committed to a domain, we record the usage in every topology that cares about it
+	// once we've committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
 		if tc.Matches(p.Namespace, p.Labels) {
-			if domains := requirements.Get(tc.Key); domains.Len() == 1 {
-				tc.Record(domains.Values().UnsortedList()[0])
+			domains := requirements.Get(tc.Key)
+			if tc.Type == TopologyTypePodAntiAffinity {
+				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
+				tc.Record(domains.Values().UnsortedList()...)
+			} else {
+				// but for affinity & topology spread, we can only record the domain if we know the specific domain we land in
+				if domains.Len() == 1 {
+					tc.Record(domains.Values().UnsortedList()[0])
+				}
 			}
 		}
 	}
@@ -182,6 +189,9 @@ func (t *Topology) AddRequirements(requirements v1alpha5.Requirements, p *v1.Pod
 			return tr, fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
 		}
 		tr.requirements = tr.requirements.Add(v1.NodeSelectorRequirement{Key: topology.Key, Operator: v1.NodeSelectorOpIn, Values: domains.Values().List()})
+
+		// topology spreads are special in that we have early commit to a domain, or else the topology spread doesn't
+		// work (e.g. scheduling 3 pods with requirements of in [zone-a, zone-b, zone-c] won't guarantee a correct spread.)
 		if topology.Type == TopologyTypeSpread {
 			tr.collapse = append(tr.collapse, topology.Key)
 		}

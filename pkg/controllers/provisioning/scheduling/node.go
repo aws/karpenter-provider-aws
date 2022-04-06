@@ -71,9 +71,9 @@ func (n *Node) Add(pod *v1.Pod) error {
 	requirements := n.Constraints.Requirements.Add(results.requirements.Requirements...)
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
 
-	// Collapse any topology spreads which have now been limited to the intersection of the domains that minimize
-	// skew and the domains that the provisioner can provision for.  If we just picked a minimum domain from all of the
-	// minimum domains, it could potentially not be one that the provisioner could provision.
+	// Collapse any topology spreads which have now been limited to the intersection of the domains that don't violate
+	// max-skew and the domains that the provisioner can provision for.  If we just picked a minimum domain from all of the
+	// minimum domains, it could potentially not be one that the provisioner could not provision.
 	requirements, err = results.Collapse(requirements)
 	if err != nil {
 		return err

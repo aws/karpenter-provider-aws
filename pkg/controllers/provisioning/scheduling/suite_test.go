@@ -1814,6 +1814,27 @@ var _ = Describe("Topology", func() {
 			// the pod with anti-affinity
 			ExpectNotScheduled(ctx, env.Client, affPod)
 		})
+		It("should not violate pod anti-affinity on zone (other schedules first)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			pod := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: affLabels},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+				}})
+			affPod := test.UnschedulablePod(test.PodOptions{
+				PodAntiRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelTopologyZone,
+				}}})
+
+			ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod, affPod)
+			// the pod we need to avoid schedules first, but we don't know where.
+			ExpectScheduled(ctx, env.Client, pod)
+			// the pod with anti-affinity
+			ExpectNotScheduled(ctx, env.Client, affPod)
+		})
 		It("should violate preferred pod anti-affinity on zone (inverse)", func() {
 			affLabels := map[string]string{"security": "s2"}
 			anti := []v1.WeightedPodAffinityTerm{

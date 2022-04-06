@@ -62,6 +62,8 @@ func NewScheduler(kubeClient client.Client) *Scheduler {
 	}
 }
 
+// Solve is the main scheduling method.  This function takes the provider's constraints which control how/where we schedule,
+// all possible instance types that the cloud provider can create and the pods that kube-scheduler has failed to schedule.
 func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
