@@ -2,7 +2,7 @@
   "name": "website",
   "version": "1.0.0",
   "dependencies": {
-    "autoprefixer": "^10.3.1",
+    "autoprefixer": "^10.4.4",
     "postcss": "^8.4.7",
     "postcss-cli": "^8.3.1",
     "ansi-regex": ">=5.0.1"
