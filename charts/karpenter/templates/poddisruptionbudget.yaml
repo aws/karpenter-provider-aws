@@ -3,7 +3,7 @@ kind: PodDisruptionBudget
 metadata:
   name: karpenter
 spec:
-  minAvailable: 1
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   selector:
     matchLabels:
     {{- include "karpenter.labels" . | nindent 4 }}
