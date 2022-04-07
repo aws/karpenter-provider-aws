@@ -180,6 +180,70 @@ var _ = Describe("Provisioning", func() {
 				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
+			It("should not schedule if resource requests are not defined and limits (requests) are too large", func() {
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should schedule based on the max resource requests of containers and initContainers", func() {
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("1Gi")},
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+						},
+						InitResourceRequirements: v1.ResourceRequirements{
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("2Gi")},
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+				Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+			})
+			It("should not schedule if combined max resources are too large for any node", func() {
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("1Gi")},
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+						InitResourceRequirements: v1.ResourceRequirements{
+							Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+						},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should not schedule if initContainer resources are too large", func() {
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						InitResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
+						},
+					}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should be able to schedule pods if resource requests and limits are not defined", func() {
+				ExpectCreated(ctx, env.Client, test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{}},
+				))
+				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioningController, provisioner, test.UnschedulablePod(test.PodOptions{}))[0]
+				ExpectScheduled(ctx, env.Client, pod)
+			})
 			It("should ignore daemonsets without matching tolerations", func() {
 				provisioner.Spec.Taints = v1alpha5.Taints{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoSchedule}}
 				ExpectCreated(ctx, env.Client, test.DaemonSet(
