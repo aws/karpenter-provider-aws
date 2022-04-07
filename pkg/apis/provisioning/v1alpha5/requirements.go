@@ -44,7 +44,7 @@ func NewRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
 
 // NewLabelRequirements constructs requirements from labels
 func NewLabelRequirements(labels map[string]string) Requirements {
-	requirements := []v1.NodeSelectorRequirement{}
+	var requirements []v1.NodeSelectorRequirement
 	for key, value := range labels {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}

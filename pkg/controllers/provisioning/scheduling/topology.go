@@ -115,7 +115,7 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 	// once we've committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
-		if tc.CountsPod(p, requirements) {
+		if tc.Counts(p, requirements) {
 			domains := requirements.Get(tc.Key)
 			if tc.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
@@ -265,7 +265,7 @@ func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 		}
 		// nodes may or may not be considered for counting purposes for topology spread constraints depending on if they
 		// are selected by the pod's node selectors and required node affinities.  If these are unset, the node always counts.
-		if !tg.nodeSelector.Matches(node) {
+		if !tg.nodeFilter.Matches(node) {
 			continue
 		}
 		tg.Record(domain)
@@ -352,7 +352,7 @@ func (t *Topology) getMatchingTopologies(p *v1.Pod, requirements v1alpha5.Requir
 		}
 	}
 	for _, tc := range t.inverseTopologies {
-		if tc.CountsPod(p, requirements) {
+		if tc.Counts(p, requirements) {
 			matchingTopologies = append(matchingTopologies, tc)
 		}
 	}

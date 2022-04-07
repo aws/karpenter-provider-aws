@@ -15,9 +15,7 @@ limitations under the License.
 package scheduling
 
 import (
-	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -27,102 +25,45 @@ import (
 // included for topology counting purposes. This is only used with topology spread constraints as affinities/anti-affinities
 // always count across all nodes. A nil or zero-value TopologyNodeFilter behaves well and the filter returns true for
 // all nodes.
-type TopologyNodeFilter struct {
-	nodeSelector      map[string]string
-	nodeSelectorTerms []v1.NodeSelectorTerm
-}
+type TopologyNodeFilter []v1alpha5.Requirements
 
-func NewTopologyNodeFilter(p *v1.Pod) *TopologyNodeFilter {
-	selector := &TopologyNodeFilter{
-		nodeSelector: p.Spec.NodeSelector,
+func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
+	nodeSelectorRequirements := v1alpha5.NewLabelRequirements(p.Spec.NodeSelector)
+	// if we only have a label selector, that's the only requirement that must match
+	if p.Spec.Affinity == nil || p.Spec.Affinity.NodeAffinity == nil || p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return TopologyNodeFilter{nodeSelectorRequirements}
 	}
-	if p.Spec.Affinity != nil && p.Spec.Affinity.NodeAffinity != nil && p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		selector.nodeSelectorTerms = p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+
+	// otherwise, we need to match the combination of label selector and any term of the required node affinities since
+	// those terms are OR'd together
+	var filter TopologyNodeFilter
+	for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		requirements := nodeSelectorRequirements.Add(v1alpha5.NewRequirements(term.MatchExpressions...).Requirements...)
+		filter = append(filter, requirements)
 	}
-	return selector
+
+	return filter
 }
 
 // Matches returns true if the TopologyNodeFilter doesn't prohibit node from the participating in the topology
-func (t *TopologyNodeFilter) Matches(node *v1.Node) bool {
-	if t == nil {
-		return true
-	}
-	// if a node selector term is provided, it must match the node
-	for k, v := range t.nodeSelector {
-		if node.Labels[k] != v {
-			return false
-		}
-	}
-	if len(t.nodeSelectorTerms) == 0 {
-		return true
-	}
-
-	for _, term := range t.nodeSelectorTerms {
-		requirement := v1alpha5.NewRequirements(term.MatchExpressions...)
-		if t.matchesRequirements(requirement, node) {
-			return true
-		}
-	}
-
-	// at this point we have node selector terms, but didn't match all of the requirements for any individual term
-	return false
+func (t TopologyNodeFilter) Matches(node *v1.Node) bool {
+	nodeLabels := v1alpha5.NewLabelRequirements(node.Labels)
+	return t.MatchesRequirements(nodeLabels)
 }
 
 // MatchesRequirements returns true if the TopologyNodeFilter doesn't prohibit a node with the requirements from
 // participating in the topology. This method allows checking the requirements from a scheduling.Node to see if the
 // node we will soon create participates in this topology.
-func (t *TopologyNodeFilter) MatchesRequirements(nodeRequirements v1alpha5.Requirements) bool {
-	if t == nil {
+func (t TopologyNodeFilter) MatchesRequirements(requirements v1alpha5.Requirements) bool {
+	// no requirements, so it always matches
+	if len(t) == 0 {
 		return true
 	}
-	for k, v := range t.nodeSelector {
-		if !nodeRequirements.Get(k).Has(v) {
-			return false
-		}
-	}
-	if len(t.nodeSelectorTerms) == 0 {
-		return true
-	}
-
-	for _, term := range t.nodeSelectorTerms {
-		requirement := v1alpha5.NewRequirements(term.MatchExpressions...)
-		matchesAllReqs := true
-		for key := range requirement.Keys() {
-			if requirement.Get(key).Intersection(nodeRequirements.Get(key)).Len() == 0 {
-				matchesAllReqs = false
-				break
-			}
-		}
-		// these terms are OR'd together, so if we match one full set of requirements, the filter passes
-		if matchesAllReqs {
+	// these are an OR, so if any passes the filter passes
+	for _, req := range t {
+		if err := requirements.Compatible(req); err == nil {
 			return true
 		}
 	}
-	return true
-}
-
-func (t *TopologyNodeFilter) Hash() uint64 {
-	if t == nil || (len(t.nodeSelector) == 0 && len(t.nodeSelectorTerms) == 0) {
-		return 0
-	}
-	hash, err := hashstructure.Hash(struct {
-		NodeSelector      map[string]string
-		NodeSelectorTerms []v1.NodeSelectorTerm
-	}{
-		NodeSelector:      t.nodeSelector,
-		NodeSelectorTerms: t.nodeSelectorTerms,
-	}, hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true})
-	runtime.Must(err)
-	return hash
-
-}
-
-func (t *TopologyNodeFilter) matchesRequirements(requirement v1alpha5.Requirements, node *v1.Node) bool {
-	for key := range requirement.Keys() {
-		if !requirement.Get(key).Has(node.Labels[key]) {
-			return false
-		}
-	}
-	return true
+	return false
 }

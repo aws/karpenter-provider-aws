@@ -53,12 +53,12 @@ func (t TopologyType) String() string {
 // TopologyGroup is used to track pod counts that match a selector by the topology domain (e.g. SELECT COUNT(*) FROM pods GROUP BY(topology_ke
 type TopologyGroup struct {
 	// Hashed Fields
-	Key          string
-	Type         TopologyType
-	maxSkew      int32
-	namespaces   utilsets.String
-	selector     *metav1.LabelSelector
-	nodeSelector *TopologyNodeFilter
+	Key        string
+	Type       TopologyType
+	maxSkew    int32
+	namespaces utilsets.String
+	selector   *metav1.LabelSelector
+	nodeFilter TopologyNodeFilter
 	// Index
 	owners  map[types.UID]struct{} // Pods that have this topology as a scheduling rule
 	domains map[string]int32       // TODO(ellistarn) explore replacing with a minheap
@@ -70,19 +70,19 @@ func NewTopologyGroup(topologyType TopologyType, topologyKey string, pod *v1.Pod
 		domainCounts[domain] = 0
 	}
 	// the nil *TopologyNodeFilter always passes which is what we need for affinity/anti-affinity
-	var nodeSelector *TopologyNodeFilter
+	var nodeSelector TopologyNodeFilter
 	if topologyType == TopologyTypeSpread {
-		nodeSelector = NewTopologyNodeFilter(pod)
+		nodeSelector = MakeTopologyNodeFilter(pod)
 	}
 	return &TopologyGroup{
-		Type:         topologyType,
-		Key:          topologyKey,
-		namespaces:   namespaces,
-		selector:     labelSelector,
-		nodeSelector: nodeSelector,
-		maxSkew:      maxSkew,
-		domains:      domainCounts,
-		owners:       map[types.UID]struct{}{},
+		Type:       topologyType,
+		Key:        topologyKey,
+		namespaces: namespaces,
+		selector:   labelSelector,
+		nodeFilter: nodeSelector,
+		maxSkew:    maxSkew,
+		domains:    domainCounts,
+		owners:     map[types.UID]struct{}{},
 	}
 }
 
@@ -105,18 +105,10 @@ func (t *TopologyGroup) Record(domains ...string) {
 	}
 }
 
-// Selects returns true if the given pod is selected by this topology
-func (t *TopologyGroup) Selects(pod *v1.Pod) bool {
-	selector, err := metav1.LabelSelectorAsSelector(t.selector)
-	runtime.Must(err)
-	return t.namespaces.Has(pod.Namespace) &&
-		selector.Matches(labels.Set(pod.Labels))
-}
-
-// CountsPod returns true if the pod would count for the topology, given that it schedule to a node with the provided
+// Counts returns true if the pod would count for the topology, given that it schedule to a node with the provided
 // requirements
-func (t *TopologyGroup) CountsPod(pod *v1.Pod, requirements v1alpha5.Requirements) bool {
-	return t.Selects(pod) && t.nodeSelector.MatchesRequirements(requirements)
+func (t *TopologyGroup) Counts(pod *v1.Pod, requirements v1alpha5.Requirements) bool {
+	return t.selects(pod) && t.nodeFilter.MatchesRequirements(requirements)
 }
 
 // Register ensures that the topology is aware of the given domain names.
@@ -143,19 +135,19 @@ func (t *TopologyGroup) IsOwnedBy(key types.UID) bool {
 // with self anti-affinity, we track that as a single topology with 100 owners instead of 100x topologies.
 func (t *TopologyGroup) Hash() uint64 {
 	hash, err := hashstructure.Hash(struct {
-		TopologyKey      string
-		Type             TopologyType
-		Namespaces       utilsets.String
-		LabelSelector    *metav1.LabelSelector
-		MaxSkew          int32
-		NodeSelectorHash uint64
+		TopologyKey   string
+		Type          TopologyType
+		Namespaces    utilsets.String
+		LabelSelector *metav1.LabelSelector
+		MaxSkew       int32
+		NodeFilter    TopologyNodeFilter
 	}{
-		TopologyKey:      t.Key,
-		Type:             t.Type,
-		Namespaces:       t.namespaces,
-		LabelSelector:    t.selector,
-		MaxSkew:          t.maxSkew,
-		NodeSelectorHash: t.nodeSelector.Hash(),
+		TopologyKey:   t.Key,
+		Type:          t.Type,
+		Namespaces:    t.namespaces,
+		LabelSelector: t.selector,
+		MaxSkew:       t.maxSkew,
+		NodeFilter:    t.nodeFilter,
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	runtime.Must(err)
 	return hash
@@ -164,7 +156,7 @@ func (t *TopologyGroup) Hash() uint64 {
 func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.Set {
 	// min count is calculated across all domains
 	min := t.domainMinCount(podDomains)
-	selfSelecting := t.Selects(pod)
+	selfSelecting := t.selects(pod)
 
 	minDomain := ""
 	minCount := int32(math.MaxInt32)
@@ -216,7 +208,7 @@ func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, domains sets.Set) sets.S
 		}
 	}
 	// If pod is self selecting and no pod has been scheduled yet, pick a domain at random to bootstrap scheduling
-	if options.Len() == 0 && t.Selects(pod) {
+	if options.Len() == 0 && t.selects(pod) {
 		for domain := range t.domains {
 			if domains.Has(domain) {
 				options.Insert(domain)
@@ -235,4 +227,12 @@ func (t *TopologyGroup) nextDomainAntiAffinity(domains sets.Set) sets.Set {
 		}
 	}
 	return options
+}
+
+// selects returns true if the given pod is selected by this topology
+func (t *TopologyGroup) selects(pod *v1.Pod) bool {
+	selector, err := metav1.LabelSelectorAsSelector(t.selector)
+	runtime.Must(err)
+	return t.namespaces.Has(pod.Namespace) &&
+		selector.Matches(labels.Set(pod.Labels))
 }
