@@ -246,7 +246,7 @@ kubectl apply -f karpenter.yaml
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
-You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/main/examples/provisioner) for specific needs.
+You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/provisioner) for specific needs.
 
 ```bash
 cat <<EOF | kubectl apply -f -
