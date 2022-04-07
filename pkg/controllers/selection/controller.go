@@ -84,17 +84,21 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
+	// Pick provisioner
+	var provisioner *provisioning.Provisioner
+	provisioners := c.provisioners.List(ctx)
+	if len(provisioners) == 0 {
+		// checking for existing provisioners first prevents relaxing pods which logs messages that make it appear
+		// Karpenter is doing something even when you don't have a provisioner created.  If you create the provisioner
+		// later, the pod may have already been fully relaxed unnecessarily.
+		return nil
+	}
+
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
 	// Inject volume topological requirements
 	if err := c.volumeTopology.Inject(ctx, pod); err != nil {
 		return fmt.Errorf("getting volume topology requirements, %w", err)
-	}
-	// Pick provisioner
-	var provisioner *provisioning.Provisioner
-	provisioners := c.provisioners.List(ctx)
-	if len(provisioners) == 0 {
-		return nil
 	}
 	for _, candidate := range c.provisioners.List(ctx) {
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
