@@ -36,9 +36,9 @@ strategy:
 podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
-# -- SecurityContext for the pod.
 podDisruptionBudget:
   minAvailable: 1
+# -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 1000
 # -- PriorityClass name for the pod.
