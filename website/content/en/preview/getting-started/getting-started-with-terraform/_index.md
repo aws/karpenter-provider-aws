@@ -388,6 +388,12 @@ terraform apply
 Karpenter is now active and ready to begin provisioning nodes.
 Create some pods using a deployment, and watch Karpenter provision nodes in response.
 
+Before we can start interacting with the cluster, we need to update our local kubeconfig:
+
+```bash
+aws eks update-kubeconfig --name karpenter-demo
+```
+
 ### Automatic Node Provisioning
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
