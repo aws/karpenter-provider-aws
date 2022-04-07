@@ -235,7 +235,7 @@ Replace the nodegroup value with your `${NODEGROUP}`
                 - ng-123456
 ```
 
-Now that our deployment is ready we can create the karpenter namespace, create the provisioner CDR, and then deploy the rest of the karpenter resources.
+Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
 ```bash
 kubectl create namespace karpenter
 kubectl create -f \
