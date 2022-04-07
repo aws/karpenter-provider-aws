@@ -35,10 +35,10 @@ echo '{
             "Action": "sts:AssumeRole"
         }
     ]
-}' > trust-policy.json
+}' > node-trust-policy.json
 
 aws iam create-role --role-name KarpenterInstanceNodeRole \
-    --assume-role-policy-document file://trust-policy.json
+    --assume-role-policy-document file://node-trust-policy.json
 ```
 Now attach the required policies to the role
 
