@@ -43,12 +43,19 @@ func NewPreferences() *Preferences {
 	}
 }
 
+// RelaxOptions controls the relaxation that is performed
+type RelaxOptions struct {
+	// AddPreferNoScheduleToleration, if set, will cause a toleration to be added to the pod for any prefer no schedule
+	// taint
+	AddPreferNoScheduleToleration bool
+}
+
 // Relax removes soft preferences from pod to enable scheduling if the cloud
 // provider's capacity is constrained. For example, this can be leveraged to
 // prefer a specific zone, but relax the preferences if the pod cannot be
 // scheduled to that zone. Preferences are removed iteratively until only hard
 // constraints remain. Pods relaxation is reset (forgotten) after 5 minutes.
-func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) {
+func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod, options RelaxOptions) {
 	spec, ok := p.cache.Get(string(pod.UID))
 	// Add to cache if we've never seen it before
 	if !ok {
@@ -60,22 +67,25 @@ func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) {
 		p.cache.SetDefault(string(pod.UID), cachedSpec)
 		return
 	}
+
 	// Attempt to relax the pod and update the cache
 	cachedSpec := spec.(v1.PodSpec)
 	pod.Spec.Affinity = cachedSpec.Affinity
 	pod.Spec.Tolerations = cachedSpec.Tolerations
-	if relaxed := p.relax(ctx, pod); relaxed {
+	if relaxed := p.relax(ctx, pod, options); relaxed {
 		p.cache.SetDefault(string(pod.UID), pod.Spec)
 	}
 }
 
-func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
+func (p *Preferences) relax(ctx context.Context, pod *v1.Pod, options RelaxOptions) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
 		func(pod *v1.Pod) *string { return p.removePreferredPodAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.removePreferredPodAntiAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(pod) },
 		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.toleratePreferNoScheduleTaints(pod) },
+		func(pod *v1.Pod) *string {
+			return p.toleratePreferNoScheduleTaints(pod, options)
+		},
 	} {
 		if reason := relaxFunc(pod); reason != nil {
 			logging.FromContext(ctx).Debugf("Relaxing soft constraints for pod since it previously failed to schedule, %s", ptr.StringValue(reason))
@@ -146,7 +156,10 @@ func (p *Preferences) removeRequiredNodeAffinityTerm(pod *v1.Pod) *string {
 	return nil
 }
 
-func (p *Preferences) toleratePreferNoScheduleTaints(pod *v1.Pod) *string {
+func (p *Preferences) toleratePreferNoScheduleTaints(pod *v1.Pod, options RelaxOptions) *string {
+	if !options.AddPreferNoScheduleToleration {
+		return nil
+	}
 	// Tolerate all Taints with PreferNoSchedule effect
 	toleration := v1.Toleration{
 		Operator: v1.TolerationOpExists,

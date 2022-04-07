@@ -89,13 +89,12 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	provisioners := c.provisioners.List(ctx)
 	if len(provisioners) == 0 {
 		// checking for existing provisioners first prevents relaxing pods which logs messages that make it appear
-		// Karpenter is doing something even when you don't have a provisioner created.  If you create the provisioner
-		// later, the pod may have already been fully relaxed unnecessarily.
+		// Karpenter is attempting to schedule even when you don't have a provisioner created.  This also prevents an issue
+		// where if you created a provisioner later, the pod may have already been fully relaxed unnecessarily.
 		return nil
 	}
-
 	// Relax preferences if pod has previously failed to schedule.
-	c.preferences.Relax(ctx, pod)
+	c.preferences.Relax(ctx, pod, getRelaxOptions(provisioners))
 	// Inject volume topological requirements
 	if err := c.volumeTopology.Inject(ctx, pod); err != nil {
 		return fmt.Errorf("getting volume topology requirements, %w", err)
@@ -116,6 +115,21 @@ func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs e
 	case <-ctx.Done():
 	}
 	return nil
+}
+
+func getRelaxOptions(provisioners []*provisioning.Provisioner) RelaxOptions {
+	var options RelaxOptions
+	// We only add the toleration for a PreferNoSchedule taint if one of the provisioners puts this taint on. Otherwise
+	// it would have no effect and produces a confusing log message.
+	for _, prov := range provisioners {
+		for _, taint := range prov.Spec.Taints {
+			if taint.Effect == v1.TaintEffectPreferNoSchedule {
+				options.AddPreferNoScheduleToleration = true
+				break
+			}
+		}
+	}
+	return options
 }
 
 func isProvisionable(p *v1.Pod) bool {
