@@ -35,6 +35,7 @@ type PodOptions struct {
 	Image                     string
 	NodeName                  string
 	PriorityClassName         string
+	InitResourceRequirements  v1.ResourceRequirements
 	ResourceRequirements      v1.ResourceRequirements
 	NodeSelector              map[string]string
 	NodeRequirements          []v1.NodeSelectorRequirement
@@ -90,6 +91,11 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Affinity:                  buildAffinity(options),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
+			InitContainers: []v1.Container{{
+				Name:      strings.ToLower(sequentialRandomName()),
+				Image:     options.Image,
+				Resources: options.InitResourceRequirements,
+			}},
 			Containers: []v1.Container{{
 				Name:      strings.ToLower(sequentialRandomName()),
 				Image:     options.Image,

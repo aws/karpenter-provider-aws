@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          k8sVersion: ["1.19.x", "1.20.x", "1.21.x"]
+          k8sVersion: ["1.19.x", "1.20.x", "1.21.x", "1.22.x"]
     env:
       K8S_VERSION: ${{ matrix.k8sVersion }}
     steps:

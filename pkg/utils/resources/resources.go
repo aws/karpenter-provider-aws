@@ -25,9 +25,7 @@ import (
 func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 	var resources []v1.ResourceList
 	for _, pod := range pods {
-		for _, container := range pod.Spec.Containers {
-			resources = append(resources, container.Resources.Requests)
-		}
+		resources = append(resources, Ceiling(pod).Requests)
 	}
 	merged := Merge(resources...)
 	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
@@ -38,9 +36,7 @@ func RequestsForPods(pods ...*v1.Pod) v1.ResourceList {
 func LimitsForPods(pods ...*v1.Pod) v1.ResourceList {
 	var resources []v1.ResourceList
 	for _, pod := range pods {
-		for _, container := range pod.Spec.Containers {
-			resources = append(resources, container.Resources.Limits)
-		}
+		resources = append(resources, Ceiling(pod).Limits)
 	}
 	merged := Merge(resources...)
 	merged[v1.ResourcePods] = *resource.NewQuantity(int64(len(pods)), resource.DecimalExponent)
@@ -61,6 +57,50 @@ func Merge(resources ...v1.ResourceList) v1.ResourceList {
 		}
 	}
 	return result
+}
+
+// Ceiling calculates the max between the sum of container resources and max of initContainers
+func Ceiling(pod *v1.Pod) v1.ResourceRequirements {
+	var resources v1.ResourceRequirements
+	for _, container := range pod.Spec.Containers {
+		resources.Requests = Merge(resources.Requests, MergeResourceLimitsIntoRequests(container))
+		resources.Limits = Merge(resources.Limits, container.Resources.Limits)
+	}
+	for _, container := range pod.Spec.InitContainers {
+		resources.Requests = MaxResources(resources.Requests, MergeResourceLimitsIntoRequests(container))
+		resources.Limits = MaxResources(resources.Limits, container.Resources.Limits)
+	}
+	return resources
+}
+
+// MaxResources returns the maximum quantities for a given list of resources
+func MaxResources(resources ...v1.ResourceList) v1.ResourceList {
+	resourceList := v1.ResourceList{}
+	for _, resource := range resources {
+		for resourceName, quantity := range resource {
+			if value, ok := resourceList[resourceName]; !ok || quantity.Cmp(value) > 0 {
+				resourceList[resourceName] = quantity
+			}
+		}
+	}
+	return resourceList
+}
+
+// MergeResourceLimitsIntoRequests merges resource limits into requests if no request exists for the given resource
+func MergeResourceLimitsIntoRequests(container v1.Container) v1.ResourceList {
+	resources := container.Resources.DeepCopy()
+	if resources.Requests == nil {
+		resources.Requests = v1.ResourceList{}
+	}
+
+	if resources.Limits != nil {
+		for resourceName, quantity := range resources.Limits {
+			if _, ok := resources.Requests[resourceName]; !ok {
+				resources.Requests[resourceName] = quantity
+			}
+		}
+	}
+	return resources.Requests
 }
 
 // Quantity parses the string value into a *Quantity

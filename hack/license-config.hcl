@@ -13,4 +13,5 @@ override = {
   "sigs.k8s.io/yaml" = "MIT",
   "github.com/gogo/protobuf" = "BSD-3-Clause"
   "golang.org/x/crypto" = "BSD-3-Clause"
+  "github.com/pelletier/go-toml" = "Apache-2.0"
 }
