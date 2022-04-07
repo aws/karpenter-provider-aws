@@ -1,6 +1,8 @@
 #!/bin/bash -e
 SNAPSHOT_TAG=$(git rev-parse HEAD)
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
+CURRENT_MAJOR_VERSION="0"
+PUBLIC_ECR_REGISTRY_ALIAS="public.ecr.aws/z4v8y7u8/"
+RELEASE_REPO=${RELEASE_REPO:-"${PUBLIC_ECR_REGISTRY_ALIAS}"}
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
 RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
@@ -9,20 +11,28 @@ if [ -z "$CLOUD_PROVIDER" ]; then
     exit 1
 fi
 
-image() {
-    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+authenticate() {
+  aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
+}
+
+buildImage() {
     CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
     WEBHOOK_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/webhook)
 }
 
-chart() {
+publishHelmChart() {
     (
+        HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
+        HELM_CHART_FILE_NAME="karpenter-${HELM_CHART_VERSION}.tgz"
+
         cd charts
         helm lint karpenter
-        helm package karpenter
-        helm repo index .
-        helm-docs
+        helm package karpenter --version $HELM_CHART_VERSION
+        helm push "${HELM_CHART_FILE_NAME}" "oci://${PUBLIC_ECR_REGISTRY_ALIAS}"
+        rm "${HELM_CHART_FILE_NAME}"
     )
 }
 
-chart
+authenticate
+buildImage
+publishHelmChart
