@@ -147,6 +147,10 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 				Name:   aws.String("supported-virtualization-type"),
 				Values: []*string{aws.String("hvm")},
 			},
+			{
+				Name:   aws.String("processor-info.supported-architecture"),
+				Values: aws.StringSlice([]string{"x86_64", "arm64"}),
+			},
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
@@ -168,10 +172,6 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	if instanceType.FpgaInfo != nil {
 		return false
 	}
-	if aws.BoolValue(instanceType.BareMetal) {
-		return false
-	}
-	// TODO exclude if not available for spot
 	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
 		"m", "c", "r", "a", // Standard
 		"i3",       // Storage-optimized

@@ -79,19 +79,19 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, options.ClusterName, fmt.Sprint(hash))
 }
 
-func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
+func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) (map[string][]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
-	if constraints.LaunchTemplateName != nil {
-		return map[string][]cloudprovider.InstanceType{ptr.StringValue(constraints.LaunchTemplateName): instanceTypes}, nil
+	if provider.LaunchTemplateName != nil {
+		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, constraints)
+	instanceProfile, err := p.getInstanceProfile(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, constraints)
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -99,14 +99,14 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, constraints *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, constraints, instanceTypes, &amifamily.Options{
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
 		ClusterName:             injection.GetOptions(ctx).ClusterName,
 		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    constraints.Tags,
-		Labels:                  functional.UnionStringMaps(constraints.Labels, additionalLabels),
+		Tags:                    provider.Tags,
+		Labels:                  functional.UnionStringMaps(nodeRequest.Template.Labels, additionalLabels),
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 	})
@@ -248,9 +248,9 @@ func (p *LaunchTemplateProvider) onCacheEvicted(key string, lt interface{}) {
 	p.logger.Debugf("Deleted launch template %v", aws.StringValue(launchTemplate.LaunchTemplateId))
 }
 
-func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, constraints *v1alpha1.Constraints) (string, error) {
-	if constraints.InstanceProfile != nil {
-		return aws.StringValue(constraints.InstanceProfile), nil
+func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
+	if provider.InstanceProfile != nil {
+		return aws.StringValue(provider.InstanceProfile), nil
 	}
 	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
 	if defaultProfile == "" {

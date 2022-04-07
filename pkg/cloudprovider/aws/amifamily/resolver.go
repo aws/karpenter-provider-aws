@@ -85,10 +85,10 @@ func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints, instanceTypes []cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
-	amiFamily := r.getAMIFamily(constraints.AMIFamily, options)
+func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
+	amiFamily := r.getAMIFamily(provider.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
-	for _, instanceType := range instanceTypes {
+	for _, instanceType := range nodeRequest.InstanceTypeOptions {
 		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 		if err != nil {
 			return nil, err
@@ -99,9 +99,9 @@ func (r Resolver) Resolve(ctx context.Context, constraints *v1alpha1.Constraints
 	for amiID, instanceTypes := range amiIDs {
 		resolved := &LaunchTemplate{
 			Options:             options,
-			UserData:            amiFamily.UserData(constraints.KubeletConfiguration, constraints.Taints, options.Labels, options.CABundle, instanceTypes),
-			BlockDeviceMappings: constraints.BlockDeviceMappings,
-			MetadataOptions:     constraints.MetadataOptions,
+			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes),
+			BlockDeviceMappings: provider.BlockDeviceMappings,
+			MetadataOptions:     provider.MetadataOptions,
 			AMIID:               amiID,
 			InstanceTypes:       instanceTypes,
 		}

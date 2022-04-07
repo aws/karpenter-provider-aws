@@ -142,14 +142,21 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	if err := p.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
-
-	nodeRequest := &cloudprovider.NodeRequest{Constraints: node.Constraints, InstanceTypeOptions: node.InstanceTypeOptions}
-	k8sNode, err := p.cloudProvider.Create(ctx, nodeRequest)
+	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
+		InstanceTypeOptions: node.InstanceTypeOptions,
+		Template: &cloudprovider.NodeTemplate{
+			Provider:             p.Spec.Provider,
+			Labels:               node.Constraints.Labels,
+			Taints:               node.Constraints.Taints,
+			Requirements:         node.Constraints.Requirements,
+			KubeletConfiguration: node.Constraints.KubeletConfiguration,
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
 
-	if err := mergo.Merge(k8sNode, nodeRequest.Constraints.ToNode()); err != nil {
+	if err := mergo.Merge(k8sNode, node.Constraints.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
 	// Idempotently create a node. In rare cases, nodes can come online and

@@ -15,11 +15,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/aws/aws-sdk-go/service/ec2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )

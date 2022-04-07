@@ -43,10 +43,10 @@ func NewSubnetProvider(ec2api ec2iface.EC2API) *SubnetProvider {
 	}
 }
 
-func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]*ec2.Subnet, error) {
+func (p *SubnetProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(constraints)
+	filters := getFilters(provider)
 	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
 	if err != nil {
 		return nil, err
@@ -59,17 +59,17 @@ func (p *SubnetProvider) Get(ctx context.Context, constraints *v1alpha1.AWS) ([]
 		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 	}
 	if len(output.Subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", constraints.SubnetSelector)
+		return nil, fmt.Errorf("no subnets matched selector %v", provider.SubnetSelector)
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
 	logging.FromContext(ctx).Debugf("Discovered subnets: %s", prettySubnets(output.Subnets))
 	return output.Subnets, nil
 }
 
-func getFilters(constraints *v1alpha1.AWS) []*ec2.Filter {
+func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
-	for key, value := range constraints.SubnetSelector {
+	for key, value := range provider.SubnetSelector {
 		if value == "*" {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("tag-key"),
