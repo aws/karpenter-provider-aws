@@ -79,6 +79,8 @@ controller:
       memory: 1Gi
   # -- Controller log level, defaults to the global log level
   logLevel: ""
+  # -- Controller log encoding, defaults to the global log encoding
+  logEncoding: ""  
 webhook:
   # -- Webhook image.
   image: "public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"
@@ -101,8 +103,12 @@ webhook:
       memory: 50Mi
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
+  # -- Webhook log encoding, defaults to the global log encoding
+  logEncoding: ""  
 # -- Global log level
 logLevel: debug
+# -- Gloabl log encoding
+logEncoding: console
 # -- Cluster name.
 clusterName: ""
 # -- Cluster endpoint.
