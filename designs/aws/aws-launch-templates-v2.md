@@ -22,7 +22,7 @@ While some users do like complete control over the launch template since they cu
 
 ### **Which parameters should we support in the providerSpec?**
 
-The reason this question is important is because we don’t want to bloat the AWS providerSpec by adding every EC2 property in there. Having said that, we’ve already made some changes to the v1alpha5 Provisioner API to support scenarios that could’ve been addressed by a custom launch template. This includes [overriding instanceProfiles](https://github.com/aws/karpenter/pull/914), flexibility to [change maxPods](https://github.com/aws/karpenter/pull/1032), configure [IMDS settings](https://github.com/aws/karpenter/commit/5bb3c3ab4ec840de15f05090761bc5f0733bda46), specify [clusterDNS](https://github.com/aws/karpenter/pull/1013) and more.
+The reason this question is important is because we don't want to bloat the AWS providerSpec by adding every EC2 property in there. Having said that, we’ve already made some changes to the v1alpha5 Provisioner API to support scenarios that could’ve been addressed by a custom launch template. This includes [overriding instanceProfiles](https://github.com/aws/karpenter/pull/914), flexibility to [change maxPods](https://github.com/aws/karpenter/pull/1032), configure [IMDS settings](https://github.com/aws/karpenter/commit/5bb3c3ab4ec840de15f05090761bc5f0733bda46), specify [clusterDNS](https://github.com/aws/karpenter/pull/1013), supporting [BlockDeviceMappings](https://github.com/aws/karpenter/pull/1420) and more.
 
 The rationale we’ve stuck to so far is
 
@@ -157,7 +157,6 @@ The essence of this approach, is to represent each EC2 instance level feature as
 
 ### Recommendation
 
-I recommend we continue with Approach 1, and give everyone the ability to customize a few select, commonly used fields in the provisionerSpec and ask them to configure all others via a complete LaunchTemplate. I think this keeps our API easy to use. The fields I expect us to add to the Provider in the short term are _BlockDeviceMappings, ImageId / AMIFamily and UserData._ The use cases for other fields either don’t apply to Karpenter, or they’re quite niche where it probably makes sense for the customer to manage all other aspects of the launch template in any case.
+I recommend we continue with Approach 1, and give everyone the ability to customize a few select, commonly used fields in the provisionerSpec and ask them to configure all others via a complete LaunchTemplate. I think this keeps our API easy to use. The fields I expect us to add to the Provider in the short term are _ImageId and UserData._ The use cases for other fields either don’t apply to Karpenter, or they’re quite niche where it probably makes sense for the customer to manage all other aspects of the launch template in any case.
 
 * For example, I don’t expect Karpenter customers to need [any of these launch template options](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestLaunchTemplateData.html) - CapacityReservationSpecification, CpuOptions, CreditSpecification, DisableApiTermination, ElasticGpuSpecifications, HibernationOptions, InstanceInitiatedShutdownBehavior, InstanceMarketOptions, InstanceRequirements, InstanceType, NetworkInterfaces, PrivateDnsNameOptions so we shouldn’t get too concerned of ever increasing knobs in our Provider API.
-
