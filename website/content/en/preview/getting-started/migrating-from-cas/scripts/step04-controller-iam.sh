@@ -4,7 +4,7 @@ echo "{
         {
             \"Effect\": \"Allow\",
             \"Principal\": {
-                \"Federated\": \"arn:aws:iam::${ACCOUNT}:oidc-provider/${OIDC_ENDPOINT#*//}\"
+                \"Federated\": \"arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/${OIDC_ENDPOINT#*//}\"
             },
             \"Action\": \"sts:AssumeRoleWithWebIdentity\",
             \"Condition\": {
