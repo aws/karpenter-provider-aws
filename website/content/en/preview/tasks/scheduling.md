@@ -281,7 +281,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: ebs
-provisioner: ebs.csi.aws.com
+provisioner: kubernetes.io/aws-ebs
 volumeBindingMode: WaitForFirstConsumer
 allowedTopologies:
 - matchLabelExpressions:
