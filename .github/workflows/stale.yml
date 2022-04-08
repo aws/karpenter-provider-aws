@@ -19,7 +19,7 @@ jobs:
           stale-pr-label: 'stale'
           exempt-pr-labels:  'roadmap,help-wanted,burning,bug,feature,documentation,operational-excellence'
           response-requested-label: response-requested
-          closed-for-staleness-label: `stale`
+          closed-for-staleness-label: 'stale'
 
           days-before-stale: 25
           days-before-close: 10
