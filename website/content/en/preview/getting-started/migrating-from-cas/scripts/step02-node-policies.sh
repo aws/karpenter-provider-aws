@@ -7,6 +7,5 @@ aws iam attach-role-policy --role-name KarpenterInstanceNodeRole \
 aws iam attach-role-policy --role-name KarpenterInstanceNodeRole \
     --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 
-# optional for session manager
 aws iam attach-role-policy --role-name KarpenterInstanceNodeRole \
     --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
