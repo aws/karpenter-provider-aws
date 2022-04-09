@@ -49,3 +49,12 @@ rules:
     verbs: ["update"]
     resourceNames:
       - "{{ .Release.Namespace }}"
+  - apiGroups: [""]
+    resources: ["replicationcontrollers/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets/finalizers", "replicasets/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["batch"]
+    resources: ["jobs/finalizers"]
+    verbs: ["update"]
