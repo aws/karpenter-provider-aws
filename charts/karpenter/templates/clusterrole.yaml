@@ -37,5 +37,15 @@ rules:
     resources: ["daemonsets"]
     verbs: ["list", "watch"]
   - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
-    verbs: ["get", "watch", "list", "update"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["get", "watch", "list", "update", "delete"]
+    resourceNames: ["defaulting.webhook.provisioners.karpenter.sh"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "watch", "list", "update", "delete"]
+    resourceNames: ["validation.webhook.provisioners.karpenter.sh", "validation.webhook.config.karpenter.sh"]
+  - apiGroups: [""]
+    resources: ["namespaces/finalizers"]
+    verbs: ["update"]
+    resourceNames:
+      - "{{ .Release.Namespace }}"
