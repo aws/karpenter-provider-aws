@@ -59,6 +59,18 @@ affinity:
               operator: DoesNotExist
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
+
+# -- Additional volumes for the pod.
+extraVolumes: []
+# - name: aws-iam-token
+#   projected:
+#     defaultMode: 420
+#     sources:
+#     - serviceAccountToken:
+#         audience: sts.amazonaws.com
+#         expirationSeconds: 86400
+#         path: token
+
 controller:
   # -- Controller image.
   image: "public.ecr.aws/karpenter/controller:v0.8.1@sha256:2dc1d020688bf00ba4c910a9a01b19ebc2b020f61d8a9c78a23f5eab5c258b53"
@@ -80,7 +92,12 @@ controller:
   # -- Controller log level, defaults to the global log level
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
-  logEncoding: ""  
+  logEncoding: ""
+  # -- Additional volumeMounts for the controller pod.
+  extraVolumeMounts: []
+  # - name: aws-iam-token
+  #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+  #   readOnly: true
 webhook:
   # -- Webhook image.
   image: "public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"
@@ -104,7 +121,9 @@ webhook:
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
   # -- Webhook log encoding, defaults to the global log encoding
-  logEncoding: ""  
+  logEncoding: ""
+  # -- Additional volumeMounts for the webhook pod.
+  extraVolumeMounts: []
 # -- Global log level
 logLevel: debug
 # -- Gloabl log encoding

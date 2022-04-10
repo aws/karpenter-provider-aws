@@ -41,11 +41,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterEndpoint | string | `""` | Cluster endpoint. |
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.image | string | `"public.ecr.aws/karpenter/controller:v0.8.1@sha256:2dc1d020688bf00ba4c910a9a01b19ebc2b020f61d8a9c78a23f5eab5c258b53"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
+| extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
 | imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Docker images. |
@@ -69,6 +71,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
+| webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
 | webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
