@@ -13,7 +13,7 @@ tools() {
     go install github.com/mitchellh/golicense@v0.2.0
     go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.3.1
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.41.1
-    go install github.com/google/ko@v0.10.0
+    go install github.com/google/ko@v0.11.2
     go install github.com/mikefarah/yq/v4@v4.16.1
     go install github.com/mitchellh/golicense@v0.2.0
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.7.0
