@@ -6,16 +6,15 @@ KUBEBUILDER_ASSETS="${KUBEBUILDER_ASSETS:="${HOME}/.kubebuilder/bin"}"
 
 main() {
     tools
+    golicense
     kubebuilder
 }
 
 tools() {
-    go install github.com/mitchellh/golicense@v0.2.0
     go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.3.1
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.41.1
     go install github.com/google/ko@v0.11.2
     go install github.com/mikefarah/yq/v4@v4.16.1
-    go install github.com/mitchellh/golicense@v0.2.0
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.8.1
     go install github.com/onsi/ginkgo/ginkgo@v1.16.5
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20220113220429-45b13b951f77
@@ -37,6 +36,18 @@ kubebuilder() {
     fi
     ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
+}
+
+golicense() {
+    # golicense no longer builds with go 1.18+, for now just install the last release binary
+    if [[ $(go env GOOS) == "darwin" ]]; then
+        curl -SLl https://github.com/mitchellh/golicense/releases/download/v0.2.0/golicense_0.2.0_macos_x86_64.tar.gz | tar -C /tmp -zx
+    else
+        curl -SLl https://github.com/mitchellh/golicense/releases/download/v0.2.0/golicense_0.2.0_linux_x86_64.tar.gz | tar -C /tmp -zx
+    fi
+    if [ -d "${HOME}/go/bin" ]; then
+        mv /tmp/golicense "${HOME}/go/bin"
+    fi
 }
 
 main "$@"
