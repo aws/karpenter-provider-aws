@@ -61,7 +61,7 @@ affinity:
 tolerations: []
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.8.1@sha256:2dc1d020688bf00ba4c910a9a01b19ebc2b020f61d8a9c78a23f5eab5c258b53"
+  image: "public.ecr.aws/karpenter/controller:v0.8.2@sha256:7779bf337cafe5080192f51819c5dc8a52ba6e7c4436ef9b2d164504d4ef8bea"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -79,9 +79,11 @@ controller:
       memory: 1Gi
   # -- Controller log level, defaults to the global log level
   logLevel: ""
+  # -- Controller log encoding, defaults to the global log encoding
+  logEncoding: ""
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"
+  image: "public.ecr.aws/karpenter/webhook:v0.8.2@sha256:22c4859490887b86b136aa6328cc951b252cc24d069ef30cc6c59892b1d59005"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
@@ -101,8 +103,12 @@ webhook:
       memory: 50Mi
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
+  # -- Webhook log encoding, defaults to the global log encoding
+  logEncoding: ""
 # -- Global log level
 logLevel: debug
+# -- Gloabl log encoding
+logEncoding: console
 # -- Cluster name.
 clusterName: ""
 # -- Cluster endpoint.
