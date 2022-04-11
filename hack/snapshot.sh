@@ -33,21 +33,8 @@ publishHelmChart() {
         cd charts
         helm lint karpenter
         helm package karpenter --version $HELM_CHART_VERSION
-        mkdir snapshots
-        mv "$HELM_CHART_FILE_NAME" ./snapshots
-        cd snapshots
-        helm repo index .
-        aws s3 cp "s3://${PUBLIC_BUCKET_NAME}/index.yaml" remote-index.yaml
-        sed -i -e 1,3d remote-index.yaml
-        GENERATED_TIMESTAMP=$(yq e '.generated' index.yaml)
-        sed -i -e '$d' index.yaml
-        sed -i -e '$d' remote-index.yaml
-        cat remote-index.yaml >> index.yaml
-        echo "generated: ${GENERATED_TIMESTAMP}" >> index.yaml
-        aws s3 cp "${HELM_CHART_FILE_NAME}" "s3://${PUBLIC_BUCKET_NAME}/${HELM_CHART_FILE_NAME}"
-        aws s3 cp index.yaml "s3://${PUBLIC_BUCKET_NAME}/index.yaml"
-        cd ..
-        rm -rf snapshots
+        helm push "${HELM_CHART_FILE_NAME}" "oci://${PUBLIC_ECR_REGISTRY_ALIAS}"
+        rm "${HELM_CHART_FILE_NAME}"
     )
 }
 
