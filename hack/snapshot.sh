@@ -43,12 +43,11 @@ publishHelmChart() {
         sed -i -e '$d' index.yaml
         sed -i -e '$d' remote-index.yaml
         cat remote-index.yaml >> index.yaml
-        echo "generated: ${GENERATED_TIMESTAMP}" >> index.yaml
-        yq v index.yaml
-        aws s3 cp index.yaml "s3://${PUBLIC_BUCKET_NAME}/index.yaml"
+        yq e -i ".generated = \"${GENERATED_TIMESTAMP#v}\"" index.yaml
         aws s3 cp "${HELM_CHART_FILE_NAME}" "s3://${PUBLIC_BUCKET_NAME}/${HELM_CHART_FILE_NAME}"
+        aws s3 cp index.yaml "s3://${PUBLIC_BUCKET_NAME}/index.yaml"
         cd ..
-        rm rf ./snapshots
+        rm -rf snapshots
     )
 }
 
