@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.8.1](https://img.shields.io/badge/Version-0.8.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.8.1](https://img.shields.io/badge/AppVersion-0.8.1-informational?style=flat-square)
+![Version: 0.8.2](https://img.shields.io/badge/Version-0.8.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.8.2](https://img.shields.io/badge/AppVersion-0.8.2-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.8.1/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.8.2/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.8.1/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.8.2/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.8.1 \
+  --version 0.8.2 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -41,7 +41,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterEndpoint | string | `""` | Cluster endpoint. |
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.8.1@sha256:2dc1d020688bf00ba4c910a9a01b19ebc2b020f61d8a9c78a23f5eab5c258b53"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.8.2@sha256:7779bf337cafe5080192f51819c5dc8a52ba6e7c4436ef9b2d164504d4ef8bea"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -69,7 +69,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
-| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"` | Webhook image. |
+| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.8.2@sha256:22c4859490887b86b136aa6328cc951b252cc24d069ef30cc6c59892b1d59005"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
