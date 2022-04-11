@@ -96,7 +96,7 @@ func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints
 		if !ok {
 			break
 		}
-		// Use existing node or create a node one
+		// Use existing node or create a new one
 		node := s.scheduleExisting(pod, nodes)
 		if node == nil {
 			node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
