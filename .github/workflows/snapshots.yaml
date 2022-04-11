@@ -1,7 +1,7 @@
 name: Snapshots
 on:
-  schedule:
-    - cron: '30 12 * * *'
+  push:
+#    branches: [ main ]
 permissions:
   id-token: write
 jobs:
@@ -24,7 +24,7 @@ jobs:
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
       - uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::112855948879:role/Nightly
+          role-to-assume: arn:aws:iam::274912145732:role/Snapshots
           aws-region: us-east-1
       - run: make snapshot
         env:
