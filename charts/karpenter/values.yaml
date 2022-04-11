@@ -57,6 +57,8 @@ affinity:
         - matchExpressions:
             - key: karpenter.sh/provisioner-name
               operator: DoesNotExist
+# -- topologySpreadConstraints to increase the controller resilience
+topologySpreadConstraints: []
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
 controller:
