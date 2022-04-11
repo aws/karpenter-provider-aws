@@ -300,7 +300,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
-		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
+		if functional.ContainsString([]string{InsufficientCapacityErrorCode, MaxSpotInstanceCountExceededErrorCode}, aws.StringValue(err.ErrorCode)) {
 			p.instanceTypeProvider.CacheUnavailable(ctx, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone), capacityType)
 		}
 	}
