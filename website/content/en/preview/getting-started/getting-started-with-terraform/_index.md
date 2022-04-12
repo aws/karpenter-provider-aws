@@ -221,11 +221,12 @@ Add the following to your `main.tf` to create the IAM role for the Karpenter ser
 ```hcl
 module "karpenter_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "4.17.1"
+  version = "4.19.0"
 
   role_name                          = "karpenter-controller-${local.cluster_name}"
   attach_karpenter_controller_policy = true
 
+  karpenter_tag_key               = "karpenter.sh/discovery/${module.eks.cluster_id}"
   karpenter_controller_cluster_id = module.eks.cluster_id
   karpenter_controller_node_iam_role_arns = [
     module.eks.eks_managed_node_groups["initial"].iam_role_arn
@@ -363,11 +364,11 @@ resource "kubectl_manifest" "karpenter_provisioner" {
         cpu: 1000
     provider:
       subnetSelector:
-        karpenter.sh/discovery: ${local.cluster_name}
+        karpenter.sh/discovery: ${module.eks.cluster_id}
       securityGroupSelector:
-        karpenter.sh/discovery: ${local.cluster_name}
+        karpenter.sh/discovery: ${module.eks.cluster_id}
       tags:
-        karpenter.sh/discovery: ${local.cluster_name}
+        karpenter.sh/discovery/${module.eks.cluster_id}: ${module.eks.cluster_id}
     ttlSecondsAfterEmpty: 30
   YAML
 
