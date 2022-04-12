@@ -84,6 +84,9 @@ release: ## Generate release manifests and publish a versioned container image.
 nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/nightly.sh
 
+snapshot: ## Generate nightly release manifests and publish a versioned container image.
+	$(WITH_GOFLAGS) ./hack/snapshot.sh
+
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
 
