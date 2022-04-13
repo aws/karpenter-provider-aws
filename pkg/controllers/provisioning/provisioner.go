@@ -41,8 +41,8 @@ func NewProvisioner(ctx context.Context, provisioner *v1alpha5.Provisioner, kube
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Provisioner:   provisioner,
-		batcher:       NewBatcher(running),
 		Stop:          stop,
+		batcher:       NewBatcher(running),
 		cloudProvider: cloudProvider,
 		kubeClient:    kubeClient,
 		coreV1Client:  coreV1Client,
@@ -83,9 +83,8 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	items, window := p.batcher.Wait()
 	defer p.batcher.Flush()
-	logging.FromContext(ctx).Infof("Batched %d pods in %s", len(items), window)
 	// Filter pods
-	pods := []*v1.Pod{}
+	var pods []*v1.Pod
 	for _, item := range items {
 		provisionable, err := p.isProvisionable(ctx, item.(*v1.Pod))
 		if err != nil {
@@ -95,6 +94,11 @@ func (p *Provisioner) provision(ctx context.Context) error {
 			pods = append(pods, item.(*v1.Pod))
 		}
 	}
+	if len(pods) == 0 {
+		return nil
+	}
+	logging.FromContext(ctx).Infof("Batched %d pod(s) in %s", len(pods), window)
+
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, p.Spec.Provider)
 	if err != nil {
@@ -102,13 +106,11 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	}
 
 	// Separate pods by scheduling constraints
-	nodes, err := p.scheduler.Solve(ctx, p.Provisioner, instanceTypes, pods)
+	nodes, err := p.scheduler.Solve(ctx, &p.Provisioner.Spec.Constraints, instanceTypes, pods)
 	if err != nil {
 		return fmt.Errorf("solving scheduling constraints, %w", err)
 	}
-	if err != nil {
-		return err
-	}
+
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		if err := p.launch(ctx, nodes[i]); err != nil {

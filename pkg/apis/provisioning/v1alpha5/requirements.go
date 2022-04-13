@@ -44,7 +44,7 @@ func NewRequirements(requirements ...v1.NodeSelectorRequirement) Requirements {
 
 // NewLabelRequirements constructs requirements from labels
 func NewLabelRequirements(labels map[string]string) Requirements {
-	requirements := []v1.NodeSelectorRequirement{}
+	var requirements []v1.NodeSelectorRequirement
 	for key, value := range labels {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
@@ -53,7 +53,7 @@ func NewLabelRequirements(labels map[string]string) Requirements {
 
 // NewPodRequirements constructs requirements from a pod
 func NewPodRequirements(pod *v1.Pod) Requirements {
-	requirements := []v1.NodeSelectorRequirement{}
+	var requirements []v1.NodeSelectorRequirement
 	for key, value := range pod.Spec.NodeSelector {
 		requirements = append(requirements, v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}})
 	}
@@ -77,10 +77,10 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 // Add function returns a new Requirements object with new requirements inserted.
 func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requirements {
 	// Deep copy to avoid mutating existing requirements
-	r = *r.DeepCopy()
+	cp := *r.DeepCopy()
 	// This fail-safe measurement can be removed later when we implement test webhook.
-	if r.requirements == nil {
-		r.requirements = map[string]sets.Set{}
+	if cp.requirements == nil {
+		cp.requirements = map[string]sets.Set{}
 	}
 	for _, requirement := range requirements {
 		if normalized, ok := NormalizedLabels[requirement.Key]; ok {
@@ -89,7 +89,7 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 		if IgnoredLabels.Has(requirement.Key) {
 			continue
 		}
-		r.Requirements = append(r.Requirements, requirement)
+		cp.Requirements = append(cp.Requirements, requirement)
 		var values sets.Set
 		switch requirement.Operator {
 		case v1.NodeSelectorOpIn:
@@ -101,12 +101,41 @@ func (r Requirements) Add(requirements ...v1.NodeSelectorRequirement) Requiremen
 		case v1.NodeSelectorOpDoesNotExist:
 			values = sets.NewSet()
 		}
-		if existing, ok := r.requirements[requirement.Key]; ok {
+		if existing, ok := cp.requirements[requirement.Key]; ok {
 			values = values.Intersection(existing)
 		}
-		r.requirements[requirement.Key] = values
+		cp.requirements[requirement.Key] = values
 	}
-	return r
+	cp.rebuild()
+	return cp
+}
+
+// rebuild re-generates the node selector requirements based on the set based versions.  This improves scheduling speed
+// as it causes us to not carry around redundant requirements (e.g. 20x copies of instance-type in [it0, it1, ..., it400])
+func (r *Requirements) rebuild() {
+	existing := r.Requirements
+	r.Requirements = nil
+	for key, values := range r.requirements {
+		req := v1.NodeSelectorRequirement{
+			Key: key,
+		}
+		if values.IsComplement() {
+			req.Operator = v1.NodeSelectorOpNotIn
+			req.Values = values.ComplementValues().UnsortedList()
+		} else {
+			req.Operator = v1.NodeSelectorOpIn
+			req.Values = values.Values().UnsortedList()
+		}
+		r.Requirements = append(r.Requirements, req)
+	}
+	// re-add any requirements that the set based versions don't handle so we can properly validate
+	for _, req := range existing {
+		switch req.Operator {
+		case v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, v1.NodeSelectorOpExists, v1.NodeSelectorOpDoesNotExist:
+		default:
+			r.Requirements = append(r.Requirements, req)
+		}
+	}
 }
 
 // Keys returns unique set of the label keys from the requirements

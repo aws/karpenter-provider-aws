@@ -27,6 +27,9 @@ var (
 	ArchitectureArm64    = "arm64"
 	OperatingSystemLinux = "linux"
 
+	// ValidTopologyKeys are the topology keys that Karpenter allows for topology spread and pod affinity/anti-affinity
+	ValidTopologyKeys = stringsets.NewString(v1.LabelHostname, v1.LabelTopologyZone, LabelCapacityType)
+
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
