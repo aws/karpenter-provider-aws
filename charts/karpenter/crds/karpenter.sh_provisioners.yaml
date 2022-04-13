@@ -137,6 +137,35 @@ spec:
                   - key
                   type: object
                 type: array
+              taintsToIgnore:
+                description: TaintsToIgnore is a list of taints for the provisioner
+                  to ignore when provisioning new nodes and scheduling pods. If specified,
+                  taints included in this list will be ignored when ...
+                items:
+                  description: The node this Taint is attached to has the "effect"
+                    on any pod that does not tolerate the Taint.
+                  properties:
+                    effect:
+                      description: Required. The effect of the taint on pods that
+                        do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule
+                        and NoExecute.
+                      type: string
+                    key:
+                      description: Required. The taint key to be applied to a node.
+                      type: string
+                    timeAdded:
+                      description: TimeAdded represents the time at which the taint
+                        was added. It is only written for NoExecute taints.
+                      format: date-time
+                      type: string
+                    value:
+                      description: The taint value corresponding to the taint key.
+                      type: string
+                  required:
+                  - effect
+                  - key
+                  type: object
+                type: array
               ttlSecondsAfterEmpty:
                 description: "TTLSecondsAfterEmpty is the number of seconds the controller
                   will wait before attempting to delete a node, measured from when

@@ -422,7 +422,7 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 		})
-		It("should schedule pods that have node selectors with maching value and In operator", func() {
+		It("should schedule pods that have node selectors with matching value and In operator", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -432,7 +432,7 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 		})
-		It("should not schedule pods that have node selectors with maching value and NotIn operator", func() {
+		It("should not schedule pods that have node selectors with matching value and NotIn operator", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
 			pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(
@@ -2307,6 +2307,17 @@ var _ = Describe("Taints", func() {
 		) {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		}
+	})
+	It("should provision nodes with taints and schedule pods, ignoring missing tolerations in the taintsToIgnore list", func() {
+		provisioner.Spec.Taints = []v1.Taint{{Key: "ignore-me", Value: "nothing-to-see-here", Effect: v1.TaintEffectNoSchedule}}
+		provisioner.Spec.TaintsToIgnore = []v1.Taint{{Key: "ignore-me", Value: "nothing-to-see-here", Effect: v1.TaintEffectNoSchedule}}
+
+		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(1))
+
+		ExpectScheduled(ctx, env.Client, pod[0])
 	})
 	It("should not generate taints for OpExists", func() {
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,

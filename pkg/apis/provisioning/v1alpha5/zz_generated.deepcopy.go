@@ -43,6 +43,13 @@ func (in *Constraints) DeepCopyInto(out *Constraints) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.TaintsToIgnore != nil {
+		in, out := &in.TaintsToIgnore, &out.TaintsToIgnore
+		*out = make(Taints, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Requirements.DeepCopyInto(&out.Requirements)
 	if in.KubeletConfiguration != nil {
 		in, out := &in.KubeletConfiguration, &out.KubeletConfiguration

@@ -46,11 +46,17 @@ func (ts Taints) HasKey(taintKey string) bool {
 
 // Tolerates returns true if the pod tolerates all taints
 func (ts Taints) Tolerates(pod *v1.Pod) (errs error) {
+	var emptyIgnoreList Taints
+	return ts.ToleratesWithIgnores(pod, emptyIgnoreList)
+}
+
+// Tolerates returns true if the pod tolerates all taints not in the taintsToIgnore list
+func (ts Taints) ToleratesWithIgnores(pod *v1.Pod, taintsToIgnore Taints) (errs error) {
 	for i := range ts {
 		taint := ts[i]
 		tolerates := false
 		for _, t := range pod.Spec.Tolerations {
-			tolerates = tolerates || t.ToleratesTaint(&taint)
+			tolerates = tolerates || t.ToleratesTaint(&taint) || taintsToIgnore.Has(taint)
 		}
 		if !tolerates {
 			errs = multierr.Append(errs, fmt.Errorf("did not tolerate %s=%s:%s", taint.Key, taint.Value, taint.Effect))

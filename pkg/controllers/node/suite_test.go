@@ -182,7 +182,7 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
 		})
-		It("should delete nodes if node not ready even after Initialization timeout ", func() {
+		It("should delete nodes if node not ready even after Initialization timeout", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Finalizers: []string{v1alpha5.TerminationFinalizer},

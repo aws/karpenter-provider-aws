@@ -35,6 +35,11 @@ type Constraints struct {
 	// pod tolerations on a per-node basis.
 	// +optional
 	Taints Taints `json:"taints,omitempty"`
+	// TaintsToIgnore is a list of taints for the provisioner to ignore when
+	// provisioning new nodes and scheduling pods. If specified, taints included
+	// in this list will be ignored when ...
+	// +optional
+	TaintsToIgnore Taints `json:"taintsToIgnore,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
 	Requirements Requirements `json:"requirements,inline,omitempty"`
 	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
@@ -51,9 +56,10 @@ type Provider = runtime.RawExtension
 // ValidatePod returns an error if the pod's requirements are not met by the constraints
 func (c *Constraints) ValidatePod(pod *v1.Pod) error {
 	// Tolerate Taints
-	if err := c.Taints.Tolerates(pod); err != nil {
+	if err := c.Taints.ToleratesWithIgnores(pod, c.TaintsToIgnore); err != nil {
 		return err
 	}
+
 	requirements := NewPodRequirements(pod)
 	// Test if pod requirements are valid
 	if err := requirements.Validate(); err != nil {
