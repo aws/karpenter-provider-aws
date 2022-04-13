@@ -1,5 +1,6 @@
 ---
 title: "FAQs"
+exclude_search: true
 linkTitle: "FAQs"
 weight: 30
 ---

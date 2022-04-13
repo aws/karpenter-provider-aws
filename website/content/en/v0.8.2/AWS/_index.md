@@ -1,5 +1,6 @@
 ---
 title: "AWS"
+exclude_search: false
 linkTitle: "AWS"
 weight: 70
 ---

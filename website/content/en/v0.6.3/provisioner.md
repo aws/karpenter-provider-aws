@@ -1,5 +1,6 @@
 ---
 title: "Provisioner API"
+exclude_search: true
 linkTitle: "Provisioner API"
 weight: 70
 date: 2017-01-05

@@ -1,5 +1,6 @@
 ---
 title: "Tasks"
+exclude_search: true
 linkTitle: "Tasks"
 weight: 45
 ---

@@ -1,6 +1,7 @@
 
 ---
 title: "Getting Started with kOps"
+exclude_search: false
 linkTitle: "Getting Started with kOps"
 weight: 10
 ---

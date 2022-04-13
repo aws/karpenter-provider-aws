@@ -1,5 +1,6 @@
 ---
 title: "Karpenter Testing Guide"
+exclude_search: false
 linkTitle: "Testing Guide"
 weight: 80
 ---

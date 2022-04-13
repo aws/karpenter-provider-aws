@@ -1,5 +1,6 @@
 ---
 title: "Provisioning nodes"
+exclude_search: true
 linkTitle: "Provisioning nodes"
 weight: 5
 ---

@@ -1,5 +1,6 @@
 ---
 title: "Launch Templates and Custom Images"
+exclude_search: false
 linkTitle: "Launch Templates"
 weight: 80
 ---

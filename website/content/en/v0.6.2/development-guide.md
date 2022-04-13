@@ -1,5 +1,6 @@
 ---
 title: "Development Guide"
+exclude_search: true
 linkTitle: "Development Guide"
 weight: 80
 ---

@@ -1,6 +1,7 @@
 
 ---
 title: "Getting Started with Terraform"
+exclude_search: false
 linkTitle: "Getting Started with Terraform"
 weight: 10
 ---

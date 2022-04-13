@@ -1,5 +1,6 @@
 ---
 title: "Provisioning"
+exclude_search: true
 linkTitle: "Provisioning"
 weight: 5
 ---

@@ -43,6 +43,9 @@ chart() {
 website() {
     mkdir -p website/content/en/${RELEASE_VERSION} && cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
     find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    # make only the latest version searchable
+    find website/content/en/ -type f | xargs perl -i -p -e "s/exclude_search:.*/exclude_search: true/"
+    find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/exclude_search:.*/exclude_search: false/"
 }
 
 image

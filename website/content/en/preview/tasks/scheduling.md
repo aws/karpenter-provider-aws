@@ -1,5 +1,6 @@
 ---
 title: "Scheduling"
+exclude_search: true
 linkTitle: "Scheduling"
 weight: 15
 ---

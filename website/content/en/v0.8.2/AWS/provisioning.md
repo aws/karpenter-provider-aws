@@ -1,5 +1,6 @@
 ---
 title: "Provisioning Configuration"
+exclude_search: false
 linkTitle: "Provisioning"
 weight: 10
 ---

@@ -1,5 +1,6 @@
 ---
 title: "Specifying Values to Control AWS Provisioning"
+exclude_search: true
 linkTitle: "Spec Fields"
 weight: 10
 ---

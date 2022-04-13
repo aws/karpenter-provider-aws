@@ -1,6 +1,7 @@
 
 ---
 title: "Getting started with eksctl"
+exclude_search: true
 linkTitle: "Getting started with eksctl"
 weight: 10
 ---

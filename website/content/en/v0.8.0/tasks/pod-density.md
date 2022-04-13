@@ -1,5 +1,6 @@
 ---
 title: "Control Pod Density"
+exclude_search: true
 linkTitle: "Control Pod Density"
 weight: 20
 ---

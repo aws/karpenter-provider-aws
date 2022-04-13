@@ -1,5 +1,6 @@
 ---
 title: "Migrating from Cluster Autoscaler"
+exclude_search: true
 linkTitle: "Migrating from Cluster Autoscaler"
 weight: 10
 ---

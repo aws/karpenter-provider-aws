@@ -1,5 +1,6 @@
 ---
 title: "Troubleshooting"
+exclude_search: false
 linkTitle: "Troubleshooting"
 weight: 100
 ---

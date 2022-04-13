@@ -1,5 +1,6 @@
 ---
 title: "Deprovisioning nodes"
+exclude_search: true
 linkTitle: "Deprovisioning nodes"
 weight: 20
 ---

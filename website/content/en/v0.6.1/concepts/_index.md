@@ -1,5 +1,6 @@
 ---
 title: "Concepts"
+exclude_search: true
 linkTitle: "Concepts"
 weight: 35
 ---

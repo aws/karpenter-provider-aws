@@ -1,5 +1,6 @@
 ---
 title: "Getting Started"
+exclude_search: true
 linkTitle: "Getting Started"
 weight: 10
 cascade:

@@ -1,5 +1,6 @@
 ---
 title: "Set Resource Limits"
+exclude_search: true
 linkTitle: "Set Resource Limits"
 weight: 10
 ---

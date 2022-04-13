@@ -1,6 +1,7 @@
 
 ---
 title: "Documentation"
+exclude_search: true
 linkTitle: "Docs"
 weight: 20
 cascade:

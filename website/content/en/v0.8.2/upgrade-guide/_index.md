@@ -1,5 +1,6 @@
 ---
 title: "Upgrade Guide"
+exclude_search: false
 linkTitle: "Upgrade Guide"
 weight: 10
 ---

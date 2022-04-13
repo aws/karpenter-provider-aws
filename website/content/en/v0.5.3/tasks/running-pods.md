@@ -1,5 +1,6 @@
 ---
 title: "Running pods"
+exclude_search: true
 linkTitle: "Running pods"
 weight: 10
 ---
