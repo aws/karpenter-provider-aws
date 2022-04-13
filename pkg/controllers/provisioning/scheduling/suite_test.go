@@ -2313,10 +2313,6 @@ var _ = Describe("Taints", func() {
 		provisioner.Spec.TaintsToIgnore = []v1.Taint{{Key: "ignore-me", Value: "nothing-to-see-here", Effect: v1.TaintEffectNoSchedule}}
 
 		pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
-		nodes := &v1.NodeList{}
-		Expect(env.Client.List(ctx, nodes)).To(Succeed())
-		Expect(len(nodes.Items)).To(Equal(1))
-
 		ExpectScheduled(ctx, env.Client, pod)
 	})
 	It("should not generate taints for OpExists", func() {
