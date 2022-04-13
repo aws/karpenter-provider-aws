@@ -23,9 +23,17 @@ spec:
   ttlSecondsAfterEmpty: 30
 
   # Provisioned nodes will have these taints
-  # Taints may prevent pods from scheduling if they are not tolerated
+  # Taints may prevent pods from scheduling if they are not tolerated by the pod.
   taints:
     - key: example.com/special-taint
+      effect: NoSchedule
+      
+      
+  # Provisioned nodes will have these taints, but pods do not need to tolerate these taints to be provisioned by this 
+  # provisioner. These taints are expected to be temporary and some other entity (e.g. a DaemonSet) is responsible for
+  # removing the taint after it has finished initializing the node.
+  startupTaints:
+    - key: example.com/another-taint
       effect: NoSchedule
 
   # Labels are arbitrary key-values that are applied to all nodes

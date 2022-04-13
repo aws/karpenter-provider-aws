@@ -18,6 +18,10 @@ import (
 	"context"
 	"sort"
 
+	"github.com/aws/karpenter/pkg/events"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -27,15 +31,40 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
-func NewScheduler(provisioners []*v1alpha5.Provisioner, topology *Topology, instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList) *Scheduler {
+func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology,
+	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList, recorder events.Recorder) *Scheduler {
 	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
-	return &Scheduler{
+	s := &Scheduler{
 		provisioners:   provisioners,
 		topology:       topology,
+		cluster:        cluster,
 		instanceTypes:  instanceTypes,
 		daemonOverhead: daemonOverhead,
+		recorder:       recorder,
 		preferences:    &Preferences{},
 	}
+
+	provisionerMap := map[string]*v1alpha5.Provisioner{}
+	for _, provisioner := range s.provisioners {
+		provisionerMap[provisioner.Name] = provisioner
+	}
+
+	// create our in-flight nodes
+	s.cluster.ForEachNode(func(node *state.Node) bool {
+		provisionerName, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
+		if !ok {
+			// ignoring this node as it wasn't launched by us
+			return true
+		}
+		provisioner, ok := provisionerMap[provisionerName]
+		if !ok {
+			// ignoring this node as it wasn't launched by a provisioner that we recognize
+			return true
+		}
+		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, provisioner.Spec.StartupTaints, s.daemonOverhead[provisioner]))
+		return true
+	})
+	return s
 }
 
 type Scheduler struct {
@@ -45,6 +74,9 @@ type Scheduler struct {
 	daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList
 	preferences    *Preferences
 	topology       *Topology
+	cluster        *state.Cluster
+	inflight       []*InFlightNode
+	recorder       events.Recorder
 }
 
 func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
@@ -77,18 +109,33 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 		}
 	}
 
+	// notify users of pods that can schedule to inflight capacity
+	for _, node := range s.inflight {
+		for _, pod := range node.Pods {
+			s.recorder.PodShouldSchedule(pod, node.Node)
+		}
+	}
+
 	// Any remaining pods have failed to schedule
 	for _, pod := range q.List() {
 		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
+		s.recorder.PodFailedToSchedule(pod, errors[pod])
 	}
 	return s.nodes, nil
 }
 
 func (s *Scheduler) add(pod *v1.Pod) error {
+	// first try to schedule against an in-flight real node
+	for _, node := range s.inflight {
+		if err := node.Add(pod); err == nil {
+			return nil
+		}
+	}
+
 	// Consider using https://pkg.go.dev/container/heap
 	sort.Slice(s.nodes, func(a, b int) bool { return len(s.nodes[a].Pods) < len(s.nodes[b].Pods) })
 
-	// Pick existing node
+	// Pick existing node that we are about to create
 	for _, node := range s.nodes {
 		if err := node.Add(pod); err == nil {
 			return nil

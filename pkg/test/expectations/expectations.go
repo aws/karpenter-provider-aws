@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter/pkg/test"
+
 	"github.com/onsi/ginkgo"
 
 	//nolint:revive,stylecheck
@@ -165,6 +167,13 @@ func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisi
 
 	controller.TriggerAndWait() //nolint , method is deprecated and used for unit testing only
 
+	recorder := controller.Recorder().(*test.EventRecorder)
+	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
+		ExpectManualBinding(ctx, c, pod, node)
+	})
+	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
+	recorder.ResetBindings()
+
 	// Update objects after reconciling
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
@@ -189,4 +198,13 @@ func ExpectMetric(prefix string) *prometheus.MetricFamily {
 	}
 	Expect(selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
 	return selected
+}
+func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
+	Expect(c.Create(ctx, &v1.Binding{
+		TypeMeta:   pod.TypeMeta,
+		ObjectMeta: pod.ObjectMeta,
+		Target: v1.ObjectReference{
+			Name: node.Name,
+		},
+	})).To(Succeed())
 }

@@ -62,6 +62,7 @@ var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
+var recorder *test.EventRecorder
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -118,7 +119,8 @@ var _ = BeforeSuite(func() {
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		cluster = state.NewCluster(ctx, e.Client)
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider, cluster)
+		recorder = test.NewEventRecorder()
+		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -609,7 +611,7 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -620,7 +622,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

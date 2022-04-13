@@ -26,7 +26,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
-	"github.com/aws/karpenter/pkg/utils/node"
 )
 
 const InitializationTimeout = 15 * time.Minute
@@ -39,13 +38,13 @@ type Initialization struct {
 }
 
 // Reconcile reconciles the node
-func (r *Initialization) Reconcile(ctx context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
+func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
 
-	if !node.IsReady(n) {
+	if !v1alpha5.NodeIsReady(n, provisioner) {
 		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
 			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
 		}

@@ -86,18 +86,25 @@ func (s *ProvisionerSpec) validateLabels() (errs *apis.FieldError) {
 }
 
 func (s *ProvisionerSpec) validateTaints() (errs *apis.FieldError) {
-	for i, taint := range s.Taints {
+	errs = errs.Also(s.validateTaintsField(s.Taints, "taints"))
+	errs = errs.Also(s.validateTaintsField(s.StartupTaints, "startupTaints"))
+	return errs
+}
+
+func (s *ProvisionerSpec) validateTaintsField(taints Taints, fieldName string) *apis.FieldError {
+	var errs *apis.FieldError
+	for i, taint := range taints {
 		// Validate Key
 		if len(taint.Key) == 0 {
-			errs = errs.Also(apis.ErrInvalidArrayValue(errs, "taints", i))
+			errs = errs.Also(apis.ErrInvalidArrayValue(errs, fieldName, i))
 		}
 		for _, err := range validation.IsQualifiedName(taint.Key) {
-			errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+			errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 		}
 		// Validate Value
 		if len(taint.Value) != 0 {
 			for _, err := range validation.IsQualifiedName(taint.Value) {
-				errs = errs.Also(apis.ErrInvalidArrayValue(err, "taints", i))
+				errs = errs.Also(apis.ErrInvalidArrayValue(err, fieldName, i))
 			}
 		}
 		// Validate effect

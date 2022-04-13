@@ -39,6 +39,7 @@ import (
 var ctx context.Context
 var controller *provisioning.Controller
 var env *test.Environment
+var recorder *test.EventRecorder
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -50,7 +51,8 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider, state.NewCluster(ctx, e.Client))
+		recorder = test.NewEventRecorder()
+		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -145,6 +147,25 @@ var _ = Describe("Provisioning", func() {
 	Context("Daemonsets and Node Overhead", func() {
 		It("should account for overhead", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
+				test.DaemonSetOptions{PodOptions: test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+				}},
+			))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+				},
+			))[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+		})
+		It("should account for overhead (with startup taint)", func() {
+			provisioner := test.Provisioner(test.ProvisionerOptions{
+				StartupTaints: []v1.Taint{{Key: "foo.com/taint", Effect: v1.TaintEffectNoSchedule}},
+			})
+
+			ExpectApplied(ctx, env.Client, provisioner, test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}},

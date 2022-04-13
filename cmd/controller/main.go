@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/events"
+
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/project"
 
@@ -77,6 +79,8 @@ func main() {
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
+	var recorder events.Recorder = &events.NoOpRecorder{}
+
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 	manager := controllers.NewManagerOrDie(ctx, config, controllerruntime.Options{
@@ -91,7 +95,7 @@ func main() {
 	cluster := state.NewCluster(ctx, manager.GetClient())
 
 	if err := manager.RegisterControllers(ctx,
-		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider, cluster),
+		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
