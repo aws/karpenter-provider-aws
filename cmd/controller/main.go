@@ -47,7 +47,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -88,11 +87,8 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
-	provisioningController := provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider)
-
 	if err := manager.RegisterControllers(ctx,
-		provisioningController,
-		selection.NewController(manager.GetClient(), provisioningController),
+		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),

@@ -40,7 +40,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/selection"
 )
 
 const (
@@ -109,7 +108,6 @@ func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...cl
 		updatecopy := object.DeepCopyObject().(client.Object)
 		deletecopy := object.DeepCopyObject().(client.Object)
 		ExpectApplied(ctx, c, object)
-
 		// some objects (e.g. PDB) require that the resource version match prior to an update
 		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
 		updatecopy.SetResourceVersion(object.GetResourceVersion())
@@ -162,47 +160,31 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg.Wait()
 }
 
-// ExpectProvisioningCleanedUp includes additional cleanup logic for provisioning workflows
-func ExpectProvisioningCleanedUp(ctx context.Context, c client.Client, controller *provisioning.Controller) {
-	provisioners := v1alpha5.ProvisionerList{}
-	Expect(c.List(ctx, &provisioners)).To(Succeed())
-	ExpectCleanedUp(ctx, c)
-	for i := range provisioners.Items {
-		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(&provisioners.Items[i]))
-	}
-}
-
-func ExpectProvisioned(ctx context.Context, c client.Client, selectionController *selection.Controller, provisioningController *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
+func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
 	provisioning.MaxItemsPerBatch = len(pods)
 	// Persist objects
-	ExpectApplied(ctx, c, provisioner)
-	ExpectStatusUpdated(ctx, c, provisioner)
+	ExpectCreatedWithStatus(ctx, c, provisioner)
 	for _, pod := range pods {
 		ExpectCreatedWithStatus(ctx, c, pod)
 	}
-	// Wait for reconcile
-	ExpectReconcileSucceeded(ctx, provisioningController, client.ObjectKeyFromObject(provisioner))
-	wg := sync.WaitGroup{}
 
-	unorderedPods := append([]*v1.Pod{}, pods...)
 	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
 	// the slice so we can return the provisioned pods in the same order that the test supplied them for consistency
+	unorderedPods := append([]*v1.Pod{}, pods...)
 	r := rand.New(rand.NewSource(ginkgo.GinkgoRandomSeed())) //nolint
-	r.Shuffle(len(unorderedPods), func(i, j int) {
-		unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i]
-	})
-
+	r.Shuffle(len(unorderedPods), func(i, j int) { unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i] })
+	wg := sync.WaitGroup{}
 	for _, pod := range unorderedPods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
-			if _, err := selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)}); err != nil {
-				Expect(err).To(HaveOccurred()) // This is expected to sometimes happen
-			}
+			// Sometimes expected to error
+			_, _ = controller.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 			wg.Done()
 		}(pod)
 	}
 	wg.Wait()
-	// Return updated pods
+	// Update objects after reconciling
+	Expect(c.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
 	}

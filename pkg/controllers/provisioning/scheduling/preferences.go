@@ -20,7 +20,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -34,47 +33,9 @@ const (
 )
 
 type Preferences struct {
-	cache *cache.Cache
 }
 
-func NewPreferences() *Preferences {
-	return &Preferences{
-		cache: cache.New(ExpirationTTL, CleanupInterval),
-	}
-}
-
-// Relax removes soft preferences from pod to enable scheduling if the cloud provider's capacity is constrained. For
-// example, this can be leveraged to prefer a specific zone, but relax the preferences if the pod cannot be scheduled to
-// that zone. Preferences are removed iteratively until only hard constraints remain. Pods relaxation is reset
-// (forgotten) after 5 minutes.  Returns true upon successful relaxation, or if relaxation may occur in the future.  If
-// this method returns false, all possible relaxations have occurred and any future scheduling failure is now final.
 func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
-	spec, ok := p.cache.Get(string(pod.UID))
-	// Add to cache if we've never seen it before
-	if !ok {
-		// Limit cached PodSpec to only required data
-		cachedSpec := v1.PodSpec{
-			Affinity:                  pod.Spec.Affinity,
-			Tolerations:               pod.Spec.Tolerations,
-			TopologySpreadConstraints: pod.Spec.TopologySpreadConstraints,
-		}
-		p.cache.SetDefault(string(pod.UID), cachedSpec)
-
-		return true
-	}
-	// Attempt to relax the pod and update the cache
-	cachedSpec := spec.(v1.PodSpec)
-	pod.Spec.Affinity = cachedSpec.Affinity
-	pod.Spec.Tolerations = cachedSpec.Tolerations
-	pod.Spec.TopologySpreadConstraints = cachedSpec.TopologySpreadConstraints
-	if relaxed := p.relax(ctx, pod); relaxed {
-		p.cache.SetDefault(string(pod.UID), pod.Spec)
-		return true
-	}
-	return false
-}
-
-func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
 		p.removeRequiredNodeAffinityTerm,
 		p.removePreferredPodAffinityTerm,

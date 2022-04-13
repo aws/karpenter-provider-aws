@@ -37,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
@@ -109,16 +110,32 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 }
 
 // GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
-	aws, err := v1alpha1.Deserialize(provider)
-	if err != nil {
-		return nil, apis.ErrGeneric(err.Error())
-	}
-	return c.instanceTypeProvider.Get(ctx, aws)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+	return c.instanceTypeProvider.Get(ctx)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
+}
+
+func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (v1alpha5.Requirements, error) {
+	awsprovider, err := v1alpha1.Deserialize(provider)
+	if err != nil {
+		return v1alpha5.Requirements{}, apis.ErrGeneric(err.Error())
+	}
+	// Constrain AZs from subnets
+	subnets, err := c.subnetProvider.Get(ctx, awsprovider)
+	if err != nil {
+		return v1alpha5.Requirements{}, err
+	}
+	zones := sets.NewString()
+	for _, subnet := range subnets {
+		zones.Insert(aws.StringValue(subnet.AvailabilityZone))
+	}
+	requirements := v1alpha5.NewRequirements(v1.NodeSelectorRequirement{
+		Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: zones.List(),
+	})
+	return requirements, nil
 }
 
 // Validate the provisioner

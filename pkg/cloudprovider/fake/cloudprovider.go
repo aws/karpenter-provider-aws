@@ -93,7 +93,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
@@ -141,6 +141,10 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provider
 			},
 		}),
 	}, nil
+}
+
+func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (v1alpha5.Requirements, error) {
+	return v1alpha5.Requirements{}, nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {

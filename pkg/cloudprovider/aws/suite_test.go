@@ -17,21 +17,19 @@ package aws
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
-	"github.com/aws/karpenter/pkg/controllers/selection"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -44,8 +42,6 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
@@ -61,8 +57,9 @@ var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
-var provisioners *provisioning.Controller
-var selectionController *selection.Controller
+var controller *provisioning.Controller
+var cloudProvider cloudprovider.CloudProvider
+var clientSet *kubernetes.Clientset
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -101,8 +98,8 @@ var _ = BeforeSuite(func() {
 			ec2api: fakeEC2API,
 			cache:  securityGroupCache,
 		}
-		clientSet := kubernetes.NewForConfigOrDie(e.Config)
-		cloudProvider := &CloudProvider{
+		clientSet = kubernetes.NewForConfigOrDie(e.Config)
+		cloudProvider = &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
@@ -117,8 +114,7 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		provisioners = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
-		selectionController = selection.NewController(e.Client, provisioners)
+		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -137,7 +133,7 @@ var _ = Describe("Allocation", func() {
 			SubnetSelector:        map[string]string{"foo": "bar"},
 			SecurityGroupSelector: map[string]string{"foo": "bar"},
 		}
-		provisioner = ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
+		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 		fakeEC2API.Reset()
 		launchTemplateCache.Flush()
 		securityGroupCache.Flush()
@@ -147,13 +143,13 @@ var _ = Describe("Allocation", func() {
 	})
 
 	AfterEach(func() {
-		ExpectProvisioningCleanedUp(ctx, env.Client, provisioners)
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
 	Context("Reconciliation", func() {
 		Context("Specialized Hardware", func() {
 			It("should not launch AWS Pod ENI on a t3", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{
 							v1.LabelInstanceTypeStable: "t3.large",
@@ -167,7 +163,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch on metal", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{
 							v1.LabelInstanceTypeStable: "m5.metal",
@@ -181,7 +177,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch AWS Pod ENI on a compatible instance type", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
@@ -199,7 +195,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -229,7 +225,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
 				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
@@ -262,7 +258,7 @@ var _ = Describe("Allocation", func() {
 		Context("Insufficient Capacity Error Cache", func() {
 			It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
-				pods := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pods := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 						ResourceRequirements: v1.ResourceRequirements{
@@ -283,7 +279,7 @@ var _ = Describe("Allocation", func() {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				}
 				nodeNames := sets.NewString()
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pods...) {
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, provisioner, pods...) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.2xlarge"))
 					nodeNames.Insert(node.Name)
@@ -305,11 +301,11 @@ var _ = Describe("Allocation", func() {
 						}},
 					},
 				}}}
-				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+				pod = ExpectProvisioned(ctx, env.Client, controller, provisioner, pod)[0]
 				// it should've tried to pack them in test-zone-1a on a p3.8xlarge then hit insufficient capacity, the next attempt will try test-zone-1b
 				ExpectNotScheduled(ctx, env.Client, pod)
 
-				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+				pod = ExpectProvisioned(ctx, env.Client, controller, provisioner, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(SatisfyAll(
 					HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"),
@@ -319,13 +315,11 @@ var _ = Describe("Allocation", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 				}
-				twoInstanceProvisioner := provisioner.DeepCopy()
-				twoInstanceProvisioner.Spec.Constraints.Requirements = twoInstanceProvisioner.Spec.Constraints.Requirements.Add(
-					v1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceType,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"m5.large", "m5.xlarge"},
-					})
+				provisioner.Spec.Constraints.Requirements.Requirements = append(provisioner.Spec.Constraints.Requirements.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"m5.large", "m5.xlarge"},
+				})
 				pods := []*v1.Pod{}
 				for i := 0; i < 2; i++ {
 					pods = append(pods, test.UnschedulablePod(test.PodOptions{
@@ -337,19 +331,20 @@ var _ = Describe("Allocation", func() {
 						},
 					}))
 				}
-
-				// The first provision will fail with an Insufficient Capacity Exception on 1 m5.xlarge
-				pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, twoInstanceProvisioner, pods...)
-				ExpectNotScheduled(ctx, env.Client, pods[0])
-				ExpectNotScheduled(ctx, env.Client, pods[1])
 				// Provisions 2 m5.large instances since m5.xlarge was ICE'd
-				pods = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, twoInstanceProvisioner, pods...)
-				ExpectScheduled(ctx, env.Client, pods[0])
-				ExpectScheduled(ctx, env.Client, pods[1])
+				pods = ExpectProvisioned(ctx, env.Client, controller, provisioner, pods...)
+				for _, pod := range pods {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+				pods = ExpectProvisioned(ctx, env.Client, controller, provisioner, pods...)
+				for _, pod := range pods {
+					node := ExpectScheduled(ctx, env.Client, pod)
+					Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("m5.large"))
+				}
 			})
 			It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{v1.LabelInstanceTypeStable: "inf1.6xlarge"},
 						ResourceRequirements: v1.ResourceRequirements{
@@ -362,7 +357,7 @@ var _ = Describe("Allocation", func() {
 				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
 				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
-				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, pod)[0]
+				pod = ExpectProvisioned(ctx, env.Client, controller, provisioner, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
@@ -374,24 +369,24 @@ var _ = Describe("Allocation", func() {
 					v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
 				)
 				// Spot Unavailable
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 				// Fallback to OD
-				pod = ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod = ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
 		})
 		Context("CapacityType", func() {
 			It("should default to on-demand", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
 				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}})
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot))
 			})
@@ -423,7 +418,7 @@ var _ = Describe("Allocation", func() {
 					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				}
 
-				pod1 := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pod1 := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						Tolerations:          []v1.Toleration{t1, t2, t3},
 						ResourceRequirements: rr,
@@ -433,7 +428,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				name1 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 
-				pod2 := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pod2 := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{
 						Tolerations:          []v1.Toleration{t2, t3, t1},
 						ResourceRequirements: rr,
@@ -451,7 +446,7 @@ var _ = Describe("Allocation", func() {
 					"tag1": "tag1value",
 					"tag2": "tag2value",
 				}
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -472,7 +467,7 @@ var _ = Describe("Allocation", func() {
 					"Name":                           "myname",
 				}
 
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -486,7 +481,7 @@ var _ = Describe("Allocation", func() {
 				ExpectTags(createFleetInput.TagSpecifications[1].Tags, provider.Tags)
 			})
 			It("should default to a generated launch template", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
@@ -507,7 +502,7 @@ var _ = Describe("Allocation", func() {
 			It("should allow a launch template to be specified", func() {
 				provider.LaunchTemplateName = aws.String("test-launch-template")
 				provider.SecurityGroupSelector = nil
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
@@ -519,7 +514,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Subnets", func() {
 			It("should default to the cluster's subnets", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod(
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod(
 					test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: v1alpha5.ArchitectureAmd64}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
@@ -549,7 +544,7 @@ var _ = Describe("Allocation", func() {
 						Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 				}}
 
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
 				Expect(aws.StringValue(createFleetInput.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("test-subnet-2"))
@@ -557,7 +552,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Security Groups", func() {
 			It("should default to the clusters security groups", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -572,7 +567,7 @@ var _ = Describe("Allocation", func() {
 					{GroupId: aws.String("test-sg-1"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-1")}}},
 					{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 				}}
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -585,9 +580,9 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				localCtx := injection.WithOptions(ctx, opts)
-				pod := ExpectProvisioned(localCtx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
-				ExpectScheduled(localCtx, env.Client, pod)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -595,9 +590,10 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				localCtx := injection.WithOptions(ctx, opts)
-				pod := ExpectProvisioned(localCtx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
-				ExpectScheduled(localCtx, env.Client, pod)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider)
+
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
@@ -605,7 +601,7 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).To(ContainSubstring("--max-pods=110"))
 			})
 			It("should specify --container-runtime containerd by default", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -613,7 +609,7 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 			})
 			It("should specify --container-runtime dockerd when using GPUs", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod(test.PodOptions{
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
 							v1.ResourceCPU:             resource.MustParse("1"),
@@ -632,8 +628,10 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-					provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
-					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{
+						Kubelet:  &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}},
+						Provider: provider,
+					}), test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -643,19 +641,15 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Instance Profile", func() {
 				It("should use the default instance profile if none specified on the Provisioner", func() {
-					provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
-					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 					Expect(*input.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("test-instance-profile"))
 				})
 				It("should use the instance profile on the Provisioner when specified", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
-					Expect(err).ToNot(HaveOccurred())
 					provider.InstanceProfile = aws.String("overridden-profile")
-					ProvisionerWithProvider(&v1alpha5.Provisioner{ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())}}, provider)
-					pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -665,7 +659,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Metadata Options", func() {
 			It("should default metadata options on generated launch template", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -675,7 +669,7 @@ var _ = Describe("Allocation", func() {
 				Expect(*input.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateRequired))
 			})
 			It("should set metadata options on generated launch template from provisioner configuration", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{
 					HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateDisabled),
@@ -683,7 +677,7 @@ var _ = Describe("Allocation", func() {
 					HTTPPutResponseHopLimit: aws.Int64(1),
 					HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateOptional),
 				}
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -695,9 +689,9 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Block Device Mappings", func() {
 			It("should default AL2 block device mappings", func() {
-				provider, _ := ProviderFromProvisioner(provisioner)
+				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &v1alpha1.AMIFamilyAL2
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -707,7 +701,7 @@ var _ = Describe("Allocation", func() {
 				Expect(input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
 			})
 			It("should use custom block device mapping", func() {
-				provider, _ := ProviderFromProvisioner(provisioner)
+				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &v1alpha1.AMIFamilyAL2
 				provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{
 					{
@@ -722,7 +716,7 @@ var _ = Describe("Allocation", func() {
 						},
 					},
 				}
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -735,10 +729,9 @@ var _ = Describe("Allocation", func() {
 				Expect(*input.LaunchTemplateData.BlockDeviceMappings[0].Ebs.KmsKeyId).To(Equal("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"))
 			})
 			It("should default bottlerocket second volume with root volume size", func() {
-				provider, _ := ProviderFromProvisioner(provisioner)
-				//provider.BlockDeviceMappings = nil
+				provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, ProvisionerWithProvider(provisioner, provider), test.UnschedulablePod())[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Provider: provider}), test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
@@ -763,11 +756,11 @@ var _ = Describe("Allocation", func() {
 								v1.ResourceEphemeralStorage: resource.MustParse("1Gi")}},
 					}},
 				))
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner, test.UnschedulablePod())
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner, test.UnschedulablePod())
 				ExpectScheduled(ctx, env.Client, pod[0])
 			})
 			It("should pack pods with any ephemeral-storage request", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
 							v1.ResourceEphemeralStorage: resource.MustParse("1G"),
@@ -775,7 +768,7 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod[0])
 			})
 			It("should pack pods with large ephemeral-storage request", func() {
-				pod := ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				pod := ExpectProvisioned(ctx, env.Client, controller, provisioner,
 					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
 							v1.ResourceEphemeralStorage: resource.MustParse("1Pi"),
@@ -810,36 +803,36 @@ var _ = Describe("Allocation", func() {
 
 		Context("SubnetSelector", func() {
 			It("should not allow empty string keys or values", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
 					"key": "",
 				} {
 					provider.SubnetSelector = map[string]string{key: value}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
 		})
 		Context("SecurityGroupSelector", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.SecurityGroupSelector = map[string]string{"key": "value"}
-				provisioner := ProvisionerWithProvider(provisioner, provider)
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should not allow empty string keys or values", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				for key, value := range map[string]string{
 					"":    "value",
 					"key": "",
 				} {
 					provider.SecurityGroupSelector = map[string]string{key: value}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
 			})
@@ -858,76 +851,76 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("MetadataOptions", func() {
 			It("should not allow with a custom launch template", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.LaunchTemplateName = aws.String("my-lt")
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
-				provisioner := ProvisionerWithProvider(provisioner, provider)
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
 			It("should allow missing values", func() {
-				provider, err := ProviderFromProvisioner(provisioner)
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.MetadataOptions = &v1alpha1.MetadataOptions{}
-				provisioner := ProvisionerWithProvider(provisioner, provider)
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 				Expect(provisioner.Validate(ctx)).To(Succeed())
 			})
 			Context("HTTPEndpoint", func() {
 				It("should allow enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateInstanceMetadataEndpointState_Values() {
 						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPEndpoint: &value,
 						}
-						provisioner := ProvisionerWithProvider(provisioner, provider)
+						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPEndpoint: aws.String(randomdata.SillyName()),
 					}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
 			Context("HTTPProtocolIpv6", func() {
 				It("should allow enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateInstanceMetadataProtocolIpv6_Values() {
 						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPProtocolIPv6: &value,
 						}
-						provisioner := ProvisionerWithProvider(provisioner, provider)
+						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPProtocolIPv6: aws.String(randomdata.SillyName()),
 					}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
 			Context("HTTPPutResponseHopLimit", func() {
 				It("should validate inside accepted range", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPPutResponseHopLimit: aws.Int64(int64(randomdata.Number(1, 65))),
 					}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not validate outside accepted range", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{}
 					// We expect to be able to invalidate any hop limit between
@@ -936,42 +929,42 @@ var _ = Describe("Allocation", func() {
 					// the random number range. So we divide the range
 					// approximately in half and test on both halves.
 					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64, math.MinInt64/2)))
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(math.MinInt64/2, 1)))
-					provisioner = ProvisionerWithProvider(provisioner, provider)
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 
 					provider.MetadataOptions.HTTPPutResponseHopLimit = aws.Int64(int64(randomdata.Number(65, math.MaxInt64)))
-					provisioner = ProvisionerWithProvider(provisioner, provider)
+					provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
 			Context("HTTPTokens", func() {
 				It("should allow enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					for _, value := range ec2.LaunchTemplateHttpTokensState_Values() {
 						provider.MetadataOptions = &v1alpha1.MetadataOptions{
 							HTTPTokens: aws.String(value),
 						}
-						provisioner := ProvisionerWithProvider(provisioner, provider)
+						provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 						Expect(provisioner.Validate(ctx)).To(Succeed())
 					}
 				})
 				It("should not allow non-enum values", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.MetadataOptions = &v1alpha1.MetadataOptions{
 						HTTPTokens: aws.String(randomdata.SillyName()),
 					}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
 			Context("BlockDeviceMappings", func() {
 				It("should not allow with a custom launch template", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.LaunchTemplateName = aws.String("my-lt")
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
@@ -980,11 +973,11 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should validate minimal device mapping", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -992,11 +985,11 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(1, resource.Giga),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should validate ebs device mapping with snapshotID only", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -1004,11 +997,11 @@ var _ = Describe("Allocation", func() {
 							SnapshotID: aws.String("snap-0123456789"),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				})
 				It("should not allow volume size below minimum", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -1016,11 +1009,11 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(100, resource.Mega),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow volume size above max", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
@@ -1028,37 +1021,37 @@ var _ = Describe("Allocation", func() {
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil device name", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						EBS: &v1alpha1.BlockDevice{
 							VolumeSize: resource.NewScaledQuantity(65, resource.Tera),
 						},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow nil volume size", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
 						EBS:        &v1alpha1.BlockDevice{},
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 				It("should not allow empty ebs block", func() {
-					provider, err := ProviderFromProvisioner(provisioner)
+					provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					Expect(err).ToNot(HaveOccurred())
 					provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
 						DeviceName: aws.String("/dev/xvda"),
 					}}
-					provisioner := ProvisionerWithProvider(provisioner, provider)
+					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
@@ -1077,17 +1070,4 @@ func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
 		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
 		Expect(foundValue).To(Equal(expValue))
 	}
-}
-
-func ProvisionerWithProvider(provisioner *v1alpha5.Provisioner, provider *v1alpha1.AWS) *v1alpha5.Provisioner {
-	raw, err := json.Marshal(provider)
-	Expect(err).ToNot(HaveOccurred())
-	provisioner.Spec.Constraints.Provider = &runtime.RawExtension{Raw: raw}
-	provisioner.Spec.Limits = &v1alpha5.Limits{Resources: v1.ResourceList{}}
-	provisioner.Spec.Limits.Resources[v1.ResourceCPU] = *resource.NewScaledQuantity(10, 0)
-	return provisioner
-}
-
-func ProviderFromProvisioner(provisioner *v1alpha5.Provisioner) (*v1alpha1.AWS, error) {
-	return v1alpha1.Deserialize(provisioner.Spec.Provider)
 }
