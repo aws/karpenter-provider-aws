@@ -37,7 +37,7 @@ type Constraints struct {
 	Taints Taints `json:"taints,omitempty"`
 	// TaintsToIgnore is a list of taints for the provisioner to ignore when
 	// provisioning new nodes and scheduling pods. If specified, taints included
-	// in this list will be ignored when ...
+	// in this list will be ignored when verifying a pod's constraints.
 	// +optional
 	TaintsToIgnore Taints `json:"taintsToIgnore,omitempty"`
 	// Requirements are layered with Labels and applied to every node.

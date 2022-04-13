@@ -140,7 +140,8 @@ spec:
               taintsToIgnore:
                 description: TaintsToIgnore is a list of taints for the provisioner
                   to ignore when provisioning new nodes and scheduling pods. If specified,
-                  taints included in this list will be ignored when ...
+                  taints included in this list will be ignored when verifying a pod's
+                  constraints.
                 items:
                   description: The node this Taint is attached to has the "effect"
                     on any pod that does not tolerate the Taint.
