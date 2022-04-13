@@ -23,9 +23,16 @@ spec:
   ttlSecondsAfterEmpty: 30
 
   # Provisioned nodes will have these taints
-  # Taints may prevent pods from scheduling if they are not tolerated
+  # Taints may prevent pods from scheduling if they are not tolerated or ignored (below)
   taints:
     - key: example.com/special-taint
+      effect: NoSchedule
+
+  # Karpenter will ignore taints listed here when scheduling pods to nodes.  This can be helpful for cases where a
+  # new node is provisioned with a taint (above), but pods do not have a corresponding toleration.
+  # One use case for this includes daemonset pods which remove taints as part of their execution (CNI pods).
+  taintsToIgnore:
+    - key: example.com/something-fancy-here
       effect: NoSchedule
 
   # Labels are arbitrary key-values that are applied to all nodes
