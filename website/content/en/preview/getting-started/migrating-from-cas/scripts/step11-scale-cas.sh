@@ -1,1 +1,1 @@
-kubectl scale delpoy/cluster-autoscaler -n kube-system --replicas=0
+kubectl scale deploy/cluster-autoscaler -n kube-system --replicas=0

@@ -29,6 +29,10 @@ Now attach the required policies to the role
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step02-node-policies.sh" language="bash" %}}
 
+Attach the IAM role to an EC2 instance profile.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-instance-profile.sh" language="bash %}}
+
 Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
 
@@ -62,12 +66,12 @@ To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
-Replace the `${ACCOUNT_NUMBER}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
+Replace the `${AWS_ACCOUNT_ID}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
 ```
     - groups:
       - system:bootstrappers
       - system:nodes
-      rolearn: arn:aws:iam::${ACCOUNT_NUMBER}:role/KarpenterInstanceNodeRole
+      rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterInstanceNodeRole
       username: system:node:{{EC2PrivateDNSName}}
 ```
 
@@ -77,7 +81,7 @@ One for your Karpenter node role and one for your existing node group.
 ## Deploy Karpenter
 
 First set the Karpenter release you want to deploy.
-```
+```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
 
