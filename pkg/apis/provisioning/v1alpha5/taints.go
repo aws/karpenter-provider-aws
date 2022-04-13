@@ -27,7 +27,7 @@ type Taints []v1.Taint
 // Has returns true if taints has a taint for the given key and effect
 func (ts Taints) Has(taint v1.Taint) bool {
 	for _, t := range ts {
-		if taint.MatchTaint(&t) {
+		if t.MatchTaint(&taint) {
 			return true
 		}
 	}
