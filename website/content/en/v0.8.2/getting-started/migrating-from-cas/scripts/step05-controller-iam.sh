@@ -17,7 +17,7 @@ echo "{
     ]
 }" > controller-trust-policy.json
 
-aws iam create-role --role-name KarpenterController \
+aws iam create-role --role-name KarpenterControllerRole-${CLUSTER_NAME} \
     --assume-role-policy-document file://controller-trust-policy.json
 
 echo '{
@@ -58,6 +58,6 @@ echo '{
     "Version": "2012-10-17"
 }' > controller-policy.json
 
-aws iam put-role-policy --role-name KarpenterController \
-    --policy-name KarpenterController \
+aws iam put-role-policy --role-name KarpenterControllerRole-${CLUSTER_NAME} \
+    --policy-name KarpenterControllerPolicy-${CLUSTER_NAME} \
     --policy-document file://controller-policy.json

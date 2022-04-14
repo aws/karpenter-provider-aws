@@ -103,7 +103,7 @@ Edit the karpenter.yaml file and find the karpenter deployment affinity rules.
 Modify the affinity so karpenter will run on one of the existing node group nodes.
 
 The rules should look something like this.
-Replace the nodegroup value with your `${NODEGROUP}`
+Modify the value to match your `$NODEGROUP`.
 
 ```
       affinity:                      
@@ -117,7 +117,7 @@ Replace the nodegroup value with your `${NODEGROUP}`
               - key: eks.amazonaws.com/nodegroup
                 operator: In
                 values:
-                - ng-123456
+                - ${NODEGROUP}
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
@@ -141,7 +141,7 @@ Some examples are
 * metric-server
 
 You can edit them with `kubectl edit deploy ...` and you should add node affinity for your static node group instances.
-Modify the `ng-123456` value to match your `$NODEGROUP`.
+Modify the value to match your `$NODEGROUP`.
 
 ```
       affinity:                      
@@ -152,7 +152,7 @@ Modify the `ng-123456` value to match your `$NODEGROUP`.
               - key: eks.amazonaws.com/nodegroup
                 operator: In
                 values:
-                - ng-123456
+                - ${NODEGROUP}
 ```
 
 ## Remove CAS
