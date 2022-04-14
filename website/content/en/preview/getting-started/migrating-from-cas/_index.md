@@ -170,7 +170,7 @@ We suggest a minimum of 2 nodes for the node group.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-ng.sh" language="bash" %}}
 
-If you have a lot of nodes or workloads you may want to slowly step down your node groups by a few instances at a time.
+If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time.
 It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
 
 ## Verify Karpenter
