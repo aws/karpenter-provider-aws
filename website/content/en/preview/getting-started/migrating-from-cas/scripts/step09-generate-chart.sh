@@ -1,7 +1,7 @@
 helm template --namespace karpenter \
     karpenter karpenter/karpenter \
     --set aws.defaultInstanceProfile=KarpenterInstanceProfile \
-    --set clusterEndpoint="${OIDC_ENDPOINT}" \
+    --set clusterEndpoint="${CLUSTER_ENDPOINT}" \
     --set clusterName=${CLUSTER_NAME} \
     --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterController" \
     --version ${KARPENTER_VERSION} > karpenter.yaml
