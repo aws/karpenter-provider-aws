@@ -165,7 +165,7 @@ To do that we will scale the number of replicas to zero.
 To get rid of the instances that were added from the node group we can scale our nodegroup down to a minimum size to support Karpenter and other critical services.
 We suggest a minimum of 2 nodes for the node group.
 
-> Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set
+> Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set,
 > the following command **will cause workloads to be unavailable.**
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-ng.sh" language="bash" %}}
