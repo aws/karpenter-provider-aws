@@ -31,7 +31,7 @@ Now attach the required policies to the role
 
 Attach the IAM role to an EC2 instance profile.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-instance-profile.sh" language="bash %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-instance-profile.sh" language="bash" %}}
 
 Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
