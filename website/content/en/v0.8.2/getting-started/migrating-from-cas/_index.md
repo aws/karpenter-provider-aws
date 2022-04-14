@@ -29,45 +29,55 @@ Now attach the required policies to the role
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step02-node-policies.sh" language="bash" %}}
 
+Attach the IAM role to an EC2 instance profile.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-instance-profile.sh" language="bash" %}}
+
 Now we need to create an IAM role that the Karpenter controller will use to provision new instances.
 The controller will be using [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) which requires an OIDC endpoint.
 
 If you have another option for using IAM credentials with workloads (e.g. [kube2iam](https://github.com/jtblin/kube2iam)) your steps will be different.
 
-First we need to get the OIDC endpoint for the cluster.
+Set a variable for your cluster name.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step03-env.sh" language="bash" %}}
+```bash
+CLUSTER_NAME=<your cluster name>
+```
+
+Set other variables from your cluster configuration.
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-env.sh" language="bash" %}}
 
 Use that information to create our IAM role, inline policy, and trust relationship.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-controller-iam.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-controller-iam.sh" language="bash" %}}
 
 ## Add tags to subnets and security groups
 
 We need to add tags to our nodegroup subnets so Karpenter will know which subnets to use.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-tag-subnets.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step06-tag-subnets.sh" language="bash" %}}
 
 Add tags to our security groups.
 This command only tags the security groups for the first nodegroup in the cluster.
 If you have multiple nodegroups or multiple security groups you will need to decide which one Karpenter should use.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step06-tag-security-groups.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-tag-security-groups.sh" language="bash" %}}
 
 ## Update aws-auth ConfigMap
 
 We need to allow nodes that are using the node IAM role we just created to join the cluter.
 To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-edit-aws-auth.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
-Replace the `${ACCOUNT_NUMBER}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
+Replace the `${AWS_ACCOUNT_ID}` variable with your account, but do not replace the `{{EC2PrivateDNSName}}`.
 ```
     - groups:
       - system:bootstrappers
       - system:nodes
-      rolearn: arn:aws:iam::${ACCOUNT_NUMBER}:role/KarpenterInstanceNodeRole
+      rolearn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/KarpenterInstanceNodeRole
       username: system:node:{{EC2PrivateDNSName}}
 ```
 
@@ -77,13 +87,13 @@ One for your Karpenter node role and one for your existing node group.
 ## Deploy Karpenter
 
 First set the Karpenter release you want to deploy.
-```
-export KARPENTER_VERSION=v0.8.2
+```bash
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-generate-chart.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-generate-chart.sh" language="bash" %}}
 
 Modify the following lines in the karpenter.yaml file.
 
@@ -93,7 +103,7 @@ Edit the karpenter.yaml file and find the karpenter deployment affinity rules.
 Modify the affinity so karpenter will run on one of the existing node group nodes.
 
 The rules should look something like this.
-Replace the nodegroup value with your `${NODEGROUP}`
+Modify the value to match your `$NODEGROUP`.
 
 ```
       affinity:                      
@@ -107,19 +117,19 @@ Replace the nodegroup value with your `${NODEGROUP}`
               - key: eks.amazonaws.com/nodegroup
                 operator: In
                 values:
-                - ng-123456
+                - ${NODEGROUP}
 ```
 
 Now that our deployment is ready we can create the karpenter namespace, create the provisioner CRD, and then deploy the rest of the karpenter resources.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-deploy.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-deploy.sh" language="bash" %}}
 
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
 You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/provisioner) for specific needs.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-provisioner.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-create-provisioner.sh" language="bash" %}}
 
 ## Set nodeAffinity for critical workloads (optional)
 
@@ -131,7 +141,7 @@ Some examples are
 * metric-server
 
 You can edit them with `kubectl edit deploy ...` and you should add node affinity for your static node group instances.
-Modify the `ng-123456` value to match your `$NODEGROUP`.
+Modify the value to match your `$NODEGROUP`.
 
 ```
       affinity:                      
@@ -142,7 +152,7 @@ Modify the `ng-123456` value to match your `$NODEGROUP`.
               - key: eks.amazonaws.com/nodegroup
                 operator: In
                 values:
-                - ng-123456
+                - ${NODEGROUP}
 ```
 
 ## Remove CAS
@@ -150,7 +160,7 @@ Modify the `ng-123456` value to match your `$NODEGROUP`.
 Now that karpenter is running we can disable the cluster autoscaler.
 To do that we will scale the number of replicas to zero.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-scale-cas.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-scale-cas.sh" language="bash" %}}
 
 To get rid of the instances that were added from the node group we can scale our nodegroup down to a minimum size to support Karpenter and other critical services.
 We suggest a minimum of 2 nodes for the node group.
@@ -158,7 +168,7 @@ We suggest a minimum of 2 nodes for the node group.
 > Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set
 > the following command **will cause workloads to be unavailable**
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-scale-ng.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-ng.sh" language="bash" %}}
 
 If you have a lot of nodes or workloads you may want to slowly step down your node groups by a few instances at a time.
 It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
