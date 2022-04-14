@@ -92,6 +92,7 @@ func (i *InstanceType) Price() float64 {
 		InferenceCostWeight = 5
 		CPUCostWeight       = 1
 		MemoryMBCostWeight  = 1 / 1024.0
+		LocalStorageWeight  = 1 / 100.0
 	)
 
 	gpuCount := 0.0
@@ -112,9 +113,15 @@ func (i *InstanceType) Price() float64 {
 		}
 	}
 
+	localStorageGiBs := 0.0
+	if i.InstanceStorageInfo != nil {
+		localStorageGiBs += float64(*i.InstanceStorageInfo.TotalSizeInGB)
+	}
+
 	return CPUCostWeight*float64(*i.VCpuInfo.DefaultVCpus) +
 		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB) +
-		GPUCostWeight*gpuCount + InferenceCostWeight*infCount
+		GPUCostWeight*gpuCount + InferenceCostWeight*infCount +
+		localStorageGiBs*LocalStorageWeight
 }
 func (i *InstanceType) cpu() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
