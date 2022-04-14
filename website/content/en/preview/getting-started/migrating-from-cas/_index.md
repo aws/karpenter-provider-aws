@@ -166,7 +166,7 @@ To get rid of the instances that were added from the node group we can scale our
 We suggest a minimum of 2 nodes for the node group.
 
 > Note: If your workloads do not have [pod disruption budgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) set
-> the following command **will cause workloads to be unavailable**
+> the following command **will cause workloads to be unavailable.**
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-ng.sh" language="bash" %}}
 
