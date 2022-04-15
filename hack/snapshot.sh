@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+SNAPSHOT_TAG=$(git rev-parse HEAD)
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/release_common.sh"
 

@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source "${SCRIPT_DIR}/release_common.sh"
-
 if [ "$#" -ne 2 ]
 then
   echo "Missing two required arguments. Usage: retag-snapshot-release.sh snapshot-tag new-tag-to-be-added"
@@ -11,10 +8,13 @@ fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/release_common.sh"
+
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"
     tagRelease webhook "${SNAPSHOT_TAG}"
-    tagRelease karpenter "v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
+    tagRelease karpenter "${HELM_CHART_VERSION}"
 }
 
 tagRelease() {
