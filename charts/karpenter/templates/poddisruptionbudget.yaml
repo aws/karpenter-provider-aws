@@ -6,5 +6,5 @@ spec:
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
   selector:
     matchLabels:
-    {{- include "karpenter.labels" . | nindent 4 }}
+    {{- include "karpenter.selectorLabels" . | nindent 6 }}
 
