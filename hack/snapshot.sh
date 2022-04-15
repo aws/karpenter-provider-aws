@@ -1,9 +1,7 @@
 #!/bin/bash -e
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 SNAPSHOT_TAG=$(git rev-parse HEAD)
-
-source "${SCRIPT_DIR}/release_common.sh"
+source release_common.sh
 
 publishHelmChart() {
     (
@@ -19,5 +17,5 @@ publishHelmChart() {
 
 requireCloudProvider
 authenticate
-buildImage $HELM_CHART_VERSION
+buildImages $HELM_CHART_VERSION
 publishHelmChart

@@ -8,8 +8,7 @@ fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source "${SCRIPT_DIR}/release_common.sh"
+source release_common.sh
 
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"

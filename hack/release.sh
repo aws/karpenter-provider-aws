@@ -1,10 +1,8 @@
 #!/bin/bash -e
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-source "${SCRIPT_DIR}/release_common.sh"
-
+SNAPSHOT_TAG=$(git describe --tags --always)
+source release_common.sh
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
-RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
 
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
 DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
@@ -37,7 +35,7 @@ website() {
 
 requireCloudProvider
 authenticate
-buildImage $RELEASE_VERSION
+buildImages $RELEASE_VERSION
 cosignImages
 chart
 website
