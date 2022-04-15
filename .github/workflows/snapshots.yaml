@@ -26,7 +26,9 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::274912145732:role/Snapshots
           aws-region: us-east-1
-      - run: make snapshot
+      - run: |
+          make toolchain
+          make snapshot
         env:
           CLOUD_PROVIDER: aws
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

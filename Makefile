@@ -81,8 +81,8 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
-nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
-	$(WITH_GOFLAGS) ./hack/nightly.sh
+nightly: ## Generate nightly release manifests and publish a versioned container image.
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
 
 snapshot: ## Generate nightly release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/snapshot.sh
