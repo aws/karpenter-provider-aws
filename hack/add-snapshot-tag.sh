@@ -14,7 +14,7 @@ NEW_TAG=$2
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"
     tagRelease webhook "${SNAPSHOT_TAG}"
-    tagRelease karpenter "${HELM_CHART_VERSION}"
+    tagRelease karpenter "v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
 }
 
 tagRelease() {
