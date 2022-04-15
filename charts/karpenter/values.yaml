@@ -36,6 +36,8 @@ strategy:
 podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
+podDisruptionBudget:
+  maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 1000
