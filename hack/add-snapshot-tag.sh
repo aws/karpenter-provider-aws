@@ -25,5 +25,6 @@ tagRelease() {
    aws ecr-public put-image --repository-name "${REPOSITORY}" --image-tag "${NEW_TAG}" --image-manifest "$MANIFEST" --no-cli-pager
 }
 
+docker version
 authenticate
 tagAllRepositories
