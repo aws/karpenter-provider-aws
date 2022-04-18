@@ -8,18 +8,19 @@ jobs:
     if: github.repository == 'aws/karpenter'
     name: Stale issue job
     steps:
-      - uses: aws-actions/stale-issue-cleanup@v4
+      - uses: aws-actions/stale-issue-cleanup@v5
         with:
           ancient-issue-message: 'This issue was closed because it has been stalled for 1 year with no activity. Please feel free to open it if you think it should remain open'
           stale-issue-message: 'This issue was closed because it has been stalled for 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
           stale-pr-message: 'This PR is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
 
-          stale-issue-label: 'stale'
-          exempt-issue-labels: 'roadmap,help-wanted,burning,bug,feature,documentation,operational-excellence'
-          stale-pr-label: 'stale'
-          exempt-pr-labels:  'roadmap,help-wanted,burning,bug,feature,documentation,operational-excellence'
-          response-requested-label: response-requested
-          closed-for-staleness-label: 'stale'
+          stale-issue-label: 'closing-soon'
+          exempt-issue-label: 'no-autoclose'
+          stale-pr-label: 'closing-soon'
+          exempt-pr-label: 'no-autoclose'
+          response-requested-label: 'response-requested'
+
+          closed-for-staleness-label: 'closed-for-staleness'
 
           days-before-stale: 25
           days-before-close: 10
