@@ -102,7 +102,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
-		if err := p.launch(ctx, nodes[i]); err != nil {
+		if err := p.launch(logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Provisioner.Name)), nodes[i]); err != nil {
 			logging.FromContext(ctx).Errorf("Launching node, %s", err)
 		}
 	})
@@ -187,7 +187,6 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	if err := latest.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
-	logging.FromContext(ctx).Info("heyaaaa", injection.GetOptions(ctx).AWSENILimitedPodDensity)
 	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
 		InstanceTypeOptions: node.InstanceTypeOptions,
 		Template: &cloudprovider.NodeTemplate{
