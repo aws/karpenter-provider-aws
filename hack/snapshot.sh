@@ -1,7 +1,7 @@
 #!/bin/bash -e
 SNAPSHOT_TAG=$(git rev-parse HEAD)
 CURRENT_MAJOR_VERSION="0"
-PUBLIC_ECR_REGISTRY_ALIAS="public.ecr.aws/z4v8y7u8/"
+PUBLIC_ECR_REGISTRY_ALIAS="public.ecr.aws/karpenter-snapshots/"
 PUBLIC_BUCKET_NAME="karpenter-snapshots"
 RELEASE_REPO=${RELEASE_REPO:-"${PUBLIC_ECR_REGISTRY_ALIAS}"}
 RELEASE_VERSION=${RELEASE_VERSION:-"${SNAPSHOT_TAG}"}
