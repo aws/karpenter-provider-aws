@@ -7,7 +7,7 @@ then
 fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter-snapshots/}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/release_common.sh"

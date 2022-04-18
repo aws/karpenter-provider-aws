@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 SNAPSHOT_TAG=$(git rev-parse HEAD)
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter-snapshots/}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/release_common.sh"
