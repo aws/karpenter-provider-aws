@@ -3,3 +3,7 @@ coverage.out
 coverage.html
 *.test
 *.csv
+
+# Common in OSs and IDEs
+.idea
+.DS_Store

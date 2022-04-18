@@ -123,6 +123,10 @@ func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
 		if e := IsRestrictedLabel(requirement.Key); e != nil {
 			err = multierr.Append(err, e)
 		}
+		// We don't support a 'NotExists' operator, but this turns into an empty set of values by re-building node selector requirements
+		if requirement.Operator == v1.NodeSelectorOpIn && len(requirement.Values) == 0 {
+			err = multierr.Append(err, fmt.Errorf("key %s is unsatisfiable due to unsupported operator or no values being provided", requirement.Key))
+		}
 	}
 	err = multierr.Append(err, s.Requirements.Validate())
 	if err != nil {

@@ -7,7 +7,7 @@ GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
-CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
@@ -57,7 +57,7 @@ licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
 	golicense hack/license-config.hcl karpenter
 
 apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
 		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
@@ -83,6 +83,9 @@ release: ## Generate release manifests and publish a versioned container image.
 
 nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/nightly.sh
+
+snapshot: ## Generate nightly release manifests and publish a versioned container image.
+	$(WITH_GOFLAGS) ./hack/snapshot.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

@@ -35,6 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -327,6 +328,9 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
+		if functional.HasAnyPrefix(*it.(*InstanceType).InstanceType, "t1", "t2") {
+			continue
+		}
 		if aws.BoolValue(it.(*InstanceType).BareMetal) {
 			continue
 		}

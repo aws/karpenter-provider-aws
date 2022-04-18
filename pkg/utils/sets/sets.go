@@ -63,7 +63,7 @@ func (s Set) Hash() (uint64, error) {
 // It is required by the Kubernetes CRDs code generation
 func (s Set) DeepCopy() Set {
 	// it's faster to manually copy this then to use UnsortedList() and the constructor
-	values := sets.NewString()
+	values := make(sets.String, len(s.values))
 	for k := range s.values {
 		values[k] = sets.Empty{}
 	}
@@ -100,6 +100,17 @@ func (s Set) Values() sets.String {
 	return s.values
 }
 
+func (s Set) Any() (string, bool) {
+	if s.complement || len(s.values) == 0 {
+		return "", false
+	}
+	for k := range s.values {
+		return k, true
+	}
+	// unreachable
+	return "", false
+}
+
 // ComplementValues returns the values of the complement set.
 // If the set is not a complement set, it will panic
 func (s Set) ComplementValues() sets.String {
@@ -124,9 +135,13 @@ func (s Set) Has(value string) bool {
 	return s.values.Has(value)
 }
 
-// HasAny returns true if any of the supplied values are in the set.
-func (s Set) HasAny(values ...string) bool {
-	return s.values.HasAny(values...)
+func (s Set) HasAny(v sets.String) bool {
+	for k := range v {
+		if s.values.Has(k) {
+			return true
+		}
+	}
+	return false
 }
 
 // Intersection returns a new set containing the common values
@@ -154,4 +169,8 @@ func (s Set) Len() int {
 		return math.MaxInt64 - s.values.Len()
 	}
 	return s.values.Len()
+}
+
+func (s Set) Insert(items ...string) {
+	s.values.Insert(items...)
 }
