@@ -12,7 +12,7 @@ If these features are not sufficient for your use case (customizing node image, 
 
 Karpenter supports using custom launch templates.
 
-Note: When using a custom launch template, **you are taking responsibility** for maintaining the launch template, including updating which AMI is used (i.e., for security updates). In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS.
+Note: When using a custom launch template, **you are taking responsibility** for maintaining the launch template, including updating which AMI is used (i.e., for security updates). In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. Without a custom launch template, Karpenter will create its own. If these launch templates aren't used for sixty seconds, Karpenter will clean them up.
 
 
 ## Introduction
