@@ -61,7 +61,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 	}
 }
 
-// Get all instance type options (the constraints are only used for tag filtering on subnets, not for Requirements filtering)
+// Get all instance type options
 func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()

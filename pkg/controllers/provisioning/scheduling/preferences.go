@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -27,13 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
-const (
-	ExpirationTTL   = 5 * time.Minute
-	CleanupInterval = 1 * time.Minute
-)
-
-type Preferences struct {
-}
+type Preferences struct{}
 
 func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{

@@ -120,25 +120,6 @@ var _ = Describe("Custom Constraints", func() {
 			))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
-		It("should schedule pods that have matching preferences", func() {
-			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
-					{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"another-value", "test-value"}},
-				}},
-			))[0]
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
-		})
-		It("should schedule pods with have conflicting preferences", func() {
-			provisioner.Spec.Labels = map[string]string{"test-key": "test-value"}
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
-				test.PodOptions{NodePreferences: []v1.NodeSelectorRequirement{
-					{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
-				}},
-			))[0]
-			ExpectScheduled(ctx, env.Client, pod)
-		})
 	})
 	Context("Well Known Labels", func() {
 		It("should use provisioner constraints", func() {

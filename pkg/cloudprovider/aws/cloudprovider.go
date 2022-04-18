@@ -109,7 +109,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	return c.instanceProvider.Create(ctx, vendorConstraints, nodeRequest)
 }
 
-// GetInstanceTypes returns all available InstanceTypes despite accepting a Constraints struct (note that it does not utilize Requirements)
+// GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	return c.instanceTypeProvider.Get(ctx)
 }
