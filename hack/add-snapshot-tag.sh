@@ -21,8 +21,8 @@ tagAllRepositories(){
 tagRelease() {
    REPOSITORY=$1
    EXISTING_TAG=$2
-   MANIFEST=$(docker manifest inspect "${PUBLIC_ECR_REGISTRY_ALIAS}${REPOSITORY}:${EXISTING_TAG}")
-   aws ecr-public put-image --repository-name "${REPOSITORY}" --image-tag "${NEW_TAG}" --image-manifest "$MANIFEST"
+   MANIFEST=$(docker manifest inspect "${RELEASE_REPO}${REPOSITORY}:${EXISTING_TAG}")
+   aws ecr-public put-image --repository-name "${REPOSITORY}" --image-tag "${NEW_TAG}" --image-manifest "$MANIFEST" --no-cli-pager
 }
 
 authenticate
