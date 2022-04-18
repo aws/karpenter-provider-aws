@@ -136,7 +136,7 @@ set -ex
 B64_CLUSTER_CA=base64data
 API_SERVER_URL=apiServerEndpoint
 K8S_CLUSTER_DNS_IP=k8sClusterDnsIp
-/etc/eks/*pre**-**bootstrap**.**sh* clusterName
+/etc/eks/bootstrap.sh clusterName
   --kubelet-extra-args '--node-labels=karpenter.sh/provisioner-name=default,karpenter.sh/capacity-type=on-demand' \
   --b64-cluster-ca $B64_CLUSTER_CA \
   --apiserver-endpoint $API_SERVER_URL \
@@ -149,11 +149,11 @@ Content-Type: text/x-shellscript; charset="us-ascii"
 
 # Running custom user data script that was in the ProvisionerSpec
 # At this point, the kubelet hasn't started so as a user I can make mutations
-# to any of the kubeletConfig / runtimConfig as needed.
+# to any of the kubeletConfig / containerRuntime as needed.
 
-# To edit extra-args - /etc/systemd/system/kubelet.service.d/30-kubelet-extra-args.conf
-# To edit other config - /etc/systemd/system/kubelet.service.d/10-kubelet-args.conf or
-#     /etc/kubernetes/kubelet/kubelet-config.json
+# To edit kubelet extra-args - /etc/systemd/system/kubelet.service.d/30-kubelet-extra-args.conf
+# To edit other kubelet args - /etc/systemd/system/kubelet.service.d/
+# To edit kubelet-config - /etc/kubernetes/kubelet/kubelet-config.json
 
 
 --==MYBOUNDARY==
@@ -169,6 +169,7 @@ systemctl restart kubelet
 * In this mode, Karpenter passes a new parameter to the bootstrap script called `kubelet-disabled`. The bootstrap script will function normally, except the kubelet systemd service will not be started. This final hook gives Karpenter users time to make any modifications they need to make.
 * Making modifications via bash in the UserData is *not easy*. Using jq _*is painful*_ because it doesn’t support in-place updates / json merges etc.
     * Updating the `.conf` files that has the kubelet args is difficult since you'd need to sed / awk your way through.
+* Your options are now limitless - you have full control over the worker node's contents and can potentially make any changes you'd like. You can also see what Karpenter was planning to start the kubelet as.
 * We’re establishing a runtime-contract that the the kubelet configurations will always be in-place at specific file locations. We can’t change this runtime contract over time for backwards breaking compatibility.
 * We can create variations of this approach. For example, we can establish a runtime contract where we tell users that they can give us a kubelet-config-custom.json in a specific directory, and do the merging for them as part of the final MIME part.
 * With this option, we give users the ability to do CASE1 and CASE2 bringing parity to the AL2 and BR experience.
@@ -177,7 +178,7 @@ systemctl restart kubelet
 
 Since we're leaking the abstraction that the bootstrap script currently provides on EKS-optimized AMIs, we can consider two paths to make the UX easier while keeping the flexibility this option provides -
 1. Expose new tiny helper scripts which makes it easy for everyone to make modifications to kubelet configuration. Something like `set-container-runtime.sh`, `max-pods-calculator.sh` (this already exists), `merge-kubelet-params.sh` and so on.
-2. We continue to maintain `spec.kubeletConfiguration` in tbe Provisioner. For use cases where Karpenter cares about the kubelet config (node allocatable, max pods etc), you can specify it directly within the kubelet config. For everything else, you can modify the configuration directly via a UserData script.
+2. We continue to maintain `spec.kubeletConfiguration` in the Provisioner. For use cases where Karpenter cares about the kubelet config (node allocatable, max pods etc), you can specify it directly within the kubelet config. For everything else, you can modify the configuration directly via a UserData script.
 
 I'm learning towards implementing *both* of the above.
 
@@ -226,7 +227,7 @@ spec:
           kubeReserved:
             memory:
             cpu:
-
+   ```
 
 * The main advantage of this approach is that we don’t need to try and determine what kind of OS that AMI has and then try and predict what kind of UserData might work. That’s extremely brittle.
 * Users are already doing this today in Karpenter (and in all nodegroups options too) and while there have been some sharp edges [see this](https://github.com/aws/karpenter/issues/1380), for the most part this does work and is simplest to reason about.
@@ -272,7 +273,7 @@ Why will Karpenter always assume responsibility to bootstrap worker nodes?
 
 Outside of custom launch templates, Karpenter today assumes full control over the contents of the UserData and therefore dictates the configuration of the container runtime and kubelet. When using EKS-optimized AMIs (AL2 or BR), Karpenter tends to rely on the AMI defaults for most config, while overriding a few others.
 
-Currently, only two kubeletConfiguration parameters (https://karpenter.sh/v0.8.0/provisioner/#speckubeletconfiguration) are configurable by users (clusterDNS and maxPods) and Karpenter dictates the remaining. The reason Karpenter needs to maintain tight control over the kubelet is because -
+Currently, only [two kubeletConfiguration parameters](https://karpenter.sh/v0.8.0/provisioner/#speckubeletconfiguration) are configurable by users (clusterDNS and maxPods) and Karpenter dictates the remaining. The reason Karpenter needs to maintain tight control over the kubelet is because -
 
 1. It has to ensure that the labels and taints specified in the provisionerSpec are actually applied on the worker nodes, otherwise any binding decisions it takes may lead to an immediate eviction.
 2. It needs to control kube-reserved and system-reserved since those directly influence the amount of allocatable space a worker node has, which in turn affects Karpenter’s ability to bin pack accurately.
