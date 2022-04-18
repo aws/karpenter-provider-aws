@@ -7,7 +7,7 @@ then
 fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
-
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
 source release_common.sh
 
 tagAllRepositories(){
