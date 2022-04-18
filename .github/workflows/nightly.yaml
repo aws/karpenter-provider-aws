@@ -8,7 +8,7 @@ permissions:
   id-token: write
 jobs:
   nightly:
-    if: github.repository == 'aws/karpenter'
+    if: github.repository == 'spring1843/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
