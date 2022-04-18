@@ -81,11 +81,14 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
-nightly: ## Generate nightly release manifests and publish a versioned container image.
+nightly: ## Tag the latest snapshot release with timestamp
 	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
 
-snapshot: ## Generate nightly release manifests and publish a versioned container image.
+snapshot: ## Generate a snapshot release out of the current commit
 	$(WITH_GOFLAGS) ./hack/snapshot.sh
+
+stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git tag | sort -V | tail -1)
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
