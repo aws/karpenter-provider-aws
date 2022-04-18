@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package selection
+package scheduling
 
 import (
 	"context"
@@ -43,39 +43,45 @@ func NewPreferences() *Preferences {
 	}
 }
 
-// Relax removes soft preferences from pod to enable scheduling if the cloud
-// provider's capacity is constrained. For example, this can be leveraged to
-// prefer a specific zone, but relax the preferences if the pod cannot be
-// scheduled to that zone. Preferences are removed iteratively until only hard
-// constraints remain. Pods relaxation is reset (forgotten) after 5 minutes.
-func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) {
+// Relax removes soft preferences from pod to enable scheduling if the cloud provider's capacity is constrained. For
+// example, this can be leveraged to prefer a specific zone, but relax the preferences if the pod cannot be scheduled to
+// that zone. Preferences are removed iteratively until only hard constraints remain. Pods relaxation is reset
+// (forgotten) after 5 minutes.  Returns true upon successful relaxation, or if relaxation may occur in the future.  If
+// this method returns false, all possible relaxations have occurred and any future scheduling failure is now final.
+func (p *Preferences) Relax(ctx context.Context, pod *v1.Pod) bool {
 	spec, ok := p.cache.Get(string(pod.UID))
 	// Add to cache if we've never seen it before
 	if !ok {
 		// Limit cached PodSpec to only required data
 		cachedSpec := v1.PodSpec{
-			Affinity:    pod.Spec.Affinity,
-			Tolerations: pod.Spec.Tolerations,
+			Affinity:                  pod.Spec.Affinity,
+			Tolerations:               pod.Spec.Tolerations,
+			TopologySpreadConstraints: pod.Spec.TopologySpreadConstraints,
 		}
 		p.cache.SetDefault(string(pod.UID), cachedSpec)
-		return
+
+		return true
 	}
 	// Attempt to relax the pod and update the cache
 	cachedSpec := spec.(v1.PodSpec)
 	pod.Spec.Affinity = cachedSpec.Affinity
 	pod.Spec.Tolerations = cachedSpec.Tolerations
+	pod.Spec.TopologySpreadConstraints = cachedSpec.TopologySpreadConstraints
 	if relaxed := p.relax(ctx, pod); relaxed {
 		p.cache.SetDefault(string(pod.UID), pod.Spec)
+		return true
 	}
+	return false
 }
 
 func (p *Preferences) relax(ctx context.Context, pod *v1.Pod) bool {
 	for _, relaxFunc := range []func(*v1.Pod) *string{
-		func(pod *v1.Pod) *string { return p.removePreferredPodAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removePreferredPodAntiAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removePreferredNodeAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.removeRequiredNodeAffinityTerm(pod) },
-		func(pod *v1.Pod) *string { return p.toleratePreferNoScheduleTaints(pod) },
+		p.removeRequiredNodeAffinityTerm,
+		p.removePreferredPodAffinityTerm,
+		p.removePreferredPodAntiAffinityTerm,
+		p.removePreferredNodeAffinityTerm,
+		p.removeTopologySpreadScheduleAnyway,
+		p.toleratePreferNoScheduleTaints,
 	} {
 		if reason := relaxFunc(pod); reason != nil {
 			logging.FromContext(ctx).Debugf("Relaxing soft constraints for pod since it previously failed to schedule, %s", ptr.StringValue(reason))
@@ -96,6 +102,34 @@ func (p *Preferences) removePreferredNodeAffinityTerm(pod *v1.Pod) *string {
 		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
 		pod.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
 		return ptr.String(fmt.Sprintf("removing: spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
+	}
+	return nil
+}
+
+func (p *Preferences) removeRequiredNodeAffinityTerm(pod *v1.Pod) *string {
+	if pod.Spec.Affinity == nil ||
+		pod.Spec.Affinity.NodeAffinity == nil ||
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil ||
+		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
+		return nil
+	}
+	terms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+	// Remove the first term if there's more than one (terms are an OR semantic), Unlike preferred affinity, we cannot remove all terms
+	if len(terms) > 1 {
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = terms[1:]
+		return ptr.String(fmt.Sprintf("removing: spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
+	}
+	return nil
+}
+
+func (p *Preferences) removeTopologySpreadScheduleAnyway(pod *v1.Pod) *string {
+	for i, tsc := range pod.Spec.TopologySpreadConstraints {
+		if tsc.WhenUnsatisfiable == v1.ScheduleAnyway {
+			msg := fmt.Sprintf("removing: spec.topologySpreadConstraints = %s", pretty.Concise(tsc))
+			pod.Spec.TopologySpreadConstraints[i] = pod.Spec.TopologySpreadConstraints[len(pod.Spec.TopologySpreadConstraints)-1]
+			pod.Spec.TopologySpreadConstraints = pod.Spec.TopologySpreadConstraints[1:]
+			return ptr.String(msg)
+		}
 	}
 	return nil
 }
@@ -126,22 +160,6 @@ func (p *Preferences) removePreferredPodAntiAffinityTerm(pod *v1.Pod) *string {
 		sort.SliceStable(terms, func(i, j int) bool { return terms[i].Weight > terms[j].Weight })
 		pod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = terms[1:]
 		return ptr.String(fmt.Sprintf("removing: spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
-	}
-	return nil
-}
-
-func (p *Preferences) removeRequiredNodeAffinityTerm(pod *v1.Pod) *string {
-	if pod.Spec.Affinity == nil ||
-		pod.Spec.Affinity.NodeAffinity == nil ||
-		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil ||
-		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
-		return nil
-	}
-	terms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-	// Remove the first term if there's more than one (terms are an OR semantic), Unlike preferred affinity, we cannot remove all terms
-	if len(terms) > 1 {
-		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = terms[1:]
-		return ptr.String(fmt.Sprintf("removing: spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution[0]=%s", pretty.Concise(terms[0])))
 	}
 	return nil
 }

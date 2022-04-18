@@ -24,6 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/prometheus/client_golang/prometheus"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -50,88 +51,115 @@ func init() {
 }
 
 type Scheduler struct {
-	kubeClient client.Client
-	topology   *Topology
+	kubeClient  client.Client
+	preferences *Preferences
 }
 
 func NewScheduler(kubeClient client.Client) *Scheduler {
 	return &Scheduler{
-		kubeClient: kubeClient,
-		topology:   &Topology{kubeClient: kubeClient},
+		kubeClient:  kubeClient,
+		preferences: NewPreferences(),
 	}
 }
 
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
+// Solve is the main scheduling method.  This function takes the provider's constraints which control how/where we schedule,
+// all possible instance types that the cloud provider can create and the pods that kube-scheduler has failed to schedule.
+func (s *Scheduler) Solve(ctx context.Context, constraints *v1alpha5.Constraints, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-	constraints := provisioner.Spec.Constraints.DeepCopy()
-
-	sort.Slice(pods, byCPUAndMemoryDescending(pods))
 	sort.Slice(instanceTypes, byPrice(instanceTypes))
 
-	// Inject temporarily adds specific NodeSelectors to pods, which are then
-	// used by scheduling logic. This isn't strictly necessary, but is a useful
-	// trick to avoid passing topology decisions through the scheduling code. It
-	// lets us treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
-		return nil, fmt.Errorf("injecting topology, %w", err)
-	}
-
-	nodeSet, err := NewNodeSet(ctx, constraints, s.kubeClient)
+	topology, err := NewTopology(ctx, s.kubeClient, &constraints.Requirements, pods)
 	if err != nil {
-		return nil, fmt.Errorf("constructing nodeset, %w", err)
+		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
-	unschedulableCount := 0
+	// TODO: Remove the need for this setup. The first call prepares relaxation, further calls actually perform the relaxation.
 	for _, pod := range pods {
-		isScheduled := false
-		for _, node := range nodeSet.nodes {
-			if err := node.Add(pod); err == nil {
-				isScheduled = true
-				break
-			}
-		}
-		if !isScheduled {
-			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
-			if err := n.Add(pod); err != nil {
-				unschedulableCount++
-				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
-			} else {
-				nodeSet.Add(n)
-			}
-		}
+		s.preferences.Relax(ctx, pod)
 	}
 
-	if unschedulableCount != 0 {
-		logging.FromContext(ctx).Errorf("Failed to schedule %d pods", unschedulableCount)
+	daemonOverhead, err := s.getDaemonOverhead(ctx, constraints)
+	if err != nil {
+		return nil, err
 	}
-	return nodeSet.nodes, nil
+
+	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
+	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
+	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
+	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
+	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
+	var nodes []*Node
+	errors := map[*v1.Pod]error{}
+	q := NewQueue(pods...)
+	for {
+		pod, ok := q.Pop()
+		if !ok {
+			break
+		}
+		// Use existing node or create a new one
+		node := s.scheduleExisting(pod, nodes)
+		if node == nil {
+			node = NewNode(constraints, topology, daemonOverhead, instanceTypes)
+			// we created a new hostname, so ensure all topologies are aware
+			topology.Register(v1.LabelHostname, node.Hostname)
+
+			if errors[pod] = node.Add(pod); errors[pod] != nil {
+				relaxed := s.preferences.Relax(ctx, pod)
+				if relaxed {
+					// The pod has changed, so topology needs to be recomputed
+					if err := topology.Update(ctx, pod); err != nil {
+						logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("updating topology, %s", err)
+					}
+				}
+				q.Push(pod, relaxed)
+				continue
+			}
+			nodes = append(nodes, node)
+		}
+
+		// Successfully scheduled the pod on a node, so record topology decision for future pods
+		topology.Record(pod, node.Constraints.Requirements)
+	}
+
+	// Any remaining pods have failed to schedule
+	for _, pod := range q.List() {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
+	}
+	return nodes, nil
+}
+
+func (s *Scheduler) scheduleExisting(pod *v1.Pod, nodes []*Node) *Node {
+	// Try nodes in ascending order of number of pods to more evenly distribute nodes, 100ms at 2000 nodes.
+	sort.Slice(nodes, func(a, b int) bool { return len(nodes[a].Pods) < len(nodes[b].Pods) })
+	for _, node := range nodes {
+		if err := node.Add(pod); err == nil {
+			return node
+		}
+	}
+	return nil
+}
+
+func (s *Scheduler) getDaemonOverhead(ctx context.Context, constraints *v1alpha5.Constraints) (v1.ResourceList, error) {
+	daemonSetList := &appsv1.DaemonSetList{}
+	if err := s.kubeClient.List(ctx, daemonSetList); err != nil {
+		return nil, fmt.Errorf("listing daemonsets, %w", err)
+	}
+	var daemons []*v1.Pod
+	for _, daemonSet := range daemonSetList.Items {
+		p := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
+		if err := constraints.Taints.Tolerates(p); err != nil {
+			continue
+		}
+		if err := constraints.Requirements.Compatible(v1alpha5.NewPodRequirements(p)); err != nil {
+			continue
+		}
+		daemons = append(daemons, p)
+	}
+	return resources.RequestsForPods(daemons...), nil
 }
 
 func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {
 	return func(i, j int) bool {
 		return instanceTypes[i].Price() < instanceTypes[j].Price()
-	}
-}
-
-func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
-	return func(i, j int) bool {
-		lhs := resources.RequestsForPods(pods[i])
-		rhs := resources.RequestsForPods(pods[j])
-
-		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
-		if cpuCmp < 0 {
-			// LHS has less CPU, so it should be sorted after
-			return false
-		} else if cpuCmp > 0 {
-			return true
-		}
-		memCmp := resources.Cmp(lhs[v1.ResourceMemory], rhs[v1.ResourceMemory])
-
-		if memCmp < 0 {
-			return false
-		} else if memCmp > 0 {
-			return true
-		}
-		return false
 	}
 }

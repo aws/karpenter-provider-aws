@@ -173,9 +173,8 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 		return false
 	}
 	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
-		"m", "c", "r", "a", // Standard
-		"i3",       // Storage-optimized
-		"t3", "t4", // Burstable
+		"m", "c", "r", "a", "t", // Standard
+		"i3",            // Storage-optimized
 		"p", "inf", "g", // Accelerators
 	)
 }

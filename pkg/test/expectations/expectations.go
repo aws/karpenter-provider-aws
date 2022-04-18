@@ -17,8 +17,11 @@ package expectations
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/onsi/ginkgo"
 
 	//nolint:revive,stylecheck
 	. "github.com/onsi/gomega"
@@ -180,7 +183,16 @@ func ExpectProvisioned(ctx context.Context, c client.Client, selectionController
 	// Wait for reconcile
 	ExpectReconcileSucceeded(ctx, provisioningController, client.ObjectKeyFromObject(provisioner))
 	wg := sync.WaitGroup{}
-	for _, pod := range pods {
+
+	unorderedPods := append([]*v1.Pod{}, pods...)
+	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
+	// the slice so we can return the provisioned pods in the same order that the test supplied them for consistency
+	r := rand.New(rand.NewSource(ginkgo.GinkgoRandomSeed())) //nolint
+	r.Shuffle(len(unorderedPods), func(i, j int) {
+		unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i]
+	})
+
+	for _, pod := range unorderedPods {
 		wg.Add(1)
 		go func(pod *v1.Pod) {
 			if _, err := selectionController.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)}); err != nil {

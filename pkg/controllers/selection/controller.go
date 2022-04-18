@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+
 	"github.com/go-logr/zapr"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,8 +44,8 @@ const controllerName = "selection"
 type Controller struct {
 	kubeClient     client.Client
 	provisioners   *provisioning.Controller
-	preferences    *Preferences
 	volumeTopology *VolumeTopology
+	preferences    *scheduling.Preferences
 }
 
 // NewController constructs a controller instance
@@ -52,8 +53,8 @@ func NewController(kubeClient client.Client, provisioners *provisioning.Controll
 	return &Controller{
 		kubeClient:     kubeClient,
 		provisioners:   provisioners,
-		preferences:    NewPreferences(),
 		volumeTopology: NewVolumeTopology(kubeClient),
+		preferences:    scheduling.NewPreferences(),
 	}
 }
 
@@ -84,17 +85,21 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (c *Controller) selectProvisioner(ctx context.Context, pod *v1.Pod) (errs error) {
+	// Pick provisioner
+	var provisioner *provisioning.Provisioner
+	provisioners := c.provisioners.List(ctx)
+	if len(provisioners) == 0 {
+		// checking for existing provisioners first prevents relaxing pods which logs messages that make it appear
+		// Karpenter is doing something even when you don't have a provisioner created.  If you create the provisioner
+		// later, the pod may have already been fully relaxed unnecessarily.
+		return nil
+	}
+
 	// Relax preferences if pod has previously failed to schedule.
 	c.preferences.Relax(ctx, pod)
 	// Inject volume topological requirements
 	if err := c.volumeTopology.Inject(ctx, pod); err != nil {
 		return fmt.Errorf("getting volume topology requirements, %w", err)
-	}
-	// Pick provisioner
-	var provisioner *provisioning.Provisioner
-	provisioners := c.provisioners.List(ctx)
-	if len(provisioners) == 0 {
-		return nil
 	}
 	for _, candidate := range c.provisioners.List(ctx) {
 		if err := candidate.Spec.DeepCopy().ValidatePod(pod); err != nil {
@@ -131,8 +136,8 @@ func validate(p *v1.Pod) error {
 
 func validateTopology(pod *v1.Pod) (errs error) {
 	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if supported := sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, v1alpha5.LabelCapacityType); !supported.Has(constraint.TopologyKey) {
-			errs = multierr.Append(errs, fmt.Errorf("unsupported topology key, %s not in %s", constraint.TopologyKey, supported))
+		if !v1alpha5.ValidTopologyKeys.Has(constraint.TopologyKey) {
+			errs = multierr.Append(errs, fmt.Errorf("unsupported topology spread constraint key, %s not in %s", constraint.TopologyKey, v1alpha5.ValidTopologyKeys))
 		}
 	}
 	return errs
@@ -142,11 +147,13 @@ func validateAffinity(p *v1.Pod) (errs error) {
 	if p.Spec.Affinity == nil {
 		return nil
 	}
-	if pod.HasRequiredPodAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("pod affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
-	}
-	if pod.HasRequiredPodAntiAffinity(p) {
-		errs = multierr.Append(errs, fmt.Errorf("pod anti-affinity rule 'requiredDuringSchedulingIgnoreDuringExecution' is not supported"))
+	if p.Spec.Affinity.PodAffinity != nil {
+		for _, term := range p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term))
+		}
+		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term.PodAffinityTerm))
+		}
 	}
 	if p.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
@@ -159,6 +166,13 @@ func validateAffinity(p *v1.Pod) (errs error) {
 		}
 	}
 	return errs
+}
+
+func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
+	if !v1alpha5.ValidTopologyKeys.Has(term.TopologyKey) {
+		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, v1alpha5.ValidTopologyKeys)
+	}
+	return nil
 }
 
 func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
