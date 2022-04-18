@@ -79,13 +79,13 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	hack/boilerplate.sh
 
 release: ## Generate release manifests and publish a versioned container image.
-	cd hack && $(WITH_GOFLAGS) ./release.sh
+	$(WITH_GOFLAGS) ./hack/release.sh
 
 nightly: ## Generate nightly release manifests and publish a versioned container image.
-	cd hack && ./add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
 
 snapshot: ## Generate nightly release manifests and publish a versioned container image.
-	cd hack && $(WITH_GOFLAGS) ./snapshot.sh
+	$(WITH_GOFLAGS) ./hack/snapshot.sh
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

@@ -8,7 +8,9 @@ fi
 SNAPSHOT_TAG=$1
 NEW_TAG=$2
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
-source release_common.sh
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/release_common.sh"
 
 tagAllRepositories(){
     tagRelease controller "${SNAPSHOT_TAG}"

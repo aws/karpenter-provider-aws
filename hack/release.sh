@@ -2,7 +2,9 @@
 
 SNAPSHOT_TAG=$(git describe --tags --always)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
-source release_common.sh
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/release_common.sh"
 
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
 DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"

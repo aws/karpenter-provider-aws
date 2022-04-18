@@ -2,7 +2,9 @@
 
 SNAPSHOT_TAG=$(git rev-parse HEAD)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/z4v8y7u8/}
-source release_common.sh
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/release_common.sh"
 
 publishHelmChart() {
     (
@@ -11,7 +13,7 @@ publishHelmChart() {
         cd charts
         helm lint karpenter
         helm package karpenter --version $HELM_CHART_VERSION
-        helm push "${HELM_CHART_FILE_NAME}" "oci://${PUBLIC_ECR_REGISTRY_ALIAS}"
+        helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
         rm "${HELM_CHART_FILE_NAME}"
     )
 }
