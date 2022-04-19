@@ -15,9 +15,9 @@ jobs:
           stale-pr-message: 'This PR is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
 
           stale-issue-label: 'closing-soon'
-          exempt-issue-label: 'no-autoclose'
+          exempt-issue-labels: 'no-autoclose'
           stale-pr-label: 'closing-soon'
-          exempt-pr-label: 'no-autoclose'
+          exempt-pr-labels: 'no-autoclose'
           response-requested-label: 'response-requested'
 
           closed-for-staleness-label: 'closed-for-staleness'
