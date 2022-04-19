@@ -1,4 +1,4 @@
-The goal of this document is to to describe how custom user data and AMIs will be supported within Karpenter.
+The goal of this document is to describe how custom user data and AMIs will be supported within Karpenter.
 
 ### Current scenario
 
@@ -29,11 +29,11 @@ We have 16* upvotes for [this request](https://github.com/aws/karpenter/issues/8
 
 Once we give users the ability to override the UserData, we need to determine how to merge their UserData contents with the contents that Karpenter wants to set. Look at this section in the [appendix](#appendix) for more information on why *it’s critical* that Karpenter always has control over the UserData and therefore merging is necessary.
 
-The merging logic for UserData for AL2 AMIs and BottleRocket AMIs is different. This is because the former uses cloud-init that executes UserData and the latter uses TOML which works in a different way.
+The merging logic for UserData for AL2 AMIs and Bottlerocket AMIs is different. This is because the former uses cloud-init that executes UserData and the latter uses TOML which works in a different way.
 
-**For BottleRocket AMFamily**
+**For Bottlerocket AMFamily**
 
-BottleRocket AMIs rely on UserData being defined [as TOML](https://github.com/toml-lang/toml) which is a markup language that is a set of unique key-value pairs. Since TOML is essentially a large dictionary / hashTable, we can accept TOML and merge contents with whatever Karpenter wants to add in. For example, Karpenter will add whatever label  and taints it thinks are accurate to ensure that there is no invalid scheduling performed. Consider the following example:
+Bottlerocket AMIs rely on UserData being defined [as TOML](https://github.com/toml-lang/toml) which is a markup language that is a set of unique key-value pairs. Since TOML is essentially a large dictionary / hashTable, we can accept TOML and merge contents with whatever Karpenter wants to add in. For example, Karpenter will add whatever label  and taints it thinks are accurate to ensure that there is no invalid scheduling performed. Consider the following example:
 
 A user's BR Data -
 ```toml
@@ -66,7 +66,7 @@ settings.kubernetes.api-server = 'apiServerEndpoint'
 
 From the output of the merged output, you can see that Karpenter will override any fields that it considers necessary (`node-labels` based on what needs to be present as per the incoming pending pod, `cluster-certificate` etc). All other fields will be copied over as is from the user's TOML content.
 
-* You can address `CASE2` via this mode. `CASE1` isn’t very applicable to BottleRocket nodes.
+* You can address `CASE2` via this mode. `CASE1` isn’t very applicable to Bottlerocket nodes.
 * ManagedNodegroups performs a similar merge so there is precedence and is feasible.
     * The merge is necessary because TOML doesn’t support [duplicate keys](https://github.com/toml-lang/toml/issues/697) as part of its spec, so you can’t just concatenate two TOML files.
 * To ensure that we don’t perform incorrect bin-packing, Karpenter might need to parse the UserData and extract `settings.kubernetes.system-reserved` and `settings.kubernetes.kube-reserved` which is needed to better estimate nodeAllocatable. This might mean Karpenter maintains state / a cache per Karpenter provisioner.
