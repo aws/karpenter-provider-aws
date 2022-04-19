@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -euo pipefail
 
 if [ "$#" -ne 2 ]
 then
