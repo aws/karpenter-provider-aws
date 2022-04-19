@@ -50,8 +50,8 @@ Final BR Data after Karpenter merges things in -
 ```toml
 [settings]
 [settings.kubernetes]
-api-server = 'https://7EBA…
-cluster-certificate = 'LS0tLS…
+api-server = 'https://7EBA…'
+cluster-certificate = 'LS0tLS…'
 cluster-name = 'my-cluster'
 settings.kubernetes.api-server = 'apiServerEndpoint'
 
