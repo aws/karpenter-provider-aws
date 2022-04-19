@@ -83,12 +83,14 @@ func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.P
 
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
+		status := object.DeepCopyObject().(client.Object) // Snapshot the status, since create/update may override
 		if object.GetResourceVersion() == "" {
 			Expect(c.Create(ctx, object)).To(Succeed())
 		} else {
 			Expect(c.Update(ctx, object)).To(Succeed())
 		}
-		Expect(c.Status().Update(ctx, object)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
+		status.SetResourceVersion(object.GetResourceVersion())
+		Expect(c.Status().Patch(ctx, status, client.MergeFrom(object))).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
 	}
 }
 
