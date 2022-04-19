@@ -88,7 +88,7 @@ snapshot: ## Generate a snapshot release out of the current commit
 	$(WITH_GOFLAGS) ./hack/snapshot.sh
 
 stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
-	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git tag | sort -V | tail -1)
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged")
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh
