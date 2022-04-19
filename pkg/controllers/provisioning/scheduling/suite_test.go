@@ -2369,7 +2369,7 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node due to the empty namespace selector
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
-		FIt("should count topology across multiple provisioners", func() {
+		It("should count topology across multiple provisioners", func() {
 			ExpectCreated(ctx, env.Client,
 				test.Provisioner(test.ProvisionerOptions{
 					Requirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}},
