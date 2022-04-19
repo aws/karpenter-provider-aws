@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
 	"testing"
 
@@ -78,6 +79,9 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
+		cluster := state.NewCluster(ctx, e.Client)
+		ctx = state.WithClusterState(ctx, cluster)
+
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -426,8 +430,11 @@ var _ = Describe("Allocation", func() {
 
 				// constrain the packer to a single launch template type
 				rr := v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:             resource.MustParse("24"),
+						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+					},
+					Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				}
 
 				ExpectApplied(ctx, env.Client, provisioner)

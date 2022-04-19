@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/project"
 
 	"github.com/go-logr/zapr"
@@ -87,8 +88,13 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
+	cluster := state.NewCluster(ctx, manager.GetClient())
+	ctx = state.WithClusterState(ctx, cluster)
+
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		state.NewNodeController(manager.GetClient(), cluster),
+		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient()),
