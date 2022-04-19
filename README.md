@@ -2,6 +2,8 @@
 ![GitHub stars](https://img.shields.io/github/stars/aws/karpenter)
 ![GitHub forks](https://img.shields.io/github/forks/aws/karpenter)
 [![GitHub License](https://img.shields.io/badge/License-Apache%202.0-ff69b4.svg)](https://github.com/aws/karpenter/blob/main/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aws/karpenter)](https://goreportcard.com/report/github.com/aws/karpenter)
+[![Coverage Status](https://coveralls.io/repos/github/aws/karpenter/badge.svg?branch=main)](https://coveralls.io/github/aws/karpenter?branch=main)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/aws/karpenter/issues)
 
 ![](website/static/banner.png)
