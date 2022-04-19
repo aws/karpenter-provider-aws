@@ -33,25 +33,25 @@ The merging logic for UserData for AL2 AMIs and BottleRocket AMIs is different. 
 
 **For BottleRocket AMFamily**
 
-BottleRocket AMIs rely on UserData being defined [as TOML](https://github.com/toml-lang/toml) which is a markup language that is a set of unique key-value pairs. Since TOML is essentially a large dictionary / hashTable, we can accept TOML and merge contents with whatever Karpenter wants to add in. For example, Karpenter will add whatever label  and taints it thinks are accurate to ensure that there is no invalid scheduling performed. Consider the following example-
+BottleRocket AMIs rely on UserData being defined [as TOML](https://github.com/toml-lang/toml) which is a markup language that is a set of unique key-value pairs. Since TOML is essentially a large dictionary / hashTable, we can accept TOML and merge contents with whatever Karpenter wants to add in. For example, Karpenter will add whatever label  and taints it thinks are accurate to ensure that there is no invalid scheduling performed. Consider the following example:
 
 A user's BR Data -
-```
+```toml
 [settings.kubernetes.eviction-hard]
 "memory.available" = "15%"
 
 [settings.kubernetes.node-labels]
 'karpenter.sh/provisioner-name' = 'my-prov'
-'my-custom-label' = 'santaClaus'
+'foo' = 'bar'
 ```
 
 Final BR Data after Karpenter merges things in -
 
-```
+```toml
 [settings]
 [settings.kubernetes]
-api-server = 'https://7EBA...'
-cluster-certificate = 'LS0tLS....'
+api-server = 'https://7EBA…
+cluster-certificate = 'LS0tLS…
 cluster-name = 'my-cluster'
 settings.kubernetes.api-server = 'apiServerEndpoint'
 
@@ -61,7 +61,7 @@ settings.kubernetes.api-server = 'apiServerEndpoint'
 [settings.kubernetes.node-labels]
 'karpenter.sh/capacity-type' = 'on-demand'
 'karpenter.sh/provisioner-name' = 'default'
-'my-custom-label' = 'santaClaus'
+'foo' = 'bar'
 ```
 
 From the output of the merged output, you can see that Karpenter will override any fields that it considers necessary (`node-labels` based on what needs to be present as per the incoming pending pod, `cluster-certificate` etc). All other fields will be copied over as is from the user's TOML content.
@@ -108,18 +108,18 @@ K8S_CLUSTER_DNS_IP=k8sClusterDnsIp
 --==MYBOUNDARY==--
 ```
 
-* Users can address CASE1 very well through this mode. They can leave Karpenter to figure how to bootstrap the worker node and install whatever they need on the worker node.
+* Users can address CASE1 very well through this mode. They can let Karpenter figure out how to bootstrap the worker node and focus on installing whatever they need on the worker node.
 * Users cannot address CASE2 via this mode. This is because of how the bootstrap worker node is currently architected - it creates and seeds the kubeletConfiguration at runtime based on the parameters to the script.
     * If a user were to bootstrap the worker node themselves in their userdata MIME part, the worker node may join with the wrong labels that violates the bin-packing + scheduling logic Karpenter has used.
 * This is currently how [Managed Nodegroups operates](https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html#launch-template-user-data).
-* As part of this, we can also remove `spec.kubeletConfiguration`
+* As part of this, we can also remove `spec.kubeletConfiguration`.
 
 *Option 2 - MIME parts are run in the order -  `UserManaged` → `Karpenter Managed` but `spec.kubeletConfiguration` will be honored*
 
 This is just a variation of Option 1.
 
 * In this mode, we keep the [kubeletConfiguration field in the provisionerSpec](https://karpenter.sh/v0.8.1/provisioner/#speckubeletconfiguration) and you can set any required configuration here. When Karpenter generates UserData, it’ll make sure to include anything set in the spec.
-    * This helps w/ the bin-packing logic since it will probably be impossible to parse the user-data as a bash script.
+    * This helps with the bin-packing logic since it will probably be impossible to parse the user-data as a bash script.
 * Users can then address CASE2 for most cases. But this still leaves the door open for everyone to try and add more kubelet and container configuration within the provisioner which will bloat our API surface and make the provisioner more challenging to maintain.
 
 *[Recommended] Option 3 - MIME parts are run in the order - `Karpenter Managed` → `UserManaged` → `Karpenter Managed`*
@@ -170,7 +170,7 @@ systemctl restart kubelet
 * Making modifications via bash in the UserData is *not easy*. Using jq _*is painful*_ because it doesn’t support in-place updates / json merges etc.
     * Updating the `.conf` files that has the kubelet args is difficult since you'd need to sed / awk your way through.
 * Your options are now limitless - you have full control over the worker node's contents and can potentially make any changes you'd like. You can also see what Karpenter was planning to start the kubelet as.
-* We’re establishing a runtime-contract that the the kubelet configurations will always be in-place at specific file locations. We can’t change this runtime contract over time for backwards breaking compatibility.
+* We’re establishing a runtime-contract that the the kubelet configurations will always be in-place at specific file locations. We can’t change this runtime contract over time for backwards compatibility.
 * We can create variations of this approach. For example, we can establish a runtime contract where we tell users that they can give us a kubelet-config-custom.json in a specific directory, and do the merging for them as part of the final MIME part.
 * With this option, we give users the ability to do CASE1 and CASE2 bringing parity to the AL2 and BR experience.
 * There’s shared responsibility in the success of the kubelet. If users completely remove the labels Karpenter applies, or modify nodeAllocatable etc, then they're on the hook to debug failures. This is difficult to define outside of documentation.
@@ -180,7 +180,7 @@ Since we're leaking the abstraction that the bootstrap script currently provides
 1. Expose new tiny helper scripts which makes it easy for everyone to make modifications to kubelet configuration. Something like `set-container-runtime.sh`, `max-pods-calculator.sh` (this already exists), `merge-kubelet-params.sh` and so on.
 2. We continue to maintain `spec.kubeletConfiguration` in the Provisioner. For use cases where Karpenter cares about the kubelet config (node allocatable, max pods etc), you can specify it directly within the kubelet config. For everything else, you can modify the configuration directly via a UserData script.
 
-I'm learning towards implementing *both* of the above.
+I'm leaning towards implementing *both* of the above.
 
 ------
 ------
@@ -209,7 +209,7 @@ spec:
 
 * The main problem with this approach is “How will Karpenter apply labels, taints on the worker nodes?”
     * We’ll continue our existing approach where in Karpenter applies them on the node object that is created by Karpenter. Any labels specified via kubelet args, will just be merged in.
-* Since we also don’t control the rest of the kubeletConfig, we might need to potentially introduce a provisioner field what the kubeReserved and sysReserved values are so Karpenter accurately bin packs. Karpenter isn’t concerned with any other kubelet parameter.  So something like this -
+* Since we also don’t control the rest of the kubeletConfig, we might need to potentially introduce a provisioner field to specify what the kubeReserved and sysReserved values are so Karpenter accurately bin packs. Karpenter isn’t concerned with any other kubelet parameter.  So something like this -
     *
     ```
       spec:
@@ -259,7 +259,7 @@ spec:
 We’ve heard of other instance parameters that users want to control, which Karpenter does not need any control over and can wire through completely.
 
 1. [Capacity Reservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateCapacityReservationSpecificationRequest.html) - RIs for higher instance availabilities where you’d want to wire these values down to the EC2 Fleet request.
-2. [Cpu Options](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateCpuOptionsRequest.html) - If you wanted to control the ratio of mem / cpu on every instance type that you get back. This can be useful if you want to force a certain mem / cpu ratio per instance.
+2. [Cpu Options](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateCpuOptionsRequest.html) - If you wanted to control the ratio of mem / CPU on every instance type that you get back. This can be useful if you want to force a certain mem / CPU ratio per instance.
 
 We could potentially also add `ElasticInferenceAccelerators`, `ElasticGPUSpecifications` and some others if a use case arises.
 
