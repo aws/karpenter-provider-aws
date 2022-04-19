@@ -88,6 +88,7 @@ func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Objec
 		} else {
 			Expect(c.Update(ctx, object)).To(Succeed())
 		}
+		Expect(c.Status().Update(ctx, object)).To(Succeed())
 	}
 }
 
@@ -158,38 +159,6 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		}
 	}
 	wg.Wait()
-}
-
-// Deprecated: use ExpectCreated, ExpectProvisioned separately
-func ExpectProvisionedDeprecated(ctx context.Context, c client.Client, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
-	provisioning.MaxItemsPerBatch = len(pods)
-	// Persist objects
-	ExpectCreatedWithStatus(ctx, c, provisioner)
-	for _, pod := range pods {
-		ExpectCreatedWithStatus(ctx, c, pod)
-	}
-
-	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
-	// the slice so we can return the provisioned pods in the same order that the test supplied them for consistency
-	unorderedPods := append([]*v1.Pod{}, pods...)
-	r := rand.New(rand.NewSource(ginkgo.GinkgoRandomSeed())) //nolint
-	r.Shuffle(len(unorderedPods), func(i, j int) { unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i] })
-	wg := sync.WaitGroup{}
-	for _, pod := range unorderedPods {
-		wg.Add(1)
-		go func(pod *v1.Pod) {
-			// Sometimes expected to error
-			_, _ = controller.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
-			wg.Done()
-		}(pod)
-	}
-	wg.Wait()
-	// Update objects after reconciling
-	Expect(c.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
-	for _, pod := range pods {
-		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
-	}
-	return result
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
