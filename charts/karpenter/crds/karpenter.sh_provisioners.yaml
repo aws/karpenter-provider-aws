@@ -51,6 +51,26 @@ spec:
                     items:
                       type: string
                     type: array
+                  containerRegistry:
+                    description: containerRegistry setting is optional and allows
+                      to configure image registry credentials.
+                    properties:
+                      credentials:
+                        items:
+                          properties:
+                            auth:
+                              type: string
+                            password:
+                              type: string
+                            registry:
+                              type: string
+                            username:
+                              type: string
+                          required:
+                          - registry
+                          type: object
+                        type: array
+                    type: object
                 type: object
               labels:
                 additionalProperties:

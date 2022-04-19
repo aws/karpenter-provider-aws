@@ -32,7 +32,8 @@ type config struct {
 
 // settings is part of the bottlerocket config
 type settings struct {
-	Kubernetes kubernetes `toml:"kubernetes"`
+	Kubernetes        kubernetes        `toml:"kubernetes"`
+	ContainerRegistry containerRegistry `toml:"container-registry,omitempty"`
 }
 
 // kubernetes specific configuration for bottlerocket api
@@ -46,6 +47,17 @@ type kubernetes struct {
 	MaxPods            int                 `toml:"max-pods,omitempty"`
 }
 
+type containerRegistry struct {
+	Credentials []credential `toml:"credentials,omitempty"`
+}
+
+type credential struct {
+	Registry string `toml:"registry"`
+	UserName string `toml:"username,omitempty"`
+	Password string `toml:"password,omitempty"`
+	Auth     string `toml:"auth,omitempty"`
+}
+
 func (b Bottlerocket) Script() string {
 	s := config{Settings: settings{
 		Kubernetes: kubernetes{
@@ -57,6 +69,11 @@ func (b Bottlerocket) Script() string {
 	}}
 	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
 		s.Settings.Kubernetes.ClusterDNSIP = b.KubeletConfig.ClusterDNS[0]
+	}
+	if b.KubeletConfig != nil && len(b.KubeletConfig.ContainerRegistry.Credentials) > 0 {
+		for _, c := range b.KubeletConfig.ContainerRegistry.Credentials {
+			s.Settings.ContainerRegistry.Credentials = append(s.Settings.ContainerRegistry.Credentials, credential(c))
+		}
 	}
 	if !b.AWSENILimitedPodDensity {
 		s.Settings.Kubernetes.MaxPods = 110

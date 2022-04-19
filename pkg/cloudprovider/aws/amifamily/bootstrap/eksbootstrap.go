@@ -55,6 +55,19 @@ func (e EKS) Script() string {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
+	if e.KubeletConfig != nil && len(e.KubeletConfig.ContainerRegistry.Credentials) >0 {
+		var auths []string
+		for _, c := range e.KubeletConfig.ContainerRegistry.Credentials {
+			authStr := fmt.Sprintf(`"%s":{"auth":"%s","username":"%s","password":"%s"}`,
+				c.Registry,
+				c.Auth,
+				c.UserName,
+				c.Password)
+			auths = append(auths, authStr)
+		}
+		authsConfig := fmt.Sprintf(`{"auths":{%s}}`,strings.Join(auths,","))
+		userData.WriteString(fmt.Sprintf("\ncat >> /var/lib/kubelet/config.json << CONFIG\n%s\nCONFIG", authsConfig))
+	}
 	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }
 

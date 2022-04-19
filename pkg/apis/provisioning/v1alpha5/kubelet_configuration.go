@@ -22,4 +22,19 @@ type KubeletConfiguration struct {
 	// Note that not all providers may use all addresses.
 	//+optional
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
+	// containerRegistry setting is optional and allows to configure image registry credentials.
+	//+optional
+	ContainerRegistry *ContainerRegistry `json:"containerRegistry,omitempty"`
+}
+
+type ContainerRegistry struct {
+	Credentials []credential `json:"credentials,omitempty"`
+}
+
+type credential struct {
+	//+kubebuilder:validation:Required
+	Registry string `json:"registry"`
+	UserName string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Auth     string `json:"auth,omitempty"`
 }
