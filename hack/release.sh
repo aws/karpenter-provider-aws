@@ -1,4 +1,5 @@
-#!/bin/bash -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
 
 SNAPSHOT_TAG=$(git describe --tags --always)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
