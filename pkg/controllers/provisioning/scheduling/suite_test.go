@@ -366,7 +366,7 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 		})
-		It("should schedule pods that have node selectors with maching value and In operator", func() {
+		It("should schedule pods that have node selectors with matching value and In operator", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
 			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod(
@@ -376,7 +376,7 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 		})
-		It("should not schedule pods that have node selectors with maching value and NotIn operator", func() {
+		It("should not schedule pods that have node selectors with matching value and NotIn operator", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: "test-key", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
 			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod(

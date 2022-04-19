@@ -1,4 +1,5 @@
-#!/bin/bash -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
 
 CURRENT_MAJOR_VERSION="0"
 HELM_CHART_VERSION="v${CURRENT_MAJOR_VERSION}-${SNAPSHOT_TAG}"
