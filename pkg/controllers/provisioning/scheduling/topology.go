@@ -19,13 +19,12 @@ import (
 	"fmt"
 	"math"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +49,7 @@ type Topology struct {
 	domains map[string]utilsets.String
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, requirements *v1alpha5.Requirements, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
 		kubeClient:        kubeClient,
 		domains:           map[string]utilsets.String{},
@@ -58,10 +57,13 @@ func NewTopology(ctx context.Context, kubeClient client.Client, requirements *v1
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
 
-	// Update the universe of valid domains per the provisioner spec.  We can't pull all the domains from all of the nodes
-	// here as these are passed on to topology spreads which can be limited by node selector/required node affinities.
-	for topologyKey := range v1alpha5.ValidTopologyKeys {
-		t.domains[topologyKey] = requirements.Get(topologyKey).Values()
+	// Update the universe of valid domains. We can't pull all the domains from
+	// all of the nodes here as these are passed on to topology spreads which
+	// can be limited by node selector/required node affinities.
+	for _, provisioner := range provisioners {
+		for topologyKey := range v1alpha5.ValidTopologyKeys {
+			t.domains[topologyKey] = t.domains[topologyKey].Union(provisioner.Spec.Requirements.Get(topologyKey).Values())
+		}
 	}
 
 	errs := t.updateInverseAffinities(ctx)
