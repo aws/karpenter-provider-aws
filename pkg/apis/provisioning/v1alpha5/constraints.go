@@ -15,8 +15,6 @@ limitations under the License.
 package v1alpha5
 
 import (
-	"fmt"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,24 +45,6 @@ type Constraints struct {
 
 // +kubebuilder:object:generate=false
 type Provider = runtime.RawExtension
-
-// ValidatePod returns an error if the pod's requirements are not met by the constraints
-func (c *Constraints) ValidatePod(pod *v1.Pod) error {
-	// Tolerate Taints
-	if err := c.Taints.Tolerates(pod); err != nil {
-		return err
-	}
-	requirements := NewPodRequirements(pod)
-	// Test if pod requirements are valid
-	if err := requirements.Validate(); err != nil {
-		return fmt.Errorf("invalid requirements, %w", err)
-	}
-	// Test if pod requirements are compatible to the provisioner
-	if errs := c.Requirements.Compatible(requirements); errs != nil {
-		return fmt.Errorf("incompatible requirements, %w", errs)
-	}
-	return nil
-}
 
 func (c *Constraints) ToNode() *v1.Node {
 	labels := map[string]string{}

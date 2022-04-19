@@ -1,4 +1,4 @@
-apiVersion: policy/v1
+apiVersion: {{ include "karpenter.pdb.apiVersion" . }}
 kind: PodDisruptionBudget
 metadata:
   name: karpenter
@@ -7,4 +7,3 @@ spec:
   selector:
     matchLabels:
     {{- include "karpenter.selectorLabels" . | nindent 6 }}
-

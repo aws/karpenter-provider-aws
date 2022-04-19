@@ -29,7 +29,6 @@ import (
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
@@ -62,23 +61,14 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 	}
 }
 
-// Get all instance type options (the constraints are only used for tag filtering on subnets, not for Requirements filtering)
-func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
+// Get all instance type options
+func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.getInstanceTypes(ctx)
 	if err != nil {
 		return nil, err
-	}
-	// Get Viable AZs from subnets
-	subnets, err := p.subnetProvider.Get(ctx, provider)
-	if err != nil {
-		return nil, err
-	}
-	subnetZones := sets.NewString()
-	for _, subnet := range subnets {
-		subnetZones.Insert(aws.StringValue(subnet.AvailabilityZone))
 	}
 	// Get Viable EC2 Purchase offerings
 	instanceTypeZones, err := p.getInstanceTypeZones(ctx)
@@ -87,7 +77,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
-		offerings := p.createOfferings(instanceType, subnetZones, instanceTypeZones[instanceType.Name()])
+		offerings := p.createOfferings(instanceType, instanceTypeZones[instanceType.Name()])
 		if len(offerings) > 0 {
 			instanceType.AvailableOfferings = offerings
 			result = append(result, instanceType)
@@ -99,9 +89,9 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, subnetZones sets.String, availableZones sets.String) []cloudprovider.Offering {
+func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, zones sets.String) []cloudprovider.Offering {
 	offerings := []cloudprovider.Offering{}
-	for zone := range subnetZones.Intersection(availableZones) {
+	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
 		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
