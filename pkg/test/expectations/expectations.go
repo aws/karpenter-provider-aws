@@ -88,35 +88,7 @@ func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Objec
 		} else {
 			Expect(c.Update(ctx, object)).To(Succeed())
 		}
-		Expect(c.Status().Update(ctx, object)).To(Succeed())
-	}
-}
-
-func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		Expect(c.Status().Update(ctx, object)).To(Succeed())
-	}
-}
-
-func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		Expect(c.Create(ctx, object)).To(Succeed())
-	}
-}
-
-func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		updatecopy := object.DeepCopyObject().(client.Object)
-		deletecopy := object.DeepCopyObject().(client.Object)
-		ExpectApplied(ctx, c, object)
-		// some objects (e.g. PDB) require that the resource version match prior to an update
-		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
-		updatecopy.SetResourceVersion(object.GetResourceVersion())
-
-		Expect(c.Status().Update(ctx, updatecopy)).To(Succeed())
-		if deletecopy.GetDeletionTimestamp() != nil {
-			Expect(c.Delete(ctx, deletecopy, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(int64(time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds()))})).ToNot(HaveOccurred())
-		}
+		Expect(c.Status().Update(ctx, object)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
 	}
 }
 
@@ -165,7 +137,7 @@ func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisi
 	provisioning.MaxItemsPerBatch = len(pods)
 	// Persist objects
 	for _, pod := range pods {
-		ExpectCreatedWithStatus(ctx, c, pod)
+		ExpectApplied(ctx, c, pod)
 	}
 
 	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of

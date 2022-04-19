@@ -58,7 +58,7 @@ var _ = Describe("Node Metrics", func() {
 				v1.ResourceMemory: resource.MustParse("32Gi"),
 			},
 		})
-		ExpectCreated(ctx, env.Client, node)
+		ExpectApplied(ctx, env.Client, node)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 		// metrics should now be tracking the allocatable capacity of our single node

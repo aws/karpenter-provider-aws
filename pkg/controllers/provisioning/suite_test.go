@@ -129,7 +129,7 @@ var _ = Describe("Provisioning", func() {
 	})
 	Context("Resource Limits", func() {
 		It("should not schedule when limits are exceeded", func() {
-			ExpectCreatedWithStatus(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
 				Limits: v1.ResourceList{v1.ResourceCPU: resource.MustParse("20")},
 				Status: v1alpha5.ProvisionerStatus{
 					Resources: v1.ResourceList{
