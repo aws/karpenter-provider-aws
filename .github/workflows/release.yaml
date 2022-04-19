@@ -18,9 +18,8 @@ jobs:
           branch: gh-pages
           folder: charts
           target-folder: charts
-      - run: |
-          make toolchain
-          make stablerelease
+      - run: make toolchain
+      - run: make stablerelease
         env:
           CLOUD_PROVIDER: aws
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
