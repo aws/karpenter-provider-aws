@@ -1,32 +1,29 @@
-name: Stale
+name: StaleBot
 on:
   schedule:
     - cron: '0 12 * * *'
 jobs:
-  Stale:
+  StaleBot:
     runs-on: ubuntu-latest
     if: github.repository == 'aws/karpenter'
-    name: Stale issue job
+    name: Stale issue bot
     steps:
       - uses: aws-actions/stale-issue-cleanup@v5
         with:
-          ancient-issue-message: 'This issue was closed because it has been stalled for 1 year with no activity. Please feel free to open it if you think it should remain open'
-          stale-issue-message: 'This issue was closed because it has been stalled for 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
-          stale-pr-message: 'This PR is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
+          issue-types: 'issues'
+          ancient-issue-message: ''
+          stale-issue-message: 'Labeled for closure due to inactivity in 10 days.'
+          stale-pr-message: ''
 
-          stale-issue-label: 'closing-soon'
-          exempt-issue-labels: 'no-autoclose'
-          stale-pr-label: 'closing-soon'
-          exempt-pr-labels: 'no-autoclose'
-          response-requested-label: 'response-requested'
+          stale-issue-label: 'lifecycle/stale'
+          exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence'
+          closed-for-staleness-label: 'lifecycle/closed'
 
-          closed-for-staleness-label: 'closed-for-staleness'
-
-          days-before-stale: 25
+          days-before-stale: 20
           days-before-close: 10
-          days-before-ancient: 365
+          days-before-ancient: 0
           minimum-upvotes-to-exempt: 10
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           loglevel: DEBUG
-          dry-run: true
+          dry-run: false
