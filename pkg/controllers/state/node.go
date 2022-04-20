@@ -16,7 +16,6 @@ package state
 
 import (
 	"context"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,11 +56,6 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 	}
 	// ensure it's aware of any nodes we discover, this is a no-op if the node is already known to our cluster state
 	c.cluster.handleNodeUpdate(stored)
-
-	if stored.DeletionTimestamp != nil {
-		// node is deleting, so keep checking more frequently to ensure we notice as soon as its gone
-		return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-	}
 
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }

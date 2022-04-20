@@ -56,11 +56,6 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 
 	c.cluster.handlePodUpdate(stored)
 
-	if stored.DeletionTimestamp != nil {
-		// pod is deleting, so keep checking more frequently to ensure we notice as soon as its gone
-		return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
-	}
-
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }
 
