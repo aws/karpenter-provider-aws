@@ -61,16 +61,11 @@ func NewCluster(ctx context.Context, client client.Client) *Cluster {
 // needed.  This currently contains node utilization across all of the allocatable resources, but will soon be used to
 // compute topology information.
 type Node struct {
-	Node        *v1.Node
-	requested   v1.ResourceList
-	allocatable v1.ResourceList
+	Node *v1.Node
+	// Requested is the total amount of resources requested by pods that have been bound to the node.
+	Requested v1.ResourceList
 
 	podRequests map[types.NamespacedName]v1.ResourceList
-}
-
-// Requested returns the total amount of resources requested by pods that have been bound to the node.
-func (n Node) Requested() v1.ResourceList {
-	return n.requested
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -124,8 +119,7 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		c.bindings[podKey] = n.Node.Name
 		requested = append(requested, requests)
 	}
-	n.requested = resources.Merge(requested...)
-	n.allocatable = node.Status.Allocatable
+	n.Requested = resources.Merge(requested...)
 	return n
 }
 
@@ -150,8 +144,8 @@ func (c *Cluster) handleNodeUpdate(node *v1.Node) {
 	}
 }
 
-// handlePodDeletion is called when the pod has been deleted
-func (c *Cluster) handlePodDeletion(podKey types.NamespacedName) {
+// deletePod is called when the pod has been deleted
+func (c *Cluster) deletePod(podKey types.NamespacedName) {
 	c.knownPods.Delete(podKey)
 	c.antiAffinityPods.Delete(podKey)
 	c.updateNodeUsageFromPodDeletion(podKey)
@@ -172,7 +166,7 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 		// we weren't tracking the node yet, so nothing to do
 		return
 	}
-	n.requested = resources.Subtract(n.requested, n.podRequests[podKey])
+	n.Requested = resources.Subtract(n.Requested, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
 }
 
@@ -235,7 +229,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 
 	// sum the newly bound pod's requests into the existing node and record the binding
 	podRequests := resources.RequestsForPods(pod)
-	n.requested = resources.Merge(n.requested, podRequests)
+	n.Requested = resources.Merge(n.Requested, podRequests)
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
 }

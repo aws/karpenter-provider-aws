@@ -89,10 +89,9 @@ func main() {
 	})
 
 	cluster := state.NewCluster(ctx, manager.GetClient())
-	ctx = state.WithClusterState(ctx, cluster)
 
 	if err := manager.RegisterControllers(ctx,
-		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider, cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),

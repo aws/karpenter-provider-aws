@@ -48,7 +48,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 	stored := &v1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
 		if errors.IsNotFound(err) {
-			c.cluster.handlePodDeletion(req.NamespacedName)
+			c.cluster.deletePod(req.NamespacedName)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err

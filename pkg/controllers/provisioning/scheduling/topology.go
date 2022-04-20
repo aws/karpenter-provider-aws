@@ -49,11 +49,13 @@ type Topology struct {
 	inverseTopologies map[uint64]*TopologyGroup
 	// The universe of domains by topology key
 	domains map[string]utilsets.String
+	cluster *state.Cluster
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
 		kubeClient:        kubeClient,
+		cluster:           cluster,
 		domains:           map[string]utilsets.String{},
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
@@ -183,9 +185,8 @@ func (t *Topology) Register(topologyKey string, domain string) {
 // updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
 // have to look at every pod in the cluster as there is no way to query for a pod with anti-affinity terms.
 func (t *Topology) updateInverseAffinities(ctx context.Context) error {
-	cs := state.GetClusterState(ctx)
 	var errs error
-	cs.ForPodsWithAntiAffinity(func(pod *v1.Pod, node *v1.Node) bool {
+	t.cluster.ForPodsWithAntiAffinity(func(pod *v1.Pod, node *v1.Node) bool {
 		if err := t.updateInverseAntiAffinity(ctx, pod, node.Labels); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("tracking existing pod anti-affinity, %w", err))
 		}

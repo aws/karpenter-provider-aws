@@ -50,6 +50,7 @@ var provisioner *v1alpha5.Provisioner
 var controller *provisioning.Controller
 var env *test.Environment
 var cloudProv *fake.CloudProvider
+var cluster *state.Cluster
 var nodeStateController *state.NodeController
 var podStateController *state.PodController
 
@@ -63,11 +64,10 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProv)
-		cluster := state.NewCluster(ctx, e.Client)
+		cluster = state.NewCluster(ctx, e.Client)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
-		ctx = state.WithClusterState(ctx, cluster)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProv)
+		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProv, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -98,12 +98,11 @@ var _ = AfterEach(func() {
 		ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(&pods.Items[i]))
 	}
 
-	cs := state.GetClusterState(ctx)
-	cs.ForEachNode(func(n *state.Node) bool {
+	cluster.ForEachNode(func(n *state.Node) bool {
 		Fail("expected to not be called")
 		return true
 	})
-	cs.ForPodsWithAntiAffinity(func(p *v1.Pod, n *v1.Node) bool {
+	cluster.ForPodsWithAntiAffinity(func(p *v1.Pod, n *v1.Node) bool {
 		Fail("expected to not be called")
 		return true
 	})

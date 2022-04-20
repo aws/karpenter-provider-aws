@@ -209,7 +209,7 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
 		cluster.ForEachNode(func(n *state.Node) bool {
-			requested := n.Requested()
+			requested := n.Requested
 			Expect(requested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 1.5))
 			return true
 		})
@@ -427,7 +427,7 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		if n.Node.Name != node.Name {
 			return true
 		}
-		nodeRequest := n.Requested()[resourceName]
+		nodeRequest := n.Requested[resourceName]
 		expected := resource.MustParse(amount)
 		Expect(nodeRequest.AsApproximateFloat64()).To(BeNumerically("~", expected.AsApproximateFloat64(), 0.001))
 		return false

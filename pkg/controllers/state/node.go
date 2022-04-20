@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const nodeControllerName = "state-node"
+const nodeControllerName = "node-state"
 
 // NodeController reconciles nodes for the purpose of maintaining state regarding nodes that is expensive to compute.
 type NodeController struct {
@@ -45,8 +45,8 @@ func NewNodeController(kubeClient client.Client, cluster *Cluster) *NodeControll
 
 func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(nodeControllerName).With("node", req.Name))
-	stored := &v1.Node{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
+	node := &v1.Node{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
 			// notify cluster state of the node deletion
 			c.cluster.handleNodeDeletion(req.Name)
@@ -55,7 +55,7 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 	// ensure it's aware of any nodes we discover, this is a no-op if the node is already known to our cluster state
-	c.cluster.handleNodeUpdate(stored)
+	c.cluster.handleNodeUpdate(node)
 
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }

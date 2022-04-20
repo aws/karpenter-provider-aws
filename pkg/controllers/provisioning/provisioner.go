@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,7 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Provisioner {
+func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Stop:           stop,
@@ -48,6 +50,7 @@ func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client 
 		coreV1Client:   coreV1Client,
 		batcher:        NewBatcher(running),
 		volumeTopology: NewVolumeTopology(kubeClient),
+		cluster:        cluster,
 	}
 	go func() {
 		for running.Err() == nil {
@@ -70,6 +73,7 @@ type Provisioner struct {
 	coreV1Client   corev1.CoreV1Interface
 	batcher        *Batcher
 	volumeTopology *VolumeTopology
+	cluster        *state.Cluster
 }
 
 // Add a pod to the provisioner and return a channel to block on. The caller is
@@ -164,7 +168,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 	}
 
 	// Calculate cluster topology
-	topology, err := scheduling.NewTopology(ctx, p.kubeClient, provisioners, pods)
+	topology, err := scheduling.NewTopology(ctx, p.kubeClient, p.cluster, provisioners, pods)
 	if err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
