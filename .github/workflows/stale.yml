@@ -10,6 +10,7 @@ jobs:
     steps:
       - uses: aws-actions/stale-issue-cleanup@v5
         with:
+          issue-types: ['issues']
           ancient-issue-message: ''
           stale-issue-message: 'Labeled for closure due to inactivity in 10 days.'
           stale-pr-message: ''
