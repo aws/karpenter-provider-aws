@@ -28,4 +28,4 @@ jobs:
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           loglevel: DEBUG
-          dry-run: true
+          dry-run: false
