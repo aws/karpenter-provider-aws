@@ -2,6 +2,9 @@ name: Stale
 on:
   schedule:
     - cron: '0 12 * * *'
+  push:
+  pull_request:
+  workflow_dispatch:
 jobs:
   Stale:
     runs-on: ubuntu-latest
