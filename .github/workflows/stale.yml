@@ -25,9 +25,9 @@ jobs:
 
           closed-for-staleness-label: 'closed-for-staleness'
 
-          days-before-stale: 25
-          days-before-close: 10
-          days-before-ancient: 365
+          days-before-stale: 5
+          days-before-close: 1
+          days-before-ancient: 30
           minimum-upvotes-to-exempt: 10
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
