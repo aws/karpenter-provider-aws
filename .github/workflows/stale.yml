@@ -13,7 +13,6 @@ jobs:
     steps:
       - uses: aws-actions/stale-issue-cleanup@v5
         with:
-          ancient-issue-message: 'This issue was closed because it has been stalled for 1 year with no activity. Please feel free to open it if you think it should remain open'
           stale-issue-message: 'This issue was closed because it has been stalled for 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
           stale-pr-message: 'This PR is stale because it has been open 25 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
 
@@ -27,7 +26,6 @@ jobs:
 
           days-before-stale: 25
           days-before-close: 10
-          days-before-ancient: 90
           minimum-upvotes-to-exempt: 10
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
