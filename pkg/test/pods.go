@@ -148,7 +148,6 @@ func UnschedulablePod(options ...PodOptions) *v1.Pod {
 }
 
 // PodDisruptionBudget creates a PodDisruptionBudget.  To function properly, it should have its status applied
-// after creation with something like ExpectCreatedWithStatus
 func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {

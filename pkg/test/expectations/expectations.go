@@ -83,38 +83,26 @@ func ExpectNotScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.P
 
 func ExpectApplied(ctx context.Context, c client.Client, objects ...client.Object) {
 	for _, object := range objects {
-		if object.GetResourceVersion() == "" {
-			Expect(c.Create(ctx, object)).To(Succeed())
+		current := object.DeepCopyObject().(client.Object)
+		statuscopy := object.DeepCopyObject().(client.Object) // Snapshot the status, since create/update may override
+		deletecopy := object.DeepCopyObject().(client.Object) // Snapshot the status, since create/update may override
+		// Create or Update
+		if err := c.Get(ctx, client.ObjectKeyFromObject(current), current); err != nil {
+			if errors.IsNotFound(err) {
+				Expect(c.Create(ctx, object)).To(Succeed())
+			} else {
+				Expect(err).ToNot(HaveOccurred())
+			}
 		} else {
+			object.SetResourceVersion(current.GetResourceVersion())
 			Expect(c.Update(ctx, object)).To(Succeed())
 		}
-	}
-}
-
-func ExpectStatusUpdated(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		Expect(c.Status().Update(ctx, object)).To(Succeed())
-	}
-}
-
-func ExpectCreated(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		Expect(c.Create(ctx, object)).To(Succeed())
-	}
-}
-
-func ExpectCreatedWithStatus(ctx context.Context, c client.Client, objects ...client.Object) {
-	for _, object := range objects {
-		updatecopy := object.DeepCopyObject().(client.Object)
-		deletecopy := object.DeepCopyObject().(client.Object)
-		ExpectApplied(ctx, c, object)
-		// some objects (e.g. PDB) require that the resource version match prior to an update
-		Expect(c.Get(ctx, client.ObjectKeyFromObject(object), object)).To(Succeed())
-		updatecopy.SetResourceVersion(object.GetResourceVersion())
-
-		Expect(c.Status().Update(ctx, updatecopy)).To(Succeed())
+		// Update status
+		statuscopy.SetResourceVersion(object.GetResourceVersion())
+		Expect(c.Status().Update(ctx, statuscopy)).To(Or(Succeed(), MatchError("the server could not find the requested resource"))) // Some objects do not have a status
+		// Delete if timestamp set
 		if deletecopy.GetDeletionTimestamp() != nil {
-			Expect(c.Delete(ctx, deletecopy, &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(int64(time.Until(deletecopy.GetDeletionTimestamp().Time).Seconds()))})).ToNot(HaveOccurred())
+			Expect(c.Delete(ctx, deletecopy)).To(Succeed())
 		}
 	}
 }
@@ -160,43 +148,11 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 	wg.Wait()
 }
 
-// Deprecated: use ExpectCreated, ExpectProvisioned separately
-func ExpectProvisionedDeprecated(ctx context.Context, c client.Client, controller *provisioning.Controller, provisioner *v1alpha5.Provisioner, pods ...*v1.Pod) (result []*v1.Pod) {
-	provisioning.MaxItemsPerBatch = len(pods)
-	// Persist objects
-	ExpectCreatedWithStatus(ctx, c, provisioner)
-	for _, pod := range pods {
-		ExpectCreatedWithStatus(ctx, c, pod)
-	}
-
-	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
-	// the slice so we can return the provisioned pods in the same order that the test supplied them for consistency
-	unorderedPods := append([]*v1.Pod{}, pods...)
-	r := rand.New(rand.NewSource(ginkgo.GinkgoRandomSeed())) //nolint
-	r.Shuffle(len(unorderedPods), func(i, j int) { unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i] })
-	wg := sync.WaitGroup{}
-	for _, pod := range unorderedPods {
-		wg.Add(1)
-		go func(pod *v1.Pod) {
-			// Sometimes expected to error
-			_, _ = controller.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
-			wg.Done()
-		}(pod)
-	}
-	wg.Wait()
-	// Update objects after reconciling
-	Expect(c.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
-	for _, pod := range pods {
-		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
-	}
-	return result
-}
-
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	provisioning.MaxItemsPerBatch = len(pods)
 	// Persist objects
 	for _, pod := range pods {
-		ExpectCreatedWithStatus(ctx, c, pod)
+		ExpectApplied(ctx, c, pod)
 	}
 
 	// shuffle the pods to try to detect any issues where we rely on pod order within a batch, we shuffle a copy of
