@@ -16,7 +16,7 @@ jobs:
           stale-pr-message: ''
 
           stale-issue-label: 'lifecycle/stale'
-          exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence'
+          exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence,good-first-issue'
           closed-for-staleness-label: 'lifecycle/closed'
 
           days-before-stale: 20
