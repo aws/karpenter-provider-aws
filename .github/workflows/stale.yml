@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '0 12 * * *'
   pull_request:
-  push
+  push:
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
