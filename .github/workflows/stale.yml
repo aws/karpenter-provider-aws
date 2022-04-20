@@ -14,7 +14,7 @@ jobs:
       - uses: aws-actions/stale-issue-cleanup@v5
         with:
           ancient-issue-message: ''
-          stale-issue-message: 'There has been no activity in this issue in 20 days and it will be closed in 10 days if there is still no activity.'
+          stale-issue-message: 'Labeled for closure due to inactivity in 10 days.'
           stale-pr-message: ''
 
           stale-issue-label: 'lifecycle/stale'
