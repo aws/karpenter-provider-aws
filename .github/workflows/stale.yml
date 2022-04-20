@@ -2,8 +2,6 @@ name: StaleBot
 on:
   schedule:
     - cron: '0 12 * * *'
-  pull_request:
-  push:
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
@@ -28,4 +26,4 @@ jobs:
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           loglevel: DEBUG
-          dry-run: true
+          dry-run: false
