@@ -2,9 +2,6 @@ name: StaleBot
 on:
   schedule:
     - cron: '0 12 * * *'
-  push:
-  pull_request:
-  workflow_dispatch:
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
