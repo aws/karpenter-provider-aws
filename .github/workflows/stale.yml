@@ -24,7 +24,6 @@ jobs:
 
           days-before-stale: 20
           days-before-close: 10
-          days-before-ancient: 0
           minimum-upvotes-to-exempt: 10
 
           repo-token: ${{ secrets.GITHUB_TOKEN }}
