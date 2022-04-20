@@ -232,6 +232,6 @@ apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 spec:
   provider:
-    launchTemplate: CustomKarpenterLaunchTemplateDemo
+    launchTemplate: KarpenterCustomLaunchTemplate
 
 ```
