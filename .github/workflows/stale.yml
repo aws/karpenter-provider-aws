@@ -3,12 +3,14 @@ on:
   schedule:
     - cron: '0 12 * * *'
   pull_request:
-permissions:
-  issues: write
-  discussions: write
+
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      discussions: write
+      pull-requests: write
     if: github.repository == 'aws/karpenter'
     name: Stale issue bot
     steps:
