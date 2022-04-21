@@ -23,4 +23,5 @@ jobs:
           days-before-stale: 20
           days-before-close: 10
           operations-per-run: 300
+          only-pr-labels: 'close-pr-if-stale' # Because we don't want the bot to close PRs for now.
           debug-only: true
