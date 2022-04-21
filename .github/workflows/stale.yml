@@ -1,29 +1,26 @@
 name: StaleBot
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '*/30 * * * *'
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      discussions: write
+      pull-requests: write
     if: github.repository == 'aws/karpenter'
     name: Stale issue bot
     steps:
-      - uses: aws-actions/stale-issue-cleanup@v5
+      - uses: actions/stale@v5.0.0
         with:
-          issue-types: 'issues'
-          ancient-issue-message: ''
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-issue-message: 'Labeled for closure due to inactivity in 10 days.'
-          stale-pr-message: ''
-
-          stale-issue-label: 'lifecycle/stale'
           exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence,good-first-issue'
-          closed-for-staleness-label: 'lifecycle/closed'
-
+          stale-issue-label: 'lifecycle/stale'
+          close-issue-label: 'lifecycle/closed'
+          remove-stale-when-updated: true
           days-before-stale: 20
           days-before-close: 10
-          days-before-ancient: 20
-          minimum-upvotes-to-exempt: 10
-
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          loglevel: DEBUG
-          dry-run: false
+          operations-per-run: 300
+          only-pr-labels: 'close-pr-if-stale' # Because we don't want the bot to close PRs for now.
