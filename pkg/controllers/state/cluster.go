@@ -17,11 +17,9 @@ package state
 import (
 	"context"
 	"sync"
-	"time"
 
 	"knative.dev/pkg/logging"
 
-	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,33 +30,30 @@ import (
 
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
-	ctx         context.Context
-	rateLimiter *rate.Limiter
-	kubeClient  client.Client
+	ctx        context.Context
+	kubeClient client.Client
 
 	// Pod Specific Tracking
-	knownPods        sync.Map // mapping of pod namespaced name to struct{} used to track if we've seen a pod before
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
 	// Node Status & Pod -> Node Binding
 	mu       sync.RWMutex
 	nodes    map[string]*Node                // node name -> node
-	bindings map[types.NamespacedName]string // pod namespaced named -> pod
+	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
 func NewCluster(ctx context.Context, client client.Client) *Cluster {
 	s := &Cluster{
-		ctx:         ctx,
-		kubeClient:  client,
-		rateLimiter: rate.NewLimiter(rate.Every(10*time.Second), 1),
-		nodes:       map[string]*Node{},
-		bindings:    map[types.NamespacedName]string{},
+		ctx:        ctx,
+		kubeClient: client,
+		nodes:      map[string]*Node{},
+		bindings:   map[types.NamespacedName]string{},
 	}
 	return s
 }
 
 // Node is a cached version of a node in the cluster that maintains state which is expensive to compute every time it's
-// needed.  This currently contains node utilization across all of the allocatable resources, but will soon be used to
+// needed.  This currently contains node utilization across all the allocatable resources, but will soon be used to
 // compute topology information.
 type Node struct {
 	Node *v1.Node
@@ -70,7 +65,7 @@ type Node struct {
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
-// currently bound to a node. The pod returned may not be up to date with respect to status, however since the
+// currently bound to a node. The pod returned may not be up-to-date with respect to status, however since the
 // anti-affinity terms can't be modified, they will be correct.
 func (c *Cluster) ForPodsWithAntiAffinity(fn func(p *v1.Pod, n *v1.Node) bool) {
 	c.antiAffinityPods.Range(func(key, value interface{}) bool {
@@ -134,20 +129,11 @@ func (c *Cluster) deleteNode(nodeName string) {
 func (c *Cluster) updateNode(node *v1.Node) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	_, ok := c.nodes[node.Name]
-
-	// are we already tracking this node?
-	if !ok {
-		c.nodes[node.Name] = c.newNode(node)
-	} else {
-		// just update the node object so we can track label changes, etc.
-		c.nodes[node.Name].Node = node
-	}
+	c.nodes[node.Name] = c.newNode(node)
 }
 
 // deletePod is called when the pod has been deleted
 func (c *Cluster) deletePod(podKey types.NamespacedName) {
-	c.knownPods.Delete(podKey)
 	c.antiAffinityPods.Delete(podKey)
 	c.updateNodeUsageFromPodDeletion(podKey)
 }
@@ -180,18 +166,14 @@ func (c *Cluster) updatePod(pod *v1.Pod) {
 }
 
 func (c *Cluster) updatePodAntiAffinities(pod *v1.Pod) {
-	podKey := client.ObjectKeyFromObject(pod)
-	if _, known := c.knownPods.Load(podKey); known {
-		return
-	}
-
-	c.knownPods.Store(podKey, struct{}{})
 	// We intentionally don't track inverse anti-affinity preferences. We're not
 	// required to enforce them so it just adds complexity for very little
 	// value. The problem with them comes from the relaxation process, the pod
 	// we are relaxing is not the pod with the anti-affinity term.
-	if podutils.HasRequiredPodAntiAffinity(pod) {
+	if podKey := client.ObjectKeyFromObject(pod); podutils.HasRequiredPodAntiAffinity(pod) {
 		c.antiAffinityPods.Store(podKey, pod)
+	} else {
+		c.antiAffinityPods.Delete(podKey)
 	}
 }
 
@@ -207,13 +189,23 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	defer c.mu.Unlock()
 
 	podKey := client.ObjectKeyFromObject(pod)
-	nodeName, bindingKnown := c.bindings[podKey]
+	oldNodeName, bindingKnown := c.bindings[podKey]
 	if bindingKnown {
-		if nodeName != pod.Spec.NodeName {
-			logging.FromContext(c.ctx).Errorf("internal tracking error, pod node name changed from %c to %c", nodeName, pod.Spec.NodeName)
+		if oldNodeName == pod.Spec.NodeName {
+			// we are already tracking the pod binding, so nothing to update
+			return
 		}
-		// we are already tracking the pod binding, so nothing to update
-		return
+		// the pod has switched nodes, this can occur if a pod name was re-used and it was deleted/re-created rapidly,
+		// binding to a different node the second time
+		logging.FromContext(c.ctx).Infof("pod %s has moved from node %s to %s", podKey, oldNodeName, pod.Spec.NodeName)
+		n, ok := c.nodes[oldNodeName]
+		if ok {
+			// we were tracking the old node, so we need to reduce its capacity by the amount of the pod that has
+			// left it
+			delete(c.bindings, podKey)
+			n.Available = resources.Merge(n.Available, n.podRequests[podKey])
+			delete(n.podRequests, podKey)
+		}
 	}
 
 	// we have noticed that the pod is bound to a node and didn't know about the binding before
@@ -232,7 +224,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 
 	// sum the newly bound pod's requests into the existing node and record the binding
 	podRequests := resources.RequestsForPods(pod)
-	// our available capacity goes down by the amount that the pod has requested
+	// our available capacity goes down by the amount that the pod ha
 	n.Available = resources.Subtract(n.Available, podRequests)
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name

@@ -225,6 +225,70 @@ var _ = Describe("Node Resource Level", func() {
 			return true
 		})
 	})
+	It("should track pods correctly if we miss events or they are consolidated", func() {
+		pod1 := test.UnschedulablePod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Name: "stateful-set-pod"},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("1.5"),
+				}},
+		})
+
+		node1 := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
+			v1.ResourceCPU: resource.MustParse("4"),
+		}})
+		ExpectApplied(ctx, env.Client, pod1, node1)
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node1))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+
+		ExpectManualBinding(ctx, env.Client, pod1, node1)
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+
+		cluster.ForEachNode(func(n *state.Node) bool {
+			available := n.Available
+			requested := resources.Subtract(n.Node.Status.Allocatable, available)
+			Expect(available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 2.5))
+			Expect(requested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 1.5))
+			return true
+		})
+
+		ExpectDeleted(ctx, env.Client, pod1)
+
+		// second node has more capacity
+		node2 := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
+			v1.ResourceCPU: resource.MustParse("8"),
+		}})
+
+		// and the pod can only bind to node2 due to the resource request
+		pod2 := test.UnschedulablePod(test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{Name: "stateful-set-pod"},
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("5.0"),
+				}},
+		})
+
+		ExpectApplied(ctx, env.Client, pod2, node2)
+		ExpectManualBinding(ctx, env.Client, pod2, node2)
+		// deleted the pod and then recreated it, but simulated only receiving an event on the new pod after it has
+		// bound and not getting the new node event entirely
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
+
+		cluster.ForEachNode(func(n *state.Node) bool {
+			available := n.Available
+			requested := resources.Subtract(n.Node.Status.Allocatable, available)
+			if n.Node.Name == node1.Name {
+				// not on node1 any longer, so it should be fully free
+				Expect(available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 4))
+				Expect(requested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 0))
+			} else {
+				Expect(available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 3.0))
+				Expect(requested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 5.0))
+			}
+			return true
+		})
+
+	})
 	It("should maintain a correct count of resource usage as pods are deleted/added", func() {
 		var pods []*v1.Pod
 		for i := 0; i < 100; i++ {
