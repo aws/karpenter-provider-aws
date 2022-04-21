@@ -41,6 +41,8 @@ Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/
 
 Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
 
+Subnet IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
+
 When launching nodes, Karpenter automatically chooses a subnet that matches the desired zone. If multiple subnets exist for a zone, the one with the most available IP addresses will be used.
 
 **Examples**
@@ -68,6 +70,12 @@ Select subnets using wildcards:
   subnetSelector:
     Name: "*Public*"
 
+```
+
+Specify subnets explicitly by ID:
+```yaml
+  subnetSelector:
+    aws-ids: "subnet-09fa4a0a8f233a921,subnet-0471ca205b8a129ae"
 ```
 
 ### SecurityGroupSelector
@@ -110,6 +118,12 @@ Select security groups by name using a wildcard:
 ```
  securityGroupSelector:
    Name: "*Public*"
+```
+
+Specify security groups explicitly by ID:
+```yaml
+ securityGroupSelector:
+   aws-ids: "sg-063d7acfb4b06c82c,sg-06e0cf9c198874591"
 ```
 
 ### Tags

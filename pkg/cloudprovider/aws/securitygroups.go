@@ -27,6 +27,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 type SecurityGroupProvider struct {
@@ -65,10 +66,18 @@ func (p *SecurityGroupProvider) Get(ctx context.Context, provider *v1alpha1.AWS)
 func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	for key, value := range provider.SecurityGroupSelector {
-		filters = append(filters, &ec2.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []*string{aws.String(value)},
-		})
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("group-id"),
+				Values: filterValues,
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+				Values: []*string{aws.String(value)},
+			})
+		}
 	}
 	return filters
 }
