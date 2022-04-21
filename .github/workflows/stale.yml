@@ -2,6 +2,7 @@ name: StaleBot
 on:
   schedule:
     - cron: '0 12 * * *'
+  pull_request:
 permissions:
   issues: write
   pull-requests: write
