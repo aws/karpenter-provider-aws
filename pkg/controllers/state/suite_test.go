@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -209,7 +210,9 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
 		cluster.ForEachNode(func(n *state.Node) bool {
-			requested := n.Requested
+			available := n.Available
+			requested := resources.Subtract(n.Node.Status.Allocatable, available)
+			Expect(available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 2.5))
 			Expect(requested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 1.5))
 			return true
 		})
@@ -427,7 +430,9 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		if n.Node.Name != node.Name {
 			return true
 		}
-		nodeRequest := n.Requested[resourceName]
+		requested := resources.Subtract(n.Node.Status.Allocatable, n.Available)
+
+		nodeRequest := requested[resourceName]
 		expected := resource.MustParse(amount)
 		Expect(nodeRequest.AsApproximateFloat64()).To(BeNumerically("~", expected.AsApproximateFloat64(), 0.001))
 		return false

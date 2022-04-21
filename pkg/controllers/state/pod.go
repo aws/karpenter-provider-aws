@@ -30,6 +30,8 @@ import (
 
 var stateRetryPeriod = 1 * time.Minute
 
+const podControllerName = "pod-state"
+
 // PodController reconciles pods for the purpose of maintaining state regarding pods that is expensive to compute.
 type PodController struct {
 	kubeClient client.Client
@@ -44,7 +46,7 @@ func NewPodController(kubeClient client.Client, cluster *Cluster) *PodController
 }
 
 func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(nodeControllerName).With("pod", req.NamespacedName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(podControllerName).With("pod", req.NamespacedName))
 	stored := &v1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
 		if errors.IsNotFound(err) {
@@ -54,7 +56,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, err
 	}
 
-	c.cluster.handlePodUpdate(stored)
+	c.cluster.updatePod(stored)
 
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }
@@ -62,7 +64,7 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 func (c *PodController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
-		Named("state-pod").
+		Named(podControllerName).
 		For(&v1.Pod{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)

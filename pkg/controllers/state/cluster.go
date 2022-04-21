@@ -62,8 +62,9 @@ func NewCluster(ctx context.Context, client client.Client) *Cluster {
 // compute topology information.
 type Node struct {
 	Node *v1.Node
-	// Requested is the total amount of resources requested by pods that have been bound to the node.
-	Requested v1.ResourceList
+	// Available is the total amount of resources that are available on the node.  This is the Allocatable minus the
+	// resources requested by all pods bound to the node.
+	Available v1.ResourceList
 
 	podRequests map[types.NamespacedName]v1.ResourceList
 }
@@ -119,18 +120,18 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		c.bindings[podKey] = n.Node.Name
 		requested = append(requested, requests)
 	}
-	n.Requested = resources.Merge(requested...)
+	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
 	return n
 }
 
-func (c *Cluster) handleNodeDeletion(nodeName string) {
+func (c *Cluster) deleteNode(nodeName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.nodes, nodeName)
 }
 
-// handleNodeUpdate is called for every node reconciliation
-func (c *Cluster) handleNodeUpdate(node *v1.Node) {
+// updateNode is called for every node reconciliation
+func (c *Cluster) updateNode(node *v1.Node) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	_, ok := c.nodes[node.Name]
@@ -166,12 +167,14 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 		// we weren't tracking the node yet, so nothing to do
 		return
 	}
-	n.Requested = resources.Subtract(n.Requested, n.podRequests[podKey])
+	// pod has been deleted so our available capacity increases the by the resources that had been
+	// requested by the pod
+	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
 }
 
-// handlePodUpdate is called every time the pod is reconciled
-func (c *Cluster) handlePodUpdate(pod *v1.Pod) {
+// updatePod is called every time the pod is reconciled
+func (c *Cluster) updatePod(pod *v1.Pod) {
 	c.updateNodeUsageFromPod(pod)
 	c.updatePodAntiAffinities(pod)
 }
@@ -229,7 +232,8 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 
 	// sum the newly bound pod's requests into the existing node and record the binding
 	podRequests := resources.RequestsForPods(pod)
-	n.Requested = resources.Merge(n.Requested, podRequests)
+	// our available capacity goes down by the amount that the pod has requested
+	n.Available = resources.Subtract(n.Available, podRequests)
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
 }
