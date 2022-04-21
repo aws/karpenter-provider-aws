@@ -226,6 +226,7 @@ aws cloudformation create-stack \
 
 The LaunchTemplate is ready to be used. Specify it by name in the [Provisioner
 CRD](../../provisioner/). Karpenter will use this template when creating new instances.
+The following is an example of a provisioner using the new template. Please replace the `CLUSTER_NAME` with the correct value.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
@@ -233,5 +234,6 @@ kind: Provisioner
 spec:
   provider:
     launchTemplate: KarpenterCustomLaunchTemplate
-
+    subnetSelector:
+      karpenter.sh/discovery: CLUSTER_NAME
 ```
