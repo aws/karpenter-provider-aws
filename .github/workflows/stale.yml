@@ -1,7 +1,7 @@
 name: StaleBot
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 12 * * *'
 jobs:
   StaleBot:
     runs-on: ubuntu-latest
