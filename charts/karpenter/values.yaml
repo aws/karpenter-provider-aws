@@ -74,7 +74,7 @@ controller:
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the controller pod.
   resources:
@@ -98,7 +98,7 @@ webhook:
   # -- Additional environment variables for the webhook pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the webhook pod.
   resources:
