@@ -79,7 +79,7 @@ var _ = BeforeSuite(func() {
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
+		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, UnfulfillableCapacityErrorCacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
