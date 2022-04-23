@@ -82,7 +82,7 @@ var _ = BeforeSuite(func() {
 		ctx = injection.WithOptions(ctx, opts)
 
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
-		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
+		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)

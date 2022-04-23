@@ -16,6 +16,7 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
@@ -26,11 +27,14 @@ var (
 		"InvalidInstanceID.NotFound",
 		"InvalidLaunchTemplateName.NotFoundException",
 	}
+	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
+	unfulfillableCapacityErrorCodes = []string{
+		"InsufficientInstanceCapacity",
+		"MaxSpotInstanceCountExceeded",
+		"VcpuLimitExceeded",
+		"UnfulfillableCapacity",
+	}
 )
-
-// InsufficientCapacityErrorCode indicates that EC2 is temporarily lacking capacity for this
-// instance type and availability zone combination
-const InsufficientCapacityErrorCode = "InsufficientInstanceCapacity"
 
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
@@ -41,4 +45,11 @@ func isNotFound(err error) bool {
 		return functional.ContainsString(notFoundErrorCodes, awsError.Code())
 	}
 	return false
+}
+
+// isUnfulfillableCapacity returns true if the Fleet err means
+// capacity is temporarily unavailable for launching.
+// This could be due to account limits, insufficient ec2 capacity, etc.
+func isUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
+	return functional.ContainsString(unfulfillableCapacityErrorCodes, *err.ErrorCode)
 }

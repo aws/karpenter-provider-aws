@@ -34,11 +34,10 @@ import (
 )
 
 const (
-	InstanceTypesCacheKey                         = "types"
-	InstanceTypeZonesCacheKey                     = "zones"
-	InstanceTypesAndZonesCacheTTL                 = 5 * time.Minute
-	InsufficientCapacityErrorCacheTTL             = 45 * time.Second
-	InsufficientCapacityErrorCacheCleanupInterval = 5 * time.Minute
+	InstanceTypesCacheKey              = "types"
+	InstanceTypeZonesCacheKey          = "zones"
+	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
+	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
 )
 
 type InstanceTypeProvider struct {
@@ -57,7 +56,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 		ec2api:               ec2api,
 		subnetProvider:       subnetProvider,
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-		unavailableOfferings: cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval),
+		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 	}
 }
 
@@ -171,13 +170,15 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 
 // CacheUnavailable allows the InstanceProvider to communicate recently observed temporary capacity shortages in
 // the provided offerings
-func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, instanceType string, zone string, capacityType string) {
+func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
+	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
+	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
 	logging.FromContext(ctx).Debugf("%s for offering { instanceType: %s, zone: %s, capacityType: %s }, avoiding for %s",
-		InsufficientCapacityErrorCode,
+		aws.StringValue(fleetErr.ErrorCode),
 		instanceType,
 		zone,
 		capacityType,
-		InsufficientCapacityErrorCacheTTL)
+		UnfulfillableCapacityErrorCacheTTL)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(capacityType, instanceType, zone), struct{}{})
 }
