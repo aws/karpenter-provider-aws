@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
 	"strings"
 	"testing"
@@ -49,6 +50,9 @@ var provisioner *v1alpha5.Provisioner
 var controller *provisioning.Controller
 var env *test.Environment
 var cloudProv *fake.CloudProvider
+var cluster *state.Cluster
+var nodeStateController *state.NodeController
+var podStateController *state.PodController
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -60,7 +64,10 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProv)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProv)
+		cluster = state.NewCluster(ctx, e.Client)
+		nodeStateController = state.NewNodeController(e.Client, cluster)
+		podStateController = state.NewPodController(e.Client, cluster)
+		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProv, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -77,7 +84,28 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
+	var nodes v1.NodeList
+	Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+	var pods v1.PodList
+	Expect(env.Client.List(ctx, &pods)).To(Succeed())
+
 	ExpectCleanedUp(ctx, env.Client)
+
+	for i := range nodes.Items {
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodes.Items[i]))
+	}
+	for i := range pods.Items {
+		ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(&pods.Items[i]))
+	}
+
+	cluster.ForEachNode(func(n *state.Node) bool {
+		Fail("expected to not be called")
+		return true
+	})
+	cluster.ForPodsWithAntiAffinity(func(p *v1.Pod, n *v1.Node) bool {
+		Fail("expected to not be called")
+		return true
+	})
 })
 
 var _ = Describe("Custom Constraints", func() {
@@ -1143,7 +1171,7 @@ var _ = Describe("Topology", func() {
 				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
 				MaxSkew:           1,
 			}}
-			ExpectApplied(ctx, env.Client,  provisioner, firstNode, secondNode, thirdNode, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: wrongNamespace}})
+			ExpectApplied(ctx, env.Client, provisioner, firstNode, secondNode, thirdNode, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: wrongNamespace}})
 			ExpectProvisioned(ctx, env.Client, controller,
 				test.Pod(test.PodOptions{NodeName: firstNode.Name}),                                                                                                                         // ignored, missing labels
 				test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}}),                                                                                                    // ignored, pending
@@ -1662,30 +1690,6 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
-		It("should respect pod affinity (zone)", func() {
-			// TODO: We can pass this test, but it's probably not worth the effort.  We know that the zonal affinity is
-			// satisfied since the pods can end up on the same node. I can't think of a good way to make this work other
-			// that possibly tightening constraints to (e.g. zonal -> hostname) see if that would help in a scheduling
-			// after everything else fails.
-			Skip("skip until we make a decision")
-			affLabels := map[string]string{"security": "s2"}
-			affPod1 := test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: affLabels}})
-			// affPod2 will try to get scheduled with affPod1
-			affPod2 := test.UnschedulablePod(test.PodOptions{PodRequirements: []v1.PodAffinityTerm{{
-				LabelSelector: &metav1.LabelSelector{
-					MatchLabels: affLabels,
-				},
-				TopologyKey: v1.LabelTopologyZone,
-			}}})
-
-			// create
-			ExpectApplied(ctx, env.Client, provisioner)
-			ExpectProvisioned(ctx, env.Client, controller, affPod1, affPod2)
-			n1 := ExpectScheduled(ctx, env.Client, affPod1)
-			n2 := ExpectScheduled(ctx, env.Client, affPod2)
-			// should be scheduled on the same node
-			Expect(n1.Name).To(Equal(n2.Name))
-		})
 		It("should respect self pod affinity (hostname)", func() {
 			affLabels := map[string]string{"security": "s2"}
 
@@ -2093,8 +2097,12 @@ var _ = Describe("Topology", func() {
 
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, zoneAnywherePod, affPod)
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zoneAnywherePod))
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(affPod))
 			// the pod with anti-affinity will schedule first due to first fit-descending, but we don't know which zone it landed in
 			node1 := ExpectScheduled(ctx, env.Client, zoneAnywherePod)
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zoneAnywherePod))
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(affPod))
 
 			// this pod cannot schedule since the pod with anti-affinity could potentially be in any zone
 			affPod = ExpectNotScheduled(ctx, env.Client, affPod)
@@ -2140,6 +2148,10 @@ var _ = Describe("Topology", func() {
 			ExpectScheduled(ctx, env.Client, zone1Pod)
 			ExpectScheduled(ctx, env.Client, zone2Pod)
 			ExpectScheduled(ctx, env.Client, zone3Pod)
+
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zone1Pod))
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zone2Pod))
+			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zone3Pod))
 
 			// this pod with no anti-affinity rules can't schedule. It has no anti-affinity rules, but every zone has an
 			// existing pod (not from this batch) with anti-affinity rules that prevent it from scheduling
@@ -2558,52 +2570,6 @@ var _ = Describe("Taints", func() {
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
 		)[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
-	})
-	It("should generate taints for pod tolerations", func() {
-		Skip("until taint generation is reimplemented")
-		ExpectApplied(ctx, env.Client, provisioner)
-		pods := ExpectProvisioned(ctx, env.Client, controller,
-			// Matching pods schedule together on a node with a matching taint
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			}),
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			}),
-			// Key is different, generate new node with a taint for this key
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "another-test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			}),
-			// Value is different, generate new node with a taint for this value
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "another-test-value", Effect: v1.TaintEffectNoSchedule}},
-			}),
-			// Effect is different, generate new node with a taint for this value
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value", Effect: v1.TaintEffectNoExecute}},
-			}),
-			// Missing effect, generate a new node with a taints for all effects
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{
-				{Key: "test-key", Operator: v1.TolerationOpEqual, Value: "test-value"}},
-			}),
-			// // No taint generated
-			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
-		)
-		for i, expectedTaintsPerNode := range [][]v1.Taint{
-			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			{{Key: "another-test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}},
-			{{Key: "test-key", Value: "another-test-value", Effect: v1.TaintEffectNoSchedule}},
-			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoExecute}},
-			{{Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoSchedule}, {Key: "test-key", Value: "test-value", Effect: v1.TaintEffectNoExecute}},
-		} {
-			node := ExpectScheduled(ctx, env.Client, pods[i])
-			for _, taint := range expectedTaintsPerNode {
-				Expect(node.Spec.Taints).To(ContainElement(taint))
-			}
-		}
-		node := ExpectScheduled(ctx, env.Client, pods[len(pods)-1])
 		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
 	})
 })

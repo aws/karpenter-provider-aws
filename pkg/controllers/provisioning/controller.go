@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	"go.uber.org/multierr"
@@ -45,10 +47,10 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, cloudProvider),
+		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, cloudProvider, cluster),
 	}
 }
 

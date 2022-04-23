@@ -16,6 +16,7 @@ package provisioning_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"testing"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -49,7 +50,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
+		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider, state.NewCluster(ctx, e.Client))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

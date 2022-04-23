@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
 	"testing"
 
@@ -60,6 +61,7 @@ var fakeEC2API *fake.EC2API
 var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
+var cluster *state.Cluster
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -78,6 +80,7 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
+
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(InsufficientCapacityErrorCacheTTL, InsufficientCapacityErrorCacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -114,7 +117,8 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider)
+		cluster = state.NewCluster(ctx, e.Client)
+		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider, cluster)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -426,8 +430,11 @@ var _ = Describe("Allocation", func() {
 
 				// constrain the packer to a single launch template type
 				rr := v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
-					Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:             resource.MustParse("24"),
+						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+					},
+					Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
 				}
 
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -602,7 +609,7 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -613,7 +620,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
