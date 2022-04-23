@@ -34,11 +34,10 @@ import (
 )
 
 const (
-	InstanceTypesCacheKey                          = "types"
-	InstanceTypeZonesCacheKey                      = "zones"
-	InstanceTypesAndZonesCacheTTL                  = 5 * time.Minute
-	UnfulfillableCapacityErrorCacheTTL             = 1 * time.Minute
-	UnfulfillableCapacityErrorCacheCleanupInterval = 5 * time.Minute
+	InstanceTypesCacheKey              = "types"
+	InstanceTypeZonesCacheKey          = "zones"
+	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
+	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
 )
 
 type InstanceTypeProvider struct {
@@ -57,7 +56,7 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 		ec2api:               ec2api,
 		subnetProvider:       subnetProvider,
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
-		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, UnfulfillableCapacityErrorCacheCleanupInterval),
+		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 	}
 }
 
