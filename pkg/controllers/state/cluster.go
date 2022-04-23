@@ -43,13 +43,12 @@ type Cluster struct {
 }
 
 func NewCluster(ctx context.Context, client client.Client) *Cluster {
-	s := &Cluster{
+	return &Cluster{
 		ctx:        ctx,
 		kubeClient: client,
 		nodes:      map[string]*Node{},
 		bindings:   map[types.NamespacedName]string{},
 	}
-	return s
 }
 
 // Node is a cached version of a node in the cluster that maintains state which is expensive to compute every time it's
@@ -104,7 +103,7 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	}
 	var pods v1.PodList
 	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
-		logging.FromContext(c.ctx).Errorf("listing pods, %c", err)
+		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
 	}
 	var requested []v1.ResourceList
 	for i := range pods.Items {
@@ -153,7 +152,7 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 		// we weren't tracking the node yet, so nothing to do
 		return
 	}
-	// pod has been deleted so our available capacity increases the by the resources that had been
+	// pod has been deleted so our available capacity increases by the resources that had been
 	// requested by the pod
 	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
@@ -213,7 +212,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	if !ok {
 		var node v1.Node
 		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: pod.Spec.NodeName}, &node); err != nil {
-			logging.FromContext(c.ctx).Errorf("getting node, %c", err)
+			logging.FromContext(c.ctx).Errorf("getting node, %s", err)
 		}
 
 		// node didn't exist, but creating it will pick up this newly bound pod as well
@@ -224,7 +223,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 
 	// sum the newly bound pod's requests into the existing node and record the binding
 	podRequests := resources.RequestsForPods(pod)
-	// our available capacity goes down by the amount that the pod ha
+	// our available capacity goes down by the amount that the pod had requested
 	n.Available = resources.Subtract(n.Available, podRequests)
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
