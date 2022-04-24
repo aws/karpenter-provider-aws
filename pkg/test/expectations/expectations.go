@@ -149,7 +149,6 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
-	provisioning.MaxItemsPerBatch = len(pods)
 	// Persist objects
 	for _, pod := range pods {
 		ExpectApplied(ctx, c, pod)
@@ -160,16 +159,12 @@ func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisi
 	unorderedPods := append([]*v1.Pod{}, pods...)
 	r := rand.New(rand.NewSource(ginkgo.GinkgoRandomSeed())) //nolint
 	r.Shuffle(len(unorderedPods), func(i, j int) { unorderedPods[i], unorderedPods[j] = unorderedPods[j], unorderedPods[i] })
-	wg := sync.WaitGroup{}
 	for _, pod := range unorderedPods {
-		wg.Add(1)
-		go func(pod *v1.Pod) {
-			// Sometimes expected to error
-			_, _ = controller.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
-			wg.Done()
-		}(pod)
+		_, _ = controller.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(pod)})
 	}
-	wg.Wait()
+
+	controller.TriggerAndWait() //nolint , method is deprecated and used for unit testing only
+
 	// Update objects after reconciling
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
