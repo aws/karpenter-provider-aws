@@ -1,5 +1,4 @@
 //go:build test_performance
-// +build test_performance
 
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
