@@ -41,11 +41,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterEndpoint | string | `""` | Cluster endpoint. |
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
+| controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.image | string | `"public.ecr.aws/karpenter/controller:v0.9.0@sha256:d2565ea67ff044360113087fc2a6d2cf0a02d10184848ea7562c0a232c9c9d58"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
 | controller.securityContext | object | `{}` | SecurityContext for the controller container. |
+| extraVolumes | list | `[]` | Additional volumes for the pod. |
 | fullnameOverride | string | `""` | Overrides the chart's computed fullname. |
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
 | imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Docker images. |
@@ -71,6 +73,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | tolerations | list | `[]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
+| webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
 | webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.9.0@sha256:1ce86ff6aa66ba8aa596188966137b13b309f0fbc22663cdc48b01e5f3d2c0fc"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
