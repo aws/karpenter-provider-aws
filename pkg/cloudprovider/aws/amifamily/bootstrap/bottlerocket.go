@@ -57,7 +57,7 @@ func (b Bottlerocket) Script() (string, error) {
 
 func (b Bottlerocket) unmarshalCustomUserData() (config, error) {
 	var c config
-	if b.CustomUserData ==  nil {
+	if b.CustomUserData == nil {
 		return c, nil
 	}
 	b64DecodedBytes, err := base64.StdEncoding.DecodeString(*b.CustomUserData)
