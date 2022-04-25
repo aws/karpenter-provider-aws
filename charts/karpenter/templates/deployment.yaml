@@ -160,7 +160,10 @@ spec:
       {{- end }}
       {{- with .Values.controller.extraVolumeMounts }}
       volumes:
+      {{- with .Values.extraVolumes }}
+      volumes:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.topologySpreadConstraints }}
       topologySpreadConstraints:
         {{ toYaml .Values.topologySpreadConstraints | nindent 8 }}
