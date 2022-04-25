@@ -17,6 +17,7 @@ package provisioning
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
@@ -45,13 +46,14 @@ func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client 
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Stop:           stop,
+		batcher:        NewBatcher(running),
 		cloudProvider:  cloudProvider,
 		kubeClient:     kubeClient,
 		coreV1Client:   coreV1Client,
-		batcher:        NewBatcher(running),
 		volumeTopology: NewVolumeTopology(kubeClient),
 		cluster:        cluster,
 	}
+	p.cond = sync.NewCond(&p.mu)
 	go func() {
 		for running.Err() == nil {
 			if err := p.provision(running); err != nil {
@@ -74,19 +76,29 @@ type Provisioner struct {
 	batcher        *Batcher
 	volumeTopology *VolumeTopology
 	cluster        *state.Cluster
+
+	mu   sync.Mutex
+	cond *sync.Cond
 }
 
-// Add a pod to the provisioner and return a channel to block on. The caller is
-// responsible for verifying that the pod was scheduled correctly.
-func (p *Provisioner) Add(pod *v1.Pod) <-chan struct{} {
-	return p.batcher.Add(pod)
+func (p *Provisioner) Trigger() {
+	p.batcher.Trigger()
+}
+
+// Deprecated: TriggerAndWait is used for unit testing purposes only
+func (p *Provisioner) TriggerAndWait() {
+	p.mu.Lock()
+	p.batcher.TriggerImmediate()
+	p.cond.Wait()
+	p.mu.Unlock()
 }
 
 func (p *Provisioner) provision(ctx context.Context) error {
 	// Batch pods
 	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
-	_, window := p.batcher.Wait()
-	defer p.batcher.Flush()
+	window := p.batcher.Wait()
+	// wake any waiters on the cond
+	defer p.cond.Broadcast()
 
 	// Get pods
 	pods, err := p.getPods(ctx)

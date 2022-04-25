@@ -72,11 +72,13 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	// Enqueue to the provisioner
-	select {
-	case <-c.provisioner.Add(pod):
-	case <-ctx.Done():
-	}
+	c.provisioner.Trigger()
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+// Deprecated: TriggerAndWait is used for unit testing purposes only
+func (c *Controller) TriggerAndWait() {
+	c.provisioner.TriggerAndWait()
 }
 
 func isProvisionable(p *v1.Pod) bool {
@@ -154,6 +156,6 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		NewControllerManagedBy(m).
 		Named(controllerName).
 		For(&v1.Pod{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
 		Complete(c)
 }
