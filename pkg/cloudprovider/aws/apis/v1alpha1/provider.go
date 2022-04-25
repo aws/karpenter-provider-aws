@@ -74,6 +74,11 @@ type LaunchTemplate struct {
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +optionals
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	// base64 encoded string that will be applied to provisioned nodes as UserData.
+	// UserData must be in the appropriate format based on the specified AMIFamily. Karpenter will merge certain fields into
+	// this UserData to ensure nodes are being provisioned with the correct configuration.
+	// +optional
+	UserData *string `json:"userData,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

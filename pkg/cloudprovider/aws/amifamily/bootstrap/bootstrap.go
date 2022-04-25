@@ -30,6 +30,7 @@ type Options struct {
 	CABundle                *string
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
+	CustomUserData          *string
 }
 
 // Bootstrapper can be implemented to generate a bootstrap script

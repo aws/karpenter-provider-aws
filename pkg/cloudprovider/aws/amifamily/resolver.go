@@ -67,7 +67,7 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	SSMAlias(version string, instanceType cloudprovider.InstanceType) string
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
@@ -99,7 +99,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	for amiID, instanceTypes := range amiIDs {
 		resolved := &LaunchTemplate{
 			Options:             options,
-			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes),
+			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes, provider.UserData),
 			BlockDeviceMappings: provider.BlockDeviceMappings,
 			MetadataOptions:     provider.MetadataOptions,
 			AMIID:               amiID,
