@@ -15,7 +15,6 @@ limitations under the License.
 package bootstrap
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 
@@ -27,8 +26,11 @@ type Bottlerocket struct {
 	Options
 }
 
-func (b Bottlerocket) Script() string {
-	s := b.unmarshalCustomUserData()
+func (b Bottlerocket) Script() (string, error) {
+	s, err := b.unmarshalCustomUserData()
+	if err != nil {
+		return "", fmt.Errorf("invalid UserData %w", err)
+	}
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the provisioner
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
@@ -46,21 +48,25 @@ func (b Bottlerocket) Script() string {
 	for _, taint := range b.Taints {
 		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
-	script := new(bytes.Buffer)
-	tomlEncoder := toml.NewEncoder(script)
-	err := tomlEncoder.Encode(&s)
+	script, err := toml.Marshal(s)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
-	return base64.StdEncoding.EncodeToString(script.Bytes())
+	return base64.StdEncoding.EncodeToString(script), nil
 }
 
-func (b Bottlerocket) unmarshalCustomUserData() config {
+func (b Bottlerocket) unmarshalCustomUserData() (config, error) {
 	var c config
-	b64DecodedBytes, _ := base64.StdEncoding.DecodeString(*b.CustomUserData)
-	err := toml.Unmarshal(b64DecodedBytes, &c)
-	if err != nil {
-		panic(err)
+	if b.CustomUserData ==  nil {
+		return c, nil
 	}
-	return c
+	b64DecodedBytes, err := base64.StdEncoding.DecodeString(*b.CustomUserData)
+	if err != nil {
+		return c, err
+	}
+	err = toml.Unmarshal(b64DecodedBytes, &c)
+	if err != nil {
+		return c, err
+	}
+	return c, nil
 }

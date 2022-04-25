@@ -38,5 +38,5 @@ type Options struct {
 // bootstrapping method.
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
-	Script() string
+	Script() (string, error)
 }

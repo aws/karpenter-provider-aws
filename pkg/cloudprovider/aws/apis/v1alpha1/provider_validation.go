@@ -245,7 +245,7 @@ func (a *AWS) validateUserData() *apis.FieldError {
 	}
 	_, err := base64.StdEncoding.DecodeString(*a.UserData)
 	if err != nil {
-		return apis.ErrInvalidValue("not valid Base64", userDataPath)
+		return apis.ErrInvalidValue("invalid Base64", userDataPath)
 	}
 	return nil
 }
