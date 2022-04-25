@@ -1,13 +1,11 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+set -euo pipefail
 
+SNAPSHOT_TAG=$(git describe --tags --always)
 RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter}
-RELEASE_VERSION=${RELEASE_VERSION:-$(git describe --tags --always)}
-RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
-if [ -z "$CLOUD_PROVIDER" ]; then
-    echo "CLOUD_PROVIDER environment variable is not set: 'export CLOUD_PROVIDER=aws'"
-    exit 1
-fi
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/release_common.sh"
 
 # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
 DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
@@ -18,14 +16,7 @@ else
 fi
 COSIGN_FLAGS="-a GIT_HASH=$(git rev-parse HEAD) -a GIT_VERSION=${RELEASE_VERSION} -a BUILD_DATE=${BUILD_DATE}"
 
-image() {
-    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${RELEASE_REPO}
-    CONTROLLER_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/controller)
-    WEBHOOK_DIGEST=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t ${RELEASE_VERSION} ${RELEASE_PLATFORM} ./cmd/webhook)
-    yq e -i ".controller.image = \"${CONTROLLER_DIGEST}\"" charts/karpenter/values.yaml
-    yq e -i ".webhook.image = \"${WEBHOOK_DIGEST}\"" charts/karpenter/values.yaml
-    yq e -i ".appVersion = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
-    yq e -i ".version = \"${RELEASE_VERSION#v}\"" charts/karpenter/Chart.yaml
+cosignImages() {
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${CONTROLLER_DIGEST}
     COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} ${WEBHOOK_DIGEST}
 }
@@ -45,6 +36,9 @@ website() {
     find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
 }
 
-image
+requireCloudProvider
+authenticate
+buildImages $RELEASE_VERSION
+cosignImages
 chart
 website

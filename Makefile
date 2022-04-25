@@ -7,7 +7,7 @@ GOFLAGS ?= -tags=$(CLOUD_PROVIDER) $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
-CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev)
+CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
@@ -52,12 +52,12 @@ verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 			exit 1;\
 		fi;}
 
-licenses: ## Verifies dependency licenses and requires GITHUB_TOKEN to be set
-	$(WITH_GOFLAGS) go build -o karpenter cmd/controller/main.go
-	golicense hack/license-config.hcl karpenter
+licenses: ## Verifies dependency licenses
+	go mod download
+	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
 apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
+	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \
 		$(HELM_OPTS) \
 		--set controller.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/controller) \
 		--set webhook.image=$(shell $(WITH_GOFLAGS) ko build -B github.com/aws/karpenter/cmd/webhook)
@@ -81,8 +81,14 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
-nightly: toolchain## Generate nightly release manifests and publish a versioned container image.
-	$(WITH_GOFLAGS) ./hack/nightly.sh
+nightly: ## Tag the latest snapshot release with timestamp
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell date +"%Y%m%d")
+
+snapshot: ## Generate a snapshot release out of the current commit
+	$(WITH_GOFLAGS) ./hack/snapshot.sh
+
+stablerelease: ## Tags the snapshot release of the current commit with the latest tag available, for prod launch
+	./hack/add-snapshot-tag.sh $(shell git rev-parse HEAD) $(shell git describe --tags --exact-match || echo "Current commit is not tagged")
 
 toolchain: ## Install developer toolchain
 	./hack/toolchain.sh

@@ -16,122 +16,95 @@ package scheduling
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
-	"knative.dev/pkg/logging"
-
-	"github.com/aws/karpenter/pkg/utils/resources"
-
-	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-var schedulingDuration = prometheus.NewHistogramVec(
-	prometheus.HistogramOpts{
-		Namespace: metrics.Namespace,
-		Subsystem: "allocation_controller",
-		Name:      "scheduling_duration_seconds",
-		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and error.",
-		Buckets:   metrics.DurationBuckets(),
-	},
-	[]string{metrics.ProvisionerLabel},
-)
-
-func init() {
-	crmetrics.Registry.MustRegister(schedulingDuration)
+func NewScheduler(provisioners []*v1alpha5.Provisioner, topology *Topology, instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList) *Scheduler {
+	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
+	return &Scheduler{
+		provisioners:   provisioners,
+		topology:       topology,
+		instanceTypes:  instanceTypes,
+		daemonOverhead: daemonOverhead,
+		preferences:    &Preferences{},
+	}
 }
 
 type Scheduler struct {
-	kubeClient client.Client
-	topology   *Topology
+	nodes          []*Node
+	provisioners   []*v1alpha5.Provisioner
+	instanceTypes  []cloudprovider.InstanceType
+	daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList
+	preferences    *Preferences
+	topology       *Topology
 }
 
-func NewScheduler(kubeClient client.Client) *Scheduler {
-	return &Scheduler{
-		kubeClient: kubeClient,
-		topology:   &Topology{kubeClient: kubeClient},
-	}
-}
-
-func (s *Scheduler) Solve(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypes []cloudprovider.InstanceType, pods []*v1.Pod) ([]*Node, error) {
-	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-	constraints := provisioner.Spec.Constraints.DeepCopy()
-
-	sort.Slice(pods, byCPUAndMemoryDescending(pods))
-	sort.Slice(instanceTypes, byPrice(instanceTypes))
-
-	// Inject temporarily adds specific NodeSelectors to pods, which are then
-	// used by scheduling logic. This isn't strictly necessary, but is a useful
-	// trick to avoid passing topology decisions through the scheduling code. It
-	// lets us treat TopologySpreadConstraints as just-in-time NodeSelectors.
-	if err := s.topology.Inject(ctx, constraints, pods); err != nil {
-		return nil, fmt.Errorf("injecting topology, %w", err)
-	}
-
-	nodeSet, err := NewNodeSet(ctx, constraints, s.kubeClient)
-	if err != nil {
-		return nil, fmt.Errorf("constructing nodeset, %w", err)
-	}
-
-	unschedulableCount := 0
-	for _, pod := range pods {
-		isScheduled := false
-		for _, node := range nodeSet.nodes {
-			if err := node.Add(pod); err == nil {
-				isScheduled = true
-				break
-			}
+func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
+	// We loop and retrying to schedule to unschedulable pods as long as we are making progress.  This solves a few
+	// issues including pods with affinity to another pod in the batch. We could topo-sort to solve this, but it wouldn't
+	// solve the problem of scheduling pods where a particular order is needed to prevent a max-skew violation. E.g. if we
+	// had 5xA pods and 5xB pods were they have a zonal topology spread, but A can only go in one zone and B in another.
+	// We need to schedule them alternating, A, B, A, B, .... and this solution also solves that as well.
+	errors := map[*v1.Pod]error{}
+	q := NewQueue(pods...)
+	for {
+		// Try the next pod
+		pod, ok := q.Pop()
+		if !ok {
+			break
 		}
-		if !isScheduled {
-			n := NewNode(constraints, nodeSet.daemonResources, instanceTypes)
-			if err := n.Add(pod); err != nil {
-				unschedulableCount++
-				logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", err)
-			} else {
-				nodeSet.Add(n)
+
+		// Schedule to existing nodes or create a new node
+		if errors[pod] = s.add(pod); errors[pod] == nil {
+			continue
+		}
+
+		// If unsuccessful, relax the pod and recompute topology
+		relaxed := s.preferences.Relax(ctx, pod)
+		q.Push(pod, relaxed)
+		if relaxed {
+			if err := s.topology.Update(ctx, pod); err != nil {
+				logging.FromContext(ctx).Errorf("updating topology, %s", err)
 			}
 		}
 	}
 
-	if unschedulableCount != 0 {
-		logging.FromContext(ctx).Errorf("Failed to schedule %d pods", unschedulableCount)
+	// Any remaining pods have failed to schedule
+	for _, pod := range q.List() {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
 	}
-	return nodeSet.nodes, nil
+	return s.nodes, nil
 }
 
-func byPrice(instanceTypes []cloudprovider.InstanceType) func(i int, j int) bool {
-	return func(i, j int) bool {
-		return instanceTypes[i].Price() < instanceTypes[j].Price()
-	}
-}
+func (s *Scheduler) add(pod *v1.Pod) error {
+	// Consider using https://pkg.go.dev/container/heap
+	sort.Slice(s.nodes, func(a, b int) bool { return len(s.nodes[a].Pods) < len(s.nodes[b].Pods) })
 
-func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
-	return func(i, j int) bool {
-		lhs := resources.RequestsForPods(pods[i])
-		rhs := resources.RequestsForPods(pods[j])
-
-		cpuCmp := resources.Cmp(lhs[v1.ResourceCPU], rhs[v1.ResourceCPU])
-		if cpuCmp < 0 {
-			// LHS has less CPU, so it should be sorted after
-			return false
-		} else if cpuCmp > 0 {
-			return true
+	// Pick existing node
+	for _, node := range s.nodes {
+		if err := node.Add(pod); err == nil {
+			return nil
 		}
-		memCmp := resources.Cmp(lhs[v1.ResourceMemory], rhs[v1.ResourceMemory])
-
-		if memCmp < 0 {
-			return false
-		} else if memCmp > 0 {
-			return true
-		}
-		return false
 	}
+
+	// Create new node
+	var errs error
+	for _, provisioner := range s.provisioners {
+		node := NewNode(provisioner, s.topology, s.daemonOverhead[provisioner], s.instanceTypes)
+		err := node.Add(pod)
+		if err == nil {
+			s.nodes = append(s.nodes, node)
+			return nil
+		}
+		errs = multierr.Append(errs, err)
+	}
+	return errs
 }

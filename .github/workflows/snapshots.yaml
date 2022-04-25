@@ -1,0 +1,33 @@
+name: Snapshots
+on:
+  push:
+    branches: [ main ]
+permissions:
+  id-token: write
+jobs:
+  snapshots:
+    if: github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: sed -En 's/^go[[:space:]]+([[:digit:].]+)$/GO_VERSION=\1/p' go.mod >> $GITHUB_ENV
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin/
+            ~/.kubebuilder/bin/k8s
+          key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::274912145732:role/Snapshots
+          aws-region: us-east-1
+      - run: make toolchain
+      - run: make snapshot
+        env:
+          CLOUD_PROVIDER: aws
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

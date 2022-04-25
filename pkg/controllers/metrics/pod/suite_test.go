@@ -51,7 +51,7 @@ var _ = BeforeSuite(func() {
 var _ = Describe("Pod Metrics", func() {
 	It("should update the pod state metrics", func() {
 		p := test.Pod()
-		ExpectCreated(ctx, env.Client, p)
+		ExpectApplied(ctx, env.Client, p)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(p))
 
 		podState := ExpectMetric("karpenter_pods_state")

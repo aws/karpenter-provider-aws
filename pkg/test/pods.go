@@ -130,6 +130,16 @@ func Pods(total int, options ...PodOptions) []*v1.Pod {
 	return pods
 }
 
+func UnscheduleablePodOptions(overrides ...PodOptions) PodOptions {
+	options := PodOptions{Conditions: []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}}
+	for _, opts := range overrides {
+		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
+			panic(fmt.Sprintf("Failed to merge pod options: %s", err))
+		}
+	}
+	return options
+}
+
 // UnschedulablePod creates a test pod with a pending scheduling status condition
 func UnschedulablePod(options ...PodOptions) *v1.Pod {
 	return Pod(append(options, PodOptions{
@@ -138,7 +148,6 @@ func UnschedulablePod(options ...PodOptions) *v1.Pod {
 }
 
 // PodDisruptionBudget creates a PodDisruptionBudget.  To function properly, it should have its status applied
-// after creation with something like ExpectCreatedWithStatus
 func PodDisruptionBudget(overrides ...PDBOptions) *v1beta1.PodDisruptionBudget {
 	options := PDBOptions{}
 	for _, opts := range overrides {

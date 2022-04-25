@@ -11,16 +11,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package provisioning
 
 import (
 	"context"
 	"fmt"
-	"sort"
-	"sync"
 	"time"
 
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/aws/karpenter/pkg/controllers/state"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
+	"go.uber.org/multierr"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
@@ -31,124 +35,125 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
-	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 const controllerName = "provisioning"
 
 // Controller for the resource
 type Controller struct {
-	ctx           context.Context
-	provisioners  *sync.Map
-	scheduler     *scheduling.Scheduler
-	coreV1Client  corev1.CoreV1Interface
-	kubeClient    client.Client
-	cloudProvider cloudprovider.CloudProvider
+	kubeClient  client.Client
+	provisioner *Provisioner
 }
 
-// NewController is a constructor
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+// NewController constructs a controller instance
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
-		ctx:           ctx,
-		provisioners:  &sync.Map{},
-		kubeClient:    kubeClient,
-		coreV1Client:  coreV1Client,
-		cloudProvider: cloudProvider,
-		scheduler:     scheduling.NewScheduler(kubeClient),
+		kubeClient:  kubeClient,
+		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, cloudProvider, cluster),
 	}
 }
 
-// Reconcile a control loop for the resource
+// Reconcile the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("provisioner", req.Name))
-	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
-	ctx = injection.WithControllerName(ctx, controllerName)
-
-	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, provisioner); err != nil {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("pod", req.String()))
+	pod := &v1.Pod{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
 		if errors.IsNotFound(err) {
-			c.Delete(req.Name)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
-	if err := c.Apply(ctx, provisioner); err != nil {
-		return reconcile.Result{}, err
+	// Ensure the pod can be provisioned
+	if !isProvisionable(pod) {
+		return reconcile.Result{}, nil
 	}
-	// Requeue in order to discover any changes from GetInstanceTypes.
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	if err := validate(pod); err != nil {
+		return reconcile.Result{}, nil
+	}
+	// Enqueue to the provisioner
+	select {
+	case <-c.provisioner.Add(pod):
+	case <-ctx.Done():
+	}
+	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
-// Delete stops and removes a provisioner. Enqueued pods will be provisioned.
-func (c *Controller) Delete(name string) {
-	if p, ok := c.provisioners.LoadAndDelete(name); ok {
-		p.(*Provisioner).Stop()
-	}
+func isProvisionable(p *v1.Pod) bool {
+	return !pod.IsScheduled(p) &&
+		!pod.IsPreempting(p) &&
+		pod.FailedToSchedule(p) &&
+		!pod.IsOwnedByDaemonSet(p) &&
+		!pod.IsOwnedByNode(p)
 }
 
-// Apply creates or updates the provisioner to the latest configuration
-func (c *Controller) Apply(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
-	provisioner.SetDefaults(ctx)
-	if err := provisioner.Validate(ctx); err != nil {
-		return err
+func validate(p *v1.Pod) error {
+	return multierr.Combine(
+		validateAffinity(p),
+		validateTopology(p),
+	)
+}
+
+func validateTopology(pod *v1.Pod) (errs error) {
+	for _, constraint := range pod.Spec.TopologySpreadConstraints {
+		if !v1alpha5.ValidTopologyKeys.Has(constraint.TopologyKey) {
+			errs = multierr.Append(errs, fmt.Errorf("unsupported topology spread constraint key, %s not in %s", constraint.TopologyKey, v1alpha5.ValidTopologyKeys))
+		}
 	}
-	// Refresh global requirements using instance type availability
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
-	if err != nil {
-		return err
+	return errs
+}
+
+func validateAffinity(p *v1.Pod) (errs error) {
+	if p.Spec.Affinity == nil {
+		return nil
 	}
-	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-	provisioner.Spec.Requirements = v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).
-		Add(cloudprovider.Requirements(instanceTypes).Requirements...).
-		Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...)
-	if err := provisioner.Spec.Requirements.Validate(); err != nil {
-		return fmt.Errorf("requirements are not compatible with cloud provider, %w", err)
+	if p.Spec.Affinity.PodAffinity != nil {
+		for _, term := range p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term))
+		}
+		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validatePodAffinityTerm(term.PodAffinityTerm))
+		}
 	}
-	// Update the provisioner if anything has changed
-	if c.hasChanged(ctx, provisioner) {
-		c.Delete(provisioner.Name)
-		c.provisioners.Store(provisioner.Name, NewProvisioner(ctx, provisioner, c.kubeClient, c.coreV1Client, c.cloudProvider))
+	if p.Spec.Affinity.NodeAffinity != nil {
+		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
+		}
+		if p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
+			}
+		}
+	}
+	return errs
+}
+
+func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
+	if !v1alpha5.ValidTopologyKeys.Has(term.TopologyKey) {
+		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, v1alpha5.ValidTopologyKeys)
 	}
 	return nil
 }
 
-// Returns true if the new candidate provisioner is different than the provisioner in memory.
-func (c *Controller) hasChanged(ctx context.Context, provisionerNew *v1alpha5.Provisioner) bool {
-	oldProvisioner, ok := c.provisioners.Load(provisionerNew.Name)
-	if !ok {
-		return true
+func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
+	if term.MatchFields != nil {
+		errs = multierr.Append(errs, fmt.Errorf("node selector term with matchFields is not supported"))
 	}
-	hashKeyOld, err := hashstructure.Hash(oldProvisioner.(*Provisioner).Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to hash old provisioner spec: %s", err)
+	if term.MatchExpressions != nil {
+		for _, requirement := range term.MatchExpressions {
+			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
+				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
+			}
+		}
 	}
-	hashKeyNew, err := hashstructure.Hash(provisionerNew.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("Unable to hash new provisioner spec: %s", err)
-	}
-	return hashKeyOld != hashKeyNew
+	return errs
 }
 
-// List active provisioners in order of priority
-func (c *Controller) List(ctx context.Context) []*Provisioner {
-	provisioners := []*Provisioner{}
-	c.provisioners.Range(func(key, value interface{}) bool {
-		provisioners = append(provisioners, value.(*Provisioner))
-		return true
-	})
-	sort.Slice(provisioners, func(i, j int) bool { return provisioners[i].Name < provisioners[j].Name })
-	return provisioners
-}
-
-// Register the controller to the manager
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named(controllerName).
-		For(&v1alpha5.Provisioner{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		For(&v1.Pod{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10_000}).
 		Complete(c)
 }

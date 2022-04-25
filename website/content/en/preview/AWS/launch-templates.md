@@ -12,7 +12,7 @@ If these features are not sufficient for your use case (customizing node image, 
 
 Karpenter supports using custom launch templates.
 
-Note: When using a custom launch template, **you are taking responsibility** for maintaining the launch template, including updating which AMI is used (i.e., for security updates). In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS.
+Note: When using a custom launch template, **you are taking responsibility** for maintaining the launch template, including updating which AMI is used (i.e., for security updates). In the default configuration, Karpenter will use the latest version of the EKS optimized AMI, which is maintained by AWS. Without a custom launch template, Karpenter will create its own. If these launch templates aren't used for sixty seconds, Karpenter will clean them up.
 
 
 ## Introduction
@@ -226,12 +226,14 @@ aws cloudformation create-stack \
 
 The LaunchTemplate is ready to be used. Specify it by name in the [Provisioner
 CRD](../../provisioner/). Karpenter will use this template when creating new instances.
+The following is an example of a provisioner using the new template. Please replace the `CLUSTER_NAME` with the correct value.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 spec:
   provider:
-    launchTemplate: CustomKarpenterLaunchTemplateDemo
-
+    launchTemplate: KarpenterCustomLaunchTemplate
+    subnetSelector:
+      karpenter.sh/discovery: CLUSTER_NAME
 ```

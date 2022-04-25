@@ -36,6 +36,8 @@ strategy:
 podLabels: {}
 # -- Additional annotations for the pod.
 podAnnotations: {}
+podDisruptionBudget:
+  maxUnavailable: 1
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 1000
@@ -57,6 +59,11 @@ affinity:
         - matchExpressions:
             - key: karpenter.sh/provisioner-name
               operator: DoesNotExist
+# -- topologySpreadConstraints to increase the controller resilience
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
 
@@ -73,13 +80,13 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.8.1@sha256:2dc1d020688bf00ba4c910a9a01b19ebc2b020f61d8a9c78a23f5eab5c258b53"
+  image: "public.ecr.aws/karpenter/controller:v0.9.0-rc.0@sha256:ec7828fafe84094907027fda60318de4b9c7af0f46cb77851484a6afc25468e6"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the controller pod.
   resources:
@@ -100,7 +107,7 @@ controller:
   #   readOnly: true
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.8.1@sha256:4e72682a63de22a527699e347e78600781612fa1772d1a53f6a2b8530078e423"
+  image: "public.ecr.aws/karpenter/webhook:v0.9.0-rc.0@sha256:f4c55c87255f361cd618f299a4910074d9307873e9abd6a9e21afa68d53a15ba"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
@@ -108,7 +115,7 @@ webhook:
   # -- Additional environment variables for the webhook pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the webhook pod.
   resources:

@@ -89,7 +89,7 @@ var _ = Describe("Termination", func() {
 
 	Context("Reconciliation", func() {
 		It("should delete nodes", func() {
-			ExpectCreated(ctx, env.Client, node)
+			ExpectApplied(ctx, env.Client, node)
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -101,7 +101,7 @@ var _ = Describe("Termination", func() {
 				NodeName:    node.Name,
 				Tolerations: []v1.Toleration{{Key: v1.TaintNodeUnschedulable, Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoSchedule}},
 			})
-			ExpectCreated(ctx, env.Client, node, podEvict, podSkip)
+			ExpectApplied(ctx, env.Client, node, podEvict, podSkip)
 
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -127,7 +127,7 @@ var _ = Describe("Termination", func() {
 				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.DoNotEvictPodAnnotationKey: "true"}},
 			})
 
-			ExpectCreated(ctx, env.Client, node, podEvict, podNoEvict)
+			ExpectApplied(ctx, env.Client, node, podEvict, podNoEvict)
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -158,7 +158,7 @@ var _ = Describe("Termination", func() {
 			ExpectNotFound(ctx, env.Client, node)
 		})
 		It("should delete nodes that have do-not-evict on pods for which it does not apply", func() {
-			ExpectCreated(ctx, env.Client, node)
+			ExpectApplied(ctx, env.Client, node)
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
 			pods := []*v1.Pod{
 				test.Pod(test.PodOptions{
@@ -175,7 +175,7 @@ var _ = Describe("Termination", func() {
 				}),
 			}
 			for _, pod := range pods {
-				ExpectCreated(ctx, env.Client, pod)
+				ExpectApplied(ctx, env.Client, pod)
 			}
 			// Trigger eviction
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -203,8 +203,7 @@ var _ = Describe("Termination", func() {
 				Phase:      v1.PodRunning,
 			})
 
-			ExpectCreated(ctx, env.Client, node)
-			ExpectCreatedWithStatus(ctx, env.Client, podNoEvict, pdb)
+			ExpectApplied(ctx, env.Client, node, podNoEvict, pdb)
 
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -233,7 +232,7 @@ var _ = Describe("Termination", func() {
 			podNodeCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-node-critical"})
 			podClusterCritical := test.Pod(test.PodOptions{NodeName: node.Name, PriorityClassName: "system-cluster-critical"})
 
-			ExpectCreated(ctx, env.Client, node, podEvict, podNodeCritical, podClusterCritical)
+			ExpectApplied(ctx, env.Client, node, podEvict, podNodeCritical, podClusterCritical)
 
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -263,7 +262,7 @@ var _ = Describe("Termination", func() {
 
 		It("should not evict static pods", func() {
 			podEvict := test.Pod(test.PodOptions{NodeName: node.Name})
-			ExpectCreated(ctx, env.Client, node, podEvict)
+			ExpectApplied(ctx, env.Client, node, podEvict)
 
 			podNoEvict := test.Pod(test.PodOptions{
 				NodeName: node.Name,
@@ -276,7 +275,7 @@ var _ = Describe("Termination", func() {
 					}},
 				},
 			})
-			ExpectCreated(ctx, env.Client, podNoEvict)
+			ExpectApplied(ctx, env.Client, podNoEvict)
 
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -306,7 +305,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should not delete nodes until all pods are deleted", func() {
 			pods := []*v1.Pod{test.Pod(test.PodOptions{NodeName: node.Name}), test.Pod(test.PodOptions{NodeName: node.Name})}
-			ExpectCreated(ctx, env.Client, node, pods[0], pods[1])
+			ExpectApplied(ctx, env.Client, node, pods[0], pods[1])
 
 			// Trigger Termination Controller
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())
@@ -337,7 +336,7 @@ var _ = Describe("Termination", func() {
 		})
 		It("should wait for pods to terminate", func() {
 			pod := test.Pod(test.PodOptions{NodeName: node.Name})
-			ExpectCreated(ctx, env.Client, node, pod)
+			ExpectApplied(ctx, env.Client, node, pod)
 
 			// Before grace period, node should not delete
 			Expect(env.Client.Delete(ctx, node)).To(Succeed())

@@ -16,6 +16,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
@@ -35,6 +37,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -145,6 +148,10 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
+		var reqFailure awserr.RequestFailure
+		if errors.As(err, &reqFailure) {
+			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())
+		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
 	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
@@ -299,8 +306,8 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 
 func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
-		if InsufficientCapacityErrorCode == aws.StringValue(err.ErrorCode) {
-			p.instanceTypeProvider.CacheUnavailable(ctx, aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType), aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone), capacityType)
+		if isUnfulfillableCapacity(err) {
+			p.instanceTypeProvider.CacheUnavailable(ctx, err, capacityType)
 		}
 	}
 }
@@ -327,6 +334,9 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
+		if functional.HasAnyPrefix(*it.(*InstanceType).InstanceType, "t1", "t2") {
+			continue
+		}
 		if aws.BoolValue(it.(*InstanceType).BareMetal) {
 			continue
 		}

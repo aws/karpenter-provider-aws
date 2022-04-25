@@ -39,10 +39,10 @@ func (p *AMIProvider) Get(ctx context.Context, instanceType cloudprovider.Instan
 	}
 	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter, %w", err)
+		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
 	}
 	ami := aws.StringValue(output.Parameter.Value)
 	p.cache.SetDefault(ssmQuery, ami)
-	logging.FromContext(ctx).Debugf("Discovered %s for query %s", ami, ssmQuery)
+	logging.FromContext(ctx).Debugf("Discovered %s for query %q", ami, ssmQuery)
 	return ami, nil
 }

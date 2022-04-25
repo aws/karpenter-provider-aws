@@ -63,13 +63,13 @@ var _ = Describe("Reconcile", func() {
 	})
 
 	It("should ignore a pvc without pods", func() {
-		ExpectCreated(ctx, env.Client, pvc)
+		ExpectApplied(ctx, env.Client, pvc)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(pvc))
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(pvc), pvc)).To(Succeed())
 		Expect(pvc.Annotations[persistentvolumeclaim.SelectedNodeAnnotation]).To(BeEmpty())
 	})
 	It("should ignore a pvc with unscheduled or terminal pods", func() {
-		ExpectCreated(ctx, env.Client, pvc,
+		ExpectApplied(ctx, env.Client, pvc,
 			test.Pod(test.PodOptions{Phase: v1.PodPending}),
 			test.Pod(test.PodOptions{NodeName: strings.ToLower(randomdata.SillyName()), Phase: v1.PodSucceeded}),
 			test.Pod(test.PodOptions{NodeName: strings.ToLower(randomdata.SillyName()), Phase: v1.PodFailed}),
@@ -80,7 +80,7 @@ var _ = Describe("Reconcile", func() {
 	})
 	It("should bind a pvc to a pod's node", func() {
 		pod := test.Pod(test.PodOptions{NodeName: strings.ToLower(randomdata.SillyName()), PersistentVolumeClaims: []string{pvc.Name}})
-		ExpectCreated(ctx, env.Client, pvc, pod)
+		ExpectApplied(ctx, env.Client, pvc, pod)
 		ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(pvc))
 		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(pvc), pvc)).To(Succeed())
 		Expect(pvc.Annotations[persistentvolumeclaim.SelectedNodeAnnotation]).To(Equal(pod.Spec.NodeName))

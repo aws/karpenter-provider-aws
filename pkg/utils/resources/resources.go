@@ -59,6 +59,21 @@ func Merge(resources ...v1.ResourceList) v1.ResourceList {
 	return result
 }
 
+func Subtract(lhs, rhs v1.ResourceList) v1.ResourceList {
+	result := make(v1.ResourceList, len(lhs))
+	for k, v := range lhs {
+		result[k] = v.DeepCopy()
+	}
+	for resourceName := range lhs {
+		current := lhs[resourceName]
+		if rhsValue, ok := rhs[resourceName]; ok {
+			current.Sub(rhsValue)
+		}
+		result[resourceName] = current
+	}
+	return result
+}
+
 // Ceiling calculates the max between the sum of container resources and max of initContainers
 func Ceiling(pod *v1.Pod) v1.ResourceRequirements {
 	var resources v1.ResourceRequirements

@@ -1,5 +1,4 @@
 //go:build test_performance
-// +build test_performance
 
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +21,7 @@ import (
 	"fmt"
 	"github.com/aws/karpenter/pkg/test"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"math"
 	"math/rand"
 	"os"
 	"runtime/pprof"
@@ -44,7 +44,8 @@ import (
 	testclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-const MinPodsPerSec = 250.0
+const MinPodsPerSec = 100.0
+const PrintStats = false
 
 var r = rand.New(rand.NewSource(42))
 
@@ -105,7 +106,6 @@ func TestSchedulingProfile(t *testing.T) {
 	}
 	fmt.Println("scheduled", totalPods, "against", totalNodes, "nodes in total in", totalTime, float64(totalPods)/totalTime.Seconds(), "pods/sec")
 	tw.Flush()
-
 }
 
 func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
@@ -135,15 +135,47 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	b.ResetTimer()
 	// Pack benchmark
 	start := time.Now()
+	podsScheduledInRound1 := 0
+	nodesInRound1 := 0
 	for i := 0; i < b.N; i++ {
-		nodes, err := scheduler.Solve(ctx, provisioner, instanceTypes, pods)
-		if err != nil || len(nodes) == 0 {
+		nodes, err := scheduler.Solve(ctx, &provisioner.Spec.Constraints, instanceTypes, pods)
+		if err != nil {
 			b.FailNow()
+		}
+		if i == 0 {
+
+			minPods := math.MaxInt64
+			maxPods := 0
+			var podCounts []int
+			for _, n := range nodes {
+				podCounts = append(podCounts, len(n.Pods))
+				podsScheduledInRound1 += len(n.Pods)
+				nodesInRound1 = len(nodes)
+				if len(n.Pods) > maxPods {
+					maxPods = len(n.Pods)
+				}
+				if len(n.Pods) < minPods {
+					minPods = len(n.Pods)
+				}
+			}
+			if PrintStats {
+				meanPodsPerNode := float64(podsScheduledInRound1) / float64(nodesInRound1)
+				variance := 0.0
+				for _, pc := range podCounts {
+					variance += math.Pow(float64(pc)-meanPodsPerNode, 2.0)
+				}
+				variance /= float64(nodesInRound1)
+				stddev := math.Sqrt(variance)
+				fmt.Printf("%d instance types %d pods resulted in %d nodes with pods per node min=%d max=%d mean=%f stddev=%f\n",
+					instanceCount, podCount, nodesInRound1, minPods, maxPods, meanPodsPerNode, stddev)
+			}
 		}
 	}
 	duration := time.Since(start)
 	podsPerSec := float64(len(pods)) / (duration.Seconds() / float64(b.N))
 	b.ReportMetric(podsPerSec, "pods/sec")
+	b.ReportMetric(float64(podsScheduledInRound1), "pods")
+	b.ReportMetric(float64(nodesInRound1), "nodes")
 
 	// we don't care if it takes a bit of time to schedule a few pods as there is some setup time required for sorting
 	// instance types, computing topologies, etc.  We want to ensure that the larger batches of pods don't become too
@@ -153,7 +185,6 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 			b.Fatalf("scheduled %f pods/sec, expected at least %f", podsPerSec, MinPodsPerSec)
 		}
 	}
-
 }
 
 func makeDiversePods(count int) []*v1.Pod {
@@ -163,8 +194,8 @@ func makeDiversePods(count int) []*v1.Pod {
 	pods = append(pods, makeTopologySpreadPods(count/7, v1.LabelHostname)...)
 	pods = append(pods, makePodAffinityPods(count/7, v1.LabelHostname)...)
 	pods = append(pods, makePodAffinityPods(count/7, v1.LabelTopologyZone)...)
-	pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelHostname)...)
-	pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelTopologyZone)...)
+	// We intentionally don't do anti-affinity by zone as that creates tons of unschedulable pods.
+	//pods = append(pods, makePodAntiAffinityPods(count/7, v1.LabelTopologyZone)...)
 
 	// fill out due to count being not evenly divisible with generic pods
 	nRemaining := count - len(pods)
@@ -177,10 +208,10 @@ func makePodAntiAffinityPods(count int, key string) []*v1.Pod {
 	for i := 0; i < count; i++ {
 		pods = append(pods, test.Pod(
 			test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				ObjectMeta: metav1.ObjectMeta{Labels: randomAntiAffinityLabels()},
 				PodAntiRequirements: []v1.PodAffinityTerm{
 					{
-						LabelSelector: &metav1.LabelSelector{MatchLabels: randomLabels()},
+						LabelSelector: &metav1.LabelSelector{MatchLabels: randomAntiAffinityLabels()},
 						TopologyKey:   key,
 					},
 				},
@@ -198,10 +229,10 @@ func makePodAffinityPods(count int, key string) []*v1.Pod {
 	for i := 0; i < count; i++ {
 		pods = append(pods, test.Pod(
 			test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{Labels: randomLabels()},
+				ObjectMeta: metav1.ObjectMeta{Labels: randomAffinityLabels()},
 				PodRequirements: []v1.PodAffinityTerm{
 					{
-						LabelSelector: &metav1.LabelSelector{MatchLabels: randomLabels()},
+						LabelSelector: &metav1.LabelSelector{MatchLabels: randomAffinityLabels()},
 						TopologyKey:   key,
 					},
 				},
@@ -257,6 +288,16 @@ func makeGenericPods(count int) []*v1.Pod {
 	return pods
 }
 
+func randomAffinityLabels() map[string]string {
+	return map[string]string{
+		"my-affininity": randomLabelValue(),
+	}
+}
+func randomAntiAffinityLabels() map[string]string {
+	return map[string]string{
+		"my-anti-affininity": randomLabelValue(),
+	}
+}
 func randomLabels() map[string]string {
 	return map[string]string{
 		"my-label": randomLabelValue(),
