@@ -266,7 +266,7 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Insufficient Capacity Error Cache", func() {
 			It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 				ExpectApplied(ctx, env.Client, provisioner)
 				pods := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
@@ -297,7 +297,7 @@ var _ = Describe("Allocation", func() {
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 			It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}}
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "p3.8xlarge", Zone: "test-zone-1a"}})
 				pod := test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -323,9 +323,9 @@ var _ = Describe("Allocation", func() {
 					HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1b")))
 			})
 			It("should launch smaller instances than optimal if larger instance launch results in Insufficient Capacity Error", func() {
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
-				}
+				})
 				provisioner.Spec.Constraints.Requirements.Requirements = append(provisioner.Spec.Constraints.Requirements.Requirements, v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceType,
 					Operator: v1.NodeSelectorOpIn,
@@ -355,7 +355,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}}
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
@@ -368,14 +368,14 @@ var _ = Describe("Allocation", func() {
 				)[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
 				// capacity shortage is over - expire the item from the cache and try again
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{}
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{})
 				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
 				pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 			It("should launch on-demand capacity if flexible to both spot and on demand, but spot if unavailable", func() {
-				fakeEC2API.InsufficientCapacityPools = []fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}}
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}})
 				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
 					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
