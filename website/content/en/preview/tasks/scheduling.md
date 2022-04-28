@@ -256,7 +256,7 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 
 ## Pod affinity/anti-affinity
 
-By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can ask inform the provisioner of your desire for pods to schedule together or apart with respect to different topology domains. For example:
+By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the provisioner of your desire for pods to schedule together or apart with respect to different topology domains. For example:
 
 ```yaml
 spec:
@@ -281,6 +281,8 @@ spec:
 The above pod affinity rule would cause the pod to only schedule in zones where a pod with the label `system=backend` is already running.  
 
 The anti-affinity rule would cause it to avoid running on any node with a pod labeled `app=inflate`.  If this anti-affinity term was on a deployment pod spec along with a matching `app=inflate` label, it would prevent more than one pod from the deployment from running on any single node. 
+
+See [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) in the Kubernetes documentation for details.
 
 ## Persistent Volume Topology
 
