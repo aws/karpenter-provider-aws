@@ -121,10 +121,10 @@ func (r *Requirements) rebuild() {
 		}
 		if values.IsComplement() {
 			req.Operator = v1.NodeSelectorOpNotIn
-			req.Values = values.ComplementValues().UnsortedList()
+			req.Values = values.ComplementValues().List()
 		} else {
 			req.Operator = v1.NodeSelectorOpIn
-			req.Values = values.Values().UnsortedList()
+			req.Values = values.Values().List()
 		}
 		r.Requirements = append(r.Requirements, req)
 	}
@@ -136,6 +136,28 @@ func (r *Requirements) rebuild() {
 			r.Requirements = append(r.Requirements, req)
 		}
 	}
+
+	sort.Slice(r.Requirements, func(a, b int) bool {
+		lhs := r.Requirements[a]
+		rhs := r.Requirements[b]
+		if lhs.Key != rhs.Key {
+			return lhs.Key < rhs.Key
+		}
+		if lhs.Operator != rhs.Operator {
+			return lhs.Operator < rhs.Operator
+		}
+		if len(lhs.Values) != len(rhs.Values) {
+			return len(lhs.Values) < len(rhs.Values)
+		}
+
+		// lengths are the same now
+		for i := 0; i < len(lhs.Values); i++ {
+			if lhs.Values[i] != rhs.Values[i] {
+				return lhs.Values[i] < rhs.Values[i]
+			}
+		}
+		return false
+	})
 }
 
 // Keys returns unique set of the label keys from the requirements
