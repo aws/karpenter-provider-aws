@@ -74,7 +74,7 @@ spec:
     values: ["p3.8xlarge", "p3.16xlarge"]
   taints:
   - key: nvidia.com/gpu
-    value: true
-    effect: “NoSchedule”
+    value: "true"
+    effect: NoSchedule
 ```
 In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
