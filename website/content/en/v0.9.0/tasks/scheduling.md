@@ -24,6 +24,7 @@ Constraints you can request include:
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
 * **Topology spread**: Use topology spread to help insure availability of the application.
+* **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods. 
 
 Karpenter supports standard Kubernetes scheduling constraints.
 This allows you to define a single set of rules that apply to both existing and provisioned capacity.
@@ -38,7 +39,7 @@ Karpenter supports specific [Well-Known Labels, Annotations and Taints](https://
 Within a Pod spec, you can both make requests and set limits on resources a pod needs, such as CPU and memory.
 For example:
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -76,7 +77,7 @@ Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusio
 
 Here is an example of a `nodeSelector` for selecting nodes:
 
-```
+```yaml
 nodeSelector:
   topology.kubernetes.io/zone: us-west-2a
   karpenter.sh/capacity-type: spot
@@ -104,7 +105,7 @@ You can think of these concepts as `required` and `preferred`, since Kubernetes 
 All examples below assume that the provisioner doesn't have constraints to prevent those zones from being used.
 The first constraint says you could use `us-west-2a` or `us-west-2b`, the second constraint makes it so only `us-west-2b` can be used.
 
-```
+```yaml
  affinity:
    nodeAffinity:
      requiredDuringSchedulingIgnoredDuringExecution:
@@ -120,7 +121,7 @@ The first constraint says you could use `us-west-2a` or `us-west-2b`, the second
 
 Changing the second operator to `NotIn` would allow the pod to run in `us-west-2a` only:
 
-```
+```yaml
            - key: "topology.kubernetes.io/zone"
              operator: "In"
              values: ["us-west-2a, us-west-2b"]
@@ -133,7 +134,7 @@ Continuing to add to the example, `nodeAffinity` lets you define terms so if one
 Here, if `us-west-2a` is not available, the second term will cause the pod to run on a spot instance in `us-west-2d`.
 
 
-```
+```yaml
  affinity:
    nodeAffinity:
      requiredDuringSchedulingIgnoredDuringExecution:
@@ -166,7 +167,7 @@ Setting a taint on a node tells the scheduler to not run a pod on it unless the 
 This example shows a Provisioner that was set up with a taint for only running pods that require a GPU, such as the following:
 
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -187,7 +188,7 @@ spec:
 
 For a pod to request to run on a node that has provisioner, it could set a toleration as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -214,7 +215,7 @@ By using the Kubernetes `topologySpreadConstraints` you can ask the provisioner 
 Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
 For example:
 
-```
+```yaml
 spec:
   topologySpreadConstraints:
     - maxSkew: 1
@@ -252,6 +253,36 @@ The three supported `topologyKey` values that Karpenter supports are:
 
 
 See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
+
+## Pod affinity/anti-affinity
+
+By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the provisioner of your desire for pods to schedule together or apart with respect to different topology domains. For example:
+
+```yaml
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: system
+            operator: In
+            values:
+            - backend
+        topologyKey: topology.kubernetes.io/zone
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: inflate
+        topologyKey: kubernetes.io/hostname
+```
+
+The above pod affinity rule would cause the pod to only schedule in zones where a pod with the label `system=backend` is already running.  
+
+The anti-affinity rule would cause it to avoid running on any node with a pod labeled `app=inflate`.  If this anti-affinity term was on a deployment pod spec along with a matching `app=inflate` label, it would prevent more than one pod from the deployment from running on any single node. 
+
+See [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) in the Kubernetes documentation for details.
 
 ## Persistent Volume Topology
 
