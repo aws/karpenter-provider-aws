@@ -80,7 +80,9 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.9.0@sha256:d2565ea67ff044360113087fc2a6d2cf0a02d10184848ea7562c0a232c9c9d58"
+  image:
+    repository: public.ecr.aws/karpenter/controller
+    tag: # default chart.version
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -106,8 +108,9 @@ controller:
   #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
   #   readOnly: true
 webhook:
-  # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.9.0@sha256:1ce86ff6aa66ba8aa596188966137b13b309f0fbc22663cdc48b01e5f3d2c0fc"
+  image:
+    repository: public.ecr.aws/karpenter/webhook
+    tag: # default chart.version
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.

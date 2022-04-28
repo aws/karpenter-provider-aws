@@ -54,7 +54,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: {{ .Values.controller.image }}
+          image: "{{ .Values.controller.image.repository }}:{{ default .Chart.AppVersion .Values.controller.image.tag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME
@@ -102,7 +102,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: {{ .Values.webhook.image }}
+          image: "{{ .Values.webhook.image.repository }}:{{ default .Chart.AppVersion .Values.webhook.image.tag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME
