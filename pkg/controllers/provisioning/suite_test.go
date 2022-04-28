@@ -305,6 +305,44 @@ var _ = Describe("Provisioning", func() {
 				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
 			}
 		})
+		It("should schedule pods that tolerate taints", func() {
+			provisioner := test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "nvidia.com/gpu", Value: "true", Effect: v1.TaintEffectNoSchedule}}})
+			ExpectApplied(ctx, env.Client, provisioner)
+			for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpEqual,
+							Value:    "true",
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpExists,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Operator: v1.TolerationOpExists,
+						},
+					}}),
+			) {
+				ExpectScheduled(ctx, env.Client, pod)
+			}
+		})
 	})
 })
 
