@@ -9,6 +9,7 @@ The Provisioner sets constraints on the nodes that can be created by Karpenter a
 The Provisioner can be set to do things like:
 
 * Define taints to limit the pods that can run on nodes Karpenter creates
+* Define any startup taints to inform Karpenter that it should taint the node initially, but that the taint is temporary.
 * Limit node creation to certain zones, instance types, and computer architectures
 * Set defaults for node expiration
 
@@ -18,6 +19,7 @@ Here are things you should know about Provisioners:
 * Karpenter won't do anything if there is not at least one Provisioner configured.
 * Each Provisioner that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the Provisioner that is not tolerated by a Pod, Karpenter won't use that Provisioner to provision the pod.
+* If Karpenter encounters a startup taint in the Provisioner it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
 * It is recommended to create Provisioners that are mutually exclusive. So no Pod should match multiple Provisioners. If multiple Provisioners are matched, Karpenter will randomly choose which to use.
 
 If you want to modify or add provisioners to Karpenter, do the following:
@@ -38,7 +40,7 @@ Refer to [Scheduling](../scheduling) to see how the same features are used in Po
 This provisioner limits nodes to specific zones.
 It is flexible to both spot and on-demand capacity types.
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -61,7 +63,7 @@ With these settings, the provisioner is able to launch nodes in three availabili
 A provisioner can be set up to only provision nodes on particular processor types.
 The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -78,3 +80,20 @@ spec:
     effect: “NoSchedule”
 ```
 In order for a pod to run on a node defined in this provisioner, it must tolerate `nvidia.com/gpu` in its pod spec.
+
+### Example: Adding the Cilium Startup Taint
+
+Per the Cilium [docs](https://docs.cilium.io/en/stable/gettingstarted/taints/),  it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the user of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: cilium-startup
+spec:
+  ttlSecondsAfterEmpty: 60
+  startupTaints:
+  - key: node.cilium.io/agent-not-ready
+    value: "true"
+    effect: NoExecute
+```
