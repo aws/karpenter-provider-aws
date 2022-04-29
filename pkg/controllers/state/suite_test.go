@@ -386,8 +386,8 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
 		// daemonset pod isn't bound yet
-		ExpectNodeDaemonsetRequested(node, v1.ResourceCPU, "0")
-		ExpectNodeDaemonsetRequested(node, v1.ResourceMemory, "0")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceCPU, "0")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceMemory, "0")
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "1.5")
 
 		ExpectApplied(ctx, env.Client, dsPod)
@@ -396,8 +396,8 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(dsPod))
 
 		// just the DS request portion
-		ExpectNodeDaemonsetRequested(node, v1.ResourceCPU, "1")
-		ExpectNodeDaemonsetRequested(node, v1.ResourceMemory, "2Gi")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceCPU, "1")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceMemory, "2Gi")
 		// total request
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "2.5")
 		ExpectNodeResourceRequest(node, v1.ResourceMemory, "2Gi")
@@ -574,7 +574,7 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		return false
 	})
 }
-func ExpectNodeDaemonsetRequested(node *v1.Node, resourceName v1.ResourceName, amount string) {
+func ExpectNodeDaemonSetRequested(node *v1.Node, resourceName v1.ResourceName, amount string) {
 	cluster.ForEachNode(func(n *state.Node) bool {
 		if n.Node.Name != node.Name {
 			return true

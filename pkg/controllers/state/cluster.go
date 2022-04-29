@@ -128,7 +128,7 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 
 		n.podRequests[podKey] = requests
 		c.bindings[podKey] = n.Node.Name
-		if isOwnedByDaemonset(pod) {
+		if podutils.IsOwnedByDaemonSet(pod) {
 			daemonsetRequested = append(daemonsetRequested, requests)
 		}
 		requested = append(requested, requests)
@@ -137,15 +137,6 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
 	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
 	return n
-}
-
-func isOwnedByDaemonset(pod *v1.Pod) bool {
-	for _, ref := range pod.OwnerReferences {
-		if ref.Kind == "DaemonSet" {
-			return true
-		}
-	}
-	return false
 }
 
 func (c *Cluster) deleteNode(nodeName string) {
@@ -260,7 +251,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	// our available capacity goes down by the amount that the pod had requested
 	n.Available = resources.Subtract(n.Available, podRequests)
 	// if it's a daemonset, we track what it has requested separately
-	if isOwnedByDaemonset(pod) {
+	if podutils.IsOwnedByDaemonSet(pod) {
 		n.DaemonSetRequested = resources.Merge(n.DaemonSetRequested, podRequests)
 	}
 	n.podRequests[podKey] = podRequests

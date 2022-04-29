@@ -18,7 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// NodeIsReady is returns true if the all of the startup taints have been removed from the node and it's current status
+// NodeIsReady returns true if all the startup taints have been removed from the node and its current status
 // is set to Ready
 func NodeIsReady(node *v1.Node, provisioner *Provisioner) bool {
 	for _, startupTaint := range provisioner.Spec.StartupTaints {
