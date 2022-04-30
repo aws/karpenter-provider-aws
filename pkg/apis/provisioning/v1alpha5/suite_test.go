@@ -135,6 +135,27 @@ var _ = Describe("Validation", func() {
 			provisioner.Spec.Taints = []v1.Taint{{Key: "invalid-effect", Effect: "???"}}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
+		It("should not fail for same key with different effects", func() {
+			provisioner.Spec.Taints = []v1.Taint{
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+				{Key: "a", Effect: v1.TaintEffectNoExecute},
+			}
+			Expect(provisioner.Validate(ctx)).To(Succeed())
+		})
+		It("should fail for duplicate taint key/effect pairs", func() {
+			provisioner.Spec.Taints = []v1.Taint{
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			provisioner.Spec.Taints = []v1.Taint{
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+			}
+			provisioner.Spec.StartupTaints = []v1.Taint{
+				{Key: "a", Effect: v1.TaintEffectNoSchedule},
+			}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
 	})
 	Context("Validation", func() {
 		It("should allow supported ops", func() {

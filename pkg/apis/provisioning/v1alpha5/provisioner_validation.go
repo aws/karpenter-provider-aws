@@ -85,13 +85,19 @@ func (s *ProvisionerSpec) validateLabels() (errs *apis.FieldError) {
 	return errs
 }
 
+type taintKeyEffect struct {
+	Key    string
+	Effect v1.TaintEffect
+}
+
 func (s *ProvisionerSpec) validateTaints() (errs *apis.FieldError) {
-	errs = errs.Also(s.validateTaintsField(s.Taints, "taints"))
-	errs = errs.Also(s.validateTaintsField(s.StartupTaints, "startupTaints"))
+	existing := map[taintKeyEffect]struct{}{}
+	errs = errs.Also(s.validateTaintsField(s.Taints, existing, "taints"))
+	errs = errs.Also(s.validateTaintsField(s.StartupTaints, existing, "startupTaints"))
 	return errs
 }
 
-func (s *ProvisionerSpec) validateTaintsField(taints Taints, fieldName string) *apis.FieldError {
+func (s *ProvisionerSpec) validateTaintsField(taints Taints, existing map[taintKeyEffect]struct{}, fieldName string) *apis.FieldError {
 	var errs *apis.FieldError
 	for i, taint := range taints {
 		// Validate Key
@@ -113,6 +119,14 @@ func (s *ProvisionerSpec) validateTaintsField(taints Taints, fieldName string) *
 		default:
 			errs = errs.Also(apis.ErrInvalidArrayValue(taint.Effect, "effect", i))
 		}
+
+		// Check for duplicate Key/Effect pairs
+		key := taintKeyEffect{Key: taint.Key, Effect: taint.Effect}
+		if _, ok := existing[key]; ok {
+			errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("duplicate taint Key/Effect pair %s=%s", taint.Key, taint.Effect), apis.CurrentField).
+				ViaFieldIndex("taints", i))
+		}
+		existing[key] = struct{}{}
 	}
 	return errs
 }
