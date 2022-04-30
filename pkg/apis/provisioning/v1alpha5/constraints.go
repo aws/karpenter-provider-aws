@@ -33,7 +33,7 @@ type Constraints struct {
 	// pod tolerations on a per-node basis.
 	// +optional
 	Taints Taints `json:"taints,omitempty"`
-	// StartupTaints are taints that are applied to nodes upon startup but which are expected to be removed automatically
+	// StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
 	// within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
 	// daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
 	// purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.

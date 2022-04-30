@@ -17,11 +17,10 @@ package scheduling
 import (
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/controllers/state"
-
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
