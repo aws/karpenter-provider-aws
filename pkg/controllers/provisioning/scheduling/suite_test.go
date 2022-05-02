@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
+	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -3528,6 +3529,46 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
+	})
+	It("should pack in-flight nodes before launching new nodes", func() {
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(fake.InstanceTypeOptions{
+				Name:  "medium",
+				Price: 3.00,
+				Resources: v1.ResourceList{
+					// enough CPU for four pods + a bit of overhead
+					v1.ResourceCPU:  resource.MustParse("4.25"),
+					v1.ResourcePods: resource.MustParse("4"),
+				},
+			}),
+		}
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("1"),
+			},
+		}}
+
+		ExpectApplied(ctx, env.Client, provisioner)
+
+		// scheduling in multiple batches random sets of pods
+		for i := 0; i < 10; i++ {
+			initialPods := ExpectProvisioned(ctx, env.Client, controller, MakePods(rand.Intn(10), opts)...)
+			for _, pod := range initialPods {
+				node := ExpectScheduled(ctx, env.Client, pod)
+				ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+			}
+		}
+
+		// due to the in-flight node support, we should pack existing nodes before launching new node. The end result
+		// is that we should only have some spare capacity on our final node
+		nodesWithCPUFree := 0
+		cluster.ForEachNode(func(n *state.Node) bool {
+			if n.Available.Cpu().AsApproximateFloat64() >= 1 {
+				nodesWithCPUFree++
+			}
+			return true
+		})
+		Expect(nodesWithCPUFree).To(BeNumerically("<=", 1))
 	})
 })
 
