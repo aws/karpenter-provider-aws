@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,11 +49,13 @@ type Topology struct {
 	inverseTopologies map[uint64]*TopologyGroup
 	// The universe of domains by topology key
 	domains map[string]utilsets.String
+	cluster *state.Cluster
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
 		kubeClient:        kubeClient,
+		cluster:           cluster,
 		domains:           map[string]utilsets.String{},
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
@@ -181,24 +185,14 @@ func (t *Topology) Register(topologyKey string, domain string) {
 // updateInverseAffinities is used to identify pods with anti-affinity terms so we can track those topologies.  We
 // have to look at every pod in the cluster as there is no way to query for a pod with anti-affinity terms.
 func (t *Topology) updateInverseAffinities(ctx context.Context) error {
-	var nodeList v1.NodeList
-	if err := t.kubeClient.List(ctx, &nodeList); err != nil {
-		return fmt.Errorf("listing nodes, %w", err)
-	}
-	for i := range nodeList.Items {
-		var podlist v1.PodList
-		if err := t.kubeClient.List(ctx, &podlist, client.MatchingFields{"spec.nodeName": nodeList.Items[i].Name}); err != nil {
-			return fmt.Errorf("listing pods on node %s, %w", nodeList.Items[i].Name, err)
+	var errs error
+	t.cluster.ForPodsWithAntiAffinity(func(pod *v1.Pod, node *v1.Node) bool {
+		if err := t.updateInverseAntiAffinity(ctx, pod, node.Labels); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("tracking existing pod anti-affinity, %w", err))
 		}
-		for j := range podlist.Items {
-			if pod.HasRequiredPodAntiAffinity(&podlist.Items[j]) {
-				if err := t.updateInverseAntiAffinity(ctx, &podlist.Items[j], nodeList.Items[i].Labels); err != nil {
-					return fmt.Errorf("tracking existing pod anti-affinity, %w", err)
-				}
-			}
-		}
-	}
-	return nil
+		return true
+	})
+	return errs
 }
 
 // updateInverseAntiAffinity is used to track topologies of inverse anti-affinities. Here the domains & counts track the

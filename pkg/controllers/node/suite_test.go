@@ -82,7 +82,7 @@ var _ = Describe("Controller", func() {
 					},
 				},
 			})
-			ExpectCreated(ctx, env.Client, provisioner, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -90,7 +90,7 @@ var _ = Describe("Controller", func() {
 		})
 		It("should ignore nodes without a provisioner", func() {
 			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{v1alpha5.TerminationFinalizer}}})
-			ExpectCreated(ctx, env.Client, provisioner, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -104,7 +104,7 @@ var _ = Describe("Controller", func() {
 					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
 				},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 
 			// Should still exist
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
@@ -131,8 +131,7 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -147,8 +146,7 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -160,8 +158,7 @@ var _ = Describe("Controller", func() {
 				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints:      []v1.Taint{{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule}},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -175,8 +172,7 @@ var _ = Describe("Controller", func() {
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -194,8 +190,7 @@ var _ = Describe("Controller", func() {
 					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 				},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
 
@@ -219,8 +214,7 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionUnknown,
 			})
 
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -233,8 +227,7 @@ var _ = Describe("Controller", func() {
 				ReadyStatus: v1.ConditionFalse,
 			})
 
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -245,8 +238,7 @@ var _ = Describe("Controller", func() {
 			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -260,9 +252,7 @@ var _ = Describe("Controller", func() {
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(100 * time.Second).Format(time.RFC3339),
 				}},
 			})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, node)
-			ExpectCreatedWithStatus(ctx, env.Client, test.Pod(test.PodOptions{
+			ExpectApplied(ctx, env.Client, provisioner, node, test.Pod(test.PodOptions{
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
@@ -280,7 +270,7 @@ var _ = Describe("Controller", func() {
 					v1alpha5.EmptinessTimestampAnnotationKey: time.Now().Add(-100 * time.Second).Format(time.RFC3339),
 				}},
 			})
-			ExpectCreated(ctx, env.Client, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -302,7 +292,7 @@ var _ = Describe("Controller", func() {
 					v1alpha5.EmptinessTimestampAnnotationKey: emptinessTime.Format(time.RFC3339),
 				}},
 			})
-			ExpectCreated(ctx, env.Client, provisioner, node)
+			ExpectApplied(ctx, env.Client, provisioner, node)
 			result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			Expect(result).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedRequeueTime}))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -315,8 +305,7 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -327,8 +316,7 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{"fake.com/finalizer"},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			Expect(env.Client.Delete(ctx, n)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
@@ -340,8 +328,7 @@ var _ = Describe("Controller", func() {
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 				Finalizers: []string{v1alpha5.TerminationFinalizer, "fake.com/finalizer"},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -351,8 +338,7 @@ var _ = Describe("Controller", func() {
 			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{"fake.com/finalizer"},
 			}})
-			ExpectCreated(ctx, env.Client, provisioner)
-			ExpectCreatedWithStatus(ctx, env.Client, n)
+			ExpectApplied(ctx, env.Client, provisioner, n)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)

@@ -16,6 +16,7 @@ package provisioning_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"testing"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -49,7 +50,7 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider)
+		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), cloudProvider, state.NewCluster(ctx, e.Client))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -64,7 +65,8 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Provisioning", func() {
 	It("should provision nodes", func() {
-		pods := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod())
+		ExpectApplied(ctx, env.Client, test.Provisioner())
+		pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
 		nodes := &v1.NodeList{}
 		Expect(env.Client.List(ctx, nodes)).To(Succeed())
 		Expect(len(nodes.Items)).To(Equal(1))
@@ -102,15 +104,17 @@ var _ = Describe("Provisioning", func() {
 			// Ignored, label selector does not match
 			test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"foo": "bar"}}),
 		}
-		for _, pod := range ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, schedulable...) {
+		ExpectApplied(ctx, env.Client, provisioner)
+		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, schedulable...) {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
-		for _, pod := range ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, unschedulable...) {
+		for _, pod := range ExpectProvisioned(ctx, env.Client, controller, unschedulable...) {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		}
 	})
 	It("should provision nodes for accelerators", func() {
-		for _, pod := range ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(),
+		ExpectApplied(ctx, env.Client, test.Provisioner())
+		for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")}},
 			}),
@@ -126,25 +130,26 @@ var _ = Describe("Provisioning", func() {
 	})
 	Context("Resource Limits", func() {
 		It("should not schedule when limits are exceeded", func() {
-			provisioner := test.Provisioner()
-			provisioner.Status = v1alpha5.ProvisionerStatus{
-				Resources: v1.ResourceList{
-					v1.ResourceCPU: resource.MustParse("100"),
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				Limits: v1.ResourceList{v1.ResourceCPU: resource.MustParse("20")},
+				Status: v1alpha5.ProvisionerStatus{
+					Resources: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("100"),
+					},
 				},
-			}
-			provisioner.Spec.Limits.Resources[v1.ResourceCPU] = resource.MustParse("20")
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
+			}))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 	})
 	Context("Daemonsets and Node Overhead", func() {
 		It("should account for overhead", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
 				test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				},
@@ -154,16 +159,16 @@ var _ = Describe("Provisioning", func() {
 			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 		It("should not schedule if overhead is too large", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")}},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should not schedule if resource requests are not defined and limits (requests) are too large", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
@@ -171,11 +176,11 @@ var _ = Describe("Provisioning", func() {
 					},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should schedule based on the max resource requests of containers and initContainers", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("1Gi")},
@@ -187,13 +192,13 @@ var _ = Describe("Provisioning", func() {
 					},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
 			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 		It("should not schedule if combined max resources are too large for any node", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("1Gi")},
@@ -205,34 +210,36 @@ var _ = Describe("Provisioning", func() {
 					},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should not schedule if initContainer resources are too large", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					InitResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
 					},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should be able to schedule pods if resource requests and limits are not defined", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{}))[0]
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should ignore daemonsets without matching tolerations", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
-				test.DaemonSetOptions{PodOptions: test.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
-				}},
-			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoSchedule}}}), test.UnschedulablePod(
+			ExpectApplied(ctx, env.Client,
+				test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoSchedule}}}),
+				test.DaemonSet(
+					test.DaemonSetOptions{PodOptions: test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
+					}},
+				))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
 				test.PodOptions{
 					Tolerations:          []v1.Toleration{{Operator: v1.TolerationOperator(v1.NodeSelectorOpExists)}},
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -243,13 +250,13 @@ var _ = Describe("Provisioning", func() {
 			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 		})
 		It("should ignore daemonsets with an invalid selector", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					NodeSelector:         map[string]string{"node": "invalid"},
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
 				test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				},
@@ -259,13 +266,13 @@ var _ = Describe("Provisioning", func() {
 			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 		})
 		It("should account daemonsets with NotIn operator and unspecified key", func() {
-			ExpectCreated(ctx, env.Client, test.DaemonSet(
+			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
 					NodeRequirements:     []v1.NodeSelectorRequirement{{Key: "foo", Operator: v1.NodeSelectorOpNotIn, Values: []string{"bar"}}},
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
 				}},
 			))
-			pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
 				test.PodOptions{
 					NodeRequirements:     []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-2"}}},
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"), v1.ResourceMemory: resource.MustParse("1Gi")}},
@@ -279,7 +286,8 @@ var _ = Describe("Provisioning", func() {
 	Context("Labels", func() {
 		It("should label nodes", func() {
 			provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{"test-key": "test-value", "test-key-2": "test-value-2"}})
-			for _, pod := range ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod()) {
+			ExpectApplied(ctx, env.Client, provisioner)
+			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
@@ -291,9 +299,48 @@ var _ = Describe("Provisioning", func() {
 	})
 	Context("Taints", func() {
 		It("should apply unready taints", func() {
-			for _, pod := range ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod()) {
+			ExpectApplied(ctx, env.Client, test.Provisioner())
+			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
+			}
+		})
+		It("should schedule pods that tolerate taints", func() {
+			provisioner := test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "nvidia.com/gpu", Value: "true", Effect: v1.TaintEffectNoSchedule}}})
+			ExpectApplied(ctx, env.Client, provisioner)
+			for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpEqual,
+							Value:    "true",
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Key:      "nvidia.com/gpu",
+							Operator: v1.TolerationOpExists,
+						},
+					}}),
+				test.UnschedulablePod(
+					test.PodOptions{Tolerations: []v1.Toleration{
+						{
+							Operator: v1.TolerationOpExists,
+						},
+					}}),
+			) {
+				ExpectScheduled(ctx, env.Client, pod)
 			}
 		})
 	})
@@ -305,16 +352,16 @@ var _ = Describe("Volume Topology Requirements", func() {
 		storageClass = test.StorageClass(test.StorageClassOptions{Zones: []string{"test-zone-2", "test-zone-3"}})
 	})
 	It("should not schedule if invalid pvc", func() {
-		ExpectCreated(ctx, env.Client)
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{
+		ExpectApplied(ctx, env.Client, test.Provisioner())
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{"invalid"},
 		}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should schedule to storage class zones if volume does not exist", func() {
 		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{StorageClassName: &storageClass.Name})
-		ExpectCreated(ctx, env.Client, storageClass, persistentVolumeClaim)
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{
+		ExpectApplied(ctx, env.Client, test.Provisioner(), storageClass, persistentVolumeClaim)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
 			NodeRequirements: []v1.NodeSelectorRequirement{{
 				Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-3"},
@@ -325,8 +372,8 @@ var _ = Describe("Volume Topology Requirements", func() {
 	})
 	It("should not schedule if storage class zones are incompatible", func() {
 		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{StorageClassName: &storageClass.Name})
-		ExpectCreated(ctx, env.Client, storageClass, persistentVolumeClaim)
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{
+		ExpectApplied(ctx, env.Client, test.Provisioner(), storageClass, persistentVolumeClaim)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
 			NodeRequirements: []v1.NodeSelectorRequirement{{
 				Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"},
@@ -337,8 +384,8 @@ var _ = Describe("Volume Topology Requirements", func() {
 	It("should schedule to volume zones if volume already bound", func() {
 		persistentVolume := test.PersistentVolume(test.PersistentVolumeOptions{Zones: []string{"test-zone-3"}})
 		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{VolumeName: persistentVolume.Name, StorageClassName: &storageClass.Name})
-		ExpectCreated(ctx, env.Client, storageClass, persistentVolumeClaim, persistentVolume)
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{
+		ExpectApplied(ctx, env.Client, test.Provisioner(), storageClass, persistentVolumeClaim, persistentVolume)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
 		}))[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
@@ -347,8 +394,8 @@ var _ = Describe("Volume Topology Requirements", func() {
 	It("should not schedule if volume zones are incompatible", func() {
 		persistentVolume := test.PersistentVolume(test.PersistentVolumeOptions{Zones: []string{"test-zone-3"}})
 		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{VolumeName: persistentVolume.Name, StorageClassName: &storageClass.Name})
-		ExpectCreated(ctx, env.Client, storageClass, persistentVolumeClaim, persistentVolume)
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), test.UnschedulablePod(test.PodOptions{
+		ExpectApplied(ctx, env.Client, test.Provisioner(), storageClass, persistentVolumeClaim, persistentVolume)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 			PersistentVolumeClaims: []string{persistentVolumeClaim.Name},
 			NodeRequirements: []v1.NodeSelectorRequirement{{
 				Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"},
@@ -368,7 +415,8 @@ var _ = Describe("Preferential Fallback", func() {
 				}},
 			}}}}
 			// Don't relax
-			pod = ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}}), pod)[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1"}}}}))
+			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should relax multiple terms", func() {
@@ -388,7 +436,8 @@ var _ = Describe("Preferential Fallback", func() {
 				}},
 			}}}}
 			// Success
-			pod = ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), pod)[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner())
+			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-1"))
 		})
@@ -409,7 +458,8 @@ var _ = Describe("Preferential Fallback", func() {
 				},
 			}}}
 			// Success
-			pod = ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(), pod)[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner())
+			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should relax to use lighter weights", func() {
@@ -432,7 +482,8 @@ var _ = Describe("Preferential Fallback", func() {
 				},
 			}}}
 			// Success
-			pod = ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}}), pod)[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Requirements: []v1.NodeSelectorRequirement{{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}}}}))
+			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
@@ -451,7 +502,8 @@ var _ = Describe("Preferential Fallback", func() {
 				},
 			}}}
 			// Success
-			pod = ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}}), pod)[0]
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}}))
+			pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}))
 		})
@@ -461,8 +513,8 @@ var _ = Describe("Preferential Fallback", func() {
 var _ = Describe("Multiple Provisioners", func() {
 	It("should schedule to an explicitly selected provisioner", func() {
 		provisioner := test.Provisioner()
-		ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner())
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner,
+		ExpectApplied(ctx, env.Client, provisioner, test.Provisioner())
+		pod := ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}}),
 		)[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
@@ -470,8 +522,9 @@ var _ = Describe("Multiple Provisioners", func() {
 	})
 	It("should schedule to a provisioner by labels", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{"foo": "bar"}})
-		ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner())
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner,
+		ExpectApplied(ctx, env.Client, provisioner, test.Provisioner())
+		ExpectProvisioned(ctx, env.Client, controller)
+		pod := ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{NodeSelector: provisioner.Spec.Labels}),
 		)[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
@@ -479,8 +532,8 @@ var _ = Describe("Multiple Provisioners", func() {
 	})
 	It("should not match provisioner with PreferNoSchedule taint when other provisioner match", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectPreferNoSchedule}}})
-		ExpectProvisionedDeprecated(ctx, env.Client, controller, test.Provisioner())
-		pod := ExpectProvisionedDeprecated(ctx, env.Client, controller, provisioner, test.UnschedulablePod())[0]
+		ExpectApplied(ctx, env.Client, provisioner, test.Provisioner())
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
 		Expect(node.Labels[v1alpha5.ProvisionerNameLabelKey]).ToNot(Equal(provisioner.Name))
 	})

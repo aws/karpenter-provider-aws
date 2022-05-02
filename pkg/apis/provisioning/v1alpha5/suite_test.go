@@ -16,6 +16,7 @@ package v1alpha5
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/utils/pretty"
 	"strings"
 	"testing"
 
@@ -357,5 +358,38 @@ var _ = Describe("Validation", func() {
 			B := NewRequirements(v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist})
 			Expect(A.Compatible(B)).To(Succeed())
 		})
+	})
+})
+
+var _ = Describe("Consistency", func() {
+	It("should return requirements in a consistent manner", func() {
+		nodeReqs := []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelHostname,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"a", "b", "c", "d", "e", "f", "g"},
+			},
+			{
+				Key:      v1.LabelTopologyZone,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"zone-1", "zone-2", "zone-3", "zone-4"},
+			},
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"amd64", "arm64"},
+			},
+		}
+
+		// generate an initial rendering of the requirements
+		reqs := Requirements{}.Add(nodeReqs...)
+		expected := pretty.Concise(reqs)
+
+		// all other renderings should be identical
+		for i := 0; i < 50; i++ {
+			newRequirements := Requirements{}.Add(nodeReqs...)
+			got := pretty.Concise(newRequirements)
+			Expect(got).To(Equal(expected))
+		}
 	})
 })

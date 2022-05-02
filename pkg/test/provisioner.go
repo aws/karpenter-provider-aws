@@ -39,6 +39,7 @@ type ProvisionerOptions struct {
 	Labels       map[string]string
 	Taints       []v1.Taint
 	Requirements []v1.NodeSelectorRequirement
+	Status       v1alpha5.ProvisionerStatus
 }
 
 // Provisioner creates a test pod with defaults that can be overridden by ProvisionerOptions.
@@ -72,6 +73,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			},
 			Limits: &v1alpha5.Limits{Resources: options.Limits},
 		},
+		Status: options.Status,
 	}
 	provisioner.SetDefaults(context.TODO())
 	_ = provisioner.Validate(context.TODO())

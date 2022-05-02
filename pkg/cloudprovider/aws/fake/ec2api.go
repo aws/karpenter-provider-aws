@@ -52,7 +52,21 @@ type EC2Behavior struct {
 	CalledWithCreateLaunchTemplateInput set.Set
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
-	InsufficientCapacityPools           []CapacityPool
+
+	mu                        sync.Mutex
+	insufficientCapacityPools []CapacityPool
+}
+
+func (e *EC2Behavior) SetInsufficientCapacityPools(pools []CapacityPool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.insufficientCapacityPools = pools
+}
+
+func (e *EC2Behavior) InsufficientCapacityPools() []CapacityPool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return append([]CapacityPool{}, e.insufficientCapacityPools...)
 }
 
 type EC2API struct {
@@ -66,13 +80,18 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
-	e.EC2Behavior = EC2Behavior{
-		CalledWithCreateFleetInput:          set.NewSet(),
-		CalledWithCreateLaunchTemplateInput: set.NewSet(),
-		Instances:                           sync.Map{},
-		LaunchTemplates:                     sync.Map{},
-		InsufficientCapacityPools:           []CapacityPool{},
-	}
+	e.DescribeInstancesOutput = nil
+	e.DescribeLaunchTemplatesOutput = nil
+	e.DescribeSubnetsOutput = nil
+	e.DescribeSecurityGroupsOutput = nil
+	e.DescribeInstanceTypesOutput = nil
+	e.DescribeInstanceTypeOfferingsOutput = nil
+	e.DescribeAvailabilityZonesOutput = nil
+	e.CalledWithCreateFleetInput = set.NewSet()
+	e.CalledWithCreateLaunchTemplateInput = set.NewSet()
+	e.Instances = sync.Map{}
+	e.LaunchTemplates = sync.Map{}
+	e.insufficientCapacityPools = nil
 }
 
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
@@ -91,7 +110,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 
 	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 		skipInstance := false
-		for _, pool := range e.InsufficientCapacityPools {
+		for _, pool := range e.InsufficientCapacityPools() {
 			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
 				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) &&
 				pool.CapacityType == aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) {

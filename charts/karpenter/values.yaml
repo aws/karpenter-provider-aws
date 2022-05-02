@@ -66,15 +66,27 @@ topologySpreadConstraints:
     whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
+
+# -- Additional volumes for the pod.
+extraVolumes: []
+# - name: aws-iam-token
+#   projected:
+#     defaultMode: 420
+#     sources:
+#     - serviceAccountToken:
+#         audience: sts.amazonaws.com
+#         expirationSeconds: 86400
+#         path: token
+
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.9.0-rc.0@sha256:ec7828fafe84094907027fda60318de4b9c7af0f46cb77851484a6afc25468e6"
+  image: "public.ecr.aws/karpenter/controller:v0.9.0@sha256:d2565ea67ff044360113087fc2a6d2cf0a02d10184848ea7562c0a232c9c9d58"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the controller pod.
   resources:
@@ -88,9 +100,14 @@ controller:
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
   logEncoding: ""
+  # -- Additional volumeMounts for the controller pod.
+  extraVolumeMounts: []
+  # - name: aws-iam-token
+  #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+  #   readOnly: true
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.9.0-rc.0@sha256:f4c55c87255f361cd618f299a4910074d9307873e9abd6a9e21afa68d53a15ba"
+  image: "public.ecr.aws/karpenter/webhook:v0.9.0@sha256:1ce86ff6aa66ba8aa596188966137b13b309f0fbc22663cdc48b01e5f3d2c0fc"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
@@ -98,7 +115,7 @@ webhook:
   # -- Additional environment variables for the webhook pod.
   env: []
   # - name: AWS_REGION
-  # - value: eu-west-1
+  #   value: eu-west-1
 
   # -- Resources for the webhook pod.
   resources:
@@ -112,6 +129,8 @@ webhook:
   logLevel: ""
   # -- Webhook log encoding, defaults to the global log encoding
   logEncoding: ""
+  # -- Additional volumeMounts for the webhook pod.
+  extraVolumeMounts: []
 # -- Global log level
 logLevel: debug
 # -- Gloabl log encoding

@@ -16,84 +16,81 @@ package provisioning
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
 var (
 	MaxBatchDuration  = time.Second * 10
 	BatchIdleDuration = time.Second * 1
-	// MaxItemsPerBatch limits the number of items we process at one time to avoid using too much memory
-	MaxItemsPerBatch = 2_000
 )
 
-// Batcher separates a stream of Add(item) calls into windowed slices. The
+// Batcher separates a stream of Trigger() calls into windowed slices. The
 // window is dynamic and will be extended if additional items are added up to a
-// maximum batch duration or maximum items per batch.
+// maximum batch duration.
 type Batcher struct {
-	sync.RWMutex
-	running context.Context
-	queue   chan interface{}
-	gate    context.Context
-	flush   context.CancelFunc
+	running   context.Context
+	trigger   chan struct{}
+	immediate chan struct{}
 }
 
-// NewBatcher is a constructor
+// NewBatcher is a constructor for the Batcher
 func NewBatcher(running context.Context) *Batcher {
-	gate, flush := context.WithCancel(running)
 	return &Batcher{
-		running: running,
-		queue:   make(chan interface{}),
-		gate:    gate,
-		flush:   flush,
+		running:   running,
+		trigger:   make(chan struct{}), // triggering shouldn't block
+		immediate: make(chan struct{}),
 	}
 }
 
-// Add an item to the batch, returning the next gate which the caller may block
-// on. The gate is protected by a read-write mutex, and may be modified by
-// Flush(), which makes a new gate.
-//
-// In rare scenarios, if a goroutine hangs after enqueueing but before acquiring
-// the gate lock, the batch could be flushed, resulting in the pod waiting on
-// the next gate. This will be flushed on the next batch, and may result in
-// delayed retries for the individual pod if the provisioning loop fails. In
-// practice, this won't be encountered because this time window is O(seconds).
-func (b *Batcher) Add(item interface{}) <-chan struct{} {
+// Trigger causes the batcher to start a batching window, or extend the current batching window if it hasn't reached the
+// maximum length.
+func (b *Batcher) Trigger() {
+	// it's ok to miss a trigger as that means Wait() already has a trigger inbound
 	select {
-	case b.queue <- item:
-	case <-b.running.Done():
+	case b.trigger <- struct{}{}:
+	default:
 	}
-	b.RLock()
-	defer b.RUnlock()
-	return b.gate.Done()
 }
 
-// Flush all goroutines blocking on the current gate and create a new gate.
-func (b *Batcher) Flush() {
-	b.Lock()
-	defer b.Unlock()
-	b.flush()
-	b.gate, b.flush = context.WithCancel(b.running)
+// TriggerImmediate causes the batcher to immediately end the current batching window and causes the waiter on the batching
+// window to continue.
+func (b *Batcher) TriggerImmediate() {
+	b.immediate <- struct{}{}
 }
 
 // Wait starts a batching window and returns a slice of items when closed.
-func (b *Batcher) Wait() (items []interface{}, window time.Duration) {
-	// Start the batching window after the first item is received
-	items = append(items, <-b.queue)
-	start := time.Now()
+func (b *Batcher) Wait() (window time.Duration) {
+	var start time.Time
+	select {
+	case <-b.trigger:
+		// start the batching window after the first item is received
+		start = time.Now()
+	case <-b.immediate:
+		// but for immediate triggering and context cancellations, end the batching window
+		return
+	case <-b.running.Done():
+		return
+	}
+
 	defer func() {
 		window = time.Since(start)
 	}()
+
 	timeout := time.NewTimer(MaxBatchDuration)
 	idle := time.NewTimer(BatchIdleDuration)
 	for {
-		if len(items) >= MaxItemsPerBatch {
-			return
-		}
 		select {
-		case item := <-b.queue:
+		case <-b.trigger:
+			if start.IsZero() {
+				start = time.Now()
+			}
+			// correct way to reset an active timer per docs
+			if !idle.Stop() {
+				<-idle.C
+			}
 			idle.Reset(BatchIdleDuration)
-			items = append(items, item)
+		case <-b.immediate:
+			return
 		case <-timeout.C:
 			return
 		case <-idle.C:
