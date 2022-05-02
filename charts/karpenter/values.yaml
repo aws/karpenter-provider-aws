@@ -66,7 +66,6 @@ topologySpreadConstraints:
     whenUnsatisfiable: ScheduleAnyway
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations: []
-
 # -- Additional volumes for the pod.
 extraVolumes: []
 # - name: aws-iam-token
@@ -80,7 +79,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.9.0@sha256:d2565ea67ff044360113087fc2a6d2cf0a02d10184848ea7562c0a232c9c9d58"
+  image: "public.ecr.aws/karpenter/controller:v0.9.1@sha256:341837796b644336d0d9bfbc1035e20db5b7acfa4ef5dedacb25a329d87daf27"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -107,7 +106,7 @@ controller:
   #   readOnly: true
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.9.0@sha256:1ce86ff6aa66ba8aa596188966137b13b309f0fbc22663cdc48b01e5f3d2c0fc"
+  image: "public.ecr.aws/karpenter/webhook:v0.9.1@sha256:27333251d221bd9c6a9c1cb49142e80d0486d0d6cf76fb842b5a802df05ccd21"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
