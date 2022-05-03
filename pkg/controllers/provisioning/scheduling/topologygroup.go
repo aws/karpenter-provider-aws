@@ -114,7 +114,9 @@ func (t *TopologyGroup) Counts(pod *v1.Pod, requirements v1alpha5.Requirements) 
 // Register ensures that the topology is aware of the given domain names.
 func (t *TopologyGroup) Register(domains ...string) {
 	for _, domain := range domains {
-		t.domains[domain] = 0
+		if _, ok := t.domains[domain]; !ok {
+			t.domains[domain] = 0
+		}
 	}
 }
 
