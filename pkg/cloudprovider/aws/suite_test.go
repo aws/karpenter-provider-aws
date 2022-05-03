@@ -666,6 +666,7 @@ var _ = Describe("Allocation", func() {
 			})
 			Context("Bottlerocket", func() {
 				It("should merge in custom user data", func() {
+					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
@@ -685,6 +686,7 @@ var _ = Describe("Allocation", func() {
 					Expect(expectedUserData).To(Equal(actualUserData))
 				})
 				It("should bootstrap when custom user data is empty", func() {
+					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
