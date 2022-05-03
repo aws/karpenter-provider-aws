@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/aws/karpenter/pkg/events"
+
 	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/imdario/mergo"
@@ -42,7 +44,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
+func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Stop:           stop,
@@ -52,6 +54,7 @@ func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client 
 		coreV1Client:   coreV1Client,
 		volumeTopology: NewVolumeTopology(kubeClient),
 		cluster:        cluster,
+		recorder:       recorder,
 	}
 	p.cond = sync.NewCond(&p.mu)
 	go func() {
@@ -76,6 +79,7 @@ type Provisioner struct {
 	batcher        *Batcher
 	volumeTopology *VolumeTopology
 	cluster        *state.Cluster
+	recorder       events.Recorder
 
 	mu   sync.Mutex
 	cond *sync.Cond
@@ -191,7 +195,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
 
-	return scheduling.NewScheduler(provisioners, topology, instanceTypes, daemonOverhead).Solve(ctx, pods)
+	return scheduling.NewScheduler(provisioners, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
 }
 
 func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
@@ -203,12 +207,15 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	if err := latest.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
 		return err
 	}
+
+	// apply both the taints and startup taints to the node
+	taints := append(node.Provisioner.Spec.Taints, node.Provisioner.Spec.StartupTaints...)
 	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
 		InstanceTypeOptions: node.InstanceTypeOptions,
 		Template: &cloudprovider.NodeTemplate{
 			Provider:             node.Provisioner.Spec.Provider,
 			Labels:               node.Provisioner.Spec.Labels,
-			Taints:               node.Provisioner.Spec.Taints,
+			Taints:               taints,
 			Requirements:         node.Provisioner.Spec.Requirements,
 			KubeletConfiguration: node.Provisioner.Spec.KubeletConfiguration,
 		},
@@ -241,9 +248,33 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 
 func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
 	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+
+	nodeTaints := v1alpha5.Taints(node.Spec.Taints)
+
+	notReadyTolerations := []v1.Toleration{
+		{
+			Key:      v1alpha5.NotReadyTaintKey,
+			Operator: v1.TolerationOpEqual,
+			Effect:   v1.TaintEffectNoSchedule,
+		}, {
+			Key:      v1.TaintNodeNotReady,
+			Operator: v1.TolerationOpEqual,
+			Effect:   v1.TaintEffectNoSchedule,
+		}}
+
 	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
-		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pods[i].TypeMeta, ObjectMeta: pods[i].ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
-			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pods[i].Namespace, pods[i].Name, node.Name, err)
+		pod := pods[i]
+		// Don't bind pods that would immediately get evicted.  We tolerate the two standard taints that are applied for
+		// not ready nodes as we are binding pods to these not-ready nodes intentionally (currently).  Binding pods that get
+		// evicted can cause extra nodes to be launched as we don't see the in-flight capacity until the pod is fully deleted
+		// and controllers sometimes create replacement pods while the existing ones are deleting, but not fully deleted causing
+		// us to launch new capacity.
+		if nodeTaints.Tolerates(pod, notReadyTolerations...) != nil {
+			p.recorder.PodShouldSchedule(pod, node)
+			return
+		}
+		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pod.TypeMeta, ObjectMeta: pod.ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
+			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pod.Namespace, pod.Name, node.Name, err)
 		}
 	})
 	return nil

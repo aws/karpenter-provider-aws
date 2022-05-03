@@ -33,6 +33,12 @@ type Constraints struct {
 	// pod tolerations on a per-node basis.
 	// +optional
 	Taints Taints `json:"taints,omitempty"`
+	// StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+	// within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
+	// daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
+	// purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
+	// +optional
+	StartupTaints Taints `json:"startupTaints,omitempty"`
 	// Requirements are layered with Labels and applied to every node.
 	Requirements Requirements `json:"requirements,inline,omitempty"`
 	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
@@ -61,25 +67,28 @@ func (c *Constraints) ToNode() *v1.Node {
 			}
 		}
 	}
+
+	// both the taints and startup taints are applied to nodes we create
+	taints := append(c.Taints, c.StartupTaints...)
+
+	// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
+	// from scheduling pods before we're able to bind them ourselves. The kube
+	// scheduler has an eventually consistent cache of nodes and pods, so it's
+	// possible for it to see a provisioned node before it sees the pods bound
+	// to it. This creates an edge case where other pending pods may be bound to
+	// the node by the kube scheduler, causing OutOfCPU errors when the
+	// binpacked pods race to bind to the same node. The system eventually
+	// heals, but causes delays from additional provisioning (thrash). This
+	// taint will be removed by the node controller when a node is marked ready.
+	taints = append(taints, v1.Taint{Key: NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule})
+
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:     labels,
 			Finalizers: []string{TerminationFinalizer},
 		},
 		Spec: v1.NodeSpec{
-			// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-			// from scheduling pods before we're able to bind them ourselves. The kube
-			// scheduler has an eventually consistent cache of nodes and pods, so it's
-			// possible for it to see a provisioned node before it sees the pods bound
-			// to it. This creates an edge case where other pending pods may be bound to
-			// the node by the kube scheduler, causing OutOfCPU errors when the
-			// binpacked pods race to bind to the same node. The system eventually
-			// heals, but causes delays from additional provisioning (thrash). This
-			// taint will be removed by the node controller when a node is marked ready.
-			Taints: append(c.Taints, v1.Taint{
-				Key:    NotReadyTaintKey,
-				Effect: v1.TaintEffectNoSchedule,
-			}),
+			Taints: taints,
 		},
 	}
 }

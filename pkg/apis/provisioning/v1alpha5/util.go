@@ -12,13 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package node
+package v1alpha5
 
 import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func IsReady(node *v1.Node) bool {
+// NodeIsReady returns true if all the startup taints have been removed from the node and its current status
+// is set to Ready
+func NodeIsReady(node *v1.Node, provisioner *Provisioner) bool {
+	for _, startupTaint := range provisioner.Spec.StartupTaints {
+		for i := 0; i < len(node.Spec.Taints); i++ {
+			// if the node still has a startup taint applied, it's not ready
+			if startupTaint.MatchTaint(&node.Spec.Taints[i]) {
+				return false
+			}
+		}
+	}
 	return GetCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
 }
 

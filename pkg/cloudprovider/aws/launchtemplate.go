@@ -230,7 +230,7 @@ func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
 		}
 		return true
 	}); err != nil {
-		panic(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
+		p.logger.Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
 	}
 	p.logger.Debugf("Finished hydrating the launch template cache with %d items", p.cache.ItemCount())
 }

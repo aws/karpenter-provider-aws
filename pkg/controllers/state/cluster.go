@@ -16,6 +16,7 @@ package state
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"knative.dev/pkg/logging"
@@ -59,6 +60,10 @@ type Node struct {
 	// Available is the total amount of resources that are available on the node.  This is the Allocatable minus the
 	// resources requested by all pods bound to the node.
 	Available v1.ResourceList
+	// DaemonSetRequested is the total amount of resources that have been requested by daemon sets.  This allows users
+	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
+	// included in the calculation for Available.
+	DaemonSetRequested v1.ResourceList
 
 	podRequests map[types.NamespacedName]v1.ResourceList
 }
@@ -89,7 +94,16 @@ func (c *Cluster) ForPodsWithAntiAffinity(fn func(p *v1.Pod, n *v1.Node) bool) {
 func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	var nodes []*Node
 	for _, node := range c.nodes {
+		nodes = append(nodes, node)
+	}
+	// sort nodes by creation time so we provide a consistent ordering
+	sort.Slice(nodes, func(a, b int) bool {
+		return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
+	})
+
+	for _, node := range nodes {
 		if !f(node) {
 			return
 		}
@@ -106,14 +120,21 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
 	}
 	var requested []v1.ResourceList
+	var daemonsetRequested []v1.ResourceList
 	for i := range pods.Items {
-		requests := resources.RequestsForPods(&pods.Items[i])
-		podKey := client.ObjectKeyFromObject(&pods.Items[i])
+		pod := &pods.Items[i]
+		requests := resources.RequestsForPods(pod)
+		podKey := client.ObjectKeyFromObject(pod)
 
 		n.podRequests[podKey] = requests
 		c.bindings[podKey] = n.Node.Name
+		if podutils.IsOwnedByDaemonSet(pod) {
+			daemonsetRequested = append(daemonsetRequested, requests)
+		}
 		requested = append(requested, requests)
 	}
+
+	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
 	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
 	return n
 }
@@ -156,6 +177,10 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 	// requested by the pod
 	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
+
+	// We can't easily track the changes to the DaemonsetRequested here as we no longer have the pod.  We could keep up
+	// with this separately, but if a daemonset pod is being deleted, it usually means the node is going down.  In the
+	// worst case we will resync to correct this.
 }
 
 // updatePod is called every time the pod is reconciled
@@ -225,6 +250,10 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	podRequests := resources.RequestsForPods(pod)
 	// our available capacity goes down by the amount that the pod had requested
 	n.Available = resources.Subtract(n.Available, podRequests)
+	// if it's a daemonset, we track what it has requested separately
+	if podutils.IsOwnedByDaemonSet(pod) {
+		n.DaemonSetRequested = resources.Merge(n.DaemonSetRequested, podRequests)
+	}
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
 }
