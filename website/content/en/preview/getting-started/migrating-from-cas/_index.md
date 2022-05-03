@@ -184,6 +184,7 @@ kubectl logs -f -n karpenter -c controller -l app.kubernetes.io/name=karpenter
 ```
 
 You should also see new nodes created in your cluster as the old nodes are removed
+
 ```bash
 kubectl get nodes
 ```
