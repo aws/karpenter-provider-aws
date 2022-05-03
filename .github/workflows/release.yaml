@@ -18,7 +18,6 @@ jobs:
           branch: gh-pages
           folder: charts
           target-folder: charts
-      - run: make toolchain
       - run: make stablerelease
         env:
           CLOUD_PROVIDER: aws
