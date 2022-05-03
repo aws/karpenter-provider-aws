@@ -670,7 +670,7 @@ var _ = Describe("Allocation", func() {
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
 					provider.UserData = aws.String(base64.StdEncoding.EncodeToString([]byte(content)))
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -681,14 +681,13 @@ var _ = Describe("Allocation", func() {
 					content, _ = ioutil.ReadFile("testdata/br_userdata_merged.golden")
 					// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 					actualUserData := strings.Replace(string(userData), "\n", "", -1)
-					fmt.Printf("%v", actualUserData)
 					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
 					Expect(expectedUserData).To(Equal(actualUserData))
 				})
 				It("should bootstrap when custom user data is empty", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -705,7 +704,7 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					provider.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
