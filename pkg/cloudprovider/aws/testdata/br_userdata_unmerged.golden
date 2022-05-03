@@ -1,0 +1,12 @@
+[settings]
+[settings.kubernetes]
+api-server = 'https://test-cluster'
+cluster-certificate = 'ca-bundle'
+cluster-name = 'test-cluster'
+max-pods = 110
+
+[settings.kubernetes.node-labels]
+'karpenter.sh/capacity-type' = 'on-demand'
+'karpenter.sh/provisioner-name' = '%s'
+
+[settings.kubernetes.node-taints]
