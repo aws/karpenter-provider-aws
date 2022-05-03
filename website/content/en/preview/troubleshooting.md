@@ -2,6 +2,8 @@
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
 weight: 100
+description: >
+  Troubleshoot Karpenter problems
 ---
 
 ## Node NotReady

@@ -2,6 +2,8 @@
 title: "Provisioning"
 linkTitle: "Provisioning"
 weight: 5
+description: >
+  Learn about Karpenter provisioners
 ---
 
 When you first installed Karpenter, you set up a default Provisioner.

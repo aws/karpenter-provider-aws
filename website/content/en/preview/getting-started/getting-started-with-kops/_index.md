@@ -3,6 +3,8 @@
 title: "Getting Started with kOps"
 linkTitle: "Getting Started with kOps"
 weight: 10
+description: >
+  Set up Karpenter with a kOps cluster
 ---
 
 In this example, the cluster will be running on Amazon Web Services (AWS) managed by [kOps](https://kops.sigs.k8s.io/).

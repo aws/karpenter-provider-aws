@@ -2,6 +2,8 @@
 title: "Deprovisioning"
 linkTitle: "Deprovisioning"
 weight: 10
+description: >
+  Understand different ways Karpenter deprovisions nodes
 ---
 
 Karpenter sets a Kubernetes [finalizer](https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers/) on each node it provisions.

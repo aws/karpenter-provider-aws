@@ -2,6 +2,8 @@
 title: "Control Pod Density"
 linkTitle: "Control Pod Density"
 weight: 20
+description: >
+  Learn ways to specify pod density with Karpenter
 ---
 
 Pod density is the number of pods per node. 

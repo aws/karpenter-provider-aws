@@ -2,6 +2,8 @@
 title: "Set Resource Limits"
 linkTitle: "Set Resource Limits"
 weight: 10
+description: >
+  Set resource limits with Karpenter
 ---
 
 Karpenter automatically provisions instances from the cloud provider. This often incurs hard costs. To control resource utilization and cluster size, use resource limits.

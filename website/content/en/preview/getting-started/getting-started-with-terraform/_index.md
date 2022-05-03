@@ -3,6 +3,8 @@
 title: "Getting Started with Terraform"
 linkTitle: "Getting Started with Terraform"
 weight: 10
+description: >
+  Set up Karpenter with a Terraform cluster
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable
