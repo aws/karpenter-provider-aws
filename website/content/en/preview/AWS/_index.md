@@ -2,6 +2,8 @@
 title: "AWS"
 linkTitle: "AWS"
 weight: 70
+description: >
+  Use AWS cloud provider features with Karpenter
 ---
 
 Check out the [Karpenter EKS Best Practices](https://aws.github.io/aws-eks-best-practices/karpenter/) guide.

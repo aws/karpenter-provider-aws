@@ -2,6 +2,8 @@
 title: "Provisioning Configuration"
 linkTitle: "Provisioning"
 weight: 10
+description: >
+  Learn AWS-specific Karpenter provisioning settings
 ---
 
 ## spec.provider
