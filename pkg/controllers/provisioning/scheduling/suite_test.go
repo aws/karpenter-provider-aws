@@ -16,8 +16,6 @@ package scheduling_test
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
 	"math/rand"
 	"strings"
@@ -25,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -32,6 +31,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -3569,6 +3569,77 @@ var _ = Describe("In-Flight Nodes", func() {
 			return true
 		})
 		Expect(nodesWithCPUFree).To(BeNumerically("<=", 1))
+	})
+})
+
+var _ = Describe("No Pre-Binding", func() {
+	It("should not bind pods to nodes", func() {
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+			},
+		}}
+
+		var nodeList v1.NodeList
+		// shouldn't have any nodes
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(0))
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, initialPod[0])
+
+		// should launch a single node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+		node1 := &nodeList.Items[0]
+
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, secondPod[0])
+		// shouldn't create a second node as it can bind to the inflight node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
+	It("should handle resource zeroing of extended resources by kubelet", func() {
+		// Issue #1459
+		cloudProv.InstanceTypes = fake.InstanceTypes(5)
+		const fakeGPU1 = "karpenter.sh/super-great-gpu"
+		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
+
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+				fakeGPU1:       resource.MustParse("1"),
+			},
+		}}
+
+		var nodeList v1.NodeList
+		// shouldn't have any nodes
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(0))
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, initialPod[0])
+
+		// should launch a single node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+		node1 := &nodeList.Items[0]
+
+		// simulate kubelet zeroing out the extended resources on the node at startup
+		node1.Status.Capacity[fakeGPU1] = resource.MustParse("0")
+		node1.Status.Allocatable[fakeGPU1] = resource.MustParse("0")
+
+		ExpectApplied(ctx, env.Client, node1)
+
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, secondPod[0])
+		// shouldn't create a second node as it can bind to the inflight node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
 	})
 })
 

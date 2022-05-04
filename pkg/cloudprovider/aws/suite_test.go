@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"testing"
@@ -229,7 +230,8 @@ var _ = Describe("Allocation", func() {
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
+					extendedResources := ExpectExtendedResources(node)
+					Expect(extendedResources).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -261,7 +263,8 @@ var _ = Describe("Allocation", func() {
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
+					extendedResources := ExpectExtendedResources(node)
+					Expect(extendedResources).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -1208,6 +1211,12 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
+
+func ExpectExtendedResources(node *v1.Node) v1.ResourceList {
+	extended := v1.ResourceList{}
+	Expect(json.Unmarshal([]byte(node.Annotations[v1alpha5.AnnotationExtendedResources]), &extended)).To(Succeed())
+	return extended
+}
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {

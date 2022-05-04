@@ -16,8 +16,12 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"sync"
+	"time"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"knative.dev/pkg/logging"
 
@@ -135,8 +139,40 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
-	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
+	n.Available = resources.Subtract(c.getNodeAllocatable(node), resources.Merge(requested...))
 	return n
+}
+
+// getNodeAllocatable gets the allocatable resources for the node.
+func (c *Cluster) getNodeAllocatable(node *v1.Node) v1.ResourceList {
+	allocatable := node.Status.Allocatable
+	// If the node wasn't created in the last five minutes, don't take into consideration possible kubelet resource
+	// zeroing.  This is to handle the case where a node comes up with a resource and the hardware fails in some way
+	// so that the device-plugin zeros out the resource.  We don't want to assume that it will always come back.
+	if !node.CreationTimestamp.After(time.Now().Add(-5 * time.Minute)) {
+		return allocatable
+	}
+
+	if extendedResourcesStr, ok := node.Annotations[v1alpha5.AnnotationExtendedResources]; ok {
+		extendedResources := v1.ResourceList{}
+		if err := json.Unmarshal([]byte(extendedResourcesStr), &extendedResources); err != nil {
+			logging.FromContext(c.ctx).Errorf("unmarshalling extended resource information, %s", err)
+		}
+
+		allocatable = v1.ResourceList{}
+		for k, v := range node.Status.Allocatable {
+			allocatable[k] = v
+		}
+		for resourceName, quantity := range extendedResources {
+			// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+			if resources.IsZero(node.Status.Capacity[resourceName]) &&
+				resources.IsZero(node.Status.Allocatable[resourceName]) &&
+				!quantity.IsZero() {
+				allocatable[resourceName] = quantity
+			}
+		}
+	}
+	return allocatable
 }
 
 func (c *Cluster) deleteNode(nodeName string) {

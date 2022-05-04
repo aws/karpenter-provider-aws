@@ -42,6 +42,14 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
+
+	// If the node just launched, give it some time to fully initialize and for kube-scheduler to assign pods to the
+	// node. This also allows for extended resource device plugins to initialize and assign resource capacity/allocatable
+	// quantities to the node status.
+	if n.CreationTimestamp.After(injectabletime.Now().Add(-5 * time.Minute)) {
+		return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
+	}
+
 	if !v1alpha5.NodeIsReady(n, provisioner) {
 		return reconcile.Result{}, nil
 	}
