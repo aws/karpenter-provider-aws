@@ -79,7 +79,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.9.1@sha256:341837796b644336d0d9bfbc1035e20db5b7acfa4ef5dedacb25a329d87daf27"
+  image: "public.ecr.aws/karpenter/controller:v0.9.2@sha256:6cfa787e6e4e482ed036b921dc75e4a0b1a07f2ad3f145372be044e23318b73c"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -106,7 +106,7 @@ controller:
   #   readOnly: true
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.9.1@sha256:27333251d221bd9c6a9c1cb49142e80d0486d0d6cf76fb842b5a802df05ccd21"
+  image: "public.ecr.aws/karpenter/webhook:v0.9.2@sha256:65c9162cf0cdbdd68347776ba295523d844aacb0f2d7794ec6d1f10d6a70bb92"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
