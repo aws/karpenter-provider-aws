@@ -19,16 +19,15 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/aws/karpenter/pkg/utils/rand"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
-	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -219,7 +218,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 
 	// apply both the taints and startup taints to the node
 	taints := append(node.Provisioner.Spec.Taints, node.Provisioner.Spec.StartupTaints...)
-	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
+	inflightNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
 		InstanceTypeOptions: node.InstanceTypeOptions,
 		Template: &cloudprovider.NodeTemplate{
 			Provider:             node.Provisioner.Spec.Provider,
@@ -232,60 +231,19 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
+	// this is safer for cloud providers, if they just re-used one of our maps/arrays we could get
+	// concurrent writes here
+	inflightNode = inflightNode.DeepCopy()
 
-	if err := mergo.Merge(k8sNode, node.Provisioner.Spec.ToNode()); err != nil {
-		return fmt.Errorf("merging cloud provider node, %w", err)
+	p.applyProvisionerConstraints(node.Provisioner, inflightNode)
+	if err := p.kubeClient.Create(ctx, inflightNode); err != nil {
+		return fmt.Errorf("creating inflight node, %w", err)
 	}
-	// Idempotently create a node. In rare cases, nodes can come online and
-	// self register before the controller is able to register a node object
-	// with the API server. In the common case, we create the node object
-	// ourselves to enforce the binding decision and enable images to be pulled
-	// before the node is fully Ready.
-	if _, err := p.coreV1Client.Nodes().Create(ctx, k8sNode, metav1.CreateOptions{}); err != nil {
-		if errors.IsAlreadyExists(err) {
-			logging.FromContext(ctx).Debugf("node %s already registered", k8sNode.Name)
-		} else {
-			return fmt.Errorf("creating node %s, %w", k8sNode.Name, err)
-		}
-	}
+
 	logging.FromContext(ctx).Infof("Created %s", node)
-	if err := p.bind(ctx, k8sNode, node.Pods); err != nil {
-		return fmt.Errorf("binding pods, %w", err)
+	for _, pod := range node.Pods {
+		p.recorder.PodShouldSchedule(pod, inflightNode.Name)
 	}
-	return nil
-}
-
-func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
-	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
-
-	nodeTaints := v1alpha5.Taints(node.Spec.Taints)
-
-	notReadyTolerations := []v1.Toleration{
-		{
-			Key:      v1alpha5.NotReadyTaintKey,
-			Operator: v1.TolerationOpEqual,
-			Effect:   v1.TaintEffectNoSchedule,
-		}, {
-			Key:      v1.TaintNodeNotReady,
-			Operator: v1.TolerationOpEqual,
-			Effect:   v1.TaintEffectNoSchedule,
-		}}
-
-	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
-		pod := pods[i]
-		// Don't bind pods that would immediately get evicted.  We tolerate the two standard taints that are applied for
-		// not ready nodes as we are binding pods to these not-ready nodes intentionally (currently).  Binding pods that get
-		// evicted can cause extra nodes to be launched as we don't see the in-flight capacity until the pod is fully deleted
-		// and controllers sometimes create replacement pods while the existing ones are deleting, but not fully deleted causing
-		// us to launch new capacity.
-		if nodeTaints.Tolerates(pod, notReadyTolerations...) != nil {
-			p.recorder.PodShouldSchedule(pod, node)
-			return
-		}
-		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pod.TypeMeta, ObjectMeta: pod.ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
-			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pod.Namespace, pod.Name, node.Name, err)
-		}
-	})
 	return nil
 }
 
@@ -315,6 +273,36 @@ func (p *Provisioner) getDaemonOverhead(ctx context.Context, provisioners []*v1a
 	return overhead, nil
 }
 
+func (p *Provisioner) applyProvisionerConstraints(c *v1alpha5.Provisioner, result *v1alpha5.InFlightNode) {
+	result.Spec.Provisioner = c.Name
+	if result.Spec.Labels == nil {
+		result.Spec.Labels = map[string]string{}
+	}
+	for key, value := range c.Spec.Labels {
+		result.Spec.Labels[key] = value
+	}
+	for key := range c.Spec.Requirements.Keys() {
+		if !v1alpha5.IsRestrictedNodeLabel(key) {
+			switch c.Spec.Requirements.Get(key).Type() {
+			case v1.NodeSelectorOpIn:
+				result.Spec.Labels[key] = c.Spec.Requirements.Get(key).Values().UnsortedList()[0]
+			case v1.NodeSelectorOpExists:
+				result.Spec.Labels[key] = rand.String(10)
+			}
+		}
+	}
+
+	// both the taints and startup taints are applied to nodes we create
+	result.Spec.Taints = append(result.Spec.Taints, c.Spec.Taints...)
+	result.Spec.Taints = append(result.Spec.Taints, c.Spec.StartupTaints...)
+	result.Spec.Taints = append(result.Spec.Taints, v1.Taint{
+		Key:    v1.TaintNodeNotReady,
+		Effect: v1.TaintEffectNoSchedule,
+	})
+	// put finalizers on the inflight node resource
+	result.Finalizers = append(result.Finalizers, v1alpha5.TerminationFinalizer)
+}
+
 var schedulingDuration = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
@@ -326,18 +314,6 @@ var schedulingDuration = prometheus.NewHistogramVec(
 	[]string{metrics.ProvisionerLabel},
 )
 
-var bindTimeHistogram = prometheus.NewHistogramVec(
-	prometheus.HistogramOpts{
-		Namespace: metrics.Namespace,
-		Subsystem: "allocation_controller",
-		Name:      "bind_duration_seconds",
-		Help:      "Duration of bind process in seconds. Broken down by result.",
-		Buckets:   metrics.DurationBuckets(),
-	},
-	[]string{metrics.ProvisionerLabel},
-)
-
 func init() {
-	crmetrics.Registry.MustRegister(bindTimeHistogram)
 	crmetrics.Registry.MustRegister(schedulingDuration)
 }

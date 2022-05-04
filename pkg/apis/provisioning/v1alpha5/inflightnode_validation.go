@@ -12,9 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package injectabletime
+package v1alpha5
 
-import "time"
+import (
+	"context"
 
-// Now is a time.Now() that may be mocked by tests.
-var Now = time.Now
+	"knative.dev/pkg/apis"
+)
+
+func (in *InFlightNode) Validate(ctx context.Context) (errs *apis.FieldError) {
+	return errs.Also(
+		apis.ValidateObjectMetadata(in).ViaField("metadata"),
+		in.Spec.validate(ctx).ViaField("spec"),
+	)
+}
+func (in *InFlightNodeSpec) validate(ctx context.Context) (errs *apis.FieldError) {
+	return nil
+}

@@ -24,7 +24,8 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-type InFlightNode struct {
+// ExistingNode are nodes that are in your cluster (in-flight or fully ready)
+type ExistingNode struct {
 	Pods               []*v1.Pod
 	Node               *v1.Node
 	requests           v1.ResourceList
@@ -34,11 +35,11 @@ type InFlightNode struct {
 	startupTolerations []v1.Toleration
 }
 
-func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
+func NewExistingNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *ExistingNode {
 	// the remaining daemonResources to schedule are the total daemonResources minus what has already scheduled
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
 
-	node := &InFlightNode{
+	node := &ExistingNode{
 		Node:         n.Node,
 		available:    n.Available,
 		topology:     topology,
@@ -46,12 +47,8 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		requirements: v1alpha5.NewLabelRequirements(n.Node.Labels),
 	}
 
-	// add a default toleration for the standard not ready and startup taints
-	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-		Key:      v1alpha5.NotReadyTaintKey,
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
+	// add a default toleration for the standard not ready and startup taints if the node hasn't fully
+	// launched yet
 	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
 		Key:      v1.TaintNodeNotReady,
 		Operator: v1.TolerationOpExists,
@@ -78,7 +75,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	return node
 }
 
-func (n *InFlightNode) Add(pod *v1.Pod) error {
+func (n *ExistingNode) Add(pod *v1.Pod) error {
 	taints := v1alpha5.Taints(n.Node.Spec.Taints)
 	if err := taints.Tolerates(pod, n.startupTolerations...); err != nil {
 		return err

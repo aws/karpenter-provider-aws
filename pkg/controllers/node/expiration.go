@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -26,12 +28,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 )
 
 // Expiration is a subreconciler that terminates nodes after a period of time.
 type Expiration struct {
+	clock      clock.Clock
 	kubeClient client.Client
+}
+
+func NewExpiration(clk clock.Clock, kubeClient client.Client) *Expiration {
+	return &Expiration{
+		clock:      clk,
+		kubeClient: kubeClient,
+	}
 }
 
 // Reconcile reconciles the node
@@ -43,7 +52,7 @@ func (r *Expiration) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 	// 2. Trigger termination workflow if expired
 	expirationTTL := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsUntilExpired)) * time.Second
 	expirationTime := node.CreationTimestamp.Add(expirationTTL)
-	if injectabletime.Now().After(expirationTime) {
+	if r.clock.Now().After(expirationTime) {
 		logging.FromContext(ctx).Infof("Triggering termination for expired node after %s (+%s)", expirationTTL, time.Since(expirationTime))
 		if err := r.kubeClient.Delete(ctx, node); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)

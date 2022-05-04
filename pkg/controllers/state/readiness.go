@@ -12,25 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha5
+package state
 
 import (
 	v1 "k8s.io/api/core/v1"
-)
 
-// NodeIsReady returns true if all the startup taints have been removed from the node and its current status
-// is set to Ready
-func NodeIsReady(node *v1.Node, provisioner *Provisioner) bool {
-	for _, startupTaint := range provisioner.Spec.StartupTaints {
-		for i := 0; i < len(node.Spec.Taints); i++ {
-			// if the node still has a startup taint applied, it's not ready
-			if startupTaint.MatchTaint(&node.Spec.Taints[i]) {
-				return false
-			}
-		}
-	}
-	return GetCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue
-}
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+)
 
 func GetCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
 	for _, condition := range conditions {
@@ -39,4 +27,20 @@ func GetCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.
 		}
 	}
 	return v1.NodeCondition{}
+}
+
+// isStartupTaintRemoved returns true if there are no startup taints registered for the provisioner, or if all startup
+// taints have been removed from the node
+func isStartupTaintRemoved(node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+	if provisioner != nil {
+		for _, startupTaint := range provisioner.Spec.StartupTaints {
+			for i := 0; i < len(node.Spec.Taints); i++ {
+				// if the node still has a startup taint applied, it's not ready
+				if startupTaint.MatchTaint(&node.Spec.Taints[i]) {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }

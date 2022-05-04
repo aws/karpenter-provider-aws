@@ -36,12 +36,14 @@ var (
 		scheme.AddKnownTypes(SchemeGroupVersion,
 			&Provisioner{},
 			&ProvisionerList{},
+			&InFlightNode{},
+			&InFlightNodeList{},
 		)
 		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 		return nil
 	})
 	ProvisionerNameLabelKey         = Group + "/provisioner-name"
-	NotReadyTaintKey                = Group + "/not-ready"
+	ReadyAnnotationKey              = Group + "/ready"
 	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
 	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
 	TerminationFinalizer            = Group + "/termination"

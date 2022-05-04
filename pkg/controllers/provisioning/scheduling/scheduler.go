@@ -49,7 +49,7 @@ func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, 
 		provisionerMap[provisioner.Name] = provisioner
 	}
 
-	// create our in-flight nodes
+	// create our existing nodes (both in-flight and fully ready nodes)
 	s.cluster.ForEachNode(func(node *state.Node) bool {
 		provisionerName, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
 		if !ok {
@@ -61,9 +61,10 @@ func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, 
 			// ignoring this node as it wasn't launched by a provisioner that we recognize
 			return true
 		}
-		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, provisioner.Spec.StartupTaints, s.daemonOverhead[provisioner]))
+		s.existing = append(s.existing, NewExistingNode(node, s.topology, provisioner.Spec.StartupTaints, s.daemonOverhead[provisioner]))
 		return true
 	})
+
 	return s
 }
 
@@ -75,7 +76,7 @@ type Scheduler struct {
 	preferences    *Preferences
 	topology       *Topology
 	cluster        *state.Cluster
-	inflight       []*InFlightNode
+	existing       []*ExistingNode
 	recorder       events.Recorder
 }
 
@@ -113,12 +114,12 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 }
 
 func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedule []*v1.Pod, errors map[*v1.Pod]error) {
-	// notify users of pods that can schedule to inflight capacity
+	// notify users of pods that can schedule to existing capacity
 	existingCount := 0
-	for _, node := range s.inflight {
+	for _, node := range s.existing {
 		existingCount += len(node.Pods)
 		for _, pod := range node.Pods {
-			s.recorder.PodShouldSchedule(pod, node.Node)
+			s.recorder.PodShouldSchedule(pod, node.Node.Name)
 		}
 	}
 	newCount := 0
@@ -137,8 +138,8 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedul
 }
 
 func (s *Scheduler) add(pod *v1.Pod) error {
-	// first try to schedule against an in-flight real node
-	for _, node := range s.inflight {
+	// first try to schedule against any existing nodes
+	for _, node := range s.existing {
 		if err := node.Add(pod); err == nil {
 			return nil
 		}

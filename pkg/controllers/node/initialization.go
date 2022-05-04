@@ -19,13 +19,16 @@ import (
 	"fmt"
 	"time"
 
+	clock "k8s.io/apimachinery/pkg/util/clock"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 )
 
 const InitializationTimeout = 15 * time.Minute
@@ -35,17 +38,28 @@ const InitializationTimeout = 15 * time.Minute
 // 2. Terminates nodes that don't transition to ready within InitializationTimeout
 type Initialization struct {
 	kubeClient client.Client
+	clock      clock.Clock
+	cluster    *state.Cluster
+}
+
+func NewInitialization(clk clock.Clock, client client.Client, cluster *state.Cluster) *Initialization {
+	controller := &Initialization{
+		kubeClient: client,
+		clock:      clk,
+		cluster:    cluster,
+	}
+	return controller
 }
 
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
+	if _, hasAnnotation := n.Annotations[v1alpha5.ReadyAnnotationKey]; hasAnnotation {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
 
-	if !v1alpha5.NodeIsReady(n, provisioner) {
-		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
+	if !r.cluster.IsNodeReady(n, provisioner) {
+		if age := r.clock.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
 			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
 		}
 		logging.FromContext(ctx).Infof("Triggering termination for node that failed to become ready")
@@ -54,12 +68,12 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 		}
 		return reconcile.Result{}, nil
 	}
-	taints := []v1.Taint{}
-	for _, taint := range n.Spec.Taints {
-		if taint.Key != v1alpha5.NotReadyTaintKey {
-			taints = append(taints, taint)
-		}
+
+	// If the node is ready, we can add our ready annotation as readiness check succeeding implies that all device
+	// plugins have finished initializing.
+	if n.Annotations == nil {
+		n.Annotations = map[string]string{}
 	}
-	n.Spec.Taints = taints
+	n.Annotations[v1alpha5.ReadyAnnotationKey] = "true"
 	return reconcile.Result{}, nil
 }

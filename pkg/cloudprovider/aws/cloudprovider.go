@@ -101,7 +101,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 }
 
 // Create a node given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1alpha5.InFlightNode, error) {
 	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Template.Provider)
 	if err != nil {
 		return nil, err

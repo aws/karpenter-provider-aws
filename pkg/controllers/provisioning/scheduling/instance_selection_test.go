@@ -16,10 +16,9 @@ package scheduling_test
 
 import (
 	"fmt"
+	"github.com/mitchellh/hashstructure/v2"
 	"math"
 	"math/rand"
-
-	"github.com/mitchellh/hashstructure/v2"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -32,7 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("Instance Type Selection", func() {
@@ -64,6 +62,7 @@ var _ = Describe("Instance Type Selection", func() {
 		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
 			cloudProv.InstanceTypes[i], cloudProv.InstanceTypes[j] = cloudProv.InstanceTypes[j], cloudProv.InstanceTypes[i]
 		})
+		ExpectClearClusterState(ctx, env.Client, nodeStateController, inflightNodeStateController, cluster)
 	})
 
 	// This set of tests ensure that we schedule on the cheapest valid instance type while also ensuring that all of the
@@ -498,13 +497,13 @@ var _ = Describe("Instance Type Selection", func() {
 					}}}
 				pods := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(opts), test.UnschedulablePod(opts), test.UnschedulablePod(opts))
-				nodeNames := sets.NewString()
+				nodes := map[string]*v1.Node{}
 				for _, p := range pods {
 					node := ExpectScheduled(ctx, env.Client, p)
-					nodeNames.Insert(node.Name)
+					nodes[node.Name] = node
 				}
 				// should fit on one node
-				Expect(nodeNames).To(HaveLen(1))
+				Expect(nodes).To(HaveLen(1))
 				totalPodResources := resources.RequestsForPods(pods...)
 				for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
 					totalReserved := resources.Merge(totalPodResources, it.Overhead())
@@ -513,6 +512,7 @@ var _ = Describe("Instance Type Selection", func() {
 					Expect(totalReserved.Cpu().Cmp(it.Resources()[v1.ResourceCPU])).To(Equal(-1))
 					Expect(totalReserved.Memory().Cmp(it.Resources()[v1.ResourceMemory])).To(Equal(-1))
 				}
+				ExpectClearClusterState(ctx, env.Client, nodeStateController, inflightNodeStateController, cluster)
 			}
 		}
 		for _, it := range cloudProv.InstanceTypes {

@@ -21,6 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/Pallinder/go-randomdata"
 
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -34,7 +36,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var sequentialNodeID uint64
@@ -45,6 +46,7 @@ type CloudProvider struct {
 	// CreateCalls contains the arguments for every create call that was made since it was cleared
 	mu          sync.Mutex
 	CreateCalls []*cloudprovider.NodeRequest
+	DeleteCalls []*v1.Node
 }
 
 type CreateCallArgs struct {
@@ -53,7 +55,7 @@ type CreateCallArgs struct {
 	Quantity      int
 }
 
-func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1alpha5.InFlightNode, error) {
 	c.mu.Lock()
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)
 	c.mu.Unlock()
@@ -67,28 +69,20 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 			break
 		}
 	}
-	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				v1.LabelTopologyZone:       zone,
-				v1.LabelInstanceTypeStable: instance.Name(),
-				v1alpha5.LabelCapacityType: capacityType,
-			},
-		},
-		Spec: v1.NodeSpec{
-			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
-		},
-		Status: v1.NodeStatus{
-			NodeInfo: v1.NodeSystemInfo{
-				Architecture:    instance.Architecture(),
-				OperatingSystem: v1alpha5.OperatingSystemLinux,
-			},
-			Allocatable: v1.ResourceList{
-				v1.ResourcePods:   instance.Resources()[v1.ResourcePods],
-				v1.ResourceCPU:    instance.Resources()[v1.ResourceCPU],
-				v1.ResourceMemory: instance.Resources()[v1.ResourceMemory],
-			},
+	labels := map[string]string{
+		v1.LabelTopologyZone:       zone,
+		v1.LabelInstanceTypeStable: instance.Name(),
+		v1alpha5.LabelCapacityType: capacityType,
+	}
+	for k, v := range nodeRequest.Template.Labels {
+		labels[k] = v
+	}
+	return &v1alpha5.InFlightNode{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: v1alpha5.InFlightNodeSpec{
+			Labels:   labels,
+			Capacity: instance.Resources(),
+			Overhead: instance.Overhead(),
 		},
 	}, nil
 }
@@ -147,7 +141,10 @@ func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.
 	return v1alpha5.Requirements{}, nil
 }
 
-func (c *CloudProvider) Delete(context.Context, *v1.Node) error {
+func (c *CloudProvider) Delete(_ context.Context, node *v1.Node) error {
+	c.mu.Lock()
+	c.DeleteCalls = append(c.DeleteCalls, node)
+	c.mu.Unlock()
 	return nil
 }
 

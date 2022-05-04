@@ -18,6 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/controllers/node/inflight"
+
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -92,15 +96,18 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
-	cluster := state.NewCluster(ctx, manager.GetClient())
+	realClock := &clock.RealClock{}
+	cluster := state.NewCluster(ctx, realClock, manager.GetClient())
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
+		state.NewInflightNodeController(manager.GetClient(), cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
-		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		node.NewController(manager.GetClient()),
+		termination.NewController(ctx, realClock, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
+		node.NewController(realClock, manager.GetClient(), cluster),
+		inflight.NewController(realClock, manager.GetClient(), cluster, cloudProvider),
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),

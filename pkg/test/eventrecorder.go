@@ -22,8 +22,8 @@ import (
 
 // Binding is a potential binding that was reported through event recording.
 type Binding struct {
-	Pod  *v1.Pod
-	Node *v1.Node
+	Pod      *v1.Pod
+	NodeName string
 }
 
 // EventRecorder is a mock event recorder that is used to facilitate testing.
@@ -36,26 +36,23 @@ func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
 
-func (e *EventRecorder) PodShouldSchedule(pod *v1.Pod, node *v1.Node) {
+func (e *EventRecorder) PodShouldSchedule(pod *v1.Pod, nodeName string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.bindings = append(e.bindings, Binding{pod, node})
+	e.bindings = append(e.bindings, Binding{pod, nodeName})
 }
 func (e *EventRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
 
-func (e *EventRecorder) Reset() {
-	e.ResetBindings()
-}
-
-func (e *EventRecorder) ResetBindings() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.bindings = nil
-}
-func (e *EventRecorder) ForEachBinding(f func(pod *v1.Pod, node *v1.Node)) {
+func (e *EventRecorder) ForEachBinding(f func(pod *v1.Pod, nodeName string)) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, b := range e.bindings {
-		f(b.Pod, b.Node)
+		f(b.Pod, b.NodeName)
 	}
+}
+
+func (e *EventRecorder) Reset() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.bindings = nil
 }

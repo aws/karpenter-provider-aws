@@ -67,7 +67,7 @@ func Decorate(cloudProvider cloudprovider.CloudProvider) cloudprovider.CloudProv
 	return &decorator{cloudProvider}
 }
 
-func (d *decorator) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+func (d *decorator) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1alpha5.InFlightNode, error) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "Create", d.Name()))()
 	return d.CloudProvider.Create(ctx, nodeRequest)
 }

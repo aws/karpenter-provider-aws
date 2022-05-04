@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/util/clock"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -27,12 +29,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/ptr"
 )
 
 type Terminator struct {
+	Clock         clock.Clock
 	EvictionQueue *EvictionQueue
 	KubeClient    client.Client
 	CoreV1Client  corev1.CoreV1Interface
@@ -107,7 +109,7 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window
-		if IsStuckTerminating(ptr.Pod(p)) {
+		if t.IsStuckTerminating(ptr.Pod(p)) {
 			continue
 		}
 		// Ignore static mirror pods
@@ -141,9 +143,9 @@ func (t *Terminator) evict(pods []*v1.Pod) {
 	}
 }
 
-func IsStuckTerminating(pod *v1.Pod) bool {
+func (t *Terminator) IsStuckTerminating(pod *v1.Pod) bool {
 	if pod.DeletionTimestamp == nil {
 		return false
 	}
-	return injectabletime.Now().After(pod.DeletionTimestamp.Time)
+	return t.Clock.Now().After(pod.DeletionTimestamp.Time)
 }

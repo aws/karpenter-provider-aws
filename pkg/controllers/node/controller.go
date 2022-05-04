@@ -18,6 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	clock "k8s.io/apimachinery/pkg/util/clock"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -39,12 +43,13 @@ import (
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client) *Controller {
+func NewController(clock clock.Clock, kubeClient client.Client, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:     kubeClient,
-		initialization: &Initialization{kubeClient: kubeClient},
-		emptiness:      &Emptiness{kubeClient: kubeClient},
-		expiration:     &Expiration{kubeClient: kubeClient},
+		clock:          clock,
+		initialization: NewInitialization(clock, kubeClient, cluster),
+		emptiness:      NewEmptiness(clock, kubeClient, cluster),
+		expiration:     NewExpiration(clock, kubeClient),
 	}
 }
 
@@ -52,6 +57,7 @@ func NewController(kubeClient client.Client) *Controller {
 // taints, labels, finalizers.
 type Controller struct {
 	kubeClient     client.Client
+	clock          clock.Clock
 	initialization *Initialization
 	emptiness      *Emptiness
 	expiration     *Expiration

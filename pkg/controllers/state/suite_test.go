@@ -17,6 +17,7 @@ package state_test
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"math/rand"
 	"testing"
 
@@ -58,7 +59,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	cluster = state.NewCluster(ctx, env.Client)
+	cluster = state.NewCluster(ctx, &clock.RealClock{}, env.Client)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
 })
@@ -116,13 +117,13 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
 
-		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectManualBinding(ctx, env.Client, pod1, node.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
 
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "1.5")
 
-		ExpectManualBinding(ctx, env.Client, pod2, node)
+		ExpectManualBinding(ctx, env.Client, pod2, node.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "3.5")
 	})
@@ -146,8 +147,8 @@ var _ = Describe("Node Resource Level", func() {
 		// simulate a node that already exists in our cluster
 		ExpectApplied(ctx, env.Client, pod1, pod2)
 		ExpectApplied(ctx, env.Client, node)
-		ExpectManualBinding(ctx, env.Client, pod1, node)
-		ExpectManualBinding(ctx, env.Client, pod2, node)
+		ExpectManualBinding(ctx, env.Client, pod1, node.Name)
+		ExpectManualBinding(ctx, env.Client, pod2, node.Name)
 
 		// that we just noticed
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
@@ -176,8 +177,8 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
 
-		ExpectManualBinding(ctx, env.Client, pod1, node)
-		ExpectManualBinding(ctx, env.Client, pod2, node)
+		ExpectManualBinding(ctx, env.Client, pod1, node.Name)
+		ExpectManualBinding(ctx, env.Client, pod2, node.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
 
@@ -208,7 +209,7 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
-		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectManualBinding(ctx, env.Client, pod1, node.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
 		cluster.ForEachNode(func(n *state.Node) bool {
@@ -243,7 +244,7 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
-		ExpectManualBinding(ctx, env.Client, pod1, node1)
+		ExpectManualBinding(ctx, env.Client, pod1, node1.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
 		cluster.ForEachNode(func(n *state.Node) bool {
@@ -271,7 +272,7 @@ var _ = Describe("Node Resource Level", func() {
 		})
 
 		ExpectApplied(ctx, env.Client, pod2, node2)
-		ExpectManualBinding(ctx, env.Client, pod2, node2)
+		ExpectManualBinding(ctx, env.Client, pod2, node2.Name)
 		// deleted the pod and then recreated it, but simulated only receiving an event on the new pod after it has
 		// bound and not getting the new node event entirely
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod2))
@@ -313,7 +314,7 @@ var _ = Describe("Node Resource Level", func() {
 		podCount := 0
 		for _, pod := range pods {
 			ExpectApplied(ctx, env.Client, pod)
-			ExpectManualBinding(ctx, env.Client, pod, node)
+			ExpectManualBinding(ctx, env.Client, pod, node.Name)
 			podCount++
 
 			// extra reconciles shouldn't cause it to be multiply counted
@@ -382,7 +383,7 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectApplied(ctx, env.Client, pod1, node)
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 
-		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectManualBinding(ctx, env.Client, pod1, node.Name)
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
 
@@ -393,7 +394,7 @@ var _ = Describe("Node Resource Level", func() {
 
 		ExpectApplied(ctx, env.Client, dsPod)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(dsPod))
-		ExpectManualBinding(ctx, env.Client, dsPod, node)
+		ExpectManualBinding(ctx, env.Client, dsPod, node.Name)
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(dsPod))
 
 		// just the DS request portion
@@ -428,7 +429,7 @@ var _ = Describe("Pod Anti-Affinity", func() {
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
-		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectManualBinding(ctx, env.Client, pod, node.Name)
 
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod))
@@ -465,7 +466,7 @@ var _ = Describe("Pod Anti-Affinity", func() {
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
-		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectManualBinding(ctx, env.Client, pod, node.Name)
 
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod))
@@ -499,7 +500,7 @@ var _ = Describe("Pod Anti-Affinity", func() {
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
-		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectManualBinding(ctx, env.Client, pod, node.Name)
 
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod))
@@ -543,7 +544,7 @@ var _ = Describe("Pod Anti-Affinity", func() {
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
-		ExpectManualBinding(ctx, env.Client, pod, node)
+		ExpectManualBinding(ctx, env.Client, pod, node.Name)
 
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod))

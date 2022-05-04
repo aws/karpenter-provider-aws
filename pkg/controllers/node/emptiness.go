@@ -17,7 +17,12 @@ package node
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/clock"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
 
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -27,13 +32,25 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
-	kubeClient client.Client
+	cluster        *state.Cluster
+	kubeClient     client.Client
+	firstSeenEmpty sync.Map
+	clock          clock.Clock
+}
+
+var initialEmptyDebouncePeriod = 10 * time.Second
+
+func NewEmptiness(clk clock.Clock, kubeClient client.Client, cluster *state.Cluster) *Emptiness {
+	return &Emptiness{
+		clock:      clk,
+		cluster:    cluster,
+		kubeClient: kubeClient,
+	}
 }
 
 // Reconcile reconciles the node
@@ -42,13 +59,18 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	if !v1alpha5.NodeIsReady(n, provisioner) {
+
+	if !r.cluster.IsNodeReady(n, provisioner) {
 		return reconcile.Result{}, nil
 	}
 	// 2. Remove ttl if not empty
 	empty, err := r.isEmpty(ctx, n)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if r.debounceEmptySignal(n.Name, empty) {
+		return reconcile.Result{RequeueAfter: initialEmptyDebouncePeriod}, nil
 	}
 
 	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey]
@@ -63,7 +85,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	n.Annotations = functional.UnionStringMaps(n.Annotations)
 	ttl := time.Duration(ptr.Int64Value(provisioner.Spec.TTLSecondsAfterEmpty)) * time.Second
 	if !hasEmptinessTimestamp {
-		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = injectabletime.Now().Format(time.RFC3339)
+		n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey] = r.clock.Now().Format(time.RFC3339)
 		logging.FromContext(ctx).Infof("Added TTL to empty node")
 		return reconcile.Result{RequeueAfter: ttl}, nil
 	}
@@ -72,13 +94,13 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("parsing emptiness timestamp, %s", emptinessTimestamp)
 	}
-	if injectabletime.Now().After(emptinessTime.Add(ttl)) {
+	if r.clock.Now().After(emptinessTime.Add(ttl)) {
 		logging.FromContext(ctx).Infof("Triggering termination after %s for empty node", ttl)
 		if err := r.kubeClient.Delete(ctx, n); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
 		}
 	}
-	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(injectabletime.Now())}, nil
+	return reconcile.Result{RequeueAfter: emptinessTime.Add(ttl).Sub(r.clock.Now())}, nil
 }
 
 func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
@@ -96,4 +118,19 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// debounceEmptySignal returns true if the node hasn't been empty for at least initialEmptyDebouncePeriod.  Since we don't
+// bind pods, once they are ready they are immediately empty.  This results in confusing log messages about emptiness TTL
+// annotations being added and removed for every node as it comes up.  By waiting for the node to be empty for a short
+// we allow kube-scheduler an opportunity to schedule pods against the node before we log that it is empty.
+func (r *Emptiness) debounceEmptySignal(nodeName string, currentlyEmpty bool) bool {
+	if !currentlyEmpty {
+		r.firstSeenEmpty.Delete(nodeName)
+		return false
+	}
+	firstSeenEmpty, _ := r.firstSeenEmpty.LoadOrStore(nodeName, r.clock.Now())
+	firstSeenEmptyTime := firstSeenEmpty.(time.Time)
+
+	return r.clock.Now().Sub(firstSeenEmptyTime) < initialEmptyDebouncePeriod
 }

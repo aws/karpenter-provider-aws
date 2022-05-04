@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -29,8 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
@@ -72,7 +72,7 @@ func NewInstanceProvider(ec2api ec2iface.EC2API, instanceTypeProvider *InstanceT
 // instanceTypes should be sorted by priority for spot capacity type.
 // If spot is not used, the instanceTypes are not required to be sorted
 // because we are using ec2 fleet's lowest-price OD allocation strategy
-func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*v1alpha5.InFlightNode, error) {
 	nodeRequest.InstanceTypeOptions = p.filterInstanceTypes(nodeRequest.InstanceTypeOptions)
 	if len(nodeRequest.InstanceTypeOptions) > MaxInstanceTypes {
 		nodeRequest.InstanceTypeOptions = nodeRequest.InstanceTypeOptions[0:MaxInstanceTypes]
@@ -100,8 +100,17 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		aws.StringValue(instance.Placement.AvailabilityZone),
 		getCapacityType(instance),
 	)
+	extraNodeLabels := map[string]string{}
+	if provider.AMIFamily != nil {
+		switch *provider.AMIFamily {
+		case v1alpha1.AMIFamilyAL2, v1alpha1.AMIFamilyBottlerocket, v1alpha1.AMIFamilyUbuntu:
+			extraNodeLabels[v1.LabelOSStable] = "linux"
+		default:
+			logging.FromContext(ctx).Infof("unknown AMI Family %s, not setting %s label", *provider.AMIFamily, v1.LabelOSStable)
+		}
+	}
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions, extraNodeLabels), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -254,7 +263,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType, extraNodeLabels map[string]string) *v1alpha5.InFlightNode {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
@@ -262,43 +271,39 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 
+			// Since we no longer pre-bind, we need to ensure that all resources that were possibly considered for scheduling
+			// purposes are placed on the node.  The extended resources will be moved to an annotation, while the
+			// non-extended will be left on the node.
 			resources := v1.ResourceList{}
-			for resourceName, quantity := range map[v1.ResourceName]resource.Quantity{
-				v1.ResourcePods:             instanceType.Resources()[v1.ResourcePods],
-				v1.ResourceCPU:              instanceType.Resources()[v1.ResourceCPU],
-				v1.ResourceMemory:           instanceType.Resources()[v1.ResourceMemory],
-				v1.ResourceEphemeralStorage: instanceType.Resources()[v1.ResourceEphemeralStorage],
-				v1alpha1.ResourceNVIDIAGPU:  instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU],
-				v1alpha1.ResourceAMDGPU:     instanceType.Resources()[v1alpha1.ResourceAMDGPU],
-				v1alpha1.ResourceAWSNeuron:  instanceType.Resources()[v1alpha1.ResourceAWSNeuron],
-			} {
+			for resourceName, quantity := range instanceType.Resources() {
 				if !quantity.IsZero() {
 					resources[resourceName] = quantity
 				}
 			}
 
-			return &v1.Node{
+			ifn := &v1alpha5.InFlightNode{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
+				},
+				Spec: v1alpha5.InFlightNodeSpec{
+					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
+						v1.LabelArchStable:         instanceType.Architecture(),
 						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},
-				},
-				Spec: v1.NodeSpec{
-					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
-				},
-				Status: v1.NodeStatus{
-					Allocatable: resources,
-					Capacity:    resources,
-					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
-						OSImage:         aws.StringValue(instance.ImageId),
-						OperatingSystem: v1alpha5.OperatingSystemLinux,
-					},
+					Taints:   nil,
+					Capacity: resources,
+					Overhead: instanceType.Overhead(),
 				},
 			}
+
+			for k, v := range extraNodeLabels {
+				ifn.Spec.Labels[k] = v
+			}
+
+			return ifn
 		}
 	}
 	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))

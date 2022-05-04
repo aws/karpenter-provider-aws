@@ -16,6 +16,10 @@ package node_test
 
 import (
 	"context"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/controllers/node/inflight"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -39,7 +42,11 @@ import (
 
 var ctx context.Context
 var controller *node.Controller
+var inflightNodeController *inflight.Controller
 var env *test.Environment
+var cluster *state.Cluster
+var cloudProvider *fake.CloudProvider
+var fakeClock *clock.FakeClock
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -49,7 +56,11 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client)
+		fakeClock = clock.NewFakeClock(time.Now())
+		cluster = state.NewCluster(ctx, fakeClock, e.Client)
+		cloudProvider = &fake.CloudProvider{}
+		controller = node.NewController(fakeClock, e.Client, cluster)
+		inflightNodeController = inflight.NewController(fakeClock, e.Client, cluster, cloudProvider)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -65,11 +76,12 @@ var _ = Describe("Controller", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec:       v1alpha5.ProvisionerSpec{},
 		}
+		fakeClock.SetTime(time.Now())
+		ExpectCleanedUp(ctx, env.Client)
 	})
 
 	AfterEach(func() {
-		injectabletime.Now = time.Now
-		ExpectCleanedUp(ctx, env.Client)
+
 	})
 
 	Context("Expiration", func() {
@@ -112,9 +124,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing
-			injectabletime.Now = func() time.Time {
-				return time.Now().Add(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired) * time.Second)
-			}
+			fakeClock.Step(time.Duration(*provisioner.Spec.TTLSecondsUntilExpired)*time.Second + 5*time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
@@ -122,12 +132,11 @@ var _ = Describe("Controller", func() {
 	})
 
 	Context("Initialization", func() {
-		It("should not remove the readiness taint if not ready", func() {
+		It("should not add the readiness annotation if not ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionUnknown,
 				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -135,14 +144,13 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.ReadyAnnotationKey))
 		})
-		It("should remove the readiness taint if ready", func() {
+		It("should add the readiness annotation if ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
 				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -150,9 +158,9 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).ToNot(Equal([]v1.Taint{n.Spec.Taints[1]}))
+			Expect(n.Annotations).To(HaveKey(v1alpha5.ReadyAnnotationKey))
 		})
-		It("should do nothing if ready and the readiness taint does not exist", func() {
+		It("should add readiness annotation if ready and the readiness taint does not exist", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
 				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
@@ -162,13 +170,12 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).To(HaveKey(v1alpha5.ReadyAnnotationKey))
 		})
 		It("should do nothing if not owned by a provisioner", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -176,9 +183,35 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.ReadyAnnotationKey))
 		})
-		It("should delete nodes if node not ready even after Initialization timeout ", func() {
+		It("should delete nodes if node not ready even after Initialization timeout, node object not created", func() {
+			ifn := &v1alpha5.InFlightNode{
+				ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
+				Spec: v1alpha5.InFlightNodeSpec{
+					ProviderID:  "providerID",
+					Provisioner: provisioner.Name,
+				},
+			}
+			Expect(env.Client.Create(ctx, ifn)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
+			ExpectReconcileSucceeded(ctx, inflightNodeController, client.ObjectKeyFromObject(ifn))
+
+			// Simulate time passing and a node failing to join
+			var inflightNodes v1alpha5.InFlightNodeList
+			Expect(env.Client.List(ctx, &inflightNodes)).To(Succeed())
+			Expect(inflightNodes.Items).To(HaveLen(1))
+			Expect(cloudProvider.DeleteCalls).To(HaveLen(0))
+
+			fakeClock.Step(node.InitializationTimeout + 10*time.Second)
+			ExpectReconcileSucceeded(ctx, inflightNodeController, client.ObjectKeyFromObject(ifn))
+			Expect(env.Client.List(ctx, &inflightNodes)).To(Succeed())
+
+			// the node should be deleted
+			Expect(inflightNodes.Items).To(HaveLen(0))
+			Expect(cloudProvider.DeleteCalls).To(HaveLen(1))
+		})
+		It("should delete nodes if node not ready even after Initialization timeout, node object was created", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Finalizers: []string{v1alpha5.TerminationFinalizer},
@@ -186,9 +219,6 @@ var _ = Describe("Controller", func() {
 				},
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
-				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
-				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, n)
 
@@ -199,7 +229,7 @@ var _ = Describe("Controller", func() {
 			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
 
 			// Simulate time passing and a n failing to join
-			injectabletime.Now = func() time.Time { return time.Now().Add(node.InitializationTimeout) }
+			fakeClock.Step(node.InitializationTimeout + 10*time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
@@ -239,6 +269,13 @@ var _ = Describe("Controller", func() {
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 			}})
 			ExpectApplied(ctx, env.Client, provisioner, node)
+
+			// mark it empty first to get past the debounce check
+			fakeClock.Step(30 * time.Second)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// make the node more than 5 minutes old
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -256,6 +293,8 @@ var _ = Describe("Controller", func() {
 				NodeName:   node.Name,
 				Conditions: []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}},
 			}))
+			// make the node more than 5 minutes old
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -271,6 +310,12 @@ var _ = Describe("Controller", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, node)
+			// debounce emptiness
+			fakeClock.Step(10 * time.Second)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// make the node more than 5 minutes old
+			fakeClock.Step(320 * time.Second)
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 
 			node = ExpectNodeExists(ctx, env.Client, node.Name)
@@ -279,20 +324,31 @@ var _ = Describe("Controller", func() {
 		It("should requeue reconcile if node is empty, but not past emptiness TTL", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)
 			now := time.Now()
-			injectabletime.Now = func() time.Time { return now } // injectabletime.Now() is called multiple times in function being tested.
-			emptinessTime := injectabletime.Now().Add(-10 * time.Second)
-			// Emptiness timestamps are first formatted to a string friendly (time.RFC3339) (to put it in the node object)
-			// and then eventually parsed back into time.Time when comparing ttls. Repeating that logic in the test.
-			emptinessTimestamp, _ := time.Parse(time.RFC3339, emptinessTime.Format(time.RFC3339))
-			expectedRequeueTime := emptinessTimestamp.Add(time.Duration(30 * time.Second)).Sub(injectabletime.Now()) // we should requeue in ~20 seconds.
+			fakeClock.SetTime(now)
 			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
 				Finalizers: []string{v1alpha5.TerminationFinalizer},
 				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-				Annotations: map[string]string{
-					v1alpha5.EmptinessTimestampAnnotationKey: emptinessTime.Format(time.RFC3339),
-				}},
-			})
+			}})
+
 			ExpectApplied(ctx, env.Client, provisioner, node)
+
+			// debounce the emptiness
+			fakeClock.Step(10 * time.Second)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
+			// make the node eligible to be expired
+			fakeClock.Step(320 * time.Second)
+
+			emptinessTime := fakeClock.Now().Add(-10 * time.Second)
+			node.Annotations = map[string]string{
+				v1alpha5.EmptinessTimestampAnnotationKey: emptinessTime.Format(time.RFC3339),
+			}
+			ExpectApplied(ctx, env.Client, node)
+			// Emptiness timestamps are first formatted to a string friendly (time.RFC3339) (to put it in the node object)
+			// and then eventually parsed back into time.Time when comparing ttls. Repeating that logic in the test.
+			emptinessTimestamp, _ := time.Parse(time.RFC3339, emptinessTime.Format(time.RFC3339))
+			expectedRequeueTime := emptinessTimestamp.Add(30 * time.Second).Sub(fakeClock.Now()) // we should requeue in ~20 seconds.
+
 			result := ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
 			Expect(result).To(Equal(reconcile.Result{Requeue: true, RequeueAfter: expectedRequeueTime}))
 			node = ExpectNodeExists(ctx, env.Client, node.Name)

@@ -16,8 +16,7 @@ package scheduling_test
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/karpenter/pkg/controllers/state"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"math"
 	"math/rand"
 	"strings"
@@ -25,6 +24,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -32,6 +32,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -54,6 +55,7 @@ var env *test.Environment
 var cloudProv *fake.CloudProvider
 var cluster *state.Cluster
 var nodeStateController *state.NodeController
+var inflightNodeStateController *state.InflightNodeController
 var podStateController *state.PodController
 var recorder *test.EventRecorder
 
@@ -67,7 +69,8 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProv)
-		cluster = state.NewCluster(ctx, e.Client)
+		cluster = state.NewCluster(ctx, &clock.RealClock{}, e.Client)
+		inflightNodeStateController = state.NewInflightNodeController(e.Client, cluster)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
@@ -96,8 +99,14 @@ var _ = AfterEach(func() {
 
 	ExpectCleanedUp(ctx, env.Client)
 
-	for i := range nodes.Items {
-		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodes.Items[i]))
+	var nodeKeys []client.ObjectKey
+	cluster.ForEachNode(func(n *state.Node) bool {
+		nodeKeys = append(nodeKeys, client.ObjectKeyFromObject(n.Node))
+		return true
+	})
+	for _, nk := range nodeKeys {
+		ExpectReconcileSucceeded(ctx, nodeStateController, nk)
+		ExpectReconcileSucceeded(ctx, inflightNodeStateController, nk)
 	}
 	for i := range pods.Items {
 		ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(&pods.Items[i]))
@@ -752,6 +761,7 @@ var _ = Describe("Topology", func() {
 					},
 				}))
 			ExpectScheduled(ctx, env.Client, pod[0])
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}})
@@ -794,6 +804,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology}))
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// force this pod onto zone-2
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -803,6 +814,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology}))
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// now only allow scheduling pods on zone-3
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -812,7 +824,6 @@ var _ = Describe("Topology", func() {
 				MakePods(10, test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology})...,
 			)
-
 			// max skew of 5, so test-zone-1/2 will have 1 pod each, test-zone-3 will have 6, and the rest will fail to schedule
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 6))
 		})
@@ -842,6 +853,7 @@ var _ = Describe("Topology", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, createPods(10)...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(10))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// Force this pod onto zone-2, k8s is aware of a new zone so our current max-skew is 9 after we schedule the pod.  This is
 			// OK as we've reduced the max-skew from 10 to 9.
@@ -850,6 +862,7 @@ var _ = Describe("Topology", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, createPods(1)...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(10, 1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// Force this pod onto zone-3, since we know of and can schedule to zone-3 the max-skew is 10 and scheduling the pod brings it to 9.
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -857,6 +870,7 @@ var _ = Describe("Topology", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, createPods(1)...)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(10, 1, 1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// We limit our provisioner back to zone-2 only
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -889,6 +903,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology}))
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// now only allow scheduling pods on zone-2 and zone-3
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -920,6 +935,7 @@ var _ = Describe("Topology", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, ResourceRequirements: rr}))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// now only allow scheduling pods on zone-2 and zone-3
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -1171,6 +1187,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology}))
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			// now only allow scheduling pods on on-demand
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
@@ -1203,6 +1220,7 @@ var _ = Describe("Topology", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels},
 					ResourceRequirements: rr, TopologySpreadConstraints: topology}))
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1))
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeOnDemand}})
@@ -1345,6 +1363,7 @@ var _ = Describe("Topology", func() {
 			}))
 
 			ExpectScheduled(ctx, env.Client, pod[0])
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
 
 			topology := []v1.TopologySpreadConstraint{{
 				TopologyKey:       v1alpha5.LabelCapacityType,
@@ -2157,6 +2176,8 @@ var _ = Describe("Topology", func() {
 
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, zoneAnywherePod, affPod)
+			ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
+
 			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(zoneAnywherePod))
 			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(affPod))
 			// the pod with anti-affinity will schedule first due to first fit-descending, but we don't know which zone it landed in
@@ -2663,7 +2684,7 @@ var _ = Describe("Taints", func() {
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
 		)[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
+		Expect(node.Spec.Taints).To(HaveLen(1)) // Expect no taints generated beyond the default
 	})
 })
 
@@ -3239,7 +3260,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		node3 := ExpectScheduled(ctx, env.Client, thirdPod[0])
 		Expect(node1.Name).ToNot(Equal(node3.Name))
 	})
-	It("should launch a second node if a pod won't fit on the inflight node", func() {
+	It("should launch a second node if a pod won't fit on the existing node", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
@@ -3248,6 +3269,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		}}
 		initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 
 		// the node will have 2000m CPU, so these two pods can't both fit on it
 		opts.ResourceRequirements.Limits[v1.ResourceCPU] = resource.MustParse("1")
@@ -3255,7 +3277,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 		Expect(node1.Name).ToNot(Equal(node2.Name))
 	})
-	It("should launch a second node if a pod isn't compatible with the inflight node (node selector)", func() {
+	It("should launch a second node if a pod isn't compatible with the existing node (node selector)", func() {
 		ExpectApplied(ctx, env.Client, provisioner)
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
@@ -3361,7 +3383,7 @@ var _ = Describe("In-Flight Nodes", func() {
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 				test.UnschedulablePod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: labels}, TopologySpreadConstraints: topology}),
 			)
-			// we prefer to launch new nodes to satisfy the topology spread even though we could technnically schedule against inflight
+			// we prefer to launch new nodes to satisfy the topology spread even though we could technnically schedule against existing
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 1, 1, 1, 1, 1, 1, 1, 1))
 		})
 	})
@@ -3411,29 +3433,6 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 		})
-		It("should assume pod will schedule to a tainted node with only the standard startup taint", func() {
-			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Limits: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceCPU: resource.MustParse("8"),
-				},
-			}}
-			ExpectApplied(ctx, env.Client, provisioner)
-			initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
-			node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
-
-			// delete the pod so that the node is empty
-			ExpectDeleted(ctx, env.Client, initialPod[0])
-			node1.Spec.Taints = []v1.Taint{{
-				Key:    v1alpha5.NotReadyTaintKey,
-				Effect: v1.TaintEffectNoSchedule,
-			}}
-			ExpectApplied(ctx, env.Client, node1)
-			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
-
-			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
-			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
-			Expect(node1.Name).To(Equal(node2.Name))
-		})
 		It("should assume pod will schedule to a tainted node with a custom startup taint", func() {
 			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Limits: map[v1.ResourceName]resource.Quantity{
@@ -3451,7 +3450,13 @@ var _ = Describe("In-Flight Nodes", func() {
 
 			// delete the pod so that the node is empty
 			ExpectDeleted(ctx, env.Client, initialPod[0])
-			Expect(node1.Spec.Taints).To(HaveLen(3))
+			// startup taint + node not ready taint = 2
+			Expect(node1.Spec.Taints).To(HaveLen(2))
+			Expect(node1.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "foo.com/taint",
+				Value:  "tainted",
+				Effect: v1.TaintEffectNoSchedule,
+			}))
 			ExpectApplied(ctx, env.Client, node1)
 			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 
@@ -3504,27 +3509,27 @@ var _ = Describe("In-Flight Nodes", func() {
 			ExpectApplied(ctx, env.Client, provisioner, dsPod)
 			cluster.ForEachNode(func(f *state.Node) bool {
 				Expect(f.DaemonSetRequested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 0))
-				// no pods so we have the full 16 CPU
-				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 16))
+				// no pods so we have the full 16 CPU minus the overhead
+				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 15.9))
 				return true
 			})
-			ExpectManualBinding(ctx, env.Client, dsPod, node1)
+			ExpectManualBinding(ctx, env.Client, dsPod, node1.Name)
 			ExpectReconcileSucceeded(ctx, podStateController, client.ObjectKeyFromObject(dsPod))
 
 			cluster.ForEachNode(func(f *state.Node) bool {
 				Expect(f.DaemonSetRequested.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 1))
 				// only the DS pod is bound, so available is reduced by one and the DS requested is incremented by one
-				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 15))
+				Expect(f.Available.Cpu().AsApproximateFloat64()).To(BeNumerically("~", 14.9))
 				return true
 			})
 
 			opts = test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Limits: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceCPU: resource.MustParse("15"),
+					v1.ResourceCPU: resource.MustParse("14.9"),
 				},
 			}}
-			// this pod should schedule on the inflight node as the daemonset pod has already bound, meaning that the
-			// remaining daemonset resources should be zero leaving 15 CPUs for the pod
+			// this pod should schedule on the existing node as the daemonset pod has already bound, meaning that the
+			// remaining daemonset resources should be zero leaving ~15 CPUs for the pod
 			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).To(Equal(node2.Name))
@@ -3569,6 +3574,96 @@ var _ = Describe("In-Flight Nodes", func() {
 			return true
 		})
 		Expect(nodesWithCPUFree).To(BeNumerically("<=", 1))
+	})
+})
+
+var _ = Describe("No Pre-Binding", func() {
+	It("should not bind pods to nodes", func() {
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+			},
+		}}
+
+		var nodeList v1alpha5.InFlightNodeList
+		// shouldn't have any nodes
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(0))
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, initialPod[0])
+
+		// should launch a single node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(len(nodeList.Items)).To(BeNumerically("==", 1))
+
+		ExpectReconcileSucceeded(ctx, inflightNodeStateController, client.ObjectKeyFromObject(&nodeList.Items[0]))
+		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, secondPod[0])
+
+		// shouldn't create a second node as it can bind to the existing node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(len(nodeList.Items)).To(BeNumerically("==", 1))
+	})
+	It("should handle resource zeroing of extended resources by kubelet", func() {
+		Skip("fix this")
+		// Issue #1459
+		cloudProv.InstanceTypes = fake.InstanceTypes(5)
+		const fakeGPU1 = "karpenter.sh/super-great-gpu"
+		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
+
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+				fakeGPU1:       resource.MustParse("1"),
+			},
+		}}
+
+		// shouldn't have any nodes
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		var nodeList v1alpha5.InFlightNodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+		// TODO(todd): fix this
+		/*
+			recorder.ForEachNodeResult(func(n *cloudprovider.NodeResult) {
+				k8sNode := test.Node(test.NodeOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   n.Name,
+						Labels: n.Labels,
+					},
+					Taints:      n.Taints,
+					Allocatable: n.Capacity,
+					Capacity:    n.Capacity,
+				})
+				ExpectApplied(ctx, env.Client, k8sNode)
+			})*/
+		ExpectNotScheduled(ctx, env.Client, initialPod[0])
+
+		// should launch a single node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+		node1 := &nodeList.Items[0]
+
+		// simulate kubelet zeroing out the extended resources on the node at startup
+		//node1.Status.Capacity[fakeGPU1] = resource.MustParse("0")
+		//node1.Status.Allocatable[fakeGPU1] = resource.MustParse("0")
+
+		ExpectApplied(ctx, env.Client, node1)
+
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		ExpectNotScheduled(ctx, env.Client, secondPod[0])
+		// shouldn't create a second node as it can bind to the existing node
+		numNodes := 0
+		cluster.ForEachNode(func(n *state.Node) bool {
+			numNodes++
+			return true
+		})
+		Expect(numNodes).To(BeNumerically("==", 1))
 	})
 })
 

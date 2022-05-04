@@ -21,6 +21,12 @@ import (
 	"sync"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/aws/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
+
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/onsi/ginkgo"
@@ -128,6 +134,12 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		nodes.Items[i].SetFinalizers([]string{})
 		Expect(c.Update(ctx, &nodes.Items[i])).To(Succeed())
 	}
+	inflightNodes := &v1alpha5.InFlightNodeList{}
+	Expect(c.List(ctx, inflightNodes)).To(Succeed())
+	for i := range inflightNodes.Items {
+		inflightNodes.Items[i].SetFinalizers([]string{})
+		Expect(c.Update(ctx, &inflightNodes.Items[i])).To(Succeed())
+	}
 	for _, object := range []client.Object{
 		&v1.Pod{},
 		&v1.Node{},
@@ -137,6 +149,7 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
 		&v1alpha5.Provisioner{},
+		&v1alpha5.InFlightNode{},
 	} {
 		for _, namespace := range namespaces.Items {
 			wg.Add(1)
@@ -147,10 +160,55 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 			}(object, namespace.Name)
 		}
 	}
+
+	Expect(c.List(ctx, inflightNodes)).To(Succeed())
 	wg.Wait()
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
+	ExpectProvisionedNoBinding(ctx, c, controller, pods...)
+
+	recorder := controller.Recorder().(*test.EventRecorder)
+
+	// create the nodes
+	var inflightNodes v1alpha5.InFlightNodeList
+	Expect(c.List(ctx, &inflightNodes)).To(Succeed())
+	for i, node := range inflightNodes.Items {
+		k8sNode := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       node.Name,
+				Labels:     node.Spec.Labels,
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+			},
+			Spec: v1.NodeSpec{
+				Taints:     node.Spec.Taints,
+				ProviderID: node.Spec.ProviderID,
+			},
+			Status: v1.NodeStatus{
+				Capacity:    node.Spec.Capacity,
+				Allocatable: resources.Subtract(node.Spec.Capacity, node.Spec.Overhead),
+			},
+		}
+		ExpectApplied(ctx, c, k8sNode)
+
+		inflightNodes.Items[i].SetFinalizers(nil)
+		Expect(c.Update(ctx, &inflightNodes.Items[i])).To(Succeed())
+		ExpectDeleted(ctx, c, &inflightNodes.Items[i])
+	}
+	recorder.ForEachBinding(func(pod *v1.Pod, nodeName string) {
+		ExpectManualBinding(ctx, c, pod, nodeName)
+	})
+	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
+	recorder.Reset()
+
+	// Update objects after reconciling
+	for _, pod := range pods {
+		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
+	}
+	return
+}
+
+func ExpectProvisionedNoBinding(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	for _, pod := range pods {
 		ExpectApplied(ctx, c, pod)
@@ -167,18 +225,11 @@ func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisi
 
 	controller.TriggerAndWait() //nolint , method is deprecated and used for unit testing only
 
-	recorder := controller.Recorder().(*test.EventRecorder)
-	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
-		ExpectManualBinding(ctx, c, pod, node)
-	})
-	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
-	recorder.ResetBindings()
-
 	// Update objects after reconciling
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
 	}
-	return result
+	return
 }
 
 func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
@@ -199,12 +250,61 @@ func ExpectMetric(prefix string) *prometheus.MetricFamily {
 	Expect(selected).ToNot(BeNil(), fmt.Sprintf("expected to find a '%s' metric", prefix))
 	return selected
 }
-func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
+func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, nodeName string) {
 	Expect(c.Create(ctx, &v1.Binding{
 		TypeMeta:   pod.TypeMeta,
 		ObjectMeta: pod.ObjectMeta,
 		Target: v1.ObjectReference{
-			Name: node.Name,
+			Name: nodeName,
 		},
 	})).To(Succeed())
+}
+
+func ExpectClearClusterState(ctx context.Context, c client.Client, nodeController *state.NodeController, inflightController *state.InflightNodeController, cluster *state.Cluster) {
+	var nodes []*v1.Node
+	var inflight []*v1.Node
+	cluster.ForEachNode(func(n *state.Node) bool {
+		if n.InFlightNode {
+			inflight = append(inflight, n.Node)
+		} else {
+			nodes = append(nodes, n.Node)
+		}
+		return true
+	})
+	for _, n := range nodes {
+		ExpectDeleted(ctx, c, n)
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(n))
+	}
+	for _, n := range inflight {
+		ExpectDeleted(ctx, c, n)
+		ExpectReconcileSucceeded(ctx, inflightController, client.ObjectKeyFromObject(n))
+	}
+}
+
+// ExpectTaintExistingNodes adds taints to any existing nodes and registers them with the cluster state controller.  This
+// is used to update legacy tests that existed before inflight node support.  Those tests assumed that for nodes launched
+// in a round of scheduling, pods from future rounds of scheduling would not run on the existing nodes.
+func ExpectTaintExistingNodes(ctx context.Context, c client.Client, nodeController *state.NodeController) {
+	var nodeList v1.NodeList
+	Expect(c.List(ctx, &nodeList)).To(Succeed())
+	const testTaint = "test.com/suite-test"
+	for i := range nodeList.Items {
+		node := nodeList.Items[i]
+		taintAlreadyApplied := false
+		for _, t := range node.Spec.Taints {
+			if t.Key == testTaint {
+				taintAlreadyApplied = true
+			}
+		}
+		if taintAlreadyApplied {
+			continue
+		}
+		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{
+			Key:    testTaint,
+			Value:  "true",
+			Effect: v1.TaintEffectNoSchedule,
+		})
+		Expect(c.Update(ctx, &node)).To(Succeed())
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(&node))
+	}
 }

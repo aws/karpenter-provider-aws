@@ -36,7 +36,7 @@ type CloudProvider interface {
 	// callback pattern to enable cloudproviders to batch capacity creation
 	// requests. The callback must be called with a theoretical node object that
 	// is fulfilled by the cloud providers capacity creation request.
-	Create(context.Context, *NodeRequest) (*v1.Node, error)
+	Create(context.Context, *NodeRequest) (*v1alpha5.InFlightNode, error)
 	// Delete node in cloudprovider
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.

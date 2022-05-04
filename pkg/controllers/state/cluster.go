@@ -19,6 +19,12 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/aws/karpenter/pkg/utils/sets"
+
+	"k8s.io/apimachinery/pkg/util/clock"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+
 	"knative.dev/pkg/logging"
 
 	v1 "k8s.io/api/core/v1"
@@ -32,23 +38,29 @@ import (
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
 	ctx        context.Context
+	clock      clock.Clock
 	kubeClient client.Client
 
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
 	// Node Status & Pod -> Node Binding
-	mu       sync.RWMutex
-	nodes    map[string]*Node                // node name -> node
-	bindings map[types.NamespacedName]string // pod namespaced named -> node name
+	mu                sync.RWMutex
+	nodes             map[string]*Node                // node name -> node
+	inflightNodes     map[string]*Node                // node name -> inflight node
+	bindings          map[types.NamespacedName]string // pod namespaced named -> node name
+	extendedResources map[string]v1.ResourceList      // node name -> extended resources
 }
 
-func NewCluster(ctx context.Context, client client.Client) *Cluster {
+func NewCluster(ctx context.Context, clock clock.Clock, client client.Client) *Cluster {
 	return &Cluster{
-		ctx:        ctx,
-		kubeClient: client,
-		nodes:      map[string]*Node{},
-		bindings:   map[types.NamespacedName]string{},
+		ctx:               ctx,
+		clock:             clock,
+		kubeClient:        client,
+		nodes:             map[string]*Node{},
+		inflightNodes:     map[string]*Node{},
+		bindings:          map[types.NamespacedName]string{},
+		extendedResources: map[string]v1.ResourceList{},
 	}
 }
 
@@ -57,6 +69,8 @@ func NewCluster(ctx context.Context, client client.Client) *Cluster {
 // compute topology information.
 type Node struct {
 	Node *v1.Node
+	// InFlightNode is true if we've launched a node, but the node object hasn't been created by kubelet yet.
+	InFlightNode bool
 	// Available is the total amount of resources that are available on the node.  This is the Allocatable minus the
 	// resources requested by all pods bound to the node.
 	Available v1.ResourceList
@@ -64,6 +78,8 @@ type Node struct {
 	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
+
+	Provisioner *v1alpha5.Provisioner
 
 	podRequests map[types.NamespacedName]v1.ResourceList
 }
@@ -95,9 +111,20 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	var nodes []*Node
+	seen := sets.NewSet()
 	for _, node := range c.nodes {
 		nodes = append(nodes, node)
+		seen.Insert(node.Node.Name)
 	}
+
+	// only look at in-flight nodes for which we don't have a real node object
+	for _, node := range c.inflightNodes {
+		if seen.Has(node.Node.Name) {
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+
 	// sort nodes by creation time so we provide a consistent ordering
 	sort.Slice(nodes, func(a, b int) bool {
 		return nodes[a].Node.CreationTimestamp.Time.Before(nodes[b].Node.CreationTimestamp.Time)
@@ -110,11 +137,23 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	}
 }
 
+// newNode constructs a new node. This assumes the mutex is already locked.
 func (c *Cluster) newNode(node *v1.Node) *Node {
 	n := &Node{
 		Node:        node,
 		podRequests: map[types.NamespacedName]v1.ResourceList{},
 	}
+
+	// store the provisioner if it exists
+	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
+		var provisioner v1alpha5.Provisioner
+		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			logging.FromContext(c.ctx).Errorf("getting provisioner, %s", err)
+		} else {
+			n.Provisioner = &provisioner
+		}
+	}
+
 	var pods v1.PodList
 	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
@@ -135,14 +174,47 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
-	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
+	n.Available = resources.Subtract(c.getNodeAllocatable(node, n.Provisioner), resources.Merge(requested...))
 	return n
+}
+
+// getNodeAllocatable gets the allocatable resources for the node. This assumes the mutex is already locked.
+func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
+	allocatable := node.Status.Allocatable
+	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
+	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
+	// out the resource.  We don't want to assume that it will always come back.
+	if c.nodeIsReady(node, provisioner) {
+		// once the node is ready, we can delete any extended resource knowledge
+		delete(c.extendedResources, node.Name)
+		return allocatable
+	}
+
+	extendedResources, ok := c.extendedResources[node.Name]
+	if !ok {
+		return allocatable
+	}
+
+	allocatable = v1.ResourceList{}
+	for k, v := range node.Status.Allocatable {
+		allocatable[k] = v
+	}
+	for resourceName, quantity := range extendedResources {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			allocatable[resourceName] = quantity
+		}
+	}
+	return allocatable
 }
 
 func (c *Cluster) deleteNode(nodeName string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.nodes, nodeName)
+	delete(c.extendedResources, nodeName)
 }
 
 // updateNode is called for every node reconciliation
@@ -256,4 +328,103 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	}
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
+}
+
+// IsNodeReady returns true if:
+// a) its current status is set to Ready
+// b) all the startup taints have been removed from the node
+// c) all extended resources have been registered
+// This method handles both nil provisioners and nodes without extended resources gracefully.
+func (c *Cluster) IsNodeReady(node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.nodeIsReady(node, provisioner)
+}
+
+var kubletNotReadyTaint = &v1.Taint{
+	Key:    "node.kubernetes.io/not-ready",
+	Effect: v1.TaintEffectNoExecute,
+}
+
+// nodeIsReady is the internal readiness check method that is called with the mutex locked.
+func (c *Cluster) nodeIsReady(node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+	// fast checks first
+	if GetCondition(node.Status.Conditions, v1.NodeReady).Status != v1.ConditionTrue {
+		return false
+	}
+	// this taint is removed by the node controller when the condition above is true, but by looking for it we avoid
+	// thinking the node is ready before the taint is actually removed
+	for _, taint := range node.Spec.Taints {
+		if taint.MatchTaint(kubletNotReadyTaint) {
+			return false
+		}
+	}
+
+	return isStartupTaintRemoved(node, provisioner) && c.isExtendedResourceRegistered(node)
+}
+
+// isExtendedResourceRegistered returns true if there are no extended resources on the node, or they have all been
+// registered by device plugins. This assumes the mutex is already locked.
+func (c *Cluster) isExtendedResourceRegistered(node *v1.Node) bool {
+	extendedResources, ok := c.extendedResources[node.Name]
+	if !ok {
+		return true
+	}
+
+	for resourceName, quantity := range extendedResources {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup, so if our
+		// annotation says the resource should be there, but it's zero'd in both then the device plugin hasn't
+		// registered it yet
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Cluster) updateInflightNode(node *v1alpha5.InFlightNode) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	n := &Node{
+		Node:               node.ToNode(),
+		InFlightNode:       true,
+		Available:          resources.Subtract(node.Spec.Capacity, node.Spec.Overhead),
+		DaemonSetRequested: v1.ResourceList{},
+		podRequests:        map[types.NamespacedName]v1.ResourceList{},
+	}
+
+	c.inflightNodes[node.Name] = n
+
+	// store the provisioner if it exists
+	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
+		var provisioner v1alpha5.Provisioner
+		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			logging.FromContext(c.ctx).Errorf("getting provisioner, %s", err)
+		} else {
+			n.Provisioner = &provisioner
+		}
+	}
+
+	// record the non-zero extended resources so we are aware for in-flight nodes and of the final expected state
+	// while device plugins are starting up
+	nonZeroExtendedResources := v1.ResourceList{}
+	for name, quantity := range node.Spec.Capacity {
+		if resources.IsExtended(name) {
+			if !quantity.IsZero() {
+				nonZeroExtendedResources[name] = quantity
+			}
+		}
+	}
+	if len(nonZeroExtendedResources) != 0 {
+		c.extendedResources[node.Name] = nonZeroExtendedResources
+	}
+}
+
+func (c *Cluster) deleteInflightNode(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.inflightNodes, name)
 }

@@ -151,3 +151,14 @@ func String(list v1.ResourceList) string {
 	}
 	return pretty.Concise(list)
 }
+
+// IsExtended returns true if the resource is an extended resource
+func IsExtended(name v1.ResourceName) bool {
+	switch name {
+	case v1.ResourceCPU, v1.ResourceMemory, v1.ResourcePods, v1.ResourceStorage,
+		v1.ResourceEphemeralStorage:
+		return false
+	default:
+		return true
+	}
+}

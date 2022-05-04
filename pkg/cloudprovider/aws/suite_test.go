@@ -18,10 +18,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/clock"
 	"math"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -31,23 +36,20 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-
-	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 )
 
 var ctx context.Context
@@ -63,6 +65,8 @@ var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
+var nodeStateController *state.NodeController
+var inflightNodeStateController *state.InflightNodeController
 var recorder *test.EventRecorder
 
 func TestAPIs(t *testing.T) {
@@ -78,6 +82,7 @@ var _ = BeforeSuite(func() {
 			ClusterEndpoint:           "https://test-cluster",
 			AWSNodeNameConvention:     string(options.IPName),
 			AWSENILimitedPodDensity:   true,
+			AWSEnablePodENI:           true,
 			AWSDefaultInstanceProfile: "test-instance-profile",
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
@@ -119,7 +124,9 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		cluster = state.NewCluster(ctx, e.Client)
+		cluster = state.NewCluster(ctx, &clock.RealClock{}, e.Client)
+		nodeStateController = state.NewNodeController(e.Client, cluster)
+		inflightNodeStateController = state.NewInflightNodeController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
 		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	})
@@ -137,6 +144,7 @@ var _ = Describe("Allocation", func() {
 
 	BeforeEach(func() {
 		provider = &v1alpha1.AWS{
+			AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 			SubnetSelector:        map[string]string{"foo": "bar"},
 			SecurityGroupSelector: map[string]string{"foo": "bar"},
 		}
@@ -147,13 +155,35 @@ var _ = Describe("Allocation", func() {
 		subnetCache.Flush()
 		unavailableOfferingsCache.Flush()
 		amiCache.Flush()
+		recorder.Reset()
 	})
 
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
+		ExpectClearClusterState(ctx, env.Client, nodeStateController, inflightNodeStateController, cluster)
 	})
 
 	Context("Reconciliation", func() {
+		Context("Standard Labels", func() {
+			It("should apply OS label based on the AMI Family", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
+			})
+			It("should apply Arch label based on the Instance Type Arch", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
+			})
+			It("should apply instance type label", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+			})
+		})
 		Context("Specialized Hardware", func() {
 			It("should not launch AWS Pod ENI on a t3", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -185,6 +215,29 @@ var _ = Describe("Allocation", func() {
 					ExpectScheduled(ctx, env.Client, pod)
 				}
 			})
+			It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
+				// ensure the pod ENI option is off
+				optsCopy := opts
+				optsCopy.AWSEnablePodENI = false
+				cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
+				// ensure the provisioner is shut down at the end of this test
+				defer cancelFunc()
+				// clear any cached instance types
+				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
+				provisionContoller := provisioning.NewController(cancelCtx, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				ExpectApplied(ctx, env.Client, provisioner)
+				for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+						},
+					})) {
+					ExpectNotScheduled(cancelCtx, env.Client, pod)
+				}
+				// and ensure no one gets our no-ENI instance types
+				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
+			})
 			It("should launch AWS Pod ENI on a compatible instance type", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
@@ -206,7 +259,7 @@ var _ = Describe("Allocation", func() {
 			It("should launch instances for Nvidia GPU resource requests", func() {
 				nodeNames := sets.NewString()
 				ExpectApplied(ctx, env.Client, provisioner)
-				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+				ExpectProvisionedNoBinding(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1")},
@@ -226,18 +279,26 @@ var _ = Describe("Allocation", func() {
 							Requests: v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
 							Limits:   v1.ResourceList{v1alpha1.ResourceNVIDIAGPU: resource.MustParse("4")},
 						},
-					})) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
-					nodeNames.Insert(node.Name)
+					}))
+
+				var nodeList v1alpha5.InFlightNodeList
+				Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+				for i := range nodeList.Items {
+					ExpectReconcileSucceeded(ctx, inflightNodeStateController, client.ObjectKeyFromObject(&nodeList.Items[i]))
 				}
+
+				cluster.ForEachNode(func(n *state.Node) bool {
+					Expect(n.Node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
+					Expect(n.Available).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
+					nodeNames.Insert(n.Node.Name)
+					return true
+				})
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 			It("should launch instances for AWS Neuron resource requests", func() {
 				nodeNames := sets.NewString()
 				ExpectApplied(ctx, env.Client, provisioner)
-				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
+				ExpectProvisionedNoBinding(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
@@ -258,12 +319,21 @@ var _ = Describe("Allocation", func() {
 							Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 						},
 					}),
-				) {
-					node := ExpectScheduled(ctx, env.Client, pod)
-					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
-					nodeNames.Insert(node.Name)
+				)
+
+				var nodeList v1alpha5.InFlightNodeList
+				Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+				for i := range nodeList.Items {
+					ExpectReconcileSucceeded(ctx, inflightNodeStateController, client.ObjectKeyFromObject(&nodeList.Items[i]))
 				}
+
+				cluster.ForEachNode(func(n *state.Node) bool {
+					Expect(n.Node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+					Expect(n.Available).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
+					nodeNames.Insert(n.Node.Name)
+					return true
+				})
+
 				Expect(nodeNames.Len()).To(Equal(2))
 			})
 		})
@@ -447,6 +517,8 @@ var _ = Describe("Allocation", func() {
 						ResourceRequirements: rr,
 					}),
 				)[0]
+				ExpectTaintExistingNodes(ctx, env.Client, nodeStateController)
+
 				ExpectScheduled(ctx, env.Client, pod1)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
 				name1 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName

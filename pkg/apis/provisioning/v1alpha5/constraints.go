@@ -15,11 +15,7 @@ limitations under the License.
 package v1alpha5
 
 import (
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/aws/karpenter/pkg/utils/rand"
 )
 
 // Constraints are applied to all nodes created by the provisioner.
@@ -51,44 +47,3 @@ type Constraints struct {
 
 // +kubebuilder:object:generate=false
 type Provider = runtime.RawExtension
-
-func (c *Constraints) ToNode() *v1.Node {
-	labels := map[string]string{}
-	for key, value := range c.Labels {
-		labels[key] = value
-	}
-	for key := range c.Requirements.Keys() {
-		if !IsRestrictedNodeLabel(key) {
-			switch c.Requirements.Get(key).Type() {
-			case v1.NodeSelectorOpIn:
-				labels[key] = c.Requirements.Get(key).Values().UnsortedList()[0]
-			case v1.NodeSelectorOpExists:
-				labels[key] = rand.String(10)
-			}
-		}
-	}
-
-	// both the taints and startup taints are applied to nodes we create
-	taints := append(c.Taints, c.StartupTaints...)
-
-	// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-	// from scheduling pods before we're able to bind them ourselves. The kube
-	// scheduler has an eventually consistent cache of nodes and pods, so it's
-	// possible for it to see a provisioned node before it sees the pods bound
-	// to it. This creates an edge case where other pending pods may be bound to
-	// the node by the kube scheduler, causing OutOfCPU errors when the
-	// binpacked pods race to bind to the same node. The system eventually
-	// heals, but causes delays from additional provisioning (thrash). This
-	// taint will be removed by the node controller when a node is marked ready.
-	taints = append(taints, v1.Taint{Key: NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule})
-
-	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:     labels,
-			Finalizers: []string{TerminationFinalizer},
-		},
-		Spec: v1.NodeSpec{
-			Taints: taints,
-		},
-	}
-}
