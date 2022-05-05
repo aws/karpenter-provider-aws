@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -122,6 +123,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
+		ctx = injection.WithNamespacedName(ctx, types.NamespacedName{Name: nodes[i].Provisioner.Name})
 		if err := p.launch(logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Provisioner.Name)), nodes[i]); err != nil {
 			logging.FromContext(ctx).Errorf("Launching node, %s", err)
 		}
