@@ -192,11 +192,11 @@ spec:
 ### UserData
 
 The `userData` field in a Provisioner can be used to control the UserData that Karpenter will use when provisioning nodes.
-Your UserData must be a Base64 encoded string, and it will be processed different based on the AMIFamily selected.
+Your UserData must be a Base64 encoded string, and it will be processed differently based on the AMIFamily selected.
 
-*This field is currently only supported for the BottleRocket AMIFamily*.
+*This field is currently only supported for the Bottlerocket AMIFamily*.
 
-**For BottleRocket**
+**For Bottlerocket**
 * Your UserData must be valid TOML.
 * Karpenter will automatically merge settings to ensure successful bootstrap including `cluster-name`, `api-server` and `cluster-certificate`. Any labels and taints that need to be set based on pod requirements will also be specified in the final merged UserData.
    * All Kubelet settings that Karpenter applies will override the corresponding settings in the provided UserData. For example, if you've specified `settings.kubernetes.cluster-name`, it will be overridden.
