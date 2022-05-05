@@ -1,13 +1,13 @@
 name: SnapshotsONPRs
 on:
-  issue_comment:
-    types: [ created, edited, deleted ]
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   id-token: write
 jobs:
   snapshotsOnPRs:
-    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved' && contains(github.event.comment.body, '/release snapshot')
+    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
