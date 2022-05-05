@@ -7,7 +7,7 @@ permissions:
   id-token: write
 jobs:
   snapshotsOnPRs:
-    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved'
+    if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved' && startsWith(github.event.review.body, '/snapshot')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
