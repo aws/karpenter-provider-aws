@@ -122,8 +122,13 @@ func (p *Provisioner) provision(ctx context.Context) error {
 
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
-		if err := p.launch(logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Provisioner.Name)), nodes[i]); err != nil {
-			logging.FromContext(ctx).Errorf("Launching node, %s", err)
+		// create a new context to avoid a data race on the ctx variable
+		ctx2 := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Provisioner.Name))
+		// register the provisioner on the context so we can pull it off for tagging purposes
+		// TODO: rethink this, maybe just pass the provisioner down instead of hiding it in the context?
+		ctx2 = injection.WithNamespacedName(ctx2, client.ObjectKeyFromObject(nodes[i].Provisioner))
+		if err := p.launch(ctx2, nodes[i]); err != nil {
+			logging.FromContext(ctx2).Errorf("Launching node, %s", err)
 		}
 	})
 	return nil
