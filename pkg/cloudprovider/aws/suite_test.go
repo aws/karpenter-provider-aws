@@ -186,7 +186,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should not launch m4.xlarge for windows pods", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{
 							v1.LabelOSStable:           "windows",
@@ -201,7 +201,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should launch m4.16xlarge for windows pods", func() {
-				for _, pod := range ExpectProvisioned(ctx, env.Client, selectionController, provisioners, provisioner,
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
 						NodeSelector: map[string]string{
 							v1.LabelOSStable:           "windows",

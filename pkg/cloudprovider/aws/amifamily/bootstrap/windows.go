@@ -32,7 +32,8 @@ func (w Windows) Script() string {
 	}
 	var userData bytes.Buffer
 	userData.WriteString("<powershell>\n")
-	userData.WriteString(`[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1\n`)
+	userData.WriteString(`[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"`)
+	userData.WriteString("\n")
 	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName "%s" -APIServerEndpoint "%s" %s`, w.ClusterName, w.ClusterEndpoint, caBundleArg))
 
 	kubeletExtraArgs := strings.Join([]string{w.nodeLabelArg(), w.nodeTaintArg()}, " ")
@@ -43,6 +44,6 @@ func (w Windows) Script() string {
 	if w.KubeletConfig != nil && len(w.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(` -DNSClusterIP "%s"`, w.KubeletConfig.ClusterDNS[0]))
 	}
-	userData.WriteString("\n<powershell>")
+	userData.WriteString("\n</powershell>")
 	return base64.StdEncoding.EncodeToString(userData.Bytes())
 }

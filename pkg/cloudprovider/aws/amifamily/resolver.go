@@ -122,6 +122,8 @@ func (r Resolver) getAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Bottlerocket{Options: options}
 	case v1alpha1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
+	case v1alpha1.AMIFamilyWindows:
+		return &Windows{Options: options}
 	default:
 		return &AL2{Options: options}
 	}

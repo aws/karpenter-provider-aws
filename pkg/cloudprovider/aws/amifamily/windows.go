@@ -37,7 +37,7 @@ func (w Windows) SSMAlias(version string, _ cloudprovider.InstanceType) string {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string) bootstrap.Windows {
+func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:             w.ClusterName,

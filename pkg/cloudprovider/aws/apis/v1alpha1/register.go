@@ -45,10 +45,11 @@ var (
 		AMIFamilyUbuntu,
 		AMIFamilyWindows,
 	}
-	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourceNVIDIAGPU      v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU         v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron      v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSPodENI      v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourceAWSPrivateIPv4 v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 )
 
 var (
