@@ -2,6 +2,8 @@
 title: "Scheduling"
 linkTitle: "Scheduling"
 weight: 15
+description: >
+  Learn about scheduling workloads with Karpenter 
 ---
 
 If your pods have no requirements for how or where to run, you can let Karpenter choose nodes from the full range of available cloud provider resources.

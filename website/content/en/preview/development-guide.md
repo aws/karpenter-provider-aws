@@ -2,6 +2,8 @@
 title: "Development Guide"
 linkTitle: "Development Guide"
 weight: 80
+description: >
+  Set up a Karpenter development environment
 ---
 
 ## Dependencies

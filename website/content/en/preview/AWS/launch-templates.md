@@ -2,6 +2,8 @@
 title: "Launch Templates and Custom Images"
 linkTitle: "Launch Templates"
 weight: 80
+description: >
+  Create custom launch templates for Karpenter
 ---
 
 By default, Karpenter generates launch templates with the following features:

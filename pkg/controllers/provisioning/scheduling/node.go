@@ -88,7 +88,7 @@ func (n *Node) Add(pod *v1.Pod) error {
 	// Check instance type combinations
 	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), n.Provisioner.Spec.Requirements)
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), requirements)
 	}
 	// Update node
 	n.Pods = append(n.Pods, pod)

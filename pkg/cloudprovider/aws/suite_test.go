@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"strings"
 	"testing"
@@ -465,7 +466,26 @@ var _ = Describe("Allocation", func() {
 				name2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 				Expect(name1).To(Equal(name2))
 			})
+			It("should tag with provisioner name", func() {
+				const provisionerName = "the-provisioner"
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, ObjectMeta: metav1.ObjectMeta{Name: provisionerName}}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
 
+				tags := map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerName,
+					"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, provisionerName),
+				}
+				// tags should be included in both the instance and volume tag specification
+				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+				ExpectTags(createFleetInput.TagSpecifications[0].Tags, tags)
+
+				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+				ExpectTags(createFleetInput.TagSpecifications[1].Tags, tags)
+			})
 			It("should request that tags be applied to both instances and volumes", func() {
 				provider.Tags = map[string]string{
 					"tag1": "tag1value",

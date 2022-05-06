@@ -2,6 +2,8 @@
 title: "Concepts"
 linkTitle: "Concepts"
 weight: 35
+description: >
+  Understand key concepts of Karpenter
 ---
 
 Users fall under two basic roles: Kubernetes cluster administrators and application developers.

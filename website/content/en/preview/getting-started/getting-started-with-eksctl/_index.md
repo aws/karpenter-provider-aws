@@ -3,6 +3,8 @@
 title: "Getting Started with eksctl"
 linkTitle: "Getting Started with eksctl"
 weight: 10
+description: >
+  Set up Karpenter with an eksctl cluster
 ---
 
 Karpenter automatically provisions new nodes in response to unschedulable

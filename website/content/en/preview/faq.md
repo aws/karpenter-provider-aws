@@ -2,6 +2,8 @@
 title: "FAQs"
 linkTitle: "FAQs"
 weight: 90
+description: >
+  Review Karpenter Frequently Asked Questions
 ---
 ## General
 
@@ -66,10 +68,11 @@ See [Provisioner API]({{< ref "./provisioner" >}}) for details.
 
 ### If multiple provisioners are defined, which will my pod use?
 
-By default, pods will use the rules defined by a provisioner named default.
-This is analogous to the default scheduler.
-To select an alternative provisioner, use the node selector `karpenter.sh/provisioner-name: alternative-provisioner`.
-You must either define a default provisioner or explicitly specify `karpenter.sh/provisioner-name node selector`.
+Pending pods will be handled by any Provisioner that matches the requirements of the pod.
+There is no ordering guarantee if multiple provisioners match pod requirements.
+We recommend that Provisioners are setup to be mutually exclusive. 
+Read more about this recommendation in the [EKS Best Practices Guide for Karpenter](https://aws.github.io/aws-eks-best-practices/karpenter/#create-provisioners-that-are-mutually-exclusive).
+To select a specific provisioner, use the node selector `karpenter.sh/provisioner-name: my-provisioner`.
 
 ### How can I configure Karpenter to only provision pods for a particular namespace?
 
