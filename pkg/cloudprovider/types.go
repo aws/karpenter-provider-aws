@@ -44,7 +44,7 @@ type CloudProvider interface {
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
 	// Availability of types or zone may vary by provisioner or over time.
-	GetInstanceTypes(context.Context) ([]InstanceType, error)
+	GetInstanceTypes(context.Context, *v1alpha5.Provider) ([]InstanceType, error)
 	// GetRequirements for the provider, e.g. zones contrained by subnets or
 	// os constrained by machine image.
 	GetRequirements(context.Context, *v1alpha5.Provider) (scheduling.Requirements, error)

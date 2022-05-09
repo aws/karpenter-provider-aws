@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -78,7 +79,15 @@ func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 	return []*v1alpha1.BlockDeviceMapping{{
-		DeviceName: aws.String("/dev/xvda"),
-		EBS:        &defaultEBS,
+		DeviceName: a.EphemeralBlockDevice(),
+		EBS:        &DefaultEBS,
 	}}
+}
+
+func (a AL2) EphemeralBlockDevice() *string {
+	return aws.String("/dev/xvda")
+}
+
+func (a AL2) EphemeralBlockDeviceOverhead() resource.Quantity {
+	return resource.MustParse("5Gi")
 }
