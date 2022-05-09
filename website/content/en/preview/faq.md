@@ -147,6 +147,7 @@ Not yet.
 See [Deprovisioning nodes]({{< ref "./tasks/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
 
 ## Upgrading
+
 ### How do I upgrade Karpenter?
 Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
@@ -156,5 +157,12 @@ To upgrade Karpenter to version `$VERSION`, make sure that the `KarpenterNode IA
 Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/getting-started-with-eksctl/#create-the-karpentercontroller-iam-role)) and the cluster endpoint, and pass them to the helm upgrade command
 {{% script file="./content/en/preview/getting-started/getting-started-with-eksctl/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
-For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgrade-guide/" >}})a.
+For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgrade-guide/" >}}).
 
+### Why do I get an `unknown field "startupTaints"` error when creating a provisioner with startupTaints?
+
+```bash
+error: error validating "provisioner.yaml": error validating data: ValidationError(Provisioner.spec): unknown field "startupTaints" in sh.karpenter.v1alpha5.Provisioner.spec; if you choose to ignore these errors, turn validation off with --validate=false
+```
+
+The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrade the CRD describing the provisioner, so it must be done manually. For specific details, see the [Upgrade Guide]({{< ref "./upgrade-guide/#upgrading-to-v0100" >}})

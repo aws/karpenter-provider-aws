@@ -70,6 +70,16 @@ for a subset of older versions and deprecate the others.
 
 # Released Upgrade Notes
 
+## Upgrading to v0.10.0+
+
+v0.10.0 adds a new field, `startupTaints` to the provisioner spec.  Standard Helm upgrades [do not upgrade CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) so the  field will not be available unless the CRD is manually updated.  This can be performed prior to the standard upgrade by applying the new CRD manually:
+
+```shell
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.10.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+```
+
+📝 If you don't perform this manual CRD update, Karpenter will work correctly except for rejecting the creation/update of provisioners that use `startupTaints`.
+
 ## Upgrading to v0.6.2+
 
 If using Helm, the variable names have changed for the cluster's name and endpoint. You may need to update any configuration
