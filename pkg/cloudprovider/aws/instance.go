@@ -334,7 +334,7 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		if functional.HasAnyPrefix(*it.(*InstanceType).InstanceType, "t1", "t2") {
+		if functional.HasAnyPrefix(*it.(*InstanceType).InstanceType, "t1", "t2", "a1") {
 			continue
 		}
 		if aws.BoolValue(it.(*InstanceType).BareMetal) {
