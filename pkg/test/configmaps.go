@@ -1,3 +1,17 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package test
 
 import (
@@ -10,7 +24,7 @@ import (
 
 type ConfigMapOptions struct {
 	metav1.ObjectMeta
-	Immutable   *bool
+	Immutable  *bool
 	Data       map[string]string
 	BinaryData map[string][]byte
 }
@@ -24,8 +38,8 @@ func ConfigMap(overrides ...ConfigMapOptions) *v1.ConfigMap {
 	}
 	return &v1.ConfigMap{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
-		Immutable: options.Immutable,
-		Data: options.Data,
+		Immutable:  options.Immutable,
+		Data:       options.Data,
 		BinaryData: options.BinaryData,
 	}
 }
