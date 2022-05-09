@@ -15,7 +15,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -242,10 +241,6 @@ func (a *AWS) validateUserData() *apis.FieldError {
 	// Only support UserData with Bottlerocket for now.
 	if *a.AMIFamily != AMIFamilyBottlerocket {
 		return apis.ErrInvalidValue(fmt.Sprintf("not supported with %v", *a.AMIFamily), userDataPath)
-	}
-	_, err := base64.StdEncoding.DecodeString(*a.UserData)
-	if err != nil {
-		return apis.ErrInvalidValue("invalid Base64", userDataPath)
 	}
 	return nil
 }

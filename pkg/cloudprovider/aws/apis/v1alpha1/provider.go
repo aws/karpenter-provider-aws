@@ -74,11 +74,25 @@ type LaunchTemplate struct {
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +optionals
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
-	// UserData is a base64 encoded string that will be applied to provisioned nodes as UserData.
+	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the specified AMIFamily. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
-	UserData *string `json:"userData,omitempty"`
+	UserData *UserData `json:"userData,omitempty"`
+}
+
+type UserData struct {
+	// ConfigMap defines the configuration map to retrieve the UserData from.
+	ConfigMap *ConfigMapUserDataSource `json:"configMap,omitempty"`
+}
+
+// ConfigMapSource defines the configMap where you can retrieve the UserData content.
+// Only a single key is expected in the entire map. BinaryData is not supported.
+type ConfigMapUserDataSource struct {
+	// Name of the ConfigMap.
+	Name *string `json:"name,omitempty"`
+	// Namespace of the ConfigMap.
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

@@ -113,7 +113,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache),
+					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache, clientSet),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -690,7 +690,18 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
-					provider.UserData = aws.String(base64.StdEncoding.EncodeToString([]byte(content)))
+					configMapName := strings.ToLower(randomdata.SillyName())
+					configMap := test.ConfigMap(test.ConfigMapOptions{
+						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
+						Data: map[string]string{"userDataContent": string(content)},
+					})
+					ExpectApplied(ctx, env.Client, configMap)
+					provider.UserData = &v1alpha1.UserData{
+						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
+							Name: &configMapName,
+							Namespace: aws.String("default"),
+						},
+					}
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					ExpectApplied(ctx, env.Client, newProvisioner)
@@ -725,7 +736,18 @@ var _ = Describe("Allocation", func() {
 				It("should not bootstrap on invalid toml user data", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					provider.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
+					configMapName := strings.ToLower(randomdata.SillyName())
+					configMap := test.ConfigMap(test.ConfigMapOptions{
+						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
+						Data: map[string]string{"userDataContent": "#/bin/bash\n ./not-toml.sh"},
+					})
+					ExpectApplied(ctx, env.Client, configMap)
+					provider.UserData = &v1alpha1.UserData{
+						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
+							Name: &configMapName,
+							Namespace: aws.String("default"),
+						},
+					}
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					ExpectApplied(ctx, env.Client, newProvisioner)

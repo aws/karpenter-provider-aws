@@ -92,7 +92,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ctx,
 				ec2api,
 				options.ClientSet,
-				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
+				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval), options.ClientSet),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 			),

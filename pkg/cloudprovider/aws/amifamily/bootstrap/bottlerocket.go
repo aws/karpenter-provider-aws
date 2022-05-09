@@ -60,11 +60,7 @@ func (b Bottlerocket) unmarshalCustomUserData() (config, error) {
 	if b.CustomUserData == nil {
 		return c, nil
 	}
-	b64DecodedBytes, err := base64.StdEncoding.DecodeString(*b.CustomUserData)
-	if err != nil {
-		return c, err
-	}
-	err = toml.Unmarshal(b64DecodedBytes, &c)
+	err := toml.Unmarshal([]byte(*b.CustomUserData), &c)
 	if err != nil {
 		return c, err
 	}

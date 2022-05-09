@@ -23,6 +23,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -38,7 +39,8 @@ var defaultEBS = v1alpha1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider *AMIProvider
+	amiProvider      *AMIProvider
+	UserDataProvider *UserDataProvider
 }
 
 // Options define the static launch template parameters
@@ -74,11 +76,14 @@ type AMIFamily interface {
 }
 
 // New constructs a new launch template Resolver
-func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
+func New(ssm ssmiface.SSMAPI, c *cache.Cache, clientSet *kubernetes.Clientset) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:   ssm,
 			cache: c,
+		},
+		UserDataProvider: &UserDataProvider{
+			clientSet: clientSet,
 		},
 	}
 }
@@ -86,6 +91,10 @@ func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
+	userDataString, err := r.UserDataProvider.Get(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
 	amiFamily := r.getAMIFamily(provider.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range nodeRequest.InstanceTypeOptions {
@@ -99,7 +108,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	for amiID, instanceTypes := range amiIDs {
 		resolved := &LaunchTemplate{
 			Options:             options,
-			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes, provider.UserData),
+			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes, aws.String(userDataString)),
 			BlockDeviceMappings: provider.BlockDeviceMappings,
 			MetadataOptions:     provider.MetadataOptions,
 			AMIID:               amiID,
