@@ -7,7 +7,7 @@ LAUNCH_TEMPLATE=$(aws eks describe-nodegroup --cluster-name ${CLUSTER_NAME} \
 
 SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
     --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
-    --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds' \
+    --query 'LaunchTemplateVersions[0].LaunchTemplateData.NetworkInterfaces[0].Groups' \
     --output text)
 
 aws ec2 create-tags \
