@@ -153,7 +153,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Get instance type options
-	var requestedInstanceTypes sets.Set
+	requestedInstanceTypes := sets.NewSet()
 	for _, pod := range pods {
 		reqs := v1alpha5.NewPodRequirements(pod)
 		podInstanceTypes := reqs.Get(v1.LabelInstanceTypeStable)
