@@ -334,10 +334,17 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 func (p *InstanceProvider) filterInstanceTypes(instanceTypes []cloudprovider.InstanceType) []cloudprovider.InstanceType {
 	var genericInstanceTypes []cloudprovider.InstanceType
 	for _, it := range instanceTypes {
-		if functional.HasAnyPrefix(*it.(*InstanceType).InstanceType, "t1", "t2", "a1") {
+		it := it.(*InstanceType)
+		// allow regular instance families and prioritize all others last
+		if !functional.HasAnyPrefix(*it.InstanceType, "m", "c", "r", "a", "t", "i") {
 			continue
 		}
-		if aws.BoolValue(it.(*InstanceType).BareMetal) {
+		// deprioritize 1st/2nd gen burstable and graviton 1
+		if functional.HasAnyPrefix(*it.InstanceType, "t1", "t2", "a1") {
+			continue
+		}
+		// deprioritize metal
+		if aws.BoolValue(it.BareMetal) {
 			continue
 		}
 		itRes := it.Resources()

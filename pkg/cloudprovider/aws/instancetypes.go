@@ -168,12 +168,7 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	) {
 		return false
 	}
-
-	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
-		"m", "c", "r", "a", "t", // Standard
-		"i3",            // Storage-optimized
-		"p", "inf", "g", // Accelerators
-	)
+	return true
 }
 
 // CacheUnavailable allows the InstanceProvider to communicate recently observed temporary capacity shortages in
