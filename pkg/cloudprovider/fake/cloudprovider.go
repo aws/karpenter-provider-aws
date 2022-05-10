@@ -23,11 +23,12 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -93,7 +94,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ sets.Set) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
@@ -134,7 +135,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 		NewInstanceType(InstanceTypeOptions{
 			Name:             "arm-instance-type",
 			Architecture:     "arm64",
-			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
+			OperatingSystems: utilsets.NewString("ios", "linux", "windows", "darwin"),
 			Resources: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:    resource.MustParse("16"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),

@@ -24,13 +24,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/patrickmn/go-cache"
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 const (
@@ -61,11 +62,11 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, requestedInstanceTypes sets.Set) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
-	instanceTypes, err := p.getInstanceTypes(ctx)
+	instanceTypes, err := p.getInstanceTypes(ctx, requestedInstanceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +89,11 @@ func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.Instanc
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, zones sets.String) []cloudprovider.Offering {
+func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, zones utilsets.String) []cloudprovider.Offering {
 	offerings := []cloudprovider.Offering{}
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
-		for capacityType := range sets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
+		for capacityType := range utilsets.NewString(aws.StringValueSlice(instanceType.SupportedUsageClasses)...) {
 			// exclude any offerings that have recently seen an insufficient capacity error from EC2
 			if _, isUnavailable := p.unavailableOfferings.Get(UnavailableOfferingsCacheKey(capacityType, instanceType.Name(), zone)); !isUnavailable {
 				offerings = append(offerings, cloudprovider.Offering{Zone: zone, CapacityType: capacityType})
@@ -102,16 +103,16 @@ func (p *InstanceTypeProvider) createOfferings(instanceType *InstanceType, zones
 	return offerings
 }
 
-func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[string]sets.String, error) {
+func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[string]utilsets.String, error) {
 	if cached, ok := p.cache.Get(InstanceTypeZonesCacheKey); ok {
-		return cached.(map[string]sets.String), nil
+		return cached.(map[string]utilsets.String), nil
 	}
-	zones := map[string]sets.String{}
+	zones := map[string]utilsets.String{}
 	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
 				if _, ok := zones[aws.StringValue(offering.InstanceType)]; !ok {
-					zones[aws.StringValue(offering.InstanceType)] = sets.NewString()
+					zones[aws.StringValue(offering.InstanceType)] = utilsets.NewString()
 				}
 				zones[aws.StringValue(offering.InstanceType)].Insert(aws.StringValue(offering.Location))
 			}
@@ -125,7 +126,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[st
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*InstanceType, error) {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, requestedInstanceTypes sets.Set) (map[string]*InstanceType, error) {
 	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
 		return cached.(map[string]*InstanceType), nil
 	}
@@ -143,7 +144,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		},
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
-			if p.filter(instanceType) {
+			if p.filter(instanceType, requestedInstanceTypes) {
 				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType)
 			}
 		}
@@ -157,7 +158,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 }
 
 // filter the instance types to include useful ones for Kubernetes
-func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
+func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo, requestedInstanceTypes sets.Set) bool {
 	if instanceType.FpgaInfo != nil {
 		return false
 	}
@@ -168,7 +169,9 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	) {
 		return false
 	}
-
+	if requestedInstanceTypes.Has(aws.StringValue(instanceType.InstanceType)) {
+		return true
+	}
 	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
 		"m", "c", "r", "a", "t", // Standard
 		"i3",            // Storage-optimized

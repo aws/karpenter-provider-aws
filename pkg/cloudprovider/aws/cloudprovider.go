@@ -35,9 +35,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
+	"github.com/aws/karpenter/pkg/utils/sets"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
@@ -110,8 +111,8 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return c.instanceTypeProvider.Get(ctx)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, requestedInstanceTypes sets.Set) ([]cloudprovider.InstanceType, error) {
+	return c.instanceTypeProvider.Get(ctx, requestedInstanceTypes)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -128,7 +129,7 @@ func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.
 	if err != nil {
 		return v1alpha5.Requirements{}, err
 	}
-	zones := sets.NewString()
+	zones := utilsets.NewString()
 	for _, subnet := range subnets {
 		zones.Insert(aws.StringValue(subnet.AvailabilityZone))
 	}

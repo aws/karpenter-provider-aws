@@ -18,11 +18,12 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // Options are injected into cloud providers' factories
@@ -41,7 +42,7 @@ type CloudProvider interface {
 	Delete(context.Context, *v1.Node) error
 	// GetInstanceTypes returns instance types supported by the cloudprovider.
 	// Availability of types or zone may vary by provisioner or over time.
-	GetInstanceTypes(context.Context) ([]InstanceType, error)
+	GetInstanceTypes(context.Context, sets.Set) ([]InstanceType, error)
 	// GetRequirements for the provider, e.g. zones contrained by subnets or
 	// os constrained by machine image.
 	GetRequirements(context.Context, *v1alpha5.Provider) (v1alpha5.Requirements, error)
@@ -73,7 +74,7 @@ type InstanceType interface {
 	// Note that though this is an array it is expected that all the Offerings are unique from one another
 	Offerings() []Offering
 	Architecture() string
-	OperatingSystems() sets.String
+	OperatingSystems() utilsets.String
 	// Resources are the full allocatable resource capacities for this instance type
 	Resources() v1.ResourceList
 	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside

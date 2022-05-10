@@ -26,6 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 const (
@@ -77,9 +78,9 @@ func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
 	return d.CloudProvider.Delete(ctx, node)
 }
 
-func (d *decorator) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (d *decorator) GetInstanceTypes(ctx context.Context, requestedInstanceTypes sets.Set) ([]cloudprovider.InstanceType, error) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "GetInstanceTypes", d.Name()))()
-	return d.CloudProvider.GetInstanceTypes(ctx)
+	return d.CloudProvider.GetInstanceTypes(ctx, requestedInstanceTypes)
 }
 
 func (d *decorator) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (v1alpha5.Requirements, error) {

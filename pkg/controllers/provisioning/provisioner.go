@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
@@ -152,7 +153,13 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Get instance type options
-	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx)
+	var requestedInstanceTypes sets.Set
+	for _, pod := range pods {
+		reqs := v1alpha5.NewPodRequirements(pod)
+		podInstanceTypes := reqs.Get(v1.LabelInstanceTypeStable)
+		requestedInstanceTypes.Insert(podInstanceTypes.Values().List()...)
+	}
+	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx, requestedInstanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
