@@ -5,10 +5,20 @@ LAUNCH_TEMPLATE=$(aws eks describe-nodegroup --cluster-name ${CLUSTER_NAME} \
     --nodegroup-name ${NODEGROUP} --query 'nodegroup.launchTemplate.{id:id,version:version}' \
     --output text | tr -s "\t" ",")
 
-SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
+if [ `aws ec2 describe-launch-template-versions \
     --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
-    --query 'LaunchTemplateVersions[0].LaunchTemplateData.NetworkInterfaces[0].Groups' \
-    --output text)
+    --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds' \
+    --output text` == 'None' ]; then
+    SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
+        --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
+        --query 'LaunchTemplateVersions[0].LaunchTemplateData.NetworkInterfaces[0].Groups' \
+        --output text)
+    else
+    SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
+        --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
+        --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds' \
+        --output text)
+fi
 
 aws ec2 create-tags \
     --tags "Key=karpenter.sh/discovery,Value=${CLUSTER_NAME}" \
