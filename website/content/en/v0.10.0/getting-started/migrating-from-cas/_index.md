@@ -93,7 +93,7 @@ First set the Karpenter release you want to deploy.
 export KARPENTER_VERSION=v0.10.0
 ```
 
-Make sure repo is added to Helm by using below command.
+Make sure the Karpenter repo is added to Helm by running the following commands.
 ```bash
 helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
