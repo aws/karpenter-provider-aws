@@ -20,28 +20,23 @@ Karpenter works by:
 
 As someone using Karpenter, once your Kubernetes cluster and the Karpenter controller are up and running (see [Getting Started]({{<ref "./getting-started" >}}), you can:
 
-* **Set up provisioners**: By applying a provisioner to Karpenter, you can configure constraints on node provisioning and set timeout values for node expiry.
+* **Set up provisioners**: By applying a provisioner to Karpenter, you can configure constraints on node provisioning and set timeout values for node expiry or Kubelet configuration values.
+Provisioner-level constraints related to Kubernetes and your cloud provider (AWS, for example) include:
 
-* **Deploy workloads**: When deploying workloads, you can request that scheduling constraints be met to direct which nodes Karpenter provisions for those workloads.
+  - Taints (`taints`): Identify taints to add to provisioned nodes. If a pod doesn't have a matching toleration for the taint, the effect set by the taint occurs (NoSchedule, PreferNoSchedule, or NoExecute). See Kubernetes [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for details.
+  - Labels (`labels`): Apply arbitrary key-value pairs to nodes that can be matched by pods.
+  - Requirements (`requirements`): Set acceptable (`In`) and unacceptable (`Out`) Kubernetes and Karpenter values for node provisioning based on [Well-Known Labels](https://kubernetes.io/docs/reference/labels-annotations-taints/) and [cloud-specific settings]({{<ref "./aws/provisioning/" >}}). These can include [instance types](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type), [zones](https://kubernetes.io/docs/reference/labels-annotations-taints/#topologykubernetesiozone), [computer architecture](https://kubernetes.io/docs/reference/labels-annotations-taints/#kubernetes-io-arch), and [capacity type]({{<ref "./provisioner/#capacity-type" >}}) (such as AWS spot or on-demand).
+  - Limits (`limits`): Lets you set limits on the total CPU and Memory that can be used by the cluster, effectively stopping further node provisioning when those limits have been reached.
 
-Karpenter supports Kubernetes scheduling constraints, including Kubernetes well-known labels, annotations, and taints.
-It also supports constraints specific to the cloud provider (such as AWS).
-The following Kubernetes and cloud provider constraints are supported by Karpenter at the provisioner, node, and pod levels:
+* **Deploy workloads**: When deploying workloads, you can request that scheduling constraints be met to direct which nodes Karpenter provisions for those workloads. Use any of the following Pod spec constraints when you deploy pods:
 
-* Provisioner Level
-  - [Zones](https://kubernetes.io/docs/reference/labels-annotations-taints/#topologykubernetesiozone)
-  - [Capacity Types]({{<ref "./provisioner" >}}),
-  - [Instance Types](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type)
-  - [Taints](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
-* Node Level
-  - [Taints](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
-  - [Resource Capacity](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-units-in-kubernetes)
-  - [Instance Type Limitations](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type)
-* Pod Level
-  - [Resource Requests](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#example-1)
-  - [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
-  - [Node Affinity and Node Selectors](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
-  - [Topology Spread](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
-  - [Pod Affinity and Anti-Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity)
+  - Resources (`resources`): Make requests and set limits for memory and CPU for a Pod. See [Requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits) for details.
+  - Nodes (`nodeSelector`): Use [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) to ask to match a node that includes one or more selected key-value pairs. These can be arbitrary labels you define, Kubernetes well-known labels, or Karpenter labels.
+  - Node affinity (`NodeAffinity`): Set [nodeAffinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) to have the Pod run on nodes that have matching `nodeSelectorTerms` set or not set. Matching affinity can be a particular operating system or zone. You can set the node affinity to be required or simply preferred. `NotIn` and `DoesNotExist` allow you to define node anti-affinity behavior.
+  - Pod affinity and anti-affinity (`podAffinity/podAntiAffinity`): Choose to run a pod on a node based on whether certain pods are running (`podAffinity`) or not running (`podAntiAffinity`) on the node. See [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) for details.
+  - Requirements (`requirements`): Choose required matching key-value pairs (such as [instance types](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type), [zones](https://kubernetes.io/docs/reference/labels-annotations-taints/#topologykubernetesiozone), [computer architecture](https://kubernetes.io/docs/reference/labels-annotations-taints/#kubernetes-io-arch), and [capacity type]({{<ref "./provisioner/#capacity-type" >}}) (such as AWS spot or on-demand).
+  - Tolerations (`tolerations`): Identify that a pod must match (tolerate) a taint on a node before the pod will run on it. Without the toleration, the effect set by the taint occurs (NoSchedule, PreferNoSchedule, or NoExecute). See Kubernetes [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for details.
+  - Topology spread (`topologySpreadConstraints`): Request that pods be spread across zones (`topology.kubernetes.io/zone`) or hosts (`kubernetes.io/hostname`), or cloud provider capacity types (`karpenter.sh/capacity-type`). See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
+  - Persistent volume topology: Indicate that the Pod has a storage requirement that requires a node running in a particular zone that can make that storage available to the node.
 
 Learn more about Karpenter and how to get started below.
