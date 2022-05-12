@@ -116,7 +116,7 @@ webhook:
     tag:
     # -- sha256:xxx, can be combined with tag
     digest:
-  # -- SecurityContext for the controller container.
+  # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
   port: 8443
