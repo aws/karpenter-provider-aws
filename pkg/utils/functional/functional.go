@@ -16,6 +16,8 @@ package functional
 
 import (
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 // UnionStringMaps merges all key value pairs into a single map, last write wins.
@@ -60,4 +62,17 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+// SplitCommaSeparatedString splits a string by commas, removes whitespace, and returns
+// a slice of strings
+func SplitCommaSeparatedString(value string) []*string {
+	var result []*string
+
+	for _, value := range strings.Split(value, ",") {
+		s := aws.String(strings.TrimSpace(value))
+		result = append(result, s)
+	}
+
+	return result
 }

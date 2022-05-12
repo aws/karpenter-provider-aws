@@ -27,6 +27,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/pretty"
 )
 
@@ -70,7 +71,13 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 	filters := []*ec2.Filter{}
 	// Filter by subnet
 	for key, value := range provider.SubnetSelector {
-		if value == "*" {
+		if key == "aws-ids" {
+			filterValues := functional.SplitCommaSeparatedString(value)
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("subnet-id"),
+				Values: filterValues,
+			})
+		} else if value == "*" {
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("tag-key"),
 				Values: []*string{aws.String(key)},
