@@ -193,8 +193,8 @@ var _ = Describe("Allocation", func() {
 							v1.LabelInstanceTypeStable: "m4.xlarge",
 						},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPrivateIPv4: resource.MustParse("1")},
 						},
 					})) {
 					ExpectNotScheduled(ctx, env.Client, pod)
@@ -208,8 +208,8 @@ var _ = Describe("Allocation", func() {
 							v1.LabelInstanceTypeStable: "m4.16xlarge",
 						},
 						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
-							Limits:   v1.ResourceList{resources.AWSPodPrivateIPv4: resource.MustParse("1")},
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPrivateIPv4: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPrivateIPv4: resource.MustParse("1")},
 						},
 					})) {
 					ExpectScheduled(ctx, env.Client, pod)
