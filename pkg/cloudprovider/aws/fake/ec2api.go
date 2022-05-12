@@ -17,7 +17,6 @@ package fake
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/Pallinder/go-randomdata"
@@ -27,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	set "github.com/deckarep/golang-set"
-	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -232,32 +230,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 		},
 	}
 
-	filtered := lo.Filter(subnets, func(subnet *ec2.Subnet, _ int) bool {
-		return lo.EveryBy(input.Filters, func(filter *ec2.Filter) bool {
-			switch filterName := aws.StringValue(filter.Name); {
-			case filterName == "subnet-id":
-				for _, val := range filter.Values {
-					if aws.StringValue(subnet.SubnetId) == aws.StringValue(val) {
-						return true
-					}
-				}
-			case strings.HasPrefix(filterName, "tag:"):
-				tagKey := strings.Split(filterName, ":")[1]
-				for _, val := range filter.Values {
-					for _, tag := range subnet.Tags {
-						if tagKey == *tag.Key && *val == *tag.Value {
-							return true
-						}
-					}
-				}
-			default:
-				panic("Unsupported mock subnet filter")
-			}
-			return false
-		})
-	})
-
-	return &ec2.DescribeSubnetsOutput{Subnets: filtered}, nil
+	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
@@ -288,32 +261,7 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 			},
 		},
 	}
-
-	filtered := lo.Filter(sgs, func(group *ec2.SecurityGroup, _ int) bool {
-		return lo.EveryBy(input.Filters, func(filter *ec2.Filter) bool {
-			switch filterName := aws.StringValue(filter.Name); {
-			case filterName == "group-id":
-				for _, val := range filter.Values {
-					if aws.StringValue(group.GroupId) == aws.StringValue(val) {
-						return true
-					}
-				}
-			case strings.HasPrefix(filterName, "tag:"):
-				tagKey := strings.Split(filterName, ":")[1]
-				for _, val := range filter.Values {
-					for _, tag := range group.Tags {
-						if tagKey == *tag.Key && *val == *tag.Value {
-							return true
-						}
-					}
-				}
-			default:
-				panic("Unsupported mock security group filter")
-			}
-			return false
-		})
-	})
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: filtered}, nil
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
 }
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {

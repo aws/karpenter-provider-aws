@@ -15,10 +15,14 @@ limitations under the License.
 package fake
 
 import (
+	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 )
 
+// SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput
 func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq *ec2.FleetLaunchTemplateConfigRequest, _ int) []string {
 		var subnets []string
@@ -29,4 +33,65 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 		}
 		return subnets
 	})))
+}
+
+// FilterDescribeSecurtyGroups filters the passed in security groups based on the filters passed in.
+// Filters are chained with a logical "AND"
+func FilterDescribeSecurtyGroups(sgs []*ec2.SecurityGroup, filters []*ec2.Filter) []*ec2.SecurityGroup {
+	return lo.Filter(sgs, func(group *ec2.SecurityGroup, _ int) bool {
+		return lo.EveryBy(filters, func(filter *ec2.Filter) bool {
+			switch filterName := aws.StringValue(filter.Name); {
+			case filterName == "group-id":
+				for _, val := range filter.Values {
+					if aws.StringValue(group.GroupId) == aws.StringValue(val) {
+						return true
+					}
+				}
+			case strings.HasPrefix(filterName, "tag:"):
+				if matchTags(group.Tags, filter) {
+					return true
+				}
+			default:
+				panic("Unsupported mock security group filter")
+			}
+			return false
+		})
+	})
+}
+
+// FilterDescribeSubnets filters the passed in subnets based on the filters passed in.
+// Filters are chained with a logical "AND"
+func FilterDescribeSubnets(subnets []*ec2.Subnet, filters []*ec2.Filter) []*ec2.Subnet {
+	return lo.Filter(subnets, func(subnet *ec2.Subnet, _ int) bool {
+		return lo.EveryBy(filters, func(filter *ec2.Filter) bool {
+			switch filterName := aws.StringValue(filter.Name); {
+			case filterName == "subnet-id":
+				for _, val := range filter.Values {
+					if aws.StringValue(subnet.SubnetId) == aws.StringValue(val) {
+						return true
+					}
+				}
+			case strings.HasPrefix(filterName, "tag:"):
+				if matchTags(subnet.Tags, filter) {
+					return true
+				}
+			default:
+				panic("Unsupported mock subnet filter")
+			}
+			return false
+		})
+	})
+}
+
+// matchTags is a predicate that matches a slice of tags with a tag:<key> filter
+func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
+	tagKey := strings.Split(*filter.Name, ":")[1]
+	for _, val := range filter.Values {
+		for _, tag := range tags {
+			if tagKey == *tag.Key && *val == *tag.Value {
+				return true
+			}
+		}
+	}
+	return false
 }
