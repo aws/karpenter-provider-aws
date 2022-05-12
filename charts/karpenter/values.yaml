@@ -82,7 +82,9 @@ controller:
   image:
     repository: public.ecr.aws/karpenter/controller
     # -- Defaults to chart.appVersion
-    tag: 
+    tag:
+    # -- sha256:xxx, can be combined with tag
+    digest:
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -112,7 +114,9 @@ webhook:
     repository: public.ecr.aws/karpenter/webhook
     # -- Defaults to chart.appVersion
     tag:
-  # -- SecurityContext for the webhook container.
+    # -- sha256:xxx, can be combined with tag
+    digest:
+  # -- SecurityContext for the controller container.
   securityContext: {}
   # -- The container port to use for the webhook.
   port: 8443
