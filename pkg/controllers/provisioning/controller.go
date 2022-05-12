@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/events"
+
 	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -44,14 +46,20 @@ const controllerName = "provisioning"
 type Controller struct {
 	kubeClient  client.Client
 	provisioner *Provisioner
+	recorder    events.Recorder
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, cloudProvider, cluster),
+		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
+		recorder:    recorder,
 	}
+}
+
+func (c *Controller) Recorder() events.Recorder {
+	return c.recorder
 }
 
 // Reconcile the resource

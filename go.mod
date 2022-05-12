@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/amazon-vpc-resource-controller-k8s v1.1.0
-	github.com/aws/aws-sdk-go v1.43.30
+	github.com/aws/aws-sdk-go v1.44.4
 	github.com/deckarep/golang-set v1.8.0
 	github.com/go-logr/zapr v0.4.0
 	github.com/imdario/mergo v0.3.12
@@ -14,7 +14,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-toml/v2 v2.0.0-beta.7
+	github.com/pelletier/go-toml/v2 v2.0.0
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	go.uber.org/multierr v1.7.0

@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"testing"
 
@@ -62,6 +63,7 @@ var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
+var recorder *test.EventRecorder
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -118,7 +120,8 @@ var _ = BeforeSuite(func() {
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		cluster = state.NewCluster(ctx, e.Client)
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), cloudProvider, cluster)
+		recorder = test.NewEventRecorder()
+		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -460,7 +463,26 @@ var _ = Describe("Allocation", func() {
 				name2 := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput).LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName
 				Expect(name1).To(Equal(name2))
 			})
+			It("should tag with provisioner name", func() {
+				const provisionerName = "the-provisioner"
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, ObjectMeta: metav1.ObjectMeta{Name: provisionerName}}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Cardinality()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(createFleetInput.TagSpecifications).To(HaveLen(2))
 
+				tags := map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisionerName,
+					"Name":                           fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, provisionerName),
+				}
+				// tags should be included in both the instance and volume tag specification
+				Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
+				ExpectTags(createFleetInput.TagSpecifications[0].Tags, tags)
+
+				Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
+				ExpectTags(createFleetInput.TagSpecifications[1].Tags, tags)
+			})
 			It("should request that tags be applied to both instances and volumes", func() {
 				provider.Tags = map[string]string{
 					"tag1": "tag1value",
@@ -609,7 +631,7 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -620,7 +642,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]

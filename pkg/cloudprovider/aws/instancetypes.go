@@ -161,6 +161,14 @@ func (p *InstanceTypeProvider) filter(instanceType *ec2.InstanceTypeInfo) bool {
 	if instanceType.FpgaInfo != nil {
 		return false
 	}
+	if functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
+		// G2 instances have an older GPU not supported by the nvidia plugin. This causes the allocatable # of gpus
+		// to be set to zero on startup as the plugin considers the GPU unhealthy.
+		"g2",
+	) {
+		return false
+	}
+
 	return functional.HasAnyPrefix(aws.StringValue(instanceType.InstanceType),
 		"m", "c", "r", "a", "t", // Standard
 		"i3",            // Storage-optimized

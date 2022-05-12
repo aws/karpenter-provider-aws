@@ -17,14 +17,16 @@ package state_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"testing"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"math/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
 
 	"github.com/aws/karpenter/pkg/test"
 
@@ -300,14 +302,19 @@ var _ = Describe("Node Resource Level", func() {
 			}))
 		}
 		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("200"),
+			v1.ResourceCPU:  resource.MustParse("200"),
+			v1.ResourcePods: resource.MustParse("500"),
 		}})
 		ExpectApplied(ctx, env.Client, node)
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0.0")
+		ExpectNodeResourceRequest(node, v1.ResourcePods, "0")
+
 		sum := 0.0
+		podCount := 0
 		for _, pod := range pods {
 			ExpectApplied(ctx, env.Client, pod)
 			ExpectManualBinding(ctx, env.Client, pod, node)
+			podCount++
 
 			// extra reconciles shouldn't cause it to be multiply counted
 			nReconciles := rand.Intn(3) + 1 // 1 to 3 reconciles
@@ -316,6 +323,7 @@ var _ = Describe("Node Resource Level", func() {
 			}
 			sum += pod.Spec.Containers[0].Resources.Requests.Cpu().AsApproximateFloat64()
 			ExpectNodeResourceRequest(node, v1.ResourceCPU, fmt.Sprintf("%1.1f", sum))
+			ExpectNodeResourceRequest(node, v1.ResourcePods, fmt.Sprintf("%d", podCount))
 		}
 
 		for _, pod := range pods {
@@ -326,9 +334,74 @@ var _ = Describe("Node Resource Level", func() {
 				ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod))
 			}
 			sum -= pod.Spec.Containers[0].Resources.Requests.Cpu().AsApproximateFloat64()
+			podCount--
 			ExpectNodeResourceRequest(node, v1.ResourceCPU, fmt.Sprintf("%1.1f", sum))
+			ExpectNodeResourceRequest(node, v1.ResourcePods, fmt.Sprintf("%d", podCount))
 		}
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0.0")
+		ExpectNodeResourceRequest(node, v1.ResourcePods, "0")
+	})
+	It("should track daemonset requested resources separately", func() {
+		ds := test.DaemonSet(
+			test.DaemonSetOptions{PodOptions: test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("2Gi")}},
+			}},
+		)
+		ExpectApplied(ctx, env.Client, ds)
+		Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(ds), ds)).To(Succeed())
+
+		pod1 := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU: resource.MustParse("1.5"),
+				}},
+		})
+
+		dsPod := test.UnschedulablePod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("2Gi"),
+				}},
+		})
+		dsPod.OwnerReferences = append(dsPod.OwnerReferences, metav1.OwnerReference{
+			APIVersion:         "apps/v1",
+			Kind:               "DaemonSet",
+			Name:               ds.Name,
+			UID:                ds.UID,
+			Controller:         aws.Bool(true),
+			BlockOwnerDeletion: aws.Bool(true),
+		})
+
+		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
+			v1.ResourceCPU:    resource.MustParse("4"),
+			v1.ResourceMemory: resource.MustParse("8Gi"),
+		}})
+		ExpectApplied(ctx, env.Client, pod1, node)
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+
+		ExpectManualBinding(ctx, env.Client, pod1, node)
+		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
+
+		// daemonset pod isn't bound yet
+		ExpectNodeDaemonSetRequested(node, v1.ResourceCPU, "0")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceMemory, "0")
+		ExpectNodeResourceRequest(node, v1.ResourceCPU, "1.5")
+
+		ExpectApplied(ctx, env.Client, dsPod)
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(dsPod))
+		ExpectManualBinding(ctx, env.Client, dsPod, node)
+		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(dsPod))
+
+		// just the DS request portion
+		ExpectNodeDaemonSetRequested(node, v1.ResourceCPU, "1")
+		ExpectNodeDaemonSetRequested(node, v1.ResourceMemory, "2Gi")
+		// total request
+		ExpectNodeResourceRequest(node, v1.ResourceCPU, "2.5")
+		ExpectNodeResourceRequest(node, v1.ResourceMemory, "2Gi")
 	})
 })
 
@@ -502,12 +575,14 @@ func ExpectNodeResourceRequest(node *v1.Node, resourceName v1.ResourceName, amou
 		return false
 	})
 }
-func ExpectManualBinding(ctx context.Context, c client.Client, pod *v1.Pod, node *v1.Node) {
-	Expect(c.Create(ctx, &v1.Binding{
-		TypeMeta:   pod.TypeMeta,
-		ObjectMeta: pod.ObjectMeta,
-		Target: v1.ObjectReference{
-			Name: node.Name,
-		},
-	})).To(Succeed())
+func ExpectNodeDaemonSetRequested(node *v1.Node, resourceName v1.ResourceName, amount string) {
+	cluster.ForEachNode(func(n *state.Node) bool {
+		if n.Node.Name != node.Name {
+			return true
+		}
+		dsReq := n.DaemonSetRequested[resourceName]
+		expected := resource.MustParse(amount)
+		Expect(dsReq.AsApproximateFloat64()).To(BeNumerically("~", expected.AsApproximateFloat64(), 0.001))
+		return false
+	})
 }

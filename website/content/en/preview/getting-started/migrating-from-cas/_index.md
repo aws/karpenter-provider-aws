@@ -2,6 +2,8 @@
 title: "Migrating from Cluster Autoscaler"
 linkTitle: "Migrating from Cluster Autoscaler"
 weight: 10
+description: >
+  Migrate to Karpenter from Cluster Autoscaler 
 ---
 
 This guide will show you how to switch from the [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler) to Karpenter for automatic node provisioning.
@@ -182,6 +184,7 @@ kubectl logs -f -n karpenter -c controller -l app.kubernetes.io/name=karpenter
 ```
 
 You should also see new nodes created in your cluster as the old nodes are removed
+
 ```bash
 kubectl get nodes
 ```

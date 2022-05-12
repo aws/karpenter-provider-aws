@@ -126,9 +126,9 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	}
 
 	kubeClient := testclient.NewClientBuilder().WithLists(&appsv1.DaemonSetList{}).Build()
-	provisioners = provisioning.NewController(ctx, kubeClient, nil, cloudProvider)
+	provisioners = provisioning.NewController(ctx, kubeClient, nil, recorder, cloudProvider)
 	provisioners.Apply(ctx, provisioner)
-	scheduler := scheduling.NewScheduler(kubeClient)
+	scheduler := scheduling.NewScheduler(kubeClient, recorder)
 
 	pods := makeDiversePods(podCount)
 

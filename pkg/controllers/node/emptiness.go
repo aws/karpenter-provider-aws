@@ -28,7 +28,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
-	"github.com/aws/karpenter/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -43,7 +42,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	if !node.IsReady(n) {
+	if !v1alpha5.NodeIsReady(n, provisioner) {
 		return reconcile.Result{}, nil
 	}
 	// 2. Remove ttl if not empty

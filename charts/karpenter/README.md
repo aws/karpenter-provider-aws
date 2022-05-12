@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.9.0](https://img.shields.io/badge/Version-0.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.9.0](https://img.shields.io/badge/AppVersion-0.9.0-informational?style=flat-square)
+![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.10.0](https://img.shields.io/badge/AppVersion-0.10.0-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.9.0/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.10.0/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.9.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.10.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.9.0 \
+  --version 0.10.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -42,9 +42,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
+<<<<<<< HEAD
 | controller.image.digest | string | `nil` | sha256:xxx, can be combined with tag |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` |  |
 | controller.image.tag | string | `nil` | Defaults to chart.appVersion |
+=======
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e"` | Controller image. |
+>>>>>>> origin/main
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -79,7 +83,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | webhook.image.digest | string | `nil` | sha256:xxx, can be combined with tag |
 | webhook.image.repository | string | `"public.ecr.aws/karpenter/webhook"` |  |
 | webhook.image.tag | string | `nil` | Defaults to chart.appVersion |
-| webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
+q| webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
 | webhook.resources | object | `{"limits":{"cpu":"100m","memory":"50Mi"},"requests":{"cpu":"100m","memory":"50Mi"}}` | Resources for the webhook pod. |
