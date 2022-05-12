@@ -78,17 +78,12 @@ extraVolumes: []
 #         path: token
 
 controller:
-<<<<<<< HEAD
   image:
     repository: public.ecr.aws/karpenter/controller
     # -- Defaults to chart.appVersion
     tag:
     # -- sha256:xxx, can be combined with tag
     digest:
-=======
-  # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e"
->>>>>>> origin/main
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
