@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/listers/core/v1"
@@ -33,11 +32,11 @@ type UserDataProvider struct {
 }
 
 // New constructs a new UserData provider
-func NewUserDataProvider(clientSet *kubernetes.Clientset) *UserDataProvider {
+func NewUserDataProvider(ctx context.Context, clientSet *kubernetes.Clientset) *UserDataProvider {
 	factory := informers.NewSharedInformerFactory(clientSet, 1*time.Minute)
 	configMapLister := factory.Core().V1().ConfigMaps().Lister()
-	factory.Start(wait.NeverStop)
-	factory.WaitForCacheSync(wait.NeverStop)
+	factory.Start(ctx.Done())
+	factory.WaitForCacheSync(ctx.Done())
 	return &UserDataProvider{
 		clientSet:       clientSet,
 		configMapLister: configMapLister,

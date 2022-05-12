@@ -76,13 +76,13 @@ type AMIFamily interface {
 }
 
 // New constructs a new launch template Resolver
-func New(ssm ssmiface.SSMAPI, c *cache.Cache, clientSet *kubernetes.Clientset) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, clientSet *kubernetes.Clientset) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:   ssm,
 			cache: c,
 		},
-		UserDataProvider: NewUserDataProvider(clientSet),
+		UserDataProvider: NewUserDataProvider(ctx, clientSet),
 	}
 }
 

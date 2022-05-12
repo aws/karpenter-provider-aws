@@ -19,10 +19,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math"
 	"strings"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
@@ -54,6 +55,7 @@ import (
 )
 
 var ctx context.Context
+var stop context.CancelFunc
 var opts options.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
@@ -85,7 +87,8 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
-
+		ctx, cancelFunc := context.WithCancel(ctx)
+		stop = cancelFunc
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -113,7 +116,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache, clientSet),
+					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, clientSet),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -131,6 +134,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	stop()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
@@ -693,12 +697,12 @@ var _ = Describe("Allocation", func() {
 					configMapName := strings.ToLower(randomdata.SillyName())
 					configMap := test.ConfigMap(test.ConfigMapOptions{
 						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-						Data: map[string]string{"userDataContent": string(content)},
+						Data:       map[string]string{"userDataContent": string(content)},
 					})
 					ExpectApplied(ctx, env.Client, configMap)
 					provider.UserData = &v1alpha1.UserData{
 						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
-							Name: &configMapName,
+							Name:      &configMapName,
 							Namespace: aws.String("default"),
 						},
 					}
@@ -739,12 +743,12 @@ var _ = Describe("Allocation", func() {
 					configMapName := strings.ToLower(randomdata.SillyName())
 					configMap := test.ConfigMap(test.ConfigMapOptions{
 						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-						Data: map[string]string{"userDataContent": "#/bin/bash\n ./not-toml.sh"},
+						Data:       map[string]string{"userDataContent": "#/bin/bash\n ./not-toml.sh"},
 					})
 					ExpectApplied(ctx, env.Client, configMap)
 					provider.UserData = &v1alpha1.UserData{
 						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
-							Name: &configMapName,
+							Name:      &configMapName,
 							Namespace: aws.String("default"),
 						},
 					}
