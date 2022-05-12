@@ -17,31 +17,40 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"time"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/listers/core/v1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 type UserDataProvider struct {
-	clientSet *kubernetes.Clientset
+	clientSet       *kubernetes.Clientset
+	configMapLister v1.ConfigMapLister
 }
 
-// New constructs a new launch template Resolver
+// New constructs a new UserData provider
 func NewUserDataProvider(clientSet *kubernetes.Clientset) *UserDataProvider {
+	factory := informers.NewSharedInformerFactory(clientSet, 1*time.Minute)
+	configMapLister := factory.Core().V1().ConfigMaps().Lister()
+	factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
 	return &UserDataProvider{
-		clientSet: clientSet,
+		clientSet:       clientSet,
+		configMapLister: configMapLister,
 	}
 }
 
-// Get returns a set of AMIIDs and corresponding instance types. AMI may vary due to architecture, accelerator, etc
+// Get returns the UserData from the ConfigMap specified in the provider
 func (u *UserDataProvider) Get(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
 	if provider.UserData == nil {
 		return "", nil
 	}
 	userDataConfigMap := provider.UserData.ConfigMap
-	configMap, err := u.clientSet.CoreV1().ConfigMaps(*userDataConfigMap.Namespace).Get(ctx, *userDataConfigMap.Name, v1.GetOptions{})
+	configMap, err := u.configMapLister.ConfigMaps(*userDataConfigMap.Namespace).Get(*userDataConfigMap.Name)
 	if err != nil {
 		return "", fmt.Errorf("failure retrieving config map %s/%s", *userDataConfigMap.Namespace, *userDataConfigMap.Name)
 	}

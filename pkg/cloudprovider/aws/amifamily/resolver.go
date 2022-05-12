@@ -82,9 +82,7 @@ func New(ssm ssmiface.SSMAPI, c *cache.Cache, clientSet *kubernetes.Clientset) *
 			ssm:   ssm,
 			cache: c,
 		},
-		UserDataProvider: &UserDataProvider{
-			clientSet: clientSet,
-		},
+		UserDataProvider: NewUserDataProvider(clientSet),
 	}
 }
 
