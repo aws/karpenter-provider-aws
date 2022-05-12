@@ -70,7 +70,7 @@ func (p *SecurityGroupProvider) getFilters(provider *v1alpha1.AWS) []*ec2.Filter
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("group-id"),
-				Values: filterValues,
+				Values: aws.StringSlice(filterValues),
 			})
 		} else {
 			filters = append(filters, &ec2.Filter{

@@ -17,7 +17,6 @@ package functional
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -87,17 +86,17 @@ var _ = Describe("Functional", func() {
 		// No commas in input should produce identical output (single value)
 		Specify("no commas in string", func() {
 			input := "foo"
-			expected := []*string{aws.String(input)}
+			expected := []string{input}
 			Expect(SplitCommaSeparatedString(input)).To(Equal(expected))
 		})
 		// Multiple elements in input, no extraneous whitespace
 		Specify("multiple elements without whitespace", func() {
-			expected := []*string{aws.String("a"), aws.String("b")}
+			expected := []string{"a", "b"}
 			Expect(SplitCommaSeparatedString("a,b")).To(Equal(expected))
 		})
 		// Multiple elements in input, lots of extraneous whitespace
 		Specify("multiple elements with whitespace", func() {
-			expected := []*string{aws.String("a"), aws.String("b")}
+			expected := []string{"a", "b"}
 			Expect(SplitCommaSeparatedString(" a\t ,\n\t b  \n\t  ")).To(Equal(expected))
 		})
 	})
