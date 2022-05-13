@@ -22,4 +22,5 @@ publishHelmChart() {
 requireCloudProvider
 authenticate
 buildImages $HELM_CHART_VERSION
+cosignImages
 publishHelmChart
