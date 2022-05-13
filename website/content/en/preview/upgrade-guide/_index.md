@@ -11,7 +11,6 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 
 To make upgrading easier we aim to minimize introduction of breaking changes with the followings:
 
-
 # Compatibility issues
 
 To make upgrading easier, we aim to minimize the introduction of breaking changes with the followings components:
@@ -39,9 +38,9 @@ Users should therefore check to see if there is a breaking change every time the
 When there is a breaking change we will:
 
 * Increment the minor version when in major version 0
-* Add a permanent separate file named `migrating_to_vx.y.z.md` to our website (linked at the bottom of this page)
+* Add a permanent separate section named `upgrading to vx.y.z+` under [released upgrade notes](#released-upgrade-notes)
   clearly explaining the breaking change and what needs to be done on the user side to ensure a safe upgrade
-* Add the sentence “This is a breaking change, please refer to `migrating_to_x.y.z.md` for upgrade instructions” to the top of the release notes and in all our announcements
+* Add the sentence “This is a breaking change, please refer to the above link for upgrade instructions” to the top of the release notes and in all our announcements
 
 ## How Do We Find Incompatibilities
 
