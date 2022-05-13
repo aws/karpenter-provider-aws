@@ -75,7 +75,7 @@ func getFilters(provider *v1alpha1.AWS) []*ec2.Filter {
 			filterValues := functional.SplitCommaSeparatedString(value)
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("subnet-id"),
-				Values: filterValues,
+				Values: aws.StringSlice(filterValues),
 			})
 		} else if value == "*" {
 			filters = append(filters, &ec2.Filter{

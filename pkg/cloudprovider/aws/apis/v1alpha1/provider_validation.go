@@ -91,8 +91,8 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 		}
 		if key == "aws-ids" {
 			for _, subnetID := range functional.SplitCommaSeparatedString(value) {
-				if !subnetRegex.MatchString(*subnetID) {
-					fieldValue := fmt.Sprintf("\"%s\"", *subnetID)
+				if !subnetRegex.MatchString(subnetID) {
+					fieldValue := fmt.Sprintf("\"%s\"", subnetID)
 					message := fmt.Sprintf("%s['%s'] must be a valid subnet-id (regex: %s)", fieldPathSubnetSelectorPath, key, subnetRegex.String())
 					errs = errs.Also(apis.ErrInvalidValue(fieldValue, message))
 				}
@@ -115,8 +115,8 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 		}
 		if key == "aws-ids" {
 			for _, securityGroupID := range functional.SplitCommaSeparatedString(value) {
-				if !securityGroupRegex.MatchString(*securityGroupID) {
-					fieldValue := fmt.Sprintf("\"%s\"", *securityGroupID)
+				if !securityGroupRegex.MatchString(securityGroupID) {
+					fieldValue := fmt.Sprintf("\"%s\"", securityGroupID)
 					message := fmt.Sprintf("%s['%s'] must be a valid group-id (regex: %s)", securityGroupSelectorPath, key, securityGroupRegex.String())
 					errs = errs.Also(apis.ErrInvalidValue(fieldValue, message))
 				}

@@ -195,29 +195,73 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	return output, nil
 }
 
-func (e *EC2API) DescribeSubnetsWithContext(context.Context, *ec2.DescribeSubnetsInput, ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
+func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if e.DescribeSubnetsOutput != nil {
 		return e.DescribeSubnetsOutput, nil
 	}
-	return &ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-		{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
-			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
-		{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100),
-			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
-		{SubnetId: aws.String("test-subnet-3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(100),
-			Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-3")}, {Key: aws.String("TestTag")}}},
-	}}, nil
+	subnets := []*ec2.Subnet{
+		{
+			SubnetId:                aws.String("subnet-test1"),
+			AvailabilityZone:        aws.String("test-zone-1a"),
+			AvailableIpAddressCount: aws.Int64(100),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-subnet-1")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+		{
+			SubnetId:                aws.String("subnet-test2"),
+			AvailabilityZone:        aws.String("test-zone-1b"),
+			AvailableIpAddressCount: aws.Int64(100),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-subnet-2")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+		{
+			SubnetId:                aws.String("subnet-test3"),
+			AvailabilityZone:        aws.String("test-zone-1c"),
+			AvailableIpAddressCount: aws.Int64(100),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-subnet-3")},
+				{Key: aws.String("TestTag")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+	}
+
+	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
-func (e *EC2API) DescribeSecurityGroupsWithContext(context.Context, *ec2.DescribeSecurityGroupsInput, ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
 	if e.DescribeSecurityGroupsOutput != nil {
 		return e.DescribeSecurityGroupsOutput, nil
 	}
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{
-		{GroupId: aws.String("test-security-group-1"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-1")}}},
-		{GroupId: aws.String("test-security-group-2"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-2")}}},
-		{GroupId: aws.String("test-security-group-3"), Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-security-group-3")}, {Key: aws.String("TestTag")}}},
-	}}, nil
+	sgs := []*ec2.SecurityGroup{
+		{
+			GroupId: aws.String("sg-test1"),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+		{
+			GroupId: aws.String("sg-test2"),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+		{
+			GroupId: aws.String("sg-test3"),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
+				{Key: aws.String("TestTag")},
+				{Key: aws.String("foo"), Value: aws.String("bar")},
+			},
+		},
+	}
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
 }
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
