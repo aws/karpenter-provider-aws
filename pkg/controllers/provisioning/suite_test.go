@@ -41,6 +41,7 @@ var ctx context.Context
 var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
+var cfg *test.Config
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -53,7 +54,8 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
+		cfg = test.NewConfig()
+		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

@@ -18,6 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	"knative.dev/pkg/system"
+
+	"github.com/aws/karpenter/pkg/config"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -36,7 +40,6 @@ import (
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
-	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -67,14 +70,15 @@ func init() {
 }
 
 func main() {
-	config := controllerruntime.GetConfigOrDie()
-	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
-	config.UserAgent = "karpenter"
-	clientSet := kubernetes.NewForConfigOrDie(config)
+	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
+	controllerRuntimeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
+	controllerRuntimeConfig.UserAgent = "karpenter"
+	clientSet := kubernetes.NewForConfigOrDie(controllerRuntimeConfig)
 
+	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	// Set up logger and watch for changes to log level
-	ctx := LoggingContextOrDie(config, clientSet)
-	ctx = injection.WithConfig(ctx, config)
+	ctx := LoggingContextOrDie(controllerRuntimeConfig, cmw)
+	ctx = injection.WithConfig(ctx, controllerRuntimeConfig)
 	ctx = injection.WithOptions(ctx, opts)
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
@@ -83,7 +87,7 @@ func main() {
 
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
-	manager := controllers.NewManagerOrDie(ctx, config, controllerruntime.Options{
+	manager := controllers.NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
 		LeaderElectionID:       "karpenter-leader-election",
@@ -92,10 +96,20 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
+	cfg, err := config.New(ctx, clientSet, cmw)
+	if err != nil {
+		// this does not happen if the config map is missing or invalid, only if some other error occurs
+		logging.FromContext(ctx).Fatalf("unable to load config, %s", err)
+	}
+
+	if err := cmw.Start(ctx.Done()); err != nil {
+		logging.FromContext(ctx).Fatalf("Failed to watch configmaps, %s", err)
+	}
+
 	cluster := state.NewCluster(ctx, manager.GetClient())
 
 	if err := manager.RegisterControllers(ctx,
-		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
+		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
@@ -111,16 +125,12 @@ func main() {
 
 // LoggingContextOrDie injects a logger into the returned context. The logger is
 // configured by the ConfigMap `config-logging` and live updates the level.
-func LoggingContextOrDie(config *rest.Config, clientSet *kubernetes.Clientset) context.Context {
+func LoggingContextOrDie(config *rest.Config, cmw *informer.InformedWatcher) context.Context {
 	ctx, startinformers := knativeinjection.EnableInjectionOrDie(signals.NewContext(), config)
 	logger, atomicLevel := sharedmain.SetupLoggerOrDie(ctx, component)
 	ctx = logging.WithLogger(ctx, logger)
 	rest.SetDefaultWarningHandler(&logging.WarningHandler{Logger: logger})
-	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
 	sharedmain.WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
-	if err := cmw.Start(ctx.Done()); err != nil {
-		logger.Fatalf("Failed to watch logging configuration, %s", err)
-	}
 	startinformers()
 	return ctx
 }
