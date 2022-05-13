@@ -2,11 +2,12 @@ name: Snapshots
 on:
   push:
     branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 permissions:
   id-token: write
 jobs:
   snapshots:
-    if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
