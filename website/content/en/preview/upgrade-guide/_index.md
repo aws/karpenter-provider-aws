@@ -57,7 +57,7 @@ It also allows some advanced Karpenter users who have their own nightly builds t
 
 ## Release Candidates
 
-(To be implemented) We are considering having release candidates when we are in major version 1.
+We consider having release candidates for major and important minor versions. Our release candidates are tagged like `vx.y.z-rc.0`, `vx.y.z-rc.1`. The release candidate will then graduate to `vx.y.z` as a normal stable release.
 By adopting this practice we allow our users who are early adopters to test out new releases before they are available to the wider community, thereby providing us with early feedback resulting in more stable releases.
 
 ## Security Patches
