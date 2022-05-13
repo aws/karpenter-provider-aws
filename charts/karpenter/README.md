@@ -42,13 +42,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-<<<<<<< HEAD
 | controller.image.digest | string | `nil` | sha256:xxx, can be combined with tag |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` |  |
 | controller.image.tag | string | `nil` | Defaults to chart.appVersion |
-=======
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e"` | Controller image. |
->>>>>>> origin/main
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
