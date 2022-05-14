@@ -15,6 +15,10 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::339104714817:role/Github
+          aws-region: us-east-1
       - uses: actions/cache@v2
         with:
           path: |
@@ -23,10 +27,6 @@ jobs:
             ~/go/bin/
             ~/.kubebuilder/bin/k8s
           key: ${{ runner.os }}-go-cache-${{ hashFiles('**/go.sum') }}
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::339104714817:role/Github
-          aws-region: us-east-1
       - run: make toolchain
       - run: make snapshot
         env:
