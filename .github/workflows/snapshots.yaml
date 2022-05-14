@@ -2,8 +2,11 @@ name: Snapshots
 on:
   push:
     branches: [ main ]
+  pull_request_review:
+    types: [ submitted ]
 permissions:
   id-token: write
+  contents: write
 jobs:
   snapshots:
     runs-on: ubuntu-latest
