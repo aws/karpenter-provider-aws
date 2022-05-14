@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SNAPSHOT_TAG=$(git rev-parse HEAD)
-RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/karpenter-snapshots/}
+RELEASE_REPO=${RELEASE_REPO:-public.ecr.aws/d1w0j9s0/}
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/release_common.sh"

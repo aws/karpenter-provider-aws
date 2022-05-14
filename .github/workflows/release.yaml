@@ -20,7 +20,7 @@ jobs:
           target-folder: charts
       - uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::274912145732:role/Snapshots
+          role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
       - run: make stablerelease
         env:
