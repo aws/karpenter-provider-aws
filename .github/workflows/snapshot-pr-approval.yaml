@@ -5,6 +5,7 @@ on:
 
 permissions:
   id-token: write
+  contents: read
 jobs:
   snapshotsOnPRs:
     if: github.event.review.state == 'approved' && startsWith(github.event.review.body, '/snapshot')
