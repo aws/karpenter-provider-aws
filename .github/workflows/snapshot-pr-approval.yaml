@@ -1,13 +1,13 @@
 name: SnapshotsONPRs
 on:
   pull_request_review:
-    types: [approved]
+    types: [submitted]
 
 permissions:
   id-token: write
 jobs:
   snapshotsOnPRs:
-    if: startsWith(github.event.review.body, '/snapshot')
+    if: github.event.review.state == 'approved' && startsWith(github.event.review.body, '/snapshot')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
