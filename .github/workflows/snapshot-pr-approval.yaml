@@ -5,7 +5,7 @@ on:
 
 permissions:
   id-token: write
-  contents: write
+  contents: read
 jobs:
   snapshotsOnPRs:
     if: github.event.review.state == 'approved' && startsWith(github.event.review.body, '/snapshot')
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@b8c74de
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
