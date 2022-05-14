@@ -2,8 +2,6 @@ name: Snapshots
 on:
   push:
     branches: [ main ]
-  pull_request:
-  workflow_dispatch:
 permissions:
   id-token: write
 jobs:
