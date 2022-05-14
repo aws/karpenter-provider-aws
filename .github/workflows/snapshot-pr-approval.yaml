@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: aws-actions/configure-aws-credentials@b8c74de
+      - uses: aws-actions/configure-aws-credentials@b8c74de753fbcb4868bf2011fb2e15826ce973af
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
