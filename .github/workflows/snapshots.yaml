@@ -11,6 +11,7 @@ jobs:
   snapshots:
     runs-on: ubuntu-latest
     steps:
+      - run: env
       - uses: aws-actions/configure-aws-credentials@v1.6.1
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
