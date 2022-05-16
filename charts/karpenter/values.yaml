@@ -80,7 +80,10 @@ extraVolumes: []
 controller:
   image:
     repository: public.ecr.aws/karpenter/controller
-    tag: v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e
+    # -- Defaults to chart.appVersion, skip with "-"
+    tag:
+    # -- sha256:xxx, can be combined with tag
+    digest:
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -108,7 +111,10 @@ controller:
 webhook:
   image:
     repository: public.ecr.aws/karpenter/webhook
-    tag: v0.10.0@sha256:9e7ad73c92db5635d43067d4cd0835cbc12b9a02d29bbcde8ed680eeaa55b8f1
+    # -- Defaults to chart.appVersion, skip with "-"
+    tag:
+    # -- sha256:xxx, can be combined with tag
+    digest:
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.

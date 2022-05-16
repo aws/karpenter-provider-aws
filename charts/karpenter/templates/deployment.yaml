@@ -54,7 +54,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
+          image: {{ include "karpenter.image" (dict "image" .Values.controller.image "appVersion" .Chart.AppVersion) }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME
@@ -102,7 +102,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: {{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}
+          image: {{ include "karpenter.image" (dict "image" .Values.webhook.image "appVersion" .Chart.AppVersion) }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME

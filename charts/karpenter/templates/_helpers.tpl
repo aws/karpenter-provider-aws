@@ -72,3 +72,18 @@ Create the name of the service account to use
 {{- print "policy/v1beta1" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Generate the image name from a context with image and appVersion set
+*/}}
+{{- define "karpenter.image" -}}
+{{- if and .image.digest .image.tag (ne .image.tag "-") }}
+{{- printf "%s:%s@%s" .image.repository (default .appVersion .image.tag) .image.digest -}}
+{{- else if and .image.digest }}
+{{- printf "%s@%s" .image.repository .image.digest }}
+{{- else if and .image.tag (eq .image.tag "-") }}
+{{- printf "%s" .image.repository }}
+{{- else }}
+{{- printf "%s:%s" .image.repository (default .appVersion .image.tag) }}
+{{- end }}
+{{- end }}
