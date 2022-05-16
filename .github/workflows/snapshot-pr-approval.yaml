@@ -1,18 +1,21 @@
 name: SnapshotsONPRs
 on:
+  push:
+    branches: [ main ]
   pull_request_review:
-    types: [submitted]
-
+    types: [ submitted ]
 permissions:
   id-token: write
-
+  contents: read
 jobs:
-  if: github.repository == 'aws/karpenter'
   snapshotsOnPRs:
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - run: env
-      - uses: aws-actions/configure-aws-credentials@v1
+      - uses: kellertk/configure-aws-credentials@ee5ea383ce4b004b3e741da5f0a6880959b26cd8
         with:
           role-to-assume: arn:aws:iam::274912145732:role/Snapshots
           aws-region: us-east-1
