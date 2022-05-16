@@ -1,4 +1,4 @@
-name: Snapshots
+name: SnapshotsONPRs
 on:
   push:
     branches: [ main ]
