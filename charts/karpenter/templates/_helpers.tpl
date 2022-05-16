@@ -72,15 +72,3 @@ Create the name of the service account to use
 {{- print "policy/v1beta1" -}}
 {{- end -}}
 {{- end -}}
-
-
-{{- define "karpenter.image" -}}
-{{- if and .digest .tag }}
-{{- printf "%s/%s:%s@%s" .registry .repository .tag .digest -}}
-{{- else if .digest }}
-{{- printf "%s/%s@%s" .registry .repository .digest -}}
-{{- else -}}
-{{ printf "%s:%s" .registry .repository (default .Chart.AppVersion .tag) | quote }}
-{{- end -}}
-{{- end -}}
- 
