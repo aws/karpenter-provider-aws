@@ -147,7 +147,7 @@ Note that if the constraints are such that a match is not possible, the pod will
 So, what constraints can you use as an application developer deploying pods that could be managed by Karpenter?
 
 Kubernetes features that Karpenter supports for scheduling pods include nodeAffinity and [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector).
-It also supports [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) and [topologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
+It also supports [PodDisruptionBudget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/), [topologySpreadConstraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/), and [inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity).
 
 From the Kubernetes [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) page,
 you can see a full list of Kubernetes labels, annotations and taints that determine scheduling.
@@ -156,11 +156,5 @@ Those that are implemented in Karpenter include:
 * **kubernetes.io/arch**: For example, kubernetes.io/arch=amd64
 * **node.kubernetes.io/instance-type**: For example, node.kubernetes.io/instance-type=m3.medium
 * **topology.kubernetes.io/zone**: For example, topology.kubernetes.io/zone=us-east-1c
-
-{{% alert title="Note" color="primary" %}}
-Don't use `podAffinity` and `podAntiAffinity` to schedule pods on the same or different nodes as other pods.
-Kubernetes SIG scalability recommends against these features due to their negative performance impact on the Kubernetes Scheduler (see [KEP 895](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/895-pod-topology-spread#impact-to-other-features)) and Karpenter doesn't support them for the moment (you can follow their consideration by subscribing to the [issue](https://github.com/aws/karpenter/issues/942).
-Instead, the Karpenter project recommends `topologySpreadConstraints` to reduce blast radius and `nodeSelectors` and `taints` to implement colocation.
-{{% /alert %}}
 
 For more on how, as a developer, you can add constraints to your pod deployment, see [Scheduling](../tasks/scheduling/) for details.
