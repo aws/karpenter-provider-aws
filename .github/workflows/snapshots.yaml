@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: env
-      - uses: aws-actions/configure-aws-credentials@v1.6.1
+      - uses: kellertk/configure-aws-credentials@38cc0436c8
         with:
           role-to-assume: arn:aws:iam::339104714817:role/Github
           aws-region: us-east-1
