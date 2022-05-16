@@ -181,6 +181,10 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 		provisioners = append(provisioners, provisioner)
 	}
 
+	if len(provisioners) == 0 {
+		return nil, fmt.Errorf("no provisioners found")
+	}
+
 	// Inject topology requirements
 	for _, pod := range pods {
 		if err = p.volumeTopology.Inject(ctx, pod); err != nil {

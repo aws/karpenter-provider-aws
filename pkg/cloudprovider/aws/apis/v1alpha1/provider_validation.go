@@ -16,11 +16,14 @@ package v1alpha1
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 const (
@@ -35,8 +38,10 @@ const (
 )
 
 var (
-	minVolumeSize = *resource.NewScaledQuantity(1, resource.Giga)
-	maxVolumeSize = *resource.NewScaledQuantity(64, resource.Tera)
+	minVolumeSize      = *resource.NewScaledQuantity(1, resource.Giga)
+	maxVolumeSize      = *resource.NewScaledQuantity(64, resource.Tera)
+	subnetRegex        = regexp.MustCompile("subnet-[0-9a-z]+")
+	securityGroupRegex = regexp.MustCompile("sg-[0-9a-z]+")
 )
 
 func (a *AWS) Validate() (errs *apis.FieldError) {
@@ -89,6 +94,15 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", fieldPathSubnetSelectorPath, key)))
 		}
+		if key == "aws-ids" {
+			for _, subnetID := range functional.SplitCommaSeparatedString(value) {
+				if !subnetRegex.MatchString(subnetID) {
+					fieldValue := fmt.Sprintf("\"%s\"", subnetID)
+					message := fmt.Sprintf("%s['%s'] must be a valid subnet-id (regex: %s)", fieldPathSubnetSelectorPath, key, subnetRegex.String())
+					errs = errs.Also(apis.ErrInvalidValue(fieldValue, message))
+				}
+			}
+		}
 	}
 	return errs
 }
@@ -103,6 +117,15 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", securityGroupSelectorPath, key)))
+		}
+		if key == "aws-ids" {
+			for _, securityGroupID := range functional.SplitCommaSeparatedString(value) {
+				if !securityGroupRegex.MatchString(securityGroupID) {
+					fieldValue := fmt.Sprintf("\"%s\"", securityGroupID)
+					message := fmt.Sprintf("%s['%s'] must be a valid group-id (regex: %s)", securityGroupSelectorPath, key, securityGroupRegex.String())
+					errs = errs.Also(apis.ErrInvalidValue(fieldValue, message))
+				}
+			}
 		}
 	}
 	return errs

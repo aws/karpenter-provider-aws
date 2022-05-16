@@ -82,4 +82,22 @@ var _ = Describe("Functional", func() {
 			Expect(UnionStringMaps(original, disjoiner, empty, uberwriter)).To(Equal(expected))
 		})
 	})
+	Context("SplitCommaSeparatedString", func() {
+		// No commas in input should produce identical output (single value)
+		Specify("no commas in string", func() {
+			input := "foo"
+			expected := []string{input}
+			Expect(SplitCommaSeparatedString(input)).To(Equal(expected))
+		})
+		// Multiple elements in input, no extraneous whitespace
+		Specify("multiple elements without whitespace", func() {
+			expected := []string{"a", "b"}
+			Expect(SplitCommaSeparatedString("a,b")).To(Equal(expected))
+		})
+		// Multiple elements in input, lots of extraneous whitespace
+		Specify("multiple elements with whitespace", func() {
+			expected := []string{"a", "b"}
+			Expect(SplitCommaSeparatedString(" a\t ,\n\t b  \n\t  ")).To(Equal(expected))
+		})
+	})
 })

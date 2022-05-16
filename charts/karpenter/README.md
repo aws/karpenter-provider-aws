@@ -2,11 +2,11 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.9.1](https://img.shields.io/badge/Version-0.9.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.9.1](https://img.shields.io/badge/AppVersion-0.9.1-informational?style=flat-square)
+![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.10.0](https://img.shields.io/badge/AppVersion-0.10.0-informational?style=flat-square)
 
 ## Documentation
 
-For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.9.1/).
+For full Karpenter documentation please checkout [https://karpenter.sh](https://karpenter.sh/v0.10.0/).
 
 ## Installing the Chart
 
@@ -17,12 +17,12 @@ helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
 ```
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.9.1/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/v0.10.0/getting-started/getting-started-with-eksctl/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter karpenter/karpenter \
-  --version 0.9.1 \
+  --version 0.10.0 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set clusterName=${CLUSTER_NAME} \
   --set clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -42,7 +42,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | clusterName | string | `""` | Cluster name. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
-| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.9.1@sha256:341837796b644336d0d9bfbc1035e20db5b7acfa4ef5dedacb25a329d87daf27"` | Controller image. |
+| controller.image | string | `"public.ecr.aws/karpenter/controller:v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e"` | Controller image. |
 | controller.logEncoding | string | `""` | Controller log encoding, defaults to the global log encoding |
 | controller.logLevel | string | `""` | Controller log level, defaults to the global log level |
 | controller.resources | object | `{"limits":{"cpu":1,"memory":"1Gi"},"requests":{"cpu":1,"memory":"1Gi"}}` | Resources for the controller pod. |
@@ -74,7 +74,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | topologySpreadConstraints to increase the controller resilience |
 | webhook.env | list | `[]` | Additional environment variables for the webhook pod. |
 | webhook.extraVolumeMounts | list | `[]` | Additional volumeMounts for the webhook pod. |
-| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.9.1@sha256:27333251d221bd9c6a9c1cb49142e80d0486d0d6cf76fb842b5a802df05ccd21"` | Webhook image. |
+| webhook.image | string | `"public.ecr.aws/karpenter/webhook:v0.10.0@sha256:9e7ad73c92db5635d43067d4cd0835cbc12b9a02d29bbcde8ed680eeaa55b8f1"` | Webhook image. |
 | webhook.logEncoding | string | `""` | Webhook log encoding, defaults to the global log encoding |
 | webhook.logLevel | string | `""` | Webhook log level, defaults to the global log level |
 | webhook.port | int | `8443` | The container port to use for the webhook. |

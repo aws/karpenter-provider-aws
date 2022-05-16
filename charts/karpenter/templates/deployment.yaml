@@ -164,5 +164,11 @@ spec:
       {{- end }}
       {{- if .Values.topologySpreadConstraints }}
       topologySpreadConstraints:
-        {{ toYaml .Values.topologySpreadConstraints | nindent 8 }}
+        {{- range $constraint := .Values.topologySpreadConstraints }}
+        -
+        {{- toYaml $constraint | nindent 10 }}
+          labelSelector:
+            matchLabels:
+            {{- include "karpenter.selectorLabels" $ | nindent 14 -}}
+        {{- end }}
       {{- end }}

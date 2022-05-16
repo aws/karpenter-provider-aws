@@ -11,7 +11,6 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 
 To make upgrading easier we aim to minimize introduction of breaking changes with the followings:
 
-
 # Compatibility issues
 
 To make upgrading easier, we aim to minimize the introduction of breaking changes with the followings components:
@@ -39,9 +38,9 @@ Users should therefore check to see if there is a breaking change every time the
 When there is a breaking change we will:
 
 * Increment the minor version when in major version 0
-* Add a permanent separate file named `migrating_to_vx.y.z.md` to our website (linked at the bottom of this page)
+* Add a permanent separate section named `upgrading to vx.y.z+` under [released upgrade notes](#released-upgrade-notes)
   clearly explaining the breaking change and what needs to be done on the user side to ensure a safe upgrade
-* Add the sentence “This is a breaking change, please refer to `migrating_to_x.y.z.md` for upgrade instructions” to the top of the release notes and in all our announcements
+* Add the sentence “This is a breaking change, please refer to the above link for upgrade instructions” to the top of the release notes and in all our announcements
 
 ## How Do We Find Incompatibilities
 
@@ -58,7 +57,7 @@ It also allows some advanced Karpenter users who have their own nightly builds t
 
 ## Release Candidates
 
-(To be implemented) We are considering having release candidates when we are in major version 1.
+We consider having release candidates for major and important minor versions. Our release candidates are tagged like `vx.y.z-rc.0`, `vx.y.z-rc.1`. The release candidate will then graduate to `vx.y.z` as a normal stable release.
 By adopting this practice we allow our users who are early adopters to test out new releases before they are available to the wider community, thereby providing us with early feedback resulting in more stable releases.
 
 ## Security Patches
@@ -69,6 +68,16 @@ When at major version 1 we will have an EOL (end of life) policy where we provid
 for a subset of older versions and deprecate the others.
 
 # Released Upgrade Notes
+
+## Upgrading to v0.10.0+
+
+v0.10.0 adds a new field, `startupTaints` to the provisioner spec.  Standard Helm upgrades [do not upgrade CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) so the  field will not be available unless the CRD is manually updated.  This can be performed prior to the standard upgrade by applying the new CRD manually:
+
+```shell
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.10.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+```
+
+📝 If you don't perform this manual CRD update, Karpenter will work correctly except for rejecting the creation/update of provisioners that use `startupTaints`.
 
 ## Upgrading to v0.6.2+
 
