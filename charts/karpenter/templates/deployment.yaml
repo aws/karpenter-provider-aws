@@ -54,13 +54,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if and .Values.controller.image.digest .Values.controller.image.tag }}
-          image: "{{ .Values.controller.image.repository }}{{ .Values.controller.image.tag }}@{{ .Values.controller.image.digest }}"
-          {{- else if .Values.controller.image.digest }}
-          image: "{{ .Values.controller.image.repository }}@{{ .Values.controller.image.digest }}"
-          {{- else }}
-          image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
+          image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME
@@ -108,14 +102,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if and .Values.webhook.image.digest .Values.webhook.image.tag }}
-          image: "{{ .Values.webhook.image.repository }}{{ .Values.webhook.image.tag }}@{{ .Values.webhook.image.digest }}"
-          {{- else if .Values.webhook.image.digest }}
-          image: "{{ .Values.webhook.image.repository }}@{{ .Values.webhook.image.digest }}"
-          {{- else }}
-          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
-          image: 
+          image: {{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CLUSTER_NAME
