@@ -6,7 +6,7 @@ on:
     types: [ submitted ]
 permissions:
   id-token: write
-  contents: write
+  contents: read
 jobs:
   snapshots:
     runs-on: ubuntu-latest
