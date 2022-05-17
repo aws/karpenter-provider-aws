@@ -57,10 +57,14 @@ spec:
           image: {{ .Values.controller.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
+          {{- if .Values.clusterName }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
+          {{- end }}
+          {{- if .Values.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+          {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
@@ -105,12 +109,16 @@ spec:
           image: {{ .Values.webhook.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
+          {{- if .Values.clusterName }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
+          {{- end }}
             - name: KUBERNETES_MIN_VERSION
               value: "1.19.0-0"
+          {{- if .Values.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+          {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
