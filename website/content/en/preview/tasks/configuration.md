@@ -6,7 +6,7 @@ description: >
   Configure Karpenter
 ---
 
-Karpenter install a default configuration via its Helm chart that should work for most.  Additional configuration can be performed by  editing the `config` configmap within the namespace that Karpenter was installed in.
+Karpenter install a default configuration via its Helm chart that should work for most.  Additional configuration can be performed by editing the `karpenter-config-global-settings` configmap within the namespace that Karpenter was installed in.
 
 ```yaml
 apiVersion: v1

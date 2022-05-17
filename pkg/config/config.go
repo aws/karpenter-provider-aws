@@ -16,6 +16,9 @@ package config
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
+	"sort"
 	"sync"
 	"time"
 
@@ -31,6 +34,8 @@ import (
 const (
 	paramBatchMaxDuration  = "batchMaxDuration"
 	paramBatchIdleDuration = "batchIdleDuration"
+
+	configMapName = "karpenter-config-global-settings"
 )
 
 // these values need to be synced with our templates/configmap.yaml
@@ -57,6 +62,9 @@ type config struct {
 	batchMaxDuration  time.Duration
 	batchIdleDuration time.Duration
 
+	// hash of the config map so we only notify watches if it has changed
+	configHash uint64
+
 	watcherMu sync.Mutex
 	watchers  []ChangeHandler
 }
@@ -74,13 +82,17 @@ func (c *config) BatchIdleDuration() time.Duration {
 }
 
 func New(ctx context.Context, kubeClient *kubernetes.Clientset, iw *informer.InformedWatcher) (Config, error) {
-	cfg := &config{
-		ctx: ctx,
+	if iw.Namespace != system.Namespace() {
+		return nil, fmt.Errorf("watcher configured for wrong namespace, expected %s found %s", system.Namespace(), iw.Namespace)
 	}
-	cm, err := kubeClient.CoreV1().ConfigMaps(system.Namespace()).Get(ctx, "config", metav1.GetOptions{})
+
+	cfg := &config{ctx: ctx}
+	logging.FromContext(ctx).Infof("loading config from %s/%s", system.Namespace(), configMapName)
+
+	cm, err := kubeClient.CoreV1().ConfigMaps(system.Namespace()).Get(ctx, configMapName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logging.FromContext(ctx).Errorf("config not found, defaulting all values")
+			logging.FromContext(ctx).Errorf("config %s/%s not found, defaulting all values", iw.Namespace, configMapName)
 		} else {
 			return nil, err
 		}
@@ -96,7 +108,7 @@ func New(ctx context.Context, kubeClient *kubernetes.Clientset, iw *informer.Inf
 		}
 	}
 
-	iw.Watch("config", cfg.configMapChanged)
+	iw.Watch(configMapName, cfg.configMapChanged)
 	cfg.configMapChanged(cm)
 	return cfg, nil
 }
@@ -107,9 +119,42 @@ func (c *config) OnChange(handler ChangeHandler) {
 	c.watchers = append(c.watchers, handler)
 }
 
+// hashCM hashes a
+func hashCM(cm *v1.ConfigMap) uint64 {
+	var keys []string
+	for k := range cm.Data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	hasher := fnv.New64()
+	for _, k := range keys {
+		fmt.Fprint(hasher, k)
+		fmt.Fprint(hasher, cm.Data[k])
+	}
+
+	keys = nil
+	for k := range cm.BinaryData {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprint(hasher, k)
+		hasher.Write(cm.BinaryData[k])
+	}
+	return hasher.Sum64()
+}
+
 func (c *config) configMapChanged(configMap *v1.ConfigMap) {
-	logging.FromContext(c.ctx).Infof("configuration change detected")
+	hash := hashCM(configMap)
+	if hash == c.configHash {
+		return
+	}
+	if c.configHash != 0 {
+		logging.FromContext(c.ctx).Infof("configuration change detected")
+	}
+
 	c.dataMu.Lock()
+	c.configHash = hash
 	if configMap.Data == nil {
 		configMap.Data = map[string]string{}
 	}

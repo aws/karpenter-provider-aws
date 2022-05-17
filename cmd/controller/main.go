@@ -103,7 +103,7 @@ func main() {
 	}
 
 	if err := cmw.Start(ctx.Done()); err != nil {
-		logging.FromContext(ctx).Fatalf("Failed to watch configmaps, %s", err)
+		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
 
 	cluster := state.NewCluster(ctx, manager.GetClient())

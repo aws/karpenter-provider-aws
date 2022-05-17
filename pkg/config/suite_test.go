@@ -53,7 +53,7 @@ var _ = BeforeSuite(func() {
 
 		var cm v1.ConfigMap
 		cm.Namespace = "default"
-		cm.Name = "config"
+		cm.Name = "karpenter-config-global-settings"
 		ExpectApplied(ctx, env.Client, &cm)
 
 		cmw := informer.NewInformedWatcher(clientSet, os.Getenv("SYSTEM_NAMESPACE"))
@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 var _ = BeforeEach(func() {
 	var cm v1.ConfigMap
 	cm.Namespace = "default"
-	cm.Name = "config"
+	cm.Name = "karpenter-config-global-settings"
 	env.Client.Delete(ctx, &cm)
 	ExpectApplied(ctx, env.Client, &cm)
 })
@@ -98,7 +98,7 @@ var _ = Describe("Batch Parameter", func() {
 
 		// simulate user updating the config map
 		var cm v1.ConfigMap
-		Expect(env.Client.Get(ctx, client.ObjectKey{Namespace: "default", Name: "config"}, &cm)).To(Succeed())
+		Expect(env.Client.Get(ctx, client.ObjectKey{Namespace: "default", Name: "karpenter-config-global-settings"}, &cm)).To(Succeed())
 		cm.Data = map[string]string{}
 		cm.Data["batchIdleDuration"] = "2s"
 		cm.Data["batchMaxDuration"] = "15s"
@@ -134,7 +134,7 @@ var _ = Describe("Batch Parameter", func() {
 
 		// simulate user updating the config map with a bad max duration
 		var cm v1.ConfigMap
-		Expect(env.Client.Get(ctx, client.ObjectKey{Namespace: "default", Name: "config"}, &cm)).To(Succeed())
+		Expect(env.Client.Get(ctx, client.ObjectKey{Namespace: "default", Name: "karpenter-config-global-settings"}, &cm)).To(Succeed())
 		cm.Data = map[string]string{}
 		cm.Data["batchIdleDuration"] = "-2s" // negative value
 		cm.Data["batchMaxDuration"] = "15"   // no units
