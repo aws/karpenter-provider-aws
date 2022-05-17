@@ -8,9 +8,6 @@ permissions:
 jobs:
   snapshotsOnPRs:
     if: github.repository == 'aws/karpenter' && github.event.review.state == 'approved' && startsWith(github.event.review.body, '/snapshot')
-    permissions:
-      id-token: write
-      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
