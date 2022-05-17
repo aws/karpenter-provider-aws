@@ -11,6 +11,8 @@ run:
     - charts
     - designs
 
+  go: '1.18'
+
 linters:
   enable:
     - asciicheck

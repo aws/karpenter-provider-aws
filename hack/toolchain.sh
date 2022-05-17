@@ -11,7 +11,7 @@ main() {
 
 tools() {
     go install github.com/google/go-licenses@v1.2.0
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
     go install github.com/google/ko@v0.11.2
     go install github.com/mikefarah/yq/v4@v4.24.5
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.8.1
