@@ -17,6 +17,7 @@ package v1alpha5
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -27,8 +28,8 @@ import (
 )
 
 var (
-	SupportedNodeSelectorOps sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
-	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
+	SupportedNodeSelectorOps = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists), string(v1.NodeSelectorOpDoesNotExist))
+	SupportedProvisionerOps  = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
 )
 
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
@@ -43,8 +44,50 @@ func (s *ProvisionerSpec) validate(ctx context.Context) (errs *apis.FieldError) 
 	return errs.Also(
 		s.validateTTLSecondsUntilExpired(),
 		s.validateTTLSecondsAfterEmpty(),
+		s.validateInstanceTypeFilter().ViaField("instanceTypeFilter"),
 		s.Validate(ctx),
 	)
+}
+func (s *ProvisionerSpec) validateInstanceTypeFilter() *apis.FieldError {
+	if s.InstanceTypeFilter == nil {
+		return nil
+	}
+	if err := s.validateMinMax(s.InstanceTypeFilter.CPUCount); err != nil {
+		return err.ViaField("cpuCount")
+	}
+	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryMiB); err != nil {
+		return err.ViaField("memoryMiB")
+	}
+	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryMiBPerCPU); err != nil {
+		return err.ViaField("memoryMiBPerCPU")
+	}
+
+	for i, expr := range s.InstanceTypeFilter.NameMatchExpressions {
+		_, err := regexp.Compile(expr)
+		if err != nil {
+			return apis.ErrInvalidValue(expr, "nameMatchExpressions", err.Error()).ViaIndex(i)
+		}
+	}
+	return nil
+}
+
+func (s *ProvisionerSpec) validateMinMax(minMax *MinMax) *apis.FieldError {
+	if minMax == nil {
+		return nil
+	}
+	min := ptr.Int64Value(minMax.Min)
+	if min < 0 {
+		return apis.ErrInvalidValue(min, "min", "cannot be negative")
+	}
+	max := ptr.Int64Value(minMax.Max)
+	if max < 0 {
+		return apis.ErrInvalidValue(max, "max", "cannot be negative")
+	}
+	if min > max {
+		return apis.ErrGeneric("min must be <= max", "min", "max")
+	}
+
+	return nil
 }
 
 func (s *ProvisionerSpec) validateTTLSecondsUntilExpired() (errs *apis.FieldError) {

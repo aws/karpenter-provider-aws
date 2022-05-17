@@ -95,7 +95,7 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 		}
 
 		// Schedule to existing nodes or create a new node
-		if errors[pod] = s.add(pod); errors[pod] == nil {
+		if errors[pod] = s.add(ctx, pod); errors[pod] == nil {
 			continue
 		}
 
@@ -124,7 +124,7 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 	return s.nodes, nil
 }
 
-func (s *Scheduler) add(pod *v1.Pod) error {
+func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 	// first try to schedule against an in-flight real node
 	for _, node := range s.inflight {
 		if err := node.Add(pod); err == nil {
@@ -145,7 +145,7 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 	// Create new node
 	var errs error
 	for _, provisioner := range s.provisioners {
-		node := NewNode(provisioner, s.topology, s.daemonOverhead[provisioner], s.instanceTypes)
+		node := NewNode(provisioner, s.topology, s.daemonOverhead[provisioner], filterInstanceTypes(ctx, provisioner, s.instanceTypes))
 		err := node.Add(pod)
 		if err == nil {
 			s.nodes = append(s.nodes, node)
@@ -154,4 +154,25 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 		errs = multierr.Append(errs, err)
 	}
 	return errs
+}
+
+// filterInstanceTypes filters out the instance types to only those that are not excluded by the instance type filter on the provisioner
+func filterInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner, types []cloudprovider.InstanceType) []cloudprovider.InstanceType {
+	// no filter specified
+	if provisioner.Spec.InstanceTypeFilter == nil {
+		return types
+	}
+
+	filter := newInstanceTypeFilter(ctx, provisioner.Spec.InstanceTypeFilter)
+	var result []cloudprovider.InstanceType
+	for _, it := range types {
+		if filter.Accepts(it) {
+			result = append(result, it)
+		}
+	}
+
+	if len(result) == 0 {
+		logging.FromContext(ctx).Errorf("provisioner %s instanceTypeFilter eliminated all instance types", provisioner.Name)
+	}
+	return result
 }

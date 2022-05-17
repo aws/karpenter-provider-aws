@@ -16,8 +16,10 @@ package scheduling_test
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
 	"math"
 	"math/rand"
+	"regexp"
 
 	"github.com/mitchellh/hashstructure/v2"
 
@@ -522,6 +524,270 @@ var _ = Describe("Instance Type Selection", func() {
 			Expect(err).To(BeNil())
 			Expect(resourceHash).To(Equal(resourceHashes[it.Name()]), fmt.Sprintf("expected %s Resources() to not be modified by scheduling", it.Name()))
 			Expect(overheadHash).To(Equal(overheadHashes[it.Name()]), fmt.Sprintf("expected %s Overhead() to not be modified by scheduling", it.Name()))
+		}
+	})
+})
+
+var _ = Describe("Instance Type Filtering", func() {
+	BeforeEach(func() {
+		// open up the provisioner to any instance types
+		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureArm64, v1alpha5.ArchitectureAmd64},
+			},
+		}
+		cloudProv.CreateCalls = nil
+		cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
+		// add some randomness to instance type ordering to ensure we sort everywhere we need to
+		rand.Shuffle(len(cloudProv.InstanceTypes), func(i, j int) {
+			cloudProv.InstanceTypes[i], cloudProv.InstanceTypes[j] = cloudProv.InstanceTypes[j], cloudProv.InstanceTypes[i]
+		})
+	})
+	It("should not filter instance types if no filter is specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		// should provide the list of all instance types
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).To(Equal(len(cloudProv.InstanceTypes)))
+	})
+	It("should filter out instances with cpu less than the minimum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				CPUCount: &v1alpha5.MinMax{
+					Min: aws.Int64(16),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			cpu := it.Resources()[v1.ResourceCPU]
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically(">=", 16))
+		}
+	})
+	It("should filter out instances with cpu greater than the maximum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				CPUCount: &v1alpha5.MinMax{
+					Max: aws.Int64(16),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			cpu := it.Resources()[v1.ResourceCPU]
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically("<=", 16))
+		}
+	})
+	It("should filter out instances with cpu not in the range specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				CPUCount: &v1alpha5.MinMax{
+					Min: aws.Int64(8),
+					Max: aws.Int64(16),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			cpu := it.Resources()[v1.ResourceCPU]
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically(">=", 8))
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically("<=", 16))
+		}
+	})
+	It("should filter out instances with memory less than the minimum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiB: &v1alpha5.MinMax{
+					Min: aws.Int64(128 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically(">=", 128*1024*1024*1024))
+		}
+	})
+	It("should filter out instances with memory greater than the maximum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiB: &v1alpha5.MinMax{
+					Max: aws.Int64(32 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically("<=", 32*1024*1024*1024))
+		}
+	})
+	It("should filter out instances memory not in the range specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiB: &v1alpha5.MinMax{
+					Max: aws.Int64(32 * 1024),
+					Min: aws.Int64(16 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically(">=", 16*1024*1024*1024))
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically("<=", 32*1024*1024*1024))
+		}
+	})
+	It("should support combined cpu and memory filters", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				CPUCount: &v1alpha5.MinMax{
+					Min: aws.Int64(8),
+					Max: aws.Int64(16),
+				},
+				MemoryMiB: &v1alpha5.MinMax{
+					Max: aws.Int64(32 * 1024),
+					Min: aws.Int64(16 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically(">=", 16*1024*1024*1024))
+			Expect(mem.AsApproximateFloat64()).To(BeNumerically("<=", 32*1024*1024*1024))
+			cpu := it.Resources()[v1.ResourceCPU]
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically(">=", 8))
+			Expect(cpu.AsApproximateFloat64()).To(BeNumerically("<=", 16))
+		}
+	})
+	It("should filter out instances with less memory per cpu than the minimum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiBPerCPU: &v1alpha5.MinMax{
+					Min: aws.Int64(8 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).To(BeNumerically(">", 0))
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).ToNot(Equal(len(cloudProv.InstanceTypes)))
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			cpu := it.Resources()[v1.ResourceCPU]
+			memMib := mem.AsApproximateFloat64() / (1024 * 1024)
+			ratio := memMib / cpu.AsApproximateFloat64()
+			Expect(ratio).To(BeNumerically(">=", 8*1024))
+		}
+	})
+	It("should filter out instances with more memory per cpu than the maximum specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiBPerCPU: &v1alpha5.MinMax{
+					Max: aws.Int64(8 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).To(BeNumerically(">", 0))
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).ToNot(Equal(len(cloudProv.InstanceTypes)))
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			cpu := it.Resources()[v1.ResourceCPU]
+			memMib := mem.AsApproximateFloat64() / (1024 * 1024)
+			ratio := memMib / cpu.AsApproximateFloat64()
+			Expect(ratio).To(BeNumerically("<=", 8*1024))
+		}
+	})
+	It("should filter out instances with memory per cpu not in the range specified", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				MemoryMiBPerCPU: &v1alpha5.MinMax{
+					Min: aws.Int64(8 * 1024),
+					Max: aws.Int64(16 * 1024),
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).To(BeNumerically(">", 0))
+		Expect(len(cloudProv.CreateCalls[0].InstanceTypeOptions)).ToNot(Equal(len(cloudProv.InstanceTypes)))
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			mem := it.Resources()[v1.ResourceMemory]
+			cpu := it.Resources()[v1.ResourceCPU]
+			memMib := mem.AsApproximateFloat64() / (1024 * 1024)
+			ratio := memMib / cpu.AsApproximateFloat64()
+			Expect(ratio).To(BeNumerically(">=", 8*1024))
+			Expect(ratio).To(BeNumerically("<=", 16*1024))
+		}
+	})
+	It("should filter out instances by the NameMatchExpressions", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				NameMatchExpressions: []string{
+					"li..x",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		regExp := regexp.MustCompile("li..x")
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			Expect(regExp.MatchString(it.Name())).To(BeTrue())
+		}
+	})
+	It("should filter out instances by the NameMatchExpressions, multiple terms are OR'd", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				NameMatchExpressions: []string{
+					"linux",
+					"amd64",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		regExp1 := regexp.MustCompile("linux")
+		regExp2 := regexp.MustCompile("amd64")
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			Expect(regExp1.MatchString(it.Name()) || regExp2.MatchString(it.Name())).To(BeTrue())
 		}
 	})
 })

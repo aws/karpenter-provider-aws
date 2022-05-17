@@ -33,14 +33,15 @@ import (
 // ProvisionerOptions customizes a Provisioner.
 type ProvisionerOptions struct {
 	metav1.ObjectMeta
-	Limits        v1.ResourceList
-	Provider      interface{}
-	Kubelet       *v1alpha5.KubeletConfiguration
-	Labels        map[string]string
-	Taints        []v1.Taint
-	StartupTaints []v1.Taint
-	Requirements  []v1.NodeSelectorRequirement
-	Status        v1alpha5.ProvisionerStatus
+	Limits             v1.ResourceList
+	Provider           interface{}
+	Kubelet            *v1alpha5.KubeletConfiguration
+	Labels             map[string]string
+	Taints             []v1.Taint
+	StartupTaints      []v1.Taint
+	Requirements       []v1.NodeSelectorRequirement
+	Status             v1alpha5.ProvisionerStatus
+	InstanceTypeFilter *v1alpha5.InstanceTypeFilter
 }
 
 // Provisioner creates a test pod with defaults that can be overridden by ProvisionerOptions.
@@ -73,7 +74,8 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 				StartupTaints:        options.StartupTaints,
 				Labels:               options.Labels,
 			},
-			Limits: &v1alpha5.Limits{Resources: options.Limits},
+			Limits:             &v1alpha5.Limits{Resources: options.Limits},
+			InstanceTypeFilter: options.InstanceTypeFilter,
 		},
 		Status: options.Status,
 	}

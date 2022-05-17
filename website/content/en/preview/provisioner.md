@@ -22,6 +22,22 @@ spec:
   # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
 
+  # If omitted, no instance type filtering is performed apart from any implied by requirements on the provisioner or
+  # node selectors on workloads.
+  instanceTypeFilter:
+    cpuCount:
+      min: 4
+      max: 8
+    memoryMiB:
+      min: 16000
+      max: 32000
+    memoryMiBPerCPU:
+      min: 7000
+      max: 9000
+    nameMatchExpressions:
+    - ^r5
+    - ^r6
+  
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.
   taints:
@@ -87,7 +103,53 @@ Setting a value here enables node expiry. After nodes reach the defined age in s
 
 Note that Karpenter does not automatically add jitter to this value. If multiple instances are created in a small amount of time, they will expire at very similar times. Consider defining a [pod disruption budget](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) to prevent excessive workload disruption. 
 
+### spec.instanceTypeFilter
 
+The `instanceTypeFilter` is optional, as are all of its parameters. It allows for filtering instance types on a provisioner specific basis. This allows you to exclude instance types which while they may fit your workloads are undesirable in some way such as :
+- excluding instance types with low CPU and memory to prevent launching nodes that can only support daemonsets and small workloads
+- selecting for nodes with the desired memory to CPU ratios based on your workloads
+- excluding instance types with high CPU and memory to reduce node blast radius
+- selecting only instance types with particular names 
+
+### spec.instanceTypeFilter.cpuCount
+
+The `cpuCount` parameter filters for instance types with a specified number of CPUs.  Both the `min` and `max` parameters are optional allowing excluding instance types with too few or too many CPUs. If both values are supplied, for an instance type to be considered the number of CPUs must lie in the range `[min,max]` inclusive. 
+
+```yaml
+cpuCount:
+  min: 4
+  max: 8
+```
+
+### spec.instanceTypeFilter.memoryMiB
+
+The `memoryMiB` parameter filters for instance types with a specified amount of memory.  Both the `min` and `max` parameters are optional allowing excluding instance types with too little or too much memory. If both values are supplied, for an instance type to be considered the amount of memory in MiB must lie in the range `[min,max]` inclusive.
+
+```yaml
+memoryMiB:
+  min: 16000
+  max: 32000
+```
+
+### spec.instanceTypeFilter.memoryMiBPerCPU
+
+The `memoryMiBPerCPU` parameter filters for instance types with specific memory to CPU ratios.  Both the `min` and `max` parameters are optional allowing excluding instance types with ratios that are out of range. If both values are supplied, for an instance type to be considered the memory to CPU ratio must lie in the range `[min,max]` inclusive.
+
+```yaml
+memoryMiBPerCPU:
+  min: 7000
+  max: 9000
+```
+
+### spec.instanceTypeFilter.nameMatchExpressions
+
+The `nameMatchExpressions` parameter filters for instance types names matching regular expressions. If this parameter is supplied, the only instance types that will be considered are those that match any one of the regular expressions in the `nameMatchExpressions` list.  
+
+```yaml
+nameMatchExpressions:
+- ^r5
+- ^r6
+```
 
 ## spec.requirements
 

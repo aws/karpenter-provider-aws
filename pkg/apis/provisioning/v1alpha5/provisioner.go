@@ -43,6 +43,35 @@ type ProvisionerSpec struct {
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
 	Limits *Limits `json:"limits,omitempty"`
+	// InstanceTypeFilter allows filtering the instance types provided by the cloud provider.
+	InstanceTypeFilter *InstanceTypeFilter `json:"instanceTypeFilter,omitempty"`
+}
+
+// InstanceTypeFilter is the schema for the instance type filtering
+type InstanceTypeFilter struct {
+	// CPUCount allows filtering instance types by the min and maximum number of CPUs on the instance type with the
+	// minimum and maximum values being inclusive.
+	CPUCount *MinMax `json:"cpuCount,omitempty"`
+	// MemoryMiB allows filtering instance types by the min and maximum MiB of memory on the instance type with the
+	// minimum and maximum values being inclusive.
+	MemoryMiB *MinMax `json:"memoryMiB,omitempty"`
+	// MemoryMiBPerCPU allows filtering instance types by the min and maximum MiB of memory per on the instance type
+	// with the minimum and maximum values being inclusive.
+	MemoryMiBPerCPU *MinMax `json:"memoryMiBPerCPU,omitempty"`
+	// NameMatchExpressions are regular expressions to match against instance types names.  If no expressions are
+	// supplied, then no instance types will be excluded by the NameMatchExpressions. If multiple expressions are
+	// supplied, the NameMatchExpressions has an OR semantic.
+	NameMatchExpressions []string `json:"nameMatchExpressions,omitempty"`
+}
+
+// MinMax is the schema for a min/max range.  Both Min and Max are optional allowing configuring just a Min or Max value.
+type MinMax struct {
+	// Min is the minimum value for the filter.
+	// +kubebuilder:validation:Minimum=0
+	Min *int64 `json:"min,omitempty"`
+	// Max is the minimum value for the filter
+	// +kubebuilder:validation:Minimum=0
+	Max *int64 `json:"max,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API
