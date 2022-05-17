@@ -110,10 +110,15 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 	}
 
 	// notify users of pods that can schedule to inflight capacity
+	inflightCount := 0
 	for _, node := range s.inflight {
+		inflightCount += len(node.Pods)
 		for _, pod := range node.Pods {
 			s.recorder.PodShouldSchedule(pod, node.Node)
 		}
+	}
+	if inflightCount != 0 {
+		logging.FromContext(ctx).Infof("%d pod(s) will schedule against existing capacity", len(pods))
 	}
 
 	// Any remaining pods have failed to schedule
