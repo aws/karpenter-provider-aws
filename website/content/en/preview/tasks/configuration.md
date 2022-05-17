@@ -6,8 +6,7 @@ description: >
   Configure Karpenter
 ---
 
-Karpenter supplies a default configuration that should work for most.  Additional configuration can be performed by 
-editing the `config` configmap within the namespace that Karpenter was installed in.
+Karpenter install a default configuration via its Helm chart that should work for most.  Additional configuration can be performed by  editing the `config` configmap within the namespace that Karpenter was installed in.
 
 ```yaml
 apiVersion: v1
@@ -15,11 +14,11 @@ kind: ConfigMap
 data:
   # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
-  batchIdleDuration: 1s
+  batchMaxDuration: 10s
   # The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
-  batchMaxDuration: 10s
+  batchIdleDuration: 1s
 ```
 
 ## Batching Parameters
@@ -32,11 +31,11 @@ For a standard deployment scale-up, the pods arrive at the QPS setting of the `k
 
 The `batchIdleDuration` is the period of time that a new pending pod extends the current batching window. This can be increased to handle scenarios where pods arrive slower than one second part, but it would be preferable if they were batched together onto a single larger node.   
 
-This value is expressed as a string value like "10s", "1m" or "2h45m". The valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
 
 ### `batchMaxDuration`
 
 The `batchMaxDuration` is the maximum period of time a batching window can be extended to. Increasing this value will allow the maximum batch window size to increase to collect more pending pods into a single batch at the expense of a longer delay from when the first pending pod was created. 
 
-This value is expressed as a string value like "10s", "1m" or "2h45m". The valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+This value is expressed as a string value like `10s`, `1m` or `2h45m`. The valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`.
 
