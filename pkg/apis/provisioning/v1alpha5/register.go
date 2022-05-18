@@ -41,7 +41,7 @@ var (
 		return nil
 	})
 	ProvisionerNameLabelKey         = Group + "/provisioner-name"
-	NotReadyAnnotationKey           = Group + "/not-ready"
+	NotReadyTaintKey                = Group + "/not-ready"
 	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
 	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
 	TerminationFinalizer            = Group + "/termination"

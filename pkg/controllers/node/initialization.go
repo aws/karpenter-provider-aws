@@ -39,12 +39,12 @@ type Initialization struct {
 
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if _, hasAnnotation := n.Annotations[v1alpha5.NotReadyAnnotationKey]; !hasAnnotation {
+	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
 
-	if !v1alpha5.NodeIsReady(ctx, n, provisioner) {
+	if !v1alpha5.NodeIsReady(n, provisioner) {
 		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
 			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
 		}
@@ -54,10 +54,12 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 		}
 		return reconcile.Result{}, nil
 	}
-
-	// If the node is ready, we can delete our not-ready annotation and any extended resource annotation as the
-	// readiness check succeeding implies that all device plugins have finished initializing.
-	delete(n.Annotations, v1alpha5.NotReadyAnnotationKey)
-	delete(n.Annotations, v1alpha5.AnnotationExtendedResources)
+	taints := []v1.Taint{}
+	for _, taint := range n.Spec.Taints {
+		if taint.Key != v1alpha5.NotReadyTaintKey {
+			taints = append(taints, taint)
+		}
+	}
+	n.Spec.Taints = taints
 	return reconcile.Result{}, nil
 }

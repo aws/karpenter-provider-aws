@@ -319,6 +319,13 @@ var _ = Describe("Provisioning", func() {
 		})
 	})
 	Context("Taints", func() {
+		It("should apply unready taints", func() {
+			ExpectApplied(ctx, env.Client, test.Provisioner())
+			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
+			}
+		})
 		It("should schedule pods that tolerate taints", func() {
 			provisioner := test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "nvidia.com/gpu", Value: "true", Effect: v1.TaintEffectNoSchedule}}})
 			ExpectApplied(ctx, env.Client, provisioner)
