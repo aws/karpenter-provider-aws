@@ -46,17 +46,20 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		requirements: v1alpha5.NewLabelRequirements(n.Node.Labels),
 	}
 
-	// add a default toleration for the standard not ready and startup taints
-	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-		Key:      v1alpha5.NotReadyTaintKey,
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
-	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-		Key:      v1.TaintNodeNotReady,
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
+	if _, notReady := n.Node.Annotations[v1alpha5.NotReadyAnnotationKey]; notReady {
+		// add a default toleration for the standard not ready and startup taints if the node hasn't fully
+		// launched yet
+		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
+			Key:      v1.TaintNodeNotReady,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		})
+		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
+			Key:      v1.TaintNodeUnreachable,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		})
+	}
 
 	for _, taint := range startupTaints {
 		node.startupTolerations = append(node.startupTolerations, v1alpha5.TaintToToleration(taint))

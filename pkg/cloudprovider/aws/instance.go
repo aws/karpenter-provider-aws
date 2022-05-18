@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -262,16 +261,11 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 
+			// Since we no longer pre-bind, we need to ensure that all resources that were possibly considered for scheduling
+			// purposes are placed on the node.  The extended resources will be moved to an annotation, while the
+			// non-extended will be left on the node.
 			resources := v1.ResourceList{}
-			for resourceName, quantity := range map[v1.ResourceName]resource.Quantity{
-				v1.ResourcePods:             instanceType.Resources()[v1.ResourcePods],
-				v1.ResourceCPU:              instanceType.Resources()[v1.ResourceCPU],
-				v1.ResourceMemory:           instanceType.Resources()[v1.ResourceMemory],
-				v1.ResourceEphemeralStorage: instanceType.Resources()[v1.ResourceEphemeralStorage],
-				v1alpha1.ResourceNVIDIAGPU:  instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU],
-				v1alpha1.ResourceAMDGPU:     instanceType.Resources()[v1alpha1.ResourceAMDGPU],
-				v1alpha1.ResourceAWSNeuron:  instanceType.Resources()[v1alpha1.ResourceAWSNeuron],
-			} {
+			for resourceName, quantity := range instanceType.Resources() {
 				if !quantity.IsZero() {
 					resources[resourceName] = quantity
 				}

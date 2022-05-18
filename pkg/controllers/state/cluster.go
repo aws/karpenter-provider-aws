@@ -16,8 +16,11 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"sync"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"knative.dev/pkg/logging"
 
@@ -64,6 +67,8 @@ type Node struct {
 	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
+
+	Provisioner *v1alpha5.Provisioner
 
 	podRequests map[types.NamespacedName]v1.ResourceList
 }
@@ -115,6 +120,17 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		Node:        node,
 		podRequests: map[types.NamespacedName]v1.ResourceList{},
 	}
+
+	// store the provisioner if it exists
+	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
+		var provisioner v1alpha5.Provisioner
+		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			logging.FromContext(c.ctx).Errorf("getting provisioner, %s", err)
+		} else {
+			n.Provisioner = &provisioner
+		}
+	}
+
 	var pods v1.PodList
 	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
@@ -135,8 +151,41 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
-	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
+	n.Available = resources.Subtract(c.getNodeAllocatable(node, n.Provisioner), resources.Merge(requested...))
 	return n
+}
+
+// getNodeAllocatable gets the allocatable resources for the node.
+func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
+	allocatable := node.Status.Allocatable
+	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
+	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
+	// out the resource.  We don't want to assume that it will always come back.
+	if v1alpha5.NodeIsReady(c.ctx, node, provisioner) {
+		return allocatable
+	}
+
+	if extendedResourcesStr, ok := node.Annotations[v1alpha5.AnnotationExtendedResources]; ok {
+		extendedResources := v1.ResourceList{}
+		if err := json.Unmarshal([]byte(extendedResourcesStr), &extendedResources); err != nil {
+			logging.FromContext(c.ctx).Errorf("unmarshalling extended resource information, %s", err)
+			return allocatable
+		}
+
+		allocatable = v1.ResourceList{}
+		for k, v := range node.Status.Allocatable {
+			allocatable[k] = v
+		}
+		for resourceName, quantity := range extendedResources {
+			// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+			if resources.IsZero(node.Status.Capacity[resourceName]) &&
+				resources.IsZero(node.Status.Allocatable[resourceName]) &&
+				!quantity.IsZero() {
+				allocatable[resourceName] = quantity
+			}
+		}
+	}
+	return allocatable
 }
 
 func (c *Cluster) deleteNode(nodeName string) {

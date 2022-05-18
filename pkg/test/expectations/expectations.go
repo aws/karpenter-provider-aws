@@ -151,6 +151,23 @@ func ExpectCleanedUp(ctx context.Context, c client.Client) {
 }
 
 func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
+	ExpectProvisionedNoBinding(ctx, c, controller, pods...)
+
+	recorder := controller.Recorder().(*test.EventRecorder)
+	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
+		ExpectManualBinding(ctx, c, pod, node)
+	})
+	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
+	recorder.ResetBindings()
+
+	// Update objects after reconciling
+	for _, pod := range pods {
+		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
+	}
+	return
+}
+
+func ExpectProvisionedNoBinding(ctx context.Context, c client.Client, controller *provisioning.Controller, pods ...*v1.Pod) (result []*v1.Pod) {
 	// Persist objects
 	for _, pod := range pods {
 		ExpectApplied(ctx, c, pod)
@@ -167,18 +184,11 @@ func ExpectProvisioned(ctx context.Context, c client.Client, controller *provisi
 
 	controller.TriggerAndWait() //nolint , method is deprecated and used for unit testing only
 
-	recorder := controller.Recorder().(*test.EventRecorder)
-	recorder.ForEachBinding(func(pod *v1.Pod, node *v1.Node) {
-		ExpectManualBinding(ctx, c, pod, node)
-	})
-	// reset bindings so we don't try to bind these same pods again if a new provisioning is performed in the same test
-	recorder.ResetBindings()
-
 	// Update objects after reconciling
 	for _, pod := range pods {
 		result = append(result, ExpectPodExists(ctx, c, pod.GetName(), pod.GetNamespace()))
 	}
-	return result
+	return
 }
 
 func ExpectReconcileSucceeded(ctx context.Context, reconciler reconcile.Reconciler, key client.ObjectKey) reconcile.Result {
