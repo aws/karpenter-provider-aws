@@ -34,7 +34,7 @@ var (
 	AddToScheme = Builder.AddToScheme
 	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"):   &v1alpha5.Provisioner{},
-		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeConfig"): &v1alpha1.AWSNodeTemplate{},
+		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"):     &v1alpha5.Provisioner{},
+		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
 	}
 )

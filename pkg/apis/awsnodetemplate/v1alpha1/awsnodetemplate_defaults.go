@@ -18,6 +18,6 @@ import (
 	"context"
 )
 
-// SetDefaults for the provisioner
+// SetDefaults for the AWSNodeTemplate
 func (a *AWSNodeTemplate) SetDefaults(ctx context.Context) {
 }
