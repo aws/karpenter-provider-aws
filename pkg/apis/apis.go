@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/webhook/resourcesemantics"
 
+	"github.com/aws/karpenter/pkg/apis/awsprovider/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
@@ -27,11 +28,13 @@ var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
 		v1alpha5.SchemeBuilder.AddToScheme,
+		v1alpha1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
 	AddToScheme = Builder.AddToScheme
 	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
 		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha5.Provisioner{},
+		v1alpha1.SchemeGroupVersion.WithKind("AWSProvider"): &v1alpha1.AWSProvider{},
 	}
 )
