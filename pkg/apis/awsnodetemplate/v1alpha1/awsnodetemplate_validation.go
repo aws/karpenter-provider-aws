@@ -16,8 +16,17 @@ package v1alpha1
 
 import (
 	"context"
+
+	"knative.dev/pkg/apis"
 )
 
-// SetDefaults for the provisioner
-func (a *AWSNodeConfig) SetDefaults(ctx context.Context) {
+func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) {
+	return errs.Also(
+		apis.ValidateObjectMetadata(a).ViaField("metadata"),
+		a.Spec.validate(ctx).ViaField("spec"),
+	)
+}
+
+func (a *AWSNodeTemplateSpec) validate(ctx context.Context) (errs *apis.FieldError) {
+	return nil
 }

@@ -5,22 +5,22 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: awsproviders.karpenter.k8s.aws
+  name: awsnodetemplate.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
   names:
     categories:
     - karpenter
-    kind: AWSNodeConfig
-    listKind: AWSNodeConfigList
-    plural: awsproviders
-    singular: awsnodeconfig
+    kind: AWSNodeTemplate
+    listKind: AWSNodeTemplateList
+    plural: awsnodetemplate
+    singular: awsnodetemplate
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AWSProvider is the Schema for the AWSProviders API
+        description: AWSNodeTemplate is the Schema for the AWSNodeTemplate API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,9 +35,9 @@ spec:
           metadata:
             type: object
           spec:
-            description: AWSProviderSpec is the top level specification for the AWS
-              Karpenter Provider. This will contain configuration necessary to launch
-              instances in AWS.
+            description: AWSNodeTemplateSpec is the top level specification for the
+              AWS Karpenter Provider. This will contain configuration necessary to
+              launch instances in AWS.
             properties:
               userData:
                 description: UserData to be applied to the provisioned nodes. It must

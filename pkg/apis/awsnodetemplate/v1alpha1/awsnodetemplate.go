@@ -18,9 +18,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// AWSProviderSpec is the top level specification for the AWS Karpenter Provider.
+// AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
-type AWSNodeConfigSpec struct {
+type AWSNodeTemplateSpec struct {
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -28,12 +28,12 @@ type AWSNodeConfigSpec struct {
 	UserData *string `json:"userData,omitempty"`
 }
 
-// AWSProvider is the Schema for the AWSProviders API
+// AWSNodeTemplate is the Schema for the AWSNodeTemplate API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=awsproviders,scope=Cluster,categories=karpenter
-type AWSNodeConfig struct {
+// +kubebuilder:resource:path=awsnodetemplate,scope=Cluster,categories=karpenter
+type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AWSNodeConfigSpec `json:"spec,omitempty"`
+	Spec AWSNodeTemplateSpec `json:"spec,omitempty"`
 }
