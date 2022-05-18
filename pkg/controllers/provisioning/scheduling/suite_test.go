@@ -2663,7 +2663,7 @@ var _ = Describe("Taints", func() {
 			test.UnschedulablePod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "test-key", Operator: v1.TolerationOpExists, Effect: v1.TaintEffectNoExecute}}}),
 		)[0]
 		node := ExpectScheduled(ctx, env.Client, pod)
-		Expect(node.Spec.Taints).To(HaveLen(2)) // Expect no taints generated beyond defaults
+		Expect(node.Spec.Taints).To(HaveLen(1)) // Expect no taints generated beyond the default
 	})
 })
 
@@ -3411,29 +3411,6 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 		})
-		It("should assume pod will schedule to a tainted node with only the standard startup taint", func() {
-			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Limits: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceCPU: resource.MustParse("8"),
-				},
-			}}
-			ExpectApplied(ctx, env.Client, provisioner)
-			initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
-			node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
-
-			// delete the pod so that the node is empty
-			ExpectDeleted(ctx, env.Client, initialPod[0])
-			node1.Spec.Taints = []v1.Taint{{
-				Key:    v1alpha5.NotReadyTaintKey,
-				Effect: v1.TaintEffectNoSchedule,
-			}}
-			ExpectApplied(ctx, env.Client, node1)
-			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
-
-			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
-			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
-			Expect(node1.Name).To(Equal(node2.Name))
-		})
 		It("should assume pod will schedule to a tainted node with a custom startup taint", func() {
 			opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Limits: map[v1.ResourceName]resource.Quantity{
@@ -3451,7 +3428,13 @@ var _ = Describe("In-Flight Nodes", func() {
 
 			// delete the pod so that the node is empty
 			ExpectDeleted(ctx, env.Client, initialPod[0])
-			Expect(node1.Spec.Taints).To(HaveLen(3))
+			// startup taint + node not ready taint = 2
+			Expect(node1.Spec.Taints).To(HaveLen(2))
+			Expect(node1.Spec.Taints).To(ContainElement(v1.Taint{
+				Key:    "foo.com/taint",
+				Value:  "tainted",
+				Effect: v1.TaintEffectNoSchedule,
+			}))
 			ExpectApplied(ctx, env.Client, node1)
 			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 

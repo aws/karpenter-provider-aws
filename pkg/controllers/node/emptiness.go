@@ -17,6 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -33,8 +34,11 @@ import (
 
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
-	kubeClient client.Client
+	kubeClient     client.Client
+	firstSeenEmpty sync.Map
 }
+
+var initialEmptyDebouncePeriod = 10 * time.Second
 
 // Reconcile reconciles the node
 func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
@@ -43,20 +47,17 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		return reconcile.Result{}, nil
 	}
 
-	// If the node just launched, give it some time to fully initialize and for kube-scheduler to assign pods to the
-	// node. This also allows for extended resource device plugins to initialize and assign resource capacity/allocatable
-	// quantities to the node status.
-	if n.CreationTimestamp.After(injectabletime.Now().Add(-5 * time.Minute)) {
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
-	}
-
-	if !v1alpha5.NodeIsReady(n, provisioner) {
+	if !v1alpha5.NodeIsReady(ctx, n, provisioner) {
 		return reconcile.Result{}, nil
 	}
 	// 2. Remove ttl if not empty
 	empty, err := r.isEmpty(ctx, n)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if r.debounceEmptySignal(n.Name, empty) {
+		return reconcile.Result{RequeueAfter: initialEmptyDebouncePeriod}, nil
 	}
 
 	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey]
@@ -104,4 +105,19 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// debounceEmptySignal returns true if the node hasn't been empty for at least initialEmptyDebouncePeriod.  Since we don't
+// bind pods, once they are ready they are immediately empty.  This results in confusing log messages about emptiness TTL
+// annotations being added and removed for every node as it comes up.  By waiting for the node to be empty for a short
+// we allow kube-scheduler an opportunity to schedule pods against the node before we log that it is empty.
+func (r *Emptiness) debounceEmptySignal(nodeName string, currentlyEmpty bool) bool {
+	if !currentlyEmpty {
+		r.firstSeenEmpty.Delete(nodeName)
+		return false
+	}
+	firstSeenEmpty, _ := r.firstSeenEmpty.LoadOrStore(nodeName, injectabletime.Now())
+	firstSeenEmptyTime := firstSeenEmpty.(time.Time)
+
+	return injectabletime.Now().Sub(firstSeenEmptyTime) < initialEmptyDebouncePeriod
 }

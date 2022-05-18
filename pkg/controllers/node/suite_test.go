@@ -122,12 +122,12 @@ var _ = Describe("Controller", func() {
 	})
 
 	Context("Initialization", func() {
-		It("should not remove the readiness taint if not ready", func() {
+		It("should not remove the readiness annotation if not ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionUnknown,
-				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -135,14 +135,14 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).To(HaveKey(v1alpha5.NotReadyAnnotationKey))
 		})
-		It("should remove the readiness taint if ready", func() {
+		It("should remove the readiness annotation if ready", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
-				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -150,7 +150,7 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).ToNot(Equal([]v1.Taint{n.Spec.Taints[1]}))
+			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.NotReadyAnnotationKey))
 		})
 		It("should do nothing if ready and the readiness taint does not exist", func() {
 			n := test.Node(test.NodeOptions{
@@ -162,13 +162,13 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.NotReadyAnnotationKey))
 		})
 		It("should do nothing if not owned by a provisioner", func() {
 			n := test.Node(test.NodeOptions{
 				ReadyStatus: v1.ConditionTrue,
+				ObjectMeta:  metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
 				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
 					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
 				},
 			})
@@ -176,19 +176,17 @@ var _ = Describe("Controller", func() {
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Spec.Taints).To(Equal(n.Spec.Taints))
+			Expect(n.Annotations).To(HaveKey(v1alpha5.NotReadyAnnotationKey))
 		})
 		It("should delete nodes if node not ready even after Initialization timeout ", func() {
 			n := test.Node(test.NodeOptions{
 				ObjectMeta: metav1.ObjectMeta{
-					Finalizers: []string{v1alpha5.TerminationFinalizer},
-					Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+					Finalizers:  []string{v1alpha5.TerminationFinalizer},
+					Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"},
 				},
 				ReadyStatus: v1.ConditionUnknown,
 				ReadyReason: "NodeStatusNeverUpdated",
-				Taints: []v1.Taint{
-					{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule},
-				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, n)
 
@@ -239,6 +237,11 @@ var _ = Describe("Controller", func() {
 				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
 			}})
 			ExpectApplied(ctx, env.Client, provisioner, node)
+
+			// mark it empty first to get past the debounce check
+			injectabletime.Now = func() time.Time { return time.Now().Add(30 * time.Second) }
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
 			// make the node more than 5 minutes old
 			injectabletime.Now = func() time.Time { return time.Now().Add(320 * time.Second) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -275,6 +278,10 @@ var _ = Describe("Controller", func() {
 				}},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, node)
+			// debounce emptiness
+			injectabletime.Now = func() time.Time { return time.Now().Add(10 * time.Second) }
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
 			// make the node more than 5 minutes old
 			injectabletime.Now = func() time.Time { return time.Now().Add(320 * time.Second) }
 			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
@@ -292,6 +299,11 @@ var _ = Describe("Controller", func() {
 			}})
 
 			ExpectApplied(ctx, env.Client, provisioner, node)
+
+			// debounce the emptiness
+			now = now.Add(10 * time.Second)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+
 			// make the node eligible to be expired
 			now = now.Add(320 * time.Second)
 			injectabletime.Now = func() time.Time { return now }
