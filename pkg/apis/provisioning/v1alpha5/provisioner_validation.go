@@ -52,16 +52,24 @@ func (s *ProvisionerSpec) validateInstanceTypeFilter() *apis.FieldError {
 	if s.InstanceTypeFilter == nil {
 		return nil
 	}
-	if err := s.validateMinMax(s.InstanceTypeFilter.CPUCount); err != nil {
-		return err.ViaField("cpuCount")
+	for key, minQuantity := range s.InstanceTypeFilter.MinResources {
+		if minQuantity.AsApproximateFloat64() < 0 {
+			return apis.ErrInvalidValue(minQuantity.String(), apis.CurrentField, "cannot be negative").ViaKey(string(key)).ViaField("minResources")
+		}
+		if maxQuantity, ok := s.InstanceTypeFilter.MaxResources[key]; ok {
+			if minQuantity.Cmp(maxQuantity) > 0 {
+				return apis.ErrGeneric("min must be <= max", apis.CurrentField).ViaKey(string(key)).ViaField("maxResources")
+			}
+		}
 	}
-	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryMiB); err != nil {
-		return err.ViaField("memoryMiB")
+	for key, quantity := range s.InstanceTypeFilter.MaxResources {
+		if quantity.AsApproximateFloat64() < 0 {
+			return apis.ErrInvalidValue(quantity.String(), apis.CurrentField, "cannot be negative").ViaKey(string(key)).ViaField("maxResources")
+		}
 	}
-	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryMiBPerCPU); err != nil {
-		return err.ViaField("memoryMiBPerCPU")
+	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryPerCPU); err != nil {
+		return err.ViaField("memoryPerCPU")
 	}
-
 	for i, expr := range s.InstanceTypeFilter.NameMatchExpressions {
 		_, err := regexp.Compile(expr)
 		if err != nil {
@@ -75,18 +83,15 @@ func (s *ProvisionerSpec) validateMinMax(minMax *MinMax) *apis.FieldError {
 	if minMax == nil {
 		return nil
 	}
-	min := ptr.Int64Value(minMax.Min)
-	if min < 0 {
-		return apis.ErrInvalidValue(min, "min", "cannot be negative")
+	if minMax.Min != nil && minMax.Min.AsApproximateFloat64() < 0 {
+		return apis.ErrInvalidValue(minMax.Min.String(), "min", "cannot be negative")
 	}
-	max := ptr.Int64Value(minMax.Max)
-	if max < 0 {
-		return apis.ErrInvalidValue(max, "max", "cannot be negative")
+	if minMax.Max != nil && minMax.Max.AsApproximateFloat64() < 0 {
+		return apis.ErrInvalidValue(minMax.Max.String(), "max", "cannot be negative")
 	}
-	if min > max {
+	if minMax.Min != nil && minMax.Max != nil && minMax.Min.AsApproximateFloat64() > minMax.Max.AsApproximateFloat64() {
 		return apis.ErrGeneric("min must be <= max", "min", "max")
 	}
-
 	return nil
 }
 

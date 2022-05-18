@@ -45,53 +45,51 @@ spec:
                 description: InstanceTypeFilter allows filtering the instance types
                   provided by the cloud provider.
                 properties:
-                  cpuCount:
-                    description: CPUCount allows filtering instance types by the min
-                      and maximum number of CPUs on the instance type with the minimum
-                      and maximum values being inclusive.
-                    properties:
-                      max:
-                        description: Max is the minimum value for the filter
-                        format: int64
-                        minimum: 0
-                        type: integer
-                      min:
-                        description: Min is the minimum value for the filter.
-                        format: int64
-                        minimum: 0
-                        type: integer
+                  maxResources:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: MaxResources specifies the maximum amount of resources
+                      required for an instance type to be considered.  If an instance
+                      type has more of any resources specified here, it will be filtered
+                      out.  If an instance type doesn't have a resource specified
+                      here, the quantity is considered to be zero and the instance
+                      type will not be filtered out by this parameter.
                     type: object
-                  memoryMiB:
-                    description: MemoryMiB allows filtering instance types by the
-                      min and maximum MiB of memory on the instance type with the
-                      minimum and maximum values being inclusive.
+                  memoryPerCPU:
+                    description: MemoryPerCPU allows specifying the minimum and maximum
+                      amounts of memory per CPU that are required.  This allows filtering
+                      out instance types that don't have a desired memory to CPU ratio.
                     properties:
                       max:
-                        description: Max is the minimum value for the filter
-                        format: int64
-                        minimum: 0
-                        type: integer
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: Max is the maximum value for the filter
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
                       min:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: Min is the minimum value for the filter.
-                        format: int64
-                        minimum: 0
-                        type: integer
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
                     type: object
-                  memoryMiBPerCPU:
-                    description: MemoryMiBPerCPU allows filtering instance types by
-                      the min and maximum MiB of memory per on the instance type with
-                      the minimum and maximum values being inclusive.
-                    properties:
-                      max:
-                        description: Max is the minimum value for the filter
-                        format: int64
-                        minimum: 0
-                        type: integer
-                      min:
-                        description: Min is the minimum value for the filter.
-                        format: int64
-                        minimum: 0
-                        type: integer
+                  minResources:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: MinResources specifies the minimum amount of resources
+                      required for an instance type to be considered.  If an instance
+                      type has less than the resources specified here, it will be
+                      filtered out.
                     type: object
                   nameMatchExpressions:
                     description: NameMatchExpressions are regular expressions to match

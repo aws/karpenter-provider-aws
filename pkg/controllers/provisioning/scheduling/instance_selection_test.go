@@ -16,13 +16,6 @@ package scheduling_test
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"math"
-	"math/rand"
-	"regexp"
-
-	"github.com/mitchellh/hashstructure/v2"
-
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -30,11 +23,15 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"math"
+	"math/rand"
+	"regexp"
 )
 
 var _ = Describe("Instance Type Selection", func() {
@@ -557,8 +554,8 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with cpu less than the minimum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				CPUCount: &v1alpha5.MinMax{
-					Min: aws.Int64(16),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("16"),
 				},
 			},
 		})
@@ -574,8 +571,8 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with cpu greater than the maximum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				CPUCount: &v1alpha5.MinMax{
-					Max: aws.Int64(16),
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("16"),
 				},
 			},
 		})
@@ -591,9 +588,11 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with cpu not in the range specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				CPUCount: &v1alpha5.MinMax{
-					Min: aws.Int64(8),
-					Max: aws.Int64(16),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("8"),
+				},
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("16"),
 				},
 			},
 		})
@@ -610,8 +609,8 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with memory less than the minimum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiB: &v1alpha5.MinMax{
-					Min: aws.Int64(128 * 1024),
+				MinResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("128Gi"),
 				},
 			},
 		})
@@ -627,8 +626,8 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with memory greater than the maximum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiB: &v1alpha5.MinMax{
-					Max: aws.Int64(32 * 1024),
+				MaxResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("32Gi"),
 				},
 			},
 		})
@@ -644,9 +643,11 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances memory not in the range specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiB: &v1alpha5.MinMax{
-					Max: aws.Int64(32 * 1024),
-					Min: aws.Int64(16 * 1024),
+				MinResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("16Gi"),
+				},
+				MaxResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("32Gi"),
 				},
 			},
 		})
@@ -663,13 +664,13 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should support combined cpu and memory filters", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				CPUCount: &v1alpha5.MinMax{
-					Min: aws.Int64(8),
-					Max: aws.Int64(16),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("8"),
+					v1.ResourceMemory: resource.MustParse("16Gi"),
 				},
-				MemoryMiB: &v1alpha5.MinMax{
-					Max: aws.Int64(32 * 1024),
-					Min: aws.Int64(16 * 1024),
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("16"),
+					v1.ResourceMemory: resource.MustParse("32Gi"),
 				},
 			},
 		})
@@ -689,8 +690,8 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with less memory per cpu than the minimum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiBPerCPU: &v1alpha5.MinMax{
-					Min: aws.Int64(8 * 1024),
+				MemoryPerCPU: &v1alpha5.MinMax{
+					Min: presource("8Gi"),
 				},
 			},
 		})
@@ -703,16 +704,15 @@ var _ = Describe("Instance Type Filtering", func() {
 		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
 			mem := it.Resources()[v1.ResourceMemory]
 			cpu := it.Resources()[v1.ResourceCPU]
-			memMib := mem.AsApproximateFloat64() / (1024 * 1024)
-			ratio := memMib / cpu.AsApproximateFloat64()
-			Expect(ratio).To(BeNumerically(">=", 8*1024))
+			ratio := mem.AsApproximateFloat64() / cpu.AsApproximateFloat64()
+			Expect(ratio).To(BeNumerically(">=", 8*1024*1024*1024))
 		}
 	})
 	It("should filter out instances with more memory per cpu than the maximum specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiBPerCPU: &v1alpha5.MinMax{
-					Max: aws.Int64(8 * 1024),
+				MemoryPerCPU: &v1alpha5.MinMax{
+					Max: presource("8Gi"),
 				},
 			},
 		})
@@ -733,9 +733,9 @@ var _ = Describe("Instance Type Filtering", func() {
 	It("should filter out instances with memory per cpu not in the range specified", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				MemoryMiBPerCPU: &v1alpha5.MinMax{
-					Min: aws.Int64(8 * 1024),
-					Max: aws.Int64(16 * 1024),
+				MemoryPerCPU: &v1alpha5.MinMax{
+					Min: presource("8Gi"),
+					Max: presource("16Gi"),
 				},
 			},
 		})
@@ -791,6 +791,11 @@ var _ = Describe("Instance Type Filtering", func() {
 		}
 	})
 })
+
+func presource(s string) *resource.Quantity {
+	v := resource.MustParse(s)
+	return &v
+}
 
 func filterInstanceTypes(types []cloudprovider.InstanceType, pred func(i cloudprovider.InstanceType) bool) []cloudprovider.InstanceType {
 	var ret []cloudprovider.InstanceType

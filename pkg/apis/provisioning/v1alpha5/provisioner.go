@@ -15,6 +15,8 @@ limitations under the License.
 package v1alpha5
 
 import (
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,15 +51,17 @@ type ProvisionerSpec struct {
 
 // InstanceTypeFilter is the schema for the instance type filtering
 type InstanceTypeFilter struct {
-	// CPUCount allows filtering instance types by the min and maximum number of CPUs on the instance type with the
-	// minimum and maximum values being inclusive.
-	CPUCount *MinMax `json:"cpuCount,omitempty"`
-	// MemoryMiB allows filtering instance types by the min and maximum MiB of memory on the instance type with the
-	// minimum and maximum values being inclusive.
-	MemoryMiB *MinMax `json:"memoryMiB,omitempty"`
-	// MemoryMiBPerCPU allows filtering instance types by the min and maximum MiB of memory per on the instance type
-	// with the minimum and maximum values being inclusive.
-	MemoryMiBPerCPU *MinMax `json:"memoryMiBPerCPU,omitempty"`
+	// MinResources specifies the minimum amount of resources required for an instance type to be considered.  If an
+	// instance type has less than the resources specified here, it will be filtered out.
+	MinResources v1.ResourceList `json:"minResources,omitempty"`
+	// MaxResources specifies the maximum amount of resources required for an instance type to be considered.  If an
+	// instance type has more of any resources specified here, it will be filtered out.  If an instance type doesn't have
+	// a resource specified here, the quantity is considered to be zero and the instance type will not be filtered out
+	// by this parameter.
+	MaxResources v1.ResourceList `json:"maxResources,omitempty"`
+	// MemoryPerCPU allows specifying the minimum and maximum amounts of memory per CPU that are required.  This allows
+	// filtering out instance types that don't have a desired memory to CPU ratio.
+	MemoryPerCPU *MinMax `json:"memoryPerCPU,omitempty"`
 	// NameMatchExpressions are regular expressions to match against instance types names.  If no expressions are
 	// supplied, then no instance types will be excluded by the NameMatchExpressions. If multiple expressions are
 	// supplied, the NameMatchExpressions has an OR semantic.
@@ -67,11 +71,9 @@ type InstanceTypeFilter struct {
 // MinMax is the schema for a min/max range.  Both Min and Max are optional allowing configuring just a Min or Max value.
 type MinMax struct {
 	// Min is the minimum value for the filter.
-	// +kubebuilder:validation:Minimum=0
-	Min *int64 `json:"min,omitempty"`
-	// Max is the minimum value for the filter
-	// +kubebuilder:validation:Minimum=0
-	Max *int64 `json:"max,omitempty"`
+	Min *resource.Quantity `json:"min,omitempty"`
+	// Max is the maximum value for the filter
+	Max *resource.Quantity `json:"max,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

@@ -29,44 +29,20 @@ import (
 // instanceTypeFilter is a compiled instance type filter based on the v1alpha5.InstanceTypeFilter from the provisioner
 // spec
 type instanceTypeFilter struct {
-	minCPU               *resource.Quantity
-	maxCPU               *resource.Quantity
-	minMemory            *resource.Quantity
-	maxMemory            *resource.Quantity
-	minMemoryMiBPerCPU   *int64
-	maxMemoryMiBPerCPU   *int64
 	nameMatchExpressions []*regexp.Regexp
+	minResources         v1.ResourceList
+	maxResources         v1.ResourceList
+	memoryPerCPU         *v1alpha5.MinMax
 }
 
-// newInstanceTypeFilter constructs a new compiled instance type filter.  It has cyclomatic complexity of 12, just
-// over the limit of 11. I think breaking this function apart hurts readability, so there's a nolint directive.
-// nolint: gocyclo
+// newInstanceTypeFilter constructs a new compiled instance type filter.
 func newInstanceTypeFilter(ctx context.Context, filter *v1alpha5.InstanceTypeFilter) *instanceTypeFilter {
-	f := &instanceTypeFilter{}
-	if filter.CPUCount != nil {
-		if filter.CPUCount.Min != nil {
-			f.minCPU = resource.NewQuantity(*filter.CPUCount.Min, resource.DecimalExponent)
-		}
-		if filter.CPUCount.Max != nil {
-			f.maxCPU = resource.NewQuantity(*filter.CPUCount.Max, resource.DecimalExponent)
-		}
+	f := &instanceTypeFilter{
+		minResources: filter.MinResources,
+		maxResources: filter.MaxResources,
+		memoryPerCPU: filter.MemoryPerCPU,
 	}
-	if filter.MemoryMiB != nil {
-		if filter.MemoryMiB.Min != nil {
-			f.minMemory = resource.NewQuantity(*filter.MemoryMiB.Min*1024*1024, resource.DecimalExponent)
-		}
-		if filter.MemoryMiB.Max != nil {
-			f.maxMemory = resource.NewQuantity(*filter.MemoryMiB.Max*1024*1024, resource.DecimalExponent)
-		}
-	}
-	if filter.MemoryMiBPerCPU != nil {
-		if filter.MemoryMiBPerCPU.Max != nil {
-			f.maxMemoryMiBPerCPU = filter.MemoryMiBPerCPU.Max
-		}
-		if filter.MemoryMiBPerCPU.Min != nil {
-			f.minMemoryMiBPerCPU = filter.MemoryMiBPerCPU.Min
-		}
-	}
+
 	for i, expression := range filter.NameMatchExpressions {
 		re, err := regexp.Compile(expression)
 		if err != nil {
@@ -81,10 +57,10 @@ func newInstanceTypeFilter(ctx context.Context, filter *v1alpha5.InstanceTypeFil
 func (f *instanceTypeFilter) Accepts(it cloudprovider.InstanceType) bool {
 	cpu := it.Resources()[v1.ResourceCPU]
 	mem := it.Resources()[v1.ResourceMemory]
-	if !f.passesCPUFilter(cpu) {
+	if !f.passesMinResourcesFilter(it.Resources()) {
 		return false
 	}
-	if !f.passesMemoryFilter(mem) {
+	if !f.passesMaxResourcesFilter(it.Resources()) {
 		return false
 	}
 	if !f.passesMemoryRatioFilter(cpu, mem) {
@@ -96,35 +72,21 @@ func (f *instanceTypeFilter) Accepts(it cloudprovider.InstanceType) bool {
 	return true
 }
 
-func (f *instanceTypeFilter) passesMemoryFilter(mem resource.Quantity) bool {
-	if f.minMemory != nil && mem.Cmp(*f.minMemory) < 0 {
-		return false
+func (f *instanceTypeFilter) passesMemoryRatioFilter(cpu, mem resource.Quantity) bool {
+	if f.memoryPerCPU == nil {
+		return true
 	}
-	if f.maxMemory != nil && mem.Cmp(*f.maxMemory) > 0 {
-		return false
-	}
-	return true
-}
 
-func (f *instanceTypeFilter) passesCPUFilter(cpu resource.Quantity) bool {
-	if f.minCPU != nil && cpu.Cmp(*f.minCPU) < 0 {
-		return false
-	}
-	if f.maxCPU != nil && cpu.Cmp(*f.maxCPU) > 0 {
-		return false
-	}
-	return true
-}
-
-func (f *instanceTypeFilter) passesMemoryRatioFilter(cpu resource.Quantity, mem resource.Quantity) bool {
-	ratio := mem.AsApproximateFloat64() / (1024 * 1024) / cpu.AsApproximateFloat64()
-	if f.minMemoryMiBPerCPU != nil {
-		if ratio < float64(*f.minMemoryMiBPerCPU) {
+	memPerCPU := mem.AsApproximateFloat64() / cpu.AsApproximateFloat64()
+	if f.memoryPerCPU.Min != nil {
+		minMemPerCPU := f.memoryPerCPU.Min.AsApproximateFloat64()
+		if memPerCPU < minMemPerCPU {
 			return false
 		}
 	}
-	if f.maxMemoryMiBPerCPU != nil {
-		if ratio > float64(*f.maxMemoryMiBPerCPU) {
+	if f.memoryPerCPU.Max != nil {
+		maxMemPerCPU := f.memoryPerCPU.Max.AsApproximateFloat64()
+		if memPerCPU > maxMemPerCPU {
 			return false
 		}
 	}
@@ -144,4 +106,31 @@ func (f *instanceTypeFilter) passesNameMatchExpressions(name string) bool {
 	}
 	// or it fails
 	return false
+}
+
+func (f *instanceTypeFilter) passesMinResourcesFilter(resources v1.ResourceList) bool {
+	for k, required := range f.minResources {
+		available, ok := resources[k]
+		if !ok {
+			return false
+		}
+		if required.Cmp(available) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (f *instanceTypeFilter) passesMaxResourcesFilter(resources v1.ResourceList) bool {
+	for k, required := range f.maxResources {
+		available, ok := resources[k]
+		if !ok {
+			// it's ok if we don't have the resource as zero is less than the max
+			continue
+		}
+		if required.Cmp(available) < 0 {
+			return false
+		}
+	}
+	return true
 }

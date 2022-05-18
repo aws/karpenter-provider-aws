@@ -16,8 +16,8 @@ package v1alpha5
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/utils/pretty"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 	"testing"
 
@@ -384,17 +384,17 @@ var _ = Describe("Validation", func() {
 	Context("Instance Type Filter", func() {
 		It("should pass for valid filters", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				CPUCount: &MinMax{
-					Min: aws.Int64(2),
-					Max: aws.Int64(4),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("1"),
+					v1.ResourceMemory: resource.MustParse("4Gi"),
 				},
-				MemoryMiB: &MinMax{
-					Min: aws.Int64(2),
-					Max: aws.Int64(4),
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("2"),
+					v1.ResourceMemory: resource.MustParse("8Gi"),
 				},
-				MemoryMiBPerCPU: &MinMax{
-					Min: aws.Int64(2),
-					Max: aws.Int64(4),
+				MemoryPerCPU: &MinMax{
+					Min: presource("1Gi"),
+					Max: presource("8Gi"),
 				},
 				NameMatchExpressions: []string{
 					"foo",
@@ -405,79 +405,83 @@ var _ = Describe("Validation", func() {
 		})
 		It("should fail for negative min CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				CPUCount: &MinMax{
-					Min: aws.Int64(-1),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("-1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.cpuCount.min\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.minResources[cpu]\ncannot be negative"))
 		})
 		It("should fail for negative max CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				CPUCount: &MinMax{
-					Max: aws.Int64(-1),
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("-11"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.cpuCount.max\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -11: spec.instanceTypeFilter.maxResources[cpu]\ncannot be negative"))
 		})
 		It("should fail if min > max CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				CPUCount: &MinMax{
-					Min: aws.Int64(8),
-					Max: aws.Int64(4),
+				MinResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("4"),
+				},
+				MaxResources: v1.ResourceList{
+					v1.ResourceCPU: resource.MustParse("1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.cpuCount.max, spec.instanceTypeFilter.cpuCount.min"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.maxResources[cpu]"))
 		})
 		It("should fail for negative min memory", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiB: &MinMax{
-					Min: aws.Int64(-1),
+				MinResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("-1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryMiB.min\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.minResources[memory]\ncannot be negative"))
 		})
 		It("should fail for negative max memory", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiB: &MinMax{
-					Max: aws.Int64(-1),
+				MaxResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("-1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryMiB.max\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.maxResources[memory]\ncannot be negative"))
 		})
 		It("should fail if min > max memory", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiB: &MinMax{
-					Min: aws.Int64(8),
-					Max: aws.Int64(4),
+				MinResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("4Gi"),
+				},
+				MaxResources: v1.ResourceList{
+					v1.ResourceMemory: resource.MustParse("1Gi"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.memoryMiB.max, spec.instanceTypeFilter.memoryMiB.min"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.maxResources[memory]"))
 		})
 
 		It("should fail for negative min memory MiB per CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiBPerCPU: &MinMax{
-					Min: aws.Int64(-1),
+				MemoryPerCPU: &MinMax{
+					Min: presource("-1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryMiBPerCPU.min\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryPerCPU.min\ncannot be negative"))
 		})
 		It("should fail for negative max memory MiB per CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiBPerCPU: &MinMax{
-					Max: aws.Int64(-1),
+				MemoryPerCPU: &MinMax{
+					Max: presource("-1"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryMiBPerCPU.max\ncannot be negative"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: -1: spec.instanceTypeFilter.memoryPerCPU.max\ncannot be negative"))
 		})
 		It("should fail if min > max memory MiB per CPU", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				MemoryMiBPerCPU: &MinMax{
-					Min: aws.Int64(8),
-					Max: aws.Int64(4),
+				MemoryPerCPU: &MinMax{
+					Min: presource("4Gi"),
+					Max: presource("1Gi"),
 				},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.memoryMiBPerCPU.max, spec.instanceTypeFilter.memoryMiBPerCPU.min"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.memoryPerCPU.max, spec.instanceTypeFilter.memoryPerCPU.min"))
 		})
 		It("should fail for invalid regular expressions", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
@@ -520,3 +524,8 @@ var _ = Describe("Consistency", func() {
 		}
 	})
 })
+
+func presource(s string) *resource.Quantity {
+	v := resource.MustParse(s)
+	return &v
+}

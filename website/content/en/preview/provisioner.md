@@ -25,18 +25,18 @@ spec:
   # If omitted, no instance type filtering is performed apart from any implied by requirements on the provisioner or
   # node selectors on workloads.
   instanceTypeFilter:
-    cpuCount:
-      min: 4
-      max: 8
-    memoryMiB:
-      min: 16000
-      max: 32000
-    memoryMiBPerCPU:
-      min: 7000
-      max: 9000
+    minResources:
+      cpu: 4
+      memory: 16Gi
+    maxResources:
+      cpu: 8
+      memory: 32Gi
+    memoryPerCPU:
+      min: 7Gi
+      max: 9Gi
     nameMatchExpressions:
-    - ^r5
-    - ^r6
+      - ^r5
+      - ^r6
   
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.
@@ -111,34 +111,34 @@ The `instanceTypeFilter` is optional, as are all of its parameters. It allows fo
 - excluding instance types with high CPU and memory to reduce node blast radius
 - selecting only instance types with particular names 
 
-### spec.instanceTypeFilter.cpuCount
+### spec.instanceTypeFilter.minResources
 
-The `cpuCount` parameter filters for instance types with a specified number of CPUs.  Both the `min` and `max` parameters are optional allowing excluding instance types with too few or too many CPUs. If both values are supplied, for an instance type to be considered the number of CPUs must lie in the range `[min,max]` inclusive. 
+The `minResources` parameter filters for instance types with at least the specified resources.  The resources can be any reported by the cloud provider, including extended resources.  The minimum resources is inclusive, so it filters for instance types with the specified or larger quantities of the given resources. 
 
 ```yaml
-cpuCount:
-  min: 4
-  max: 8
+minResources:
+  cpu: 4
+  memory: 16Gi
 ```
 
-### spec.instanceTypeFilter.memoryMiB
+### spec.instanceTypeFilter.maxResources
 
-The `memoryMiB` parameter filters for instance types with a specified amount of memory.  Both the `min` and `max` parameters are optional allowing excluding instance types with too little or too much memory. If both values are supplied, for an instance type to be considered the amount of memory in MiB must lie in the range `[min,max]` inclusive.
+The `maxResources` parameter filters for instance types with no more than the specified resources.  The resources can be any reported by the cloud provider, including extended resources.  The maximum resources is inclusive, so it filters for instance types with the specified or smaller quantities of the given resources.
 
 ```yaml
-memoryMiB:
-  min: 16000
-  max: 32000
+maxResources:
+  cpu: 8
+  memory: 32Gi
 ```
 
-### spec.instanceTypeFilter.memoryMiBPerCPU
+### spec.instanceTypeFilter.memoryPerCPU
 
-The `memoryMiBPerCPU` parameter filters for instance types with specific memory to CPU ratios.  Both the `min` and `max` parameters are optional allowing excluding instance types with ratios that are out of range. If both values are supplied, for an instance type to be considered the memory to CPU ratio must lie in the range `[min,max]` inclusive.
+The `memoryPerCPU` parameter filters for instance types with specific memory to CPU ratios.  Both the `min` and `max` parameters are optional allowing excluding instance types with ratios that are out of range. If both values are supplied, for an instance type to be considered the memory to CPU ratio must lie in the range `[min,max]` inclusive.
 
 ```yaml
-memoryMiBPerCPU:
-  min: 7000
-  max: 9000
+memoryPerCPU:
+  min: 7Gi
+  max: 9Gi
 ```
 
 ### spec.instanceTypeFilter.nameMatchExpressions
