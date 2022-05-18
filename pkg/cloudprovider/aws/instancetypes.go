@@ -130,7 +130,6 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return cached.(map[string]*InstanceType), nil
 	}
 	instanceTypes := map[string]*InstanceType{}
-	enablePodENI := injection.GetOptions(ctx).AWSEnablePodENI
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -145,7 +144,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType, enablePodENI)
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType)
 			}
 		}
 		return true
