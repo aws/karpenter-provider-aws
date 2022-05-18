@@ -396,9 +396,13 @@ var _ = Describe("Validation", func() {
 					Min: presource("1Gi"),
 					Max: presource("8Gi"),
 				},
-				NameMatchExpressions: []string{
+				NameIncludeExpressions: []string{
 					"foo",
 					"^c6\\.",
+				},
+				NameExcludeExpressions: []string{
+					"bar",
+					"f.*a",
 				},
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
@@ -483,11 +487,17 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(provisioner.Validate(ctx).Error()).To(Equal("min must be <= max: spec.instanceTypeFilter.memoryPerCPU.max, spec.instanceTypeFilter.memoryPerCPU.min"))
 		})
-		It("should fail for invalid regular expressions", func() {
+		It("should fail for invalid regular expressions (name include)", func() {
 			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
-				NameMatchExpressions: []string{"+"},
+				NameIncludeExpressions: []string{"+"},
 			}
-			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: +: spec.instanceTypeFilter[0].nameMatchExpressions\nerror parsing regexp: missing argument to repetition operator: `+`"))
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: +: spec.instanceTypeFilter[0].nameIncludeExpressions\nerror parsing regexp: missing argument to repetition operator: `+`"))
+		})
+		It("should fail for invalid regular expressions (name exclude)", func() {
+			provisioner.Spec.InstanceTypeFilter = &InstanceTypeFilter{
+				NameExcludeExpressions: []string{"+"},
+			}
+			Expect(provisioner.Validate(ctx).Error()).To(Equal("invalid value: +: spec.instanceTypeFilter[0].nameExcludeExpressions\nerror parsing regexp: missing argument to repetition operator: `+`"))
 		})
 	})
 })

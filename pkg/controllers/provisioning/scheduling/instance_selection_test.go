@@ -754,10 +754,10 @@ var _ = Describe("Instance Type Filtering", func() {
 			Expect(ratio).To(BeNumerically("<=", 16*1024))
 		}
 	})
-	It("should filter out instances by the NameMatchExpressions", func() {
+	It("should filter out instances by the NameIncludeExpressions", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				NameMatchExpressions: []string{
+				NameIncludeExpressions: []string{
 					"li..x",
 				},
 			},
@@ -771,10 +771,10 @@ var _ = Describe("Instance Type Filtering", func() {
 			Expect(regExp.MatchString(it.Name())).To(BeTrue())
 		}
 	})
-	It("should filter out instances by the NameMatchExpressions, multiple terms are OR'd", func() {
+	It("should filter out instances by the NameIncludeExpressions, multiple terms are OR'd", func() {
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
-				NameMatchExpressions: []string{
+				NameIncludeExpressions: []string{
 					"linux",
 					"amd64",
 				},
@@ -788,6 +788,43 @@ var _ = Describe("Instance Type Filtering", func() {
 		regExp2 := regexp.MustCompile("amd64")
 		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
 			Expect(regExp1.MatchString(it.Name()) || regExp2.MatchString(it.Name())).To(BeTrue())
+		}
+	})
+
+	It("should filter out instances by the NameExcludeExpressions", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				NameExcludeExpressions: []string{
+					"li..x",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		regExp := regexp.MustCompile("li..x")
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			Expect(regExp.MatchString(it.Name())).To(BeFalse())
+		}
+	})
+	It("should filter out instances by the NameExcludeExpressions, multiple terms are OR'd", func() {
+		provisioner = test.Provisioner(test.ProvisionerOptions{
+			InstanceTypeFilter: &v1alpha5.InstanceTypeFilter{
+				NameExcludeExpressions: []string{
+					"linux",
+					"amd64",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		ExpectScheduled(ctx, env.Client, pod[0])
+
+		regExp1 := regexp.MustCompile("linux")
+		regExp2 := regexp.MustCompile("amd64")
+		for _, it := range cloudProv.CreateCalls[0].InstanceTypeOptions {
+			Expect(regExp1.MatchString(it.Name()) || regExp2.MatchString(it.Name())).To(BeFalse())
 		}
 	})
 })

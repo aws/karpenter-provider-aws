@@ -91,12 +91,25 @@ spec:
                       type has less than the resources specified here, it will be
                       filtered out.
                     type: object
-                  nameMatchExpressions:
-                    description: NameMatchExpressions are regular expressions to match
-                      against instance types names.  If no expressions are supplied,
-                      then no instance types will be excluded by the NameMatchExpressions.
-                      If multiple expressions are supplied, the NameMatchExpressions
-                      has an OR semantic.
+                  nameExcludeExpressions:
+                    description: NameExcludeExpressions are regular expressions to
+                      match against instance types names, that if matched the instance
+                      types are excluded.  If no expressions are supplied, then no
+                      instance types will be excluded by the NameExcludeExpressions.
+                      If multiple expressions are supplied, the NameExcludeExpressions
+                      has an OR semantic. If a name is matched by both NameIncludeExpressions
+                      and NameExcludeExpressions, it will be excluded.
+                    items:
+                      type: string
+                    type: array
+                  nameIncludeExpressions:
+                    description: NameIncludeExpressions are regular expressions to
+                      match against instance types names, that if matched the instance
+                      types are included.  If no expressions are supplied, then no
+                      instance types will be excluded by the NameIncludeExpressions.
+                      If multiple expressions are supplied, the NameIncludeExpressions
+                      has an OR semantic. If a name is matched by both NameIncludeExpressions
+                      and NameExcludeExpressions, it will be excluded.
                     items:
                       type: string
                     type: array

@@ -34,9 +34,12 @@ spec:
     memoryPerCPU:
       min: 7Gi
       max: 9Gi
-    nameMatchExpressions:
+    nameIncludeExpressions:
       - ^r5
       - ^r6
+    nameExcludeExpressions:
+      - ^t2
+      - ^t3
   
   # Provisioned nodes will have these taints
   # Taints may prevent pods from scheduling if they are not tolerated by the pod.
@@ -109,7 +112,12 @@ The `instanceTypeFilter` is optional, as are all of its parameters. It allows fo
 - excluding instance types with low CPU and memory to prevent launching nodes that can only support daemonsets and small workloads
 - selecting for nodes with the desired memory to CPU ratios based on your workloads
 - excluding instance types with high CPU and memory to reduce node blast radius
-- selecting only instance types with particular names 
+
+Karpenter is able to work best when it has a variety of instance types to select from particularly with spot provisioning. Instead of listing a few instance types as a requirement or using the `nameIncludeExpressions`, we recommend that you:
+- use `minResources`/`maxResources` to select for a variety of instance types of the desired sizes that match your use cases with respect to DaemonSet overhead, node blast radius, etc. 
+- use `nameExcludeExpressions` to exclude any instance types that you specifically do not want
+
+This provides flexibility to Karpenter with respect to the possible node sizes for better node utilization as well as instance type families and generations which can improve the experience using spot.  
 
 ### spec.instanceTypeFilter.minResources
 
@@ -141,14 +149,26 @@ memoryPerCPU:
   max: 9Gi
 ```
 
-### spec.instanceTypeFilter.nameMatchExpressions
+### spec.instanceTypeFilter.nameIncludeExpressions
 
-The `nameMatchExpressions` parameter filters for instance types names matching regular expressions. If this parameter is supplied, the only instance types that will be considered are those that match any one of the regular expressions in the `nameMatchExpressions` list.  
+The `nameIncludeExpressions` parameter filters for instance type names matching regular expressions. If this parameter is supplied, the only instance types that will be considered are those that match any one of the regular expressions in the `nameIncludeExpressions` list.  If an instance type name matches both the `nameIncludeExpressions` and `nameExcludeExpressions`, it will be excluded.   
+
 
 ```yaml
-nameMatchExpressions:
+nameIncludeExpressions:
 - ^r5
 - ^r6
+```
+
+### spec.instanceTypeFilter.nameExcludeExpressions
+
+The `nameExcludeExpressions` parameter filters out instance type names matching regular expressions. If this parameter is supplied, no instance type will be considered if it matches any one of the regular expressions in the `nameExcludeExpressions` list. If an instance type name matches both the `nameIncludeExpressions` and `nameExcludeExpressions`, it will be excluded.
+
+
+```yaml
+nameExcludeExpressions:
+- ^t2
+- ^t3
 ```
 
 ## spec.requirements

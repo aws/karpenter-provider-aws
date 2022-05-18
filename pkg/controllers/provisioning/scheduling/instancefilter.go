@@ -29,10 +29,11 @@ import (
 // instanceTypeFilter is a compiled instance type filter based on the v1alpha5.InstanceTypeFilter from the provisioner
 // spec
 type instanceTypeFilter struct {
-	nameMatchExpressions []*regexp.Regexp
-	minResources         v1.ResourceList
-	maxResources         v1.ResourceList
-	memoryPerCPU         *v1alpha5.MinMax
+	nameInclude  []*regexp.Regexp
+	nameExclude  []*regexp.Regexp
+	minResources v1.ResourceList
+	maxResources v1.ResourceList
+	memoryPerCPU *v1alpha5.MinMax
 }
 
 // newInstanceTypeFilter constructs a new compiled instance type filter.
@@ -43,13 +44,22 @@ func newInstanceTypeFilter(ctx context.Context, filter *v1alpha5.InstanceTypeFil
 		memoryPerCPU: filter.MemoryPerCPU,
 	}
 
-	for i, expression := range filter.NameMatchExpressions {
+	for i, expression := range filter.NameIncludeExpressions {
 		re, err := regexp.Compile(expression)
 		if err != nil {
-			logging.FromContext(ctx).Errorf("unable to parse NameMatchExpressions[%d]=%q, it will be ignored", i, expression)
+			logging.FromContext(ctx).Errorf("unable to parse NameIncludeExpressions[%d]=%q, it will be ignored", i, expression)
 			continue
 		}
-		f.nameMatchExpressions = append(f.nameMatchExpressions, re)
+		f.nameInclude = append(f.nameInclude, re)
+	}
+
+	for i, expression := range filter.NameExcludeExpressions {
+		re, err := regexp.Compile(expression)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("unable to parse NameExcludeExpressions[%d]=%q, it will be ignored", i, expression)
+			continue
+		}
+		f.nameExclude = append(f.nameExclude, re)
 	}
 	return f
 }
@@ -57,19 +67,11 @@ func newInstanceTypeFilter(ctx context.Context, filter *v1alpha5.InstanceTypeFil
 func (f *instanceTypeFilter) Accepts(it cloudprovider.InstanceType) bool {
 	cpu := it.Resources()[v1.ResourceCPU]
 	mem := it.Resources()[v1.ResourceMemory]
-	if !f.passesMinResourcesFilter(it.Resources()) {
-		return false
-	}
-	if !f.passesMaxResourcesFilter(it.Resources()) {
-		return false
-	}
-	if !f.passesMemoryRatioFilter(cpu, mem) {
-		return false
-	}
-	if !f.passesNameMatchExpressions(it.Name()) {
-		return false
-	}
-	return true
+	return f.passesMinResourcesFilter(it.Resources()) &&
+		f.passesMaxResourcesFilter(it.Resources()) &&
+		f.passesMemoryRatioFilter(cpu, mem) &&
+		f.passesNameInclude(it.Name()) &&
+		f.passesNameExclude(it.Name())
 }
 
 func (f *instanceTypeFilter) passesMemoryRatioFilter(cpu, mem resource.Quantity) bool {
@@ -93,19 +95,34 @@ func (f *instanceTypeFilter) passesMemoryRatioFilter(cpu, mem resource.Quantity)
 	return true
 }
 
-func (f *instanceTypeFilter) passesNameMatchExpressions(name string) bool {
+func (f *instanceTypeFilter) passesNameInclude(name string) bool {
 	// no expressions, so all instance types match
-	if len(f.nameMatchExpressions) == 0 {
+	if len(f.nameInclude) == 0 {
 		return true
 	}
 	// expression are OR'd so the name must match at least one
-	for _, expr := range f.nameMatchExpressions {
+	for _, expr := range f.nameInclude {
 		if expr.MatchString(name) {
 			return true
 		}
 	}
 	// or it fails
 	return false
+}
+
+func (f *instanceTypeFilter) passesNameExclude(name string) bool {
+	// no expressions, so all instance types match
+	if len(f.nameExclude) == 0 {
+		return true
+	}
+	// expression are OR'd so if the name matches any, it's excluded
+	for _, expr := range f.nameExclude {
+		if expr.MatchString(name) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (f *instanceTypeFilter) passesMinResourcesFilter(resources v1.ResourceList) bool {

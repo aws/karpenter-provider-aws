@@ -70,10 +70,22 @@ func (s *ProvisionerSpec) validateInstanceTypeFilter() *apis.FieldError {
 	if err := s.validateMinMax(s.InstanceTypeFilter.MemoryPerCPU); err != nil {
 		return err.ViaField("memoryPerCPU")
 	}
-	for i, expr := range s.InstanceTypeFilter.NameMatchExpressions {
+	if err := s.validateRegularExpressions("nameIncludeExpressions", s.InstanceTypeFilter.NameIncludeExpressions); err != nil {
+		return err
+	}
+	if err := s.validateRegularExpressions("nameExcludeExpressions", s.InstanceTypeFilter.NameExcludeExpressions); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ProvisionerSpec) validateRegularExpressions(fieldName string, expressions []string) *apis.FieldError {
+	for i, expr := range expressions {
 		_, err := regexp.Compile(expr)
 		if err != nil {
-			return apis.ErrInvalidValue(expr, "nameMatchExpressions", err.Error()).ViaIndex(i)
+			// we need the field name here to get the error message to construct correctly
+			// e.g. filter.nameIncludeExpressions[0] vs filter[0].nameIncludeExpressions
+			return apis.ErrInvalidValue(expr, fieldName, err.Error()).ViaIndex(i)
 		}
 	}
 	return nil

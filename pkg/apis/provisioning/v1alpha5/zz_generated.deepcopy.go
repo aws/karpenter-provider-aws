@@ -95,8 +95,13 @@ func (in *InstanceTypeFilter) DeepCopyInto(out *InstanceTypeFilter) {
 		*out = new(MinMax)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.NameMatchExpressions != nil {
-		in, out := &in.NameMatchExpressions, &out.NameMatchExpressions
+	if in.NameIncludeExpressions != nil {
+		in, out := &in.NameIncludeExpressions, &out.NameIncludeExpressions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.NameExcludeExpressions != nil {
+		in, out := &in.NameExcludeExpressions, &out.NameExcludeExpressions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

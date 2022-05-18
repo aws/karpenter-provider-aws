@@ -62,10 +62,16 @@ type InstanceTypeFilter struct {
 	// MemoryPerCPU allows specifying the minimum and maximum amounts of memory per CPU that are required.  This allows
 	// filtering out instance types that don't have a desired memory to CPU ratio.
 	MemoryPerCPU *MinMax `json:"memoryPerCPU,omitempty"`
-	// NameMatchExpressions are regular expressions to match against instance types names.  If no expressions are
-	// supplied, then no instance types will be excluded by the NameMatchExpressions. If multiple expressions are
-	// supplied, the NameMatchExpressions has an OR semantic.
-	NameMatchExpressions []string `json:"nameMatchExpressions,omitempty"`
+	// NameIncludeExpressions are regular expressions to match against instance types names, that if matched the instance types
+	// are included.  If no expressions are supplied, then no instance types will be excluded by the NameIncludeExpressions.
+	// If multiple expressions are supplied, the NameIncludeExpressions has an OR semantic. If a name is matched by both
+	// NameIncludeExpressions and NameExcludeExpressions, it will be excluded.
+	NameIncludeExpressions []string `json:"nameIncludeExpressions,omitempty"`
+	// NameExcludeExpressions are regular expressions to match against instance types names, that if matched the instance types
+	// are excluded.  If no expressions are supplied, then no instance types will be excluded by the NameExcludeExpressions.
+	// If multiple expressions are supplied, the NameExcludeExpressions has an OR semantic. If a name is matched by both
+	// NameIncludeExpressions and NameExcludeExpressions, it will be excluded.
+	NameExcludeExpressions []string `json:"nameExcludeExpressions,omitempty"`
 }
 
 // MinMax is the schema for a min/max range.  Both Min and Max are optional allowing configuring just a Min or Max value.
