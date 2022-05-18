@@ -58,13 +58,17 @@ func (c *Constraints) ToNode() *v1.Node {
 		labels[key] = value
 	}
 	for key := range c.Requirements.Keys() {
-		if !IsRestrictedNodeLabel(key) {
-			switch c.Requirements.Get(key).Type() {
-			case v1.NodeSelectorOpIn:
+		if IsRestrictedNodeLabel(key) {
+			continue
+		}
+		switch c.Requirements.Get(key).Type() {
+		case v1.NodeSelectorOpIn:
+			// something restricted us down to a single label
+			if c.Requirements.Get(key).Values().Len() > 1 {
 				labels[key] = c.Requirements.Get(key).Values().UnsortedList()[0]
-			case v1.NodeSelectorOpExists:
-				labels[key] = rand.String(10)
 			}
+		case v1.NodeSelectorOpExists:
+			labels[key] = rand.String(10)
 		}
 	}
 

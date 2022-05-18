@@ -168,6 +168,29 @@ var _ = Describe("Custom Constraints", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelTopologyZone, "test-zone-2"))
 		})
+		It("should apply labels from pod node selectors", func() {
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{NodeSelector: map[string]string{v1.LabelOSStable: "linux"}}))[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelOSStable, "linux"))
+		})
+		It("should apply labels from pod node selectors (multiple)", func() {
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelOSStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"linux", "windows"},
+						},
+					}}))[0]
+			node := ExpectScheduled(ctx, env.Client, pod)
+			value := node.Labels[v1.LabelOSStable]
+			// Ugh, this doesn't really seem correct, but not sure at the moment about it
+			Expect(value == "linux" || value == "windows").To(BeTrue())
+		})
 		It("should use node selectors", func() {
 			provisioner.Spec.Requirements = v1alpha5.NewRequirements(
 				v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1", "test-zone-2"}})
@@ -348,22 +371,6 @@ var _ = Describe("Custom Constraints", func() {
 						{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 					}}))[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
-			}
-		})
-		It("should schedule pods that have node selectors with label in restricted domains exceptions list", func() {
-			var requirements []v1.NodeSelectorRequirement
-			for domain := range v1alpha5.LabelDomainExceptions {
-				requirements = append(requirements, v1.NodeSelectorRequirement{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}})
-			}
-			provisioner.Spec.Requirements = v1alpha5.NewRequirements(requirements...)
-			ExpectApplied(ctx, env.Client, provisioner)
-			for domain := range v1alpha5.LabelDomainExceptions {
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
-					test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-						{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}},
-					}}))[0]
-				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Labels).ToNot(HaveKeyWithValue(domain+"/test", "test-value"))
 			}
 		})
 		It("should schedule pods that have node selectors with label in restricted label exceptions list", func() {

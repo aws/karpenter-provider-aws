@@ -107,15 +107,7 @@ func IsRestrictedLabel(key string) error {
 }
 
 // IsRestrictedNodeLabel returns true if a node label should not be injected by Karpenter.
-// They are either known labels that will be injected by cloud providers,
-// or label domain managed by other software (e.g., kops.k8s.io managed by kOps).
 func IsRestrictedNodeLabel(key string) bool {
-	labelDomain := getLabelDomain(key)
-	for restrictedLabelDomain := range RestrictedLabelDomains {
-		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
-			return true
-		}
-	}
 	return RestrictedLabels.Has(key)
 }
 
