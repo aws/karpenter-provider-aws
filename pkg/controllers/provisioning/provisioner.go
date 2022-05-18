@@ -16,6 +16,7 @@ package provisioning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -143,6 +144,11 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	var pods []*v1.Pod
 	for i := range podList.Items {
 		pod := podList.Items[i]
+		// filter for provisionable pods first so we don't check for validity/PVCs on pods we won't provision anyway
+		// (e.g. those owned by daemonsets)
+		if !isProvisionable(&pod) {
+			continue
+		}
 		errs := multierr.Combine(
 			validate(&pod),
 			p.volumeTopology.validatePersistentVolumeClaims(ctx, &pod),
@@ -151,9 +157,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 			logging.FromContext(ctx).With("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)).Debugf("Unable to batch pod, %s", errs)
 			continue
 		}
-		if isProvisionable(&pod) {
-			pods = append(pods, &pod)
-		}
+		pods = append(pods, &pod)
 	}
 	return pods, nil
 }
@@ -219,8 +223,6 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		return err
 	}
 
-	// apply both the taints and startup taints to the node
-	node.Taints = append(node.Taints, node.StartupTaints...)
 	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
 		InstanceTypeOptions: node.InstanceTypeOptions,
 		Template:            &node.NodeTemplate,
@@ -232,6 +234,11 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	if err := mergo.Merge(k8sNode, node.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
+
+	if err := createExtendedResourcesAnnotation(k8sNode); err != nil {
+		return fmt.Errorf("applying extended resources annotation, %w", err)
+	}
+
 	// Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
 	// with the API server. In the common case, we create the node object
@@ -245,44 +252,66 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		}
 	}
 	logging.FromContext(ctx).Infof("Created %s", node)
-	if err := p.bind(ctx, k8sNode, node.Pods); err != nil {
-		return fmt.Errorf("binding pods, %w", err)
+	for _, pod := range node.Pods {
+		p.recorder.PodShouldSchedule(pod, k8sNode)
 	}
 	return nil
 }
 
-func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
-	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+func createExtendedResourcesAnnotation(node *v1.Node) error {
+	nonZeroExtendedResources := v1.ResourceList{}
 
-	nodeTaints := scheduling.Taints(node.Spec.Taints)
-
-	notReadyTolerations := []v1.Toleration{
-		{
-			Key:      v1alpha5.NotReadyTaintKey,
-			Operator: v1.TolerationOpEqual,
-			Effect:   v1.TaintEffectNoSchedule,
-		}, {
-			Key:      v1.TaintNodeNotReady,
-			Operator: v1.TolerationOpEqual,
-			Effect:   v1.TaintEffectNoSchedule,
-		}}
-
-	workqueue.ParallelizeUntil(ctx, len(pods), len(pods), func(i int) {
-		pod := pods[i]
-		// Don't bind pods that would immediately get evicted.  We tolerate the two standard taints that are applied for
-		// not ready nodes as we are binding pods to these not-ready nodes intentionally (currently).  Binding pods that get
-		// evicted can cause extra nodes to be launched as we don't see the in-flight capacity until the pod is fully deleted
-		// and controllers sometimes create replacement pods while the existing ones are deleting, but not fully deleted causing
-		// us to launch new capacity.
-		if nodeTaints.Tolerates(pod, notReadyTolerations...) != nil {
-			p.recorder.PodShouldSchedule(pod, node)
-			return
+	// ensure that regardless of what the cloud provider returns, we don't put any extended resources
+	// on the node we create
+	extendedNames := map[v1.ResourceName]struct{}{}
+	for name, quantity := range node.Status.Capacity {
+		if isExtendedResource(name) {
+			extendedNames[name] = struct{}{}
+			if !quantity.IsZero() {
+				nonZeroExtendedResources[name] = quantity
+			}
 		}
-		if err := p.coreV1Client.Pods(pods[i].Namespace).Bind(ctx, &v1.Binding{TypeMeta: pod.TypeMeta, ObjectMeta: pod.ObjectMeta, Target: v1.ObjectReference{Name: node.Name}}, metav1.CreateOptions{}); err != nil {
-			logging.FromContext(ctx).Errorf("Failed to bind %s/%s to %s, %s", pod.Namespace, pod.Name, node.Name, err)
+	}
+	for name, quantity := range node.Status.Allocatable {
+		if isExtendedResource(name) {
+			extendedNames[name] = struct{}{}
+			if !quantity.IsZero() {
+				nonZeroExtendedResources[name] = quantity
+			}
 		}
-	})
+	}
+
+	for resourceName := range extendedNames {
+		delete(node.Status.Allocatable, resourceName)
+		delete(node.Status.Capacity, resourceName)
+	}
+
+	// collect the non-zero extended resources
+	if len(nonZeroExtendedResources) == 0 {
+		return nil
+	}
+
+	encoded, err := json.Marshal(nonZeroExtendedResources)
+	if err != nil {
+		return fmt.Errorf("marshalling extended annotations, %w", err)
+	}
+	if node.Annotations == nil {
+		node.Annotations = map[string]string{}
+	}
+	node.Annotations[v1alpha5.AnnotationExtendedResources] = string(encoded)
 	return nil
+}
+
+// isExtendedResource returns true if the resource is extended and should be annotated on the node as it may be cleared
+// by kubelet at startup
+func isExtendedResource(name v1.ResourceName) bool {
+	switch name {
+	case v1.ResourceCPU, v1.ResourceMemory, v1.ResourcePods, v1.ResourceStorage,
+		v1.ResourceEphemeralStorage:
+		return false
+	default:
+		return true
+	}
 }
 
 func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate) (map[*scheduling.NodeTemplate]v1.ResourceList, error) {
@@ -322,18 +351,6 @@ var schedulingDuration = prometheus.NewHistogramVec(
 	[]string{metrics.ProvisionerLabel},
 )
 
-var bindTimeHistogram = prometheus.NewHistogramVec(
-	prometheus.HistogramOpts{
-		Namespace: metrics.Namespace,
-		Subsystem: "allocation_controller",
-		Name:      "bind_duration_seconds",
-		Help:      "Duration of bind process in seconds. Broken down by result.",
-		Buckets:   metrics.DurationBuckets(),
-	},
-	[]string{metrics.ProvisionerLabel},
-)
-
 func init() {
-	crmetrics.Registry.MustRegister(bindTimeHistogram)
 	crmetrics.Registry.MustRegister(schedulingDuration)
 }

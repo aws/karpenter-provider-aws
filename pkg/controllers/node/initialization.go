@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 )
 
@@ -40,12 +39,12 @@ type Initialization struct {
 
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !scheduling.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
+	if _, hasAnnotation := n.Annotations[v1alpha5.NotReadyAnnotationKey]; !hasAnnotation {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}
 
-	if !v1alpha5.NodeIsReady(n, provisioner) {
+	if !v1alpha5.NodeIsReady(ctx, n, provisioner) {
 		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
 			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
 		}
@@ -55,12 +54,10 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 		}
 		return reconcile.Result{}, nil
 	}
-	taints := []v1.Taint{}
-	for _, taint := range n.Spec.Taints {
-		if taint.Key != v1alpha5.NotReadyTaintKey {
-			taints = append(taints, taint)
-		}
-	}
-	n.Spec.Taints = taints
+
+	// If the node is ready, we can delete our not-ready annotation and any extended resource annotation as the
+	// readiness check succeeding implies that all device plugins have finished initializing.
+	delete(n.Annotations, v1alpha5.NotReadyAnnotationKey)
+	delete(n.Annotations, v1alpha5.AnnotationExtendedResources)
 	return reconcile.Result{}, nil
 }

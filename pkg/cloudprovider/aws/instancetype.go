@@ -43,10 +43,10 @@ type InstanceType struct {
 	provider           *v1alpha1.AWS
 }
 
-func newInstanceType(info ec2.InstanceTypeInfo, provider *v1alpha1.AWS) *InstanceType {
+func newInstanceType(info ec2.InstanceTypeInfo, includePodENI bool, provider *v1alpha1.AWS) *InstanceType {
 	it := &InstanceType{InstanceTypeInfo: info}
 	it.provider = provider
-	it.resources = it.computeResources()
+	it.resources = it.computeResources(includePodENI)
 	it.overhead = it.computeOverhead()
 	return it
 }
@@ -76,13 +76,13 @@ func (i *InstanceType) Resources() v1.ResourceList {
 	return i.resources
 }
 
-func (i *InstanceType) computeResources() v1.ResourceList {
+func (i *InstanceType) computeResources(includePodENI bool) v1.ResourceList {
 	return v1.ResourceList{
 		v1.ResourceCPU:              i.cpu(),
 		v1.ResourceMemory:           i.memory(),
 		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
 		v1.ResourcePods:             i.pods(),
-		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(),
+		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(includePodENI),
 		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
 		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
 		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
@@ -159,10 +159,10 @@ func (i *InstanceType) pods() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
 
-func (i *InstanceType) awsPodENI() resource.Quantity {
+func (i *InstanceType) awsPodENI(includePodENI bool) resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := vpc.Limits[aws.StringValue(i.InstanceType)]
-	if ok && limits.IsTrunkingCompatible {
+	if includePodENI && ok && limits.IsTrunkingCompatible {
 		return *resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
 	return *resources.Quantity("0")

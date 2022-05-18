@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
@@ -100,8 +99,9 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		aws.StringValue(instance.Placement.AvailabilityZone),
 		getCapacityType(instance),
 	)
+
 	// Convert Instance to Node
-	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions), nil
+	return p.instanceToNode(ctx, instance, nodeRequest.InstanceTypeOptions, provider.AMIFamily), nil
 }
 
 func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
@@ -254,7 +254,7 @@ func (p *InstanceProvider) getInstance(ctx context.Context, id string) (*ec2.Ins
 	return instance, nil
 }
 
-func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType) *v1.Node {
+func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Instance, instanceTypes []cloudprovider.InstanceType, amiFamily *string) *v1.Node {
 	for _, instanceType := range instanceTypes {
 		if instanceType.Name() == aws.StringValue(instance.InstanceType) {
 			nodeName := strings.ToLower(aws.StringValue(instance.PrivateDnsName))
@@ -262,27 +262,23 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 
+			// Since we no longer pre-bind, we need to ensure that all resources that were possibly considered for scheduling
+			// purposes are placed on the node.  The extended resources will be moved to an annotation, while the
+			// non-extended will be left on the node.
 			resources := v1.ResourceList{}
-			for resourceName, quantity := range map[v1.ResourceName]resource.Quantity{
-				v1.ResourcePods:             instanceType.Resources()[v1.ResourcePods],
-				v1.ResourceCPU:              instanceType.Resources()[v1.ResourceCPU],
-				v1.ResourceMemory:           instanceType.Resources()[v1.ResourceMemory],
-				v1.ResourceEphemeralStorage: instanceType.Resources()[v1.ResourceEphemeralStorage],
-				v1alpha1.ResourceNVIDIAGPU:  instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU],
-				v1alpha1.ResourceAMDGPU:     instanceType.Resources()[v1alpha1.ResourceAMDGPU],
-				v1alpha1.ResourceAWSNeuron:  instanceType.Resources()[v1alpha1.ResourceAWSNeuron],
-			} {
+			for resourceName, quantity := range instanceType.Resources() {
 				if !quantity.IsZero() {
 					resources[resourceName] = quantity
 				}
 			}
 
-			return &v1.Node{
+			n := &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
 					Labels: map[string]string{
 						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
 						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
+						v1.LabelArchStable:         v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
 						v1alpha5.LabelCapacityType: getCapacityType(instance),
 					},
 				},
@@ -299,6 +295,16 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 					},
 				},
 			}
+
+			if amiFamily != nil {
+				switch *amiFamily {
+				case v1alpha1.AMIFamilyAL2, v1alpha1.AMIFamilyBottlerocket, v1alpha1.AMIFamilyUbuntu:
+					n.Labels[v1.LabelOSStable] = "linux"
+				default:
+					logging.FromContext(ctx).Infof("unknown AMI Family %s, not setting %s label", *amiFamily, v1.LabelOSStable)
+				}
+			}
+			return n
 		}
 	}
 	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))

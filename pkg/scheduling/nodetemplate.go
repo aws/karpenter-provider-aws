@@ -75,18 +75,25 @@ func (n *NodeTemplate) ToNode() *v1.Node {
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:     labels,
 			Finalizers: []string{v1alpha5.TerminationFinalizer},
+			Annotations: map[string]string{
+				v1alpha5.NotReadyAnnotationKey: "true",
+			},
+		},
+		Status: v1.NodeStatus{
+			// We need to put a not ready condition on the node or else the node-controller will immediately remove
+			// the standard v1.TaintNodeNotReady taint that we add below.
+			Conditions: []v1.NodeCondition{
+				{
+					Type:               v1.NodeReady,
+					Status:             v1.ConditionFalse,
+					LastHeartbeatTime:  metav1.Now(),
+					LastTransitionTime: metav1.Now(),
+					Reason:             "KubeletNotReady",
+				},
+			},
 		},
 		Spec: v1.NodeSpec{
-			// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-			// from scheduling pods before we're able to bind them ourselves. The kube
-			// scheduler has an eventually consistent cache of nodes and pods, so it's
-			// possible for it to see a provisioned node before it sees the pods bound
-			// to it. This creates an edge case where other pending pods may be bound to
-			// the node by the kube scheduler, causing OutOfCPU errors when the
-			// binpacked pods race to bind to the same node. The system eventually
-			// heals, but causes delays from additional provisioning (thrash). This
-			// taint will be removed by the node controller when a node is marked ready.
-			Taints: append(n.Taints, v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}),
+			Taints: append(append(n.Taints, n.StartupTaints...), v1.Taint{Key: v1.TaintNodeNotReady, Effect: v1.TaintEffectNoSchedule}),
 		},
 	}
 }

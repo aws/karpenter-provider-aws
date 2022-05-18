@@ -62,7 +62,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 			break
 		}
 	}
-	return &v1.Node{
+	n := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
@@ -80,13 +80,15 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 				Architecture:    instance.Architecture(),
 				OperatingSystem: v1alpha5.OperatingSystemLinux,
 			},
-			Allocatable: v1.ResourceList{
-				v1.ResourcePods:   instance.Resources()[v1.ResourcePods],
-				v1.ResourceCPU:    instance.Resources()[v1.ResourceCPU],
-				v1.ResourceMemory: instance.Resources()[v1.ResourceMemory],
-			},
+			Allocatable: v1.ResourceList{},
+			Capacity:    v1.ResourceList{},
 		},
-	}, nil
+	}
+	for k, v := range instance.Resources() {
+		n.Status.Capacity[k] = v
+		n.Status.Allocatable[k] = v
+	}
+	return n, nil
 }
 
 func (c *CloudProvider) GetInstanceTypes(_ context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {

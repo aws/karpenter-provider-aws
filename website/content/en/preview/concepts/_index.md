@@ -90,7 +90,7 @@ Refer to the description of Karpenter constraints in the Application Developer s
 ### Scheduling
 
 Karpenter schedules pods that the Kubernetes scheduler has marked unschedulable.
-After solving scheduling constraints and launching capacity, Karpenter optimistically creates the Node object and binds the pod.
+After solving scheduling constraints and launching capacity, Karpenter creates the Node object and waits for kube-scheduler to bind the pod.
 This stateless approach helps to avoid race conditions and improves performance.
 If something is wrong with the launched node, Kubernetes will automatically migrate the pods to a new node.
 
@@ -118,13 +118,6 @@ Cluster autoscaler was not originally built with the flexibility to handle hundr
 * **Group-less node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups.
 This enables it to retry in milliseconds instead of minutes when capacity is unavailable.
 It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.
-
-* **Scheduling enforcement**: Cluster autoscaler doesn’t bind pods to the nodes it creates.
-Instead, it relies on the kube-scheduler to make the same scheduling decision after the node has come online.
-A node that Karpenter launches has its pods bound immediately.
-The kubelet doesn't have to wait for the scheduler or for the node to become ready.
-It can start preparing the container runtime immediately, including pre-pulling the image.
-This can save seconds off of node startup latency.
 
 ## Application developer
 
