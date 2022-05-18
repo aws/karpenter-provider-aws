@@ -19,5 +19,5 @@ import (
 )
 
 // SetDefaults for the provisioner
-func (a *AWSProvider) SetDefaults(ctx context.Context) {
+func (a *AWSNodeConfig) SetDefaults(ctx context.Context) {
 }

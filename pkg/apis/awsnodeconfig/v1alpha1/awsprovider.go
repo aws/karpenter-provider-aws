@@ -20,7 +20,7 @@ import (
 
 // AWSProviderSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
-type AWSProviderSpec struct {
+type AWSNodeConfigSpec struct {
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -31,9 +31,9 @@ type AWSProviderSpec struct {
 // AWSProvider is the Schema for the AWSProviders API
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=awsproviders,scope=Cluster,categories=karpenter
-type AWSProvider struct {
+type AWSNodeConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AWSProviderSpec `json:"spec,omitempty"`
+	Spec AWSNodeConfigSpec `json:"spec,omitempty"`
 }

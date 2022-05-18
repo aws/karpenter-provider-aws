@@ -11,10 +11,10 @@ spec:
   names:
     categories:
     - karpenter
-    kind: AWSProvider
-    listKind: AWSProviderList
+    kind: AWSNodeConfig
+    listKind: AWSNodeConfigList
     plural: awsproviders
-    singular: awsprovider
+    singular: awsnodeconfig
   scope: Cluster
   versions:
   - name: v1alpha1

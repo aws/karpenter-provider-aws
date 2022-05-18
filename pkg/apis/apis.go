@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/webhook/resourcesemantics"
 
-	"github.com/aws/karpenter/pkg/apis/awsprovider/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/awsnodeconfig/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
@@ -34,7 +34,7 @@ var (
 	AddToScheme = Builder.AddToScheme
 	// Resources defined in the project
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha5.Provisioner{},
-		v1alpha1.SchemeGroupVersion.WithKind("AWSProvider"): &v1alpha1.AWSProvider{},
+		v1alpha5.SchemeGroupVersion.WithKind("Provisioner"):   &v1alpha5.Provisioner{},
+		v1alpha1.SchemeGroupVersion.WithKind("AWSNodeConfig"): &v1alpha1.AWSNodeConfig{},
 	}
 )

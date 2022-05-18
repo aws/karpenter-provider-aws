@@ -20,13 +20,13 @@ import (
 	"knative.dev/pkg/apis"
 )
 
-func (a *AWSProvider) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWSNodeConfig) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		apis.ValidateObjectMetadata(a).ViaField("metadata"),
 		a.Spec.validate(ctx).ViaField("spec"),
 	)
 }
 
-func (a *AWSProviderSpec) validate(ctx context.Context) (errs *apis.FieldError) {
+func (a *AWSNodeConfigSpec) validate(ctx context.Context) (errs *apis.FieldError) {
 	return nil
 }
