@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"sync"
 
+	"go.uber.org/multierr"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -141,8 +143,17 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	}
 	var pods []*v1.Pod
 	for i := range podList.Items {
-		if isProvisionable(&podList.Items[i]) {
-			pods = append(pods, &podList.Items[i])
+		pod := podList.Items[i]
+		errs := multierr.Combine(
+			validate(&pod),
+			p.volumeTopology.validatePersistentVolumeClaims(ctx, &pod),
+		)
+		if errs != nil {
+			logging.FromContext(ctx).With("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)).Debugf("Unable to batch pod, %s", errs)
+			continue
+		}
+		if isProvisionable(&pod) {
+			pods = append(pods, &pod)
 		}
 	}
 	return pods, nil
