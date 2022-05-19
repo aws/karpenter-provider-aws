@@ -2,6 +2,9 @@ name: Create Release
 on:
   push:
     tags: ['v*']
+permissions:
+  id-token: write
+  contents: read
 jobs:
   release:
     if: github.repository == 'aws/karpenter'

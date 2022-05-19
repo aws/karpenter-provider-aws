@@ -1,0 +1,21 @@
+name: SnapshotsONPRs
+on:
+  push:
+    branches: [ main ]
+  pull_request_review:
+    types: [ submitted ]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  snapshotsOnPRs:
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: env
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::274912145732:role/Snapshots
+          aws-region: us-east-1
