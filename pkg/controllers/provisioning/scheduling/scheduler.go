@@ -108,25 +108,32 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 			}
 		}
 	}
+	s.recordSchedulingResults(ctx, q.List(), errors)
+	return s.nodes, nil
+}
 
+func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedule []*v1.Pod, errors map[*v1.Pod]error) {
 	// notify users of pods that can schedule to inflight capacity
-	inflightCount := 0
+	existingCount := 0
 	for _, node := range s.inflight {
-		inflightCount += len(node.Pods)
+		existingCount += len(node.Pods)
 		for _, pod := range node.Pods {
 			s.recorder.PodShouldSchedule(pod, node.Node)
 		}
 	}
-	if inflightCount != 0 {
-		logging.FromContext(ctx).Infof("%d pod(s) will schedule against existing capacity", len(pods))
+	newCount := 0
+	for _, node := range s.nodes {
+		newCount += len(node.Pods)
+	}
+	if existingCount != 0 || newCount != 0 {
+		logging.FromContext(ctx).Infof("%d pod(s) will schedule against new capacity, %d pod(s) against existing capacity", newCount, existingCount)
 	}
 
 	// Any remaining pods have failed to schedule
-	for _, pod := range q.List() {
+	for _, pod := range failedToSchedule {
 		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
 		s.recorder.PodFailedToSchedule(pod, errors[pod])
 	}
-	return s.nodes, nil
 }
 
 func (s *Scheduler) add(pod *v1.Pod) error {
