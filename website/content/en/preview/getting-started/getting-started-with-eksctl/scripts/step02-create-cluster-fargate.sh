@@ -15,6 +15,10 @@ managedNodeGroups:
     desiredCapacity: 1
     minSize: 1
     maxSize: 10
+fargateProfiles:
+  - name: karpenter
+    selectors:
+    - namespace: karpenter
 iam:
   withOIDC: true
 EOF
