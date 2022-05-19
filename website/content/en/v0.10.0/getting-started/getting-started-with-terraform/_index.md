@@ -151,7 +151,7 @@ module "eks" {
 
       iam_role_additional_policies = [
         # Required by Karpenter
-        "arn:${local.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
       ]
     }
   }
