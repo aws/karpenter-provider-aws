@@ -40,3 +40,4 @@ linters-settings:
 
 issues:
   fix: true
+  exclude: ['declaration of "(err|ctx)" shadows declaration at']

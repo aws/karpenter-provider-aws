@@ -20,6 +20,7 @@ import (
 	"math"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -52,7 +53,7 @@ type Topology struct {
 	cluster *state.Cluster
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, provisioners []*v1alpha5.Provisioner, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, nodeTemplates []*scheduling.NodeTemplate, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
 		kubeClient:        kubeClient,
 		cluster:           cluster,
@@ -64,9 +65,9 @@ func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.C
 	// Update the universe of valid domains. We can't pull all the domains from
 	// all of the nodes here as these are passed on to topology spreads which
 	// can be limited by node selector/required node affinities.
-	for _, provisioner := range provisioners {
+	for _, nodeTemplate := range nodeTemplates {
 		for topologyKey := range v1alpha5.ValidTopologyKeys {
-			t.domains[topologyKey] = t.domains[topologyKey].Union(provisioner.Spec.Requirements.Get(topologyKey).Values())
+			t.domains[topologyKey] = t.domains[topologyKey].Union(nodeTemplate.Requirements.Get(topologyKey).Values())
 		}
 	}
 
@@ -118,7 +119,7 @@ func (t *Topology) Update(ctx context.Context, p *v1.Pod) error {
 }
 
 // Record records the topology changes given that pod p schedule on a node with the given requirements
-func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
+func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 	// once we've committed to a domain, we record the usage in every topology that cares about it
 	for _, tc := range t.topologies {
 		if tc.Counts(p, requirements) {
@@ -147,8 +148,9 @@ func (t *Topology) Record(p *v1.Pod, requirements v1alpha5.Requirements) {
 // affinities, anti-affinities or inverse anti-affinities.  The nodeHostname is the hostname that we are currently considering
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
-func (t *Topology) AddRequirements(podRequirements, nodeRequirements v1alpha5.Requirements, p *v1.Pod) (v1alpha5.Requirements, error) {
-	requirements := nodeRequirements
+func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.Requirements, p *v1.Pod) (scheduling.Requirements, error) {
+	requirements := scheduling.NewRequirements()
+	requirements.Add(nodeRequirements)
 	for _, topology := range t.getMatchingTopologies(p, nodeRequirements) {
 		podDomains := sets.NewComplementSet()
 		if podRequirements.Has(topology.Key) {
@@ -161,9 +163,9 @@ func (t *Topology) AddRequirements(podRequirements, nodeRequirements v1alpha5.Re
 
 		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
-			return v1alpha5.Requirements{}, fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
+			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
 		}
-		requirements = requirements.Add(v1.NodeSelectorRequirement{Key: topology.Key, Operator: v1.NodeSelectorOpIn, Values: domains.Values().List()})
+		requirements.Add(scheduling.Requirements{topology.Key: domains})
 	}
 	return requirements, nil
 }
@@ -340,7 +342,7 @@ func (t *Topology) buildNamespaceList(ctx context.Context, namespace string, nam
 
 // getMatchingTopologies returns a sorted list of topologies that either control the scheduling of pod p, or for which
 // the topology selects pod p and the scheduling of p affects the count per topology domain
-func (t *Topology) getMatchingTopologies(p *v1.Pod, requirements v1alpha5.Requirements) []*TopologyGroup {
+func (t *Topology) getMatchingTopologies(p *v1.Pod, requirements scheduling.Requirements) []*TopologyGroup {
 	var matchingTopologies []*TopologyGroup
 	for _, tc := range t.topologies {
 		if tc.IsOwnedBy(p.UID) {

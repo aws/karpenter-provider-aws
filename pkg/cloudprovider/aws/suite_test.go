@@ -329,7 +329,7 @@ var _ = Describe("Allocation", func() {
 				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 				})
-				provisioner.Spec.Constraints.Requirements.Requirements = append(provisioner.Spec.Constraints.Requirements.Requirements, v1.NodeSelectorRequirement{
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceType,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"m5.large", "m5.xlarge"},
@@ -379,11 +379,11 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch on-demand capacity if flexible to both spot and on demand, but spot if unavailable", func() {
 				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}})
-				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
-					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				)
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				}
 				// Spot Unavailable
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -402,8 +402,8 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
-				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}})
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
@@ -464,7 +464,7 @@ var _ = Describe("Allocation", func() {
 				Expect(name1).To(Equal(name2))
 			})
 			It("should tag with provisioner name", func() {
-				const provisionerName = "the-provisioner"
+				provisionerName := "the-provisioner"
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, ObjectMeta: metav1.ObjectMeta{Name: provisionerName}}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -938,8 +938,10 @@ var _ = Describe("Allocation", func() {
 
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(provisioner.Spec.Requirements[0].Key).To(Equal(v1alpha5.LabelCapacityType))
+			Expect(provisioner.Spec.Requirements[0].Values).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(provisioner.Spec.Requirements[1].Key).To(Equal(v1.LabelArchStable))
+			Expect(provisioner.Spec.Requirements[1].Values).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {

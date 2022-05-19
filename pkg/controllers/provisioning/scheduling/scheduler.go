@@ -18,7 +18,10 @@ import (
 	"context"
 	"sort"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
@@ -31,11 +34,11 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
-func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology,
-	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList, recorder events.Recorder) *Scheduler {
+func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, cluster *state.Cluster, topology *Topology,
+	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
 	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
 	s := &Scheduler{
-		provisioners:   provisioners,
+		nodeTemplates:  nodeTemplates,
 		topology:       topology,
 		cluster:        cluster,
 		instanceTypes:  instanceTypes,
@@ -44,24 +47,23 @@ func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, 
 		preferences:    &Preferences{},
 	}
 
-	provisionerMap := map[string]*v1alpha5.Provisioner{}
-	for _, provisioner := range s.provisioners {
-		provisionerMap[provisioner.Name] = provisioner
-	}
+	namedNodeTemplates := lo.KeyBy(s.nodeTemplates, func(nodeTemplate *scheduling.NodeTemplate) string {
+		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values().List()[0]
+	})
 
 	// create our in-flight nodes
 	s.cluster.ForEachNode(func(node *state.Node) bool {
-		provisionerName, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
+		name, ok := node.Node.Labels[v1alpha5.ProvisionerNameLabelKey]
 		if !ok {
 			// ignoring this node as it wasn't launched by us
 			return true
 		}
-		provisioner, ok := provisionerMap[provisionerName]
+		nodeTemplate, ok := namedNodeTemplates[name]
 		if !ok {
 			// ignoring this node as it wasn't launched by a provisioner that we recognize
 			return true
 		}
-		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, provisioner.Spec.StartupTaints, s.daemonOverhead[provisioner]))
+		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, nodeTemplate.StartupTaints, s.daemonOverhead[nodeTemplate]))
 		return true
 	})
 	return s
@@ -69,13 +71,13 @@ func NewScheduler(provisioners []*v1alpha5.Provisioner, cluster *state.Cluster, 
 
 type Scheduler struct {
 	nodes          []*Node
-	provisioners   []*v1alpha5.Provisioner
+	inflight       []*InFlightNode
+	nodeTemplates  []*scheduling.NodeTemplate
 	instanceTypes  []cloudprovider.InstanceType
-	daemonOverhead map[*v1alpha5.Provisioner]v1.ResourceList
+	daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList
 	preferences    *Preferences
 	topology       *Topology
 	cluster        *state.Cluster
-	inflight       []*InFlightNode
 	recorder       events.Recorder
 }
 
@@ -156,8 +158,8 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 
 	// Create new node
 	var errs error
-	for _, provisioner := range s.provisioners {
-		node := NewNode(provisioner, s.topology, s.daemonOverhead[provisioner], s.instanceTypes)
+	for _, nodeTemplate := range s.nodeTemplates {
+		node := NewNode(nodeTemplate, s.topology, s.daemonOverhead[nodeTemplate], s.instanceTypes)
 		err := node.Add(pod)
 		if err == nil {
 			s.nodes = append(s.nodes, node)
