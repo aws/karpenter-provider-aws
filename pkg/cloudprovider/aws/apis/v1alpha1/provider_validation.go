@@ -34,7 +34,6 @@ const (
 	metadataOptionsPath         = "metadataOptions"
 	instanceProfilePath         = "instanceProfile"
 	blockDeviceMappingsPath     = "blockDeviceMappings"
-	userDataPath                = "userData"
 )
 
 var (
@@ -57,7 +56,6 @@ func (a *AWS) validate() (errs *apis.FieldError) {
 		a.validateMetadataOptions(),
 		a.validateAMIFamily(),
 		a.validateBlockDeviceMappings(),
-		a.validateUserData(),
 	)
 }
 
@@ -76,9 +74,6 @@ func (a *AWS) validateLaunchTemplate() (errs *apis.FieldError) {
 	}
 	if a.InstanceProfile != nil {
 		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, instanceProfilePath))
-	}
-	if a.UserData != nil {
-		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, userDataPath))
 	}
 	if len(a.BlockDeviceMappings) != 0 {
 		errs = errs.Also(apis.ErrMultipleOneOf(launchTemplatePath, blockDeviceMappingsPath))
@@ -253,17 +248,6 @@ func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.F
 		return apis.ErrMissingField("volumeSize")
 	} else if blockDeviceMapping.EBS.VolumeSize.Cmp(minVolumeSize) == -1 || blockDeviceMapping.EBS.VolumeSize.Cmp(maxVolumeSize) == 1 {
 		return apis.ErrOutOfBoundsValue(blockDeviceMapping.EBS.VolumeSize.String(), minVolumeSize.String(), maxVolumeSize.String(), "volumeSize")
-	}
-	return nil
-}
-
-func (a *AWS) validateUserData() *apis.FieldError {
-	if a.UserData == nil {
-		return nil
-	}
-	// Only support UserData with Bottlerocket for now.
-	if *a.AMIFamily != AMIFamilyBottlerocket {
-		return apis.ErrInvalidValue(fmt.Sprintf("not supported with %v", *a.AMIFamily), userDataPath)
 	}
 	return nil
 }

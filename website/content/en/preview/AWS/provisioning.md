@@ -207,33 +207,39 @@ spec:
 
 ### UserData
 
-The `userData` field in a Provisioner can be used to control the UserData that Karpenter will use when provisioning nodes.
-Your UserData must be specified via a ConfigMap, and it will be processed differently based on the AMIFamily selected.
+In order to specify custom user data, you must include it within the AWSNodeTemplate resource. You can then reference the AWSNodeTemplate resource through `spec.providerRef` in your provisioner.
 
 **Examples**
 
-You can specify which ConfigMap to retrieve your userData from -
+Your UserData can be added to `spec.userData` in the `AWSNodeTemplate` resource like this -
 ```
-  provider:
-    amiFamily: Bottlerocket
-    userData:
-      configMap:
-        name: my-userdata
-        namespace: karpenter
-```
-
-The UserData can be specified within your ConfigMap under a single arbitrarily named key. Binary contents are not supported.
-```
-data:
-  userData.toml: |
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: mynodetemplate
+spec:
+  userData:  |
     [settings.kubernetes]
     kube-api-qps = 30
     [settings.kubernetes.eviction-hard]
     "memory.available" = "20%"
-kind: ConfigMap
 ```
 
-*This field is currently only supported for the Bottlerocket AMIFamily*.
+The AWSNodeTemplate CRD can then be referenced within the provisioner through `providerRef` -
+```
+spec:
+  provider:
+    amiFamily: Bottlerocket
+    instanceProfile: MyInstanceProfile
+    subnetSelector:
+      karpenter.sh/discovery: my-cluster
+    securityGroupSelector:
+      karpenter.sh/discovery: my-cluster
+  providerRef:
+    name: mynodetemplate
+```
+
+*Supporting UserData via the providerRef is currently only supported for the Bottlerocket AMIFamily*.
 
 **Semantics for Bottlerocket**
 * Your UserData must be valid TOML.
