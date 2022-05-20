@@ -17,7 +17,7 @@ metadata:
   name: default
 spec:
   requirements:                      
-    - key: karpenter.sh/capacity-type         # optional, set to on-demand by default
+    - key: karpenter.sh/capacity-type         # optional, set to on-demand by default, spot if both are listed
       operator: In
       values: ["spot"]
   limits:   
@@ -27,10 +27,10 @@ spec:
   provider:
     subnetSelector:                           # required
       karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:                    # required
+    securityGroupSelector:                    # required, when not using launchTemplate
       karpenter.sh/discovery: ${CLUSTER_NAME}
-    instanceProfile: MyInstanceProfile        # optional, if already set on controller (see [Getting Started]({{<ref "../getting-started/getting-started-with-eksctl/#create-the-karpenternode-iam-role))
-    launchTemplate: MyLaunchTemplate          # optional, see [Launch Template documentation]({{<ref "./launchtemplates.md" >}})
+    instanceProfile: MyInstanceProfile        # optional, if already set on controller Getting Started
+    launchTemplate: MyLaunchTemplate          # optional, see Launch Template documentation
     tags:
       InternalAccountingTag: 1234             # optional, add tags for your own use
   ttlSecondsAfterEmpty: 30                    # optional, but never scales down if not set
@@ -75,7 +75,7 @@ spec:
 
 Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
-Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
+Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
 
 Subnet IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
 
@@ -114,7 +114,7 @@ Specify subnets explicitly by ID:
     aws-ids: "subnet-09fa4a0a8f233a921,subnet-0471ca205b8a129ae"
 ```
 
-### SecurityGroupSelector (required)
+### SecurityGroupSelector (required, when not using launchTemplate)
 
 The security group of an instance is comparable to a set of firewall rules.
 
