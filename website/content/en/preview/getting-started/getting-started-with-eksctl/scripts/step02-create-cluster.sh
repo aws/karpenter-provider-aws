@@ -5,7 +5,7 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-  version: "1.22"
+  version: "1.21"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 managedNodeGroups:
