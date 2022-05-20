@@ -21,13 +21,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 // Options are injected into cloud providers' factories
 type Options struct {
-	ClientSet *kubernetes.Clientset
+	ClientSet  *kubernetes.Clientset
+	KubeClient client.Client
 }
 
 // CloudProvider interface is implemented by cloud providers to support provisioning.
@@ -60,6 +62,8 @@ type NodeRequest struct {
 
 type NodeTemplate struct {
 	Provider             *v1alpha5.Provider
+	ProviderRef          *v1alpha5.ProviderRef
+	ProviderRefNamespace string
 	Labels               map[string]string
 	Taints               []v1.Taint
 	Requirements         v1alpha5.Requirements

@@ -114,7 +114,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, clientSet),
+					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, e.Client),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -777,20 +777,16 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
-					configMapName := strings.ToLower(randomdata.SillyName())
-					configMap := test.ConfigMap(test.ConfigMapOptions{
-						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-						Data:       map[string]string{"userDataContent": string(content)},
-					})
-					ExpectApplied(ctx, env.Client, configMap)
-					provider.UserData = &v1alpha1.UserData{
-						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
-							Name:      &configMapName,
-							Namespace: aws.String("default"),
-						},
+					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
 					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String(string(content)),
+						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
@@ -807,8 +803,16 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   nil,
+						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
@@ -820,23 +824,33 @@ var _ = Describe("Allocation", func() {
 					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
 					Expect(expectedUserData).To(Equal(actualUserData))
 				})
+				It("should not bootstrap when provider ref points to a non-existent resource", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRef := &v1alpha5.ProviderRef{
+						Name: aws.String("doesnotexist"),
+					}
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
 				It("should not bootstrap on invalid toml user data", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					configMapName := strings.ToLower(randomdata.SillyName())
-					configMap := test.ConfigMap(test.ConfigMapOptions{
-						ObjectMeta: metav1.ObjectMeta{Name: configMapName},
-						Data:       map[string]string{"userDataContent": "#/bin/bash\n ./not-toml.sh"},
-					})
-					ExpectApplied(ctx, env.Client, configMap)
-					provider.UserData = &v1alpha1.UserData{
-						ConfigMap: &v1alpha1.ConfigMapUserDataSource{
-							Name:      &configMapName,
-							Namespace: aws.String("default"),
-						},
+					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
 					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
+						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.

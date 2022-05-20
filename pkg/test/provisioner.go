@@ -35,6 +35,7 @@ type ProvisionerOptions struct {
 	metav1.ObjectMeta
 	Limits        v1.ResourceList
 	Provider      interface{}
+	ProviderRef   *v1alpha5.ProviderRef
 	Kubelet       *v1alpha5.KubeletConfiguration
 	Labels        map[string]string
 	Taints        []v1.Taint
@@ -69,6 +70,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 				Requirements:         v1alpha5.NewRequirements(options.Requirements...),
 				KubeletConfiguration: options.Kubelet,
 				Provider:             &runtime.RawExtension{Raw: provider},
+				ProviderRef:          options.ProviderRef,
 				Taints:               options.Taints,
 				StartupTaints:        options.StartupTaints,
 				Labels:               options.Labels,

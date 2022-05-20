@@ -47,10 +47,19 @@ type Constraints struct {
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *Provider `json:"provider,omitempty"`
+	// ProviderRef is a reference to a dedicated CRD for the chosen provider, that holds
+	// additional configuration options
+	// +optional
+	ProviderRef *ProviderRef `json:"providerRef,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
 type Provider = runtime.RawExtension
+
+type ProviderRef struct {
+	metav1.TypeMeta `json:",inline"`
+	Name            *string `json:"name,omitempty"`
+}
 
 func (c *Constraints) ToNode() *v1.Node {
 	labels := map[string]string{}

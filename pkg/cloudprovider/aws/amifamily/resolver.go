@@ -23,7 +23,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -76,20 +76,20 @@ type AMIFamily interface {
 }
 
 // New constructs a new launch template Resolver
-func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, clientSet *kubernetes.Clientset) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:   ssm,
 			cache: c,
 		},
-		UserDataProvider: NewUserDataProvider(ctx, clientSet),
+		UserDataProvider: NewUserDataProvider(client),
 	}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
-	userDataString, err := r.UserDataProvider.Get(ctx, provider)
+	userDataString, err := r.UserDataProvider.Get(ctx, nodeRequest.Template.ProviderRef, nodeRequest.Template.ProviderRefNamespace)
 	if err != nil {
 		return nil, err
 	}

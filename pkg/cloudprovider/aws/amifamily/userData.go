@@ -16,49 +16,38 @@ package amifamily
 
 import (
 	"context"
-	"fmt"
-	"time"
 
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
 type UserDataProvider struct {
-	clientSet       *kubernetes.Clientset
-	configMapLister v1.ConfigMapLister
+	kubeClient client.Client
 }
 
 // New constructs a new UserData provider
-func NewUserDataProvider(ctx context.Context, clientSet *kubernetes.Clientset) *UserDataProvider {
-	factory := informers.NewSharedInformerFactory(clientSet, 1*time.Minute)
-	configMapLister := factory.Core().V1().ConfigMaps().Lister()
-	factory.Start(ctx.Done())
-	factory.WaitForCacheSync(ctx.Done())
+func NewUserDataProvider(kubeClient client.Client) *UserDataProvider {
 	return &UserDataProvider{
-		clientSet:       clientSet,
-		configMapLister: configMapLister,
+		kubeClient: kubeClient,
 	}
 }
 
 // Get returns the UserData from the ConfigMap specified in the provider
-func (u *UserDataProvider) Get(ctx context.Context, provider *v1alpha1.AWS) (string, error) {
-	if provider.UserData == nil {
+func (u *UserDataProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef, namespace string) (string, error) {
+	if providerRef == nil {
 		return "", nil
 	}
-	userDataConfigMap := provider.UserData.ConfigMap
-	configMap, err := u.configMapLister.ConfigMaps(*userDataConfigMap.Namespace).Get(*userDataConfigMap.Name)
-	if err != nil {
-		return "", fmt.Errorf("failure retrieving config map %s/%s", *userDataConfigMap.Namespace, *userDataConfigMap.Name)
+	var awsnodetemplate v1alpha1.AWSNodeTemplate
+	if err := u.kubeClient.Get(ctx, client.ObjectKey{Name: *providerRef.Name, Namespace: namespace}, &awsnodetemplate); err != nil {
+		logging.FromContext(ctx).Errorf("retrieving provider reference, %s", err)
+		return "", err
 	}
-	if len(configMap.Data) > 1 {
-		return "", fmt.Errorf("multiple keys specified in user data config map")
+	if awsnodetemplate.Spec.UserData == nil {
+		return "", nil
 	}
-	userDataString := ""
-	for _, v := range configMap.Data {
-		userDataString = v
-	}
-	return userDataString, nil
+	return *awsnodetemplate.Spec.UserData, nil
 }

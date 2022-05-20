@@ -81,8 +81,6 @@ func main() {
 	// Set up controller runtime controller
 	var recorder events.Recorder = &events.NoOpRecorder{}
 
-	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet})
-	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 	manager := controllers.NewManagerOrDie(ctx, config, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
@@ -91,6 +89,8 @@ func main() {
 		MetricsBindAddress:     fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient()})
+	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 
 	cluster := state.NewCluster(ctx, manager.GetClient())
 

@@ -223,6 +223,8 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 		InstanceTypeOptions: node.InstanceTypeOptions,
 		Template: &cloudprovider.NodeTemplate{
 			Provider:             node.Provisioner.Spec.Provider,
+			ProviderRef:          node.Provisioner.Spec.ProviderRef,
+			ProviderRefNamespace: node.Provisioner.Name,
 			Labels:               node.Provisioner.Spec.Labels,
 			Taints:               taints,
 			Requirements:         node.Provisioner.Spec.Requirements,

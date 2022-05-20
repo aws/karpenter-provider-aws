@@ -18,28 +18,27 @@ import (
 	"fmt"
 
 	"github.com/imdario/mergo"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 )
 
-type ConfigMapOptions struct {
+type AWSNodeTemplateOptions struct {
 	metav1.ObjectMeta
-	Immutable  *bool
-	Data       map[string]string
-	BinaryData map[string][]byte
+	UserData *string
 }
 
-func ConfigMap(overrides ...ConfigMapOptions) *v1.ConfigMap {
-	options := ConfigMapOptions{}
+func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTemplate {
+	options := AWSNodeTemplateOptions{}
 	for _, opts := range overrides {
 		if err := mergo.Merge(&options, opts, mergo.WithOverride); err != nil {
-			panic(fmt.Sprintf("Failed to merge config map options: %s", err))
+			panic(fmt.Sprintf("Failed to merge aws node template options: %s", err))
 		}
 	}
-	return &v1.ConfigMap{
+	return &v1alpha1.AWSNodeTemplate{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
-		Immutable:  options.Immutable,
-		Data:       options.Data,
-		BinaryData: options.BinaryData,
+		Spec: v1alpha1.AWSNodeTemplateSpec{
+			UserData: options.UserData,
+		},
 	}
 }
