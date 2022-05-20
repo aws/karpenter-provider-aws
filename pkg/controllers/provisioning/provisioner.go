@@ -41,7 +41,6 @@ import (
 	scheduler "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -167,25 +166,11 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
 	for i := range provisionerList.Items {
-		provisioner := &provisionerList.Items[i]
-		cloudproviderRequirements, err := p.cloudProvider.GetRequirements(ctx, provisioner.Spec.Provider)
+		cloudproviderRequirements, err := p.cloudProvider.GetRequirements(ctx, provisionerList.Items[i].Spec.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("getting provider requirements, %w", err)
 		}
-		provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-		nodeTemplates = append(nodeTemplates, &scheduling.NodeTemplate{
-			Provider:             provisioner.Spec.Provider,
-			KubeletConfiguration: provisioner.Spec.KubeletConfiguration,
-			Labels:               provisioner.Spec.Labels,
-			Taints:               provisioner.Spec.Taints,
-			StartupTaints:        provisioner.Spec.StartupTaints,
-			Requirements: scheduling.NewRequirements(
-				instanceTypeRequirements,
-				cloudproviderRequirements,
-				scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...),
-				scheduling.NewLabelRequirements(provisioner.Spec.Labels),
-			),
-		})
+		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(&provisionerList.Items[i], instanceTypeRequirements, cloudproviderRequirements))
 	}
 	if len(nodeTemplates) == 0 {
 		return nil, fmt.Errorf("no provisioners found")

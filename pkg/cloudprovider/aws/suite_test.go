@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
@@ -938,10 +939,8 @@ var _ = Describe("Allocation", func() {
 
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(provisioner.Spec.Requirements[0].Key).To(Equal(v1alpha5.LabelCapacityType))
-			Expect(provisioner.Spec.Requirements[0].Values).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(provisioner.Spec.Requirements[1].Key).To(Equal(v1.LabelArchStable))
-			Expect(provisioner.Spec.Requirements[1].Values).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).CapacityTypes().List()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Architectures().List()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {

@@ -31,7 +31,7 @@ import (
 // types are slices and maps, this type should not be used as a pointer.
 type Requirements map[string]sets.Set
 
-func NewRequirements(requirements ...map[string]sets.Set) Requirements {
+func NewRequirements(requirements ...Requirements) Requirements {
 	r := Requirements{}
 	for _, requirement := range requirements {
 		r.Add(requirement)
@@ -98,12 +98,14 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 }
 
 // Add requirements to provided requirements. Mutates existing requirements
-func (r Requirements) Add(requirements Requirements) {
-	for key, values := range requirements {
-		if existing, ok := r[key]; ok {
-			values = values.Intersection(existing)
+func (r Requirements) Add(requirements ...Requirements) {
+	for _, requirement := range requirements {
+		for key, values := range requirement {
+			if existing, ok := r[key]; ok {
+				values = values.Intersection(existing)
+			}
+			r[key] = values
 		}
-		r[key] = values
 	}
 }
 

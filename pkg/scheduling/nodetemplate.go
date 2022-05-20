@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/rand"
 )
 
@@ -32,6 +33,22 @@ type NodeTemplate struct {
 	StartupTaints        Taints
 	Requirements         Requirements
 	KubeletConfiguration *v1alpha5.KubeletConfiguration
+}
+
+func NewNodeTemplate(provisioner *v1alpha5.Provisioner, requirements ...Requirements) *NodeTemplate {
+	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
+	return &NodeTemplate{
+		Provider:             provisioner.Spec.Provider,
+		KubeletConfiguration: provisioner.Spec.KubeletConfiguration,
+		Labels:               provisioner.Spec.Labels,
+		Taints:               provisioner.Spec.Taints,
+		StartupTaints:        provisioner.Spec.StartupTaints,
+		Requirements: NewRequirements(append(
+			requirements,
+			NewNodeSelectorRequirements(provisioner.Spec.Requirements...),
+			NewLabelRequirements(provisioner.Spec.Labels),
+		)...),
+	}
 }
 
 func (n *NodeTemplate) ToNode() *v1.Node {
