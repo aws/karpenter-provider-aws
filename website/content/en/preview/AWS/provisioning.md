@@ -255,7 +255,7 @@ Karpenter supports accelerators, such as GPUs.
 
 Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
 
-Here is an example of an accelerator resource in workload a manifest (e.g., pod):
+Here is an example of an accelerator resource in a workload manifest (e.g., pod):
 
 ```yaml
 spec:
