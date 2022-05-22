@@ -8,7 +8,7 @@ metadata:
 spec:
   provider:
     amiFamily: Bottlerocket
-    # replace with your worker node instance profile
+    subnetSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
     securityGroupSelector:
-    # replace with your cluster name
-      karpenter.sh/discovery: "CLUSTER_NAME"
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name

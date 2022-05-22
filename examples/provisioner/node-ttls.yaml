@@ -8,10 +8,9 @@ metadata:
   name: default
 spec:
   provider:
-    # expire nodes after 7 days
-    # 7 days (in seconds) = 7 * 60 * 60 * 24
-    ttlSecondsUntilExpired: 604800
-    ttlSecondsAfterEmpty: 60
+    ttlSecondsUntilExpired: 604800 # expire nodes after 7 days (in seconds) = 7 * 60 * 60 * 24
+    ttlSecondsAfterEmpty: 60 # scale down nodes after 60 seconds without workloads (excluding daemons)
+    subnetSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
     securityGroupSelector:
-    # replace with your cluster name
-      karpenter.sh/discovery: "CLUSTER_NAME"
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
