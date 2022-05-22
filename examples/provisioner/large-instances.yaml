@@ -76,11 +76,7 @@ spec:
       - t4g.nano
       - t4g.small
   provider:
-    # replace with your worker node instance profile
-    instanceProfile: "KarpenterNodeRole"
     subnetSelector:
-    # replace with your cluster name
-      karpenter.sh/discovery: "CLUSTER_NAME"
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
     securityGroupSelector:
-    # replace with your cluster name
-      karpenter.sh/discovery: "CLUSTER_NAME"
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
