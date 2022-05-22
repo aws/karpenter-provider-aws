@@ -29,7 +29,7 @@ spec:
       karpenter.sh/discovery: ${CLUSTER_NAME}
     securityGroupSelector:                    # required, when not using launchTemplate
       karpenter.sh/discovery: ${CLUSTER_NAME}
-    instanceProfile: MyInstanceProfile        # optional, if already set on controller Getting Started
+    instanceProfile: MyInstanceProfile        # optional, if already set in controller args
     launchTemplate: MyLaunchTemplate          # optional, see Launch Template documentation
     tags:
       InternalAccountingTag: 1234             # optional, add tags for your own use
