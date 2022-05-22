@@ -22,8 +22,8 @@ spec:
       values: ["spot"]
   limits:   
     resources:
-      cpu: 1000                               # optional, recommended to limit total cluster CPU
-      memory: 1000Gi                          # optional, recommended to limit total cluster memory
+      cpu: 1000                               # optional, recommended to limit total provisioned CPUs
+      memory: 1000Gi                          # optional, recommended to limit total provisioned memory
   provider:
     subnetSelector:                           # required
       karpenter.sh/discovery: ${CLUSTER_NAME}
