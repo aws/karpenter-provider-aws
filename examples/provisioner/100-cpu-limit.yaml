@@ -6,12 +6,11 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  provider:
-    # replace with your worker node instance profile
-    instanceProfile: "KarpenterNodeRole"
-    securityGroupSelector:
-    # replace with your cluster name
-      karpenter.sh/discovery: "CLUSTER_NAME"
   limits:
     resources:
       cpu: 100
+  provider:
+    subnetSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+    securityGroupSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
