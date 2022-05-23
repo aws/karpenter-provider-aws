@@ -65,6 +65,9 @@ type Node struct {
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
 
+	// HostPort usage of all pods that are bound to the node
+	HostPortUsage *HostPortUsage
+
 	podRequests map[types.NamespacedName]v1.ResourceList
 }
 
@@ -112,8 +115,9 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 
 func (c *Cluster) newNode(node *v1.Node) *Node {
 	n := &Node{
-		Node:        node,
-		podRequests: map[types.NamespacedName]v1.ResourceList{},
+		Node:          node,
+		HostPortUsage: NewHostPortUsage(),
+		podRequests:   map[types.NamespacedName]v1.ResourceList{},
 	}
 	var pods v1.PodList
 	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
@@ -132,6 +136,9 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 			daemonsetRequested = append(daemonsetRequested, requests)
 		}
 		requested = append(requested, requests)
+		if err := n.HostPortUsage.Add(pod); err != nil {
+			logging.FromContext(c.ctx).Errorf("inconsistent state, error tracking host port usage on node %s, %s", n.Node.Name, err)
+		}
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
@@ -177,6 +184,7 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 	// requested by the pod
 	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
+	n.HostPortUsage.DeletePod(podKey)
 
 	// We can't easily track the changes to the DaemonsetRequested here as we no longer have the pod.  We could keep up
 	// with this separately, but if a daemonset pod is being deleted, it usually means the node is going down.  In the
@@ -228,6 +236,7 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 			// left it
 			delete(c.bindings, podKey)
 			n.Available = resources.Merge(n.Available, n.podRequests[podKey])
+			n.HostPortUsage.DeletePod(podKey)
 			delete(n.podRequests, podKey)
 		}
 	}
@@ -253,6 +262,9 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	// if it's a daemonset, we track what it has requested separately
 	if podutils.IsOwnedByDaemonSet(pod) {
 		n.DaemonSetRequested = resources.Merge(n.DaemonSetRequested, podRequests)
+	}
+	if err := n.HostPortUsage.Add(pod); err != nil {
+		logging.FromContext(c.ctx).Errorf("inconsistent state, error tracking host port usage on node %s, %s", n.Node.Name, err)
 	}
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name

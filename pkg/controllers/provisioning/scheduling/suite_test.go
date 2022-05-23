@@ -2861,13 +2861,11 @@ var _ = Describe("Instance Type Compatibility", func() {
 
 var _ = Describe("Networking constraints", func() {
 	Context("HostPort", func() {
-		It("shouldn't co-locate pods that use the same HostPort and protocol", func() {
-			Skip("enable after scheduler is aware of hostport usage")
+		It("shouldn't co-locate pods that use the same HostPort and protocol (default protocol)", func() {
 			port := v1.ContainerPort{
 				Name:          "test-port",
 				HostPort:      80,
 				ContainerPort: 1234,
-				Protocol:      "TCP",
 			}
 			pod1 := test.UnschedulablePod()
 			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
@@ -2877,6 +2875,85 @@ var _ = Describe("Networking constraints", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			ExpectProvisioned(ctx, env.Client, controller, pod1, pod2)
 			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+		It("shouldn't co-locate pods that use the same HostPort and protocol (specific protocol)", func() {
+			port := v1.ContainerPort{
+				Name:          "test-port",
+				HostPort:      80,
+				ContainerPort: 1234,
+				Protocol:      "UDP",
+			}
+			pod1 := test.UnschedulablePod()
+			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
+			pod2 := test.UnschedulablePod()
+			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+		It("shouldn't co-locate pods that use the same HostPort and IP (default (_))", func() {
+			port := v1.ContainerPort{
+				Name:          "test-port",
+				HostPort:      80,
+				ContainerPort: 1234,
+			}
+			pod1 := test.UnschedulablePod()
+			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
+			port.HostIP = "1.2.3.4" // Defaulted "0.0.0.0" on pod1 should conflict
+			pod2 := test.UnschedulablePod()
+			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+		It("shouldn't co-locate pods that use the same HostPort but a different IP, where one ip is 0.0.0.0", func() {
+			port := v1.ContainerPort{
+				Name:          "test-port",
+				HostPort:      80,
+				ContainerPort: 1234,
+				Protocol:      "TCP",
+				HostIP:        "1.2.3.4",
+			}
+			pod1 := test.UnschedulablePod()
+			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
+			pod2 := test.UnschedulablePod()
+			port.HostIP = "0.0.0.0" // all interfaces
+			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
+		It("shouldn't co-locate pods that use the same HostPort but a different IP, where one ip is 0.0.0.0 (inflight)", func() {
+			port := v1.ContainerPort{
+				Name:          "test-port",
+				HostPort:      80,
+				ContainerPort: 1234,
+				Protocol:      "TCP",
+				HostIP:        "1.2.3.4",
+			}
+			pod1 := test.UnschedulablePod()
+			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
+			pod2 := test.UnschedulablePod()
+			port.HostIP = "0.0.0.0" // all interfaces
+			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pod1)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+			ExpectProvisioned(ctx, env.Client, controller, pod2)
 			node2 := ExpectScheduled(ctx, env.Client, pod2)
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 		})
@@ -2891,6 +2968,26 @@ var _ = Describe("Networking constraints", func() {
 			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
 			pod2 := test.UnschedulablePod()
 			port.Protocol = "UDP"
+			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).To(Equal(node2.Name))
+		})
+		It("should co-locate pods that use the same HostPort but a different IP", func() {
+			port := v1.ContainerPort{
+				Name:          "test-port",
+				HostPort:      80,
+				ContainerPort: 1234,
+				Protocol:      "TCP",
+				HostIP:        "1.2.3.4",
+			}
+			pod1 := test.UnschedulablePod()
+			pod1.Spec.Containers[0].Ports = append(pod1.Spec.Containers[0].Ports, port)
+			pod2 := test.UnschedulablePod()
+			port.HostIP = "4.5.6.7"
 			pod2.Spec.Containers[0].Ports = append(pod2.Spec.Containers[0].Ports, port)
 
 			ExpectApplied(ctx, env.Client, provisioner)
