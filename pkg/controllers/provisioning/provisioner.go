@@ -47,17 +47,17 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewProvisioner(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
+func NewProvisioner(ctx context.Context) *Provisioner {
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Stop:           stop,
 		batcher:        NewBatcher(running),
-		cloudProvider:  cloudProvider,
-		kubeClient:     kubeClient,
-		coreV1Client:   coreV1Client,
-		volumeTopology: NewVolumeTopology(kubeClient),
-		cluster:        cluster,
-		recorder:       recorder,
+		cloudProvider:  cloudprovider.Get(ctx),
+		kubeClient:     injection.GetKubeClient(ctx),
+		coreV1Client:   injection.GetKubernetesInterface(ctx).CoreV1(),
+		volumeTopology: NewVolumeTopology(ctx),
+		cluster:        state.Get(ctx),
+		recorder:       injection.GetEventRecorder(ctx),
 	}
 	p.cond = sync.NewCond(&p.mu)
 	go func() {
@@ -129,7 +129,7 @@ func (p *Provisioner) provision(ctx context.Context) error {
 		ctx2 := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]))
 		// register the provisioner on the context so we can pull it off for tagging purposes
 		// TODO: rethink this, maybe just pass the provisioner down instead of hiding it in the context?
-		ctx2 = injection.WithNamespacedName(ctx2, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
+		ctx2 = injection.InjectNamespacedName(ctx2, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
 		if err := p.launch(ctx2, nodes[i]); err != nil {
 			logging.FromContext(ctx2).Errorf("Launching node, %s", err)
 		}
@@ -161,7 +161,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
-	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+	defer metrics.Measure(schedulingDuration)()
 
 	// Get instance type options
 	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx)
@@ -195,7 +195,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	}
 
 	// Calculate cluster topology
-	topology, err := scheduler.NewTopology(ctx, p.kubeClient, p.cluster, nodeTemplates, pods)
+	topology, err := scheduler.NewTopology(ctx, nodeTemplates, pods)
 	if err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
@@ -206,7 +206,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
 
-	return scheduler.NewScheduler(nodeTemplates, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
+	return scheduler.NewScheduler(ctx, nodeTemplates, topology, instanceTypes, daemonOverhead).Solve(ctx, pods)
 }
 
 func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
@@ -253,7 +253,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 }
 
 func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
-	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
+	defer metrics.Measure(bindTimeHistogram)()
 
 	nodeTaints := scheduling.Taints(node.Spec.Taints)
 
@@ -312,7 +312,7 @@ func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*sc
 	return overhead, nil
 }
 
-var schedulingDuration = prometheus.NewHistogramVec(
+var schedulingDuration = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
 		Subsystem: "allocation_controller",
@@ -320,10 +320,9 @@ var schedulingDuration = prometheus.NewHistogramVec(
 		Help:      "Duration of scheduling process in seconds. Broken down by provisioner and error.",
 		Buckets:   metrics.DurationBuckets(),
 	},
-	[]string{metrics.ProvisionerLabel},
 )
 
-var bindTimeHistogram = prometheus.NewHistogramVec(
+var bindTimeHistogram = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
 		Subsystem: "allocation_controller",
@@ -331,7 +330,6 @@ var bindTimeHistogram = prometheus.NewHistogramVec(
 		Help:      "Duration of bind process in seconds. Broken down by result.",
 		Buckets:   metrics.DurationBuckets(),
 	},
-	[]string{metrics.ProvisionerLabel},
 )
 
 func init() {

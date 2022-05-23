@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/utils/injection"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -40,7 +41,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -66,13 +67,19 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProv = &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProv)
-		cluster = state.NewCluster(ctx, e.Client)
-		nodeStateController = state.NewNodeController(e.Client, cluster)
-		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
+		ctx = injection.InjectEventRecorder(ctx, recorder)
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		ctx = injection.InjectKubernetesInterface(ctx, kubernetes.NewForConfigOrDie(e.Config))
+		cloudProv = &fake.CloudProvider{}
+		ctx = cloudprovider.Inject(ctx, &fake.CloudProvider{})
+		cluster = state.NewCluster(ctx)
+		ctx = state.Inject(ctx, cluster)
+		registry.RegisterOrDie(cloudprovider.Get(ctx))
+
+		controller = provisioning.NewController(ctx)
+		nodeStateController = state.NewNodeController(ctx)
+		podStateController = state.NewPodController(ctx)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -662,7 +669,7 @@ var _ = Describe("Preferential Fallback", func() {
 	})
 })
 
-var _ = Describe("Topology", func() {
+var _ = FDescribe("Topology", func() {
 	labels := map[string]string{"test": "test"}
 
 	It("should ignore unknown topology keys", func() {
@@ -1499,7 +1506,7 @@ var _ = Describe("Topology", func() {
 	})
 
 	Context("Combined Hostname, Zonal, and Capacity Type Topology", func() {
-		It("should spread pods while respecting all constraints", func() {
+		FIt("should spread pods while respecting all constraints", func() {
 			// ensure we've got an instance type for every zone/capacity-type pair
 			cloudProv.InstanceTypes = fake.InstanceTypesAssorted()
 			topology := []v1.TopologySpreadConstraint{{

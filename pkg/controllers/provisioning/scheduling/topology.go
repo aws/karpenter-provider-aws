@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
@@ -53,10 +54,10 @@ type Topology struct {
 	cluster *state.Cluster
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, nodeTemplates []*scheduling.NodeTemplate, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
-		kubeClient:        kubeClient,
-		cluster:           cluster,
+		kubeClient:        injection.GetKubeClient(ctx),
+		cluster:           state.Get(ctx),
 		domains:           map[string]utilsets.String{},
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},

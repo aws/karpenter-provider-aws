@@ -33,18 +33,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/result"
 )
 
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client) *Controller {
+func NewController(ctx context.Context) *Controller {
 	return &Controller{
-		kubeClient:     kubeClient,
-		initialization: &Initialization{kubeClient: kubeClient},
-		emptiness:      &Emptiness{kubeClient: kubeClient},
-		expiration:     &Expiration{kubeClient: kubeClient},
+		kubeClient:     injection.GetKubeClient(ctx),
+		initialization: &Initialization{kubeClient: injection.GetKubeClient(ctx)},
+		emptiness:      &Emptiness{kubeClient: injection.GetKubeClient(ctx)},
+		expiration:     &Expiration{kubeClient: injection.GetKubeClient(ctx)},
 	}
 }
 

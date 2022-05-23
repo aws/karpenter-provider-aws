@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 const (
@@ -48,7 +49,7 @@ const (
 type LaunchTemplateProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
-	clientSet             *kubernetes.Clientset
+	clientSet             kubernetes.Interface
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *SecurityGroupProvider
 	cache                 *cache.Cache
@@ -56,10 +57,10 @@ type LaunchTemplateProvider struct {
 	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
-		clientSet:             clientSet,
+		clientSet:             injection.GetKubernetesInterface(ctx),
 		logger:                logging.FromContext(ctx).Named("launchtemplate"),
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
@@ -100,9 +101,9 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		return nil, err
 	}
 	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
-		ClusterName:             injection.GetOptions(ctx).ClusterName,
-		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+		ClusterName:             options.Get(ctx).ClusterName,
+		ClusterEndpoint:         options.Get(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: options.Get(ctx).AWSENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroupsIDs:       securityGroupsIDs,
 		Tags:                    provider.Tags,
@@ -216,7 +217,7 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *LaunchTemplateProvider) hydrateCache(ctx context.Context) {
-	queryKey := fmt.Sprintf(launchTemplateNameFormat, injection.GetOptions(ctx).ClusterName, "*")
+	queryKey := fmt.Sprintf(launchTemplateNameFormat, options.Get(ctx).ClusterName, "*")
 	p.logger.Debugf("Hydrating the launch template cache with names matching \"%s\"", queryKey)
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String("launch-template-name"), Values: []*string{aws.String(queryKey)}}},
@@ -252,7 +253,7 @@ func (p *LaunchTemplateProvider) getInstanceProfile(ctx context.Context, provide
 	if provider.InstanceProfile != nil {
 		return aws.StringValue(provider.InstanceProfile), nil
 	}
-	defaultProfile := injection.GetOptions(ctx).AWSDefaultInstanceProfile
+	defaultProfile := options.Get(ctx).AWSDefaultInstanceProfile
 	if defaultProfile == "" {
 		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
 	}

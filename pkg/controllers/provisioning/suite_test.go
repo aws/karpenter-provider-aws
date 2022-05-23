@@ -18,18 +18,20 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/injection"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -50,10 +52,14 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
-		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
+		ctx = injection.InjectEventRecorder(ctx, test.NewEventRecorder())
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		ctx = injection.InjectKubernetesInterface(ctx, kubernetes.NewForConfigOrDie(e.Config))
+		ctx = cloudprovider.Inject(ctx, &fake.CloudProvider{})
+		ctx = state.Inject(ctx, state.NewCluster(ctx))
+		registry.RegisterOrDie(cloudprovider.Get(ctx))
+
+		controller = provisioning.NewController(ctx)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

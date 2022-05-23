@@ -23,6 +23,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 )
 
-func newCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-	return aws.NewCloudProvider(ctx, options)
+func newCloudProvider(ctx context.Context) cloudprovider.CloudProvider {
+	return aws.NewCloudProvider(ctx)
 }

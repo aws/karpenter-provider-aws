@@ -69,7 +69,7 @@ type CloudProvider struct {
 	instanceProvider     *InstanceProvider
 }
 
-func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
+func NewCloudProvider(ctx context.Context) *CloudProvider {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("aws"))
 	sess := withUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
@@ -92,7 +92,6 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 			NewLaunchTemplateProvider(
 				ctx,
 				ec2api,
-				options.ClientSet,
 				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
@@ -199,7 +198,7 @@ func getCABundle(ctx context.Context) *string {
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
-	restConfig := injection.GetConfig(ctx)
+	restConfig := injection.GetRestConfig(ctx)
 	if restConfig == nil {
 		return nil
 	}

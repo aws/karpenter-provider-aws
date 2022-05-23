@@ -22,12 +22,14 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/termination"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
@@ -54,16 +56,16 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
+		ctx = cloudprovider.Inject(ctx, &fake.CloudProvider{})
+		registry.RegisterOrDie(cloudprovider.Get(ctx))
 		coreV1Client := corev1.NewForConfigOrDie(e.Config)
 		evictionQueue = termination.NewEvictionQueue(ctx, coreV1Client)
 		controller = &termination.Controller{
 			KubeClient: e.Client,
 			Terminator: &termination.Terminator{
-				KubeClient:    e.Client,
-				CoreV1Client:  coreV1Client,
-				CloudProvider: cloudProvider,
+				KubeClient:    injection.GetKubeClient(ctx),
+				CoreV1Client:  injection.GetKubernetesInterface(ctx).CoreV1(),
+				CloudProvider: cloudprovider.Get(ctx),
 				EvictionQueue: evictionQueue,
 			},
 		}

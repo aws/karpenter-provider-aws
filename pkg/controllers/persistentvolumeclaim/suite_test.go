@@ -23,6 +23,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -42,7 +43,8 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = persistentvolumeclaim.NewController(e.Client)
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		controller = persistentvolumeclaim.NewController(ctx)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

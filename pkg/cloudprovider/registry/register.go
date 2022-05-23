@@ -21,9 +21,9 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
-func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudprovider.CloudProvider {
-	cloudProvider := newCloudProvider(ctx, options)
-	RegisterOrDie(ctx, cloudProvider)
+func NewCloudProvider(ctx context.Context) cloudprovider.CloudProvider {
+	cloudProvider := newCloudProvider(ctx)
+	RegisterOrDie(cloudProvider)
 	return cloudProvider
 }
 
@@ -31,7 +31,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) cloudp
 // architectures, and validation logic. This operation should only be called
 // once at startup time. Typically, this call is made by NewCloudProvider(), but
 // must be called if the cloud provider is constructed manually (e.g. tests).
-func RegisterOrDie(ctx context.Context, cloudProvider cloudprovider.CloudProvider) {
+func RegisterOrDie(cloudProvider cloudprovider.CloudProvider) {
 	v1alpha5.ValidateHook = cloudProvider.Validate
 	v1alpha5.DefaultHook = cloudProvider.Default
 }

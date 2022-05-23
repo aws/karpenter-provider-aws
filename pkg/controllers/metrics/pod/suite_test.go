@@ -17,11 +17,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	prometheus "github.com/prometheus/client_model/go"
@@ -41,9 +43,10 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		cloudProvider := &fake.CloudProvider{}
-		registry.RegisterOrDie(ctx, cloudProvider)
-		controller = pod.NewController(env.Client)
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		ctx = cloudprovider.Inject(ctx, &fake.CloudProvider{})
+		registry.RegisterOrDie(cloudprovider.Get(ctx))
+		controller = pod.NewController(ctx)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

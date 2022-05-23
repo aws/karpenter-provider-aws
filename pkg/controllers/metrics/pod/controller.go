@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
@@ -86,9 +87,9 @@ func labelNames() []string {
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client) *Controller {
+func NewController(ctx context.Context) *Controller {
 	return &Controller{
-		kubeClient: kubeClient,
+		kubeClient: injection.GetKubeClient(ctx),
 	}
 }
 

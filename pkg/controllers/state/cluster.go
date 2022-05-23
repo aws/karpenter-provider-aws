@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/utils/injection"
 	podutils "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -43,10 +44,10 @@ type Cluster struct {
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(ctx context.Context, client client.Client) *Cluster {
+func NewCluster(ctx context.Context) *Cluster {
 	return &Cluster{
 		ctx:        ctx,
-		kubeClient: client,
+		kubeClient: injection.GetKubeClient(ctx),
 		nodes:      map[string]*Node{},
 		bindings:   map[types.NamespacedName]string{},
 	}

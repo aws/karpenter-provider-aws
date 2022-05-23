@@ -16,67 +16,81 @@ package injection
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/events"
 )
 
-type resourceKey struct{}
+func Get(ctx context.Context, key interface{}) interface{} {
+	value := ctx.Value(key)
+	if value == nil {
+		panic(fmt.Sprintf("nil value for key %s and context %s", reflect.TypeOf(key), ctx))
+	}
+	return value
+}
 
-func WithNamespacedName(ctx context.Context, namespacedname types.NamespacedName) context.Context {
-	return context.WithValue(ctx, resourceKey{}, namespacedname)
+type kubeClientKey struct{}
+
+func InjectKubeClient(ctx context.Context, value client.Client) context.Context {
+	return context.WithValue(ctx, kubeClientKey{}, value)
+}
+
+func GetKubeClient(ctx context.Context) client.Client {
+	return Get(ctx, kubeClientKey{}).(client.Client)
+}
+
+type kubernetesInterfaceKey struct{}
+
+func InjectKubernetesInterface(ctx context.Context, value kubernetes.Interface) context.Context {
+	return context.WithValue(ctx, kubernetesInterfaceKey{}, value)
+}
+
+func GetKubernetesInterface(ctx context.Context) kubernetes.Interface {
+	return Get(ctx, kubernetesInterfaceKey{}).(kubernetes.Interface)
+}
+
+type eventRecorderKey struct{}
+
+func InjectEventRecorder(ctx context.Context, value events.Recorder) context.Context {
+	return context.WithValue(ctx, eventRecorderKey{}, value)
+}
+
+func GetEventRecorder(ctx context.Context) events.Recorder {
+	return Get(ctx, eventRecorderKey{}).(events.Recorder)
+}
+
+type namespacedNameKey struct{}
+
+func InjectNamespacedName(ctx context.Context, value types.NamespacedName) context.Context {
+	return context.WithValue(ctx, namespacedNameKey{}, value)
 }
 
 func GetNamespacedName(ctx context.Context) types.NamespacedName {
-	retval := ctx.Value(resourceKey{})
-	if retval == nil {
-		return types.NamespacedName{}
-	}
-	return retval.(types.NamespacedName)
+	return Get(ctx, namespacedNameKey{}).(types.NamespacedName)
 }
 
-type optionsKey struct{}
+type restConfigKey struct{}
 
-func WithOptions(ctx context.Context, opts options.Options) context.Context {
-	return context.WithValue(ctx, optionsKey{}, opts)
+func InjectRestConfig(ctx context.Context, value *rest.Config) context.Context {
+	return context.WithValue(ctx, restConfigKey{}, value)
 }
 
-func GetOptions(ctx context.Context) options.Options {
-	retval := ctx.Value(optionsKey{})
-	if retval == nil {
-		return options.Options{}
-	}
-	return retval.(options.Options)
+func GetRestConfig(ctx context.Context) *rest.Config {
+	return Get(ctx, restConfigKey{}).(*rest.Config)
 }
 
-type configKey struct{}
+type controllerNameKey struct{}
 
-func WithConfig(ctx context.Context, config *rest.Config) context.Context {
-	return context.WithValue(ctx, configKey{}, config)
-}
-
-func GetConfig(ctx context.Context) *rest.Config {
-	retval := ctx.Value(configKey{})
-	if retval == nil {
-		return nil
-	}
-	return retval.(*rest.Config)
-}
-
-type controllerNameKeyType struct{}
-
-var controllerNameKey = controllerNameKeyType{}
-
-func WithControllerName(ctx context.Context, name string) context.Context {
-	return context.WithValue(ctx, controllerNameKey, name)
+func InjectControllerName(ctx context.Context, value string) context.Context {
+	return context.WithValue(ctx, controllerNameKey{}, value)
 }
 
 func GetControllerName(ctx context.Context) string {
-	name := ctx.Value(controllerNameKey)
-	if name == nil {
-		return ""
-	}
-	return name.(string)
+	return Get(ctx, controllerNameKey{}).(string)
 }

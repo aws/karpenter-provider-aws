@@ -52,7 +52,6 @@ import (
 )
 
 var ctx context.Context
-var opts options.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
 var securityGroupCache *cache.Cache
@@ -62,7 +61,6 @@ var unavailableOfferingsCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
-var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
 
@@ -74,16 +72,6 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		opts = options.Options{
-			ClusterName:               "test-cluster",
-			ClusterEndpoint:           "https://test-cluster",
-			AWSNodeNameConvention:     string(options.IPName),
-			AWSENILimitedPodDensity:   true,
-			AWSDefaultInstanceProfile: "test-instance-profile",
-		}
-		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
-		ctx = injection.WithOptions(ctx, opts)
-
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -104,25 +92,34 @@ var _ = BeforeSuite(func() {
 			ec2api: fakeEC2API,
 			cache:  securityGroupCache,
 		}
-		clientSet = kubernetes.NewForConfigOrDie(e.Config)
-		cloudProvider = &CloudProvider{
+
+		ctx = options.Inject(ctx, options.Options{
+			ClusterName:               "test-cluster",
+			ClusterEndpoint:           "https://test-cluster",
+			AWSNodeNameConvention:     string(options.IPName),
+			AWSENILimitedPodDensity:   true,
+			AWSDefaultInstanceProfile: "test-instance-profile",
+		})
+		ctx = injection.InjectEventRecorder(ctx, test.NewEventRecorder())
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		ctx = state.Inject(ctx, state.NewCluster(ctx))
+		ctx = injection.InjectKubernetesInterface(ctx, kubernetes.NewForConfigOrDie(e.Config))
+		ctx = cloudprovider.Inject(ctx, &CloudProvider{
 			subnetProvider:       subnetProvider,
 			instanceTypeProvider: instanceTypeProvider,
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
 					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache),
-					clientSet:             clientSet,
+					clientSet:             injection.GetKubernetesInterface(ctx),
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
 					caBundle:              ptr.String("ca-bundle"),
 				},
 			},
-		}
-		registry.RegisterOrDie(ctx, cloudProvider)
-		cluster = state.NewCluster(ctx, e.Client)
-		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		})
+		registry.RegisterOrDie(cloudprovider.Get(ctx))
+		controller = provisioning.NewController(ctx)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
@@ -716,8 +713,9 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
+				opts := options.Get(ctx)
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller = provisioning.NewController(options.Inject(ctx, opts))
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -727,9 +725,9 @@ var _ = Describe("Allocation", func() {
 				Expect(string(userData)).NotTo(ContainSubstring("--use-max-pods false"))
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
+				opts := options.Get(ctx)
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-
+				controller = provisioning.NewController(options.Inject(ctx, opts))
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)

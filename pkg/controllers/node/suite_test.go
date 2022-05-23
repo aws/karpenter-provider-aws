@@ -25,6 +25,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/utils/injection"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"
@@ -49,7 +50,8 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client)
+		ctx = injection.InjectKubeClient(ctx, e.Client)
+		controller = node.NewController(ctx)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

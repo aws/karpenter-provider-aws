@@ -31,7 +31,9 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,16 +109,19 @@ func TestSchedulingProfile(t *testing.T) {
 
 func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	// disable logging
+	fakeClient, _ := client.New(nil, client.Options{})
 	ctx := logging.WithLogger(context.Background(), zap.NewNop().Sugar())
+	ctx = injection.InjectEventRecorder(ctx, test.NewEventRecorder())
+	ctx = injection.InjectKubeClient(ctx, fakeClient)
+	ctx = state.Inject(ctx, state.NewCluster(ctx))
 
 	instanceTypes := fake.InstanceTypes(instanceCount)
 	scheduler := NewScheduler(
+		ctx,
 		[]*scheduling.NodeTemplate{scheduling.NewNodeTemplate(test.Provisioner(), cloudprovider.InstanceTypeRequirements(instanceTypes))},
-		state.NewCluster(ctx, nil),
 		&Topology{},
 		fake.InstanceTypes(instanceCount),
 		map[*scheduling.NodeTemplate]v1.ResourceList{},
-		test.NewEventRecorder(),
 	)
 
 	pods := makeDiversePods(podCount)

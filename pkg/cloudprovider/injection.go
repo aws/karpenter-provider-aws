@@ -1,5 +1,3 @@
-//go:build !aws
-
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,15 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package cloudprovider
 
 import (
 	"context"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-func newCloudProvider(context.Context) cloudprovider.CloudProvider {
-	return &fake.CloudProvider{}
+type injectionKey struct{}
+
+func Inject(ctx context.Context, value CloudProvider) context.Context {
+	return context.WithValue(ctx, injectionKey{}, value)
+}
+
+func Get(ctx context.Context) CloudProvider {
+	return injection.Get(ctx, injectionKey{}).(CloudProvider)
 }

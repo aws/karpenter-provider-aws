@@ -21,14 +21,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/events"
 
-	"github.com/aws/karpenter/pkg/controllers/state"
-
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
@@ -50,11 +46,11 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(ctx context.Context) *Controller {
 	return &Controller{
-		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
-		recorder:    recorder,
+		kubeClient:  injection.GetKubeClient(ctx),
+		provisioner: NewProvisioner(ctx),
+		recorder:    injection.GetEventRecorder(ctx),
 	}
 }
 

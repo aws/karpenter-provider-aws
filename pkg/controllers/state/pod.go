@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 var stateRetryPeriod = 1 * time.Minute
@@ -37,10 +39,10 @@ type PodController struct {
 	cluster    *Cluster
 }
 
-func NewPodController(kubeClient client.Client, cluster *Cluster) *PodController {
+func NewPodController(ctx context.Context) *PodController {
 	return &PodController{
-		kubeClient: kubeClient,
-		cluster:    cluster,
+		kubeClient: injection.GetKubeClient(ctx),
+		cluster:    Get(ctx),
 	}
 }
 

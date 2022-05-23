@@ -45,8 +45,8 @@ type Controller struct {
 }
 
 // NewController is a constructor
-func NewController(kubeClient client.Client) *Controller {
-	return &Controller{kubeClient: kubeClient}
+func NewController(ctx context.Context) *Controller {
+	return &Controller{kubeClient: injection.GetKubeClient(ctx)}
 }
 
 // Register the controller to the manager
@@ -62,8 +62,8 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 // Reconcile a control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("resource", req.String()))
-	ctx = injection.WithNamespacedName(ctx, req.NamespacedName)
-	ctx = injection.WithControllerName(ctx, controllerName)
+	ctx = injection.InjectNamespacedName(ctx, req.NamespacedName)
+	ctx = injection.InjectControllerName(ctx, controllerName)
 
 	pvc := &v1.PersistentVolumeClaim{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, pvc); err != nil {

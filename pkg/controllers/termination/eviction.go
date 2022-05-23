@@ -28,6 +28,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
@@ -42,12 +44,12 @@ type EvictionQueue struct {
 	coreV1Client corev1.CoreV1Interface
 }
 
-func NewEvictionQueue(ctx context.Context, coreV1Client corev1.CoreV1Interface) *EvictionQueue {
+func NewEvictionQueue(ctx context.Context) *EvictionQueue {
 	queue := &EvictionQueue{
 		RateLimitingInterface: workqueue.NewRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(evictionQueueBaseDelay, evictionQueueMaxDelay)),
 		Set:                   set.NewSet(),
 
-		coreV1Client: coreV1Client,
+		coreV1Client: injection.GetKubernetesInterface(ctx).CoreV1(),
 	}
 	go queue.Start(logging.WithLogger(ctx, logging.FromContext(ctx).Named("eviction")))
 	return queue

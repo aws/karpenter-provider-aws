@@ -24,6 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const nodeControllerName = "node-state"
@@ -35,10 +37,10 @@ type NodeController struct {
 }
 
 // NewNodeController constructs a controller instance
-func NewNodeController(kubeClient client.Client, cluster *Cluster) *NodeController {
+func NewNodeController(ctx context.Context) *NodeController {
 	return &NodeController{
-		kubeClient: kubeClient,
-		cluster:    cluster,
+		kubeClient: injection.GetKubeClient(ctx),
+		cluster:    Get(ctx),
 	}
 }
 

@@ -30,7 +30,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 )
 
 const (
@@ -81,7 +81,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.Instanc
 			instanceType.AvailableOfferings = offerings
 			result = append(result, instanceType)
 		}
-		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		if !options.Get(ctx).AWSENILimitedPodDensity {
 			instanceType.MaxPods = ptr.Int32(110)
 		}
 	}

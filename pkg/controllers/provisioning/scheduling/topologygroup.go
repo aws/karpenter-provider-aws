@@ -165,7 +165,7 @@ func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDo
 		// but we can only choose from the node domains
 		if nodeDomains.Has(domain) {
 			// comment from kube-scheduler regarding the viable choices to schedule to based on skew is:
-			// 'existing matching num' + 'if self-match (1 or 0)' - 'global min matching num' <= 'maxSkew'
+			// 'existing matching num' + 'if self-match (1 or 0)' - 'options min matching num' <= 'maxSkew'
 			count := t.domains[domain]
 			if selfSelecting {
 				count++

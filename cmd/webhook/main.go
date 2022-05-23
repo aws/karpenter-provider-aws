@@ -33,7 +33,6 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -44,7 +43,6 @@ var (
 )
 
 func main() {
-	config := knativeinjection.ParseAndGetRESTConfigOrDie()
 	ctx := webhook.WithOptions(knativeinjection.WithNamespaceScope(signals.NewContext(), system.Namespace()), webhook.Options{
 		Port:        opts.WebhookPort,
 		ServiceName: opts.KarpenterService,
@@ -52,10 +50,13 @@ func main() {
 	})
 
 	// Register the cloud provider to attach vendor specific validation logic.
-	registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
+	ctx = options.Inject(ctx, opts)
+	ctx = injection.InjectRestConfig(ctx, knativeinjection.ParseAndGetRESTConfigOrDie())
+	ctx = injection.InjectKubernetesInterface(ctx, kubernetes.NewForConfigOrDie(injection.GetRestConfig(ctx)))
+	registry.NewCloudProvider(ctx)
 
 	// Controllers and webhook
-	sharedmain.MainWithConfig(ctx, "webhook", config,
+	sharedmain.MainWithConfig(ctx, "webhook", injection.GetRestConfig(ctx),
 		certificates.NewController,
 		newCRDDefaultingWebhook,
 		newCRDValidationWebhook,
@@ -94,5 +95,5 @@ func newConfigValidationController(ctx context.Context, cmw configmap.Watcher) *
 }
 
 func InjectContext(ctx context.Context) context.Context {
-	return injection.WithOptions(ctx, opts)
+	return options.Inject(ctx, opts)
 }

@@ -23,10 +23,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
-func NewVolumeTopology(kubeClient client.Client) *VolumeTopology {
-	return &VolumeTopology{kubeClient: kubeClient}
+func NewVolumeTopology(ctx context.Context) *VolumeTopology {
+	return &VolumeTopology{kubeClient: injection.GetKubeClient(ctx)}
 }
 
 type VolumeTopology struct {

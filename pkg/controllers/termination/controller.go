@@ -24,7 +24,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,14 +46,14 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(ctx context.Context) *Controller {
 	return &Controller{
-		KubeClient: kubeClient,
+		KubeClient: injection.GetKubeClient(ctx),
 		Terminator: &Terminator{
-			KubeClient:    kubeClient,
-			CoreV1Client:  coreV1Client,
-			CloudProvider: cloudProvider,
-			EvictionQueue: NewEvictionQueue(ctx, coreV1Client),
+			KubeClient:    injection.GetKubeClient(ctx),
+			CoreV1Client:  injection.GetKubernetesInterface(ctx).CoreV1(),
+			CloudProvider: cloudprovider.Get(ctx),
+			EvictionQueue: NewEvictionQueue(ctx),
 		},
 	}
 }
@@ -62,7 +61,7 @@ func NewController(ctx context.Context, kubeClient client.Client, coreV1Client c
 // Reconcile executes a termination control loop for the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("node", req.Name))
-	ctx = injection.WithControllerName(ctx, controllerName)
+	ctx = injection.InjectControllerName(ctx, controllerName)
 
 	// 1. Retrieve node from reconcile request
 	node := &v1.Node{}

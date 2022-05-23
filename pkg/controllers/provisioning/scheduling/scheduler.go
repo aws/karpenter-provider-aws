@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/injection"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 
@@ -34,16 +35,16 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
-func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, cluster *state.Cluster, topology *Topology,
-	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
+func NewScheduler(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate, topology *Topology,
+	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList) *Scheduler {
 	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
 	s := &Scheduler{
 		nodeTemplates:  nodeTemplates,
 		topology:       topology,
-		cluster:        cluster,
+		cluster:        state.Get(ctx),
 		instanceTypes:  instanceTypes,
 		daemonOverhead: daemonOverhead,
-		recorder:       recorder,
+		recorder:       injection.GetEventRecorder(ctx),
 		preferences:    &Preferences{},
 	}
 
