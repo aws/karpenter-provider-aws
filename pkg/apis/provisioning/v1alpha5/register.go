@@ -45,6 +45,7 @@ var (
 	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
 	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
 	TerminationFinalizer            = Group + "/termination"
+	ProvisionerVersionKey           = Group + "/provisioner-version"
 )
 
 const (

@@ -15,6 +15,9 @@ limitations under the License.
 package v1alpha5
 
 import (
+	"fmt"
+
+	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -39,4 +42,9 @@ func GetCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.
 		}
 	}
 	return v1.NodeCondition{}
+}
+
+func GetProvisionerHash(provisioner *Provisioner) string {
+	currentProvisionerVersion, _ := hashstructure.Hash(provisioner.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	return fmt.Sprintf("provisioner-%d", currentProvisionerVersion)
 }

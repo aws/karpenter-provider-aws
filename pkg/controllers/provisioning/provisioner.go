@@ -171,8 +171,10 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 		if err != nil {
 			return nil, fmt.Errorf("getting provider requirements, %w", err)
 		}
+		provisionerHashVersion := v1alpha5.GetProvisionerHash(provisioner)
+		provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+			v1alpha5.ProvisionerVersionKey: provisionerHashVersion})
 
-		provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 		provisioner.Spec.Requirements = v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).
 			Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...).
 			Add(cloudproviderRequirements.Requirements...).

@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,23 +40,33 @@ import (
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client) *Controller {
+func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface) *Controller {
+	terminatorQueue := NewTerminationQueue(ctx, coreV1Client)
 	return &Controller{
-		kubeClient:     kubeClient,
-		initialization: &Initialization{kubeClient: kubeClient},
-		emptiness:      &Emptiness{kubeClient: kubeClient},
-		expiration:     &Expiration{kubeClient: kubeClient},
+		kubeClient:         kubeClient,
+		initialization:     &Initialization{kubeClient: kubeClient},
+		emptiness:          &Emptiness{kubeClient: kubeClient},
+		expiration:         &Expiration{kubeClient: kubeClient},
+		provisionerVersion: &ProvisionerVersion{terminatorQueue},
+		termiationQueue:    terminatorQueue,
 	}
+}
+
+// Deprecated: GetTerminationQueue is used for unit testing purposes only
+func (c *Controller) GetTerminationQueue() *TerminationQueue {
+	return c.termiationQueue
 }
 
 // Controller manages a set of properties on karpenter provisioned nodes, such as
 // taints, labels, finalizers.
 type Controller struct {
-	kubeClient     client.Client
-	initialization *Initialization
-	emptiness      *Emptiness
-	expiration     *Expiration
-	finalizer      *Finalizer
+	kubeClient         client.Client
+	initialization     *Initialization
+	emptiness          *Emptiness
+	expiration         *Expiration
+	finalizer          *Finalizer
+	termiationQueue    *TerminationQueue
+	provisionerVersion *ProvisionerVersion
 }
 
 // Reconcile executes a reallocation control loop for the resource
@@ -96,6 +107,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		c.expiration,
 		c.emptiness,
 		c.finalizer,
+		c.provisionerVersion,
 	} {
 		res, err := reconciler.Reconcile(ctx, provisioner, node)
 		errs = multierr.Append(errs, err)

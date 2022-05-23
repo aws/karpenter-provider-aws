@@ -100,7 +100,7 @@ func main() {
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		node.NewController(manager.GetClient()),
+		node.NewController(ctx, manager.GetClient(), clientSet.CoreV1()),
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),

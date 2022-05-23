@@ -71,6 +71,17 @@ func ExpectNotFound(ctx context.Context, c client.Client, objects ...client.Obje
 	}
 }
 
+func ExpectDeletionTimestampNotZero(ctx context.Context, c client.Client, objects ...client.Object) {
+	for _, object := range objects {
+		Eventually(func() bool {
+			_ = c.Get(ctx, types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}, object)
+			return object.GetDeletionTimestamp().IsZero()
+		}, ReconcilerPropagationTime, RequestInterval).Should(BeFalse(), func() string {
+			return fmt.Sprintf("expected %s to have deletion timestamps, but it does not still exists", object.GetName())
+		})
+	}
+}
+
 func ExpectScheduled(ctx context.Context, c client.Client, pod *v1.Pod) *v1.Node {
 	p := ExpectPodExists(ctx, c, pod.Name, pod.Namespace)
 	Expect(p.Spec.NodeName).ToNot(BeEmpty(), fmt.Sprintf("expected %s/%s to be scheduled", pod.Namespace, pod.Name))

@@ -58,21 +58,22 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	persisted := provisioner.DeepCopy()
 	// Determine resource usage and update provisioner.status.resources
-	resourceCounts, err := c.resourceCountsFor(ctx, provisioner.Name)
+	resourceCounts, nodeCount, err := c.resourceCountsFor(ctx, provisioner.Name)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("computing resource usage, %w", err)
 	}
 	provisioner.Status.Resources = resourceCounts
+	provisioner.Status.TotalNodesProvisioned = nodeCount
 	if err := c.kubeClient.Status().Patch(ctx, provisioner, client.MergeFrom(persisted)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("patching provisioner, %w", err)
 	}
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName string) (v1.ResourceList, error) {
+func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName string) (v1.ResourceList, int, error) {
 	nodes := v1.NodeList{}
 	if err := c.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: provisionerName}); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	var cpu = resource.NewScaledQuantity(0, 0)
 	var memory = resource.NewScaledQuantity(0, resource.Giga)
@@ -83,7 +84,7 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 	return v1.ResourceList{
 		v1.ResourceCPU:    *cpu,
 		v1.ResourceMemory: *memory,
-	}, nil
+	}, len(nodes.Items), nil
 }
 
 // Register the controller to the manager

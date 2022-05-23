@@ -16,6 +16,7 @@ package node_test
 
 import (
 	"context"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"strings"
 	"testing"
 	"time"
@@ -49,7 +50,8 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client)
+		coreV1Client := corev1.NewForConfigOrDie(e.Config)
+		controller = node.NewController(ctx, e.Client, coreV1Client)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -343,6 +345,33 @@ var _ = Describe("Controller", func() {
 
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
+		})
+	})
+
+	Context("ProvisionVersion", func() {
+		It("should terminate the node if the version of provisioner changes", func() {
+			provisioner.Status.TotalNodesProvisioned = 10
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels:     map[string]string{
+					v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
+					v1alpha5.ProvisionerVersionKey: v1alpha5.GetProvisionerHash(provisioner) + "-changed"},
+			}})
+
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			ExpectDeletionTimestampNotZero(ctx, env.Client, node)
+		})
+
+		It("should not terminate the node if the version of provisioner is unchanged", func() {
+			node := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v1alpha5.TerminationFinalizer},
+				Labels:     map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name, v1alpha5.ProvisionerVersionKey: v1alpha5.GetProvisionerHash(provisioner)},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, node)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(node))
+			node = ExpectNodeExists(ctx, env.Client, node.Name)
+			Expect(node.DeletionTimestamp.IsZero()).To(BeTrue())
 		})
 	})
 })

@@ -311,6 +311,7 @@ var _ = Describe("Provisioning", func() {
 			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerNameLabelKey, provisioner.Name))
+				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.ProvisionerVersionKey, v1alpha5.GetProvisionerHash(provisioner)))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key", "test-value"))
 				Expect(node.Labels).To(HaveKeyWithValue("test-key-2", "test-value-2"))
 				Expect(node.Labels).To(HaveKey(v1.LabelTopologyZone))

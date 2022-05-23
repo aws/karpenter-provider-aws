@@ -241,6 +241,9 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: Resources is the list of resources that have been provisioned.
                 type: object
+              totalNodesProvisioned:
+                description: Total number of nodes provisioned by the provisioner
+                type: integer
             type: object
         type: object
     served: true

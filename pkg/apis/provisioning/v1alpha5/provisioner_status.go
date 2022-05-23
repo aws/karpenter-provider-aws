@@ -33,6 +33,9 @@ type ProvisionerStatus struct {
 
 	// Resources is the list of resources that have been provisioned.
 	Resources v1.ResourceList `json:"resources,omitempty"`
+
+	//Total number of nodes provisioned by the provisioner
+	TotalNodesProvisioned int `json:"totalNodesProvisioned,omitempty"`
 }
 
 func (p *Provisioner) StatusConditions() apis.ConditionManager {
