@@ -1,4 +1,4 @@
-//go:build test_performance
+// go:build test_performance
 
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,34 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduling_test
+package scheduling
 
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter/pkg/test"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"math"
 	"math/rand"
 	"os"
 	"runtime/pprof"
-	"strings"
 	"testing"
 	"text/tabwriter"
 	"time"
 
-	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/test"
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/fake"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	testclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const MinPodsPerSec = 100.0
@@ -109,26 +106,18 @@ func TestSchedulingProfile(t *testing.T) {
 }
 
 func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
-	// Setup Mocks
-	ctx := context.Background()
 	// disable logging
-	ctx = logging.WithLogger(ctx, zap.NewNop().Sugar())
+	ctx := logging.WithLogger(context.Background(), zap.NewNop().Sugar())
+
 	instanceTypes := fake.InstanceTypes(instanceCount)
-	var instanceTypeNames []string
-	for _, it := range instanceTypes {
-		instanceTypeNames = append(instanceTypeNames, it.Name())
-	}
-	cloudProvider := &fake.CloudProvider{InstanceTypes: instanceTypes}
-
-	provisioner = &v1alpha5.Provisioner{
-		ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
-		Spec:       v1alpha5.ProvisionerSpec{},
-	}
-
-	kubeClient := testclient.NewClientBuilder().WithLists(&appsv1.DaemonSetList{}).Build()
-	provisioners = provisioning.NewController(ctx, kubeClient, nil, recorder, cloudProvider)
-	provisioners.Apply(ctx, provisioner)
-	scheduler := scheduling.NewScheduler(kubeClient, recorder)
+	scheduler := NewScheduler(
+		[]*scheduling.NodeTemplate{scheduling.NewNodeTemplate(test.Provisioner(), cloudprovider.InstanceTypeRequirements(instanceTypes))},
+		state.NewCluster(ctx, nil),
+		&Topology{},
+		fake.InstanceTypes(instanceCount),
+		map[*scheduling.NodeTemplate]v1.ResourceList{},
+		test.NewEventRecorder(),
+	)
 
 	pods := makeDiversePods(podCount)
 
@@ -138,7 +127,7 @@ func benchmarkScheduler(b *testing.B, instanceCount, podCount int) {
 	podsScheduledInRound1 := 0
 	nodesInRound1 := 0
 	for i := 0; i < b.N; i++ {
-		nodes, err := scheduler.Solve(ctx, &provisioner.Spec.Constraints, instanceTypes, pods)
+		nodes, err := scheduler.Solve(ctx, pods)
 		if err != nil {
 			b.FailNow()
 		}

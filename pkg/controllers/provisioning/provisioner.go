@@ -31,6 +31,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -39,9 +40,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
+	scheduler "github.com/aws/karpenter/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter/pkg/metrics"
-	"github.com/aws/karpenter/pkg/utils/functional"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
@@ -125,10 +126,10 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	// Launch capacity and bind pods
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		// create a new context to avoid a data race on the ctx variable
-		ctx2 := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Provisioner.Name))
+		ctx2 := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]))
 		// register the provisioner on the context so we can pull it off for tagging purposes
 		// TODO: rethink this, maybe just pass the provisioner down instead of hiding it in the context?
-		ctx2 = injection.WithNamespacedName(ctx2, client.ObjectKeyFromObject(nodes[i].Provisioner))
+		ctx2 = injection.WithNamespacedName(ctx2, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
 		if err := p.launch(ctx2, nodes[i]); err != nil {
 			logging.FromContext(ctx2).Errorf("Launching node, %s", err)
 		}
@@ -159,7 +160,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
-func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduling.Node, error) {
+func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
 	// Get instance type options
@@ -167,32 +168,22 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
-	instanceTypeRequirements := cloudprovider.Requirements(instanceTypes)
+	instanceTypeRequirements := cloudprovider.InstanceTypeRequirements(instanceTypes)
 
-	// Build provisioner requirements
+	// Build node templates
+	var nodeTemplates []*scheduling.NodeTemplate
 	var provisionerList v1alpha5.ProvisionerList
-	if err = p.kubeClient.List(ctx, &provisionerList); err != nil {
+	if err := p.kubeClient.List(ctx, &provisionerList); err != nil {
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
-	var provisioners []*v1alpha5.Provisioner
 	for i := range provisionerList.Items {
-		provisioner := &provisionerList.Items[i]
-		var cloudproviderRequirements v1alpha5.Requirements
-		cloudproviderRequirements, err = p.cloudProvider.GetRequirements(ctx, provisioner.Spec.Provider)
+		cloudproviderRequirements, err := p.cloudProvider.GetRequirements(ctx, provisionerList.Items[i].Spec.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("getting provider requirements, %w", err)
 		}
-
-		provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
-		provisioner.Spec.Requirements = v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).
-			Add(v1alpha5.NewLabelRequirements(provisioner.Spec.Labels).Requirements...).
-			Add(cloudproviderRequirements.Requirements...).
-			Add(instanceTypeRequirements.Requirements...)
-
-		provisioners = append(provisioners, provisioner)
+		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(&provisionerList.Items[i], instanceTypeRequirements, cloudproviderRequirements))
 	}
-
-	if len(provisioners) == 0 {
+	if len(nodeTemplates) == 0 {
 		return nil, fmt.Errorf("no provisioners found")
 	}
 
@@ -204,24 +195,25 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduli
 	}
 
 	// Calculate cluster topology
-	topology, err := scheduling.NewTopology(ctx, p.kubeClient, p.cluster, provisioners, pods)
+	topology, err := scheduler.NewTopology(ctx, p.kubeClient, p.cluster, nodeTemplates, pods)
 	if err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
 
 	// Calculate daemon overhead
-	daemonOverhead, err := p.getDaemonOverhead(ctx, provisioners)
+	daemonOverhead, err := p.getDaemonOverhead(ctx, nodeTemplates)
 	if err != nil {
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
 
-	return scheduling.NewScheduler(provisioners, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
+	return scheduler.NewScheduler(nodeTemplates, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
 }
 
-func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
+func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	// Check limits
 	latest := &v1alpha5.Provisioner{}
-	if err := p.kubeClient.Get(ctx, client.ObjectKeyFromObject(node.Provisioner), latest); err != nil {
+	name, _ := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
+	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: name}, latest); err != nil {
 		return fmt.Errorf("getting current resource usage, %w", err)
 	}
 	if err := latest.Spec.Limits.ExceededBy(latest.Status.Resources); err != nil {
@@ -229,22 +221,16 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 	}
 
 	// apply both the taints and startup taints to the node
-	taints := append(node.Provisioner.Spec.Taints, node.Provisioner.Spec.StartupTaints...)
+	node.Taints = append(node.Taints, node.StartupTaints...)
 	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
 		InstanceTypeOptions: node.InstanceTypeOptions,
-		Template: &cloudprovider.NodeTemplate{
-			Provider:             node.Provisioner.Spec.Provider,
-			Labels:               node.Provisioner.Spec.Labels,
-			Taints:               taints,
-			Requirements:         node.Provisioner.Spec.Requirements,
-			KubeletConfiguration: node.Provisioner.Spec.KubeletConfiguration,
-		},
+		Template:            &node.NodeTemplate,
 	})
 	if err != nil {
 		return fmt.Errorf("creating cloud provider machine, %w", err)
 	}
 
-	if err := mergo.Merge(k8sNode, node.Provisioner.Spec.ToNode()); err != nil {
+	if err := mergo.Merge(k8sNode, node.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
 	// Idempotently create a node. In rare cases, nodes can come online and
@@ -269,7 +255,7 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduling.Node) error {
 func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (err error) {
 	defer metrics.Measure(bindTimeHistogram.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
-	nodeTaints := v1alpha5.Taints(node.Spec.Taints)
+	nodeTaints := scheduling.Taints(node.Spec.Taints)
 
 	notReadyTolerations := []v1.Toleration{
 		{
@@ -300,27 +286,27 @@ func (p *Provisioner) bind(ctx context.Context, node *v1.Node, pods []*v1.Pod) (
 	return nil
 }
 
-func (p *Provisioner) getDaemonOverhead(ctx context.Context, provisioners []*v1alpha5.Provisioner) (map[*v1alpha5.Provisioner]v1.ResourceList, error) {
-	overhead := map[*v1alpha5.Provisioner]v1.ResourceList{}
+func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate) (map[*scheduling.NodeTemplate]v1.ResourceList, error) {
+	overhead := map[*scheduling.NodeTemplate]v1.ResourceList{}
 
 	daemonSetList := &appsv1.DaemonSetList{}
 	if err := p.kubeClient.List(ctx, daemonSetList); err != nil {
 		return nil, fmt.Errorf("listing daemonsets, %w", err)
 	}
 
-	for _, provisioner := range provisioners {
+	for _, nodeTemplate := range nodeTemplates {
 		var daemons []*v1.Pod
 		for _, daemonSet := range daemonSetList.Items {
 			p := &v1.Pod{Spec: daemonSet.Spec.Template.Spec}
-			if err := provisioner.Spec.Taints.Tolerates(p); err != nil {
+			if err := nodeTemplate.Taints.Tolerates(p); err != nil {
 				continue
 			}
-			if err := provisioner.Spec.Requirements.Compatible(v1alpha5.NewPodRequirements(p)); err != nil {
+			if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
 				continue
 			}
 			daemons = append(daemons, p)
 		}
-		overhead[provisioner] = resources.RequestsForPods(daemons...)
+		overhead[nodeTemplate] = resources.RequestsForPods(daemons...)
 	}
 
 	return overhead, nil

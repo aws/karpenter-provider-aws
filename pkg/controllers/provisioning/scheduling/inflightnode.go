@@ -21,7 +21,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type InFlightNode struct {
@@ -29,7 +31,7 @@ type InFlightNode struct {
 	Node               *v1.Node
 	requests           v1.ResourceList
 	topology           *Topology
-	requirements       v1alpha5.Requirements
+	requirements       scheduling.Requirements
 	available          v1.ResourceList
 	startupTolerations []v1.Toleration
 }
@@ -43,7 +45,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		available:    n.Available,
 		topology:     topology,
 		requests:     remainingDaemonResources,
-		requirements: v1alpha5.NewLabelRequirements(n.Node.Labels),
+		requirements: scheduling.NewLabelRequirements(n.Node.Labels),
 	}
 
 	// add a default toleration for the standard not ready and startup taints
@@ -59,7 +61,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	})
 
 	for _, taint := range startupTaints {
-		node.startupTolerations = append(node.startupTolerations, v1alpha5.TaintToToleration(taint))
+		node.startupTolerations = append(node.startupTolerations, scheduling.TaintToToleration(taint))
 	}
 
 	// If the in-flight node doesn't have a hostname yet, we treat it's unique name as the hostname.  This allows toppology
@@ -68,19 +70,14 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	if hostname == "" {
 		hostname = n.Node.Name
 	}
-	node.requirements = node.requirements.Add(
-		v1.NodeSelectorRequirement{
-			Key:      v1.LabelHostname,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{hostname},
-		})
+	node.requirements.Add(scheduling.Requirements{v1.LabelHostname: sets.NewSet(hostname)})
 	topology.Register(v1.LabelHostname, hostname)
 	return node
 }
 
 func (n *InFlightNode) Add(pod *v1.Pod) error {
-	taints := v1alpha5.Taints(n.Node.Spec.Taints)
-	if err := taints.Tolerates(pod, n.startupTolerations...); err != nil {
+	// Check Taints
+	if err := scheduling.Taints(n.Node.Spec.Taints).Tolerates(pod, n.startupTolerations...); err != nil {
 		return err
 	}
 
@@ -92,29 +89,28 @@ func (n *InFlightNode) Add(pod *v1.Pod) error {
 		return fmt.Errorf("exceeds node resources")
 	}
 
-	podRequirements := v1alpha5.NewPodRequirements(pod)
-	// Check initial compatibility
-	if err := n.requirements.Compatible(podRequirements); err != nil {
+	nodeRequirements := scheduling.NewRequirements(n.requirements)
+	podRequirements := scheduling.NewPodRequirements(pod)
+	// Check Node Affinity Requirements
+	if err := nodeRequirements.Compatible(podRequirements); err != nil {
 		return err
 	}
-	nodeRequirements := n.requirements.Add(podRequirements.Requirements...)
+	nodeRequirements.Add(podRequirements)
 
-	// Include topology requirements
-	requirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
+	// Check Topology Requirements
+	topologyRequirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
 	if err != nil {
 		return err
 	}
-	// Check node compatibility
-	if err = n.requirements.Compatible(requirements); err != nil {
+	if err = nodeRequirements.Compatible(topologyRequirements); err != nil {
 		return err
 	}
-	// Tighten requirements
-	requirements = n.requirements.Add(requirements.Requirements...)
+	nodeRequirements.Add(topologyRequirements)
 
 	// Update node
-	n.requests = requests
-	n.requirements = requirements
 	n.Pods = append(n.Pods, pod)
-	n.topology.Record(pod, requirements)
+	n.requests = requests
+	n.requirements = nodeRequirements
+	n.topology.Record(pod, nodeRequirements)
 	return nil
 }

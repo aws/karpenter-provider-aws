@@ -39,7 +39,7 @@ deflake:
 	for i in {1..10}; do make strongertests || exit 1; done
 	ginkgo -r -race -tags random_test_delay
 
-battletest: strongertests 
+battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
@@ -65,7 +65,7 @@ apply: ## Deploy the controller from the current state of your git repository in
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to $(shell grep version charts/karpenter/Chart.yaml)
 	helm upgrade --install karpenter charts/karpenter --namespace karpenter \
-		$(HELM_OPTS) 
+		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter

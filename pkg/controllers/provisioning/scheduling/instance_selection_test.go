@@ -44,7 +44,7 @@ var _ = Describe("Instance Type Selection", func() {
 
 	BeforeEach(func() {
 		// open up the provisioner to any instance types
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -102,7 +102,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
 	})
 	It("should schedule on one of the cheapest instances (prov arch = amd64)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -116,7 +116,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureAmd64)
 	})
 	It("should schedule on one of the cheapest instances (prov arch = arm64)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -130,7 +130,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, v1alpha5.ArchitectureArm64)
 	})
 	It("should schedule on one of the cheapest instances (prov os = windows)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelOSStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -156,7 +156,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "windows")
 	})
 	It("should schedule on one of the cheapest instances (prov os = windows)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelOSStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -194,7 +194,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelOSStable, "linux")
 	})
 	It("should schedule on one of the cheapest instances (prov zone = test-zone-2)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelTopologyZone,
 				Operator: v1.NodeSelectorOpIn,
@@ -220,7 +220,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelTopologyZone, "test-zone-2")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = spot)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
@@ -246,7 +246,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot)
 	})
 	It("should schedule on one of the cheapest instances (prov ct = ondemand, prov zone = test-zone-1)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
@@ -283,7 +283,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-1")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = spot, pod zone = test-zone-2)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1alpha5.LabelCapacityType,
 				Operator: v1.NodeSelectorOpIn,
@@ -302,7 +302,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithOffering(cloudProv.CreateCalls[0].InstanceTypeOptions, v1alpha1.CapacityTypeSpot, "test-zone-2")
 	})
 	It("should schedule on one of the cheapest instances (prov ct = ondemand/test-zone-1/arm64/windows)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -333,7 +333,7 @@ var _ = Describe("Instance Type Selection", func() {
 		ExpectInstancesWithLabel(cloudProv.CreateCalls[0].InstanceTypeOptions, v1.LabelArchStable, "arm64")
 	})
 	It("should schedule on one of the cheapest instances (prov = spot/test-zone-2, pod = amd64/linux)", func() {
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,
@@ -454,7 +454,7 @@ var _ = Describe("Instance Type Selection", func() {
 			return true
 		})
 
-		provisioner.Spec.Requirements.Requirements = []v1.NodeSelectorRequirement{
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 			{
 				Key:      v1.LabelArchStable,
 				Operator: v1.NodeSelectorOpIn,

@@ -65,19 +65,17 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	provisioner := &v1alpha5.Provisioner{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha5.ProvisionerSpec{
-			Constraints: v1alpha5.Constraints{
-				Requirements:         v1alpha5.NewRequirements(options.Requirements...),
-				KubeletConfiguration: options.Kubelet,
-				Provider:             &runtime.RawExtension{Raw: provider},
-				Taints:               options.Taints,
-				StartupTaints:        options.StartupTaints,
-				Labels:               options.Labels,
-			},
-			Limits: &v1alpha5.Limits{Resources: options.Limits},
+			Requirements:         options.Requirements,
+			KubeletConfiguration: options.Kubelet,
+			Provider:             &runtime.RawExtension{Raw: provider},
+			Taints:               options.Taints,
+			StartupTaints:        options.StartupTaints,
+			Labels:               options.Labels,
+			Limits:               &v1alpha5.Limits{Resources: options.Limits},
 		},
 		Status: options.Status,
 	}
-	provisioner.SetDefaults(context.TODO())
-	_ = provisioner.Validate(context.TODO())
+	provisioner.SetDefaults(context.Background())
+	_ = provisioner.Validate(context.Background())
 	return provisioner
 }
