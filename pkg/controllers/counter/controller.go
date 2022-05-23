@@ -22,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 // Controller for the resource
@@ -74,16 +74,20 @@ func (c *Controller) resourceCountsFor(ctx context.Context, provisionerName stri
 	if err := c.kubeClient.List(ctx, &nodes, client.MatchingLabels{v1alpha5.ProvisionerNameLabelKey: provisionerName}); err != nil {
 		return nil, err
 	}
-	var cpu = resource.NewScaledQuantity(0, 0)
-	var memory = resource.NewScaledQuantity(0, resource.Giga)
-	for _, node := range nodes.Items {
-		cpu.Add(*node.Status.Capacity.Cpu())
-		memory.Add(*node.Status.Capacity.Memory())
+
+	// record all resources provisioned by the provisioners
+	provisioned := []v1.ResourceList{
+		{
+			// record some zero values so the status will display something even if no nodes are provisioned
+			v1.ResourceCPU:    resource.MustParse("0"),
+			v1.ResourceMemory: resource.MustParse("0"),
+		},
 	}
-	return v1.ResourceList{
-		v1.ResourceCPU:    *cpu,
-		v1.ResourceMemory: *memory,
-	}, nil
+
+	for _, node := range nodes.Items {
+		provisioned = append(provisioned, node.Status.Capacity)
+	}
+	return resources.Merge(provisioned...), nil
 }
 
 // Register the controller to the manager

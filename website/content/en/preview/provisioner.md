@@ -193,13 +193,13 @@ spec:
 
 The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage. 
 
-Presently, Karpenter supports `memory` and `cpu` limits. 
+Karpenter supports limits of any resource type that is reported by your cloud provider.     
 
 CPU limits are described with a `DecimalSI` value. Note that the Kubernetes API will coerce this into a string, so we recommend against using integers to avoid GitOps skew.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-memory)
 
-Karpenter stops allocating resources once at least one resource limit is met/exceeded.
+Karpenter limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
 Review the [resource limit task](../tasks/set-resource-limits) for more information.
 

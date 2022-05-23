@@ -27,6 +27,7 @@ import (
 // the fields in Provisioner. These structs are maintained separately in order
 // for fields like Requirements to be able to be stored more efficiently.
 type NodeTemplate struct {
+	ProvisionerName      string
 	Provider             *v1alpha5.Provider
 	Labels               map[string]string
 	Taints               Taints
@@ -38,6 +39,7 @@ type NodeTemplate struct {
 func NewNodeTemplate(provisioner *v1alpha5.Provisioner, requirements ...Requirements) *NodeTemplate {
 	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	return &NodeTemplate{
+		ProvisionerName:      provisioner.Name,
 		Provider:             provisioner.Spec.Provider,
 		KubeletConfiguration: provisioner.Spec.KubeletConfiguration,
 		Labels:               provisioner.Spec.Labels,

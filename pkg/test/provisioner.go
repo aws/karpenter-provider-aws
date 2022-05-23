@@ -56,7 +56,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
 	if options.Limits == nil {
-		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("100")}
+		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}
 	}
 	if options.Provider == nil {
 		options.Provider = struct{}{}
