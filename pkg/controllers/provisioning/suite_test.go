@@ -16,8 +16,9 @@ package provisioning_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/controllers/state"
 	"testing"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -378,6 +379,15 @@ var _ = Describe("Volume Topology Requirements", func() {
 			PersistentVolumeClaims: []string{"invalid"},
 		}))[0]
 		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule valid pods when a pod with an invalid pvc is encountered", func() {
+		ExpectApplied(ctx, env.Client, test.Provisioner())
+		invalidPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+			PersistentVolumeClaims: []string{"invalid"},
+		}))[0]
+		pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
+		ExpectNotScheduled(ctx, env.Client, invalidPod)
+		ExpectScheduled(ctx, env.Client, pod)
 	})
 	It("should schedule to storage class zones if volume does not exist", func() {
 		persistentVolumeClaim := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{StorageClassName: &storageClass.Name})

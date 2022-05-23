@@ -79,6 +79,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := validate(pod); err != nil {
 		return reconcile.Result{}, nil
 	}
+	// Ensure pvcs exist if requested by a pod
+	if err := c.provisioner.volumeTopology.validatePersistentVolumeClaims(ctx, pod); err != nil {
+		return reconcile.Result{}, nil
+	}
 	// Enqueue to the provisioner
 	c.provisioner.Trigger()
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
