@@ -45,6 +45,13 @@ spec:
       {{- with .Values.terminationGracePeriodSeconds }}
       terminationGracePeriodSeconds: {{ . }}
       {{- end }}
+      {{- with .Values.dnsPolicy }}
+      dnsPolicy: {{ . }}
+      {{- end }}
+      {{- with .Values.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8}}
+      {{- end }}
       {{- if .Values.webhook.hostNetwork }}
       hostNetwork: true
       {{- end }}
@@ -57,10 +64,14 @@ spec:
           image: {{ .Values.controller.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
+          {{- if .Values.clusterName }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
+          {{- end }}
+          {{- if .Values.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+          {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
@@ -105,12 +116,16 @@ spec:
           image: {{ .Values.webhook.image }}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
+          {{- if .Values.clusterName }}
             - name: CLUSTER_NAME
               value: {{ .Values.clusterName }}
+          {{- end }}
             - name: KUBERNETES_MIN_VERSION
               value: "1.19.0-0"
+          {{- if .Values.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: {{ .Values.clusterEndpoint }}
+          {{- end }}
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
             - name: SYSTEM_NAMESPACE
@@ -164,5 +179,11 @@ spec:
       {{- end }}
       {{- if .Values.topologySpreadConstraints }}
       topologySpreadConstraints:
-        {{ toYaml .Values.topologySpreadConstraints | nindent 8 }}
+        {{- range $constraint := .Values.topologySpreadConstraints }}
+        -
+        {{- toYaml $constraint | nindent 10 }}
+          labelSelector:
+            matchLabels:
+            {{- include "karpenter.selectorLabels" $ | nindent 14 -}}
+        {{- end }}
       {{- end }}

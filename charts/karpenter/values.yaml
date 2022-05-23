@@ -48,6 +48,13 @@ terminationGracePeriodSeconds:
 # -- Bind the pod to the host network.
 # This is required when using a custom CNI.
 hostNetwork: false
+# -- Configure the DNS Policy for the pod
+dnsPolicy: ClusterFirst
+# -- Configure DNS Config for the pod
+dnsConfig: {}
+#  options:
+#    - name: ndots
+#      value: "1"
 # -- Node selectors to schedule the pod to nodes with labels.
 nodeSelector:
   kubernetes.io/os: linux
@@ -79,7 +86,7 @@ extraVolumes: []
 
 controller:
   # -- Controller image.
-  image: "public.ecr.aws/karpenter/controller:v0.10.0@sha256:e27cc9fb91f80ed9c5c26202c984a9d7d871ce6008dd4f83f50f3516c9f2ce8e"
+  image: "public.ecr.aws/karpenter/controller:v0.10.1@sha256:a8121f29464f88311caf2950191c4579e42aae9389675a470622b1ba8a50d465"
   # -- SecurityContext for the controller container.
   securityContext: {}
   # -- Additional environment variables for the controller pod.
@@ -106,7 +113,7 @@ controller:
   #   readOnly: true
 webhook:
   # -- Webhook image.
-  image: "public.ecr.aws/karpenter/webhook:v0.10.0@sha256:9e7ad73c92db5635d43067d4cd0835cbc12b9a02d29bbcde8ed680eeaa55b8f1"
+  image: "public.ecr.aws/karpenter/webhook:v0.10.1@sha256:19735a25e0260639e773d908d4c1da86385d85df0b389781b4b89216b9890103"
   # -- SecurityContext for the webhook container.
   securityContext: {}
   # -- The container port to use for the webhook.
