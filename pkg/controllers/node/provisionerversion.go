@@ -31,7 +31,7 @@ func (r *ProvisionerVersion) Reconcile(ctx context.Context, provisioner *v1alpha
 	nodeProvisionerHash := node.Labels[v1alpha5.ProvisionerVersionKey]
 	currentProvisionerHash := v1alpha5.GetProvisionerHash(provisioner)
 
-	if /*nodeProvisionerHash != ""&&*/ currentProvisionerHash != nodeProvisionerHash {
+	if nodeProvisionerHash != "" && currentProvisionerHash != nodeProvisionerHash {
 		//Use the number of nodes Provisioned uptil now from Status of provisioner
 		r.TerminationQueue.Add(node, provisioner.Status.TotalNodesProvisioned)
 	}

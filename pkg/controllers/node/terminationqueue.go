@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	schedulateTerminationOfBatchAfter = 60
+	schedulateTerminationOfBatchAfter = 600 //In seconds
 	terminationPercentage             = 5
 )
 
