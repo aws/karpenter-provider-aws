@@ -777,13 +777,13 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
-					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRefName := strings.ToLower(randomdata.SillyName())
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
-						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
@@ -803,13 +803,13 @@ var _ = Describe("Allocation", func() {
 					opts.AWSENILimitedPodDensity = false
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRefName := strings.ToLower(randomdata.SillyName())
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
@@ -829,7 +829,7 @@ var _ = Describe("Allocation", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 					providerRef := &v1alpha5.ProviderRef{
-						Name: aws.String("doesnotexist"),
+						Name: "doesnotexist",
 					}
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
@@ -841,13 +841,13 @@ var _ = Describe("Allocation", func() {
 				It("should not bootstrap on invalid toml user data", func() {
 					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
 					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					providerRefName := aws.String(strings.ToLower(randomdata.SillyName()))
+					providerRefName := strings.ToLower(randomdata.SillyName())
 					providerRef := &v1alpha5.ProviderRef{
 						Name: providerRefName,
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
-						ObjectMeta: metav1.ObjectMeta{Name: *providerRefName}})
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})

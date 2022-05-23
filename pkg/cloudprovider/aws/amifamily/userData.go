@@ -42,7 +42,7 @@ func (u *UserDataProvider) Get(ctx context.Context, providerRef *v1alpha5.Provid
 		return "", nil
 	}
 	var awsnodetemplate v1alpha1.AWSNodeTemplate
-	if err := u.kubeClient.Get(ctx, client.ObjectKey{Name: *providerRef.Name, Namespace: namespace}, &awsnodetemplate); err != nil {
+	if err := u.kubeClient.Get(ctx, client.ObjectKey{Name: providerRef.Name, Namespace: namespace}, &awsnodetemplate); err != nil {
 		logging.FromContext(ctx).Errorf("retrieving provider reference, %s", err)
 		return "", err
 	}

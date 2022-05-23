@@ -57,8 +57,13 @@ type Constraints struct {
 type Provider = runtime.RawExtension
 
 type ProviderRef struct {
-	metav1.TypeMeta `json:",inline"`
-	Name            *string `json:"name,omitempty"`
+	// Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+	Kind string `json:"kind,omitempty"`
+	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
+	Name string `json:"name,omitempty"`
+	// API version of the referent
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
 }
 
 func (c *Constraints) ToNode() *v1.Node {
