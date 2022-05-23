@@ -5,6 +5,8 @@ on:
 permissions:
   id-token: write
   contents: read
+  packages: write
+  pull-requests: read
 jobs:
   release:
     if: github.repository == 'aws/karpenter'
