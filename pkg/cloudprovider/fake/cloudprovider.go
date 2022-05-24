@@ -139,7 +139,11 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 }
 
 func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	return scheduling.NewRequirements(), nil
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	return cloudprovider.InstanceTypeRequirements(instanceTypes), nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {

@@ -168,7 +168,6 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
-	instanceTypeRequirements := cloudprovider.InstanceTypeRequirements(instanceTypes)
 
 	// Build node templates
 	var nodeTemplates []*scheduling.NodeTemplate
@@ -177,11 +176,11 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
 	for i := range provisionerList.Items {
-		cloudproviderRequirements, err := p.cloudProvider.GetRequirements(ctx, provisionerList.Items[i].Spec.Provider)
+		requirements, err := p.cloudProvider.GetRequirements(ctx, provisionerList.Items[i].Spec.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("getting provider requirements, %w", err)
 		}
-		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(&provisionerList.Items[i], instanceTypeRequirements, cloudproviderRequirements))
+		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(&provisionerList.Items[i], requirements))
 	}
 	if len(nodeTemplates) == 0 {
 		return nil, fmt.Errorf("no provisioners found")
