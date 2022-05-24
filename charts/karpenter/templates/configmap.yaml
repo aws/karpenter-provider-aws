@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: karpenter-config-global-settings
+  name: karpenter-global-settings
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
@@ -10,5 +10,5 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  "batchMaxDuration": "{{ .Values.controller.batch.maxDuration }}"
-  "batchIdleDuration": "{{ .Values.controller.batch.idleDuration }}"
+  "batchMaxDuration": "{{ .Values.controller.batchMaxDuration }}"
+  "batchIdleDuration": "{{ .Values.controller.batchIdleDuration }}"

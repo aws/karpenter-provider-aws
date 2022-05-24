@@ -35,7 +35,7 @@ const (
 	paramBatchMaxDuration  = "batchMaxDuration"
 	paramBatchIdleDuration = "batchIdleDuration"
 
-	configMapName = "karpenter-config-global-settings"
+	configMapName = "karpenter-global-settings"
 )
 
 // these values need to be synced with our templates/configmap.yaml
