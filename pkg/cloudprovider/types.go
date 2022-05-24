@@ -52,6 +52,14 @@ type CloudProvider interface {
 	Validate(context.Context, *v1alpha5.Provisioner) *apis.FieldError
 	// Name returns the CloudProvider implementation name.
 	Name() string
+
+	// EXPERIMENTAL MACHINE API
+	// Get a node corresponding to the machine.
+	GetMachine(context.Context, string) (*v1.Node, error)
+	// Create a machine
+	CreateMachine(context.Context, *v1alpha5.Machine) (*v1.Node, error)
+	// Delete a machine by name
+	DeleteMachine(context.Context, string) error
 }
 
 type NodeRequest struct {

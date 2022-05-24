@@ -161,3 +161,57 @@ func (c *CloudProvider) Validate(context.Context, *v1alpha5.Provisioner) *apis.F
 func (c *CloudProvider) Name() string {
 	return "fake"
 }
+
+// EXPERIMENTAL MACHINE API
+// Get a node corresponding to the machine.
+func (c *CloudProvider) GetMachine(context.Context, string) (*v1.Node, error) { return nil, nil }
+
+// Create a machine
+func (c *CloudProvider) CreateMachine(ctx context.Context, machine *v1alpha5.Machine) (*v1.Node, error) {
+	name := fmt.Sprintf("n%04d-%s", atomic.AddUint64(&sequentialNodeID, 1), strings.ToLower(randomdata.SillyName()))
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	requirements := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
+	instanceTypes = cloudprovider.FilterInstanceTypes(instanceTypes, requirements, v1.ResourceList{})
+	if len(instanceTypes) == 0 {
+		return nil, fmt.Errorf("no viable instance types for requirements %s", requirements)
+	}
+	instanceType := instanceTypes[0]
+	var zone, capacityType string
+	for _, o := range instanceType.Offerings() {
+		if requirements.CapacityTypes().Has(o.CapacityType) && requirements.Zones().Has(o.Zone) {
+			zone = o.Zone
+			capacityType = o.CapacityType
+			break
+		}
+	}
+	return &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				v1.LabelTopologyZone:       zone,
+				v1.LabelInstanceTypeStable: instanceType.Name(),
+				v1alpha5.LabelCapacityType: capacityType,
+			},
+		},
+		Spec: v1.NodeSpec{
+			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+		},
+		Status: v1.NodeStatus{
+			NodeInfo: v1.NodeSystemInfo{
+				Architecture:    instanceType.Architecture(),
+				OperatingSystem: v1alpha5.OperatingSystemLinux,
+			},
+			Allocatable: v1.ResourceList{
+				v1.ResourcePods:   instanceType.Resources()[v1.ResourcePods],
+				v1.ResourceCPU:    instanceType.Resources()[v1.ResourceCPU],
+				v1.ResourceMemory: instanceType.Resources()[v1.ResourceMemory],
+			},
+		},
+	}, nil
+}
+
+// Delete a machine by name
+func (c *CloudProvider) DeleteMachine(context.Context, string) error { return nil }

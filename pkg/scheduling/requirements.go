@@ -109,6 +109,17 @@ func (r Requirements) Add(requirements ...Requirements) {
 	}
 }
 
+func (r Requirements) ToNodeSelectorRequirements() (result []v1.NodeSelectorRequirement) {
+	for key, requirement := range r {
+		result = append(result, v1.NodeSelectorRequirement{
+			Key:      key,
+			Operator: requirement.Type(),
+			Values:   requirement.List(),
+		})
+	}
+	return result
+}
+
 // Keys returns unique set of the label keys from the requirements
 func (r Requirements) Keys() stringsets.String {
 	keys := stringsets.NewString()

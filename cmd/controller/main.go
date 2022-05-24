@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/events"
 
+	"github.com/aws/karpenter/pkg/controllers/machine"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/utils/project"
 
@@ -96,6 +97,7 @@ func main() {
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
+		machine.NewController(manager.GetClient(), cloudProvider),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),

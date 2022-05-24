@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -177,6 +178,93 @@ func defaultLabels(provisioner *v1alpha5.Provisioner) {
 			})
 		}
 	}
+}
+
+// GetMachine by name
+func (c *CloudProvider) GetMachine(ctx context.Context, name string) (*v1.Node, error) {
+	instance, err := c.getInstance(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types")
+	}
+
+	c.instanceProvider.instanceToNode(ctx, instance, instanceTypes)
+	return nil, nil
+}
+
+// CreateMachine and return a corresponding node object
+func (c *CloudProvider) CreateMachine(ctx context.Context, machine *v1alpha5.Machine) (*v1.Node, error) {
+	provider, err := v1alpha1.Deserialize(machine.Spec.Provider)
+	if err != nil {
+		return nil, apis.ErrGeneric(err.Error())
+	}
+
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+
+	requirements := scheduling.NewNodeSelectorRequirements(machine.Spec.Requirements...)
+
+	node, err := c.instanceProvider.Create(ctx, provider, &cloudprovider.NodeRequest{
+		Template: &scheduling.NodeTemplate{
+			Labels:               machine.Spec.Labels,
+			Requirements:         requirements,
+			Taints:               machine.Spec.Taints,
+			StartupTaints:        machine.Spec.StartupTaints,
+			KubeletConfiguration: machine.Spec.KubeletConfiguration,
+		},
+		InstanceTypeOptions: cloudprovider.FilterInstanceTypes(instanceTypes, requirements, v1.ResourceList{}),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating instance, %w", err)
+	}
+	return node, nil
+}
+
+// DeleteMachine by name
+func (c *CloudProvider) DeleteMachine(ctx context.Context, name string) error {
+	// Get instance
+	instance, err := c.getInstance(ctx, name)
+	if err != nil {
+		return err
+	}
+	// Idempotent delete
+	if instance == nil {
+		return nil
+	}
+	// Delete instance. It violates our invariant for have multiple with the same name
+	if _, err := c.instanceProvider.ec2api.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{InstanceIds: []*string{instance.InstanceId}}); err != nil {
+		if isNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("terminating instance %s, %w", aws.StringValue(instance.InstanceId), err)
+	}
+	return nil
+}
+
+func (c *CloudProvider) getInstance(ctx context.Context, name string) (*ec2.Instance, error) {
+	describeInstanceOutput, err := c.instanceProvider.ec2api.DescribeInstancesWithContext(ctx, &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", v1alpha5.MachineNameLabelKey)), Values: []*string{aws.String(name)}}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("describing instances, %w", err)
+	}
+	instances := lo.FlatMap(describeInstanceOutput.Reservations, func(reservation *ec2.Reservation, _ int) []*ec2.Instance { return reservation.Instances })
+	// Not found
+	if len(instances) == 0 {
+		return nil, nil
+	}
+	// Multiple found, invariant violated
+	if len(instances) > 1 {
+		return nil, fmt.Errorf("invariant violated, multiple instances with machine name %s, %v", name,
+			lo.Map(instances, func(instance *ec2.Instance, _ int) *string { return instance.InstanceId }),
+		)
+	}
+	return instances[0], nil
 }
 
 // Name returns the CloudProvider implementation name.

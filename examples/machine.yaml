@@ -1,0 +1,11 @@
+---
+apiVersion: karpenter.sh/v1alpha5
+kind: Machine
+metadata:
+  name: example
+spec:
+  provider:
+    subnetSelector:
+      kubernetes.io/cluster/etarn: "*" # replace with your cluster name
+    securityGroupSelector:
+      kubernetes.io/cluster/etarn: "*" # replace with your cluster name

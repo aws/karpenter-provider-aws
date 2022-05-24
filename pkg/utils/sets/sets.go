@@ -120,6 +120,10 @@ func (s Set) ComplementValues() sets.String {
 	return s.values
 }
 
+func (s Set) List() []string {
+	return s.values.UnsortedList()
+}
+
 func (s Set) String() string {
 	if s.complement {
 		return fmt.Sprintf("%v' (complement set)", s.values.UnsortedList())
