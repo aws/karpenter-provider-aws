@@ -23,6 +23,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -38,7 +39,8 @@ var defaultEBS = v1alpha1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider *AMIProvider
+	amiProvider      *AMIProvider
+	UserDataProvider *UserDataProvider
 }
 
 // Options define the static launch template parameters
@@ -67,25 +69,30 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	SSMAlias(version string, instanceType cloudprovider.InstanceType) string
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 }
 
 // New constructs a new launch template Resolver
-func New(ssm ssmiface.SSMAPI, c *cache.Cache) *Resolver {
+func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
 			ssm:   ssm,
 			cache: c,
 		},
+		UserDataProvider: NewUserDataProvider(client),
 	}
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options) ([]*LaunchTemplate, error) {
+	userDataString, err := r.UserDataProvider.Get(ctx, nodeRequest.Template.ProviderRef, nodeRequest.Template.ProviderRefNamespace)
+	if err != nil {
+		return nil, err
+	}
 	amiFamily := r.getAMIFamily(provider.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range nodeRequest.InstanceTypeOptions {
@@ -99,7 +106,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	for amiID, instanceTypes := range amiIDs {
 		resolved := &LaunchTemplate{
 			Options:             options,
-			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes),
+			UserData:            amiFamily.UserData(nodeRequest.Template.KubeletConfiguration, nodeRequest.Template.Taints, options.Labels, options.CABundle, instanceTypes, aws.String(userDataString)),
 			BlockDeviceMappings: provider.BlockDeviceMappings,
 			MetadataOptions:     provider.MetadataOptions,
 			AMIID:               amiID,

@@ -29,6 +29,8 @@ import (
 type NodeTemplate struct {
 	ProvisionerName      string
 	Provider             *v1alpha5.Provider
+	ProviderRef          *v1alpha5.ProviderRef
+	ProviderRefNamespace string
 	Labels               map[string]string
 	Taints               Taints
 	StartupTaints        Taints
@@ -41,6 +43,7 @@ func NewNodeTemplate(provisioner *v1alpha5.Provisioner, requirements ...Requirem
 	return &NodeTemplate{
 		ProvisionerName:      provisioner.Name,
 		Provider:             provisioner.Spec.Provider,
+		ProviderRef:          provisioner.Spec.ProviderRef,
 		KubeletConfiguration: provisioner.Spec.KubeletConfiguration,
 		Labels:               provisioner.Spec.Labels,
 		Taints:               provisioner.Spec.Taints,

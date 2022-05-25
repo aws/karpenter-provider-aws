@@ -30,6 +30,7 @@ type Options struct {
 	CABundle                *string
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
+	CustomUserData          *string
 }
 
 // Bootstrapper can be implemented to generate a bootstrap script
@@ -37,5 +38,5 @@ type Options struct {
 // bootstrapping method.
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
-	Script() string
+	Script() (string, error)
 }

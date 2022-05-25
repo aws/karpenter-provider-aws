@@ -48,6 +48,10 @@ type ProvisionerSpec struct {
 	// Provider contains fields specific to your cloudprovider.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Provider *Provider `json:"provider,omitempty"`
+	// ProviderRef is a reference to a dedicated CRD for the chosen provider, that holds
+	// additional configuration options
+	// +optional
+	ProviderRef *ProviderRef `json:"providerRef,omitempty"`
 	// TTLSecondsAfterEmpty is the number of seconds the controller will wait
 	// before attempting to delete a node, measured from when the node is
 	// detected to be empty. A Node is considered to be empty when it does not
@@ -70,6 +74,16 @@ type ProvisionerSpec struct {
 
 // +kubebuilder:object:generate=false
 type Provider = runtime.RawExtension
+
+type ProviderRef struct {
+	// Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+	Kind string `json:"kind,omitempty"`
+	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
+	Name string `json:"name,omitempty"`
+	// API version of the referent
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+}
 
 // KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
 // They are a subset of the upstream types, recognizing not all options may be supported.
