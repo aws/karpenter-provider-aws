@@ -8,16 +8,10 @@ metadata:
   version: "1.21"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
-managedNodeGroups:
-  - instanceType: m5.large
-    amiFamily: AmazonLinux2
-    name: ${CLUSTER_NAME}-ng
-    desiredCapacity: 1
-    minSize: 1
-    maxSize: 10
 fargateProfiles:
   - name: karpenter
     selectors:
+    - namespace: kube-system
     - namespace: karpenter
 iam:
   withOIDC: true

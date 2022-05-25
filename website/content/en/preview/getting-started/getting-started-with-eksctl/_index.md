@@ -56,8 +56,8 @@ Also set the following environment variables to store commonly used values.
 ### Create a Cluster
 
 Create a basic cluster with `eksctl`.
-Each of the two examples set up a single control plane node and an IAM OIDC provider for the cluster to enable IAM roles for pods.
-The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the control plane and Karpenter, while the second splits off the Karpenter controller to use a Fargate profile.
+Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods.
+The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
 
 **Example 1: Create basic cluster**
 
