@@ -16,15 +16,10 @@ package scheduling
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/samber/lo"
-
-	"github.com/aws/karpenter/pkg/events"
-	"github.com/aws/karpenter/pkg/scheduling"
-
-	"github.com/aws/karpenter/pkg/controllers/state"
-
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
@@ -32,24 +27,34 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/events"
+	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, cluster *state.Cluster, topology *Topology,
-	instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
+func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
 	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
 	s := &Scheduler{
-		nodeTemplates:  nodeTemplates,
-		topology:       topology,
-		cluster:        cluster,
-		instanceTypes:  instanceTypes,
-		daemonOverhead: daemonOverhead,
-		recorder:       recorder,
-		preferences:    &Preferences{},
+		nodeTemplates:      nodeTemplates,
+		topology:           topology,
+		cluster:            cluster,
+		instanceTypes:      instanceTypes,
+		daemonOverhead:     daemonOverhead,
+		recorder:           recorder,
+		preferences:        &Preferences{},
+		remainingResources: map[string]v1.ResourceList{},
 	}
 
 	namedNodeTemplates := lo.KeyBy(s.nodeTemplates, func(nodeTemplate *scheduling.NodeTemplate) string {
 		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values().List()[0]
 	})
+
+	for _, provisioner := range provisioners {
+		if provisioner.Spec.Limits != nil {
+			s.remainingResources[provisioner.Name] = provisioner.Spec.Limits.Resources
+		}
+	}
 
 	// create our in-flight nodes
 	s.cluster.ForEachNode(func(node *state.Node) bool {
@@ -64,21 +69,27 @@ func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, cluster *state.Clust
 			return true
 		}
 		s.inflight = append(s.inflight, NewInFlightNode(node, s.topology, nodeTemplate.StartupTaints, s.daemonOverhead[nodeTemplate]))
+
+		// We don't use the status field and instead recompute the remaining resources to ensure we have a consistent view
+		// of the cluster during scheduling.  Depending on how node creation falls out, this will also work for cases where
+		// we don't create Node resources.
+		s.remainingResources[name] = resources.Subtract(s.remainingResources[name], node.Capacity)
 		return true
 	})
 	return s
 }
 
 type Scheduler struct {
-	nodes          []*Node
-	inflight       []*InFlightNode
-	nodeTemplates  []*scheduling.NodeTemplate
-	instanceTypes  []cloudprovider.InstanceType
-	daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList
-	preferences    *Preferences
-	topology       *Topology
-	cluster        *state.Cluster
-	recorder       events.Recorder
+	nodes              []*Node
+	inflight           []*InFlightNode
+	nodeTemplates      []*scheduling.NodeTemplate
+	remainingResources map[string]v1.ResourceList // provisioner name -> remaining resources for that provisioner
+	instanceTypes      []cloudprovider.InstanceType
+	daemonOverhead     map[*scheduling.NodeTemplate]v1.ResourceList
+	preferences        *Preferences
+	topology           *Topology
+	cluster            *state.Cluster
+	recorder           events.Recorder
 }
 
 func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
@@ -159,13 +170,67 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 	// Create new node
 	var errs error
 	for _, nodeTemplate := range s.nodeTemplates {
-		node := NewNode(nodeTemplate, s.topology, s.daemonOverhead[nodeTemplate], s.instanceTypes)
+		instanceTypes := s.instanceTypes
+		// if limits have been applied to the provisioner, ensure we filter instance types to avoid violating those limits
+		if remaining, ok := s.remainingResources[nodeTemplate.ProvisionerName]; ok {
+			instanceTypes = filterByRemainingResources(s.instanceTypes, remaining)
+			if len(instanceTypes) == 0 {
+				errs = multierr.Append(errs, fmt.Errorf("all available instance types exceed provisioner limits"))
+				continue
+			}
+		}
+
+		node := NewNode(nodeTemplate, s.topology, s.daemonOverhead[nodeTemplate], instanceTypes)
 		err := node.Add(pod)
 		if err == nil {
 			s.nodes = append(s.nodes, node)
+			// we will launch this node and need to track its maximum possible resource usage against our remaining resources
+			s.remainingResources[nodeTemplate.ProvisionerName] = subtractMax(s.remainingResources[nodeTemplate.ProvisionerName], node.InstanceTypeOptions)
 			return nil
 		}
 		errs = multierr.Append(errs, err)
 	}
 	return errs
+}
+
+// subtractMax returns the remaining resources after subtracting the max resource quantity per instance type. To avoid
+// overshooting out, we need to pessimistically assume that if e.g. we request a 2, 4 or 8 CPU instance type
+// that the 8 CPU instance type is all that will be available.  This could cause a batch of pods to take multiple rounds
+// to schedule.
+func subtractMax(remaining v1.ResourceList, instanceTypes []cloudprovider.InstanceType) v1.ResourceList {
+	// shouldn't occur, but to be safe
+	if len(instanceTypes) == 0 {
+		return remaining
+	}
+	var allInstanceResources []v1.ResourceList
+	for _, it := range instanceTypes {
+		allInstanceResources = append(allInstanceResources, it.Resources())
+	}
+	result := v1.ResourceList{}
+	itResources := resources.MaxResources(allInstanceResources...)
+	for k, v := range remaining {
+		cp := v.DeepCopy()
+		cp.Sub(itResources[k])
+		result[k] = cp
+	}
+	return result
+}
+
+// filterByRemainingResources is used to filter out instance types that if launched would exceed the provisioner limits
+func filterByRemainingResources(instanceTypes []cloudprovider.InstanceType, remaining v1.ResourceList) []cloudprovider.InstanceType {
+	var filtered []cloudprovider.InstanceType
+	for _, it := range instanceTypes {
+		itResources := it.Resources()
+		viableInstance := true
+		for resourceName, remainingQuantity := range remaining {
+			// if the instance capacity is greater than the remaining quantity for this resource
+			if resources.Cmp(itResources[resourceName], remainingQuantity) > 0 {
+				viableInstance = false
+			}
+		}
+		if viableInstance {
+			filtered = append(filtered, it)
+		}
+	}
+	return filtered
 }

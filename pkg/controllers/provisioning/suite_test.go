@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -41,6 +43,7 @@ var ctx context.Context
 var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
+var cfg *test.Config
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -53,7 +56,8 @@ var _ = BeforeSuite(func() {
 		cloudProvider := &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
+		cfg = test.NewConfig()
+		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -142,6 +146,90 @@ var _ = Describe("Provisioning", func() {
 				},
 			}))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should schedule if limits would be met", func() {
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				Limits: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+			}))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						// requires a 2 CPU node, but leaves room for overhead
+						v1.ResourceCPU: resource.MustParse("1.75"),
+					},
+				}}))[0]
+			// A 2 CPU node can be launched
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should partially schedule if limits would be exceeded", func() {
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				Limits: v1.ResourceList{v1.ResourceCPU: resource.MustParse("3")},
+			}))
+
+			// prevent these pods from scheduling on the same node
+			opts := test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "foo"},
+				},
+				PodAntiRequirements: []v1.PodAffinityTerm{
+					{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "foo",
+							},
+						},
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1.5"),
+					}}}
+			pods := ExpectProvisioned(ctx, env.Client, controller,
+				test.UnschedulablePod(opts),
+				test.UnschedulablePod(opts),
+			)
+			scheduledPodCount := 0
+			unscheduledPodCount := 0
+			pod0 := ExpectPodExists(ctx, env.Client, pods[0].Name, pods[0].Namespace)
+			pod1 := ExpectPodExists(ctx, env.Client, pods[1].Name, pods[1].Namespace)
+			if pod0.Spec.NodeName == "" {
+				unscheduledPodCount++
+			} else {
+				scheduledPodCount++
+			}
+			if pod1.Spec.NodeName == "" {
+				unscheduledPodCount++
+			} else {
+				scheduledPodCount++
+			}
+			Expect(scheduledPodCount).To(Equal(1))
+			Expect(unscheduledPodCount).To(Equal(1))
+		})
+		It("should not schedule if limits would be exceeded", func() {
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				Limits: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+			}))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("2.1"),
+					},
+				}}))[0]
+			ExpectNotScheduled(ctx, env.Client, pod)
+		})
+		It("should not schedule if limits would be exceeded (GPU)", func() {
+			ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+				Limits: v1.ResourceList{v1.ResourcePods: resource.MustParse("1")},
+			}))
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+				test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
+					},
+				}}))[0]
+			// only available instance type has 2 GPUs which would exceed the limit
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 	})

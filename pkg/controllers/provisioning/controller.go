@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/config"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -50,10 +52,10 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
+		provisioner: NewProvisioner(ctx, cfg, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
 		recorder:    recorder,
 	}
 }

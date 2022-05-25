@@ -34,6 +34,7 @@ type InFlightNode struct {
 	requirements       scheduling.Requirements
 	available          v1.ResourceList
 	startupTolerations []v1.Toleration
+	hostPortUsage      *state.HostPortUsage
 }
 
 func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
@@ -41,11 +42,12 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
 
 	node := &InFlightNode{
-		Node:         n.Node,
-		available:    n.Available,
-		topology:     topology,
-		requests:     remainingDaemonResources,
-		requirements: scheduling.NewLabelRequirements(n.Node.Labels),
+		Node:          n.Node,
+		available:     n.Available,
+		topology:      topology,
+		requests:      remainingDaemonResources,
+		requirements:  scheduling.NewLabelRequirements(n.Node.Labels),
+		hostPortUsage: n.HostPortUsage.Copy(),
 	}
 
 	// add a default toleration for the standard not ready and startup taints
@@ -78,6 +80,10 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 func (n *InFlightNode) Add(pod *v1.Pod) error {
 	// Check Taints
 	if err := scheduling.Taints(n.Node.Spec.Taints).Tolerates(pod, n.startupTolerations...); err != nil {
+		return err
+	}
+
+	if err := n.hostPortUsage.Add(pod); err != nil {
 		return err
 	}
 
