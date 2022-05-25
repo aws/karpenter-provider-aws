@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
@@ -34,8 +35,9 @@ type Node struct {
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
 
-	topology *Topology
-	requests v1.ResourceList
+	topology      *Topology
+	requests      v1.ResourceList
+	hostPortUsage *state.HostPortUsage
 }
 
 var nodeID int64
@@ -49,6 +51,7 @@ func NewNode(nodeTemplate *scheduling.NodeTemplate, topology *Topology, daemonRe
 	return &Node{
 		NodeTemplate:        template,
 		InstanceTypeOptions: instanceTypes,
+		hostPortUsage:       state.NewHostPortUsage(),
 		topology:            topology,
 		requests:            daemonResources,
 	}
@@ -57,6 +60,10 @@ func NewNode(nodeTemplate *scheduling.NodeTemplate, topology *Topology, daemonRe
 func (n *Node) Add(pod *v1.Pod) error {
 	// Check Taints
 	if err := n.Taints.Tolerates(pod); err != nil {
+		return err
+	}
+
+	if err := n.hostPortUsage.Add(pod); err != nil {
 		return err
 	}
 
