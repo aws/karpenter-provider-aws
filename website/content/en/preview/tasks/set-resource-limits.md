@@ -12,9 +12,7 @@ The provisioner spec includes a limits section (`spec.limits.resources`), which 
 
 For example, setting "spec.limits.resources.cpu" to "1000" limits the provisioner to a total of 1000 CPU cores across all instances. This prevents unwanted excessive growth of a cluster. 
 
-At this time, Karpenter only supports:
-- CPU
-- Memory
+Karpenter supports limits of any resource type that is reported by your cloud provider.
 
 CPU limits are described with a `DecimalSI` value, usually a natural integer. 
 
@@ -28,18 +26,6 @@ kubectl get provisioner -o=jsonpath='{.items[0].status}'
 Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
 
 ### Implementation
-
-Karpenter refuses to allocate new resources while at least one resource limit is *exceeded*. In other words, resource limits aren't hard limits, they only apply once Karpenter detects that a limit has been crossed.
-
-**Example:**
-
-A resource limit of 1000 CPUs is set. 996 CPU cores are currently allocated. The resource limit is not met.
-
-In response to pending pods, Karpenter calculates a new 6 core instance is needed. Karpenter *creates* the instance.
-
-1002 CPU cores are now allocated. The resource limit is in now met/exceeded. 
-
-In response to a new set of pending pods, Karpenter calculates another 6 core instance is needed. Karpenter *does not create* the instance, because the resource limit has been met.
 
 {{% alert title="Note" color="primary" %}}
 Karpenter provisioning is highly parallel. Because of this, limit checking is eventually consistent, which can result in overrun during rapid scale outs.
@@ -61,4 +47,5 @@ spec:
     resources:
       cpu: 1000 
       memory: 1000Gi
+      nvidia.com/gpu: 2
 ```

@@ -204,7 +204,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		return nil, fmt.Errorf("getting daemon overhead, %w", err)
 	}
 
-	return scheduler.NewScheduler(nodeTemplates, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
+	return scheduler.NewScheduler(nodeTemplates, provisionerList.Items, p.cluster, topology, instanceTypes, daemonOverhead, p.recorder).Solve(ctx, pods)
 }
 
 func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {

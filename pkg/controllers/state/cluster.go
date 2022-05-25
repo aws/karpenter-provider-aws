@@ -57,6 +57,9 @@ func NewCluster(ctx context.Context, client client.Client) *Cluster {
 // compute topology information.
 type Node struct {
 	Node *v1.Node
+	// Capacity is the total amount of resources on the node.  The available resources are the capacity minus overhead
+	// minus anything allocated to pods.
+	Capacity v1.ResourceList
 	// Available is the total amount of resources that are available on the node.  This is the Allocatable minus the
 	// resources requested by all pods bound to the node.
 	Available v1.ResourceList
@@ -142,6 +145,7 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
+	n.Capacity = n.Node.Status.Capacity
 	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
 	return n
 }
