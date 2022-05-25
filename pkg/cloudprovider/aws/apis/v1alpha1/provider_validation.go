@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
@@ -43,8 +44,17 @@ var (
 	securityGroupRegex = regexp.MustCompile("sg-[0-9a-z]+")
 )
 
-func (a *AWS) Validate() (errs *apis.FieldError) {
-	return a.validate().ViaField("provider")
+func (a *AWS) Validate(provisioner v1alpha5.Provisioner) (errs *apis.FieldError) {
+	return errs.Also(
+		a.validate().ViaField("provider"),
+		a.validateProvisioner(provisioner),
+	)
+}
+
+func (a *AWS) validateProvisioner(provisioner v1alpha5.Provisioner) (errs *apis.FieldError) {
+	return errs.Also(
+		a.validateKubeletConfiguration(provisioner.Spec.KubeletConfiguration),
+	)
 }
 
 func (a *AWS) validate() (errs *apis.FieldError) {
@@ -248,6 +258,25 @@ func (a *AWS) validateVolumeSize(blockDeviceMapping *BlockDeviceMapping) *apis.F
 		return apis.ErrMissingField("volumeSize")
 	} else if blockDeviceMapping.EBS.VolumeSize.Cmp(minVolumeSize) == -1 || blockDeviceMapping.EBS.VolumeSize.Cmp(maxVolumeSize) == 1 {
 		return apis.ErrOutOfBoundsValue(blockDeviceMapping.EBS.VolumeSize.String(), minVolumeSize.String(), maxVolumeSize.String(), "volumeSize")
+	}
+	return nil
+}
+
+func (a *AWS) validateKubeletConfiguration(kubeletConfig *v1alpha5.KubeletConfiguration) *apis.FieldError {
+	if kubeletConfig == nil {
+		return nil
+	}
+	if kubeletConfig.ContainerRuntime == nil {
+		return nil
+	}
+	if a.AMIFamily != nil {
+		supportedContainerRuntimes := SupportedContainerRuntimesByAMIFamily[*a.AMIFamily]
+		if !supportedContainerRuntimes.Has(*kubeletConfig.ContainerRuntime) {
+			return apis.ErrInvalidValue(
+				fmt.Errorf("unsupported container runtime for AMI family %s, must be %s", *a.AMIFamily, supportedContainerRuntimes.UnsortedList()),
+				"kubeletConfiguration",
+			)
+		}
 	}
 	return nil
 }

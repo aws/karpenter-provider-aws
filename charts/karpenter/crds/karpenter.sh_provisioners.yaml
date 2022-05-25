@@ -51,6 +51,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  containerRuntime:
+                    description: ContainerRuntime is the container runtime to be used
+                      with your worker nodes.
+                    type: string
                 type: object
               labels:
                 additionalProperties:

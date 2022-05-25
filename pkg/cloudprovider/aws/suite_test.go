@@ -748,7 +748,38 @@ var _ = Describe("Allocation", func() {
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 			})
-			It("should specify --container-runtime dockerd when using GPUs", func() {
+			It("should specify dockerd if specified in the provisionerSpec", func() {
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+					Provider: provider,
+					Kubelet:  &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")},
+				}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
+			})
+			It("should specify --container-runtime docker when using Neuron GPUs", func() {
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU:             resource.MustParse("1"),
+							v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						},
+						Limits: map[v1.ResourceName]resource.Quantity{
+							v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						},
+					},
+				}))[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--container-runtime docker"))
+			})
+			It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
@@ -765,7 +796,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
+				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
