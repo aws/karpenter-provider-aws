@@ -68,7 +68,7 @@ If you have multiple nodegroups or multiple security groups you will need to dec
 
 ## Update aws-auth ConfigMap
 
-We need to allow nodes that are using the node IAM role we just created to join the cluter.
+We need to allow nodes that are using the node IAM role we just created to join the cluster.
 To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-edit-aws-auth.sh" language="bash" %}}
