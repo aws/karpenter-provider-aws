@@ -399,7 +399,7 @@ var _ = Describe("Instance Type Selection", func() {
 	It("should not schedule if no instance type matches selector (pod arch = arm)", func() {
 		// remove all Arm instance types
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
-			return i.Architecture() == v1alpha5.ArchitectureAmd64
+			return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 		})
 
 		Expect(len(cloudProv.InstanceTypes)).To(BeNumerically(">", 0))
@@ -420,7 +420,7 @@ var _ = Describe("Instance Type Selection", func() {
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
 				if off.Zone == "test-zone-2" {
-					return i.Architecture() == v1alpha5.ArchitectureAmd64
+					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
 			return true
@@ -448,7 +448,7 @@ var _ = Describe("Instance Type Selection", func() {
 		cloudProv.InstanceTypes = filterInstanceTypes(cloudProv.InstanceTypes, func(i cloudprovider.InstanceType) bool {
 			for _, off := range i.Offerings() {
 				if off.Zone == "test-zone-2" {
-					return i.Architecture() == v1alpha5.ArchitectureAmd64
+					return i.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureAmd64)
 				}
 			}
 			return true
@@ -553,9 +553,9 @@ func ExpectInstancesWithLabel(instanceTypes []cloudprovider.InstanceType, label 
 	for _, it := range instanceTypes {
 		switch label {
 		case v1.LabelArchStable:
-			Expect(it.Architecture()).To(Equal(value))
+			Expect(it.Requirements().Get(v1.LabelArchStable).Has(value)).To(BeTrue(), fmt.Sprintf("expected to find an arch of %s", value))
 		case v1.LabelOSStable:
-			Expect(it.OperatingSystems().Has(value)).To(BeTrue(), fmt.Sprintf("expected to find an OS of %s", value))
+			Expect(it.Requirements().Get(v1.LabelOSStable).Has(value)).To(BeTrue(), fmt.Sprintf("expected to find an OS of %s", value))
 		case v1.LabelTopologyZone:
 			{
 				matched := false

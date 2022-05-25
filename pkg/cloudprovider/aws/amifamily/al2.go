@@ -17,16 +17,15 @@ package amifamily
 import (
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/utils/resources"
-
 	"github.com/aws/aws-sdk-go/aws"
-	core "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 type AL2 struct {
@@ -38,8 +37,8 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 	amiSuffix := ""
 	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) || !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceAWSNeuron]) {
 		amiSuffix = "-gpu"
-	} else if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
-		amiSuffix = fmt.Sprintf("-%s", instanceType.Architecture())
+	} else if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+		amiSuffix = fmt.Sprintf("-%s", v1alpha5.ArchitectureArm64)
 	}
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, amiSuffix)
 }
@@ -48,7 +47,7 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	containerRuntime := aws.String(a.containerRuntime(instanceTypes))
 	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
 		containerRuntime = kubeletConfig.ContainerRuntime

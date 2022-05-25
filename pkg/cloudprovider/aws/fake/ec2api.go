@@ -363,8 +363,12 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				},
 				GpuInfo: &ec2.GpuInfo{
 					Gpus: []*ec2.GpuDeviceInfo{{
+						Name:         aws.String("Nvidia V100"), // In reality this value is `V100`, but this exercises lower kabob casing
 						Manufacturer: aws.String("NVIDIA"),
 						Count:        aws.Int64(4),
+						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(16384),
+						},
 					}},
 				},
 				NetworkInfo: &ec2.NetworkInfo{

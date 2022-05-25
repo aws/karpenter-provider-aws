@@ -60,6 +60,36 @@ spec:
 ```
 With these settings, the provisioner is able to launch nodes in three availability zones and is flexible to both spot and on-demand purchase types.
 
+## Example: Restricting Instance Types
+
+Not all workloads are able to run on any instance type. Some use cases may be sensitive to a specific hardware generation or cannot tolerate burstable compute. You can specify a variety of well known labels to control the set of instance types available to be provisioned.
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  provider:
+    requirements:
+      # Include general purpose instance families
+      - key: karpenter.k8s.aws/instance-family
+        operator: In
+        values: [c5, m5, r5]
+      # Exclude smaller instance sizes
+      - key: karpenter.k8s.aws/instance-size
+        operator: NotIn
+        values: [nano, micro, small, large]
+      # Exclude a specific instance type
+      - key: node.kubernetes.io/instance-type
+        operator: NotIn
+        values: [m5.24xlarge]
+    subnetSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+    securityGroupSelector:
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+```
+
 ## Example: Isolating Expensive Hardware
 
 A provisioner can be set up to only provision nodes on particular processor types.

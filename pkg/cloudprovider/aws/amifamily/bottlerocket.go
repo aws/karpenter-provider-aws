@@ -20,7 +20,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
-	core "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -40,14 +40,14 @@ func (b Bottlerocket) SSMAlias(version string, instanceType cloudprovider.Instan
 	if !resources.IsZero(instanceType.Resources()[v1alpha1.ResourceNVIDIAGPU]) {
 		amiSuffix = "-nvidia"
 	}
-	if instanceType.Architecture() == v1alpha5.ArchitectureArm64 {
-		arch = instanceType.Architecture()
+	if instanceType.Requirements().Get(v1.LabelArchStable).Has(v1alpha5.ArchitectureArm64) {
+		arch = v1alpha5.ArchitectureArm64
 	}
 	return fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s%s/%s/latest/image_id", version, amiSuffix, arch)
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, _ []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
 			ClusterName:             b.Options.ClusterName,

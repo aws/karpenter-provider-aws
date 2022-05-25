@@ -30,7 +30,7 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 const (
@@ -174,7 +175,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, subnets, nodeRequest.Template.Requirements.Zones(), capacityType),
+			Overrides: p.getOverrides(instanceTypes, subnets, nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone), capacityType),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -192,7 +193,7 @@ func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provide
 
 // getOverrides creates and returns launch template overrides for the cross product of instanceTypeOptions and subnets (with subnets being constrained by
 // zones and the offerings in instanceTypeOptions)
-func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.String, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *InstanceProvider) getOverrides(instanceTypeOptions []cloudprovider.InstanceType, subnets []*ec2.Subnet, zones sets.Set, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
 	zonalSubnets := map[string]*ec2.Subnet{}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -262,29 +263,24 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 
-			n := &v1.Node{
+			labels := map[string]string{}
+			for key, req := range instanceType.Requirements() {
+				if req.Values().Len() == 1 {
+					labels[key] = req.Any()
+				}
+			}
+			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
+			labels[v1alpha5.LabelCapacityType] = getCapacityType(instance)
+
+			return &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: nodeName,
-					Labels: map[string]string{
-						v1.LabelTopologyZone:       aws.StringValue(instance.Placement.AvailabilityZone),
-						v1.LabelInstanceTypeStable: aws.StringValue(instance.InstanceType),
-						v1.LabelArchStable:         v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
-						v1alpha5.LabelCapacityType: getCapacityType(instance),
-					},
+					Name:   nodeName,
+					Labels: labels,
 				},
 				Spec: v1.NodeSpec{
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
 			}
-
-			n.Labels[v1.LabelOSStable] = "linux"
-			switch aws.StringValue(amiFamily) {
-			case v1alpha1.AMIFamilyAL2, v1alpha1.AMIFamilyBottlerocket, v1alpha1.AMIFamilyUbuntu:
-				n.Labels[v1.LabelOSStable] = "linux"
-			default:
-				logging.FromContext(ctx).Infof("unknown AMI Family %q, not setting %s label", aws.StringValue(amiFamily), v1.LabelOSStable)
-			}
-			return n
 		}
 	}
 	panic(fmt.Sprintf("unrecognized instance type %s", aws.StringValue(instance.InstanceType)))
@@ -302,10 +298,10 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
 func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
-	if nodeRequest.Template.Requirements.CapacityTypes().Has(v1alpha1.CapacityTypeSpot) {
+	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range instanceType.Offerings() {
-				if nodeRequest.Template.Requirements.Zones().Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
+				if nodeRequest.Template.Requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == v1alpha1.CapacityTypeSpot {
 					return v1alpha1.CapacityTypeSpot
 				}
 			}
@@ -357,7 +353,7 @@ func getInstanceID(node *v1.Node) (*string, error) {
 }
 
 func combineFleetErrors(errors []*ec2.CreateFleetError) (errs error) {
-	unique := sets.NewString()
+	unique := utilsets.NewString()
 	for _, err := range errors {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.StringValue(err.ErrorCode), aws.StringValue(err.ErrorMessage)))
 	}

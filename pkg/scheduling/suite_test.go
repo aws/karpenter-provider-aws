@@ -29,7 +29,7 @@ var _ = Describe("Scheduling", func() {
 			requirements := scheduling.NewNodeSelectorRequirements([]v1.NodeSelectorRequirement{
 				{Key: v1.LabelFailureDomainBetaZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 			}...)
-			Expect(requirements.Zones()).To(ConsistOf("test"))
+			Expect(requirements.Get(v1.LabelTopologyZone).Has("test")).To(BeTrue())
 		})
 		It("should ignore labels in IgnoredLabels", func() {
 			for label := range v1alpha5.IgnoredLabels {

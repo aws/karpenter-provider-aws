@@ -21,6 +21,9 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	"github.com/samber/lo"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
@@ -88,10 +91,11 @@ func (n *Node) Add(pod *v1.Pod) error {
 
 	// Check instance type combinations
 	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
-	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, nodeRequirements, requests)
+	instanceTypes := filterInstanceTypes(n.InstanceTypeOptions, nodeRequirements, requests)
 	if len(instanceTypes) == 0 {
 		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), nodeRequirements)
 	}
+
 	// Update node
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypes
@@ -114,4 +118,28 @@ func (n *Node) String() string {
 		fmt.Fprint(&itSb, it.Name())
 	}
 	return fmt.Sprintf("node with %d pods requesting %s from types %s", len(n.Pods), resources.String(n.requests), itSb.String())
+}
+
+func filterInstanceTypes(instanceTypes []cloudprovider.InstanceType, requirements scheduling.Requirements, requests v1.ResourceList) []cloudprovider.InstanceType {
+	return lo.Filter(instanceTypes, func(instanceType cloudprovider.InstanceType, _ int) bool {
+		return compatible(instanceType, requirements) && fits(instanceType, requests) && hasOffering(instanceType, requirements)
+	})
+}
+
+func compatible(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
+	return instanceType.Requirements().Intersects(requirements, v1alpha5.WellKnownLabels) == nil
+}
+
+func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) bool {
+	return resources.Fits(resources.Merge(requests, instanceType.Overhead()), instanceType.Resources())
+}
+
+func hasOffering(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
+	for _, offering := range instanceType.Offerings() {
+		if (!requirements.Has(v1.LabelTopologyZone) || requirements.Get(v1.LabelTopologyZone).Has(offering.Zone)) &&
+			(!requirements.Has(v1alpha5.LabelCapacityType) || requirements.Get(v1alpha5.LabelCapacityType).Has(offering.CapacityType)) {
+			return true
+		}
+	}
+	return false
 }

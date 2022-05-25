@@ -52,24 +52,14 @@ type Topology struct {
 	cluster *state.Cluster
 }
 
-func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, nodeTemplates []*scheduling.NodeTemplate, pods []*v1.Pod) (*Topology, error) {
+func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.Cluster, domains map[string]utilsets.String, pods []*v1.Pod) (*Topology, error) {
 	t := &Topology{
 		kubeClient:        kubeClient,
 		cluster:           cluster,
-		domains:           map[string]utilsets.String{},
+		domains:           domains,
 		topologies:        map[uint64]*TopologyGroup{},
 		inverseTopologies: map[uint64]*TopologyGroup{},
 	}
-
-	// Update the universe of valid domains. We can't pull all the domains from
-	// all of the nodes here as these are passed on to topology spreads which
-	// can be limited by node selector/required node affinities.
-	for _, nodeTemplate := range nodeTemplates {
-		for topologyKey := range nodeTemplate.Requirements.Keys() {
-			t.domains[topologyKey] = t.domains[topologyKey].Union(nodeTemplate.Requirements.Get(topologyKey).Values())
-		}
-	}
-
 	errs := t.updateInverseAffinities(ctx)
 	for i := range pods {
 		errs = multierr.Append(errs, t.Update(ctx, pods[i]))
@@ -148,8 +138,7 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
 func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.Requirements, p *v1.Pod) (scheduling.Requirements, error) {
-	requirements := scheduling.NewRequirements()
-	requirements.Add(nodeRequirements)
+	requirements := scheduling.NewRequirements(nodeRequirements)
 	for _, topology := range t.getMatchingTopologies(p, nodeRequirements) {
 		podDomains := sets.NewComplementSet()
 		if podRequirements.Has(topology.Key) {
@@ -159,7 +148,6 @@ func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.
 		if nodeRequirements.Has(topology.Key) {
 			nodeDomains = nodeRequirements.Get(topology.Key)
 		}
-
 		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
 			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
@@ -225,7 +213,7 @@ func (t *Topology) updateInverseAntiAffinity(ctx context.Context, pod *v1.Pod, d
 	return nil
 }
 
-// countDomains initializes the topology group by registereding any well-domains and performing pod counts
+// countDomains initializes the topology group by registereding any well known domains and performing pod counts
 // against the cluster for any existing pods.
 func (t *Topology) countDomains(ctx context.Context, tg *TopologyGroup) error {
 	podList := &v1.PodList{}
