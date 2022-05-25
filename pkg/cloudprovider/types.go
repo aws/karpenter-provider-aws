@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 // Options are injected into cloud providers' factories
@@ -46,7 +47,7 @@ type CloudProvider interface {
 	GetInstanceTypes(context.Context) ([]InstanceType, error)
 	// GetRequirements for the provider, e.g. zones contrained by subnets or
 	// os constrained by machine image.
-	GetRequirements(context.Context, *v1alpha5.Provider) (v1alpha5.Requirements, error)
+	GetRequirements(context.Context, *v1alpha5.Provider) (scheduling.Requirements, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Provisioner)
 	// Validate is a hook for additional validation logic at webhook time.
@@ -56,18 +57,8 @@ type CloudProvider interface {
 }
 
 type NodeRequest struct {
-	Template            *NodeTemplate
+	Template            *scheduling.NodeTemplate
 	InstanceTypeOptions []InstanceType
-}
-
-type NodeTemplate struct {
-	Provider             *v1alpha5.Provider
-	ProviderRef          *v1alpha5.ProviderRef
-	ProviderRefNamespace string
-	Labels               map[string]string
-	Taints               []v1.Taint
-	Requirements         v1alpha5.Requirements
-	KubeletConfiguration *v1alpha5.KubeletConfiguration
 }
 
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type

@@ -25,6 +25,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/metrics"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
@@ -82,7 +83,7 @@ func (d *decorator) GetInstanceTypes(ctx context.Context) ([]cloudprovider.Insta
 	return d.CloudProvider.GetInstanceTypes(ctx)
 }
 
-func (d *decorator) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (v1alpha5.Requirements, error) {
+func (d *decorator) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "GetInstanceTypes", d.Name()))()
 	return d.CloudProvider.GetRequirements(ctx, provider)
 }

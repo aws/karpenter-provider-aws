@@ -17,7 +17,7 @@ package scheduling
 import (
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 // TopologyNodeFilter is used to determine if a given actual node or scheduling node matches the pod's node selectors
@@ -25,10 +25,10 @@ import (
 // included for topology counting purposes. This is only used with topology spread constraints as affinities/anti-affinities
 // always count across all nodes. A nil or zero-value TopologyNodeFilter behaves well and the filter returns true for
 // all nodes.
-type TopologyNodeFilter []v1alpha5.Requirements
+type TopologyNodeFilter []scheduling.Requirements
 
 func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
-	nodeSelectorRequirements := v1alpha5.NewLabelRequirements(p.Spec.NodeSelector)
+	nodeSelectorRequirements := scheduling.NewLabelRequirements(p.Spec.NodeSelector)
 	// if we only have a label selector, that's the only requirement that must match
 	if p.Spec.Affinity == nil || p.Spec.Affinity.NodeAffinity == nil || p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 		return TopologyNodeFilter{nodeSelectorRequirements}
@@ -38,8 +38,10 @@ func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
 	// those terms are OR'd together
 	var filter TopologyNodeFilter
 	for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-		requirements := nodeSelectorRequirements.Add(v1alpha5.NewRequirements(term.MatchExpressions...).Requirements...)
-		filter = append(filter, requirements)
+		filter = append(filter, scheduling.NewRequirements(
+			nodeSelectorRequirements,
+			scheduling.NewNodeSelectorRequirements(term.MatchExpressions...),
+		))
 	}
 
 	return filter
@@ -47,14 +49,13 @@ func MakeTopologyNodeFilter(p *v1.Pod) TopologyNodeFilter {
 
 // Matches returns true if the TopologyNodeFilter doesn't prohibit node from the participating in the topology
 func (t TopologyNodeFilter) Matches(node *v1.Node) bool {
-	nodeLabels := v1alpha5.NewLabelRequirements(node.Labels)
-	return t.MatchesRequirements(nodeLabels)
+	return t.MatchesRequirements(scheduling.NewLabelRequirements(node.Labels))
 }
 
 // MatchesRequirements returns true if the TopologyNodeFilter doesn't prohibit a node with the requirements from
 // participating in the topology. This method allows checking the requirements from a scheduling.Node to see if the
 // node we will soon create participates in this topology.
-func (t TopologyNodeFilter) MatchesRequirements(requirements v1alpha5.Requirements) bool {
+func (t TopologyNodeFilter) MatchesRequirements(requirements scheduling.Requirements) bool {
 	// no requirements, so it always matches
 	if len(t) == 0 {
 		return true

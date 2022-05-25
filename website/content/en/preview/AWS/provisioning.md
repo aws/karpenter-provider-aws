@@ -6,6 +6,40 @@ description: >
   Learn AWS-specific Karpenter provisioning settings
 ---
 
+Provisioner settings specific to Karpenter for the AWS cloud provider are described here.
+The following example shows optional and required settings for a Karpenter provisioner for AWS:
+
+
+```yaml
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  requirements:                      
+    - key: karpenter.sh/capacity-type         # optional, set to on-demand by default, spot if both are listed
+      operator: In
+      values: ["spot"]
+  limits:   
+    resources:
+      cpu: 1000                               # optional, recommended to limit total provisioned CPUs
+      memory: 1000Gi                          # optional, recommended to limit total provisioned memory
+  provider:
+    subnetSelector:                           # required
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    securityGroupSelector:                    # required, when not using launchTemplate
+      karpenter.sh/discovery: ${CLUSTER_NAME}
+    instanceProfile: MyInstanceProfile        # optional, if already set in controller args
+    launchTemplate: MyLaunchTemplate          # optional, see Launch Template documentation
+    tags:
+      InternalAccountingTag: 1234             # optional, add tags for your own use
+  ttlSecondsAfterEmpty: 30                    # optional, but never scales down if not set
+  ttlSecondsUntilExpired: 2592000             # optional, but never expires if not set
+
+```
+Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
+See below for other AWS provider-specific parameters.
+
 ## spec.provider
 
 This section covers parameters of the AWS Cloud Provider.
@@ -37,11 +71,11 @@ spec:
     launchTemplate: MyLaunchTemplate
 ```
 
-### SubnetSelector
+### SubnetSelector (required)
 
 Karpenter discovers subnets using [AWS tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
-Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards ("\*") is supported.
+Subnets may be specified by any AWS tag, including `Name`. Selecting tag values using wildcards (`*`) is supported.
 
 Subnet IDs may be specified by using the key `aws-ids` and then passing the IDs as a comma-separated string value.
 
@@ -80,15 +114,17 @@ Specify subnets explicitly by ID:
     aws-ids: "subnet-09fa4a0a8f233a921,subnet-0471ca205b8a129ae"
 ```
 
-### SecurityGroupSelector
+### SecurityGroupSelector (required, when not using launchTemplate)
 
 The security group of an instance is comparable to a set of firewall rules.
 
 EKS creates at least two security groups by default, [review the documentation](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html) for more info.
 
-Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards ("*") is supported.
+Security groups may be specified by any AWS tag, including "Name". Selecting tags using wildcards (`*`) is supported.
 
-‼️ When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `karpenter.sh/discovery/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+{{% alert title="Note" color="primary" %}}
+When launching nodes, Karpenter uses all of the security groups that match the selector. If multiple security groups with the tag `karpenter.sh/discovery/MyClusterName` match the selector, this may result in failures using the AWS Load Balancer controller. The Load Balancer controller only supports a single security group having that tag key. See this [issue](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2367) for more details.
+{{% /alert %}}
 
 To verify if this restriction affects you, run the following commands.
 ```bash
@@ -291,7 +327,7 @@ Karpenter supports accelerators, such as GPUs.
 
 Additionally, include a resource requirement in the workload manifest. This will cause the GPU dependent pod will be scheduled onto the appropriate node.
 
-*Accelerator resource in workload manifest (e.g., pod)*
+Here is an example of an accelerator resource in a workload manifest (e.g., pod):
 
 ```yaml
 spec:

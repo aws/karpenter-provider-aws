@@ -97,7 +97,7 @@ func (s *ProvisionerSpec) validateTaints() (errs *apis.FieldError) {
 	return errs
 }
 
-func (s *ProvisionerSpec) validateTaintsField(taints Taints, existing map[taintKeyEffect]struct{}, fieldName string) *apis.FieldError {
+func (s *ProvisionerSpec) validateTaintsField(taints []v1.Taint, existing map[taintKeyEffect]struct{}, fieldName string) *apis.FieldError {
 	var errs *apis.FieldError
 	for i, taint := range taints {
 		// Validate Key
@@ -134,24 +134,32 @@ func (s *ProvisionerSpec) validateTaintsField(taints Taints, existing map[taintK
 // This function is used by the provisioner validation webhook to verify the provisioner requirements.
 // When this function is called, the provisioner's requirments do not include the requirements from labels.
 // Provisioner requirements only support well known labels.
-func (s *ProvisionerSpec) validateRequirements() (errs *apis.FieldError) {
-	var err error
-	for _, requirement := range s.Requirements.Requirements {
+func (s *ProvisionerSpec) validateRequirements() *apis.FieldError {
+	var errs error
+	for _, requirement := range s.Requirements {
 		// Ensure requirements operator is allowed
 		if !SupportedProvisionerOps.Has(string(requirement.Operator)) {
-			err = multierr.Append(err, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
+			errs = multierr.Append(errs, fmt.Errorf("key %s has an unsupported operator %s, provisioner only supports %s", requirement.Key, requirement.Operator, SupportedProvisionerOps.UnsortedList()))
 		}
 		if e := IsRestrictedLabel(requirement.Key); e != nil {
-			err = multierr.Append(err, e)
+			errs = multierr.Append(errs, e)
 		}
 		// We don't support a 'NotExists' operator, but this turns into an empty set of values by re-building node selector requirements
 		if requirement.Operator == v1.NodeSelectorOpIn && len(requirement.Values) == 0 {
-			err = multierr.Append(err, fmt.Errorf("key %s is unsatisfiable due to unsupported operator or no values being provided", requirement.Key))
+			errs = multierr.Append(errs, fmt.Errorf("key %s is unsatisfiable due to unsupported operator or no values being provided", requirement.Key))
+		}
+		for _, err := range validation.IsQualifiedName(requirement.Key) {
+			errs = multierr.Append(errs, fmt.Errorf("key %s is not a qualified name, %s", requirement.Key, err))
+		}
+		for _, value := range requirement.Values {
+			for _, err := range validation.IsValidLabelValue(value) {
+				errs = multierr.Append(errs, fmt.Errorf("invalid value %s for key %s, %s", value, requirement.Key, err))
+			}
 		}
 	}
-	err = multierr.Append(err, s.Requirements.Validate())
-	if err != nil {
-		errs = errs.Also(apis.ErrInvalidValue(err, "requirements"))
+	var result *apis.FieldError
+	if errs != nil {
+		result = result.Also(apis.ErrInvalidValue(errs, "requirements"))
 	}
-	return errs
+	return result
 }

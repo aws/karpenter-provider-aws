@@ -17,8 +17,6 @@ package scheduling
 import (
 	"math"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-
 	"github.com/mitchellh/hashstructure/v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
@@ -107,7 +106,7 @@ func (t *TopologyGroup) Record(domains ...string) {
 
 // Counts returns true if the pod would count for the topology, given that it schedule to a node with the provided
 // requirements
-func (t *TopologyGroup) Counts(pod *v1.Pod, requirements v1alpha5.Requirements) bool {
+func (t *TopologyGroup) Counts(pod *v1.Pod, requirements scheduling.Requirements) bool {
 	return t.selects(pod) && t.nodeFilter.MatchesRequirements(requirements)
 }
 

@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/config"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -50,10 +52,10 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
+		provisioner: NewProvisioner(ctx, cfg, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
 		recorder:    recorder,
 	}
 }
@@ -77,6 +79,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if err := validate(pod); err != nil {
+		return reconcile.Result{}, nil
+	}
+	// Ensure pvcs exist if requested by a pod
+	if err := c.provisioner.volumeTopology.validatePersistentVolumeClaims(ctx, pod); err != nil {
 		return reconcile.Result{}, nil
 	}
 	// Enqueue to the provisioner

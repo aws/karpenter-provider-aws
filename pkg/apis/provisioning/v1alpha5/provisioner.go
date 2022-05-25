@@ -15,7 +15,9 @@ limitations under the License.
 package v1alpha5
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // ProvisionerSpec is the top level provisioner specification. Provisioners
@@ -23,8 +25,33 @@ import (
 // is capable of managing a diverse set of nodes. Node properties are determined
 // from a combination of provisioner and pod scheduling constraints.
 type ProvisionerSpec struct {
-	// Constraints are applied to all nodes launched by this provisioner.
-	Constraints `json:",inline"`
+	// Labels are layered with Requirements and applied to every node.
+	//+optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// Taints will be applied to every node launched by the Provisioner. If
+	// specified, the provisioner will not provision nodes for pods that do not
+	// have matching tolerations. Additional taints will be created that match
+	// pod tolerations on a per-node basis.
+	// +optional
+	Taints []v1.Taint `json:"taints,omitempty"`
+	// StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+	// within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
+	// daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
+	// purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
+	// +optional
+	StartupTaints []v1.Taint `json:"startupTaints,omitempty"`
+	// Requirements are layered with Labels and applied to every node.
+	Requirements []v1.NodeSelectorRequirement `json:"requirements,omitempty"`
+	// KubeletConfiguration are options passed to the kubelet when provisioning nodes
+	//+optional
+	KubeletConfiguration *KubeletConfiguration `json:"kubeletConfiguration,omitempty"`
+	// Provider contains fields specific to your cloudprovider.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Provider *Provider `json:"provider,omitempty"`
+	// ProviderRef is a reference to a dedicated CRD for the chosen provider, that holds
+	// additional configuration options
+	// +optional
+	ProviderRef *ProviderRef `json:"providerRef,omitempty"`
 	// TTLSecondsAfterEmpty is the number of seconds the controller will wait
 	// before attempting to delete a node, measured from when the node is
 	// detected to be empty. A Node is considered to be empty when it does not
@@ -43,6 +70,29 @@ type ProvisionerSpec struct {
 	TTLSecondsUntilExpired *int64 `json:"ttlSecondsUntilExpired,omitempty"`
 	// Limits define a set of bounds for provisioning capacity.
 	Limits *Limits `json:"limits,omitempty"`
+}
+
+// +kubebuilder:object:generate=false
+type Provider = runtime.RawExtension
+
+type ProviderRef struct {
+	// Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+	Kind string `json:"kind,omitempty"`
+	// Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names
+	Name string `json:"name,omitempty"`
+	// API version of the referent
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+}
+
+// KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
+// They are a subset of the upstream types, recognizing not all options may be supported.
+// Wherever possible, the types and names should reflect the upstream kubelet types.
+type KubeletConfiguration struct {
+	// clusterDNS is a list of IP addresses for the cluster DNS server.
+	// Note that not all providers may use all addresses.
+	//+optional
+	ClusterDNS []string `json:"clusterDNS,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API

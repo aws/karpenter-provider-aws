@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	stringsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -28,14 +28,14 @@ var (
 	OperatingSystemLinux = "linux"
 
 	// ValidTopologyKeys are the topology keys that Karpenter allows for topology spread and pod affinity/anti-affinity
-	ValidTopologyKeys = stringsets.NewString(v1.LabelHostname, v1.LabelTopologyZone, LabelCapacityType)
+	ValidTopologyKeys = sets.NewString(v1.LabelHostname, v1.LabelTopologyZone, LabelCapacityType)
 
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 
 	// RestrictedLabelDomains are either prohibited by the kubelet or reserved by karpenter
-	RestrictedLabelDomains = stringsets.NewString(
+	RestrictedLabelDomains = sets.NewString(
 		"kubernetes.io",
 		"k8s.io",
 		KarpenterLabelDomain,
@@ -43,14 +43,14 @@ var (
 
 	// LabelDomainException are sub-domains of the RestrictedLabelDomains but allowed because
 	// they are not used in a context where they may be passed as argument to kubelet.
-	LabelDomainExceptions = stringsets.NewString(
+	LabelDomainExceptions = sets.NewString(
 		"kops.k8s.io",
 	)
 
 	// WellKnownLabels are labels that belong to the RestrictedLabelDomains but allowed.
 	// Karpenter is aware of these labels, and they can be used to further narrow down
 	// the range of the corresponding values by either provisioner or pods.
-	WellKnownLabels = stringsets.NewString(
+	WellKnownLabels = sets.NewString(
 		v1.LabelTopologyZone,
 		v1.LabelInstanceTypeStable,
 		v1.LabelArchStable,
@@ -60,7 +60,7 @@ var (
 
 	// RestrictedLabels are labels that should not be used
 	// because they may interfer the internall provisioning logic.
-	RestrictedLabels = stringsets.NewString(
+	RestrictedLabels = sets.NewString(
 		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
@@ -77,7 +77,7 @@ var (
 	}
 	// IgnoredLables are not considered in scheduling decisions
 	// and prevent validation errors when specified
-	IgnoredLabels = stringsets.NewString(
+	IgnoredLabels = sets.NewString(
 		v1.LabelTopologyRegion,
 	)
 )
