@@ -57,6 +57,7 @@ var cluster *state.Cluster
 var nodeStateController *state.NodeController
 var podStateController *state.PodController
 var recorder *test.EventRecorder
+var cfg *test.Config
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -72,7 +73,8 @@ var _ = BeforeSuite(func() {
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
+		cfg = test.NewConfig()
+		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProv, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

@@ -17,11 +17,8 @@ package provisioning
 import (
 	"context"
 	"time"
-)
 
-var (
-	MaxBatchDuration  = time.Second * 10
-	BatchIdleDuration = time.Second * 1
+	"github.com/aws/karpenter/pkg/config"
 )
 
 // Batcher separates a stream of Trigger() calls into windowed slices. The
@@ -31,11 +28,13 @@ type Batcher struct {
 	running   context.Context
 	trigger   chan struct{}
 	immediate chan struct{}
+	config    config.Config
 }
 
 // NewBatcher is a constructor for the Batcher
-func NewBatcher(running context.Context) *Batcher {
+func NewBatcher(running context.Context, cfg config.Config) *Batcher {
 	return &Batcher{
+		config:    cfg,
 		running:   running,
 		trigger:   make(chan struct{}), // triggering shouldn't block
 		immediate: make(chan struct{}),
@@ -76,8 +75,8 @@ func (b *Batcher) Wait() (window time.Duration) {
 		window = time.Since(start)
 	}()
 
-	timeout := time.NewTimer(MaxBatchDuration)
-	idle := time.NewTimer(BatchIdleDuration)
+	timeout := time.NewTimer(b.config.BatchMaxDuration())
+	idle := time.NewTimer(b.config.BatchIdleDuration())
 	for {
 		select {
 		case <-b.trigger:
@@ -88,7 +87,7 @@ func (b *Batcher) Wait() (window time.Duration) {
 			if !idle.Stop() {
 				<-idle.C
 			}
-			idle.Reset(BatchIdleDuration)
+			idle.Reset(b.config.BatchIdleDuration())
 		case <-b.immediate:
 			return
 		case <-timeout.C:
