@@ -12,7 +12,7 @@ Reasons for constraining where your pods run could include:
 
 * Needing to run in zones where dependent applications or storage are available
 * Requiring certain kinds of processors or other hardware
-* Wanting to use techniques like topology spread to help insure high availability
+* Wanting to use techniques like topology spread to help ensure high availability
 
 Your Cloud Provider defines the first layer of constraints, including all instance types, architectures, zones, and purchase types available to its cloud.
 The cluster administrator adds the next layer of constraints by creating one or more provisioners.
@@ -25,7 +25,7 @@ Constraints you can request include:
 * **Resource requests**: Request that certain amount of memory or CPU be available.
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
-* **Topology spread**: Use topology spread to help insure availability of the application.
+* **Topology spread**: Use topology spread to help ensure availability of the application.
 * **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods. 
 
 Karpenter supports standard Kubernetes scheduling constraints.
@@ -185,7 +185,7 @@ spec:
   taints:
   - key: nvidia.com/gpu
     value: true
-    effect: “NoSchedule”
+    effect: "NoSchedule"
 ```
 
 For a pod to request to run on a node that has provisioner, it could set a toleration as follows:
