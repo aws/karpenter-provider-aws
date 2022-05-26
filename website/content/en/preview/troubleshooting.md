@@ -33,7 +33,7 @@ Using `eksctl` to deploy Karpenter on Fargate as described in [Getting Started w
 "coredns" is now schedulable onto Fargate
 "coredns" is now scheduled onto Fargate
 "coredns" pods are now scheduled onto Fargate
-``
+```
 
 If you don't use `eksctl`, you need to manually patch and restart CoreDNS per instructions in [Create a Fargate pod execution role](https://docs.aws.amazon.com/eks/latest/userguide/fargate-getting-started.html#fargate-sg-pod-execution-role).
 
