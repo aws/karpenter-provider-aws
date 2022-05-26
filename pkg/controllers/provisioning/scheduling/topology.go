@@ -32,7 +32,6 @@ import (
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
@@ -66,7 +65,7 @@ func NewTopology(ctx context.Context, kubeClient client.Client, cluster *state.C
 	// all of the nodes here as these are passed on to topology spreads which
 	// can be limited by node selector/required node affinities.
 	for _, nodeTemplate := range nodeTemplates {
-		for topologyKey := range v1alpha5.ValidTopologyKeys {
+		for topologyKey := range nodeTemplate.Requirements.Keys() {
 			t.domains[topologyKey] = t.domains[topologyKey].Union(nodeTemplate.Requirements.Get(topologyKey).Values())
 		}
 	}

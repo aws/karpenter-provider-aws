@@ -68,6 +68,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 			Labels: map[string]string{
 				v1.LabelTopologyZone:       zone,
 				v1.LabelInstanceTypeStable: instance.Name(),
+				v1.LabelArchStable:         instance.Architecture(),
 				v1alpha5.LabelCapacityType: capacityType,
 			},
 		},
