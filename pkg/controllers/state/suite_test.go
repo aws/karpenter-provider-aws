@@ -17,6 +17,7 @@ package state_test
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"math/rand"
 	"testing"
 
@@ -58,7 +59,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	cluster = state.NewCluster(ctx, env.Client)
+	cluster = state.NewCluster(ctx, env.Client, fake.InstanceTypesAssorted())
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
 })

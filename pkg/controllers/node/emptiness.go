@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -36,6 +38,7 @@ import (
 type Emptiness struct {
 	kubeClient     client.Client
 	firstSeenEmpty sync.Map
+	instanceTypes  map[string]cloudprovider.InstanceType
 }
 
 var initialEmptyDebouncePeriod = 10 * time.Second
@@ -47,7 +50,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		return reconcile.Result{}, nil
 	}
 
-	if !v1alpha5.NodeIsReady(ctx, n, provisioner) {
+	if !cloudprovider.NodeIsReady(n, provisioner, r.instanceTypes[n.Labels[v1.LabelInstanceTypeStable]]) {
 		return reconcile.Result{}, nil
 	}
 	// 2. Remove ttl if not empty

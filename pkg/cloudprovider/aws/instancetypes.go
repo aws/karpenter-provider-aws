@@ -77,11 +77,8 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
-		offerings := p.createOfferings(instanceType, instanceTypeZones[instanceType.Name()])
-		if len(offerings) > 0 {
-			instanceType.AvailableOfferings = offerings
-			result = append(result, instanceType)
-		}
+		instanceType.AvailableOfferings = p.createOfferings(instanceType, instanceTypeZones[instanceType.Name()])
+		result = append(result, instanceType)
 		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 			instanceType.MaxPods = ptr.Int32(110)
 		}

@@ -16,7 +16,6 @@ package provisioning
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -234,10 +233,8 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	if err := mergo.Merge(k8sNode, node.ToNode()); err != nil {
 		return fmt.Errorf("merging cloud provider node, %w", err)
 	}
-
-	if err := createExtendedResourcesAnnotation(k8sNode); err != nil {
-		return fmt.Errorf("applying extended resources annotation, %w", err)
-	}
+	// ensure we clear out the status
+	k8sNode.Status = v1.NodeStatus{}
 
 	// Idempotently create a node. In rare cases, nodes can come online and
 	// self register before the controller is able to register a node object
@@ -253,65 +250,9 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	}
 	logging.FromContext(ctx).Infof("Created %s", node)
 	for _, pod := range node.Pods {
-		p.recorder.PodShouldSchedule(pod, k8sNode)
+		p.recorder.NominatePod(pod, k8sNode)
 	}
 	return nil
-}
-
-func createExtendedResourcesAnnotation(node *v1.Node) error {
-	nonZeroExtendedResources := v1.ResourceList{}
-
-	// ensure that regardless of what the cloud provider returns, we don't put any extended resources
-	// on the node we create
-	extendedNames := map[v1.ResourceName]struct{}{}
-	for name, quantity := range node.Status.Capacity {
-		if isExtendedResource(name) {
-			extendedNames[name] = struct{}{}
-			if !quantity.IsZero() {
-				nonZeroExtendedResources[name] = quantity
-			}
-		}
-	}
-	for name, quantity := range node.Status.Allocatable {
-		if isExtendedResource(name) {
-			extendedNames[name] = struct{}{}
-			if !quantity.IsZero() {
-				nonZeroExtendedResources[name] = quantity
-			}
-		}
-	}
-
-	for resourceName := range extendedNames {
-		delete(node.Status.Allocatable, resourceName)
-		delete(node.Status.Capacity, resourceName)
-	}
-
-	// collect the non-zero extended resources
-	if len(nonZeroExtendedResources) == 0 {
-		return nil
-	}
-
-	encoded, err := json.Marshal(nonZeroExtendedResources)
-	if err != nil {
-		return fmt.Errorf("marshalling extended annotations, %w", err)
-	}
-	if node.Annotations == nil {
-		node.Annotations = map[string]string{}
-	}
-	node.Annotations[v1alpha5.AnnotationExtendedResources] = string(encoded)
-	return nil
-}
-
-// isExtendedResource returns true if the resource is extended and should be annotated on the node as it may be cleared
-// by kubelet at startup
-func isExtendedResource(name v1.ResourceName) bool {
-	switch name {
-	case v1.ResourceCPU, v1.ResourceMemory, v1.ResourcePods, v1.ResourceStorage,
-		v1.ResourceEphemeralStorage:
-		return false
-	default:
-		return true
-	}
 }
 
 func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*scheduling.NodeTemplate) (map[*scheduling.NodeTemplate]v1.ResourceList, error) {

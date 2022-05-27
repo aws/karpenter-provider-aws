@@ -16,9 +16,10 @@ package state
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
 	"sync"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
@@ -37,6 +38,8 @@ type Cluster struct {
 	ctx        context.Context
 	kubeClient client.Client
 
+	instanceTypes map[string]cloudprovider.InstanceType
+
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
 
@@ -46,13 +49,19 @@ type Cluster struct {
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(ctx context.Context, client client.Client) *Cluster {
-	return &Cluster{
-		ctx:        ctx,
-		kubeClient: client,
-		nodes:      map[string]*Node{},
-		bindings:   map[types.NamespacedName]string{},
+func NewCluster(ctx context.Context, client client.Client, instanceTypes []cloudprovider.InstanceType) *Cluster {
+	c := &Cluster{
+		ctx:           ctx,
+		kubeClient:    client,
+		nodes:         map[string]*Node{},
+		bindings:      map[types.NamespacedName]string{},
+		instanceTypes: map[string]cloudprovider.InstanceType{},
 	}
+
+	for _, it := range instanceTypes {
+		c.instanceTypes[it.Name()] = it
+	}
+	return c
 }
 
 // Node is a cached version of a node in the cluster that maintains state which is expensive to compute every time it's
@@ -75,7 +84,8 @@ type Node struct {
 	// Provisioner is the provisioner used to create the node.
 	Provisioner *v1alpha5.Provisioner
 
-	podRequests map[types.NamespacedName]v1.ResourceList
+	podRequests  map[types.NamespacedName]v1.ResourceList
+	InstanceType cloudprovider.InstanceType
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -123,6 +133,7 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 func (c *Cluster) newNode(node *v1.Node) *Node {
 	n := &Node{
 		Node:          node,
+		InstanceType:  c.instanceTypes[node.Labels[v1.LabelInstanceTypeStable]],
 		HostPortUsage: NewHostPortUsage(),
 		podRequests:   map[types.NamespacedName]v1.ResourceList{},
 	}
@@ -168,31 +179,29 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 // getNodeAllocatable gets the allocatable resources for the node.
 func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
 	allocatable := node.Status.Allocatable
+
+	instanceType := c.instanceTypes[node.Labels[v1.LabelInstanceTypeStable]]
+	if instanceType == nil {
+		logging.FromContext(c.ctx).Errorf("unable to find instance type %s", node.Labels[v1.LabelInstanceTypeStable])
+		return allocatable
+	}
 	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
 	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
 	// out the resource.  We don't want to assume that it will always come back.
-	if v1alpha5.NodeIsReady(c.ctx, node, provisioner) {
+	if cloudprovider.NodeIsReady(node, provisioner, instanceType) {
 		return allocatable
 	}
 
-	if extendedResourcesStr, ok := node.Annotations[v1alpha5.AnnotationExtendedResources]; ok {
-		extendedResources := v1.ResourceList{}
-		if err := json.Unmarshal([]byte(extendedResourcesStr), &extendedResources); err != nil {
-			logging.FromContext(c.ctx).Errorf("unmarshalling extended resource information, %s", err)
-			return allocatable
-		}
-
-		allocatable = v1.ResourceList{}
-		for k, v := range node.Status.Allocatable {
-			allocatable[k] = v
-		}
-		for resourceName, quantity := range extendedResources {
-			// kubelet will zero out both the capacity and allocatable for an extended resource on startup
-			if resources.IsZero(node.Status.Capacity[resourceName]) &&
-				resources.IsZero(node.Status.Allocatable[resourceName]) &&
-				!quantity.IsZero() {
-				allocatable[resourceName] = quantity
-			}
+	allocatable = v1.ResourceList{}
+	for k, v := range node.Status.Allocatable {
+		allocatable[k] = v
+	}
+	for resourceName, quantity := range instanceType.Resources() {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			allocatable[resourceName] = quantity
 		}
 	}
 	return allocatable

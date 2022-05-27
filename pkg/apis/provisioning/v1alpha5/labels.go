@@ -31,10 +31,6 @@ var (
 	KarpenterLabelDomain = "karpenter.sh"
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 
-	// AnnotationExtendedResources is used to record the expected extended resources on a node that will be created when
-	// device plugins have finished initializing
-	AnnotationExtendedResources = KarpenterLabelDomain + "/extended-resources"
-
 	// RestrictedLabelDomains are either prohibited by the kubelet or reserved by karpenter
 	RestrictedLabelDomains = sets.NewString(
 		"kubernetes.io",

@@ -49,7 +49,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client)
+		controller = node.NewController(e.Client, nil)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -121,89 +121,6 @@ var _ = Describe("Controller", func() {
 		})
 	})
 
-	Context("Initialization", func() {
-		It("should not remove the readiness annotation if not ready", func() {
-			n := test.Node(test.NodeOptions{
-				ReadyStatus: v1.ConditionUnknown,
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
-				Taints: []v1.Taint{
-					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
-				},
-			})
-			ExpectApplied(ctx, env.Client, provisioner, n)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Annotations).To(HaveKey(v1alpha5.NotReadyAnnotationKey))
-		})
-		It("should remove the readiness annotation if ready", func() {
-			n := test.Node(test.NodeOptions{
-				ReadyStatus: v1.ConditionTrue,
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
-				Taints: []v1.Taint{
-					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
-				},
-			})
-			ExpectApplied(ctx, env.Client, provisioner, n)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.NotReadyAnnotationKey))
-		})
-		It("should do nothing if ready and the readiness taint does not exist", func() {
-			n := test.Node(test.NodeOptions{
-				ReadyStatus: v1.ConditionTrue,
-				ObjectMeta:  metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
-				Taints:      []v1.Taint{{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule}},
-			})
-			ExpectApplied(ctx, env.Client, provisioner, n)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Annotations).ToNot(HaveKey(v1alpha5.NotReadyAnnotationKey))
-		})
-		It("should do nothing if not owned by a provisioner", func() {
-			n := test.Node(test.NodeOptions{
-				ReadyStatus: v1.ConditionTrue,
-				ObjectMeta:  metav1.ObjectMeta{Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"}},
-				Taints: []v1.Taint{
-					{Key: randomdata.SillyName(), Effect: v1.TaintEffectNoSchedule},
-				},
-			})
-			ExpectApplied(ctx, env.Client, provisioner, n)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.Annotations).To(HaveKey(v1alpha5.NotReadyAnnotationKey))
-		})
-		It("should delete nodes if node not ready even after Initialization timeout ", func() {
-			n := test.Node(test.NodeOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Finalizers:  []string{v1alpha5.TerminationFinalizer},
-					Labels:      map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
-					Annotations: map[string]string{v1alpha5.NotReadyAnnotationKey: "true"},
-				},
-				ReadyStatus: v1.ConditionUnknown,
-				ReadyReason: "NodeStatusNeverUpdated",
-			})
-			ExpectApplied(ctx, env.Client, provisioner, n)
-
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(provisioner))
-
-			// Expect node not be deleted
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeTrue())
-
-			// Simulate time passing and a n failing to join
-			injectabletime.Now = func() time.Time { return time.Now().Add(node.InitializationTimeout) }
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
-
-			n = ExpectNodeExists(ctx, env.Client, n.Name)
-			Expect(n.DeletionTimestamp.IsZero()).To(BeFalse())
-		})
-	})
 	Describe("Emptiness", func() {
 		It("should not TTL nodes that have ready status unknown", func() {
 			provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(30)

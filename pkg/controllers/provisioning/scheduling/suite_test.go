@@ -68,7 +68,10 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProv)
-		cluster = state.NewCluster(ctx, e.Client)
+		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx)
+		// set these on the cloud provider so we can manipulate them if needed
+		cloudProv.InstanceTypes = instanceTypes
+		cluster = state.NewCluster(ctx, e.Client, instanceTypes)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
@@ -85,7 +88,8 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	provisioner = test.Provisioner()
 	// reset instance types
-	cloudProv.InstanceTypes = fake.CloudProvider{}.InstanceTypes
+	newCP := fake.CloudProvider{}
+	cloudProv.InstanceTypes, _ = newCP.GetInstanceTypes(context.Background())
 	cloudProv.CreateCalls = nil
 	recorder.Reset()
 })
@@ -3784,14 +3788,10 @@ var _ = Describe("No Pre-Binding", func() {
 	})
 	It("should handle resource zeroing of extended resources by kubelet", func() {
 		// Issue #1459
-		cloudProv.InstanceTypes = fake.InstanceTypes(5)
-		const fakeGPU1 = "karpenter.sh/super-great-gpu"
-		cloudProv.InstanceTypes[0].Resources()[fakeGPU1] = resource.MustParse("25")
-
 		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 			Limits: map[v1.ResourceName]resource.Quantity{
-				v1.ResourceCPU: resource.MustParse("10m"),
-				fakeGPU1:       resource.MustParse("1"),
+				v1.ResourceCPU:             resource.MustParse("10m"),
+				v1alpha1.ResourceNVIDIAGPU: resource.MustParse("1"),
 			},
 		}}
 
@@ -3810,8 +3810,12 @@ var _ = Describe("No Pre-Binding", func() {
 		node1 := &nodeList.Items[0]
 
 		// simulate kubelet zeroing out the extended resources on the node at startup
-		node1.Status.Capacity[fakeGPU1] = resource.MustParse("0")
-		node1.Status.Allocatable[fakeGPU1] = resource.MustParse("0")
+		node1.Status.Capacity = map[v1.ResourceName]resource.Quantity{
+			v1alpha1.ResourceNVIDIAGPU: resource.MustParse("0"),
+		}
+		node1.Status.Allocatable = map[v1.ResourceName]resource.Quantity{
+			v1alpha1.ResourceNVIDIAGPU: resource.MustParse("0"),
+		}
 
 		ExpectApplied(ctx, env.Client, node1)
 

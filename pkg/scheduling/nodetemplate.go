@@ -75,25 +75,9 @@ func (n *NodeTemplate) ToNode() *v1.Node {
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:     labels,
 			Finalizers: []string{v1alpha5.TerminationFinalizer},
-			Annotations: map[string]string{
-				v1alpha5.NotReadyAnnotationKey: "true",
-			},
-		},
-		Status: v1.NodeStatus{
-			// We need to put a not ready condition on the node or else the node-controller will immediately remove
-			// the standard v1.TaintNodeNotReady taint that we add below.
-			Conditions: []v1.NodeCondition{
-				{
-					Type:               v1.NodeReady,
-					Status:             v1.ConditionFalse,
-					LastHeartbeatTime:  metav1.Now(),
-					LastTransitionTime: metav1.Now(),
-					Reason:             "KubeletNotReady",
-				},
-			},
 		},
 		Spec: v1.NodeSpec{
-			Taints: append(append(n.Taints, n.StartupTaints...), v1.Taint{Key: v1.TaintNodeNotReady, Effect: v1.TaintEffectNoSchedule}),
+			Taints: append(n.Taints, n.StartupTaints...),
 		},
 	}
 }

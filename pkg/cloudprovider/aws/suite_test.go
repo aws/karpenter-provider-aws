@@ -17,7 +17,6 @@ package aws
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -68,6 +67,7 @@ var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
+var instanceTypeCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
@@ -101,6 +101,7 @@ var _ = BeforeSuite(func() {
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
+		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
@@ -109,7 +110,7 @@ var _ = BeforeSuite(func() {
 		instanceTypeProvider := &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
-			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+			cache:                instanceTypeCache,
 			unavailableOfferings: unavailableOfferingsCache,
 		}
 		securityGroupProvider := &SecurityGroupProvider{
@@ -132,7 +133,8 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		cluster = state.NewCluster(ctx, e.Client)
+		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background())
+		cluster = state.NewCluster(ctx, e.Client, instanceTypes)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
 		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -222,6 +224,7 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
+				instanceTypeCache.Flush()
 				// ensure the pod ENI option is off
 				optsCopy := opts
 				optsCopy.AWSEnablePodENI = false
@@ -245,6 +248,7 @@ var _ = Describe("Allocation", func() {
 				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 			})
 			It("should launch AWS Pod ENI on a compatible instance type", func() {
+				instanceTypeCache.Flush()
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
@@ -288,8 +292,6 @@ var _ = Describe("Allocation", func() {
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					extendedResources := ExpectExtendedResources(node)
-					Expect(extendedResources).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -321,8 +323,6 @@ var _ = Describe("Allocation", func() {
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					extendedResources := ExpectExtendedResources(node)
-					Expect(extendedResources).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -453,6 +453,54 @@ var _ = Describe("Allocation", func() {
 				pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
+			})
+			It("should return all instance types, even though with no offerings due to Insufficient Capacity Error", func() {
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+					{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+					{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+				})
+				provisioner.Spec.Requirements = nil
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"m5.xlarge"},
+				})
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"spot", "on-demand"},
+				})
+
+				ExpectApplied(ctx, env.Client, provisioner)
+				for _, ct := range []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot} {
+					for _, zone := range []string{"test-zone-1a", "test-zone-1b"} {
+						ExpectProvisioned(ctx, env.Client, controller,
+							test.UnschedulablePod(test.PodOptions{
+								ResourceRequirements: v1.ResourceRequirements{
+									Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+								},
+								NodeSelector: map[string]string{
+									v1alpha5.LabelCapacityType: ct,
+									v1.LabelTopologyZone:       zone,
+								},
+							}))
+					}
+				}
+
+				instanceTypeCache.Flush()
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx)
+				Expect(err).To(BeNil())
+				instanceTypeNames := sets.NewString()
+				for _, it := range instanceTypes {
+					instanceTypeNames.Insert(it.Name())
+					if it.Name() == "m5.xlarge" {
+						// should have no valid offerings
+						Expect(it.Offerings()).To(HaveLen(0))
+					}
+				}
+				Expect(instanceTypeNames.Has("m5.xlarge"))
 			})
 		})
 		Context("CapacityType", func() {
@@ -1435,12 +1483,6 @@ var _ = Describe("Allocation", func() {
 		})
 	})
 })
-
-func ExpectExtendedResources(node *v1.Node) v1.ResourceList {
-	extended := v1.ResourceList{}
-	Expect(json.Unmarshal([]byte(node.Annotations[v1alpha5.AnnotationExtendedResources]), &extended)).To(Succeed())
-	return extended
-}
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {

@@ -19,9 +19,9 @@ import v1 "k8s.io/api/core/v1"
 // Recorder is used to record events that occur about pods so they can be viewed by looking at the pod's events so our
 // actions are more observable without requiring log inspection
 type Recorder interface {
-	// PodShouldSchedule is called when we have determined that a pod should schedule against an existing node and don't
+	// NominatePod is called when we have determined that a pod should schedule against an existing node and don't
 	// currently need to provision new capacity for the pod.
-	PodShouldSchedule(pod *v1.Pod, node *v1.Node)
+	NominatePod(pod *v1.Pod, node *v1.Node)
 	// PodFailedToSchedule is called when a pod has failed to schedule entirely.
 	PodFailedToSchedule(pod *v1.Pod, err error)
 }
@@ -31,5 +31,5 @@ type Recorder interface {
 type NoOpRecorder struct {
 }
 
-func (n *NoOpRecorder) PodShouldSchedule(pod *v1.Pod, node *v1.Node) {}
-func (n *NoOpRecorder) PodFailedToSchedule(pod *v1.Pod, err error)   {}
+func (n *NoOpRecorder) NominatePod(pod *v1.Pod, node *v1.Node)     {}
+func (n *NoOpRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
