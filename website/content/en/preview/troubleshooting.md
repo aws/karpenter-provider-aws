@@ -26,7 +26,8 @@ sudo journalctl -u kubelet
 ```
 ## CoreDNS issues deploying Karpenter on Fargate
 
-Karpenter deployments on Fargate can fail if the latest CoreDSN is not used.
+Karpenter deployments on Fargate can fail if CoreDNS has nowhere to run.
+It can be configured to run on either Fargate itself or in a managed node group.
 Using `eksctl` to deploy Karpenter on Fargate as described in [Getting Started with eksctl]({{<ref "./getting-started/getting-started-with-eksctl/" >}}) causes `eksctl` to patch and restart the latest CoreDNS in the `kube-system` namespace on Fargate. You will see these messages during cluster creation:
 
 ```
