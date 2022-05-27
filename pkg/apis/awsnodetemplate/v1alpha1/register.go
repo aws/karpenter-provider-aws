@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	Group              = "karpenter.k8s.aws"
+	Group              = "karpenter.amazonaws.com"
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1alpha1"}
 	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 		scheme.AddKnownTypes(SchemeGroupVersion,

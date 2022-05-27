@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: awsnodetemplate.karpenter.k8s.aws
+  name: awsnodetemplate.karpenter.amazonaws.com
 spec:
-  group: karpenter.k8s.aws
+  group: karpenter.amazonaws.com
   names:
     categories:
     - karpenter
