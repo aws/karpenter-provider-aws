@@ -18,7 +18,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -52,6 +54,7 @@ import (
 )
 
 var ctx context.Context
+var stop context.CancelFunc
 var opts options.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
@@ -84,7 +87,8 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
-
+		ctx, cancelFunc := context.WithCancel(ctx)
+		stop = cancelFunc
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -112,7 +116,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache),
+					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, e.Client),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -131,6 +135,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	stop()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
@@ -799,6 +804,92 @@ var _ = Describe("Allocation", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
+			})
+			Context("Bottlerocket", func() {
+				It("should merge in custom user data", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String(string(content)),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ = ioutil.ReadFile("testdata/br_userdata_merged.golden")
+					// Newlines are always added for missing TOML fields, so strip them out before comparisons.
+					actualUserData := strings.Replace(string(userData), "\n", "", -1)
+					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
+					Expect(expectedUserData).To(Equal(actualUserData))
+				})
+				It("should bootstrap when custom user data is empty", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   nil,
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ := ioutil.ReadFile("testdata/br_userdata_unmerged.golden")
+					actualUserData := strings.Replace(string(userData), "\n", "", -1)
+					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
+					Expect(expectedUserData).To(Equal(actualUserData))
+				})
+				It("should not bootstrap when provider ref points to a non-existent resource", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRef := &v1alpha5.ProviderRef{
+						Name: "doesnotexist",
+					}
+					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+				It("should not bootstrap on invalid toml user data", func() {
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since userData cannot be generated for the prospective node.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {

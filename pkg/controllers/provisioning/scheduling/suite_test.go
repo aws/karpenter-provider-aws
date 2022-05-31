@@ -1372,6 +1372,47 @@ var _ = Describe("Topology", func() {
 			)
 			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2))
 		})
+		It("should balance pods across arch (no constraints)", func() {
+			rr := v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
+			}
+			ExpectApplied(ctx, env.Client, provisioner)
+			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"amd64"},
+					},
+				},
+			}))
+
+			ExpectScheduled(ctx, env.Client, pod[0])
+
+			topology := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelArchStable,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: labels},
+				MaxSkew:           1,
+			}}
+
+			// limit our provisioner to only creating arm64 nodes
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{"arm64"}}}
+
+			// since there is no node selector on this pod, the topology can see the single on-demand node that already
+			// exists and that limits us to scheduling 2 more spot pods before we would violate max-skew
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller,
+				MakePods(5, test.PodOptions{
+					ObjectMeta:                metav1.ObjectMeta{Labels: labels},
+					ResourceRequirements:      rr,
+					TopologySpreadConstraints: topology,
+				})...,
+			)
+			ExpectSkew(ctx, env.Client, "default", &topology[0]).To(ConsistOf(1, 2))
+		})
 	})
 
 	Context("Combined Hostname and Zonal Topology", func() {
@@ -1753,6 +1794,43 @@ var _ = Describe("Topology", func() {
 			// should be scheduled on the same node
 			Expect(n1.Name).To(Equal(n2.Name))
 		})
+		It("should respect pod affinity (arch)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			tsc := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: affLabels},
+				MaxSkew:           1,
+			}}
+
+			affPod1 := test.UnschedulablePod(test.PodOptions{
+				TopologySpreadConstraints: tsc,
+				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				NodeSelector: map[string]string{
+					v1.LabelArchStable: "arm64",
+				}})
+			// affPod2 will try to get scheduled with affPod1
+			affPod2 := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				TopologySpreadConstraints: tsc,
+				PodRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelArchStable,
+				}}})
+
+			pods := []*v1.Pod{affPod1, affPod2}
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pods...)
+			n1 := ExpectScheduled(ctx, env.Client, affPod1)
+			n2 := ExpectScheduled(ctx, env.Client, affPod2)
+			// should be scheduled on a node with the same arch
+			Expect(n1.Labels[v1.LabelArchStable]).To(Equal(n2.Labels[v1.LabelArchStable]))
+			// but due to TSC, not on the same node
+			Expect(n1.Name).ToNot(Equal(n2.Name))
+		})
 		It("should respect self pod affinity (hostname)", func() {
 			affLabels := map[string]string{"security": "s2"}
 
@@ -2064,6 +2142,41 @@ var _ = Describe("Topology", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			// the pod with anti-affinity
 			ExpectNotScheduled(ctx, env.Client, affPod)
+		})
+		It("should not violate pod anti-affinity (arch)", func() {
+			affLabels := map[string]string{"security": "s2"}
+			tsc := []v1.TopologySpreadConstraint{{
+				TopologyKey:       v1.LabelHostname,
+				WhenUnsatisfiable: v1.DoNotSchedule,
+				LabelSelector:     &metav1.LabelSelector{MatchLabels: affLabels},
+				MaxSkew:           1,
+			}}
+
+			affPod1 := test.UnschedulablePod(test.PodOptions{
+				TopologySpreadConstraints: tsc,
+				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				NodeSelector: map[string]string{
+					v1.LabelArchStable: "arm64",
+				}})
+			// affPod2 will try to get scheduled with affPod1
+			affPod2 := test.UnschedulablePod(test.PodOptions{
+				ObjectMeta:                metav1.ObjectMeta{Labels: affLabels},
+				TopologySpreadConstraints: tsc,
+				PodAntiRequirements: []v1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: affLabels,
+					},
+					TopologyKey: v1.LabelArchStable,
+				}}})
+
+			pods := []*v1.Pod{affPod1, affPod2}
+
+			ExpectApplied(ctx, env.Client, provisioner)
+			ExpectProvisioned(ctx, env.Client, controller, pods...)
+			n1 := ExpectScheduled(ctx, env.Client, affPod1)
+			n2 := ExpectScheduled(ctx, env.Client, affPod2)
+			// should not be scheduled on nodes with the same arch
+			Expect(n1.Labels[v1.LabelArchStable]).ToNot(Equal(n2.Labels[v1.LabelArchStable]))
 		})
 		It("should violate preferred pod anti-affinity on zone (inverse)", func() {
 			affLabels := map[string]string{"security": "s2"}
@@ -3724,15 +3837,10 @@ func ExpectSkew(ctx context.Context, c client.Client, namespace string, constrai
 		}
 		for _, node := range nodes.Items {
 			if pod.Spec.NodeName == node.Name {
-				if constraint.TopologyKey == v1.LabelHostname {
+				switch constraint.TopologyKey {
+				case v1.LabelHostname:
 					skew[node.Name]++ // Check node name since hostname labels aren't applied
-				}
-				if constraint.TopologyKey == v1.LabelTopologyZone {
-					if key, ok := node.Labels[constraint.TopologyKey]; ok {
-						skew[key]++
-					}
-				}
-				if constraint.TopologyKey == v1alpha5.LabelCapacityType {
+				default:
 					if key, ok := node.Labels[constraint.TopologyKey]; ok {
 						skew[key]++
 					}

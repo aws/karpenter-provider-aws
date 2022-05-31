@@ -18,7 +18,7 @@ Karpenter works by:
 * **Scheduling** the pods to run on the new nodes
 * **Removing** the nodes when the nodes are no longer needed
 
-As someone using Karpenter, once your Kubernetes cluster and the Karpenter controller are up and running (see [Getting Started]({{<ref "./getting-started" >}}), you can:
+As someone using Karpenter, once your Kubernetes cluster and the Karpenter controller are up and running (see [Getting Started]({{<ref "./getting-started" >}})), you can:
 
 * **Set up provisioners**: By applying a provisioner to Karpenter, you can configure constraints on node provisioning and set timeout values for node expiry or Kubelet configuration values.
 Provisioner-level constraints related to Kubernetes and your cloud provider (AWS, for example) include:

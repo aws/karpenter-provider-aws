@@ -1,0 +1,4 @@
+[settings.kubernetes.eviction-hard]
+"memory.available" = "12%"
+[settings.kubernetes]
+"unknown-setting" = "unknown"

@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -25,41 +26,23 @@ type Bottlerocket struct {
 	Options
 }
 
-// config is the root of the bottlerocket config, see more here https://github.com/bottlerocket-os/bottlerocket#using-user-data
-type config struct {
-	Settings settings `toml:"settings"`
-}
+func (b Bottlerocket) Script() (string, error) {
+	s, err := b.unmarshalCustomUserData()
+	if err != nil {
+		return "", fmt.Errorf("invalid UserData %w", err)
+	}
+	// Karpenter will overwrite settings present inside custom UserData
+	// based on other fields specified in the provisioner
+	s.Settings.Kubernetes.ClusterName = &b.ClusterName
+	s.Settings.Kubernetes.APIServer = b.ClusterEndpoint
+	s.Settings.Kubernetes.ClusterCertificate = b.CABundle
+	s.Settings.Kubernetes.NodeLabels = b.Labels
 
-// settings is part of the bottlerocket config
-type settings struct {
-	Kubernetes kubernetes `toml:"kubernetes"`
-}
-
-// kubernetes specific configuration for bottlerocket api
-type kubernetes struct {
-	APIServer          string              `toml:"api-server"`
-	ClusterCertificate *string             `toml:"cluster-certificate"`
-	ClusterName        string              `toml:"cluster-name,omitempty"`
-	ClusterDNSIP       string              `toml:"cluster-dns-ip,omitempty"`
-	NodeLabels         map[string]string   `toml:"node-labels,omitempty"`
-	NodeTaints         map[string][]string `toml:"node-taints,omitempty"`
-	MaxPods            int                 `toml:"max-pods,omitempty"`
-}
-
-func (b Bottlerocket) Script() string {
-	s := config{Settings: settings{
-		Kubernetes: kubernetes{
-			ClusterName:        b.ClusterName,
-			APIServer:          b.ClusterEndpoint,
-			ClusterCertificate: b.CABundle,
-			NodeLabels:         b.Labels,
-		},
-	}}
 	if b.KubeletConfig != nil && len(b.KubeletConfig.ClusterDNS) > 0 {
-		s.Settings.Kubernetes.ClusterDNSIP = b.KubeletConfig.ClusterDNS[0]
+		s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
 	}
 	if !b.AWSENILimitedPodDensity {
-		s.Settings.Kubernetes.MaxPods = 110
+		s.Settings.Kubernetes.MaxPods = aws.Int(110)
 	}
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
 	for _, taint := range b.Taints {
@@ -67,7 +50,19 @@ func (b Bottlerocket) Script() string {
 	}
 	script, err := toml.Marshal(s)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("constructing toml UserData %w", err)
 	}
-	return base64.StdEncoding.EncodeToString(script)
+	return base64.StdEncoding.EncodeToString(script), nil
+}
+
+func (b Bottlerocket) unmarshalCustomUserData() (config, error) {
+	var c config
+	if b.CustomUserData == nil {
+		return c, nil
+	}
+	err := toml.Unmarshal([]byte(*b.CustomUserData), &c)
+	if err != nil {
+		return c, err
+	}
+	return c, nil
 }

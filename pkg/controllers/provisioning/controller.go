@@ -106,30 +106,12 @@ func isProvisionable(p *v1.Pod) bool {
 func validate(p *v1.Pod) error {
 	return multierr.Combine(
 		validateAffinity(p),
-		validateTopology(p),
 	)
-}
-
-func validateTopology(pod *v1.Pod) (errs error) {
-	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if !v1alpha5.ValidTopologyKeys.Has(constraint.TopologyKey) {
-			errs = multierr.Append(errs, fmt.Errorf("unsupported topology spread constraint key, %s not in %s", constraint.TopologyKey, v1alpha5.ValidTopologyKeys))
-		}
-	}
-	return errs
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {
 	if p.Spec.Affinity == nil {
 		return nil
-	}
-	if p.Spec.Affinity.PodAffinity != nil {
-		for _, term := range p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validatePodAffinityTerm(term))
-		}
-		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validatePodAffinityTerm(term.PodAffinityTerm))
-		}
 	}
 	if p.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
@@ -142,13 +124,6 @@ func validateAffinity(p *v1.Pod) (errs error) {
 		}
 	}
 	return errs
-}
-
-func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
-	if !v1alpha5.ValidTopologyKeys.Has(term.TopologyKey) {
-		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, v1alpha5.ValidTopologyKeys)
-	}
-	return nil
 }
 
 func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {

@@ -93,7 +93,7 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				ctx,
 				ec2api,
 				options.ClientSet,
-				amifamily.New(ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval)),
+				amifamily.New(ctx, ssm.New(sess), cache.New(CacheTTL, CacheCleanupInterval), options.KubeClient),
 				NewSecurityGroupProvider(ec2api),
 				getCABundle(ctx),
 			),
@@ -120,20 +120,26 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	requirements := cloudprovider.InstanceTypeRequirements(instanceTypes)
+
 	awsprovider, err := v1alpha1.Deserialize(provider)
 	if err != nil {
-		return scheduling.NewRequirements(), apis.ErrGeneric(err.Error())
+		return nil, apis.ErrGeneric(err.Error())
 	}
 	// Constrain AZs from subnets
 	subnets, err := c.subnetProvider.Get(ctx, awsprovider)
 	if err != nil {
-		return scheduling.NewRequirements(), err
+		return nil, err
 	}
 	zones := sets.NewSet()
 	for _, subnet := range subnets {
 		zones.Insert(aws.StringValue(subnet.AvailabilityZone))
 	}
-	requirements := scheduling.Requirements{v1.LabelTopologyZone: zones}
+	requirements.Add(scheduling.Requirements{v1.LabelTopologyZone: zones})
 	return requirements, nil
 }
 
