@@ -41,14 +41,10 @@ import (
 const controllerName = "node"
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, instanceTypes []cloudprovider.InstanceType) *Controller {
-	instanceTypeMap := map[string]cloudprovider.InstanceType{}
-	for _, instanceType := range instanceTypes {
-		instanceTypeMap[instanceType.Name()] = instanceType
-	}
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient: kubeClient,
-		emptiness:  &Emptiness{kubeClient: kubeClient, instanceTypes: instanceTypeMap},
+		emptiness:  &Emptiness{kubeClient: kubeClient, cloudProvider: cloudProvider},
 		expiration: &Expiration{kubeClient: kubeClient},
 	}
 }

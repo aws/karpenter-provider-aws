@@ -16,6 +16,7 @@ package state
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -35,10 +36,9 @@ import (
 
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
-	ctx        context.Context
-	kubeClient client.Client
-
-	instanceTypes map[string]cloudprovider.InstanceType
+	ctx           context.Context
+	kubeClient    client.Client
+	cloudProvider cloudprovider.CloudProvider
 
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
@@ -49,17 +49,13 @@ type Cluster struct {
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(ctx context.Context, client client.Client, instanceTypes []cloudprovider.InstanceType) *Cluster {
+func NewCluster(ctx context.Context, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
 	c := &Cluster{
 		ctx:           ctx,
 		kubeClient:    client,
+		cloudProvider: cp,
 		nodes:         map[string]*Node{},
 		bindings:      map[types.NamespacedName]string{},
-		instanceTypes: map[string]cloudprovider.InstanceType{},
-	}
-
-	for _, it := range instanceTypes {
-		c.instanceTypes[it.Name()] = it
 	}
 	return c
 }
@@ -133,7 +129,6 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 func (c *Cluster) newNode(node *v1.Node) *Node {
 	n := &Node{
 		Node:          node,
-		InstanceType:  c.instanceTypes[node.Labels[v1.LabelInstanceTypeStable]],
 		HostPortUsage: NewHostPortUsage(),
 		podRequests:   map[types.NamespacedName]v1.ResourceList{},
 	}
@@ -146,6 +141,13 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		} else {
 			n.Provisioner = &provisioner
 		}
+	}
+
+	var err error
+
+	n.InstanceType, err = c.getInstanceType(c.ctx, n.Provisioner, node.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		logging.FromContext(c.ctx).Errorf("getting instance type, %s", err)
 	}
 
 	var pods v1.PodList
@@ -178,21 +180,20 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 
 // getNodeAllocatable gets the allocatable resources for the node.
 func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
-	allocatable := node.Status.Allocatable
-
-	instanceType := c.instanceTypes[node.Labels[v1.LabelInstanceTypeStable]]
-	if instanceType == nil {
-		logging.FromContext(c.ctx).Errorf("unable to find instance type %s", node.Labels[v1.LabelInstanceTypeStable])
-		return allocatable
+	instanceType, err := c.getInstanceType(c.ctx, provisioner, node.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		logging.FromContext(c.ctx).Errorf("error finding instance type, %s", err)
+		return node.Status.Allocatable
 	}
+
 	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
 	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
 	// out the resource.  We don't want to assume that it will always come back.
 	if cloudprovider.NodeIsReady(node, provisioner, instanceType) {
-		return allocatable
+		return node.Status.Allocatable
 	}
 
-	allocatable = v1.ResourceList{}
+	allocatable := v1.ResourceList{}
 	for k, v := range node.Status.Allocatable {
 		allocatable[k] = v
 	}
@@ -329,4 +330,21 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	}
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
+}
+
+func (c *Cluster) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
+	if provisioner == nil || provisioner.Spec.Provider == nil {
+		// no provisioner means we cant lookup the instance type
+		return nil, nil
+	}
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	if err != nil {
+		return nil, err
+	}
+	for _, it := range instanceTypes {
+		if it.Name() == instanceTypeName {
+			return it, nil
+		}
+	}
+	return nil, fmt.Errorf("instance type '%s' not found", instanceTypeName)
 }

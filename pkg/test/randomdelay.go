@@ -17,12 +17,13 @@ limitations under the License.
 package test
 
 import (
-	"github.com/onsi/ginkgo"
-	"github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 )
 
 // If the random_test_delay build flag is used, every Expect() call gets an additional random delay added to it.  This

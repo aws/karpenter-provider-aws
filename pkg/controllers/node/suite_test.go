@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
+
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/node"
@@ -48,8 +50,9 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
-		controller = node.NewController(e.Client, nil)
+		controller = node.NewController(e.Client, &fake.CloudProvider{})
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })

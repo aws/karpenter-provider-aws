@@ -17,9 +17,12 @@ package state_test
 import (
 	"context"
 	"fmt"
-	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 	"math/rand"
 	"testing"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/fake"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -42,6 +45,8 @@ var env *test.Environment
 var cluster *state.Cluster
 var nodeController *state.NodeController
 var podController *state.PodController
+var cloudProvider *fake.CloudProvider
+var provisioner *v1alpha5.Provisioner
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -59,9 +64,12 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	cluster = state.NewCluster(ctx, env.Client, fake.InstanceTypesAssorted())
+	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
+	cluster = state.NewCluster(ctx, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
+	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	ExpectApplied(ctx, env.Client, provisioner)
 })
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
@@ -81,9 +89,11 @@ var _ = Describe("Node Resource Level", func() {
 					v1.ResourceCPU: resource.MustParse("2"),
 				}},
 		})
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1, pod2)
 		ExpectApplied(ctx, env.Client, node)
 
@@ -107,9 +117,11 @@ var _ = Describe("Node Resource Level", func() {
 					v1.ResourceCPU: resource.MustParse("2"),
 				}},
 		})
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1, pod2)
 		ExpectApplied(ctx, env.Client, node)
 
@@ -140,9 +152,11 @@ var _ = Describe("Node Resource Level", func() {
 					v1.ResourceCPU: resource.MustParse("2"),
 				}},
 		})
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 
 		// simulate a node that already exists in our cluster
 		ExpectApplied(ctx, env.Client, pod1, pod2)
@@ -167,9 +181,11 @@ var _ = Describe("Node Resource Level", func() {
 					v1.ResourceCPU: resource.MustParse("2"),
 				}},
 		})
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1, pod2)
 		ExpectApplied(ctx, env.Client, node)
 
@@ -200,9 +216,11 @@ var _ = Describe("Node Resource Level", func() {
 					v1.ResourceCPU: resource.MustParse("1.5"),
 				}},
 		})
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1)
 		ExpectApplied(ctx, env.Client, node)
 
@@ -237,9 +255,11 @@ var _ = Describe("Node Resource Level", func() {
 				}},
 		})
 
-		node1 := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node1 := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1, node1)
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node1))
 		ExpectReconcileSucceeded(ctx, podController, client.ObjectKeyFromObject(pod1))
@@ -258,9 +278,11 @@ var _ = Describe("Node Resource Level", func() {
 		ExpectDeleted(ctx, env.Client, pod1)
 
 		// second node has more capacity
-		node2 := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("8"),
-		}})
+		node2 := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("8"),
+			}})
 
 		// and the pod can only bind to node2 due to the resource request
 		pod2 := test.UnschedulablePod(test.PodOptions{
@@ -302,10 +324,12 @@ var _ = Describe("Node Resource Level", func() {
 					}},
 			}))
 		}
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU:  resource.MustParse("200"),
-			v1.ResourcePods: resource.MustParse("500"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:  resource.MustParse("200"),
+				v1.ResourcePods: resource.MustParse("500"),
+			}})
 		ExpectApplied(ctx, env.Client, node)
 		ExpectNodeResourceRequest(node, v1.ResourceCPU, "0.0")
 		ExpectNodeResourceRequest(node, v1.ResourcePods, "0")
@@ -376,10 +400,12 @@ var _ = Describe("Node Resource Level", func() {
 			BlockOwnerDeletion: aws.Bool(true),
 		})
 
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU:    resource.MustParse("4"),
-			v1.ResourceMemory: resource.MustParse("8Gi"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU:    resource.MustParse("4"),
+				v1.ResourceMemory: resource.MustParse("8Gi"),
+			}})
 		ExpectApplied(ctx, env.Client, pod1, node)
 		ExpectReconcileSucceeded(ctx, nodeController, client.ObjectKeyFromObject(node))
 
@@ -423,9 +449,11 @@ var _ = Describe("Pod Anti-Affinity", func() {
 			},
 		})
 
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
@@ -460,9 +488,11 @@ var _ = Describe("Pod Anti-Affinity", func() {
 			},
 		})
 
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
@@ -494,9 +524,11 @@ var _ = Describe("Pod Anti-Affinity", func() {
 			},
 		})
 
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)
@@ -538,9 +570,11 @@ var _ = Describe("Pod Anti-Affinity", func() {
 			},
 		})
 
-		node := test.Node(test.NodeOptions{Allocatable: map[v1.ResourceName]resource.Quantity{
-			v1.ResourceCPU: resource.MustParse("4"),
-		}})
+		node := test.Node(test.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name}},
+			Allocatable: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("4"),
+			}})
 
 		ExpectApplied(ctx, env.Client, pod)
 		ExpectApplied(ctx, env.Client, node)

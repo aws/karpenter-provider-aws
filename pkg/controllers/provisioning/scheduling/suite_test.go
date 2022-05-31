@@ -16,12 +16,13 @@ package scheduling_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/controllers/state"
 	"math"
 	"math/rand"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/karpenter/pkg/controllers/state"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
@@ -68,10 +69,10 @@ var _ = BeforeSuite(func() {
 	env = test.NewEnvironment(ctx, func(e *test.Environment) {
 		cloudProv = &fake.CloudProvider{}
 		registry.RegisterOrDie(ctx, cloudProv)
-		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx)
+		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx, nil)
 		// set these on the cloud provider so we can manipulate them if needed
 		cloudProv.InstanceTypes = instanceTypes
-		cluster = state.NewCluster(ctx, e.Client, instanceTypes)
+		cluster = state.NewCluster(ctx, e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
@@ -89,7 +90,7 @@ var _ = BeforeEach(func() {
 	provisioner = test.Provisioner()
 	// reset instance types
 	newCP := fake.CloudProvider{}
-	cloudProv.InstanceTypes, _ = newCP.GetInstanceTypes(context.Background())
+	cloudProv.InstanceTypes, _ = newCP.GetInstanceTypes(context.Background(), nil)
 	cloudProv.CreateCalls = nil
 	recorder.Reset()
 })

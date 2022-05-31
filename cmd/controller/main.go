@@ -107,11 +107,7 @@ func main() {
 		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
 
-	instanceTypes, err := cloudProvider.GetInstanceTypes(ctx)
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("unable to list instance types, %s", err)
-	}
-	cluster := state.NewCluster(ctx, manager.GetClient(), instanceTypes)
+	cluster := state.NewCluster(ctx, manager.GetClient(), cloudProvider)
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
@@ -119,7 +115,7 @@ func main() {
 		state.NewPodController(manager.GetClient(), cluster),
 		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
-		node.NewController(manager.GetClient(), instanceTypes),
+		node.NewController(manager.GetClient(), cloudProvider),
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),

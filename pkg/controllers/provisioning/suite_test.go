@@ -16,8 +16,9 @@ package provisioning_test
 
 import (
 	"context"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 	"testing"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -59,12 +60,12 @@ var _ = BeforeSuite(func() {
 		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
-		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background())
+		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
 		instanceTypeMap = map[string]cloudprovider.InstanceType{}
 		for _, it := range instanceTypes {
 			instanceTypeMap[it.Name()] = it
 		}
-		cluster := state.NewCluster(ctx, e.Client, instanceTypes)
+		cluster := state.NewCluster(ctx, e.Client, cloudProvider)
 		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")

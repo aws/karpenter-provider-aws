@@ -17,7 +17,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -36,12 +35,9 @@ import (
 
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
-	kubeClient     client.Client
-	firstSeenEmpty sync.Map
-	instanceTypes  map[string]cloudprovider.InstanceType
+	kubeClient    client.Client
+	cloudProvider cloudprovider.CloudProvider
 }
-
-var initialEmptyDebouncePeriod = 10 * time.Second
 
 // Reconcile reconciles the node
 func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
@@ -50,17 +46,22 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		return reconcile.Result{}, nil
 	}
 
-	if !cloudprovider.NodeIsReady(n, provisioner, r.instanceTypes[n.Labels[v1.LabelInstanceTypeStable]]) {
+	instanceType, err := r.getInstanceType(ctx, provisioner, n.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		// We only report the error, but let the emptiness check continue.  This situation shouldn't occur, but if it
+		// does it only prevents us from checking for extended resources.  We don't want to completely block the node
+		// from getting deleted in that case as we can recover by deleting the node with the now unknown instance type.
+		// The NodeIsReady method handles a nil instanceType correctly.
+		logging.FromContext(ctx).Errorf("unable to find instance type, %s", err)
+	}
+	if !cloudprovider.NodeIsReady(n, provisioner, instanceType) {
 		return reconcile.Result{}, nil
 	}
+
 	// 2. Remove ttl if not empty
 	empty, err := r.isEmpty(ctx, n)
 	if err != nil {
 		return reconcile.Result{}, err
-	}
-
-	if r.debounceEmptySignal(n.Name, empty) {
-		return reconcile.Result{RequeueAfter: initialEmptyDebouncePeriod}, nil
 	}
 
 	emptinessTimestamp, hasEmptinessTimestamp := n.Annotations[v1alpha5.EmptinessTimestampAnnotationKey]
@@ -110,17 +111,15 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 	return true, nil
 }
 
-// debounceEmptySignal returns true if the node hasn't been empty for at least initialEmptyDebouncePeriod.  Since we don't
-// bind pods, once they are ready they are immediately empty.  This results in confusing log messages about emptiness TTL
-// annotations being added and removed for every node as it comes up.  By waiting for the node to be empty for a short
-// we allow kube-scheduler an opportunity to schedule pods against the node before we log that it is empty.
-func (r *Emptiness) debounceEmptySignal(nodeName string, currentlyEmpty bool) bool {
-	if !currentlyEmpty {
-		r.firstSeenEmpty.Delete(nodeName)
-		return false
+func (r *Emptiness) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
+	instanceTypes, err := r.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	if err != nil {
+		return nil, err
 	}
-	firstSeenEmpty, _ := r.firstSeenEmpty.LoadOrStore(nodeName, injectabletime.Now())
-	firstSeenEmptyTime := firstSeenEmpty.(time.Time)
-
-	return injectabletime.Now().Sub(firstSeenEmptyTime) < initialEmptyDebouncePeriod
+	for _, it := range instanceTypes {
+		if it.Name() == instanceTypeName {
+			return it, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to find instance type %s", instanceTypeName)
 }

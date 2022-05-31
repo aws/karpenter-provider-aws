@@ -25,8 +25,6 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -53,8 +51,6 @@ import (
 	"knative.dev/pkg/ptr"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 )
 
@@ -133,8 +129,7 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background())
-		cluster = state.NewCluster(ctx, e.Client, instanceTypes)
+		cluster = state.NewCluster(ctx, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
 		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -490,7 +485,7 @@ var _ = Describe("Allocation", func() {
 				}
 
 				instanceTypeCache.Flush()
-				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 				Expect(err).To(BeNil())
 				instanceTypeNames := sets.NewString()
 				for _, it := range instanceTypes {
@@ -1197,8 +1192,9 @@ var _ = Describe("Allocation", func() {
 						},
 					},
 					}))[0]
-				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Status.Capacity).To(HaveKeyWithValue(v1.ResourceEphemeralStorage, resource.MustParse("50G")))
+
+				// capacity isn't recorded on the node any longer, but we know the pod should schedule
+				ExpectScheduled(ctx, env.Client, pod)
 			})
 		})
 	})
