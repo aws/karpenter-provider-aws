@@ -31,7 +31,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
-var defaultEBS = v1alpha1.BlockDevice{
+var DefaultEBS = v1alpha1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(ec2.VolumeTypeGp3),
 	VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
@@ -73,6 +73,8 @@ type AMIFamily interface {
 	SSMAlias(version string, instanceType cloudprovider.InstanceType) string
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
+	EphemeralBlockDevice() *string
+	EphemeralBlockDeviceOverhead() resource.Quantity
 }
 
 // New constructs a new launch template Resolver
@@ -93,7 +95,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	if err != nil {
 		return nil, err
 	}
-	amiFamily := r.getAMIFamily(provider.AMIFamily, options)
+	amiFamily := GetAMIFamily(provider.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
 	for _, instanceType := range nodeRequest.InstanceTypeOptions {
 		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
@@ -123,7 +125,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	return resolvedTemplates, nil
 }
 
-func (r Resolver) getAMIFamily(amiFamily *string, options *Options) AMIFamily {
+func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	switch aws.StringValue(amiFamily) {
 	case v1alpha1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}

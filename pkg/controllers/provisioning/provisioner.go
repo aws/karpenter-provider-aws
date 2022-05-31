@@ -161,24 +161,26 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
-	// Get instance type options
-	instanceTypes, err := p.cloudProvider.GetInstanceTypes(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
-
 	// Build node templates
 	var nodeTemplates []*scheduling.NodeTemplate
 	var provisionerList v1alpha5.ProvisionerList
+	instanceTypes := map[string][]cloudprovider.InstanceType{}
 	if err := p.kubeClient.List(ctx, &provisionerList); err != nil {
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
 	for i := range provisionerList.Items {
-		requirements, err := p.cloudProvider.GetRequirements(ctx, provisionerList.Items[i].Spec.Provider)
+		provisioner := &provisionerList.Items[i]
+		requirements, err := p.cloudProvider.GetRequirements(ctx, provisioner.Spec.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("getting provider requirements, %w", err)
 		}
-		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(&provisionerList.Items[i], requirements))
+		// Get instance type options
+		instanceTypeOptions, err := p.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+		if err != nil {
+			return nil, fmt.Errorf("getting instance types, %w", err)
+		}
+		instanceTypes[provisioner.Name] = append(instanceTypes[provisioner.Name], instanceTypeOptions...)
+		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(provisioner, requirements))
 	}
 	if len(nodeTemplates) == 0 {
 		return nil, fmt.Errorf("no provisioners found")
@@ -186,7 +188,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 
 	// Inject topology requirements
 	for _, pod := range pods {
-		if err = p.volumeTopology.Inject(ctx, pod); err != nil {
+		if err := p.volumeTopology.Inject(ctx, pod); err != nil {
 			return nil, fmt.Errorf("getting volume topology requirements, %w", err)
 		}
 	}
