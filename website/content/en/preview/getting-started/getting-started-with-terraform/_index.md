@@ -60,7 +60,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.4"
+      version = "~> 2.5"
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
@@ -122,7 +122,7 @@ module "vpc" {
 module "eks" {
   # https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.20.5"
+  version = "18.21.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.22"
@@ -156,7 +156,7 @@ module "eks" {
   # so that Karpetner can be deployed and start managing compute capacity as required
   eks_managed_node_groups = {
     initial = {
-      instance_types = ["t3.large"]
+      instance_types = ["m5.large"]
       # Not required nor used - avoid tagging two security groups with same tag as well
       create_security_group = false
 
@@ -234,7 +234,7 @@ Add the following to your `main.tf` to create the IAM role for the Karpenter ser
 ```hcl
 module "karpenter_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "4.24.1"
+  version = "5.0.0"
 
   role_name                          = "karpenter-controller-${local.cluster_name}"
   attach_karpenter_controller_policy = true
