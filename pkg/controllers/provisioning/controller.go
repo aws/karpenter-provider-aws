@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/karpenter/pkg/config"
+
 	"github.com/aws/karpenter/pkg/events"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -50,10 +52,10 @@ type Controller struct {
 }
 
 // NewController constructs a controller instance
-func NewController(ctx context.Context, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
+func NewController(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Controller {
 	return &Controller{
 		kubeClient:  kubeClient,
-		provisioner: NewProvisioner(ctx, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
+		provisioner: NewProvisioner(ctx, cfg, kubeClient, coreV1Client, recorder, cloudProvider, cluster),
 		recorder:    recorder,
 	}
 }
@@ -79,6 +81,10 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := validate(pod); err != nil {
 		return reconcile.Result{}, nil
 	}
+	// Ensure pvcs exist if requested by a pod
+	if err := c.provisioner.volumeTopology.validatePersistentVolumeClaims(ctx, pod); err != nil {
+		return reconcile.Result{}, nil
+	}
 	// Enqueue to the provisioner
 	c.provisioner.Trigger()
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
@@ -100,30 +106,12 @@ func isProvisionable(p *v1.Pod) bool {
 func validate(p *v1.Pod) error {
 	return multierr.Combine(
 		validateAffinity(p),
-		validateTopology(p),
 	)
-}
-
-func validateTopology(pod *v1.Pod) (errs error) {
-	for _, constraint := range pod.Spec.TopologySpreadConstraints {
-		if !v1alpha5.ValidTopologyKeys.Has(constraint.TopologyKey) {
-			errs = multierr.Append(errs, fmt.Errorf("unsupported topology spread constraint key, %s not in %s", constraint.TopologyKey, v1alpha5.ValidTopologyKeys))
-		}
-	}
-	return errs
 }
 
 func validateAffinity(p *v1.Pod) (errs error) {
 	if p.Spec.Affinity == nil {
 		return nil
-	}
-	if p.Spec.Affinity.PodAffinity != nil {
-		for _, term := range p.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validatePodAffinityTerm(term))
-		}
-		for _, term := range p.Spec.Affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validatePodAffinityTerm(term.PodAffinityTerm))
-		}
 	}
 	if p.Spec.Affinity.NodeAffinity != nil {
 		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
@@ -136,13 +124,6 @@ func validateAffinity(p *v1.Pod) (errs error) {
 		}
 	}
 	return errs
-}
-
-func validatePodAffinityTerm(term v1.PodAffinityTerm) error {
-	if !v1alpha5.ValidTopologyKeys.Has(term.TopologyKey) {
-		return fmt.Errorf("unsupported topology key in pod affinity, %s not in %s", term.TopologyKey, v1alpha5.ValidTopologyKeys)
-	}
-	return nil
 }
 
 func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {

@@ -35,6 +35,7 @@ type ProvisionerOptions struct {
 	metav1.ObjectMeta
 	Limits        v1.ResourceList
 	Provider      interface{}
+	ProviderRef   *v1alpha5.ProviderRef
 	Kubelet       *v1alpha5.KubeletConfiguration
 	Labels        map[string]string
 	Taints        []v1.Taint
@@ -56,7 +57,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 		options.Name = strings.ToLower(randomdata.SillyName())
 	}
 	if options.Limits == nil {
-		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("100")}
+		options.Limits = v1.ResourceList{v1.ResourceCPU: resource.MustParse("1000")}
 	}
 	if options.Provider == nil {
 		options.Provider = struct{}{}
@@ -65,19 +66,18 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 	provisioner := &v1alpha5.Provisioner{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha5.ProvisionerSpec{
-			Constraints: v1alpha5.Constraints{
-				Requirements:         v1alpha5.NewRequirements(options.Requirements...),
-				KubeletConfiguration: options.Kubelet,
-				Provider:             &runtime.RawExtension{Raw: provider},
-				Taints:               options.Taints,
-				StartupTaints:        options.StartupTaints,
-				Labels:               options.Labels,
-			},
-			Limits: &v1alpha5.Limits{Resources: options.Limits},
+			Requirements:         options.Requirements,
+			KubeletConfiguration: options.Kubelet,
+			Provider:             &runtime.RawExtension{Raw: provider},
+			ProviderRef:          options.ProviderRef,
+			Taints:               options.Taints,
+			StartupTaints:        options.StartupTaints,
+			Labels:               options.Labels,
+			Limits:               &v1alpha5.Limits{Resources: options.Limits},
 		},
 		Status: options.Status,
 	}
-	provisioner.SetDefaults(context.TODO())
-	_ = provisioner.Validate(context.TODO())
+	provisioner.SetDefaults(context.Background())
+	_ = provisioner.Validate(context.Background())
 	return provisioner
 }

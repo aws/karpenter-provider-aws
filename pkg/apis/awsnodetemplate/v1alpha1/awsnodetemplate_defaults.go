@@ -12,14 +12,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha5
+package v1alpha1
 
-// KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
-// They are a subset of the upstream types, recognizing not all options may be supported.
-// Wherever possible, the types and names should reflect the upstream kubelet types.
-type KubeletConfiguration struct {
-	// clusterDNS is a list of IP addresses for the cluster DNS server.
-	// Note that not all providers may use all addresses.
-	//+optional
-	ClusterDNS []string `json:"clusterDNS,omitempty"`
+import (
+	"context"
+)
+
+// SetDefaults for the AWSNodeTemplate
+func (a *AWSNodeTemplate) SetDefaults(ctx context.Context) {
 }

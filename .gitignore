@@ -7,3 +7,7 @@ coverage.html
 # Common in OSs and IDEs
 .idea
 .DS_Store
+
+# Go Benchmarking
+*.cpuprofile
+*.heapprofile

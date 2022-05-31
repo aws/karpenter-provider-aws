@@ -29,7 +29,7 @@ type EKS struct {
 	ContainerRuntime string
 }
 
-func (e EKS) Script() string {
+func (e EKS) Script() (string, error) {
 	var caBundleArg string
 	if e.CABundle != nil {
 		caBundleArg = fmt.Sprintf("--b64-cluster-ca '%s'", *e.CABundle)
@@ -55,7 +55,7 @@ func (e EKS) Script() string {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes())
+	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }
 
 func (e EKS) nodeTaintArg() string {

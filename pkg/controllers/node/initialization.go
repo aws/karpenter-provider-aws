@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 )
 
@@ -39,7 +40,7 @@ type Initialization struct {
 
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !v1alpha5.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
+	if !scheduling.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
 		// At this point, the startup of the node is complete and no more evaluation is necessary.
 		return reconcile.Result{}, nil
 	}

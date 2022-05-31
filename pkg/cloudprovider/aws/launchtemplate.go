@@ -156,6 +156,10 @@ func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, optio
 }
 
 func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+	userData, err := options.UserData.Script()
+	if err != nil {
+		return nil, err
+	}
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -164,7 +168,7 @@ func (p *LaunchTemplateProvider) createLaunchTemplate(ctx context.Context, optio
 				Name: aws.String(options.InstanceProfile),
 			},
 			SecurityGroupIds: aws.StringSlice(options.SecurityGroupsIDs),
-			UserData:         aws.String(options.UserData.Script()),
+			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,

@@ -21,81 +21,83 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // Node is a set of constraints, compatible pods, and possible instance types that could fulfill these constraints. This
 // will be turned into one or more actual node instances within the cluster after bin packing.
 type Node struct {
-	Hostname            string
-	Provisioner         *v1alpha5.Provisioner
+	scheduling.NodeTemplate
 	InstanceTypeOptions []cloudprovider.InstanceType
 	Pods                []*v1.Pod
 
-	topology *Topology
-	requests v1.ResourceList
+	topology      *Topology
+	requests      v1.ResourceList
+	hostPortUsage *state.HostPortUsage
 }
 
 var nodeID int64
 
-func NewNode(provisioner *v1alpha5.Provisioner, topology *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
-	n := &Node{
-		Hostname:            fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1)),
-		Provisioner:         provisioner.DeepCopy(),
+func NewNode(nodeTemplate *scheduling.NodeTemplate, topology *Topology, daemonResources v1.ResourceList, instanceTypes []cloudprovider.InstanceType) *Node {
+	// Copy the template, and add hostname
+	hostname := fmt.Sprintf("hostname-placeholder-%04d", atomic.AddInt64(&nodeID, 1))
+	topology.Register(v1.LabelHostname, hostname)
+	template := *nodeTemplate
+	template.Requirements = scheduling.NewRequirements(nodeTemplate.Requirements, scheduling.Requirements{v1.LabelHostname: sets.NewSet(hostname)})
+	return &Node{
+		NodeTemplate:        template,
 		InstanceTypeOptions: instanceTypes,
+		hostPortUsage:       state.NewHostPortUsage(),
 		topology:            topology,
 		requests:            daemonResources,
 	}
-	n.Provisioner.Spec.Requirements = n.Provisioner.Spec.Requirements.Add(v1.NodeSelectorRequirement{
-		Key:      v1.LabelHostname,
-		Operator: v1.NodeSelectorOpIn,
-		Values:   []string{n.Hostname},
-	})
-	topology.Register(v1.LabelHostname, n.Hostname)
-	return n
 }
 
 func (n *Node) Add(pod *v1.Pod) error {
-	// Check tolerations
-	if err := n.Provisioner.Spec.Taints.Tolerates(pod); err != nil {
+	// Check Taints
+	if err := n.Taints.Tolerates(pod); err != nil {
 		return err
 	}
 
-	podRequirements := v1alpha5.NewPodRequirements(pod)
-	// Check initial compatibility
-	if err := n.Provisioner.Spec.Requirements.Compatible(podRequirements); err != nil {
+	if err := n.hostPortUsage.Add(pod); err != nil {
 		return err
 	}
-	nodeRequirements := n.Provisioner.Spec.Requirements.Add(podRequirements.Requirements...)
 
-	// Include topology requirements
-	requirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
+	nodeRequirements := scheduling.NewRequirements(n.Requirements)
+	podRequirements := scheduling.NewPodRequirements(pod)
+
+	// Check Node Affinity Requirements
+	if err := nodeRequirements.Compatible(podRequirements); err != nil {
+		return err
+	}
+	nodeRequirements.Add(podRequirements)
+
+	// Check Topology Requirements
+	topologyRequirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
 	if err != nil {
 		return err
 	}
-
-	// Check node compatibility
-	if err = n.Provisioner.Spec.Requirements.Compatible(requirements); err != nil {
+	if err = nodeRequirements.Compatible(topologyRequirements); err != nil {
 		return err
 	}
-
-	// Tighten requirements
-	requirements = n.Provisioner.Spec.Requirements.Add(requirements.Requirements...)
-	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	nodeRequirements.Add(topologyRequirements)
 
 	// Check instance type combinations
-	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, requirements, requests)
+	requests := resources.Merge(n.requests, resources.RequestsForPods(pod))
+	instanceTypes := cloudprovider.FilterInstanceTypes(n.InstanceTypeOptions, nodeRequirements, requests)
 	if len(instanceTypes) == 0 {
-		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), requirements)
+		return fmt.Errorf("no instance type satisfied resources %s and requirements %s", resources.String(resources.RequestsForPods(pod)), nodeRequirements)
 	}
 	// Update node
 	n.Pods = append(n.Pods, pod)
 	n.InstanceTypeOptions = instanceTypes
 	n.requests = requests
-	n.Provisioner.Spec.Requirements = requirements
-	n.topology.Record(pod, requirements)
+	n.Requirements = nodeRequirements
+	n.topology.Record(pod, nodeRequirements)
 	return nil
 }
 

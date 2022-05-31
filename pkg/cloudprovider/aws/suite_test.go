@@ -18,12 +18,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/karpenter/pkg/controllers/state"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"io/ioutil"
 	"math"
+	"strings"
 	"testing"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -32,18 +31,22 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/fake"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
-	"github.com/patrickmn/go-cache"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	. "knative.dev/pkg/logging/testing"
@@ -51,6 +54,7 @@ import (
 )
 
 var ctx context.Context
+var stop context.CancelFunc
 var opts options.Options
 var env *test.Environment
 var launchTemplateCache *cache.Cache
@@ -64,6 +68,7 @@ var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
 var cluster *state.Cluster
 var recorder *test.EventRecorder
+var cfg *test.Config
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -82,7 +87,8 @@ var _ = BeforeSuite(func() {
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
 		ctx = injection.WithOptions(ctx, opts)
-
+		ctx, cancelFunc := context.WithCancel(ctx)
+		stop = cancelFunc
 		launchTemplateCache = cache.New(CacheTTL, CacheCleanupInterval)
 		unavailableOfferingsCache = cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval)
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
@@ -110,7 +116,7 @@ var _ = BeforeSuite(func() {
 			instanceProvider: &InstanceProvider{
 				fakeEC2API, instanceTypeProvider, subnetProvider, &LaunchTemplateProvider{
 					ec2api:                fakeEC2API,
-					amiFamily:             amifamily.New(fake.SSMAPI{}, amiCache),
+					amiFamily:             amifamily.New(ctx, fake.SSMAPI{}, amiCache, e.Client),
 					clientSet:             clientSet,
 					securityGroupProvider: securityGroupProvider,
 					cache:                 launchTemplateCache,
@@ -121,13 +127,15 @@ var _ = BeforeSuite(func() {
 		registry.RegisterOrDie(ctx, cloudProvider)
 		cluster = state.NewCluster(ctx, e.Client)
 		recorder = test.NewEventRecorder()
-		controller = provisioning.NewController(ctx, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+		cfg = test.NewConfig()
+		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 	})
 
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
 
 var _ = AfterSuite(func() {
+	stop()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
@@ -329,7 +337,7 @@ var _ = Describe("Allocation", func() {
 				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{
 					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 				})
-				provisioner.Spec.Constraints.Requirements.Requirements = append(provisioner.Spec.Constraints.Requirements.Requirements, v1.NodeSelectorRequirement{
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceType,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"m5.large", "m5.xlarge"},
@@ -379,11 +387,11 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should launch on-demand capacity if flexible to both spot and on demand, but spot if unavailable", func() {
 				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}})
-				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
-					v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
-				)
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				}
 				// Spot Unavailable
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -402,8 +410,8 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
 			It("should launch spot capacity if flexible to both spot and on demand", func() {
-				provisioner.Spec.Requirements = v1alpha5.NewRequirements(
-					v1.NodeSelectorRequirement{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}})
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}}}
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
@@ -464,7 +472,7 @@ var _ = Describe("Allocation", func() {
 				Expect(name1).To(Equal(name2))
 			})
 			It("should tag with provisioner name", func() {
-				const provisionerName = "the-provisioner"
+				provisionerName := "the-provisioner"
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider, ObjectMeta: metav1.ObjectMeta{Name: provisionerName}}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -575,9 +583,9 @@ var _ = Describe("Allocation", func() {
 						if *ov.InstanceType == "m5.large" {
 							foundNonGPULT = true
 							Expect(v.Overrides).To(ContainElements(
-								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("test-subnet-3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+								&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 							))
 						}
 					}
@@ -595,7 +603,47 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}}))[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
-				Expect(aws.StringValue(createFleetInput.LaunchTemplateConfigs[0].Overrides[0].SubnetId)).To(Equal("test-subnet-2"))
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			})
+			It("should discover subnet by ID", func() {
+				provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
+			})
+			It("should discover subnets by IDs", func() {
+				provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
+					"subnet-test1",
+					"subnet-test2",
+				))
+			})
+			It("should discover subnets by IDs and tags", func() {
+				provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test1,subnet-test2", "foo": "bar"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
+					"subnet-test1",
+					"subnet-test2",
+				))
+			})
+			It("should discover subnets by IDs intersected with tags", func() {
+				provider.SubnetSelector = map[string]string{"aws-ids": "subnet-test2", "foo": "bar"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop().(*ec2.CreateFleetInput)
+				Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf(
+					"subnet-test2",
+				))
 			})
 		})
 		Context("Security Groups", func() {
@@ -605,10 +653,10 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
-				Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-security-group-1"),
-					aws.String("test-security-group-2"),
-					aws.String("test-security-group-3"),
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"sg-test1",
+					"sg-test2",
+					"sg-test3",
 				))
 			})
 			It("should discover security groups by tag", func() {
@@ -617,21 +665,66 @@ var _ = Describe("Allocation", func() {
 					{GroupId: aws.String("test-sg-2"), Tags: []*ec2.Tag{{Key: aws.String("kubernetes.io/cluster/test-cluster"), Value: aws.String("test-sg-2")}}},
 				}}
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"test-sg-1",
+					"test-sg-2",
+				))
+			})
+			It("should discover security groups by ID", func() {
+				provider.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1"}
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
-				Expect(input.LaunchTemplateData.SecurityGroupIds).To(ConsistOf(
-					aws.String("test-sg-1"),
-					aws.String("test-sg-2"),
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"sg-test1",
+				))
+			})
+			It("should discover security groups by IDs", func() {
+				provider.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"sg-test1",
+					"sg-test2",
+				))
+			})
+			It("should discover security groups by IDs and tags", func() {
+				provider.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test1,sg-test2", "foo": "bar"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"sg-test1",
+					"sg-test2",
+				))
+			})
+			It("should discover security groups by IDs intersected with tags", func() {
+				provider.SecurityGroupSelector = map[string]string{"aws-ids": "sg-test2", "foo": "bar"}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				Expect(aws.StringValueSlice(input.LaunchTemplateData.SecurityGroupIds)).To(ConsistOf(
+					"sg-test2",
 				))
 			})
 		})
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -642,7 +735,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -680,6 +773,92 @@ var _ = Describe("Allocation", func() {
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
+			})
+			Context("Bottlerocket", func() {
+				It("should merge in custom user data", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					content, _ := ioutil.ReadFile("testdata/br_userdata_input.golden")
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String(string(content)),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ = ioutil.ReadFile("testdata/br_userdata_merged.golden")
+					// Newlines are always added for missing TOML fields, so strip them out before comparisons.
+					actualUserData := strings.Replace(string(userData), "\n", "", -1)
+					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
+					Expect(expectedUserData).To(Equal(actualUserData))
+				})
+				It("should bootstrap when custom user data is empty", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   nil,
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ := ioutil.ReadFile("testdata/br_userdata_unmerged.golden")
+					actualUserData := strings.Replace(string(userData), "\n", "", -1)
+					expectedUserData := strings.Replace(fmt.Sprintf(string(content), newProvisioner.Name), "\n", "", -1)
+					Expect(expectedUserData).To(Equal(actualUserData))
+				})
+				It("should not bootstrap when provider ref points to a non-existent resource", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRef := &v1alpha5.ProviderRef{
+						Name: "doesnotexist",
+					}
+					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+				It("should not bootstrap on invalid toml user data", func() {
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since userData cannot be generated for the prospective node.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
 			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
@@ -853,8 +1032,8 @@ var _ = Describe("Allocation", func() {
 
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).CapacityTypes().UnsortedList()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(v1alpha5.NewRequirements(provisioner.Spec.Requirements.Requirements...).Architectures().UnsortedList()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).CapacityTypes().List()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
+			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Architectures().List()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
 		})
 	})
 	Context("Validation", func() {

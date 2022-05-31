@@ -28,6 +28,7 @@ import (
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -45,12 +46,6 @@ type CloudProvider struct {
 	// CreateCalls contains the arguments for every create call that was made since it was cleared
 	mu          sync.Mutex
 	CreateCalls []*cloudprovider.NodeRequest
-}
-
-type CreateCallArgs struct {
-	Constraints   *v1alpha5.Constraints
-	InstanceTypes []cloudprovider.InstanceType
-	Quantity      int
 }
 
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
@@ -73,6 +68,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 			Labels: map[string]string{
 				v1.LabelTopologyZone:       zone,
 				v1.LabelInstanceTypeStable: instance.Name(),
+				v1.LabelArchStable:         instance.Architecture(),
 				v1alpha5.LabelCapacityType: capacityType,
 			},
 		},
@@ -143,8 +139,12 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 	}, nil
 }
 
-func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (v1alpha5.Requirements, error) {
-	return v1alpha5.Requirements{}, nil
+func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
+	instanceTypes, err := c.GetInstanceTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	return cloudprovider.InstanceTypeRequirements(instanceTypes), nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {

@@ -61,3 +61,13 @@ func HasAnyPrefix(s string, prefixes ...string) bool {
 	}
 	return false
 }
+
+// SplitCommaSeparatedString splits a string by commas, removes whitespace, and returns
+// a slice of strings
+func SplitCommaSeparatedString(value string) []string {
+	var result []string
+	for _, value := range strings.Split(value, ",") {
+		result = append(result, strings.TrimSpace(value))
+	}
+	return result
+}

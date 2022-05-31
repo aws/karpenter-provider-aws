@@ -20,6 +20,10 @@ CPU limits are described with a `DecimalSI` value, usually a natural integer.
 
 Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://github.com/kubernetes/apimachinery/blob/4427f8f31dfbac65d3a044d0168f84c51bfda440/pkg/api/resource/quantity.go#L31)
 
+{{% alert title="Note" color="primary" %}}
+If CPU or Memory limits are not set, then the default value is set as unlimited by Karpenter.
+{{% /alert %}}
+
 You can view the current consumption of cpu and memory on your cluster by running:
 ```
 kubectl get provisioner -o=jsonpath='{.items[0].status}'

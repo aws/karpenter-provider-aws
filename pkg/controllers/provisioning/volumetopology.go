@@ -67,9 +67,9 @@ func (v *VolumeTopology) getRequirements(ctx context.Context, pod *v1.Pod, volum
 	if volume.PersistentVolumeClaim == nil {
 		return nil, nil
 	}
-	pvc := &v1.PersistentVolumeClaim{}
-	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}, pvc); err != nil {
-		return nil, fmt.Errorf("getting persistent volume claim %s, %w", volume.PersistentVolumeClaim.ClaimName, err)
+	pvc, err := v.getPersistentVolumeClaim(ctx, pod, volume)
+	if err != nil {
+		return nil, err
 	}
 	// Persistent Volume Requirements
 	if pvc.Spec.VolumeName != "" {
@@ -122,4 +122,24 @@ func (v *VolumeTopology) getPersistentVolumeRequirements(ctx context.Context, po
 		requirements = append(requirements, pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions...)
 	}
 	return requirements, nil
+}
+
+func (v *VolumeTopology) getPersistentVolumeClaim(ctx context.Context, pod *v1.Pod, volume v1.Volume) (*v1.PersistentVolumeClaim, error) {
+	if volume.PersistentVolumeClaim == nil {
+		return nil, nil
+	}
+	pvc := &v1.PersistentVolumeClaim{}
+	if err := v.kubeClient.Get(ctx, types.NamespacedName{Name: volume.PersistentVolumeClaim.ClaimName, Namespace: pod.Namespace}, pvc); err != nil {
+		return nil, fmt.Errorf("getting persistent volume claim %q, %w", volume.PersistentVolumeClaim.ClaimName, err)
+	}
+	return pvc, nil
+}
+
+func (v *VolumeTopology) validatePersistentVolumeClaims(ctx context.Context, pod *v1.Pod) error {
+	for _, volume := range pod.Spec.Volumes {
+		if _, err := v.getPersistentVolumeClaim(ctx, pod, volume); err != nil {
+			return err
+		}
+	}
+	return nil
 }

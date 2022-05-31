@@ -26,6 +26,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injectabletime"
 	"github.com/aws/karpenter/pkg/utils/pod"
@@ -103,7 +104,7 @@ func (t *Terminator) getPods(ctx context.Context, node *v1.Node) ([]*v1.Pod, err
 	pods := []*v1.Pod{}
 	for _, p := range podList.Items {
 		// Ignore if unschedulable is tolerated, since they will reschedule
-		if (v1alpha5.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(ptr.Pod(p)) == nil {
+		if (scheduling.Taints{{Key: v1.TaintNodeUnschedulable, Effect: v1.TaintEffectNoSchedule}}).Tolerates(ptr.Pod(p)) == nil {
 			continue
 		}
 		// Ignore if kubelet is partitioned and pods are beyond graceful termination window

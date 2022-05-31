@@ -16,19 +16,20 @@ package cloudprovider
 
 import (
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
-func Requirements(instanceTypes []InstanceType) v1alpha5.Requirements {
-	supported := map[string]sets.String{
-		v1.LabelInstanceTypeStable: sets.NewString(),
-		v1.LabelTopologyZone:       sets.NewString(),
-		v1.LabelArchStable:         sets.NewString(),
-		v1.LabelOSStable:           sets.NewString(),
-		v1alpha5.LabelCapacityType: sets.NewString(),
+func InstanceTypeRequirements(instanceTypes []InstanceType) scheduling.Requirements {
+	supported := map[string]sets.Set{
+		v1.LabelInstanceTypeStable: sets.NewSet(),
+		v1.LabelTopologyZone:       sets.NewSet(),
+		v1.LabelArchStable:         sets.NewSet(),
+		v1.LabelOSStable:           sets.NewSet(),
+		v1alpha5.LabelCapacityType: sets.NewSet(),
 	}
 	for _, instanceType := range instanceTypes {
 		for _, offering := range instanceType.Offerings() {
@@ -39,14 +40,11 @@ func Requirements(instanceTypes []InstanceType) v1alpha5.Requirements {
 		supported[v1.LabelArchStable].Insert(instanceType.Architecture())
 		supported[v1.LabelOSStable].Insert(instanceType.OperatingSystems().List()...)
 	}
-	requirements := v1alpha5.NewRequirements()
-	for key, values := range supported {
-		requirements = requirements.Add(v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: values.UnsortedList()})
-	}
+	requirements := scheduling.NewRequirements(supported)
 	return requirements
 }
 
-func Compatible(it InstanceType, requirements v1alpha5.Requirements) bool {
+func Compatible(it InstanceType, requirements scheduling.Requirements) bool {
 	if !requirements.Get(v1.LabelInstanceTypeStable).Has(it.Name()) {
 		return false
 	}
@@ -65,7 +63,7 @@ func Compatible(it InstanceType, requirements v1alpha5.Requirements) bool {
 	return false
 }
 
-func FilterInstanceTypes(instanceTypes []InstanceType, requirements v1alpha5.Requirements, requests v1.ResourceList) []InstanceType {
+func FilterInstanceTypes(instanceTypes []InstanceType, requirements scheduling.Requirements, requests v1.ResourceList) []InstanceType {
 	var result []InstanceType
 	for _, instanceType := range instanceTypes {
 		if !Compatible(instanceType, requirements) {
