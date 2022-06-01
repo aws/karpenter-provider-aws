@@ -53,6 +53,17 @@ Also set the following environment variables to store commonly used values.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
 
+{{% alert title="Warning" color="primary" %}}
+If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
+To remind yourself of these values, type:
+
+```bash
+echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+```
+
+{{% /alert %}}
+
+
 ### Create a Cluster
 
 Create a basic cluster with `eksctl`.
