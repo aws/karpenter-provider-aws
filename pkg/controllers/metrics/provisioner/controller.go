@@ -48,7 +48,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "provisioner",
 			Name:      "limit",
-			Help:      "Provisioner Limit",
+			Help:      "The Provisioner Limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by provisioner name and resource type.",
 		},
 		labelNames(),
 	)
@@ -57,7 +57,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "provisioner",
 			Name:      "usage",
-			Help:      "Provisioner Usage",
+			Help:      "The Provisioner Usage is the amount of resources that have been provisioned by a particular provisioner. Labeled by provisioner name and resource type.",
 		},
 		labelNames(),
 	)
@@ -66,7 +66,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "provisioner",
 			Name:      "usage_pct",
-			Help:      "Provisioner Usage Percentage",
+			Help:      "The Provisioner Usage Percentage is the percentage of each resource used based on the resources provisioned and the limits that have been configured in the range [0,100].  Labeled by provisioner name and resource type.",
 		},
 		labelNames(),
 	)

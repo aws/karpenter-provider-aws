@@ -40,7 +40,7 @@ var methodDurationHistogramVec = prometheus.NewHistogramVec(
 		Namespace: metrics.Namespace,
 		Subsystem: "cloudprovider",
 		Name:      "duration_seconds",
-		Help:      "Duration of cloud provider method calls.",
+		Help:      "Duration of cloud provider method calls. Labeled by the controller, method name and provider.",
 	},
 	[]string{
 		metricLabelController,

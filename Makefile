@@ -42,7 +42,7 @@ deflake:
 battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
 
-verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
+verify: codegen docgen ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
 	golangci-lint run
@@ -78,6 +78,9 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 		output:crd:artifacts:config=charts/karpenter/crds
 	hack/boilerplate.sh
 
+docgen: ## Generate docs
+	go run hack/docs/metrics_gen_docs.go pkg/controllers website/content/en/preview/tasks/metrics.md
+     
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
