@@ -423,6 +423,20 @@ var _ = Describe("Provisioning", func() {
 				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 			}
 		})
+		It("should label nodes with labels in the LabelDomainExceptions list", func() {
+			for domain := range v1alpha5.LabelDomainExceptions {
+				provisioner := test.Provisioner(test.ProvisionerOptions{Labels: map[string]string{domain + "/test": "test-value"}})
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
+					test.PodOptions{
+						NodeRequirements: []v1.NodeSelectorRequirement{{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}}},
+					},
+				))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKeyWithValue(domain+"/test", "test-value"))
+			}
+		})
+
 	})
 	Context("Taints", func() {
 		It("should schedule pods that tolerate taints", func() {
