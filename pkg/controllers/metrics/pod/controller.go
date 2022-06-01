@@ -54,7 +54,7 @@ var (
 			Namespace: "karpenter",
 			Subsystem: "pods",
 			Name:      "state",
-			Help:      "Pod state.",
+			Help:      "Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, provisioner name, zone, architecture, capacity type, instance type and pod phase.",
 		},
 		labelNames(),
 	)

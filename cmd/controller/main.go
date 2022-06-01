@@ -50,6 +50,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/counter"
 	metricsnode "github.com/aws/karpenter/pkg/controllers/metrics/node"
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
+	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
@@ -117,6 +118,7 @@ func main() {
 		node.NewController(manager.GetClient()),
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
+		metricsprovisioner.NewController(manager.GetClient()),
 		counter.NewController(manager.GetClient()),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
