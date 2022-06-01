@@ -75,18 +75,6 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 		Spec: v1.NodeSpec{
 			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
 		},
-		Status: v1.NodeStatus{
-			NodeInfo: v1.NodeSystemInfo{
-				Architecture:    instance.Architecture(),
-				OperatingSystem: v1alpha5.OperatingSystemLinux,
-			},
-			Allocatable: v1.ResourceList{},
-			Capacity:    v1.ResourceList{},
-		},
-	}
-	for k, v := range instance.Resources() {
-		n.Status.Capacity[k] = v
-		n.Status.Allocatable[k] = v
 	}
 	return n, nil
 }

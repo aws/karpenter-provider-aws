@@ -262,16 +262,6 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				nodeName = aws.StringValue(instance.InstanceId)
 			}
 
-			// Since we no longer pre-bind, we need to ensure that all resources that were possibly considered for scheduling
-			// purposes are placed on the node.  The extended resources will be moved to an annotation, while the
-			// non-extended will be left on the node.
-			resources := v1.ResourceList{}
-			for resourceName, quantity := range instanceType.Resources() {
-				if !quantity.IsZero() {
-					resources[resourceName] = quantity
-				}
-			}
-
 			n := &v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nodeName,
@@ -285,17 +275,9 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 				Spec: v1.NodeSpec{
 					ProviderID: fmt.Sprintf("aws:///%s/%s", aws.StringValue(instance.Placement.AvailabilityZone), aws.StringValue(instance.InstanceId)),
 				},
-				Status: v1.NodeStatus{
-					Allocatable: resources,
-					Capacity:    resources,
-					NodeInfo: v1.NodeSystemInfo{
-						Architecture:    v1alpha1.AWSToKubeArchitectures[aws.StringValue(instance.Architecture)],
-						OSImage:         aws.StringValue(instance.ImageId),
-						OperatingSystem: v1alpha5.OperatingSystemLinux,
-					},
-				},
 			}
 
+			n.Labels[v1.LabelOSStable] = "linux"
 			if amiFamily != nil {
 				switch *amiFamily {
 				case v1alpha1.AMIFamilyAL2, v1alpha1.AMIFamilyBottlerocket, v1alpha1.AMIFamilyUbuntu:

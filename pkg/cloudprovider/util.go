@@ -28,11 +28,11 @@ import (
 // This method handles both nil provisioners and nodes without extended resources gracefully.
 func NodeIsReady(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType InstanceType) bool {
 	// fast checks first
-	return GetCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
+	return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
 		isStartupTaintRemoved(node, provisioner) && isExtendedResourceRegistered(node, instanceType)
 }
 
-func GetCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+func getCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
 	for _, condition := range conditions {
 		if condition.Type == match {
 			return condition
