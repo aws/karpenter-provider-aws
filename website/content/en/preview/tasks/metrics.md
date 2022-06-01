@@ -44,6 +44,11 @@ Node total pod requests are the resources requested by non-DaemonSet pods bound 
 ### `karpenter_pods_state`
 Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, provisioner name, zone, architecture, capacity type, instance type and pod phase.
 
+## Cloudprovider Metrics
+
+### `karpenter_cloudprovider_duration_seconds`
+Duration of cloud provider method calls. Labeled by the controller, method name and provider.
+
 ## Allocation_controller Metrics
 
 ### `karpenter_allocation_controller_bind_duration_seconds`

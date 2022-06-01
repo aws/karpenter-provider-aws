@@ -134,7 +134,8 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	subSystemSortOrder["provisioner"] = 1
 	subSystemSortOrder["nodes"] = 2
 	subSystemSortOrder["pods"] = 3
-	subSystemSortOrder["allocation_controller"] = 4
+	subSystemSortOrder["cloudprovider"] = 4
+	subSystemSortOrder["allocation_controller"] = 5
 	return func(i, j int) bool {
 		lhs := metrics[i]
 		rhs := metrics[j]
@@ -157,7 +158,8 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 			if !ok {
 				continue
 			}
-			if fmt.Sprintf("%s", ce.Fun.(*ast.SelectorExpr).X) != "prometheus" {
+			funcPkg := getFuncPackage(ce.Fun)
+			if funcPkg != "prometheus" {
 				continue
 			}
 			if len(ce.Args) != 2 {
@@ -200,4 +202,15 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 		}
 	}
 	return metrics
+}
+
+func getFuncPackage(fun ast.Expr) string {
+	if sel, ok := fun.(*ast.SelectorExpr); ok {
+		return fmt.Sprintf("%s", sel.X)
+	}
+	if ident, ok := fun.(*ast.Ident); ok {
+		return ident.String()
+	}
+	log.Fatalf("unsupported func expression %T, %v", fun, fun)
+	return ""
 }

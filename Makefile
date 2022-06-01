@@ -79,7 +79,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 	hack/boilerplate.sh
 
 docgen: ## Generate docs
-	go run hack/docs/metrics_gen_docs.go pkg/controllers website/content/en/preview/tasks/metrics.md
+	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md
      
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
