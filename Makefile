@@ -105,4 +105,4 @@ issues: ## Run GitHub issue analysis scripts
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen apply delete toolchain release licenses issues website
+.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release licenses issues website nightly snapshot
