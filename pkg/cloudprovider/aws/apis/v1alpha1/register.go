@@ -27,14 +27,16 @@ import (
 )
 
 var (
+	LabelDomain = "karpenter.k8s.aws"
+
 	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
 	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                   v1alpha5.ArchitectureAmd64,
 		v1alpha5.ArchitectureArm64: v1alpha5.ArchitectureArm64,
 	}
-	AWSRestrictedLabelDomains = []string{
-		"k8s.aws",
+	RestrictedLabelDomains = []string{
+		LabelDomain,
 	}
 	AMIFamilyBottlerocket = "Bottlerocket"
 	AMIFamilyAL2          = "AL2"
@@ -53,6 +55,15 @@ var (
 	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
 	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+
+	InstanceFamilyLabelKey          = LabelDomain + "/instance.family"
+	InstanceSizeLabelKey            = LabelDomain + "/instance.size"
+	InstanceCPULabelKey             = LabelDomain + "/instance.cpu"
+	InstanceMemoryLabelKey          = LabelDomain + "/instance.memory"
+	InstanceGPUNameLabelKey         = LabelDomain + "/instance.gpu.name"
+	InstanceGPUManufacturerLabelKey = LabelDomain + "/instance.gpu.manufacturer"
+	InstanceGPUCountLabelKey        = LabelDomain + "/instance.gpu.count"
+	InstanceGPUMemoryLabelKey       = LabelDomain + "/instance.gpu.memory"
 )
 
 var (
@@ -62,5 +73,15 @@ var (
 
 func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
-	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(AWSRestrictedLabelDomains...)
+	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
+	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
+		InstanceFamilyLabelKey,
+		InstanceSizeLabelKey,
+		InstanceCPULabelKey,
+		InstanceMemoryLabelKey,
+		InstanceGPUNameLabelKey,
+		InstanceGPUManufacturerLabelKey,
+		InstanceGPUCountLabelKey,
+		InstanceGPUMemoryLabelKey,
+	)
 }

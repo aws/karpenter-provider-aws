@@ -15,12 +15,13 @@ limitations under the License.
 package scheduling
 
 import (
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/rand"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NodeTemplate encapsulates the fields required to create a node and mirrors
@@ -38,21 +39,20 @@ type NodeTemplate struct {
 	KubeletConfiguration *v1alpha5.KubeletConfiguration
 }
 
-func NewNodeTemplate(provisioner *v1alpha5.Provisioner, requirements ...Requirements) *NodeTemplate {
-	provisioner.Spec.Labels = functional.UnionStringMaps(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
+func NewNodeTemplate(provisioner *v1alpha5.Provisioner) *NodeTemplate {
+	labels := lo.Assign(provisioner.Spec.Labels, map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name})
 	return &NodeTemplate{
 		ProvisionerName:      provisioner.Name,
 		Provider:             provisioner.Spec.Provider,
 		ProviderRef:          provisioner.Spec.ProviderRef,
 		KubeletConfiguration: provisioner.Spec.KubeletConfiguration,
-		Labels:               provisioner.Spec.Labels,
+		Labels:               labels,
 		Taints:               provisioner.Spec.Taints,
 		StartupTaints:        provisioner.Spec.StartupTaints,
-		Requirements: NewRequirements(append(
-			requirements,
+		Requirements: NewRequirements(
 			NewNodeSelectorRequirements(provisioner.Spec.Requirements...),
-			NewLabelRequirements(provisioner.Spec.Labels),
-		)...),
+			NewLabelRequirements(labels),
+		),
 	}
 }
 

@@ -16,77 +16,60 @@ package aws
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 // EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
 const EC2VMAvailableMemoryFactor = .925
 
 type InstanceType struct {
-	ec2.InstanceTypeInfo
-	AvailableOfferings []cloudprovider.Offering
-	MaxPods            *int32
-	resources          v1.ResourceList
-	overhead           v1.ResourceList
-	provider           *v1alpha1.AWS
-}
-
-func newInstanceType(info ec2.InstanceTypeInfo, includePodENI bool, provider *v1alpha1.AWS) *InstanceType {
-	it := &InstanceType{InstanceTypeInfo: info}
-	it.provider = provider
-	it.resources = it.computeResources(includePodENI)
-	it.overhead = it.computeOverhead()
-	return it
+	*ec2.InstanceTypeInfo
+	offerings    []cloudprovider.Offering
+	overhead     v1.ResourceList
+	requirements scheduling.Requirements
+	resources    v1.ResourceList
+	provider     *v1alpha1.AWS
+	maxPods      *int32
 }
 
 func (i *InstanceType) Name() string {
 	return aws.StringValue(i.InstanceType)
 }
 
+func (i *InstanceType) Requirements() scheduling.Requirements {
+	return i.requirements
+}
+
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
-	return i.AvailableOfferings
-}
-
-func (i *InstanceType) OperatingSystems() sets.String {
-	return sets.NewString("linux")
-}
-
-func (i *InstanceType) Architecture() string {
-	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
-		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
-			return value
-		}
-	}
-	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
+	return i.offerings
 }
 
 func (i *InstanceType) Resources() v1.ResourceList {
 	return i.resources
 }
 
-func (i *InstanceType) computeResources(includePodENI bool) v1.ResourceList {
-	return v1.ResourceList{
-		v1.ResourceCPU:              i.cpu(),
-		v1.ResourceMemory:           i.memory(),
-		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
-		v1.ResourcePods:             i.pods(),
-		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(includePodENI),
-		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
-	}
+// Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
+// using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
+// While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
+// analysis can be performed
+func (i *InstanceType) Overhead() v1.ResourceList {
+	return i.overhead
 }
 
 func (i *InstanceType) Price() float64 {
@@ -126,6 +109,64 @@ func (i *InstanceType) Price() float64 {
 		GPUCostWeight*gpuCount + InferenceCostWeight*infCount +
 		localStorageGiBs*LocalStorageWeight
 }
+
+func (i *InstanceType) computeRequirements() scheduling.Requirements {
+	requirements := scheduling.Requirements{
+		// Well Known Upstream
+		v1.LabelInstanceTypeStable: sets.NewSet(i.Name()),
+		v1.LabelArchStable:         sets.NewSet(i.architecture()),
+		v1.LabelOSStable:           sets.NewSet(v1alpha5.OperatingSystemLinux),
+		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		// Resources
+		v1alpha1.InstanceCPULabelKey:    sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
+		v1alpha1.InstanceMemoryLabelKey: sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+	}
+	// Instance Type Labels
+	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
+	if len(instanceTypeParts) == 2 {
+		requirements.Add(scheduling.Requirements{
+			v1alpha1.InstanceFamilyLabelKey: sets.NewSet(instanceTypeParts[0]),
+			v1alpha1.InstanceSizeLabelKey:   sets.NewSet(instanceTypeParts[1]),
+		})
+	}
+	// GPU Labels
+	if i.GpuInfo != nil && len(i.GpuInfo.Gpus) == 1 {
+		gpu := i.GpuInfo.Gpus[0]
+		requirements.Add(scheduling.Requirements{
+			v1alpha1.InstanceGPUNameLabelKey:         sets.NewSet(lowerKabobCase(aws.StringValue(gpu.Name))),
+			v1alpha1.InstanceGPUManufacturerLabelKey: sets.NewSet(lowerKabobCase(aws.StringValue(gpu.Manufacturer))),
+			v1alpha1.InstanceGPUCountLabelKey:        sets.NewSet(fmt.Sprint(aws.Int64Value(gpu.Count))),
+			v1alpha1.InstanceGPUMemoryLabelKey:       sets.NewSet(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB))),
+		})
+
+	}
+	return requirements
+}
+
+// Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
+func (i *InstanceType) architecture() string {
+	for _, architecture := range i.ProcessorInfo.SupportedArchitectures {
+		if value, ok := v1alpha1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
+			return value
+		}
+	}
+	return fmt.Sprint(aws.StringValueSlice(i.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
+}
+
+func (i *InstanceType) computeResources(enablePodENI bool) v1.ResourceList {
+	return v1.ResourceList{
+		v1.ResourceCPU:              i.cpu(),
+		v1.ResourceMemory:           i.memory(),
+		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
+		v1.ResourcePods:             i.pods(),
+		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(enablePodENI),
+		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
+		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
+		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
+	}
+}
+
 func (i *InstanceType) cpu() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
 }
@@ -153,16 +194,16 @@ func (i *InstanceType) ephemeralStorage() resource.Quantity {
 }
 
 func (i *InstanceType) pods() resource.Quantity {
-	if i.MaxPods != nil {
-		return *resources.Quantity(fmt.Sprint(ptr.Int32Value(i.MaxPods)))
+	if i.maxPods != nil {
+		return *resources.Quantity(fmt.Sprint(ptr.Int32Value(i.maxPods)))
 	}
 	return *resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
 
-func (i *InstanceType) awsPodENI(includePodENI bool) resource.Quantity {
+func (i *InstanceType) awsPodENI(enablePodENI bool) resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := vpc.Limits[aws.StringValue(i.InstanceType)]
-	if includePodENI && ok && limits.IsTrunkingCompatible {
+	if enablePodENI && ok && limits.IsTrunkingCompatible {
 		return *resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
 	return *resources.Quantity("0")
@@ -202,13 +243,6 @@ func (i *InstanceType) awsNeurons() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(count))
 }
 
-// Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
-// using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
-// While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
-// analysis can be performed
-func (i *InstanceType) Overhead() v1.ResourceList {
-	return i.overhead
-}
 func (i *InstanceType) computeOverhead() v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
@@ -255,4 +289,8 @@ func (i *InstanceType) computeOverhead() v1.ResourceList {
 // https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
 func (i *InstanceType) eniLimitedPods() int64 {
 	return *i.NetworkInfo.MaximumNetworkInterfaces*(*i.NetworkInfo.Ipv4AddressesPerInterface-1) + 2
+}
+
+func lowerKabobCase(s string) string {
+	return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
 }

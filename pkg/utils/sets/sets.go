@@ -100,15 +100,15 @@ func (s Set) Values() sets.String {
 	return s.values
 }
 
-func (s Set) Any() (string, bool) {
+func (s Set) Any() string {
 	if s.complement || len(s.values) == 0 {
-		return "", false
+		return ""
 	}
 	for k := range s.values {
-		return k, true
+		return k
 	}
 	// unreachable
-	return "", false
+	return ""
 }
 
 // ComplementValues returns the values of the complement set.
@@ -133,15 +133,6 @@ func (s Set) Has(value string) bool {
 		return !s.values.Has(value)
 	}
 	return s.values.Has(value)
-}
-
-func (s Set) HasAny(v sets.String) bool {
-	for k := range v {
-		if s.values.Has(k) {
-			return true
-		}
-	}
-	return false
 }
 
 // Intersection returns a new set containing the common values

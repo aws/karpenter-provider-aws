@@ -23,12 +23,13 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -53,27 +54,30 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)
 	c.mu.Unlock()
 	name := fmt.Sprintf("n%04d-%s", atomic.AddUint64(&sequentialNodeID, 1), strings.ToLower(randomdata.SillyName()))
-	instance := nodeRequest.InstanceTypeOptions[0]
-	var zone, capacityType string
-	for _, o := range instance.Offerings() {
-		if nodeRequest.Template.Requirements.CapacityTypes().Has(o.CapacityType) && nodeRequest.Template.Requirements.Zones().Has(o.Zone) {
-			zone = o.Zone
-			capacityType = o.CapacityType
+	instanceType := nodeRequest.InstanceTypeOptions[0]
+	// Labels
+	labels := map[string]string{}
+	for key, values := range instanceType.Requirements() {
+		labels[key] = values.Any()
+	}
+	// Find Offering
+	for _, o := range instanceType.Offerings() {
+		if nodeRequest.Template.Requirements.Compatible(scheduling.Requirements{
+			v1.LabelTopologyZone:       sets.NewSet(o.Zone),
+			v1alpha5.LabelCapacityType: sets.NewSet(o.CapacityType),
+		}) == nil {
+			labels[v1.LabelTopologyZone] = o.Zone
+			labels[v1alpha5.LabelCapacityType] = o.CapacityType
 			break
 		}
 	}
 	n := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				v1.LabelTopologyZone:       zone,
-				v1.LabelInstanceTypeStable: instance.Name(),
-				v1.LabelArchStable:         instance.Architecture(),
-				v1alpha5.LabelCapacityType: capacityType,
-			},
+			Name:   name,
+			Labels: labels,
 		},
 		Spec: v1.NodeSpec{
-			ProviderID: fmt.Sprintf("fake:///%s/%s", name, zone),
+			ProviderID: fmt.Sprintf("fake://%s", name),
 		},
 	}
 	return n, nil
@@ -120,7 +124,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provider *v1alpha5.P
 		NewInstanceType(InstanceTypeOptions{
 			Name:             "arm-instance-type",
 			Architecture:     "arm64",
-			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
+			OperatingSystems: utilsets.NewString("ios", "linux", "windows", "darwin"),
 			Resources: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:    resource.MustParse("16"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
@@ -130,11 +134,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provider *v1alpha5.P
 }
 
 func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provider)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
-	return cloudprovider.InstanceTypeRequirements(instanceTypes), nil
+	return scheduling.NewRequirements(), nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {

@@ -57,9 +57,8 @@ var (
 	)
 
 	// RestrictedLabels are labels that should not be used
-	// because they may interfer the internall provisioning logic.
+	// because they may interfer the internal provisioning logic.
 	RestrictedLabels = sets.NewString(
-		// Used internally by provisioning logic
 		EmptinessTimestampAnnotationKey,
 		v1.LabelHostname,
 	)
@@ -85,16 +84,12 @@ func IsRestrictedLabel(key string) error {
 	if WellKnownLabels.Has(key) {
 		return nil
 	}
-	if RestrictedLabels.Has(key) {
-		return fmt.Errorf("label is restricted, %s", key)
-	}
-	labelDomain := getLabelDomain(key)
-	if LabelDomainExceptions.Has(labelDomain) {
+	if LabelDomainExceptions.Has(getLabelDomain(key)) {
 		return nil
 	}
 	for restrictedLabelDomain := range RestrictedLabelDomains {
-		if strings.HasSuffix(labelDomain, restrictedLabelDomain) {
-			return fmt.Errorf("label domain not allowed, %s", getLabelDomain(key))
+		if strings.HasSuffix(getLabelDomain(key), restrictedLabelDomain) {
+			return fmt.Errorf("label %s is restricted; specify a well known label: %v, or a custom label that does use a restricted domain: %v", key, WellKnownLabels.List(), RestrictedLabelDomains.List())
 		}
 	}
 	return nil

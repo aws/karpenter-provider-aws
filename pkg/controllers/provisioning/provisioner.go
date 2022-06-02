@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -161,6 +162,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
+//gocyclo:ignore
 func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
@@ -168,22 +170,26 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	var nodeTemplates []*scheduling.NodeTemplate
 	var provisionerList v1alpha5.ProvisionerList
 	instanceTypes := map[string][]cloudprovider.InstanceType{}
+	domains := map[string]sets.String{}
 	if err := p.kubeClient.List(ctx, &provisionerList); err != nil {
 		return nil, fmt.Errorf("listing provisioners, %w", err)
 	}
 	for i := range provisionerList.Items {
 		provisioner := &provisionerList.Items[i]
-		requirements, err := p.cloudProvider.GetRequirements(ctx, provisioner.Spec.Provider)
-		if err != nil {
-			return nil, fmt.Errorf("getting provider requirements, %w", err)
-		}
+		// Create node template
+		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(provisioner))
 		// Get instance type options
 		instanceTypeOptions, err := p.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
 		if err != nil {
 			return nil, fmt.Errorf("getting instance types, %w", err)
 		}
 		instanceTypes[provisioner.Name] = append(instanceTypes[provisioner.Name], instanceTypeOptions...)
-		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(provisioner, requirements))
+		// Construct Topology Domains
+		for _, instanceType := range instanceTypeOptions {
+			for key, requirement := range instanceType.Requirements() {
+				domains[key] = domains[key].Union(requirement.Values())
+			}
+		}
 	}
 	if len(nodeTemplates) == 0 {
 		return nil, fmt.Errorf("no provisioners found")
@@ -197,7 +203,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	}
 
 	// Calculate cluster topology
-	topology, err := scheduler.NewTopology(ctx, p.kubeClient, p.cluster, nodeTemplates, pods)
+	topology, err := scheduler.NewTopology(ctx, p.kubeClient, p.cluster, domains, pods)
 	if err != nil {
 		return nil, fmt.Errorf("tracking topology counts, %w", err)
 	}
@@ -214,7 +220,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 	// Check limits
 	latest := &v1alpha5.Provisioner{}
-	name, _ := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
+	name := node.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
 	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: name}, latest); err != nil {
 		return fmt.Errorf("getting current resource usage, %w", err)
 	}

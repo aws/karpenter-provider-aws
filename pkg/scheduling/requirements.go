@@ -98,14 +98,13 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 }
 
 // Add requirements to provided requirements. Mutates existing requirements
-func (r Requirements) Add(requirements ...Requirements) {
-	for _, requirement := range requirements {
-		for key, values := range requirement {
-			if existing, ok := r[key]; ok {
-				values = values.Intersection(existing)
-			}
-			r[key] = values
+func (r Requirements) Add(requirements Requirements) {
+	// for _, requirement := range requirements {
+	for key, values := range requirements {
+		if existing, ok := r[key]; ok {
+			values = values.Intersection(existing)
 		}
+		r[key] = values
 	}
 }
 
@@ -124,43 +123,39 @@ func (r Requirements) Has(key string) bool {
 }
 
 func (r Requirements) Get(key string) sets.Set {
-	return r[key]
-}
-
-func (r Requirements) Zones() stringsets.String {
-	return r.Get(v1.LabelTopologyZone).Values()
-}
-
-func (r Requirements) InstanceTypes() stringsets.String {
-	return r.Get(v1.LabelInstanceTypeStable).Values()
-}
-
-func (r Requirements) Architectures() stringsets.String {
-	return r.Get(v1.LabelArchStable).Values()
-}
-
-func (r Requirements) OperatingSystems() stringsets.String {
-	return r.Get(v1.LabelOSStable).Values()
-}
-
-func (r Requirements) CapacityTypes() stringsets.String {
-	return r.Get(v1alpha5.LabelCapacityType).Values()
+	if _, ok := r[key]; ok {
+		return r[key]
+	}
+	return sets.NewComplementSet()
 }
 
 // Compatible ensures the provided requirements can be met.
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
-	for key, values := range requirements {
-		intersection := values.Intersection(r.Get(key))
-		// There must be some value, except in these cases
-		if intersection.Len() == 0 {
-			// Where incoming requirement has operator { NotIn, DoesNotExist }
-			if values.Type() == v1.NodeSelectorOpNotIn || values.Type() == v1.NodeSelectorOpDoesNotExist {
-				// And existing requirement has operator { NotIn, DoesNotExist }
-				if r.Get(key).Type() == v1.NodeSelectorOpNotIn || r.Get(key).Type() == v1.NodeSelectorOpDoesNotExist {
+	// Custom Labels must be defined by existing requirements, check all keys except well known
+	errs = multierr.Append(errs, r.Intersects(requirements, r.Keys().Union(requirements.Keys().Difference(v1alpha5.WellKnownLabels))))
+	// Well Known Labels are implicitly supported if not defined, check well known defined by both requirements
+	errs = multierr.Append(errs, r.Intersects(requirements, r.Keys().Intersection(requirements.Keys()).Intersection(v1alpha5.WellKnownLabels)))
+	return errs
+}
+
+// Intersect the requirements over the given keyspace
+func (r Requirements) Intersects(requirements Requirements, keys stringsets.String) (errs error) {
+	for key := range requirements {
+		if !keys.Has(key) {
+			continue
+		}
+		existing := r[key]
+		incoming := requirements[key]
+		// There must be some value, except
+		if existing.Intersection(incoming).Len() == 0 {
+			// where the incoming requirement has operator { NotIn, DoesNotExist }
+			if operator := incoming.Type(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
+				// and the existing requirement has operator { NotIn, DoesNotExist }
+				if operator := existing.Type(); operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 					continue
 				}
 			}
-			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", values, r.Get(key), key))
+			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", incoming, existing, key))
 		}
 	}
 	return errs
@@ -169,6 +164,9 @@ func (r Requirements) Compatible(requirements Requirements) (errs error) {
 func (r Requirements) String() string {
 	var sb strings.Builder
 	for key, req := range r {
+		if v1alpha5.RestrictedLabels.Has(key) {
+			continue
+		}
 		var values []string
 		if !req.IsComplement() {
 			values = req.Values().List()

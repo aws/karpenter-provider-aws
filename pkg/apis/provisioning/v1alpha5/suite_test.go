@@ -89,12 +89,6 @@ var _ = Describe("Validation", func() {
 			provisioner.Spec.Labels = map[string]string{randomdata.SillyName(): "/ is not allowed"}
 			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
-		It("should fail for restricted labels", func() {
-			for label := range RestrictedLabels {
-				provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
-				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-			}
-		})
 		It("should fail for restricted label domains", func() {
 			for label := range RestrictedLabelDomains {
 				provisioner.Spec.Labels = map[string]string{label + "/unknown": randomdata.SillyName()}
@@ -170,14 +164,6 @@ var _ = Describe("Validation", func() {
 			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt} {
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
-				}
-				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
-			}
-		})
-		It("should fail for restricted labels", func() {
-			for label := range RestrictedLabels {
-				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
 				}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}

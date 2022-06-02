@@ -18,7 +18,6 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,9 +46,6 @@ type CloudProvider interface {
 	// availability, the GetInstanceTypes method should always return all instance types,
 	// even those with no offerings available.
 	GetInstanceTypes(context.Context, *v1alpha5.Provider) ([]InstanceType, error)
-	// GetRequirements for the provider, e.g. zones contrained by subnets or
-	// os constrained by machine image.
-	GetRequirements(context.Context, *v1alpha5.Provider) (scheduling.Requirements, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Provisioner)
 	// Validate is a hook for additional validation logic at webhook time.
@@ -66,11 +62,13 @@ type NodeRequest struct {
 // InstanceType describes the properties of a potential node (either concrete attributes of an instance of this type
 // or supported options in the case of arrays)
 type InstanceType interface {
+	// Name of the instance type, must correspond to v1.LabelInstanceTypeStable
 	Name() string
+	// Requirements returns a flexible set of properties that may be selected
+	// for scheduling. Must be defined for every well known label.
+	Requirements() scheduling.Requirements
 	// Note that though this is an array it is expected that all the Offerings are unique from one another
 	Offerings() []Offering
-	Architecture() string
-	OperatingSystems() sets.String
 	// Resources are the full allocatable resource capacities for this instance type
 	Resources() v1.ResourceList
 	// Overhead is the amount of resource overhead expected to be used by kubelet and any other system daemons outside

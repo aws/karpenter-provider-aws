@@ -33,7 +33,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -187,7 +186,26 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
 			})
 		})
-		Context("Specialized Hardware", func() {
+		Context("Instance Types", func() {
+			It("should support instance type labels", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				var pods []*v1.Pod
+				for key, value := range map[string]string{
+					v1alpha1.InstanceFamilyLabelKey:          "p3",
+					v1alpha1.InstanceSizeLabelKey:            "xlarge",
+					v1alpha1.InstanceCPULabelKey:             "32",
+					v1alpha1.InstanceMemoryLabelKey:          "249856",
+					v1alpha1.InstanceGPUNameLabelKey:         "nvidia-v100",
+					v1alpha1.InstanceGPUManufacturerLabelKey: "nvidia",
+					v1alpha1.InstanceGPUCountLabelKey:        "4",
+					v1alpha1.InstanceGPUMemoryLabelKey:       "16384",
+				} {
+					pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
+				}
+				for _, pod := range ExpectProvisioned(ctx, env.Client, controller, pods...) {
+					ExpectScheduled(ctx, env.Client, pod)
+				}
+			})
 			It("should not launch AWS Pod ENI on a t3", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
@@ -366,8 +384,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -428,7 +446,7 @@ var _ = Describe("Allocation", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 				// capacity shortage is over - expire the item from the cache and try again
 				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{})
-				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey(v1alpha1.CapacityTypeOnDemand, "inf1.6xlarge", "test-zone-1a"))
+				unavailableOfferingsCache.Delete(UnavailableOfferingsCacheKey("inf1.6xlarge", "test-zone-1a", v1alpha1.CapacityTypeOnDemand))
 				pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
@@ -1240,8 +1258,16 @@ var _ = Describe("Allocation", func() {
 
 		It("should default requirements", func() {
 			provisioner.SetDefaults(ctx)
-			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).CapacityTypes().List()).To(ConsistOf(v1alpha1.CapacityTypeOnDemand))
-			Expect(scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...).Architectures().List()).To(ConsistOf(v1alpha5.ArchitectureAmd64))
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha1.CapacityTypeOnDemand},
+			}))
+			Expect(provisioner.Spec.Requirements).To(ContainElement(v1.NodeSelectorRequirement{
+				Key:      v1.LabelArchStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{v1alpha5.ArchitectureAmd64},
+			}))
 		})
 	})
 	Context("Validation", func() {
@@ -1291,12 +1317,21 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("Labels", func() {
 			It("should not allow unrecognized labels with the aws label prefix", func() {
-				provisioner.Spec.Labels = map[string]string{"node.k8s.aws/foo": randomdata.SillyName()}
+				provisioner.Spec.Labels = map[string]string{v1alpha1.LabelDomain + "/" + randomdata.SillyName(): randomdata.SillyName()}
 				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			})
-			It("should support a capacity type label", func() {
-				for _, value := range []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot} {
-					provisioner.Spec.Labels = map[string]string{v1alpha5.LabelCapacityType: value}
+			It("should support well known labels", func() {
+				for _, label := range []string{
+					v1alpha1.InstanceFamilyLabelKey,
+					v1alpha1.InstanceSizeLabelKey,
+					v1alpha1.InstanceCPULabelKey,
+					v1alpha1.InstanceMemoryLabelKey,
+					v1alpha1.InstanceGPUNameLabelKey,
+					v1alpha1.InstanceGPUManufacturerLabelKey,
+					v1alpha1.InstanceGPUCountLabelKey,
+					v1alpha1.InstanceGPUMemoryLabelKey,
+				} {
+					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 					Expect(provisioner.Validate(ctx)).To(Succeed())
 				}
 			})

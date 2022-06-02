@@ -18,16 +18,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/sets"
 
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/sets"
+	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
+
+const (
+	InstanceSizeLabelKey   = "size"
+	ExoticInstanceLabelKey = "special"
+)
+
+func init() {
+	v1alpha5.WellKnownLabels.Insert(
+		InstanceSizeLabelKey,
+		ExoticInstanceLabelKey,
+	)
+}
 
 func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 	if options.Resources == nil {
@@ -51,7 +67,7 @@ func NewInstanceType(options InstanceTypeOptions) *InstanceType {
 		options.Architecture = "amd64"
 	}
 	if options.OperatingSystems.Len() == 0 {
-		options.OperatingSystems = sets.NewString("linux", "windows", "darwin")
+		options.OperatingSystems = utilsets.NewString("linux", "windows", "darwin")
 	}
 	if r := options.Resources[v1.ResourceCPU]; r.IsZero() {
 		options.Resources[v1.ResourceCPU] = resource.MustParse("4")
@@ -82,7 +98,7 @@ func InstanceTypesAssorted() []cloudprovider.InstanceType {
 		for _, mem := range []int{1, 2, 4, 8, 16, 32, 64, 128} {
 			for _, zone := range []string{"test-zone-1", "test-zone-2", "test-zone-3"} {
 				for _, ct := range []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand} {
-					for _, os := range []sets.String{sets.NewString("linux"), sets.NewString("windows")} {
+					for _, os := range []utilsets.String{utilsets.NewString("linux"), utilsets.NewString("windows")} {
 						for _, arch := range []string{v1alpha5.ArchitectureAmd64, v1alpha5.ArchitectureArm64} {
 							it := NewInstanceType(InstanceTypeOptions{
 								Name:             fmt.Sprintf("%d-cpu-%d-mem-%s-%s-%s-%s", cpu, mem, arch, strings.Join(os.List(), ","), zone, ct),
@@ -133,7 +149,7 @@ type InstanceTypeOptions struct {
 	Name             string
 	Offerings        []cloudprovider.Offering
 	Architecture     string
-	OperatingSystems sets.String
+	OperatingSystems utilsets.String
 	Overhead         v1.ResourceList
 	Resources        v1.ResourceList
 	Price            float64
@@ -141,6 +157,10 @@ type InstanceTypeOptions struct {
 
 type InstanceType struct {
 	options InstanceTypeOptions
+}
+
+func (i *InstanceType) Name() string {
+	return i.options.Name
 }
 
 func (i *InstanceType) Price() float64 {
@@ -166,22 +186,28 @@ func (i *InstanceType) Resources() v1.ResourceList {
 	return i.options.Resources
 }
 
-func (i *InstanceType) Name() string {
-	return i.options.Name
-}
-
 func (i *InstanceType) Offerings() []cloudprovider.Offering {
 	return i.options.Offerings
 }
 
-func (i *InstanceType) Architecture() string {
-	return i.options.Architecture
-}
-
-func (i *InstanceType) OperatingSystems() sets.String {
-	return i.options.OperatingSystems
-}
-
 func (i *InstanceType) Overhead() v1.ResourceList {
 	return i.options.Overhead
+}
+
+func (i *InstanceType) Requirements() scheduling.Requirements {
+	requirements := scheduling.Requirements{
+		v1.LabelInstanceTypeStable: sets.NewSet(i.options.Name),
+		v1.LabelArchStable:         sets.NewSet(i.options.Architecture),
+		v1.LabelOSStable:           sets.NewSet(i.options.OperatingSystems.List()...),
+		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+	}
+	if i.options.Resources.Cpu().Cmp(resource.MustParse("4")) > 0 &&
+		i.options.Resources.Memory().Cmp(resource.MustParse("8Gi")) > 0 {
+		requirements.Add(scheduling.Requirements{InstanceSizeLabelKey: sets.NewSet("large")})
+		requirements.Add(scheduling.Requirements{ExoticInstanceLabelKey: sets.NewSet("optional")})
+	} else {
+		requirements.Add(scheduling.Requirements{InstanceSizeLabelKey: sets.NewSet("small")})
+	}
+	return requirements
 }

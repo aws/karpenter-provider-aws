@@ -3,7 +3,7 @@ title: "Scheduling"
 linkTitle: "Scheduling"
 weight: 15
 description: >
-  Learn about scheduling workloads with Karpenter 
+  Learn about scheduling workloads with Karpenter
 ---
 
 If your pods have no requirements for how or where to run, you can let Karpenter choose nodes from the full range of available cloud provider resources.
@@ -26,7 +26,7 @@ Constraints you can request include:
 * **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
 * **Topology spread**: Use topology spread to help ensure availability of the application.
-* **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods. 
+* **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods.
 
 Karpenter supports standard Kubernetes scheduling constraints.
 This allows you to define a single set of rules that apply to both existing and provisioned capacity.
@@ -74,6 +74,25 @@ This can include well-known labels or custom labels you create yourself.
 While `nodeSelector` is like node affinity, it doesn't have the same "and/or" matchExpressions that affinity has.
 So all key-value pairs must match if you use `nodeSelector`.
 Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusions and exclusions (`In` and `NotIn`).
+
+### Supported Labels
+The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints.
+
+| Label                                             | Example    | Description                                                                                                                                 |
+| ------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| kubernetes.io/os                                  | linux      | Operating systems include `linux`, `windows`                                                                                                |
+| kubernetes.io/arch                                | amd64      | Architectures include `amd64`, `arm64`                                                                                                      |
+| node.kubernetes.io/instance-type                  | p3.8xlarge | Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                       |
+| topology.kubernetes.io/zone                       | us-west-2a | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
+| karpenter.sh/capacity-type                        | spot       | Capacity types include `spot`, `on-demand`                                                                                                  |
+| karpenter.k8s.aws/instance.family           | p3         | [AWS Specific] Instance types of similar properties but different resource quantities                                                       |
+| karpenter.k8s.aws/instance.size             | 8xlarge    | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
+| karpenter.k8s.aws/instance.cpu              | 32         | [AWS Specific] Number of CPUs on the instance                                                                                               |
+| karpenter.k8s.aws/instance.memory           | 249856     | [AWS Specific] Number of mebibytes of memory on the instance                                                                                |
+| karpenter.k8s.aws/instance.gpu.name         | v100       | [AWS Specific] Name of the GPU on the instance, if available                                                                                |
+| karpenter.k8s.aws/instance.gpu.manufacturer | nvidia     | [AWS Specific] Name of the GPU manufacturer                                                                                                 |
+| karpenter.k8s.aws/instance.gpu.count        | 4          | [AWS Specific] Number of GPUs on the instance                                                                                               |
+| karpenter.k8s.aws/instance.gpu.memory       | 16384      | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                     |
 
 ### Node selectors
 
@@ -176,12 +195,10 @@ metadata:
   name: gpu
 spec:
   requirements:
-  - key: node.kubernetes.io/instance-type
+  - key: karpenter.k8s.aws/instance.family
     operator: In
     values:
-      - p3.2xlarge
-      - p3.8xlarge
-      - p3.16xlarge
+      - p3
   taints:
   - key: nvidia.com/gpu
     value: true
@@ -280,9 +297,9 @@ spec:
         topologyKey: kubernetes.io/hostname
 ```
 
-The above pod affinity rule would cause the pod to only schedule in zones where a pod with the label `system=backend` is already running.  
+The above pod affinity rule would cause the pod to only schedule in zones where a pod with the label `system=backend` is already running.
 
-The anti-affinity rule would cause it to avoid running on any node with a pod labeled `app=inflate`.  If this anti-affinity term was on a deployment pod spec along with a matching `app=inflate` label, it would prevent more than one pod from the deployment from running on any single node. 
+The anti-affinity rule would cause it to avoid running on any node with a pod labeled `app=inflate`.  If this anti-affinity term was on a deployment pod spec along with a matching `app=inflate` label, it would prevent more than one pod from the deployment from running on any single node.
 
 See [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) in the Kubernetes documentation for details.
 

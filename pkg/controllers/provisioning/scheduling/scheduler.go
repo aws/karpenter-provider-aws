@@ -51,7 +51,7 @@ func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alp
 	}
 
 	namedNodeTemplates := lo.KeyBy(s.nodeTemplates, func(nodeTemplate *scheduling.NodeTemplate) string {
-		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Values().List()[0]
+		return nodeTemplate.Requirements.Get(v1alpha5.ProvisionerNameLabelKey).Any()
 	})
 
 	for _, provisioner := range provisioners {

@@ -32,11 +32,9 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
-	"github.com/aws/karpenter/pkg/utils/sets"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/transport"
@@ -121,30 +119,6 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 	return c.instanceProvider.Terminate(ctx, node)
-}
-
-func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provider)
-	if err != nil {
-		return nil, fmt.Errorf("getting instance types, %w", err)
-	}
-	requirements := cloudprovider.InstanceTypeRequirements(instanceTypes)
-
-	awsprovider, err := v1alpha1.Deserialize(provider)
-	if err != nil {
-		return nil, apis.ErrGeneric(err.Error())
-	}
-	// Constrain AZs from subnets
-	subnets, err := c.subnetProvider.Get(ctx, awsprovider)
-	if err != nil {
-		return nil, err
-	}
-	zones := sets.NewSet()
-	for _, subnet := range subnets {
-		zones.Insert(aws.StringValue(subnet.AvailabilityZone))
-	}
-	requirements.Add(scheduling.Requirements{v1.LabelTopologyZone: zones})
-	return requirements, nil
 }
 
 // Validate the provisioner
