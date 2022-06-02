@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 
@@ -42,6 +43,11 @@ var (
 		AMIFamilyBottlerocket,
 		AMIFamilyAL2,
 		AMIFamilyUbuntu,
+	}
+	SupportedContainerRuntimesByAMIFamily = map[string]sets.String{
+		AMIFamilyBottlerocket: sets.NewString("containerd"),
+		AMIFamilyAL2:          sets.NewString("dockerd", "containerd"),
+		AMIFamilyUbuntu:       sets.NewString("dockerd", "containerd"),
 	}
 	ResourceNVIDIAGPU v1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU    v1.ResourceName = "amd.com/gpu"

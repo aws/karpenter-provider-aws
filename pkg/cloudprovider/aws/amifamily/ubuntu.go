@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -54,7 +55,15 @@ func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 	return []*v1alpha1.BlockDeviceMapping{{
-		DeviceName: aws.String("/dev/sda1"),
-		EBS:        &defaultEBS,
+		DeviceName: u.EphemeralBlockDevice(),
+		EBS:        &DefaultEBS,
 	}}
+}
+
+func (u Ubuntu) EphemeralBlockDevice() *string {
+	return aws.String("/dev/sda1")
+}
+
+func (u Ubuntu) EphemeralBlockDeviceOverhead() resource.Quantity {
+	return resource.MustParse("5Gi")
 }

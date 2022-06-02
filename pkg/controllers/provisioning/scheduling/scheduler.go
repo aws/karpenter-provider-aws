@@ -33,8 +33,12 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes []cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
-	sort.Slice(instanceTypes, func(i, j int) bool { return instanceTypes[i].Price() < instanceTypes[j].Price() })
+func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
+	for provisioner := range instanceTypes {
+		sort.Slice(instanceTypes[provisioner], func(i, j int) bool {
+			return instanceTypes[provisioner][i].Price() < instanceTypes[provisioner][j].Price()
+		})
+	}
 	s := &Scheduler{
 		nodeTemplates:      nodeTemplates,
 		topology:           topology,
@@ -84,7 +88,7 @@ type Scheduler struct {
 	inflight           []*InFlightNode
 	nodeTemplates      []*scheduling.NodeTemplate
 	remainingResources map[string]v1.ResourceList // provisioner name -> remaining resources for that provisioner
-	instanceTypes      []cloudprovider.InstanceType
+	instanceTypes      map[string][]cloudprovider.InstanceType
 	daemonOverhead     map[*scheduling.NodeTemplate]v1.ResourceList
 	preferences        *Preferences
 	topology           *Topology
@@ -170,10 +174,10 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 	// Create new node
 	var errs error
 	for _, nodeTemplate := range s.nodeTemplates {
-		instanceTypes := s.instanceTypes
+		instanceTypes := s.instanceTypes[nodeTemplate.ProvisionerName]
 		// if limits have been applied to the provisioner, ensure we filter instance types to avoid violating those limits
 		if remaining, ok := s.remainingResources[nodeTemplate.ProvisionerName]; ok {
-			instanceTypes = filterByRemainingResources(s.instanceTypes, remaining)
+			instanceTypes = filterByRemainingResources(s.instanceTypes[nodeTemplate.ProvisionerName], remaining)
 			if len(instanceTypes) == 0 {
 				errs = multierr.Append(errs, fmt.Errorf("all available instance types exceed provisioner limits"))
 				continue

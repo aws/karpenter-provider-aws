@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -38,7 +39,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo"
@@ -755,7 +755,38 @@ var _ = Describe("Allocation", func() {
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 			})
-			It("should specify --container-runtime dockerd when using GPUs", func() {
+			It("should specify dockerd if specified in the provisionerSpec", func() {
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{
+					Provider: provider,
+					Kubelet:  &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")},
+				}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
+			})
+			It("should specify --container-runtime docker when using Neuron GPUs", func() {
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU:             resource.MustParse("1"),
+							v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						},
+						Limits: map[v1.ResourceName]resource.Quantity{
+							v1alpha1.ResourceAWSNeuron: resource.MustParse("1"),
+						},
+					},
+				}))[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+				Expect(string(userData)).To(ContainSubstring("--container-runtime docker"))
+			})
+			It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{
@@ -772,7 +803,7 @@ var _ = Describe("Allocation", func() {
 				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
 				input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
 				userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-				Expect(string(userData)).To(ContainSubstring("--container-runtime dockerd"))
+				Expect(string(userData)).To(ContainSubstring("--container-runtime containerd"))
 			})
 			Context("Bottlerocket", func() {
 				It("should merge in custom user data", func() {
@@ -1082,9 +1113,89 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 						Requests: map[v1.ResourceName]resource.Quantity{
-							v1.ResourceEphemeralStorage: resource.MustParse("1Pi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 						}}}))
 				ExpectScheduled(ctx, env.Client, pod[0])
+			})
+			It("should not pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
+						}}}))
+				ExpectNotScheduled(ctx, env.Client, pod[0])
+			})
+			It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
+				var nodes []*v1.Node
+				ExpectApplied(ctx, env.Client, provisioner)
+				pods := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+						},
+					},
+					}),
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+						},
+					},
+					}),
+				)
+				for _, pod := range pods {
+					nodes = append(nodes, ExpectScheduled(ctx, env.Client, pod))
+				}
+				Expect(nodes).To(HaveLen(2))
+			})
+			It("should only pack pods with ephemeral-storage requests that will fit on an available node", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pods := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+						},
+					},
+					}),
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
+						},
+					},
+					}),
+				)
+				ExpectScheduled(ctx, env.Client, pods[0])
+				ExpectNotScheduled(ctx, env.Client, pods[1])
+			})
+			It("should not pack pod if no available instance types have enough storage", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
+						},
+					},
+					}))[0]
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+			It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
+				provider, _ = v1alpha1.Deserialize(provisioner.Spec.Provider)
+				provider.BlockDeviceMappings = []*v1alpha1.BlockDeviceMapping{{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1alpha1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+					},
+				}}
+				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
+				pod := ExpectProvisioned(ctx, env.Client, controller,
+					test.UnschedulablePod(test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+						},
+					},
+					}))[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Status.Capacity).To(HaveKeyWithValue(v1.ResourceEphemeralStorage, resource.MustParse("50G")))
 			})
 		})
 	})

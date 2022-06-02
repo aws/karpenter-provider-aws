@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -48,8 +49,12 @@ func (a AL2) SSMAlias(version string, instanceType cloudprovider.InstanceType) s
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
 func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+	containerRuntime := aws.String(a.containerRuntime(instanceTypes))
+	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
+		containerRuntime = kubeletConfig.ContainerRuntime
+	}
 	return bootstrap.EKS{
-		ContainerRuntime: a.containerRuntime(instanceTypes),
+		ContainerRuntime: *containerRuntime,
 		Options: bootstrap.Options{
 			ClusterName:             a.Options.ClusterName,
 			ClusterEndpoint:         a.Options.ClusterEndpoint,
@@ -64,13 +69,11 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []cor
 }
 
 // containerRuntime will return the proper container runtime based on the capabilities of the
-// instanceTypes passed in since the AL2 EKS Optimized AMI does not support GPUs w/ containerd.
-// this should be removed once the EKS Optimized AMI supports GPUs through containerd
+// instanceTypes passed in since the AL2 EKS Optimized AMI does not support inferentia instances w/ containerd.
+// this should be removed once the EKS Optimized AMI supports all GPUs.
 func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string {
 	instanceResources := instanceTypes[0].Resources()
-	if resources.IsZero(instanceResources[v1alpha1.ResourceNVIDIAGPU]) &&
-		resources.IsZero(instanceResources[v1alpha1.ResourceAMDGPU]) &&
-		resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
+	if resources.IsZero(instanceResources[v1alpha1.ResourceAWSNeuron]) {
 		return "containerd"
 	}
 	return "dockerd"
@@ -79,7 +82,15 @@ func (a AL2) containerRuntime(instanceTypes []cloudprovider.InstanceType) string
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (a AL2) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
 	return []*v1alpha1.BlockDeviceMapping{{
-		DeviceName: aws.String("/dev/xvda"),
-		EBS:        &defaultEBS,
+		DeviceName: a.EphemeralBlockDevice(),
+		EBS:        &DefaultEBS,
 	}}
+}
+
+func (a AL2) EphemeralBlockDevice() *string {
+	return aws.String("/dev/xvda")
+}
+
+func (a AL2) EphemeralBlockDeviceOverhead() resource.Quantity {
+	return resource.MustParse("5Gi")
 }

@@ -68,6 +68,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 			Labels: map[string]string{
 				v1.LabelTopologyZone:       zone,
 				v1.LabelInstanceTypeStable: instance.Name(),
+				v1.LabelArchStable:         instance.Architecture(),
 				v1alpha5.LabelCapacityType: capacityType,
 			},
 		},
@@ -88,7 +89,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
@@ -139,7 +140,7 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context) ([]cloudprovider.Ins
 }
 
 func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx)
+	instanceTypes, err := c.GetInstanceTypes(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

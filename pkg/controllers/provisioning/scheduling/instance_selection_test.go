@@ -485,6 +485,7 @@ var _ = Describe("Instance Type Selection", func() {
 			resourceHashes[it.Name()], err = hashstructure.Hash(it.Resources(), hashstructure.FormatV2, nil)
 			Expect(err).To(BeNil())
 			overheadHashes[it.Name()], err = hashstructure.Hash(it.Overhead(), hashstructure.FormatV2, nil)
+			Expect(err).To(BeNil())
 		}
 		ExpectApplied(ctx, env.Client, provisioner)
 		// these values are constructed so that three of these pods can always fit on at least one of our instance types

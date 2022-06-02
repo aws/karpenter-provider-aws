@@ -111,8 +111,12 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
-	return c.instanceTypeProvider.Get(ctx)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
+	awsprovider, err := v1alpha1.Deserialize(provider)
+	if err != nil {
+		return nil, apis.ErrGeneric(err.Error())
+	}
+	return c.instanceTypeProvider.Get(ctx, awsprovider)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -120,7 +124,7 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 }
 
 func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx)
+	instanceTypes, err := c.GetInstanceTypes(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
@@ -149,7 +153,7 @@ func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Prov
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return provider.Validate()
+	return provider.Validate(*provisioner)
 }
 
 // Default the provisioner

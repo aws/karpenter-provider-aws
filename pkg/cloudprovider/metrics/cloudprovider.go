@@ -40,7 +40,7 @@ var methodDurationHistogramVec = prometheus.NewHistogramVec(
 		Namespace: metrics.Namespace,
 		Subsystem: "cloudprovider",
 		Name:      "duration_seconds",
-		Help:      "Duration of cloud provider method calls.",
+		Help:      "Duration of cloud provider method calls. Labeled by the controller, method name and provider.",
 	},
 	[]string{
 		metricLabelController,
@@ -78,9 +78,9 @@ func (d *decorator) Delete(ctx context.Context, node *v1.Node) error {
 	return d.CloudProvider.Delete(ctx, node)
 }
 
-func (d *decorator) GetInstanceTypes(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (d *decorator) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
 	defer metrics.Measure(methodDurationHistogramVec.WithLabelValues(injection.GetControllerName(ctx), "GetInstanceTypes", d.Name()))()
-	return d.CloudProvider.GetInstanceTypes(ctx)
+	return d.CloudProvider.GetInstanceTypes(ctx, provider)
 }
 
 func (d *decorator) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {

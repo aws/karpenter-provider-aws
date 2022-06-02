@@ -23,11 +23,12 @@ type config struct {
 // These settings apply across all K8s versions that karpenter supports.
 // This is currently an opinionated subset and can evolve over time
 type settings struct {
-	Kubernetes     kubernetes      `toml:"kubernetes"`
-	HostContainers *hostContainers `toml:"host-containers,omitempty"`
-	AWS            *awsConfig      `toml:"aws,omitempty"`
-	Metrics        *metrics        `toml:"metrics,omitempty"`
-	Kernel         *kernel         `toml:"kernel,omitempty"`
+	Kubernetes        kubernetes         `toml:"kubernetes"`
+	HostContainers    *hostContainers    `toml:"host-containers,omitempty"`
+	AWS               *awsConfig         `toml:"aws,omitempty"`
+	Metrics           *metrics           `toml:"metrics,omitempty"`
+	Kernel            *kernel            `toml:"kernel,omitempty"`
+	ContainerRegistry *containerRegistry `toml:"container-registry,omitempty"`
 }
 
 // kubernetes specific configuration for bottlerocket api
@@ -57,6 +58,17 @@ type kubernetes struct {
 	CPUManagerReconcilePeriod *string              `toml:"cpu-manager-reconcile-period,omitempty"`
 	TopologyManagerScope      *string              `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy     *string              `toml:"topology-manager-policy,omitempty"`
+}
+
+type containerRegistry struct {
+	Credentials []*credential `toml:"credentials,omitempty"`
+}
+
+type credential struct {
+	Registry *string `toml:"registry,omitempty"`
+	Auth     *string `toml:"auth,omitempty"`
+	UserName *string `toml:"username,omitempty"`
+	Password *string `toml:"password,omitempty"`
 }
 
 type staticPod struct {

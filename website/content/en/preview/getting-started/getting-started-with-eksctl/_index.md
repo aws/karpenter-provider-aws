@@ -53,15 +53,32 @@ Also set the following environment variables to store commonly used values.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step01-config.sh" language="bash"%}}
 
+{{% alert title="Warning" color="primary" %}}
+If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
+To remind yourself of these values, type:
+
+```bash
+echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+```
+
+{{% /alert %}}
+
+
 ### Create a Cluster
 
-Create a cluster with `eksctl`. This example configuration file specifies a basic cluster with one initial node and sets up an IAM OIDC provider for the cluster to enable IAM roles for pods:
+Create a basic cluster with `eksctl`.
+Each of the two examples set up an IAM OIDC provider for the cluster to enable IAM roles for pods.
+The first uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces, while the second uses Fargate for both namespaces.
+
+**Example 1: Create basic cluster**
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster.sh" language="bash"%}}
 
-This guide uses [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) to host Karpenter.
+**Example 2: Create basic cluster with Karpenter on Fargate**
 
-Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), or [AWS Fargate](https://aws.amazon.com/fargate/).
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-eksctl/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+
+Karpenter itself can run anywhere, including on [self-managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/worker.html), [managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) (Example 1), or [AWS Fargate](https://aws.amazon.com/fargate/)(Example 2). 
 
 Karpenter will provision EC2 instances in your account.
 

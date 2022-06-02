@@ -23,18 +23,19 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
-	InstanceTypesCacheKey              = "types"
 	InstanceTypeZonesCacheKey          = "zones"
 	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
 	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
@@ -61,11 +62,11 @@ func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvi
 }
 
 // Get all instance type options
-func (p *InstanceTypeProvider) Get(ctx context.Context) ([]cloudprovider.InstanceType, error) {
+func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) ([]cloudprovider.InstanceType, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get InstanceTypes from EC2
-	instanceTypes, err := p.getInstanceTypes(ctx)
+	instanceTypes, err := p.getInstanceTypes(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +126,8 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context) (map[st
 }
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string]*InstanceType, error) {
-	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
+func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v1alpha1.AWS) (map[string]*InstanceType, error) {
+	if cached, ok := p.cache.Get(instanceTypesCacheKey(provider)); ok {
 		return cached.(map[string]*InstanceType), nil
 	}
 	instanceTypes := map[string]*InstanceType{}
@@ -144,7 +145,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType)
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType, provider)
 			}
 		}
 		return true
@@ -152,7 +153,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context) (map[string
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
-	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
+	p.cache.SetDefault(instanceTypesCacheKey(provider), instanceTypes)
 	return instanceTypes, nil
 }
 
@@ -188,4 +189,12 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 
 func UnavailableOfferingsCacheKey(capacityType string, instanceType string, zone string) string {
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
+}
+
+func instanceTypesCacheKey(provider *v1alpha1.AWS) string {
+	hash, err := hashstructure.Hash(provider, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(fmt.Sprintf("hashing provider, %s", err))
+	}
+	return fmt.Sprint(hash)
 }
