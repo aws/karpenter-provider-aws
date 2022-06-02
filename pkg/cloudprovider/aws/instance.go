@@ -282,7 +282,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			case v1alpha1.AMIFamilyAL2, v1alpha1.AMIFamilyBottlerocket, v1alpha1.AMIFamilyUbuntu:
 				n.Labels[v1.LabelOSStable] = "linux"
 			default:
-				logging.FromContext(ctx).Infof("unknown AMI Family %s, not setting %s label", *amiFamily, v1.LabelOSStable)
+				logging.FromContext(ctx).Infof("unknown AMI Family %q, not setting %s label", aws.StringValue(amiFamily), v1.LabelOSStable)
 			}
 			return n
 		}
