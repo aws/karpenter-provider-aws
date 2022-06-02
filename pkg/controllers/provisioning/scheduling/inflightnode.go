@@ -17,7 +17,7 @@ package scheduling
 import (
 	"fmt"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -51,7 +51,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		hostPortUsage: n.HostPortUsage.Copy(),
 	}
 
-	if !cloudprovider.NodeIsReady(n.Node, n.Provisioner, n.InstanceType) {
+	if n.Node.Labels[v1alpha5.LabelNodeReady] != "true" {
 		// add a default toleration for the standard not ready and startup taints if the node hasn't fully
 		// launched yet
 		node.startupTolerations = append(node.startupTolerations, v1.Toleration{

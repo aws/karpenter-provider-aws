@@ -19,10 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/samber/lo"
-
-	"github.com/aws/karpenter/pkg/cloudprovider"
-
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -37,8 +33,7 @@ import (
 
 // Emptiness is a subreconciler that deletes nodes that are empty after a ttl
 type Emptiness struct {
-	kubeClient    client.Client
-	cloudProvider cloudprovider.CloudProvider
+	kubeClient client.Client
 }
 
 // Reconcile reconciles the node
@@ -48,11 +43,8 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 		return reconcile.Result{}, nil
 	}
 
-	instanceType, err := r.getInstanceType(ctx, provisioner, n.Labels[v1.LabelInstanceTypeStable])
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("determining instance type, %w", err)
-	}
-	if !cloudprovider.NodeIsReady(n, provisioner, instanceType) {
+	// node is not ready yet, so we don't consider it to possibly be empty
+	if n.Labels[v1alpha5.LabelNodeReady] != "true" {
 		return reconcile.Result{}, nil
 	}
 
@@ -107,14 +99,4 @@ func (r *Emptiness) isEmpty(ctx context.Context, n *v1.Node) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func (r *Emptiness) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
-	instanceTypes, err := r.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
-	if err != nil {
-		return nil, err
-	}
-	// The instance type may not be found which can occur if the instance type label was removed/edited.  This shouldn't occur,
-	// but if it does we only lose the ability to check for extended resources.
-	return lo.FindOrElse(instanceTypes, nil, func(it cloudprovider.InstanceType) bool { return it.Name() == instanceTypeName }), nil
 }

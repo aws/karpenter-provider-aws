@@ -188,8 +188,9 @@ func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provis
 
 	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
 	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
-	// out the resource.  We don't want to assume that it will always come back.
-	if cloudprovider.NodeIsReady(node, provisioner, instanceType) {
+	// out the resource.  We don't want to assume that it will always come back.  The instance type may be nil if
+	// the node was created from a provisioner that has since been deleted.
+	if instanceType == nil || node.Labels[v1alpha5.LabelNodeReady] == "true" {
 		return node.Status.Allocatable
 	}
 

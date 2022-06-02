@@ -43,19 +43,21 @@ const controllerName = "node"
 // NewController constructs a controller instance
 func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
-		kubeClient: kubeClient,
-		emptiness:  &Emptiness{kubeClient: kubeClient, cloudProvider: cloudProvider},
-		expiration: &Expiration{kubeClient: kubeClient},
+		kubeClient:     kubeClient,
+		initialization: &Initialization{kubeClient: kubeClient, cloudProvider: cloudProvider},
+		emptiness:      &Emptiness{kubeClient: kubeClient},
+		expiration:     &Expiration{kubeClient: kubeClient},
 	}
 }
 
 // Controller manages a set of properties on karpenter provisioned nodes, such as
 // taints, labels, finalizers.
 type Controller struct {
-	kubeClient client.Client
-	emptiness  *Emptiness
-	expiration *Expiration
-	finalizer  *Finalizer
+	kubeClient     client.Client
+	initialization *Initialization
+	emptiness      *Emptiness
+	expiration     *Expiration
+	finalizer      *Finalizer
 }
 
 // Reconcile executes a reallocation control loop for the resource
@@ -92,6 +94,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, reconciler := range []interface {
 		Reconcile(context.Context, *v1alpha5.Provisioner, *v1.Node) (reconcile.Result, error)
 	}{
+		c.initialization,
 		c.expiration,
 		c.emptiness,
 		c.finalizer,

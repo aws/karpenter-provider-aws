@@ -12,21 +12,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cloudprovider
+package node
 
 import (
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-// NodeIsReady returns true if:
+// isReady returns true if the node has:
 // a) its current status is set to Ready
 // b) all the startup taints have been removed from the node
 // c) all extended resources have been registered
 // This method handles both nil provisioners and nodes without extended resources gracefully.
-func NodeIsReady(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType InstanceType) bool {
+func isReady(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType cloudprovider.InstanceType) bool {
 	// fast checks first
 	return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
 		isStartupTaintRemoved(node, provisioner) && isExtendedResourceRegistered(node, instanceType)
@@ -59,7 +61,7 @@ func isStartupTaintRemoved(node *v1.Node, provisioner *v1alpha5.Provisioner) boo
 
 // isExtendedResourceRegistered returns true if there are no extended resources on the node, or they have all been
 // registered by device plugins
-func isExtendedResourceRegistered(node *v1.Node, instanceType InstanceType) bool {
+func isExtendedResourceRegistered(node *v1.Node, instanceType cloudprovider.InstanceType) bool {
 	if instanceType == nil {
 		// no way to know, so assume they're registered
 		return true
