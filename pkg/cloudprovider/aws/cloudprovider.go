@@ -153,7 +153,7 @@ func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Prov
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return provider.Validate()
+	return provider.Validate(*provisioner)
 }
 
 // Default the provisioner

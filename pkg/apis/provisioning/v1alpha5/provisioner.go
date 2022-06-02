@@ -93,6 +93,9 @@ type KubeletConfiguration struct {
 	// Note that not all providers may use all addresses.
 	//+optional
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
+	// ContainerRuntime is the container runtime to be used with your worker nodes.
+	// +optional
+	ContainerRuntime *string `json:"containerRuntime,omitempty"`
 }
 
 // Provisioner is the Schema for the Provisioners API
