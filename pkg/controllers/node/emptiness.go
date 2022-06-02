@@ -42,9 +42,12 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	if provisioner.Spec.TTLSecondsAfterEmpty == nil {
 		return reconcile.Result{}, nil
 	}
-	if !v1alpha5.NodeIsReady(n, provisioner) {
+
+	// node is not ready yet, so we don't consider it to possibly be empty
+	if n.Labels[v1alpha5.LabelNodeInitialized] != "true" {
 		return reconcile.Result{}, nil
 	}
+
 	// 2. Remove ttl if not empty
 	empty, err := r.isEmpty(ctx, n)
 	if err != nil {

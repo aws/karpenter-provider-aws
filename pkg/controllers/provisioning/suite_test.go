@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
@@ -44,6 +46,7 @@ var controller *provisioning.Controller
 var env *test.Environment
 var recorder *test.EventRecorder
 var cfg *test.Config
+var instanceTypeMap map[string]cloudprovider.InstanceType
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -57,7 +60,13 @@ var _ = BeforeSuite(func() {
 		registry.RegisterOrDie(ctx, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
-		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, state.NewCluster(ctx, e.Client))
+		instanceTypes, _ := cloudProvider.GetInstanceTypes(context.Background(), nil)
+		instanceTypeMap = map[string]cloudprovider.InstanceType{}
+		for _, it := range instanceTypes {
+			instanceTypeMap[it.Name()] = it
+		}
+		cluster := state.NewCluster(ctx, e.Client, cloudProvider)
+		controller = provisioning.NewController(ctx, cfg, e.Client, corev1.NewForConfigOrDie(e.Config), recorder, cloudProvider, cluster)
 	})
 	Expect(env.Start()).To(Succeed(), "Failed to start environment")
 })
@@ -246,8 +255,10 @@ var _ = Describe("Provisioning", func() {
 				},
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 		It("should account for overhead (with startup taint)", func() {
 			provisioner := test.Provisioner(test.ProvisionerOptions{
@@ -265,8 +276,10 @@ var _ = Describe("Provisioning", func() {
 				},
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 		It("should not schedule if overhead is too large", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
@@ -304,8 +317,9 @@ var _ = Describe("Provisioning", func() {
 			))
 			pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(test.PodOptions{}))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 		It("should not schedule if combined max resources are too large for any node", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
@@ -356,8 +370,9 @@ var _ = Describe("Provisioning", func() {
 				},
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("2")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 		})
 		It("should ignore daemonsets with an invalid selector", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
@@ -372,8 +387,9 @@ var _ = Describe("Provisioning", func() {
 				},
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("2")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("2")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("2Gi")))
 		})
 		It("should account daemonsets with NotIn operator and unspecified key", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
@@ -389,8 +405,9 @@ var _ = Describe("Provisioning", func() {
 				},
 			))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(*node.Status.Allocatable.Cpu()).To(Equal(resource.MustParse("4")))
-			Expect(*node.Status.Allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
+			allocatable := instanceTypeMap[node.Labels[v1.LabelInstanceTypeStable]].Resources()
+			Expect(*allocatable.Cpu()).To(Equal(resource.MustParse("4")))
+			Expect(*allocatable.Memory()).To(Equal(resource.MustParse("4Gi")))
 		})
 	})
 	Context("Labels", func() {
@@ -408,13 +425,6 @@ var _ = Describe("Provisioning", func() {
 		})
 	})
 	Context("Taints", func() {
-		It("should apply unready taints", func() {
-			ExpectApplied(ctx, env.Client, test.Provisioner())
-			for _, pod := range ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod()) {
-				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Spec.Taints).To(ContainElement(v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}))
-			}
-		})
 		It("should schedule pods that tolerate taints", func() {
 			provisioner := test.Provisioner(test.ProvisionerOptions{Taints: []v1.Taint{{Key: "nvidia.com/gpu", Value: "true", Effect: v1.TaintEffectNoSchedule}}})
 			ExpectApplied(ctx, env.Client, provisioner)

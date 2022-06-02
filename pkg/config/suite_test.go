@@ -16,16 +16,17 @@ package config_test
 
 import (
 	"context"
+	"os"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/test"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/configmap/informer"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sync/atomic"
-	"testing"
-	"time"
 
 	. "github.com/aws/karpenter/pkg/test/expectations"
 	. "github.com/onsi/ginkgo"

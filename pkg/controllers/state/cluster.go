@@ -16,8 +16,13 @@ package state
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/aws/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 
 	"knative.dev/pkg/logging"
 
@@ -31,8 +36,9 @@ import (
 
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
-	ctx        context.Context
-	kubeClient client.Client
+	ctx           context.Context
+	kubeClient    client.Client
+	cloudProvider cloudprovider.CloudProvider
 
 	// Pod Specific Tracking
 	antiAffinityPods sync.Map // mapping of pod namespaced name to *v1.Pod of pods that have required anti affinities
@@ -43,13 +49,15 @@ type Cluster struct {
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(ctx context.Context, client client.Client) *Cluster {
-	return &Cluster{
-		ctx:        ctx,
-		kubeClient: client,
-		nodes:      map[string]*Node{},
-		bindings:   map[types.NamespacedName]string{},
+func NewCluster(ctx context.Context, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
+	c := &Cluster{
+		ctx:           ctx,
+		kubeClient:    client,
+		cloudProvider: cp,
+		nodes:         map[string]*Node{},
+		bindings:      map[types.NamespacedName]string{},
 	}
+	return c
 }
 
 // Node is a cached version of a node in the cluster that maintains state which is expensive to compute every time it's
@@ -67,11 +75,13 @@ type Node struct {
 	// of the Node to identify the remaining resources that we expect future daemonsets to consume.  This is already
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
-
 	// HostPort usage of all pods that are bound to the node
 	HostPortUsage *HostPortUsage
+	// Provisioner is the provisioner used to create the node.
+	Provisioner *v1alpha5.Provisioner
 
-	podRequests map[types.NamespacedName]v1.ResourceList
+	podRequests  map[types.NamespacedName]v1.ResourceList
+	InstanceType cloudprovider.InstanceType
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -122,6 +132,24 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 		HostPortUsage: NewHostPortUsage(),
 		podRequests:   map[types.NamespacedName]v1.ResourceList{},
 	}
+
+	// store the provisioner if it exists
+	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
+		var provisioner v1alpha5.Provisioner
+		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			logging.FromContext(c.ctx).Errorf("getting provisioner, %s", err)
+		} else {
+			n.Provisioner = &provisioner
+		}
+	}
+
+	var err error
+
+	n.InstanceType, err = c.getInstanceType(c.ctx, n.Provisioner, node.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		logging.FromContext(c.ctx).Errorf("getting instance type, %s", err)
+	}
+
 	var pods v1.PodList
 	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
 		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
@@ -146,8 +174,39 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
 	n.Capacity = n.Node.Status.Capacity
-	n.Available = resources.Subtract(n.Node.Status.Allocatable, resources.Merge(requested...))
+	n.Available = resources.Subtract(c.getNodeAllocatable(node, n.Provisioner), resources.Merge(requested...))
 	return n
+}
+
+// getNodeAllocatable gets the allocatable resources for the node.
+func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
+	instanceType, err := c.getInstanceType(c.ctx, provisioner, node.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		logging.FromContext(c.ctx).Errorf("error finding instance type, %s", err)
+		return node.Status.Allocatable
+	}
+
+	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
+	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
+	// out the resource.  We don't want to assume that it will always come back.  The instance type may be nil if
+	// the node was created from a provisioner that has since been deleted.
+	if instanceType == nil || node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
+		return node.Status.Allocatable
+	}
+
+	allocatable := v1.ResourceList{}
+	for k, v := range node.Status.Allocatable {
+		allocatable[k] = v
+	}
+	for resourceName, quantity := range instanceType.Resources() {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			allocatable[resourceName] = quantity
+		}
+	}
+	return allocatable
 }
 
 func (c *Cluster) deleteNode(nodeName string) {
@@ -272,4 +331,21 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	}
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
+}
+
+func (c *Cluster) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
+	if provisioner == nil || provisioner.Spec.Provider == nil {
+		// no provisioner means we cant lookup the instance type
+		return nil, nil
+	}
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	if err != nil {
+		return nil, err
+	}
+	for _, it := range instanceTypes {
+		if it.Name() == instanceTypeName {
+			return it, nil
+		}
+	}
+	return nil, fmt.Errorf("instance type '%s' not found", instanceTypeName)
 }

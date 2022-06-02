@@ -35,7 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
-	. "github.com/aws/karpenter/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
 
@@ -49,8 +48,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
+
+	. "github.com/aws/karpenter/pkg/test/expectations"
+	. "knative.dev/pkg/logging/testing"
 )
 
 var ctx context.Context
@@ -62,6 +63,7 @@ var securityGroupCache *cache.Cache
 var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
+var instanceTypeCache *cache.Cache
 var fakeEC2API *fake.EC2API
 var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
@@ -83,6 +85,7 @@ var _ = BeforeSuite(func() {
 			ClusterEndpoint:           "https://test-cluster",
 			AWSNodeNameConvention:     string(options.IPName),
 			AWSENILimitedPodDensity:   true,
+			AWSEnablePodENI:           true,
 			AWSDefaultInstanceProfile: "test-instance-profile",
 		}
 		Expect(opts.Validate()).To(Succeed(), "Failed to validate options")
@@ -94,6 +97,7 @@ var _ = BeforeSuite(func() {
 		securityGroupCache = cache.New(CacheTTL, CacheCleanupInterval)
 		subnetCache = cache.New(CacheTTL, CacheCleanupInterval)
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
+		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
@@ -102,7 +106,7 @@ var _ = BeforeSuite(func() {
 		instanceTypeProvider := &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
-			cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
+			cache:                instanceTypeCache,
 			unavailableOfferings: unavailableOfferingsCache,
 		}
 		securityGroupProvider := &SecurityGroupProvider{
@@ -125,7 +129,7 @@ var _ = BeforeSuite(func() {
 			},
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
-		cluster = state.NewCluster(ctx, e.Client)
+		cluster = state.NewCluster(ctx, e.Client, cloudProvider)
 		recorder = test.NewEventRecorder()
 		cfg = test.NewConfig()
 		controller = provisioning.NewController(ctx, cfg, e.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -145,6 +149,7 @@ var _ = Describe("Allocation", func() {
 
 	BeforeEach(func() {
 		provider = &v1alpha1.AWS{
+			AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 			SubnetSelector:        map[string]string{"foo": "bar"},
 			SecurityGroupSelector: map[string]string{"foo": "bar"},
 		}
@@ -162,6 +167,26 @@ var _ = Describe("Allocation", func() {
 	})
 
 	Context("Reconciliation", func() {
+		Context("Standard Labels", func() {
+			It("should apply OS label based on the AMI Family", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
+			})
+			It("should apply Arch label based on the Instance Type Arch", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
+			})
+			It("should apply instance type label", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+			})
+		})
 		Context("Specialized Hardware", func() {
 			It("should not launch AWS Pod ENI on a t3", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -193,7 +218,32 @@ var _ = Describe("Allocation", func() {
 					ExpectScheduled(ctx, env.Client, pod)
 				}
 			})
+			It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
+				instanceTypeCache.Flush()
+				// ensure the pod ENI option is off
+				optsCopy := opts
+				optsCopy.AWSEnablePodENI = false
+				cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
+				// ensure the provisioner is shut down at the end of this test
+				defer cancelFunc()
+				// clear any cached instance types
+				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
+				provisionContoller := provisioning.NewController(cancelCtx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				ExpectApplied(ctx, env.Client, provisioner)
+				for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
+					test.UnschedulablePod(test.PodOptions{
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+							Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
+						},
+					})) {
+					ExpectNotScheduled(cancelCtx, env.Client, pod)
+				}
+				// and ensure no one gets our no-ENI instance types
+				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
+			})
 			It("should launch AWS Pod ENI on a compatible instance type", func() {
+				instanceTypeCache.Flush()
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
@@ -237,7 +287,6 @@ var _ = Describe("Allocation", func() {
 					})) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "p3.8xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceNVIDIAGPU, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -269,7 +318,6 @@ var _ = Describe("Allocation", func() {
 				) {
 					node := ExpectScheduled(ctx, env.Client, pod)
 					Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
-					Expect(node.Status.Capacity).To(HaveKeyWithValue(v1alpha1.ResourceAWSNeuron, resource.MustParse("4")))
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
@@ -318,8 +366,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -400,6 +448,54 @@ var _ = Describe("Allocation", func() {
 				pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
+			})
+			It("should return all instance types, even though with no offerings due to Insufficient Capacity Error", func() {
+				fakeEC2API.SetInsufficientCapacityPools([]fake.CapacityPool{
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+					{CapacityType: v1alpha1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+					{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+					{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+				})
+				provisioner.Spec.Requirements = nil
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"m5.xlarge"},
+				})
+				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+					Key:      v1alpha5.LabelCapacityType,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"spot", "on-demand"},
+				})
+
+				ExpectApplied(ctx, env.Client, provisioner)
+				for _, ct := range []string{v1alpha1.CapacityTypeOnDemand, v1alpha1.CapacityTypeSpot} {
+					for _, zone := range []string{"test-zone-1a", "test-zone-1b"} {
+						ExpectProvisioned(ctx, env.Client, controller,
+							test.UnschedulablePod(test.PodOptions{
+								ResourceRequirements: v1.ResourceRequirements{
+									Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+								},
+								NodeSelector: map[string]string{
+									v1alpha5.LabelCapacityType: ct,
+									v1.LabelTopologyZone:       zone,
+								},
+							}))
+					}
+				}
+
+				instanceTypeCache.Flush()
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+				Expect(err).To(BeNil())
+				instanceTypeNames := sets.NewString()
+				for _, it := range instanceTypes {
+					instanceTypeNames.Insert(it.Name())
+					if it.Name() == "m5.xlarge" {
+						// should have no valid offerings
+						Expect(it.Offerings()).To(HaveLen(0))
+					}
+				}
+				Expect(instanceTypeNames.Has("m5.xlarge"))
 			})
 		})
 		Context("CapacityType", func() {
@@ -1127,8 +1223,9 @@ var _ = Describe("Allocation", func() {
 						},
 					},
 					}))[0]
-				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Status.Capacity).To(HaveKeyWithValue(v1.ResourceEphemeralStorage, resource.MustParse("50G")))
+
+				// capacity isn't recorded on the node any longer, but we know the pod should schedule
+				ExpectScheduled(ctx, env.Client, pod)
 			})
 		})
 	})

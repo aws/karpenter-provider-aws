@@ -77,11 +77,8 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, instanceType := range instanceTypes {
-		offerings := p.createOfferings(instanceType, instanceTypeZones[instanceType.Name()])
-		if len(offerings) > 0 {
-			instanceType.AvailableOfferings = offerings
-			result = append(result, instanceType)
-		}
+		instanceType.AvailableOfferings = p.createOfferings(instanceType, instanceTypeZones[instanceType.Name()])
+		result = append(result, instanceType)
 		if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 			instanceType.MaxPods = ptr.Int32(110)
 		}
@@ -131,6 +128,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v
 		return cached.(map[string]*InstanceType), nil
 	}
 	instanceTypes := map[string]*InstanceType{}
+	enablePodENI := injection.GetOptions(ctx).AWSEnablePodENI
 	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -145,7 +143,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType, provider)
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = newInstanceType(*instanceType, enablePodENI, provider)
 			}
 		}
 		return true

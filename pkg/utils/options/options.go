@@ -44,6 +44,7 @@ func MustParse() Options {
 	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
 	flag.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
 	flag.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
+	flag.BoolVar(&opts.AWSEnablePodENI, "aws-enable-pod-eni", env.WithDefaultBool("AWS_ENABLE_POD_ENI", false), "If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource")
 	flag.Parse()
 	if err := opts.Validate(); err != nil {
 		panic(err)
@@ -64,6 +65,7 @@ type Options struct {
 	AWSNodeNameConvention     string
 	AWSENILimitedPodDensity   bool
 	AWSDefaultInstanceProfile string
+	AWSEnablePodENI           bool
 }
 
 func (o Options) Validate() (err error) {

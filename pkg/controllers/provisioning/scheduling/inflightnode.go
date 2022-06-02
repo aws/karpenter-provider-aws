@@ -17,9 +17,10 @@ package scheduling
 import (
 	"fmt"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
@@ -50,17 +51,20 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		hostPortUsage: n.HostPortUsage.Copy(),
 	}
 
-	// add a default toleration for the standard not ready and startup taints
-	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-		Key:      v1alpha5.NotReadyTaintKey,
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
-	node.startupTolerations = append(node.startupTolerations, v1.Toleration{
-		Key:      v1.TaintNodeNotReady,
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
+	if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
+		// add a default toleration for the standard not ready and startup taints if the node hasn't fully
+		// launched yet
+		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
+			Key:      v1.TaintNodeNotReady,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		})
+		node.startupTolerations = append(node.startupTolerations, v1.Toleration{
+			Key:      v1.TaintNodeUnreachable,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		})
+	}
 
 	for _, taint := range startupTaints {
 		node.startupTolerations = append(node.startupTolerations, scheduling.TaintToToleration(taint))

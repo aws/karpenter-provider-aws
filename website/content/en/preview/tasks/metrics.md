@@ -51,9 +51,6 @@ Duration of cloud provider method calls. Labeled by the controller, method name 
 
 ## Allocation_controller Metrics
 
-### `karpenter_allocation_controller_bind_duration_seconds`
-Duration of bind process in seconds. Broken down by result.
-
 ### `karpenter_allocation_controller_scheduling_duration_seconds`
 Duration of scheduling process in seconds. Broken down by provisioner and error.
 

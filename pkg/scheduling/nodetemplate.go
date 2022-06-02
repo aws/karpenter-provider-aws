@@ -77,16 +77,7 @@ func (n *NodeTemplate) ToNode() *v1.Node {
 			Finalizers: []string{v1alpha5.TerminationFinalizer},
 		},
 		Spec: v1.NodeSpec{
-			// Taint karpenter.sh/not-ready=NoSchedule to prevent the kube scheduler
-			// from scheduling pods before we're able to bind them ourselves. The kube
-			// scheduler has an eventually consistent cache of nodes and pods, so it's
-			// possible for it to see a provisioned node before it sees the pods bound
-			// to it. This creates an edge case where other pending pods may be bound to
-			// the node by the kube scheduler, causing OutOfCPU errors when the
-			// binpacked pods race to bind to the same node. The system eventually
-			// heals, but causes delays from additional provisioning (thrash). This
-			// taint will be removed by the node controller when a node is marked ready.
-			Taints: append(n.Taints, v1.Taint{Key: v1alpha5.NotReadyTaintKey, Effect: v1.TaintEffectNoSchedule}),
+			Taints: append(n.Taints, n.StartupTaints...),
 		},
 	}
 }

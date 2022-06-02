@@ -36,7 +36,7 @@ func NewEventRecorder() *EventRecorder {
 	return &EventRecorder{}
 }
 
-func (e *EventRecorder) PodShouldSchedule(pod *v1.Pod, node *v1.Node) {
+func (e *EventRecorder) NominatePod(pod *v1.Pod, node *v1.Node) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.bindings = append(e.bindings, Binding{pod, node})

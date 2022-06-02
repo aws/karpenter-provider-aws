@@ -24,10 +24,8 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -96,12 +94,6 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		NewControllerManagedBy(m).
 		Named("counter").
 		For(&v1alpha5.Provisioner{}).
-		WithEventFilter(predicate.Funcs{
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				// No need to reconcile the provisioner when nodes are updated since those don't affect the status of the provisioner.
-				return false
-			},
-		}).
 		Watches(
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {

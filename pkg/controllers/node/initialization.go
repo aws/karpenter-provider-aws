@@ -17,50 +17,105 @@ package node
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/injectabletime"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-const InitializationTimeout = 15 * time.Minute
-
-// Initialization is a subreconciler that
-// 1. Removes the NotReady taint when the node is ready. This taint is originally applied on node creation.
-// 2. Terminates nodes that don't transition to ready within InitializationTimeout
 type Initialization struct {
-	kubeClient client.Client
+	kubeClient    client.Client
+	cloudProvider cloudprovider.CloudProvider
 }
 
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !scheduling.Taints(n.Spec.Taints).HasKey(v1alpha5.NotReadyTaintKey) {
-		// At this point, the startup of the node is complete and no more evaluation is necessary.
+	// node has been previously determined to be ready, so there's nothing to do
+	if n.Labels[v1alpha5.LabelNodeInitialized] == "true" {
 		return reconcile.Result{}, nil
 	}
 
-	if !v1alpha5.NodeIsReady(n, provisioner) {
-		if age := injectabletime.Now().Sub(n.GetCreationTimestamp().Time); age < InitializationTimeout {
-			return reconcile.Result{RequeueAfter: InitializationTimeout - age}, nil
-		}
-		logging.FromContext(ctx).Infof("Triggering termination for node that failed to become ready")
-		if err := r.kubeClient.Delete(ctx, n); err != nil {
-			return reconcile.Result{}, fmt.Errorf("deleting node, %w", err)
-		}
+	// node is not ready per the label, we need to check if kubelet indicates that the node is ready as well as if
+	// startup taints are removed and extended resources have been initialized
+	instanceType, err := r.getInstanceType(ctx, provisioner, n.Labels[v1.LabelInstanceTypeStable])
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("determining instance type, %w", err)
+	}
+	if !r.isInitialized(n, provisioner, instanceType) {
 		return reconcile.Result{}, nil
 	}
-	taints := []v1.Taint{}
-	for _, taint := range n.Spec.Taints {
-		if taint.Key != v1alpha5.NotReadyTaintKey {
-			taints = append(taints, taint)
+
+	n.Labels[v1alpha5.LabelNodeInitialized] = "true"
+	return reconcile.Result{}, nil
+}
+
+func (r *Initialization) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
+	instanceTypes, err := r.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	if err != nil {
+		return nil, err
+	}
+	// The instance type may not be found which can occur if the instance type label was removed/edited.  This shouldn't occur,
+	// but if it does we only lose the ability to check for extended resources.
+	return lo.FindOrElse(instanceTypes, nil, func(it cloudprovider.InstanceType) bool { return it.Name() == instanceTypeName }), nil
+}
+
+// isInitialized returns true if the node has:
+// a) its current status is set to Ready
+// b) all the startup taints have been removed from the node
+// c) all extended resources have been registered
+// This method handles both nil provisioners and nodes without extended resources gracefully.
+func (r *Initialization) isInitialized(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType cloudprovider.InstanceType) bool {
+	// fast checks first
+	return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
+		isStartupTaintRemoved(node, provisioner) && isExtendedResourceRegistered(node, instanceType)
+}
+
+func getCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+	for _, condition := range conditions {
+		if condition.Type == match {
+			return condition
 		}
 	}
-	n.Spec.Taints = taints
-	return reconcile.Result{}, nil
+	return v1.NodeCondition{}
+}
+
+// isStartupTaintRemoved returns true if there are no startup taints registered for the provisioner, or if all startup
+// taints have been removed from the node
+func isStartupTaintRemoved(node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+	if provisioner != nil {
+		for _, startupTaint := range provisioner.Spec.StartupTaints {
+			for i := 0; i < len(node.Spec.Taints); i++ {
+				// if the node still has a startup taint applied, it's not ready
+				if startupTaint.MatchTaint(&node.Spec.Taints[i]) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// isExtendedResourceRegistered returns true if there are no extended resources on the node, or they have all been
+// registered by device plugins
+func isExtendedResourceRegistered(node *v1.Node, instanceType cloudprovider.InstanceType) bool {
+	if instanceType == nil {
+		// no way to know, so assume they're registered
+		return true
+	}
+	for resourceName, quantity := range instanceType.Resources() {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup, so if our
+		// annotation says the resource should be there, but it's zero'd in both then the device plugin hasn't
+		// registered it yet
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			return false
+		}
+	}
+	return true
 }

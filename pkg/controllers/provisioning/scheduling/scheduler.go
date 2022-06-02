@@ -135,7 +135,7 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedul
 	for _, node := range s.inflight {
 		existingCount += len(node.Pods)
 		for _, pod := range node.Pods {
-			s.recorder.PodShouldSchedule(pod, node.Node)
+			s.recorder.NominatePod(pod, node.Node)
 		}
 	}
 	newCount := 0
