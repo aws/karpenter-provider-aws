@@ -44,7 +44,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 	}
 
 	// node is not ready yet, so we don't consider it to possibly be empty
-	if n.Labels[v1alpha5.LabelNodeReady] != "true" {
+	if n.Labels[v1alpha5.LabelNodeInitialized] != "true" {
 		return reconcile.Result{}, nil
 	}
 

@@ -17,6 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter/pkg/utils/resources"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -35,7 +36,7 @@ type Initialization struct {
 // Reconcile reconciles the node
 func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
 	// node has been previously determined to be ready, so there's nothing to do
-	if n.Labels[v1alpha5.LabelNodeReady] == "true" {
+	if n.Labels[v1alpha5.LabelNodeInitialized] == "true" {
 		return reconcile.Result{}, nil
 	}
 
@@ -45,11 +46,11 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("determining instance type, %w", err)
 	}
-	if !isReady(n, provisioner, instanceType) {
+	if !r.isInitialized(n, provisioner, instanceType) {
 		return reconcile.Result{}, nil
 	}
 
-	n.Labels[v1alpha5.LabelNodeReady] = "true"
+	n.Labels[v1alpha5.LabelNodeInitialized] = "true"
 	return reconcile.Result{}, nil
 }
 
@@ -61,4 +62,60 @@ func (r *Initialization) getInstanceType(ctx context.Context, provisioner *v1alp
 	// The instance type may not be found which can occur if the instance type label was removed/edited.  This shouldn't occur,
 	// but if it does we only lose the ability to check for extended resources.
 	return lo.FindOrElse(instanceTypes, nil, func(it cloudprovider.InstanceType) bool { return it.Name() == instanceTypeName }), nil
+}
+
+// isInitialized returns true if the node has:
+// a) its current status is set to Ready
+// b) all the startup taints have been removed from the node
+// c) all extended resources have been registered
+// This method handles both nil provisioners and nodes without extended resources gracefully.
+func (r *Initialization) isInitialized(node *v1.Node, provisioner *v1alpha5.Provisioner, instanceType cloudprovider.InstanceType) bool {
+	// fast checks first
+	return getCondition(node.Status.Conditions, v1.NodeReady).Status == v1.ConditionTrue &&
+		isStartupTaintRemoved(node, provisioner) && isExtendedResourceRegistered(node, instanceType)
+}
+
+func getCondition(conditions []v1.NodeCondition, match v1.NodeConditionType) v1.NodeCondition {
+	for _, condition := range conditions {
+		if condition.Type == match {
+			return condition
+		}
+	}
+	return v1.NodeCondition{}
+}
+
+// isStartupTaintRemoved returns true if there are no startup taints registered for the provisioner, or if all startup
+// taints have been removed from the node
+func isStartupTaintRemoved(node *v1.Node, provisioner *v1alpha5.Provisioner) bool {
+	if provisioner != nil {
+		for _, startupTaint := range provisioner.Spec.StartupTaints {
+			for i := 0; i < len(node.Spec.Taints); i++ {
+				// if the node still has a startup taint applied, it's not ready
+				if startupTaint.MatchTaint(&node.Spec.Taints[i]) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// isExtendedResourceRegistered returns true if there are no extended resources on the node, or they have all been
+// registered by device plugins
+func isExtendedResourceRegistered(node *v1.Node, instanceType cloudprovider.InstanceType) bool {
+	if instanceType == nil {
+		// no way to know, so assume they're registered
+		return true
+	}
+	for resourceName, quantity := range instanceType.Resources() {
+		// kubelet will zero out both the capacity and allocatable for an extended resource on startup, so if our
+		// annotation says the resource should be there, but it's zero'd in both then the device plugin hasn't
+		// registered it yet
+		if resources.IsZero(node.Status.Capacity[resourceName]) &&
+			resources.IsZero(node.Status.Allocatable[resourceName]) &&
+			!quantity.IsZero() {
+			return false
+		}
+	}
+	return true
 }

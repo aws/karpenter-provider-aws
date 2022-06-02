@@ -51,7 +51,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		hostPortUsage: n.HostPortUsage.Copy(),
 	}
 
-	if n.Node.Labels[v1alpha5.LabelNodeReady] != "true" {
+	if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
 		// add a default toleration for the standard not ready and startup taints if the node hasn't fully
 		// launched yet
 		node.startupTolerations = append(node.startupTolerations, v1.Toleration{

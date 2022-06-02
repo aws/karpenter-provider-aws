@@ -190,7 +190,7 @@ func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provis
 	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
 	// out the resource.  We don't want to assume that it will always come back.  The instance type may be nil if
 	// the node was created from a provisioner that has since been deleted.
-	if instanceType == nil || node.Labels[v1alpha5.LabelNodeReady] == "true" {
+	if instanceType == nil || node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
 		return node.Status.Allocatable
 	}
 

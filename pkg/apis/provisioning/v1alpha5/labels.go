@@ -30,7 +30,7 @@ var (
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
-	LabelNodeReady       = KarpenterLabelDomain + "/node-ready"
+	LabelNodeInitialized = KarpenterLabelDomain + "/initialized"
 
 	// RestrictedLabelDomains are either prohibited by the kubelet or reserved by karpenter
 	RestrictedLabelDomains = sets.NewString(
