@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	v1 "k8s.io/api/core/v1"
@@ -48,11 +50,7 @@ func (r *Emptiness) Reconcile(ctx context.Context, provisioner *v1alpha5.Provisi
 
 	instanceType, err := r.getInstanceType(ctx, provisioner, n.Labels[v1.LabelInstanceTypeStable])
 	if err != nil {
-		// We only report the error, but let the emptiness check continue.  This situation shouldn't occur, but if it
-		// does it only prevents us from checking for extended resources.  We don't want to completely block the node
-		// from getting deleted in that case as we can recover by deleting the node with the now unknown instance type.
-		// The NodeIsReady method handles a nil instanceType correctly.
-		logging.FromContext(ctx).Errorf("unable to find instance type, %s", err)
+		return reconcile.Result{}, fmt.Errorf("determining instance type, %w", err)
 	}
 	if !cloudprovider.NodeIsReady(n, provisioner, instanceType) {
 		return reconcile.Result{}, nil
@@ -116,10 +114,7 @@ func (r *Emptiness) getInstanceType(ctx context.Context, provisioner *v1alpha5.P
 	if err != nil {
 		return nil, err
 	}
-	for _, it := range instanceTypes {
-		if it.Name() == instanceTypeName {
-			return it, nil
-		}
-	}
-	return nil, fmt.Errorf("unable to find instance type %s", instanceTypeName)
+	// The instance type may not be found which can occur if the instance type label was removed/edited.  This shouldn't occur,
+	// but if it does we only lose the ability to check for extended resources.
+	return lo.FindOrElse(instanceTypes, nil, func(it cloudprovider.InstanceType) bool { return it.Name() == instanceTypeName }), nil
 }
