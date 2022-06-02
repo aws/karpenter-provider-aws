@@ -14,7 +14,10 @@ limitations under the License.
 
 package events
 
-import v1 "k8s.io/api/core/v1"
+import (
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
+)
 
 // Recorder is used to record events that occur about pods so they can be viewed by looking at the pod's events so our
 // actions are more observable without requiring log inspection
@@ -26,10 +29,18 @@ type Recorder interface {
 	PodFailedToSchedule(pod *v1.Pod, err error)
 }
 
-// TODO: Remove this type and actually record events onto pods as part of https://github.com/aws/karpenter/issues/1584
-// this will require some new permissions in order to create events
-type NoOpRecorder struct {
+type recorder struct {
+	rec record.EventRecorder
 }
 
-func (n *NoOpRecorder) NominatePod(pod *v1.Pod, node *v1.Node)     {}
-func (n *NoOpRecorder) PodFailedToSchedule(pod *v1.Pod, err error) {}
+func NewRecorder(rec record.EventRecorder) Recorder {
+	return &recorder{rec: rec}
+}
+
+func (r recorder) NominatePod(pod *v1.Pod, node *v1.Node) {
+	r.rec.Eventf(pod, "Normal", "NominatePod", "Pod should schedule on %s", node.Name)
+}
+
+func (r recorder) PodFailedToSchedule(pod *v1.Pod, err error) {
+	r.rec.Eventf(pod, "Warning", "FailedProvisioning", "Failed to provision new node, %s", err)
+}
