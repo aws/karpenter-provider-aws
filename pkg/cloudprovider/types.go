@@ -65,7 +65,7 @@ type InstanceType interface {
 	// Name of the instance type, must correspond to v1.LabelInstanceTypeStable
 	Name() string
 	// Requirements returns a flexible set of properties that may be selected
-	// for scheduling. Must be defined for every well known label.
+	// for scheduling. Must be defined for every well known label, even if empty.
 	Requirements() scheduling.Requirements
 	// Note that though this is an array it is expected that all the Offerings are unique from one another
 	Offerings() []Offering

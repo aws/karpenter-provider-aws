@@ -162,7 +162,6 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
-//gocyclo:ignore
 func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 

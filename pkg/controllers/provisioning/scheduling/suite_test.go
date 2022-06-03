@@ -2948,8 +2948,8 @@ var _ = Describe("Instance Type Compatibility", func() {
 			cloudProv.InstanceTypes = fake.InstanceTypes(5)
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, controller,
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"size": "large"}}),
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"size": "small"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{fake.InstanceSizeLabelKey: "large"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{fake.InstanceSizeLabelKey: "small"}}),
 			)
 			node := ExpectScheduled(ctx, env.Client, pods[0])
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "fake-it-4"))
@@ -2961,11 +2961,11 @@ var _ = Describe("Instance Type Compatibility", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					"size":                     "large",
+					fake.InstanceSizeLabelKey:  "large",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[0].Name(),
 				}}),
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					"size":                     "small",
+					fake.InstanceSizeLabelKey:  "small",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[4].Name(),
 				}}),
 			)
