@@ -174,6 +174,11 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
 	n.Capacity = n.Node.Status.Capacity
+	// if the capacity hasn't been reported yet, fall back to what the instance type reports so we can track
+	// limits
+	if len(n.Capacity) == 0 && n.InstanceType != nil {
+		n.Capacity = n.InstanceType.Resources()
+	}
 	n.Available = resources.Subtract(c.getNodeAllocatable(node, n.Provisioner), resources.Merge(requested...))
 	return n
 }
