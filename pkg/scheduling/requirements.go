@@ -99,7 +99,6 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 
 // Add requirements to provided requirements. Mutates existing requirements
 func (r Requirements) Add(requirements Requirements) {
-	// for _, requirement := range requirements {
 	for key, values := range requirements {
 		if existing, ok := r[key]; ok {
 			values = values.Intersection(existing)
@@ -131,21 +130,22 @@ func (r Requirements) Get(key string) sets.Set {
 
 // Compatible ensures the provided requirements can be met.
 func (r Requirements) Compatible(requirements Requirements) (errs error) {
-	// Custom Labels must be defined by existing requirements, check all keys except well known
-	errs = multierr.Append(errs, r.Intersects(requirements, r.Keys().Union(requirements.Keys().Difference(v1alpha5.WellKnownLabels))))
-	// Well Known Labels are implicitly supported if not defined, check well known defined by both requirements
-	errs = multierr.Append(errs, r.Intersects(requirements, r.Keys().Intersection(requirements.Keys()).Intersection(v1alpha5.WellKnownLabels)))
-	return errs
-}
-
-// Intersect the requirements over the given keyspace
-func (r Requirements) Intersects(requirements Requirements, keys stringsets.String) (errs error) {
-	for key := range requirements {
-		if !keys.Has(key) {
+	// Custom Labels must intersect, but if not defined are denied.
+	for key := range requirements.Keys().Difference(v1alpha5.WellKnownLabels) {
+		if operator := requirements.Get(key).Type(); r.Has(key) || operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 			continue
 		}
-		existing := r[key]
-		incoming := requirements[key]
+		errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", requirements.Get(key), r.Get(key), key))
+	}
+	// Well Known Labels must intersect, but if not defined, are allowed.
+	return multierr.Append(errs, r.Intersects(requirements))
+}
+
+// Intersects returns errors if the requirements don't have overlapping values, undefined keys are allowed
+func (r Requirements) Intersects(requirements Requirements) (errs error) {
+	for key := range r.Keys().Intersection(requirements.Keys()) {
+		existing := r.Get(key)
+		incoming := requirements.Get(key)
 		// There must be some value, except
 		if existing.Intersection(incoming).Len() == 0 {
 			// where the incoming requirement has operator { NotIn, DoesNotExist }
@@ -161,18 +161,26 @@ func (r Requirements) Intersects(requirements Requirements, keys stringsets.Stri
 	return errs
 }
 
+func (r Requirements) Labels() map[string]string {
+	labels := map[string]string{}
+	for key, values := range r {
+		if !v1alpha5.IsRestrictedNodeLabel(key) {
+			switch values.Type() {
+			case v1.NodeSelectorOpIn, v1.NodeSelectorOpExists:
+				labels[key] = r.Get(key).Any()
+			}
+		}
+	}
+	return labels
+}
+
 func (r Requirements) String() string {
 	var sb strings.Builder
 	for key, req := range r {
 		if v1alpha5.RestrictedLabels.Has(key) {
 			continue
 		}
-		var values []string
-		if !req.IsComplement() {
-			values = req.Values().List()
-		} else {
-			values = req.ComplementValues().List()
-		}
+		values := req.Values().List()
 		if sb.Len() > 0 {
 			sb.WriteString(", ")
 		}

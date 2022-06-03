@@ -191,14 +191,14 @@ var _ = Describe("Allocation", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				var pods []*v1.Pod
 				for key, value := range map[string]string{
-					v1alpha1.InstanceFamilyLabelKey:          "p3",
-					v1alpha1.InstanceSizeLabelKey:            "xlarge",
-					v1alpha1.InstanceCPULabelKey:             "32",
-					v1alpha1.InstanceMemoryLabelKey:          "249856",
-					v1alpha1.InstanceGPUNameLabelKey:         "nvidia-v100",
-					v1alpha1.InstanceGPUManufacturerLabelKey: "nvidia",
-					v1alpha1.InstanceGPUCountLabelKey:        "4",
-					v1alpha1.InstanceGPUMemoryLabelKey:       "16384",
+					v1alpha1.LabelInstanceFamily:          "p3",
+					v1alpha1.LabelInstanceSize:            "xlarge",
+					v1alpha1.LabelInstanceCPU:             "32",
+					v1alpha1.LabelInstanceMemory:          "249856",
+					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
+					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
+					v1alpha1.LabelInstanceGPUCount:        "4",
+					v1alpha1.LabelInstanceGPUMemory:       "16384",
 				} {
 					pods = append(pods, test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{key: value}}))
 				}
@@ -1322,14 +1322,14 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support well known labels", func() {
 				for _, label := range []string{
-					v1alpha1.InstanceFamilyLabelKey,
-					v1alpha1.InstanceSizeLabelKey,
-					v1alpha1.InstanceCPULabelKey,
-					v1alpha1.InstanceMemoryLabelKey,
-					v1alpha1.InstanceGPUNameLabelKey,
-					v1alpha1.InstanceGPUManufacturerLabelKey,
-					v1alpha1.InstanceGPUCountLabelKey,
-					v1alpha1.InstanceGPUMemoryLabelKey,
+					v1alpha1.LabelInstanceFamily,
+					v1alpha1.LabelInstanceSize,
+					v1alpha1.LabelInstanceCPU,
+					v1alpha1.LabelInstanceMemory,
+					v1alpha1.LabelInstanceGPUName,
+					v1alpha1.LabelInstanceGPUManufacturer,
+					v1alpha1.LabelInstanceGPUCount,
+					v1alpha1.LabelInstanceGPUMemory,
 				} {
 					provisioner.Spec.Labels = map[string]string{label: randomdata.SillyName()}
 					Expect(provisioner.Validate(ctx)).To(Succeed())

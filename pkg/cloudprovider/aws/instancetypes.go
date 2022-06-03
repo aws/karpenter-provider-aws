@@ -78,16 +78,16 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
-		result = append(result, p.newInstanceType(ctx, i, provider, instanceTypeZones[*i.InstanceType]))
+		result = append(result, p.newInstanceType(ctx, i, provider, p.createOfferings(i, instanceTypeZones[aws.StringValue(i.InstanceType)])))
 	}
 	return result, nil
 }
 
-func (p *InstanceTypeProvider) newInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, zones sets.String) *InstanceType {
+func (p *InstanceTypeProvider) newInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
-		offerings:        p.createOfferings(info, zones),
+		offerings:        offerings,
 	}
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)

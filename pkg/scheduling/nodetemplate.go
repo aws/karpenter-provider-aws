@@ -18,7 +18,6 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/rand"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,23 +56,9 @@ func NewNodeTemplate(provisioner *v1alpha5.Provisioner) *NodeTemplate {
 }
 
 func (n *NodeTemplate) ToNode() *v1.Node {
-	labels := map[string]string{}
-	for key, value := range n.Labels {
-		labels[key] = value
-	}
-	for key := range n.Requirements.Keys() {
-		if !v1alpha5.IsRestrictedNodeLabel(key) {
-			switch n.Requirements.Get(key).Type() {
-			case v1.NodeSelectorOpIn:
-				labels[key] = n.Requirements.Get(key).Values().UnsortedList()[0]
-			case v1.NodeSelectorOpExists:
-				labels[key] = rand.String(10)
-			}
-		}
-	}
 	return &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:     labels,
+			Labels:     lo.Assign(n.Labels, n.Requirements.Labels()),
 			Finalizers: []string{v1alpha5.TerminationFinalizer},
 		},
 		Spec: v1.NodeSpec{

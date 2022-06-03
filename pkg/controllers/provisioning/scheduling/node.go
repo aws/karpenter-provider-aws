@@ -127,7 +127,7 @@ func filterInstanceTypes(instanceTypes []cloudprovider.InstanceType, requirement
 }
 
 func compatible(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
-	return instanceType.Requirements().Intersects(requirements, v1alpha5.WellKnownLabels) == nil
+	return instanceType.Requirements().Intersects(requirements) == nil
 }
 
 func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) bool {
