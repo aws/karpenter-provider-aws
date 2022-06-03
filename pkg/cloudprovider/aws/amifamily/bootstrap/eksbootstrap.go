@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
@@ -94,10 +96,7 @@ func (e EKS) nodeLabelArg() string {
 	nodeLabelArg := ""
 	labelStrings := []string{}
 	var once sync.Once
-	keys := make([]string, 0, len(e.Labels))
-	for k := range e.Labels {
-		keys = append(keys, k)
-	}
+	keys := lo.Keys(e.Labels)
 	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
 	for _, key := range keys {
 		if v1alpha5.LabelDomainExceptions.Has(key) {
