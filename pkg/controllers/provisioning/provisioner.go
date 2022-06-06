@@ -43,10 +43,12 @@ import (
 	"github.com/aws/karpenter/pkg/metrics"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 func NewProvisioner(ctx context.Context, cfg config.Config, kubeClient client.Client, coreV1Client corev1.CoreV1Interface, recorder events.Recorder, cloudProvider cloudprovider.CloudProvider, cluster *state.Cluster) *Provisioner {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisioning"))
 	running, stop := context.WithCancel(ctx)
 	p := &Provisioner{
 		Stop:           stop,
@@ -59,14 +61,7 @@ func NewProvisioner(ctx context.Context, cfg config.Config, kubeClient client.Cl
 		recorder:       recorder,
 	}
 	p.cond = sync.NewCond(&p.mu)
-	go func() {
-		for running.Err() == nil {
-			if err := p.provision(running); err != nil {
-				logging.FromContext(running).Errorf("Provisioning failed, %s", err)
-			}
-		}
-		logging.FromContext(running).Info("Stopped provisioner")
-	}()
+	go p.Start(running)
 	return p
 }
 
@@ -99,14 +94,24 @@ func (p *Provisioner) TriggerAndWait() {
 	p.mu.Unlock()
 }
 
-func (p *Provisioner) provision(ctx context.Context) error {
+func (p *Provisioner) Start(ctx context.Context) {
+	for ctx.Err() == nil {
+		if errs := p.Provision(ctx); errs != nil {
+			for _, err := range multierr.Errors(errs) {
+				logging.FromContext(ctx).Errorf("Provisioning failed, %s", err)
+			}
+		}
+	}
+	logging.FromContext(ctx).Info("Stopped provisioner")
+}
+
+func (p *Provisioner) Provision(ctx context.Context) error {
 	// Batch pods
-	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
-	window := p.batcher.Wait()
+	p.batcher.Wait()
 	// wake any waiters on the cond
 	defer p.cond.Broadcast()
 
-	// Get pods
+	// Get pods, exit if nothing to do
 	pods, err := p.getPods(ctx)
 	if err != nil {
 		return err
@@ -114,25 +119,31 @@ func (p *Provisioner) provision(ctx context.Context) error {
 	if len(pods) == 0 {
 		return nil
 	}
-	logging.FromContext(ctx).Infof("Batched %d pod(s) in %s", len(pods), window)
-
-	// Schedule pods to potential nodes
+	// Schedule pods to potential nodes, exit if nothing to do
 	nodes, err := p.schedule(ctx, pods)
 	if err != nil {
 		return err
 	}
+	if len(nodes) == 0 {
+		return nil
+	}
 
 	// Launch capacity and bind pods
+	errs := make([]error, len(nodes))
 	workqueue.ParallelizeUntil(ctx, len(nodes), len(nodes), func(i int) {
 		// create a new context to avoid a data race on the ctx variable
-		ctx2 := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]))
+		ctx := logging.WithLogger(ctx, logging.FromContext(ctx).With("provisioner", nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]))
 		// register the provisioner on the context so we can pull it off for tagging purposes
 		// TODO: rethink this, maybe just pass the provisioner down instead of hiding it in the context?
-		ctx2 = injection.WithNamespacedName(ctx2, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
-		if err := p.launch(ctx2, nodes[i]); err != nil {
-			logging.FromContext(ctx2).Errorf("Launching node, %s", err)
+		ctx = injection.WithNamespacedName(ctx, types.NamespacedName{Name: nodes[i].Labels[v1alpha5.ProvisionerNameLabelKey]})
+		if err := p.launch(ctx, nodes[i]); err != nil {
+			errs[i] = fmt.Errorf("launching node, %w", err)
 		}
 	})
+	if err := multierr.Combine(errs...); err != nil {
+		return err
+	}
+	logging.FromContext(ctx).Infof("Waiting for unschedulable pods")
 	return nil
 }
 
@@ -143,21 +154,17 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	}
 	var pods []*v1.Pod
 	for i := range podList.Items {
-		pod := podList.Items[i]
+		po := podList.Items[i]
 		// filter for provisionable pods first so we don't check for validity/PVCs on pods we won't provision anyway
 		// (e.g. those owned by daemonsets)
-		if !isProvisionable(&pod) {
+		if !pod.IsProvisionable(&po) {
 			continue
 		}
-		errs := multierr.Combine(
-			validate(&pod),
-			p.volumeTopology.validatePersistentVolumeClaims(ctx, &pod),
-		)
-		if errs != nil {
-			logging.FromContext(ctx).With("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)).Debugf("Unable to batch pod, %s", errs)
+		if err := p.Validate(ctx, &po); err != nil {
+			logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(&po)).Debugf("Ignoring pod, %s", err)
 			continue
 		}
-		pods = append(pods, &pod)
+		pods = append(pods, &po)
 	}
 	return pods, nil
 }
@@ -227,12 +234,12 @@ func (p *Provisioner) launch(ctx context.Context, node *scheduler.Node) error {
 		return err
 	}
 
-	k8sNode, err := p.cloudProvider.Create(ctx, &cloudprovider.NodeRequest{
-		InstanceTypeOptions: node.InstanceTypeOptions,
-		Template:            &node.NodeTemplate,
-	})
+	k8sNode, err := p.cloudProvider.Create(
+		logging.WithLogger(ctx, logging.FromContext(ctx).Named("cloudprovider")),
+		&cloudprovider.NodeRequest{InstanceTypeOptions: node.InstanceTypeOptions, Template: &node.NodeTemplate},
+	)
 	if err != nil {
-		return fmt.Errorf("creating cloud provider machine, %w", err)
+		return fmt.Errorf("creating cloud provider instance, %w", err)
 	}
 
 	if err := mergo.Merge(k8sNode, node.ToNode()); err != nil {
@@ -284,6 +291,44 @@ func (p *Provisioner) getDaemonOverhead(ctx context.Context, nodeTemplates []*sc
 	}
 
 	return overhead, nil
+}
+
+func (p *Provisioner) Validate(ctx context.Context, pod *v1.Pod) error {
+	return multierr.Combine(
+		validateAffinity(pod),
+		p.volumeTopology.validatePersistentVolumeClaims(ctx, pod),
+	)
+}
+
+func validateAffinity(p *v1.Pod) (errs error) {
+	if p.Spec.Affinity == nil {
+		return nil
+	}
+	if p.Spec.Affinity.NodeAffinity != nil {
+		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
+		}
+		if p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
+			}
+		}
+	}
+	return errs
+}
+
+func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
+	if term.MatchFields != nil {
+		errs = multierr.Append(errs, fmt.Errorf("node selector term with matchFields is not supported"))
+	}
+	if term.MatchExpressions != nil {
+		for _, requirement := range term.MatchExpressions {
+			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
+				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
+			}
+		}
+	}
+	return errs
 }
 
 var schedulingDuration = prometheus.NewHistogramVec(

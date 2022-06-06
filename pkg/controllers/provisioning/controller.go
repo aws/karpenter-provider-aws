@@ -16,10 +16,10 @@ package provisioning
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/karpenter/pkg/config"
+	"github.com/aws/karpenter/pkg/utils/pod"
 
 	"github.com/aws/karpenter/pkg/events"
 
@@ -27,19 +27,14 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/pod"
 )
 
 const controllerName = "provisioning"
@@ -66,78 +61,25 @@ func (c *Controller) Recorder() events.Recorder {
 
 // Reconcile the resource
 func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(controllerName).With("pod", req.String()))
-	pod := &v1.Pod{}
-	if err := c.kubeClient.Get(ctx, req.NamespacedName, pod); err != nil {
+	p := &v1.Pod{}
+	if err := c.kubeClient.Get(ctx, req.NamespacedName, p); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 	// Ensure the pod can be provisioned
-	if !isProvisionable(pod) {
+	if !pod.IsProvisionable(p) {
 		return reconcile.Result{}, nil
 	}
-	if err := validate(pod); err != nil {
-		return reconcile.Result{}, nil
-	}
-	// Ensure pvcs exist if requested by a pod
-	if err := c.provisioner.volumeTopology.validatePersistentVolumeClaims(ctx, pod); err != nil {
-		return reconcile.Result{}, nil
-	}
-	// Enqueue to the provisioner
 	c.provisioner.Trigger()
+	// TODO: This is only necessary due to a bug in the batcher. Ideally we should retrigger on provisioning error instead
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // Deprecated: TriggerAndWait is used for unit testing purposes only
 func (c *Controller) TriggerAndWait() {
 	c.provisioner.TriggerAndWait()
-}
-
-func isProvisionable(p *v1.Pod) bool {
-	return !pod.IsScheduled(p) &&
-		!pod.IsPreempting(p) &&
-		pod.FailedToSchedule(p) &&
-		!pod.IsOwnedByDaemonSet(p) &&
-		!pod.IsOwnedByNode(p)
-}
-
-func validate(p *v1.Pod) error {
-	return multierr.Combine(
-		validateAffinity(p),
-	)
-}
-
-func validateAffinity(p *v1.Pod) (errs error) {
-	if p.Spec.Affinity == nil {
-		return nil
-	}
-	if p.Spec.Affinity.NodeAffinity != nil {
-		for _, term := range p.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-			errs = multierr.Append(errs, validateNodeSelectorTerm(term.Preference))
-		}
-		if p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			for _, term := range p.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-				errs = multierr.Append(errs, validateNodeSelectorTerm(term))
-			}
-		}
-	}
-	return errs
-}
-
-func validateNodeSelectorTerm(term v1.NodeSelectorTerm) (errs error) {
-	if term.MatchFields != nil {
-		errs = multierr.Append(errs, fmt.Errorf("node selector term with matchFields is not supported"))
-	}
-	if term.MatchExpressions != nil {
-		for _, requirement := range term.MatchExpressions {
-			if !v1alpha5.SupportedNodeSelectorOps.Has(string(requirement.Operator)) {
-				errs = multierr.Append(errs, fmt.Errorf("node selector term has unsupported operator, %s", requirement.Operator))
-			}
-		}
-	}
-	return errs
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

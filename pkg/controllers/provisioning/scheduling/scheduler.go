@@ -125,32 +125,44 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 			}
 		}
 	}
-	s.recordSchedulingResults(ctx, q.List(), errors)
+	s.recordSchedulingResults(ctx, pods, q.List(), errors)
 	return s.nodes, nil
 }
 
-func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedule []*v1.Pod, errors map[*v1.Pod]error) {
-	// notify users of pods that can schedule to inflight capacity
-	existingCount := 0
+func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod, failedToSchedule []*v1.Pod, errors map[*v1.Pod]error) {
+	// Report failures and nominations
+	for _, pod := range failedToSchedule {
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Could not schedule pod, %s", errors[pod])
+		s.recorder.PodFailedToSchedule(pod, errors[pod])
+	}
 	for _, node := range s.inflight {
-		existingCount += len(node.Pods)
 		for _, pod := range node.Pods {
 			s.recorder.NominatePod(pod, node.Node)
 		}
 	}
+
+	// Report new nodes, or exit to avoid log spam
 	newCount := 0
 	for _, node := range s.nodes {
 		newCount += len(node.Pods)
 	}
-	if existingCount != 0 || newCount != 0 {
-		logging.FromContext(ctx).Infof("%d pod(s) will schedule against new capacity, %d pod(s) against existing capacity", newCount, existingCount)
+	if newCount == 0 {
+		return
 	}
+	logging.FromContext(ctx).Infof("Found %d provisionable pod(s)", len(pods))
+	logging.FromContext(ctx).Infof("Computed %d new node(s) will fit %d pod(s)", len(s.nodes), newCount)
 
-	// Any remaining pods have failed to schedule
-	for _, pod := range failedToSchedule {
-		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", errors[pod])
-		s.recorder.PodFailedToSchedule(pod, errors[pod])
+	// Report in flight nodes, or exit to avoid log spam
+	inflightCount := 0
+	existingCount := 0
+	for _, node := range lo.Filter(s.inflight, func(node *InFlightNode, _ int) bool { return len(node.Pods) > 0 }) {
+		inflightCount++
+		existingCount += len(node.Pods)
 	}
+	if existingCount == 0 {
+		return
+	}
+	logging.FromContext(ctx).Infof("Computed %d unready node(s) will fit %d pod(s)", inflightCount, existingCount)
 }
 
 func (s *Scheduler) add(pod *v1.Pod) error {

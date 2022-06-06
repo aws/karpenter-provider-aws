@@ -19,6 +19,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+func IsProvisionable(pod *v1.Pod) bool {
+	return !IsScheduled(pod) &&
+		!IsPreempting(pod) &&
+		FailedToSchedule(pod) &&
+		!IsOwnedByDaemonSet(pod) &&
+		!IsOwnedByNode(pod)
+}
+
 func FailedToSchedule(pod *v1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonUnschedulable {
