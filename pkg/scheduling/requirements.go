@@ -135,7 +135,7 @@ func (r Requirements) Compatible(requirements Requirements) (errs error) {
 		if operator := requirements.Get(key).Type(); r.Has(key) || operator == v1.NodeSelectorOpNotIn || operator == v1.NodeSelectorOpDoesNotExist {
 			continue
 		}
-		errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", requirements.Get(key), r.Get(key), key))
+		errs = multierr.Append(errs, fmt.Errorf("key %s does not have known values", key))
 	}
 	// Well Known Labels must intersect, but if not defined, are allowed.
 	return multierr.Append(errs, r.Intersects(requirements))
@@ -155,7 +155,7 @@ func (r Requirements) Intersects(requirements Requirements) (errs error) {
 					continue
 				}
 			}
-			errs = multierr.Append(errs, fmt.Errorf("%s not in %s, key %s", incoming, existing, key))
+			errs = multierr.Append(errs, fmt.Errorf("key %s, %s not in %s", key, incoming, existing))
 		}
 	}
 	return errs

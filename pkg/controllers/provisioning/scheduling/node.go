@@ -75,7 +75,7 @@ func (n *Node) Add(pod *v1.Pod) error {
 
 	// Check Node Affinity Requirements
 	if err := nodeRequirements.Compatible(podRequirements); err != nil {
-		return err
+		return fmt.Errorf("incompatible requirements, %w", err)
 	}
 	nodeRequirements.Add(podRequirements)
 
