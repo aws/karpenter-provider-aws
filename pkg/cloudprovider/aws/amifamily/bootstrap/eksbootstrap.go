@@ -70,15 +70,14 @@ func (e EKS) Script() (string, error) {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	userData, err := e.mergeCustomUserData(userData)
+	userDataMerged, err := e.mergeCustomUserData(&userData)
 	if err != nil {
 		return "", err
 	}
 	// The mime/multipart package adds carriage returns, while the rest of our logic does not. Remove all
 	// carriage returns for consistency.
-	userDataBytes := bytes.Replace(userData.Bytes(), []byte{13}, []byte{}, -1)
-	userDataString := base64.StdEncoding.EncodeToString(userDataBytes)
-	return userDataString, nil
+	userDataBytes := bytes.Replace(userDataMerged.Bytes(), []byte{13}, []byte{}, -1)
+	return base64.StdEncoding.EncodeToString(userDataBytes), nil
 }
 
 func (e EKS) nodeTaintArg() string {
@@ -108,30 +107,30 @@ func (e EKS) nodeLabelArg() string {
 	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
 }
 
-func (e EKS) mergeCustomUserData(userData bytes.Buffer) (bytes.Buffer, error) {
+func (e EKS) mergeCustomUserData(userData *bytes.Buffer) (*bytes.Buffer, error) {
 	var outputBuffer bytes.Buffer
 	writer := multipart.NewWriter(&outputBuffer)
 	if err := writer.SetBoundary(Boundary); err != nil {
-		return outputBuffer, fmt.Errorf("defining boundary for merged user data %w", err)
+		return nil, fmt.Errorf("defining boundary for merged user data %w", err)
 	}
 	outputBuffer.WriteString(MIMEVersionHeader + "\n")
 	outputBuffer.WriteString(fmt.Sprintf(MIMEContentTypeHeaderTemplate, Boundary) + "\n\n")
 	// Step 1 - Copy over customer bootstrapping
 	if err := copyCustomUserDataParts(writer, e.Options.CustomUserData); err != nil {
-		return outputBuffer, err
+		return nil, err
 	}
 	// Step 2 - Add Karpenter's bootstrapping logic
 	shellScriptContentHeader := textproto.MIMEHeader{"Content-Type": []string{"text/x-shellscript; charset=\"us-ascii\""}}
 	partWriter, err := writer.CreatePart(shellScriptContentHeader)
 	if err != nil {
-		return outputBuffer, fmt.Errorf("unable to add Karpenter managed user data %w", err)
+		return nil, fmt.Errorf("unable to add Karpenter managed user data %w", err)
 	}
 	_, err = partWriter.Write(userData.Bytes())
 	if err != nil {
-		return outputBuffer, fmt.Errorf("unable to create merged user data content %w", err)
+		return nil, fmt.Errorf("unable to create merged user data content %w", err)
 	}
 	writer.Close()
-	return outputBuffer, nil
+	return &outputBuffer, nil
 }
 
 func copyCustomUserDataParts(writer *multipart.Writer, customUserData *string) error {
