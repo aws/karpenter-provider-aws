@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -37,6 +36,7 @@ import (
 )
 
 const (
+	InstanceTypesCacheKey              = "types"
 	InstanceTypeZonesCacheKey          = "zones"
 	InstanceTypesAndZonesCacheTTL      = 5 * time.Minute
 	UnfulfillableCapacityErrorCacheTTL = 3 * time.Minute
@@ -150,7 +150,7 @@ func (p *InstanceTypeProvider) getInstanceTypeZones(ctx context.Context, provide
 
 // getInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
 func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v1alpha1.AWS) (map[string]*ec2.InstanceTypeInfo, error) {
-	if cached, ok := p.cache.Get(instanceTypesCacheKey(provider)); ok {
+	if cached, ok := p.cache.Get(InstanceTypesCacheKey); ok {
 		return cached.(map[string]*ec2.InstanceTypeInfo), nil
 	}
 	instanceTypes := map[string]*ec2.InstanceTypeInfo{}
@@ -176,7 +176,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	logging.FromContext(ctx).Debugf("Discovered %d EC2 instance types", len(instanceTypes))
-	p.cache.SetDefault(instanceTypesCacheKey(provider), instanceTypes)
+	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }
 
@@ -212,12 +212,4 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 
 func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType string) string {
 	return fmt.Sprintf("%s:%s:%s", capacityType, instanceType, zone)
-}
-
-func instanceTypesCacheKey(provider *v1alpha1.AWS) string {
-	hash, err := hashstructure.Hash(provider, hashstructure.FormatV2, nil)
-	if err != nil {
-		panic(fmt.Sprintf("hashing provider, %s", err))
-	}
-	return fmt.Sprint(hash)
 }
