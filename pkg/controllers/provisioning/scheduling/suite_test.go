@@ -408,7 +408,7 @@ var _ = Describe("Custom Constraints", func() {
 					{Key: "test-key", Operator: v1.NodeSelectorOpNotIn, Values: []string{"test-value"}},
 				}}))[0]
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).ToNot(HaveKeyWithValue("test-key", "test-value"))
+			Expect(node.Labels).ToNot(HaveKey("test-key"))
 		})
 		It("should not schedule pods that have node selectors with Exists operator and undefined key", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
@@ -2948,8 +2948,8 @@ var _ = Describe("Instance Type Compatibility", func() {
 			cloudProv.InstanceTypes = fake.InstanceTypes(5)
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, controller,
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"size": "large"}}),
-				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{"size": "small"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{fake.LabelInstanceSize: "large"}}),
+				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{fake.LabelInstanceSize: "small"}}),
 			)
 			node := ExpectScheduled(ctx, env.Client, pods[0])
 			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "fake-it-4"))
@@ -2961,11 +2961,11 @@ var _ = Describe("Instance Type Compatibility", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					"size":                     "large",
+					fake.LabelInstanceSize:  "large",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[0].Name(),
 				}}),
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					"size":                     "small",
+					fake.LabelInstanceSize:  "small",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[4].Name(),
 				}}),
 			)

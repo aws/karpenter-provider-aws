@@ -56,14 +56,14 @@ var (
 	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
 	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
-	InstanceFamilyLabelKey          = LabelDomain + "/instance.family"
-	InstanceSizeLabelKey            = LabelDomain + "/instance.size"
-	InstanceCPULabelKey             = LabelDomain + "/instance.cpu"
-	InstanceMemoryLabelKey          = LabelDomain + "/instance.memory"
-	InstanceGPUNameLabelKey         = LabelDomain + "/instance.gpu.name"
-	InstanceGPUManufacturerLabelKey = LabelDomain + "/instance.gpu.manufacturer"
-	InstanceGPUCountLabelKey        = LabelDomain + "/instance.gpu.count"
-	InstanceGPUMemoryLabelKey       = LabelDomain + "/instance.gpu.memory"
+	LabelInstanceFamily          = LabelDomain + "/instance.family"
+	LabelInstanceSize            = LabelDomain + "/instance.size"
+	LabelInstanceCPU             = LabelDomain + "/instance.cpu"
+	LabelInstanceMemory          = LabelDomain + "/instance.memory"
+	LabelInstanceGPUName         = LabelDomain + "/instance.gpu.name"
+	LabelInstanceGPUManufacturer = LabelDomain + "/instance.gpu.manufacturer"
+	LabelInstanceGPUCount        = LabelDomain + "/instance.gpu.count"
+	LabelInstanceGPUMemory       = LabelDomain + "/instance.gpu.memory"
 )
 
 var (
@@ -75,13 +75,13 @@ func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
 	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
-		InstanceFamilyLabelKey,
-		InstanceSizeLabelKey,
-		InstanceCPULabelKey,
-		InstanceMemoryLabelKey,
-		InstanceGPUNameLabelKey,
-		InstanceGPUManufacturerLabelKey,
-		InstanceGPUCountLabelKey,
-		InstanceGPUMemoryLabelKey,
+		LabelInstanceFamily,
+		LabelInstanceSize,
+		LabelInstanceCPU,
+		LabelInstanceMemory,
+		LabelInstanceGPUName,
+		LabelInstanceGPUManufacturer,
+		LabelInstanceGPUCount,
+		LabelInstanceGPUMemory,
 	)
 }

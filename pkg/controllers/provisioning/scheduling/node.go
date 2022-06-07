@@ -75,7 +75,7 @@ func (n *Node) Add(pod *v1.Pod) error {
 
 	// Check Node Affinity Requirements
 	if err := nodeRequirements.Compatible(podRequirements); err != nil {
-		return err
+		return fmt.Errorf("incompatible requirements, %w", err)
 	}
 	nodeRequirements.Add(podRequirements)
 
@@ -127,7 +127,7 @@ func filterInstanceTypes(instanceTypes []cloudprovider.InstanceType, requirement
 }
 
 func compatible(instanceType cloudprovider.InstanceType, requirements scheduling.Requirements) bool {
-	return instanceType.Requirements().Intersects(requirements, v1alpha5.WellKnownLabels) == nil
+	return instanceType.Requirements().Intersects(requirements) == nil
 }
 
 func fits(instanceType cloudprovider.InstanceType, requests v1.ResourceList) bool {

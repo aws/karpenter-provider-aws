@@ -72,8 +72,5 @@ var _ = Describe("Set", func() {
 		It("A should not have B", func() {
 			Expect(setA.Has("B")).To(BeFalse())
 		})
-		It("Should panic when call A' values", func() {
-			Expect(func() { setAComplement.Values() }).To(Panic())
-		})
 	})
 })

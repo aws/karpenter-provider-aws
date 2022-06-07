@@ -20,6 +20,8 @@ import (
 
 	"github.com/mitchellh/hashstructure/v2"
 
+	"github.com/aws/karpenter/pkg/utils/rand"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -59,27 +61,8 @@ func (s Set) Hash() (uint64, error) {
 	return hashstructure.Hash(key, hashstructure.FormatV2, nil)
 }
 
-// DeepCopy creates a deep copy of the set object
-// It is required by the Kubernetes CRDs code generation
-func (s Set) DeepCopy() Set {
-	// it's faster to manually copy this then to use UnsortedList() and the constructor
-	values := make(sets.String, len(s.values))
-	for k := range s.values {
-		values[k] = sets.Empty{}
-	}
-	return Set{
-		values:     values,
-		complement: s.complement,
-	}
-}
-
-// IsComplement returns whether the set is a complement set.
-func (s Set) IsComplement() bool {
-	return s.complement
-}
-
 func (s Set) Type() v1.NodeSelectorOperator {
-	if s.IsComplement() {
+	if s.complement {
 		if s.Len() < math.MaxInt64 {
 			return v1.NodeSelectorOpNotIn
 		}
@@ -94,30 +77,17 @@ func (s Set) Type() v1.NodeSelectorOperator {
 // Values returns the values of the set.
 // If the set is negatively defined, it will panic
 func (s Set) Values() sets.String {
-	if s.complement {
-		panic("infinite set")
-	}
 	return s.values
 }
 
 func (s Set) Any() string {
-	if s.complement || len(s.values) == 0 {
-		return ""
+	if s.complement {
+		return rand.String(10)
 	}
 	for k := range s.values {
 		return k
 	}
-	// unreachable
 	return ""
-}
-
-// ComplementValues returns the values of the complement set.
-// If the set is not a complement set, it will panic
-func (s Set) ComplementValues() sets.String {
-	if !s.complement {
-		panic("infinite set")
-	}
-	return s.values
 }
 
 func (s Set) String() string {

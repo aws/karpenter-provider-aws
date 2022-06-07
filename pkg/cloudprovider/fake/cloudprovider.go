@@ -58,7 +58,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	// Labels
 	labels := map[string]string{}
 	for key, values := range instanceType.Requirements() {
-		labels[key] = values.Any()
+		if values.Len() == 1 {
+			labels[key] = values.Any()
+		}
 	}
 	// Find Offering
 	for _, o := range instanceType.Offerings() {

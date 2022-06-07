@@ -117,29 +117,31 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		v1.LabelArchStable:         sets.NewSet(i.architecture()),
 		v1.LabelOSStable:           sets.NewSet(v1alpha5.OperatingSystemLinux),
 		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		// Well Known to Karpenter
 		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
-		// Resources
-		v1alpha1.InstanceCPULabelKey:    sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
-		v1alpha1.InstanceMemoryLabelKey: sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+		// Well Known to AWS
+		v1alpha1.LabelInstanceCPU:             sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
+		v1alpha1.LabelInstanceMemory:          sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+		v1alpha1.LabelInstanceFamily:          sets.NewSet(),
+		v1alpha1.LabelInstanceSize:            sets.NewSet(),
+		v1alpha1.LabelInstanceGPUName:         sets.NewSet(),
+		v1alpha1.LabelInstanceGPUManufacturer: sets.NewSet(),
+		v1alpha1.LabelInstanceGPUCount:        sets.NewSet(),
+		v1alpha1.LabelInstanceGPUMemory:       sets.NewSet(),
 	}
 	// Instance Type Labels
 	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
-		requirements.Add(scheduling.Requirements{
-			v1alpha1.InstanceFamilyLabelKey: sets.NewSet(instanceTypeParts[0]),
-			v1alpha1.InstanceSizeLabelKey:   sets.NewSet(instanceTypeParts[1]),
-		})
+		requirements[v1alpha1.LabelInstanceFamily].Insert(instanceTypeParts[0])
+		requirements[v1alpha1.LabelInstanceSize].Insert(instanceTypeParts[1])
 	}
 	// GPU Labels
 	if i.GpuInfo != nil && len(i.GpuInfo.Gpus) == 1 {
 		gpu := i.GpuInfo.Gpus[0]
-		requirements.Add(scheduling.Requirements{
-			v1alpha1.InstanceGPUNameLabelKey:         sets.NewSet(lowerKabobCase(aws.StringValue(gpu.Name))),
-			v1alpha1.InstanceGPUManufacturerLabelKey: sets.NewSet(lowerKabobCase(aws.StringValue(gpu.Manufacturer))),
-			v1alpha1.InstanceGPUCountLabelKey:        sets.NewSet(fmt.Sprint(aws.Int64Value(gpu.Count))),
-			v1alpha1.InstanceGPUMemoryLabelKey:       sets.NewSet(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB))),
-		})
-
+		requirements[v1alpha1.LabelInstanceGPUName].Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
+		requirements[v1alpha1.LabelInstanceGPUManufacturer].Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
+		requirements[v1alpha1.LabelInstanceGPUCount].Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
+		requirements[v1alpha1.LabelInstanceGPUMemory].Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 	}
 	return requirements
 }

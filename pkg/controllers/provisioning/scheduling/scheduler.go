@@ -148,7 +148,7 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, failedToSchedul
 
 	// Any remaining pods have failed to schedule
 	for _, pod := range failedToSchedule {
-		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Error(errors[pod])
+		logging.FromContext(ctx).With("pod", client.ObjectKeyFromObject(pod)).Errorf("Scheduling pod, %s", errors[pod])
 		s.recorder.PodFailedToSchedule(pod, errors[pod])
 	}
 }
@@ -185,14 +185,14 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 		}
 
 		node := NewNode(nodeTemplate, s.topology, s.daemonOverhead[nodeTemplate], instanceTypes)
-		err := node.Add(pod)
-		if err == nil {
-			s.nodes = append(s.nodes, node)
-			// we will launch this node and need to track its maximum possible resource usage against our remaining resources
-			s.remainingResources[nodeTemplate.ProvisionerName] = subtractMax(s.remainingResources[nodeTemplate.ProvisionerName], node.InstanceTypeOptions)
-			return nil
+		if err := node.Add(pod); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("incompatible with provisioner %q, %w", nodeTemplate.ProvisionerName, err))
+			continue
 		}
-		errs = multierr.Append(errs, err)
+		// we will launch this node and need to track its maximum possible resource usage against our remaining resources
+		s.nodes = append(s.nodes, node)
+		s.remainingResources[nodeTemplate.ProvisionerName] = subtractMax(s.remainingResources[nodeTemplate.ProvisionerName], node.InstanceTypeOptions)
+		return nil
 	}
 	return errs
 }

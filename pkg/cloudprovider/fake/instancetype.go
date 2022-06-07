@@ -34,13 +34,13 @@ import (
 )
 
 const (
-	InstanceSizeLabelKey   = "size"
+	LabelInstanceSize      = "size"
 	ExoticInstanceLabelKey = "special"
 )
 
 func init() {
 	v1alpha5.WellKnownLabels.Insert(
-		InstanceSizeLabelKey,
+		LabelInstanceSize,
 		ExoticInstanceLabelKey,
 	)
 }
@@ -201,13 +201,15 @@ func (i *InstanceType) Requirements() scheduling.Requirements {
 		v1.LabelOSStable:           sets.NewSet(i.options.OperatingSystems.List()...),
 		v1.LabelTopologyZone:       sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
 		v1alpha5.LabelCapacityType: sets.NewSet(lo.Map(i.Offerings(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		LabelInstanceSize:          sets.NewSet(),
+		ExoticInstanceLabelKey:     sets.NewSet(),
 	}
 	if i.options.Resources.Cpu().Cmp(resource.MustParse("4")) > 0 &&
 		i.options.Resources.Memory().Cmp(resource.MustParse("8Gi")) > 0 {
-		requirements.Add(scheduling.Requirements{InstanceSizeLabelKey: sets.NewSet("large")})
-		requirements.Add(scheduling.Requirements{ExoticInstanceLabelKey: sets.NewSet("optional")})
+		requirements[LabelInstanceSize] = sets.NewSet("large")
+		requirements[ExoticInstanceLabelKey] = sets.NewSet("optional")
 	} else {
-		requirements.Add(scheduling.Requirements{InstanceSizeLabelKey: sets.NewSet("small")})
+		requirements[LabelInstanceSize] = sets.NewSet("small")
 	}
 	return requirements
 }
