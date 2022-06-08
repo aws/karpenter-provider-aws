@@ -11,18 +11,8 @@ If you would like to ask question from the community please join the [Karpenter 
 If you are using Karpenter please consider adding yourself as a user by opening a pull request to this file.
 If you are open to others contacting you about your use of Karpenter on Slack, add your Slack name as well.
 
-### Example entry
-
-* *Amazon, Inc.*
-* Scaling production workloads and batch jobs in 4 regions
-* [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/)
-* `@Alex Kestner`, `@Ellis Tarn`
-
-```
-* *Company*
-* Description of where Karpenter is used
-* _Link to company or blog/details_ (optional)
-* `slack user`, `email@company` (optional)
-```
-
 ## Users (Alphabetically)
+
+| Organization | Description | Contacts | Link |
+| --- | --- | --- | --- |
+| Amazon, Inc. | Scaling production workloads and batch jobs in all AWS regions | `@Alex Kestner`, `@Ellis Tarn` | [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/) |
