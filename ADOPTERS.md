@@ -7,11 +7,11 @@ The following is a self-reported list of users to help identify adoption and poi
 ## Community
 If you would like to ask question from the community please join the [Karpenter slack channel in the Kubernetes Slack](https://kubernetes.slack.com/archives/C02SFFZSA2K) or join the [Karpenter working group](WORKING_GROUP.md) bi-weekly calls.
 
-## Add yourself as a user
+## Add yourself
 If you are using Karpenter please consider adding yourself as a user by opening a pull request to this file.
 If you are open to others contacting you about your use of Karpenter on Slack, add your Slack name as well.
 
-## Users (Alphabetically)
+## Adoptors (Alphabetical)
 
 | Organization | Description | Contacts | Link |
 | --- | --- | --- | --- |
