@@ -11,7 +11,7 @@ If you would like to ask question from the community please join the [Karpenter 
 If you are using Karpenter please consider adding yourself as a user by opening a pull request to this file.
 If you are open to others contacting you about your use of Karpenter on Slack, add your Slack name as well.
 
-## Adoptors (Alphabetical)
+## Adopters (Alphabetical)
 
 | Organization | Description | Contacts | Link |
 | --- | --- | --- | --- |
