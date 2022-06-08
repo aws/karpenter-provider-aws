@@ -1,0 +1,152 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: ping-aws-cli-task
+spec:
+  description: |
+    Ping AWS to test connectivity
+  steps:
+  - name: hello-world
+    image: docker.io/njtran/scratch:latest
+    script: |
+      aws sts get-caller-identity --query Account --output text
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: create-kit-control-plane-task
+spec:
+  description: |
+    Create a KIT Control Plane for a given cluster.
+  params:
+  - name: host-cluster-name
+    description: Name of host cluster
+  - name: guest-cluster-name
+    description: Name of KIT guest cluster
+  - name: kit-namespace
+    description: Namespace where the KIT Guest Cluster will be created
+  - name: etcd-replicas
+    description: Number of ETCD replicas in the KIT Guest Cluster
+  - name: etcd-instance-type
+    description: Number of ETCD replicas in the KIT Guest Cluster
+  - name: aws-region
+    description: AWS Region where cluster is deployed
+  - name: role-arn
+    description: IAM Role ARN used to create the cluster
+  - name: pod-image
+    description: Docker image used for Tekton Pods
+  workspaces:
+  - name: config
+    description: |
+      Directory where kubeconfig for the Guest Cluster lives
+  steps:
+  - name: get-kubeconfig
+    image: $(params.pod-image)
+    script: |
+      aws eks update-kubeconfig --name $(params.host-cluster-name) --region $(params.aws-region) --role-arn $(params.role-arn)
+      cat ~/.kube/config >> $(workspaces.config.path)/kubeconfig
+  - name: deploy-kit
+    image: $(params.pod-image)
+    script: |
+      echo "Deploying KIT"
+      kubectl version
+      cat $(workspaces.config.path)/kubeconfig
+      kubectl --kubeconfig=$(workspaces.config.path)/kubeconfig apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/release-1.10/config/master/aws-k8s-cni.yaml
+
+      echo "Approving KCM requests"
+      kubectl certificate approve $(kubectl get csr | grep "Pending" | awk '{print $1}')  2>/dev/null || true
+      namespace=$(kubectl get ns $(params.kit-namespace) -o yaml 2>/dev/null | grep phase | awk '{print $2}')
+      if [[ $namespace != "Active" ]]
+      then
+        echo "Create namespace"
+        kubectl create namespace $(params.kit-namespace)
+      fi
+      echo "Setting up control plane"
+      cat <<EOF | kubectl apply -f -
+      apiVersion: kit.k8s.sh/v1alpha1
+      kind: ControlPlane
+      metadata:
+        name: $(params.guest-cluster-name) # Desired Cluster name
+        namespace: ${params.kit-namespace}
+      spec: {}
+      EOF
+
+      echo "Getting kube admin config"
+      for i in {0..30}
+      do
+          data=$(kubectl get secret -n $(params.guest-cluster-name) $(params.guest-cluster-name)-kube-admin-config -ojsonpath='{.data.config}' 2>/dev/null) || true
+          if [[ ! -z "$data" ]]; then
+              echo $data | base64 -d > /tmp/kubeconfig
+              break
+          fi
+          sleep 2
+      done
+      echo "Waiting for the APIserver endpoint to be ready"
+      endpoint=$(cat /tmp/kubeconfig  | grep server | awk '{print $2}')
+      for i in {0..30}
+      do
+          state=$(curl -k --connect-timeout 5 -s $endpoint/healthz) 2>/dev/null || true
+          if [[ ! -z "$state" ]]; then
+              break
+          fi
+          sleep 2
+      done
+      echo "Installing CNI"
+      kubectl --kubeconfig=/tmp/kubeconfig apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/release-1.10/config/master/aws-k8s-cni.yaml
+      echo "Approving KCM requests"
+      kubectl certificate approve $(kubectl get csr | grep "Pending" | awk '{print $1}')  2>/dev/null  || true
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: create-kit-pipeline
+spec:
+  tasks:
+  - name: ping-aws-cli
+    taskRef:
+      name: ping-aws-cli-task
+  - name: kit-control-plane
+    taskRef:
+      name: create-kit-control-plane-task
+    runAfter:
+      - ping-aws-cli
+    params:
+    - name: guest-cluster-name
+      value: "kit-guest-cluster-1"
+    - name: kit-namespace
+      value: "kit-namespace"
+    - name: etcd-replicas
+      value: "2"
+    - name: etcd-instance-type
+      value: "m5.large"
+    - name: aws-region
+      value: "us-west-2"
+    - name: role-arn
+      value: "arn:aws:iam::757543820853:role/Admin"
+    - name: host-cluster-name
+      value: "testing-ci-cluster"
+    - name: pod-image
+      value: "docker.io/njtran/scratch:latest"
+    workspaces:
+      - name: config
+        workspace: ws
+  workspaces:
+  - name: ws
+    description: The folder where we write the kubeconfig to
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: create-kit-pipeline-run
+spec:
+  pipelineRef:
+    name: create-kit-pipeline
+  podTemplate:
+    nodeSelector:
+      kubernetes.io/arch: amd64
+  workspaces:
+    - name: ws
+      emptyDir: {}

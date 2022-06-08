@@ -1,0 +1,133 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: eks-cluster-create-task
+spec:
+  description: |
+    Create an EKS cluster.
+  params:
+  - name: cluster-name
+    description: The name of the EKS cluster you want to spin.
+    default: "kit-substrate-test-cluster"
+  - name: k8s-version
+    default: "1.21"
+    description: The k8s version to install.
+  - name: region
+    default: "us-west-2"
+    description: The region where the cluster is in.
+  - name: zones
+    default: "us-west-2a,us-west-2b,us-west-2c"
+    description: The zones where the cluster is in.
+  - name: nodegroup-name
+    default: "kit-substrate-test-ng"
+    description: The name of the nodegroup of the cluster.
+  - name: instance-selector-vcpus
+    default: "2"
+    description: The vcpus of the EC2 instaces for the nodegroup of the cluster.
+  - name: instance-selector-memory
+    default: "4"
+    description: The memory of the EC2 instaces for the nodegroup of the cluster.
+  - name: desired-nodes
+    default: "10"
+    description: The desired number of nodes in the cluster.
+  - name: min-nodes
+    default: "1"
+    description: The minimum number of nodes in the cluster.
+  - name: max-nodes
+    default: "10"
+    description: The maximum number of nodes in the cluster.
+  steps:
+  - name: create-cluster
+    image: docker.io/weaveworks/eksctl:0.86.0
+    script: |
+      eksctl create cluster -f - << EOF
+      ---
+      apiVersion: eksctl.io/v1alpha5
+      kind: ClusterConfig
+      metadata:
+        name: $(params.cluster-name)
+        region: $(params.region)
+        version: "$(params.k8s-version)"
+        tags:
+          karpenter.sh/discovery: $(params.cluster-name)
+      managedNodeGroups:
+        - instanceType: m5.large
+          amiFamily: AmazonLinux2
+          name: $(params.nodegroup-name)
+          desiredCapacity: $(params.desired-nodes)
+          minSize: $(params.min-nodes)
+          maxSize: $(params.max-nodes)
+      iam:
+        withOIDC: true
+      EOF
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: eks-cluster-pipeline
+spec:
+  params:
+  - name: cluster-name
+    description: The name of the EKS cluster you want to spin.
+    default: "kit-substrate-test-cluster-3"
+  - name: k8s-version
+    default: "1.21"
+    description: The k8s version to install.
+  - name: region
+    default: "us-west-2"
+    description: The region where the cluster is in.
+  - name: zones
+    default: "us-west-2a,us-west-2b,us-west-2c"
+    description: The zones where the cluster is in.
+  - name: nodegroup-name
+    default: "kit-substrate-test-ng"
+    description: The name of the nodegroup of the cluster.
+  - name: instance-selector-vcpus
+    default: "2"
+    description: The vcpus of the EC2 instaces for the nodegroup of the cluster.
+  - name: instance-selector-memory
+    default: "4"
+    description: The memory of the EC2 instaces for the nodegroup of the cluster.
+  - name: desired-nodes
+    default: "10"
+    description: The desired number of nodes in the cluster.
+  - name: min-nodes
+    default: "1"
+    description: The minimum number of nodes in the cluster.
+  - name: max-nodes
+    default: "10"
+    description: The maximum number of nodes in the cluster.
+  tasks:
+  - name: create-eks
+    taskRef:
+      name: eks-cluster-create-task
+    params:
+      - name: cluster-name
+        value: '$(params.cluster-name)'
+      - name: k8s-version
+        value: '$(params.k8s-version)'
+      - name: region
+        value: '$(params.region)'
+      - name: instance-selector-vcpus
+        value: '$(params.instance-selector-vcpus)'
+      - name: instance-selector-memory
+        value: '$(params.instance-selector-memory)'
+      - name: desired-nodes
+        value: '$(params.desired-nodes)'
+      - name: min-nodes
+        value: '$(params.min-nodes)'
+      - name: max-nodes
+        value: '$(params.max-nodes)'
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: eks-cluster-pipeline-run
+spec:
+  pipelineRef:
+    name: eks-cluster-pipeline
+  podTemplate:
+    nodeSelector:
+      kubernetes.io/arch: amd64
