@@ -78,13 +78,13 @@ Also, `nodeSelector` can do only do inclusions, while `affinity` can do inclusio
 ### Supported Labels
 The following labels are supported by Karpenter. They may be specified as provisioner requirements or pod scheduling constraints.
 
-| Label                                             | Example    | Description                                                                                                                                 |
-| ------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| kubernetes.io/os                                  | linux      | Operating systems include `linux`, `windows`                                                                                                |
-| kubernetes.io/arch                                | amd64      | Architectures include `amd64`, `arm64`                                                                                                      |
-| node.kubernetes.io/instance-type                  | p3.8xlarge | Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                       |
-| topology.kubernetes.io/zone                       | us-west-2a | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
-| karpenter.sh/capacity-type                        | spot       | Capacity types include `spot`, `on-demand`                                                                                                  |
+| Label                                       | Example    | Description                                                                                                                                 |
+| ------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| topology.kubernetes.io/zone                 | us-west-2a | Zones are defined by your cloud provider ([aws](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html)) |
+| node.kubernetes.io/instance-type            | p3.8xlarge | Instance types are defined by your cloud provider ([aws](https://aws.amazon.com/ec2/instance-types/))                                       |
+| kubernetes.io/os                            | linux      | Operating systems are defined by [GOOS values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L10) on the instance        |
+| kubernetes.io/arch                          | amd64      | Architectures are defined by [GOARCH values](https://github.com/golang/go/blob/master/src/go/build/syslist.go#L50) on the instance          |
+| karpenter.sh/capacity-type                  | spot       | Capacity types include `spot`, `on-demand`                                                                                                  |
 | karpenter.k8s.aws/instance.family           | p3         | [AWS Specific] Instance types of similar properties but different resource quantities                                                       |
 | karpenter.k8s.aws/instance.size             | 8xlarge    | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
 | karpenter.k8s.aws/instance.cpu              | 32         | [AWS Specific] Number of CPUs on the instance                                                                                               |
