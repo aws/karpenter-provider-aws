@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
@@ -44,6 +46,23 @@ type InstanceType struct {
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
 	maxPods      *int32
+}
+
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+	// Compress the struct for more efficient representation
+	instanceType := &InstanceType{
+		InstanceTypeInfo: info,
+		provider:         provider,
+		offerings:        offerings,
+	}
+	// Precompute to minimize memory/compute overhead
+	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
+	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
+	instanceType.requirements = instanceType.computeRequirements()
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		instanceType.maxPods = ptr.Int32(110)
+	}
+	return instanceType
 }
 
 func (i *InstanceType) Name() string {
