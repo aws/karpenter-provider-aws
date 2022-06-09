@@ -17,3 +17,4 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | --- | --- | --- | --- |
 | Amazon, Inc. | Scaling production workloads and batch jobs in all AWS regions | `@Alex Kestner`, `@Ellis Tarn` | [Introducing Karpenter](https://aws.amazon.com/blogs/aws/introducing-karpenter-an-open-source-high-performance-kubernetes-cluster-autoscaler/) |
 | Codefresh | Juggling workloads for the SAAS CD/GitOps offering | `@Vadim Gusev` | [Codefresh](https://codefresh.io/) |
+| Nirvana Money | Building healthy, happy financial lives - Using Karpenter to manage all-Spot clusters | `@DWSR` | [Homepage](https://www.nirvana.money/) |
