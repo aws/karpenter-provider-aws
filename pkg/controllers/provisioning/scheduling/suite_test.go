@@ -365,15 +365,12 @@ var _ = Describe("Custom Constraints", func() {
 			provisioner.Spec.Requirements = requirements
 			ExpectApplied(ctx, env.Client, provisioner)
 			for domain := range v1alpha5.LabelDomainExceptions {
-				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(
-					test.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
-						{Key: domain + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test-value"}},
-					}}))[0]
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Labels).ToNot(HaveKeyWithValue(domain+"/test", "test-value"))
+				Expect(node.Labels).To(HaveKeyWithValue(domain+"/test", "test-value"))
 			}
 		})
-		It("should schedule pods that have node selectors with label in restricted label exceptions list", func() {
+		It("should schedule pods that have node selectors with label in wellknown label list", func() {
 			schedulable := []*v1.Pod{
 				// Constrained by zone
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1"}}),

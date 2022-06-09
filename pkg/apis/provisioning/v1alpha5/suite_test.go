@@ -102,6 +102,14 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
+		It("should allow labels in restricted domains exceptions list", func() {
+			for label := range LabelDomainExceptions {
+				provisioner.Spec.Labels = map[string]string{
+					label: "test-value",
+				}
+				Expect(provisioner.Validate(ctx)).To(Succeed())
+			}
+		})
 	})
 	Context("Taints", func() {
 		It("should succeed for valid taints", func() {
