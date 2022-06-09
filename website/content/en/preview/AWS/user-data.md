@@ -19,7 +19,7 @@ Your UserData can be added to `spec.userData` in the `AWSNodeTemplate` resource 
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: mynodetemplate
+  name: bottlerocket-example
 spec:
   userData:  |
     [settings.kubernetes]
@@ -39,7 +39,7 @@ spec:
     securityGroupSelector:
       karpenter.sh/discovery: my-cluster
   providerRef:
-    name: mynodetemplate
+    name: bottlerocket-example
 ```
 
 ## UserData Content and Merge Semantics
