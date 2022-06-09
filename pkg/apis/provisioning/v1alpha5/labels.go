@@ -43,7 +43,7 @@ var (
 	// they are not used in a context where they may be passed as argument to kubelet.
 	LabelDomainExceptions = sets.NewString(
 		"kops.k8s.io",
-		"node.kubernetes.io",
+		v1.LabelNamespaceSuffixNode,
 	)
 
 	// WellKnownLabels are labels that belong to the RestrictedLabelDomains but allowed.
@@ -85,13 +85,8 @@ func IsRestrictedLabel(key string) error {
 	if WellKnownLabels.Has(key) {
 		return nil
 	}
-	if LabelDomainExceptions.Has(getLabelDomain(key)) {
-		return nil
-	}
-	for restrictedLabelDomain := range RestrictedLabelDomains {
-		if strings.HasSuffix(getLabelDomain(key), restrictedLabelDomain) {
-			return fmt.Errorf("label %s is restricted; specify a well known label: %v, or a custom label that does use a restricted domain: %v", key, WellKnownLabels.List(), RestrictedLabelDomains.List())
-		}
+	if IsRestrictedNodeLabel(key) {
+		return fmt.Errorf("label %s is restricted; specify a well known label: %v, or a custom label that does use a restricted domain: %v", key, WellKnownLabels.List(), RestrictedLabelDomains.List())
 	}
 	return nil
 }
