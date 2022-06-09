@@ -150,7 +150,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = compressInstanceType(instanceType)
 			}
 		}
 		return true
@@ -190,6 +190,23 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 		UnfulfillableCapacityErrorCacheTTL)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
+}
+
+func compressInstanceType(instanceType *ec2.InstanceTypeInfo) *ec2.InstanceTypeInfo {
+	return &ec2.InstanceTypeInfo{
+		InstanceType:             instanceType.InstanceType,
+		SupportedUsageClasses:    instanceType.SupportedUsageClasses,
+		VCpuInfo:                 &ec2.VCpuInfo{DefaultVCpus: instanceType.VCpuInfo.DefaultVCpus},
+		GpuInfo:                  instanceType.GpuInfo,
+		InferenceAcceleratorInfo: instanceType.InferenceAcceleratorInfo,
+		InstanceStorageInfo:      instanceType.InstanceStorageInfo,
+		MemoryInfo:               &ec2.MemoryInfo{SizeInMiB: instanceType.MemoryInfo.SizeInMiB},
+		ProcessorInfo:            &ec2.ProcessorInfo{SupportedArchitectures: instanceType.ProcessorInfo.SupportedArchitectures},
+		NetworkInfo: &ec2.NetworkInfo{
+			Ipv4AddressesPerInterface: instanceType.NetworkInfo.Ipv4AddressesPerInterface,
+			MaximumNetworkInterfaces:  instanceType.NetworkInfo.MaximumNetworkInterfaces,
+		},
+	}
 }
 
 func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType string) string {

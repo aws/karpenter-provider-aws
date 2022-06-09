@@ -129,8 +129,8 @@ go install github.com/google/pprof@latest
 ### Get a profile
 ```
 # Connect to the metrics endpoint
-kubectl port-forward service/karpenter -n karpenter 8080&
+kubectl port-forward service/karpenter -n karpenter 8080
 open http://localhost:8080/debug/pprof/
 # Visualize the memory
-go tool pprof -edgefraction 0 -nodefraction 0 -nodecount 100000 -http 0.0.0.0:9000 localhost:8080/debug/pprof/heap
+go tool pprof -http 0.0.0.0:9000 localhost:8080/debug/pprof/heap
 ```
