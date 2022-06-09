@@ -63,6 +63,8 @@ Your UserData -
 "memory.available" = "12%"
 [settings.kubernetes]
 "unknown-setting" = "unknown"
+[settings.kubernetes.node-labels]
+'field.controlled.by/karpenter': 'will-be-overriden'
 ```
 
 Final merged UserData -
