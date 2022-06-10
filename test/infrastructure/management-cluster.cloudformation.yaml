@@ -5,17 +5,17 @@ Parameters:
     Type: String
     Description: "Host cluster name"
 Resources:
-  KarpenterNodeInstanceProfile:
+  KarpenterGuestClusterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
-      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
+      InstanceProfileName: !Sub "KarpenterGuestClusterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
-        - Ref: "KarpenterNodeRole"
-  KarpenterNodeRole:
+        - Ref: "KarpenterGuestClusterNodeRole"
+  KarpenterGuestClusterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: !Sub "KarpenterNodeRole-${ClusterName}"
+      RoleName: !Sub "KarpenterGuestClusterNodeRole-${ClusterName}"
       Path: /
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -49,6 +49,7 @@ Resources:
               - ec2:CreateTags
               - iam:PassRole
               - ec2:TerminateInstances
+              - ec2:DeleteLaunchTemplate
               # Read Operations
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeInstances
@@ -58,3 +59,18 @@ Resources:
               - ec2:DescribeInstanceTypeOfferings
               - ec2:DescribeAvailabilityZones
               - ssm:GetParameter
+  TektonPodPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "TektonPodPolicy-${ClusterName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource: "*"
+            Action:
+              - ec2:*
+              - cloudformation:*
+              - iam:*
+              - ssm:GetParameter
+              - eks:*
