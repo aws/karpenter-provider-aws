@@ -1005,6 +1005,73 @@ var _ = Describe("Allocation", func() {
 					ExpectNotScheduled(ctx, env.Client, pod)
 				})
 			})
+			Context("AL2 Custom UserData", func() {
+				It("should merge in custom user data", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					content, _ := ioutil.ReadFile("testdata/al2_userdata_input.golden")
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String(string(content)),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ = ioutil.ReadFile("testdata/al2_userdata_merged.golden")
+					expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+					Expect(expectedUserData).To(Equal(string(userData)))
+				})
+				It("should handle empty custom user data", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   nil,
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					ExpectScheduled(ctx, env.Client, pod)
+					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
+					input := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop().(*ec2.CreateLaunchTemplateInput)
+					userData, _ := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+					content, _ := ioutil.ReadFile("testdata/al2_userdata_unmerged.golden")
+					expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+					Expect(expectedUserData).To(Equal(string(userData)))
+				})
+				It("should not bootstrap invalid MIME UserData", func() {
+					opts.AWSENILimitedPodDensity = false
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
+						UserData:   aws.String("#/bin/bash\n ./not-mime.sh"),
+						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
+					ExpectApplied(ctx, env.Client, nodeTemplate)
+					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+					// This will not be scheduled since userData cannot be generated for the prospective node.
+					ExpectNotScheduled(ctx, env.Client, pod)
+				})
+			})
 			Context("Kubelet Args", func() {
 				It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
 					ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{

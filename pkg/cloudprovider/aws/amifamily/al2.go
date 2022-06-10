@@ -62,6 +62,7 @@ func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.
 			Taints:                  taints,
 			Labels:                  labels,
 			CABundle:                caBundle,
+			CustomUserData:          customUserData,
 		},
 	}
 }

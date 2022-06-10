@@ -47,6 +47,7 @@ func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []
 			Taints:                  taints,
 			Labels:                  labels,
 			CABundle:                caBundle,
+			CustomUserData:          customUserData,
 		},
 	}
 }

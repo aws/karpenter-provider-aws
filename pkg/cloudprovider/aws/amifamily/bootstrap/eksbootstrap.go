@@ -17,9 +17,18 @@ package bootstrap
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/mail"
+	"net/textproto"
+	"sort"
 	"strings"
 	"sync"
+
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -28,6 +37,12 @@ type EKS struct {
 	Options
 	ContainerRuntime string
 }
+
+const (
+	Boundary                      = "//"
+	MIMEVersionHeader             = "MIME-Version: 1.0"
+	MIMEContentTypeHeaderTemplate = "Content-Type: multipart/mixed; boundary=\"%s\""
+)
 
 func (e EKS) Script() (string, error) {
 	var caBundleArg string
@@ -55,7 +70,14 @@ func (e EKS) Script() (string, error) {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
-	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
+	userDataMerged, err := e.mergeCustomUserData(&userData)
+	if err != nil {
+		return "", err
+	}
+	// The mime/multipart package adds carriage returns, while the rest of our logic does not. Remove all
+	// carriage returns for consistency.
+	userDataBytes := bytes.Replace(userDataMerged.Bytes(), []byte{13}, []byte{}, -1)
+	return base64.StdEncoding.EncodeToString(userDataBytes), nil
 }
 
 func (e EKS) nodeTaintArg() string {
@@ -73,12 +95,88 @@ func (e EKS) nodeLabelArg() string {
 	nodeLabelArg := ""
 	labelStrings := []string{}
 	var once sync.Once
-	for k, v := range e.Labels {
-		if v1alpha5.LabelDomainExceptions.Has(k) {
+	keys := lo.Keys(e.Labels)
+	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
+	for _, key := range keys {
+		if v1alpha5.LabelDomainExceptions.Has(key) {
 			continue
 		}
 		once.Do(func() { nodeLabelArg = "--node-labels=" })
-		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", k, v))
+		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, e.Labels[key]))
 	}
 	return fmt.Sprintf("%s%s", nodeLabelArg, strings.Join(labelStrings, ","))
+}
+
+func (e EKS) mergeCustomUserData(userData *bytes.Buffer) (*bytes.Buffer, error) {
+	var outputBuffer bytes.Buffer
+	writer := multipart.NewWriter(&outputBuffer)
+	if err := writer.SetBoundary(Boundary); err != nil {
+		return nil, fmt.Errorf("defining boundary for merged user data %w", err)
+	}
+	outputBuffer.WriteString(MIMEVersionHeader + "\n")
+	outputBuffer.WriteString(fmt.Sprintf(MIMEContentTypeHeaderTemplate, Boundary) + "\n\n")
+	// Step 1 - Copy over customer bootstrapping
+	if err := copyCustomUserDataParts(writer, e.Options.CustomUserData); err != nil {
+		return nil, err
+	}
+	// Step 2 - Add Karpenter's bootstrapping logic
+	shellScriptContentHeader := textproto.MIMEHeader{"Content-Type": []string{"text/x-shellscript; charset=\"us-ascii\""}}
+	partWriter, err := writer.CreatePart(shellScriptContentHeader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to add Karpenter managed user data %w", err)
+	}
+	_, err = partWriter.Write(userData.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("unable to create merged user data content %w", err)
+	}
+	writer.Close()
+	return &outputBuffer, nil
+}
+
+func copyCustomUserDataParts(writer *multipart.Writer, customUserData *string) error {
+	if customUserData == nil || *customUserData == "" {
+		// No custom user data specified, so nothing to copy over.
+		return nil
+	}
+	reader, err := getMultiPartReader(*customUserData)
+	if err != nil {
+		return fmt.Errorf("parsing custom user data input %w", err)
+	}
+	for {
+		p, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("parsing custom user data input %w", err)
+		}
+		slurp, err := io.ReadAll(p)
+		if err != nil {
+			return fmt.Errorf("parsing custom user data input %w", err)
+		}
+		partWriter, err := writer.CreatePart(p.Header)
+		if err != nil {
+			return fmt.Errorf("parsing custom user data input %w", err)
+		}
+		_, err = partWriter.Write(slurp)
+		if err != nil {
+			return fmt.Errorf("parsing custom user data input %w", err)
+		}
+	}
+	return nil
+}
+
+func getMultiPartReader(userData string) (*multipart.Reader, error) {
+	mailMsg, err := mail.ReadMessage(strings.NewReader(userData))
+	if err != nil {
+		return nil, fmt.Errorf("unreadable user data %w", err)
+	}
+	mediaType, params, err := mime.ParseMediaType(mailMsg.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, fmt.Errorf("user data does not define a content-type header %w", err)
+	}
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		return nil, fmt.Errorf("user data is not in multipart MIME format")
+	}
+	return multipart.NewReader(mailMsg.Body, params["boundary"]), nil
 }
