@@ -1,11 +1,3 @@
----
-title: "User Data Configuration"
-linkTitle: "UserData"
-weight: 10
-description: >
-  Learn how to configure custom UserData with Karpenter
----
-
 This document describes how you can customize the UserData that will be specified on your EC2 worker nodes, without using a launch template.
 
 ## Configuration
