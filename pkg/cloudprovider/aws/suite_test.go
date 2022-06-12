@@ -159,6 +159,7 @@ var _ = Describe("Allocation", func() {
 		subnetCache.Flush()
 		unavailableOfferingsCache.Flush()
 		amiCache.Flush()
+		instanceTypeCache.Flush()
 	})
 
 	AfterEach(func() {
@@ -237,15 +238,12 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 			It("should fail to launch AWS Pod ENI if the command line option enabling it isn't set", func() {
-				instanceTypeCache.Flush()
 				// ensure the pod ENI option is off
 				optsCopy := opts
 				optsCopy.AWSEnablePodENI = false
 				cancelCtx, cancelFunc := context.WithCancel(injection.WithOptions(ctx, optsCopy))
 				// ensure the provisioner is shut down at the end of this test
 				defer cancelFunc()
-				// clear any cached instance types
-				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 				provisionContoller := provisioning.NewController(cancelCtx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(cancelCtx, env.Client, provisionContoller,
@@ -257,11 +255,8 @@ var _ = Describe("Allocation", func() {
 					})) {
 					ExpectNotScheduled(cancelCtx, env.Client, pod)
 				}
-				// and ensure no one gets our no-ENI instance types
-				cloudProvider.(*CloudProvider).instanceTypeProvider.cache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 			})
 			It("should launch AWS Pod ENI on a compatible instance type", func() {
-				instanceTypeCache.Flush()
 				ExpectApplied(ctx, env.Client, provisioner)
 				for _, pod := range ExpectProvisioned(ctx, env.Client, controller,
 					test.UnschedulablePod(test.PodOptions{
