@@ -119,7 +119,7 @@ func main() {
 		metricspod.NewController(manager.GetClient()),
 		metricsnode.NewController(manager.GetClient()),
 		metricsprovisioner.NewController(manager.GetClient()),
-		counter.NewController(manager.GetClient()),
+		counter.NewController(manager.GetClient(), cluster),
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
