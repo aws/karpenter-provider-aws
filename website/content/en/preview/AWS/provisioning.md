@@ -241,13 +241,6 @@ spec:
           snapshotID: snap-0123456789
 ```
 
-### UserData
-
-You can control the UserData that needs to be applied to your worker nodes via the `spec.providerRef` field in your provisioner.
-Review the [Custom UserData documentation](../user-data/) to learn the necessary steps.
-
-If you need to specify a launch template in addition to UserData, then review the [Launch Template documentation](../launch-templates/) instead and utilize the `spec.provider.launchTemplate` field.
-
 ## Other Resources
 
 ### Accelerators, GPU
