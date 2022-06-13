@@ -17,6 +17,8 @@ package test
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/imdario/mergo"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -77,7 +79,8 @@ func PersistentVolumeClaim(overrides ...PersistentVolumeClaimOptions) *v1.Persis
 
 type StorageClassOptions struct {
 	metav1.ObjectMeta
-	Zones []string
+	Zones       []string
+	Provisioner *string
 }
 
 func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
@@ -92,10 +95,13 @@ func StorageClass(overrides ...StorageClassOptions) *storagev1.StorageClass {
 	if options.Zones != nil {
 		allowedTopologies = []v1.TopologySelectorTerm{{MatchLabelExpressions: []v1.TopologySelectorLabelRequirement{{Key: v1.LabelTopologyZone, Values: options.Zones}}}}
 	}
+	if options.Provisioner == nil {
+		options.Provisioner = aws.String("test-provisioner")
+	}
 
 	return &storagev1.StorageClass{
 		ObjectMeta:        ObjectMeta(options.ObjectMeta),
-		Provisioner:       "test-provisioner",
+		Provisioner:       *options.Provisioner,
 		AllowedTopologies: allowedTopologies,
 	}
 }

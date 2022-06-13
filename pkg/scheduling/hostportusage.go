@@ -12,14 +12,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package state
+package scheduling
 
 import (
+	"context"
 	"fmt"
 	"net"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -61,17 +63,31 @@ func NewHostPortUsage() *HostPortUsage {
 }
 
 // Add adds a port to the HostPortUsage, returning an error in the case of a conflict
-func (u *HostPortUsage) Add(pod *v1.Pod) error {
+func (u *HostPortUsage) Add(ctx context.Context, pod *v1.Pod) {
+	newUsage, err := u.validate(pod)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("invariant violated registering host port usage, %s, please file an issue", err)
+	}
+	u.reserved = append(u.reserved, newUsage...)
+}
+
+// Validate performs host port conflict validation to allow for determining if we can schedule the pod to the node
+// before doing so.
+func (u *HostPortUsage) Validate(pod *v1.Pod) error {
+	_, err := u.validate(pod)
+	return err
+}
+
+func (u *HostPortUsage) validate(pod *v1.Pod) ([]entry, error) {
 	newUsage := getHostPorts(pod)
 	for _, newEntry := range newUsage {
 		for _, existing := range u.reserved {
 			if newEntry.matches(existing) {
-				return fmt.Errorf("%s conflicts with existing HostPort configuration %s", newEntry, existing)
+				return nil, fmt.Errorf("%s conflicts with existing HostPort configuration %s", newEntry, existing)
 			}
 		}
 	}
-	u.reserved = append(u.reserved, newUsage...)
-	return nil
+	return newUsage, nil
 }
 
 // DeletePod deletes all host port usage from the HostPortUsage that were created by the pod with the given name.

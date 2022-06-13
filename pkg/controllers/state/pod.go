@@ -55,7 +55,9 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 		return reconcile.Result{}, err
 	}
 
-	c.cluster.updatePod(stored)
+	if err := c.cluster.updatePod(ctx, stored); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }

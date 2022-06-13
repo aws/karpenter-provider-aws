@@ -15,17 +15,16 @@ limitations under the License.
 package scheduling
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync/atomic"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
@@ -40,7 +39,7 @@ type Node struct {
 
 	topology      *Topology
 	requests      v1.ResourceList
-	hostPortUsage *state.HostPortUsage
+	hostPortUsage *scheduling.HostPortUsage
 }
 
 var nodeID int64
@@ -54,19 +53,20 @@ func NewNode(nodeTemplate *scheduling.NodeTemplate, topology *Topology, daemonRe
 	return &Node{
 		NodeTemplate:        template,
 		InstanceTypeOptions: instanceTypes,
-		hostPortUsage:       state.NewHostPortUsage(),
+		hostPortUsage:       scheduling.NewHostPortUsage(),
 		topology:            topology,
 		requests:            daemonResources,
 	}
 }
 
-func (n *Node) Add(pod *v1.Pod) error {
+func (n *Node) Add(ctx context.Context, pod *v1.Pod) error {
 	// Check Taints
 	if err := n.Taints.Tolerates(pod); err != nil {
 		return err
 	}
 
-	if err := n.hostPortUsage.Add(pod); err != nil {
+	// exposed host ports on the node
+	if err := n.hostPortUsage.Validate(pod); err != nil {
 		return err
 	}
 
@@ -102,6 +102,7 @@ func (n *Node) Add(pod *v1.Pod) error {
 	n.requests = requests
 	n.Requirements = nodeRequirements
 	n.topology.Record(pod, nodeRequirements)
+	n.hostPortUsage.Add(ctx, pod)
 	return nil
 }
 
