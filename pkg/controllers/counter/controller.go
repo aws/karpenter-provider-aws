@@ -16,7 +16,6 @@ package counter
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -67,9 +66,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Nodes aren't synced yet, so retry quickly.  In testing this never fires more than once.
+	// Nodes aren't synced yet, so return an error which will cause retry with backoff.
 	if !c.nodesSynced(nodes.Items, provisioner.Name) {
-		return reconcile.Result{RequeueAfter: 250 * time.Millisecond}, nil
+		return reconcile.Result{}, fmt.Errorf("nodes not synced")
 	}
 
 	// Determine resource usage and update provisioner.status.resources
