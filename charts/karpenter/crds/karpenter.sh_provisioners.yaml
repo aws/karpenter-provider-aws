@@ -51,6 +51,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  containerRuntime:
+                    description: ContainerRuntime is the container runtime to be used
+                      with your worker nodes.
+                    type: string
                 type: object
               labels:
                 additionalProperties:
@@ -76,6 +80,20 @@ spec:
                 description: Provider contains fields specific to your cloudprovider.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              providerRef:
+                description: ProviderRef is a reference to a dedicated CRD for the
+                  chosen provider, that holds additional configuration options
+                properties:
+                  apiVersion:
+                    description: API version of the referent
+                    type: string
+                  kind:
+                    description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
+                    type: string
+                  name:
+                    description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                    type: string
+                type: object
               requirements:
                 description: Requirements are layered with Labels and applied to every
                   node.
