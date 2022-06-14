@@ -169,6 +169,7 @@ func (p *Provisioner) getPods(ctx context.Context) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
+// nolint: gocyclo
 func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*scheduler.Node, error) {
 	defer metrics.Measure(schedulingDuration.WithLabelValues(injection.GetNamespacedName(ctx).Name))()
 
@@ -182,6 +183,9 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 	}
 	for i := range provisionerList.Items {
 		provisioner := &provisionerList.Items[i]
+		if !provisioner.DeletionTimestamp.IsZero() {
+			continue
+		}
 		// Create node template
 		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(provisioner))
 		// Get instance type options

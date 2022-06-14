@@ -17,6 +17,7 @@ package provisioning_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
@@ -88,6 +89,16 @@ var _ = Describe("Provisioning", func() {
 		Expect(len(nodes.Items)).To(Equal(1))
 		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
+		}
+	})
+	It("should ignore provisioners that are deleting", func() {
+		ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &metav1.Time{Time: time.Now()}}}))
+		pods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		nodes := &v1.NodeList{}
+		Expect(env.Client.List(ctx, nodes)).To(Succeed())
+		Expect(len(nodes.Items)).To(Equal(0))
+		for _, pod := range pods {
+			ExpectNotScheduled(ctx, env.Client, pod)
 		}
 	})
 	It("should provision nodes for pods with supported node selectors", func() {
