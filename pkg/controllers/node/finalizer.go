@@ -37,15 +37,13 @@ func (r *Finalizer) Reconcile(_ context.Context, provisioner *v1alpha5.Provision
 	if !node.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
-	if len(node.OwnerReferences) == 0 {
-		node.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion:         v1alpha5.SchemeGroupVersion.String(),
-			Kind:               "Provisioner",
-			Name:               provisioner.Name,
-			UID:                provisioner.UID,
-			BlockOwnerDeletion: ptr.Bool(true),
-		}}
-	}
+	node.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion:         v1alpha5.SchemeGroupVersion.String(),
+		Kind:               "Provisioner",
+		Name:               provisioner.Name,
+		UID:                provisioner.UID,
+		BlockOwnerDeletion: ptr.Bool(true),
+	}}
 	controllerutil.AddFinalizer(node, v1alpha5.TerminationFinalizer)
 	return reconcile.Result{}, nil
 }
