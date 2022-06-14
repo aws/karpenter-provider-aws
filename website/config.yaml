@@ -83,5 +83,5 @@ menu:
       pre: <i class='fab fa-github'></i>
     - name: Docs
       weight: 20
-      url: '/v0.10.1/'
+      url: '/v0.11.0/'
       pre: <i class='fas fa-book'></i>
