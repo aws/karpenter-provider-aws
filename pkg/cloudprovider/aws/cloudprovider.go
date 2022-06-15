@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 
+	awsv1 "github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily"
@@ -36,7 +37,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/project"
 
+	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
+
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/logging"
@@ -65,6 +69,7 @@ type CloudProvider struct {
 	instanceTypeProvider *InstanceTypeProvider
 	subnetProvider       *SubnetProvider
 	instanceProvider     *InstanceProvider
+	kubeClient           k8sClient.Client
 }
 
 func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *CloudProvider {
@@ -96,11 +101,21 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 				getCABundle(ctx),
 			),
 		},
+		kubeClient: options.KubeClient,
 	}
 }
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
+	if nodeRequest.Template.ProviderRef != nil {
+		var awsnodetemplate awsv1.AWSNodeTemplate
+		providerRef := nodeRequest.Template.ProviderRef
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &awsnodetemplate); err != nil {
+			logging.FromContext(ctx).Errorf("retrieving provider reference, %s", err)
+			return nil, err
+		}
+		return c.instanceProvider.Create(ctx, &awsnodetemplate.Spec.AWS, nodeRequest)
+	}
 	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Template.Provider)
 	if err != nil {
 		return nil, err
@@ -109,8 +124,17 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
-	awsprovider, err := v1alpha1.Deserialize(provider)
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
+	if provisioner.Spec.ProviderRef != nil {
+		var awsnodetemplate awsv1.AWSNodeTemplate
+		providerRef := provisioner.Spec.ProviderRef
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &awsnodetemplate); err != nil {
+			logging.FromContext(ctx).Errorf("retrieving provider reference, %s", err)
+			return nil, err
+		}
+		return c.instanceTypeProvider.Get(ctx, &awsnodetemplate.Spec.AWS)
+	}
+	awsprovider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 	if err != nil {
 		return nil, apis.ErrGeneric(err.Error())
 	}
@@ -123,11 +147,15 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 
 // Validate the provisioner
 func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
+	if provisioner.Spec.ProviderRef != nil {
+		// We can't validate the contents of a ProviderRef.
+		return nil
+	}
 	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 	if err != nil {
 		return apis.ErrGeneric(err.Error())
 	}
-	return provider.Validate(*provisioner)
+	return provider.Validate()
 }
 
 // Default the provisioner

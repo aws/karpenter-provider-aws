@@ -85,7 +85,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	return n, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, provider *v1alpha5.Provider) ([]cloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}

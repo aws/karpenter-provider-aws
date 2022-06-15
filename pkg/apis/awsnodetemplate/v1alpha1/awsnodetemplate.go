@@ -16,6 +16,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
@@ -25,7 +27,8 @@ type AWSNodeTemplateSpec struct {
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
-	UserData *string `json:"userData,omitempty"`
+	UserData     *string `json:"userData,omitempty"`
+	v1alpha1.AWS `json:",inline"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API

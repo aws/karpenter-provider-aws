@@ -45,7 +45,7 @@ type CloudProvider interface {
 	// Availability of types or zone may vary by provisioner or over time.  Regardless of
 	// availability, the GetInstanceTypes method should always return all instance types,
 	// even those with no offerings available.
-	GetInstanceTypes(context.Context, *v1alpha5.Provider) ([]InstanceType, error)
+	GetInstanceTypes(context.Context, *v1alpha5.Provisioner) ([]InstanceType, error)
 	// Default is a hook for additional defaulting logic at webhook time.
 	Default(context.Context, *v1alpha5.Provisioner)
 	// Validate is a hook for additional validation logic at webhook time.

@@ -339,11 +339,11 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 }
 
 func (c *Cluster) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
-	if provisioner == nil || provisioner.Spec.Provider == nil {
+	if provisioner == nil || (provisioner.Spec.Provider == nil && provisioner.Spec.ProviderRef == nil) {
 		// no provisioner means we cant lookup the instance type
 		return nil, nil
 	}
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
 		return nil, err
 	}

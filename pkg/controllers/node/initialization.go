@@ -55,7 +55,7 @@ func (r *Initialization) Reconcile(ctx context.Context, provisioner *v1alpha5.Pr
 }
 
 func (r *Initialization) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
-	instanceTypes, err := r.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+	instanceTypes, err := r.cloudProvider.GetInstanceTypes(ctx, provisioner)
 	if err != nil {
 		return nil, err
 	}

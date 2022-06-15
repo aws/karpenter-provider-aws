@@ -21,11 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
+	aws "github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 )
 
 type AWSNodeTemplateOptions struct {
 	metav1.ObjectMeta
 	UserData *string
+	AWS      *aws.AWS
 }
 
 func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTemplate {
@@ -39,6 +41,7 @@ func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTempl
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha1.AWSNodeTemplateSpec{
 			UserData: options.UserData,
+			AWS:      *options.AWS,
 		},
 	}
 }
