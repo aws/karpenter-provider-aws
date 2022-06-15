@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
@@ -56,14 +57,24 @@ var (
 	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
 	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
-	LabelInstanceFamily          = LabelDomain + "/instance.family"
-	LabelInstanceSize            = LabelDomain + "/instance.size"
-	LabelInstanceCPU             = LabelDomain + "/instance.cpu"
-	LabelInstanceMemory          = LabelDomain + "/instance.memory"
-	LabelInstanceGPUName         = LabelDomain + "/instance.gpu.name"
-	LabelInstanceGPUManufacturer = LabelDomain + "/instance.gpu.manufacturer"
-	LabelInstanceGPUCount        = LabelDomain + "/instance.gpu.count"
-	LabelInstanceGPUMemory       = LabelDomain + "/instance.gpu.memory"
+	LabelInstanceFamily          = LabelDomain + "/instance-family"
+	LabelInstanceSize            = LabelDomain + "/instance-size"
+	LabelInstanceCPU             = LabelDomain + "/instance-cpu"
+	LabelInstanceMemory          = LabelDomain + "/instance-memory"
+	LabelInstanceGPUName         = LabelDomain + "/instance-gpu-name"
+	LabelInstanceGPUManufacturer = LabelDomain + "/instance-gpu-manufacturer"
+	LabelInstanceGPUCount        = LabelDomain + "/instance-gpu-count"
+	LabelInstanceGPUMemory       = LabelDomain + "/instance-gpu-memory"
+
+	// Deprecated labels. Use the - notation above instead. Very sad.
+	LabelInstanceFamilyDeprecated          = LabelDomain + "/instance.family"
+	LabelInstanceSizeDeprecated            = LabelDomain + "/instance.size"
+	LabelInstanceCPUDeprecated             = LabelDomain + "/instance.cpu"
+	LabelInstanceMemoryDeprecated          = LabelDomain + "/instance.memory"
+	LabelInstanceGPUNameDeprecated         = LabelDomain + "/instance.gpu.name"
+	LabelInstanceGPUManufacturerDeprecated = LabelDomain + "/instance.gpu.manufacturer"
+	LabelInstanceGPUCountDeprecated        = LabelDomain + "/instance.gpu.count"
+	LabelInstanceGPUMemoryDeprecated       = LabelDomain + "/instance.gpu.memory"
 )
 
 var (
@@ -84,4 +95,14 @@ func init() {
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
 	)
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{
+		LabelInstanceFamilyDeprecated:          LabelInstanceFamily,
+		LabelInstanceSizeDeprecated:            LabelInstanceSize,
+		LabelInstanceCPUDeprecated:             LabelInstanceCPU,
+		LabelInstanceMemoryDeprecated:          LabelInstanceMemory,
+		LabelInstanceGPUNameDeprecated:         LabelInstanceGPUName,
+		LabelInstanceGPUManufacturerDeprecated: LabelInstanceGPUManufacturer,
+		LabelInstanceGPUCountDeprecated:        LabelInstanceGPUCount,
+		LabelInstanceGPUMemoryDeprecated:       LabelInstanceGPUMemory,
+	})
 }
