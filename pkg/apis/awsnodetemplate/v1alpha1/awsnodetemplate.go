@@ -33,7 +33,7 @@ type AWSNodeTemplateSpec struct {
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=awsnodetemplate,scope=Cluster,categories=karpenter
+// +kubebuilder:resource:path=awsnodetemplates,scope=Cluster,categories=karpenter
 // +kubebuilder:subresource:status
 type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`

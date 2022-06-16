@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,12 +38,12 @@ func NewUserDataProvider(kubeClient client.Client) *UserDataProvider {
 }
 
 // Get returns the UserData from the ConfigMap specified in the provider
-func (u *UserDataProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef, namespace string) (string, error) {
+func (u *UserDataProvider) Get(ctx context.Context, providerRef *v1alpha5.ProviderRef) (string, error) {
 	if providerRef == nil {
 		return "", nil
 	}
 	var awsnodetemplate v1alpha1.AWSNodeTemplate
-	if err := u.kubeClient.Get(ctx, client.ObjectKey{Name: providerRef.Name, Namespace: namespace}, &awsnodetemplate); err != nil {
+	if err := u.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &awsnodetemplate); err != nil {
 		logging.FromContext(ctx).Errorf("retrieving provider reference, %s", err)
 		return "", err
 	}

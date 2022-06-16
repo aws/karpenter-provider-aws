@@ -75,7 +75,13 @@ var _ = Describe("Validation", func() {
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 	})
-
+	Context("Provider", func() {
+		It("should not allow provider and providerRef", func() {
+			provisioner.Spec.Provider = &Provider{}
+			provisioner.Spec.ProviderRef = &ProviderRef{Name: "providerRef"}
+			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+		})
+	})
 	Context("Labels", func() {
 		It("should allow unrecognized labels", func() {
 			provisioner.Spec.Labels = map[string]string{"foo": randomdata.SillyName()}
