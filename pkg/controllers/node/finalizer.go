@@ -18,10 +18,12 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
 // Finalizer is a subreconciler that ensures nodes have the termination
@@ -31,12 +33,17 @@ import (
 type Finalizer struct{}
 
 // Reconcile reconciles the node
-func (r *Finalizer) Reconcile(_ context.Context, _ *v1alpha5.Provisioner, n *v1.Node) (reconcile.Result, error) {
-	if !n.DeletionTimestamp.IsZero() {
+func (r *Finalizer) Reconcile(_ context.Context, provisioner *v1alpha5.Provisioner, node *v1.Node) (reconcile.Result, error) {
+	if !node.DeletionTimestamp.IsZero() {
 		return reconcile.Result{}, nil
 	}
-	if !functional.ContainsString(n.Finalizers, v1alpha5.TerminationFinalizer) {
-		n.Finalizers = append(n.Finalizers, v1alpha5.TerminationFinalizer)
-	}
+	node.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion:         v1alpha5.SchemeGroupVersion.String(),
+		Kind:               "Provisioner",
+		Name:               provisioner.Name,
+		UID:                provisioner.UID,
+		BlockOwnerDeletion: ptr.Bool(true),
+	}}
+	controllerutil.AddFinalizer(node, v1alpha5.TerminationFinalizer)
 	return reconcile.Result{}, nil
 }

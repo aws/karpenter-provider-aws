@@ -289,5 +289,20 @@ var _ = Describe("Controller", func() {
 			n = ExpectNodeExists(ctx, env.Client, n.Name)
 			Expect(n.Finalizers).To(Equal(n.Finalizers))
 		})
+		It("should add an owner reference to the node", func() {
+			n := test.Node(test.NodeOptions{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{v1alpha5.ProvisionerNameLabelKey: provisioner.Name},
+			}})
+			ExpectApplied(ctx, env.Client, provisioner, n)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(n))
+			n = ExpectNodeExists(ctx, env.Client, n.Name)
+			Expect(n.OwnerReferences).To(Equal([]metav1.OwnerReference{{
+				APIVersion:         v1alpha5.SchemeGroupVersion.String(),
+				Kind:               "Provisioner",
+				Name:               provisioner.Name,
+				UID:                provisioner.UID,
+				BlockOwnerDeletion: ptr.Bool(true),
+			}}))
+		})
 	})
 })
