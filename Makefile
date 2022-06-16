@@ -42,7 +42,7 @@ deflake:
 battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
 
-verify: codegen docgen ## Verify code. Includes dependencies, linting, formatting, etc
+verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
 	go mod tidy
 	go mod download
 	golangci-lint run
@@ -80,6 +80,7 @@ codegen: ## Generate code. Must be run if changes are made to ./pkg/apis/...
 
 docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md
+	go run hack/docs/instancetypes_gen_docs.go ${KARPENTER_SUBNET_SELECTOR} website/content/en/preview/AWS/instance-types.md
      
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
