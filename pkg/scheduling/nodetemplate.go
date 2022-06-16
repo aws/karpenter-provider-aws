@@ -30,7 +30,6 @@ type NodeTemplate struct {
 	ProvisionerName      string
 	Provider             *v1alpha5.Provider
 	ProviderRef          *v1alpha5.ProviderRef
-	ProviderRefNamespace string
 	Labels               map[string]string
 	Taints               Taints
 	StartupTaints        Taints

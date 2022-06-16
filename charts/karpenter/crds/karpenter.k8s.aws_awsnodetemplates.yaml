@@ -5,7 +5,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: awsnodetemplate.karpenter.k8s.aws
+  name: awsnodetemplates.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
   names:
@@ -13,7 +13,7 @@ spec:
     - karpenter
     kind: AWSNodeTemplate
     listKind: AWSNodeTemplateList
-    plural: awsnodetemplate
+    plural: awsnodetemplates
     singular: awsnodetemplate
   scope: Cluster
   versions:
