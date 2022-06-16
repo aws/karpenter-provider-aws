@@ -128,6 +128,7 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		v1alpha1.LabelInstanceGPUManufacturer: sets.NewSet(),
 		v1alpha1.LabelInstanceGPUCount:        sets.NewSet(),
 		v1alpha1.LabelInstanceGPUMemory:       sets.NewSet(),
+		v1alpha1.LabelInstanceHypervisor:      sets.NewSet(aws.StringValue(i.Hypervisor)),
 	}
 	// Instance Type Labels
 	instanceTypeParts := strings.Split(aws.StringValue(i.InstanceType), ".")
