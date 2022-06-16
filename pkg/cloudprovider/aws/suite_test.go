@@ -1346,9 +1346,9 @@ var _ = Describe("Allocation", func() {
 		It("should validate", func() {
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-		It("should not panic if provider undefined", func() {
+		It("should succeed if provider undefined", func() {
 			provisioner.Spec.Provider = nil
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 
 		Context("SubnetSelector", func() {
