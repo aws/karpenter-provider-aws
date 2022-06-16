@@ -147,8 +147,9 @@ func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
 
 // Validate the provisioner
 func (c *CloudProvider) Validate(ctx context.Context, provisioner *v1alpha5.Provisioner) *apis.FieldError {
-	if provisioner.Spec.ProviderRef != nil {
-		// We can't validate the contents of a ProviderRef.
+	if provisioner.Spec.Provider == nil {
+		// If no provider is specified, or if a provider is specified via the AWS-specific CRD,
+		// then nothing to validate here.
 		return nil
 	}
 	provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
