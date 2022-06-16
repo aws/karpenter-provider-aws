@@ -80,6 +80,8 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.DescribeInstancesOutput = nil
 	e.DescribeLaunchTemplatesOutput = nil
 	e.DescribeSubnetsOutput = nil
