@@ -353,7 +353,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 				SupportedVirtualizationTypes:  []*string{aws.String("hvm")},
 				BurstablePerformanceSupported: aws.Bool(false),
 				BareMetal:                     aws.Bool(false),
-				Hypervisor:                    aws.String("nitro"),
+				Hypervisor:                    aws.String("xen"),
 				ProcessorInfo: &ec2.ProcessorInfo{
 					SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 				},

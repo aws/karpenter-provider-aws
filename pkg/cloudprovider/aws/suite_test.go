@@ -192,6 +192,7 @@ var _ = Describe("Allocation", func() {
 				ExpectApplied(ctx, env.Client, provisioner)
 				var pods []*v1.Pod
 				for key, value := range map[string]string{
+					v1alpha1.LabelInstanceHypervisor:      "xen",
 					v1alpha1.LabelInstanceFamily:          "p3",
 					v1alpha1.LabelInstanceSize:            "xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
@@ -1384,6 +1385,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should support well known labels", func() {
 				for _, label := range []string{
+					v1alpha1.LabelInstanceHypervisor,
 					v1alpha1.LabelInstanceFamily,
 					v1alpha1.LabelInstanceSize,
 					v1alpha1.LabelInstanceCPU,

@@ -6,6 +6,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"sort"
+	"strings"
+
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
@@ -15,20 +20,17 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"log"
-	"os"
-	"sort"
-	"strings"
 )
 
 func main() {
 	flag.Parse()
-	if flag.NArg() != 2 {
-		log.Printf("Usage: %s subnet-discovery-tag-value path/to/markdown.md", os.Args[0])
+	if flag.NArg() != 1 {
+		log.Printf("Usage: %s path/to/markdown.md", os.Args[0])
 		os.Exit(1)
 	}
 
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
+	os.Setenv("AWS_REGION", "us-east-1")
 	ctx := context.Background()
 
 	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{
@@ -36,7 +38,7 @@ func main() {
 		KubeClient: nil,
 	})
 	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
-		"karpenter.sh/discovery": flag.Arg(0),
+		"*": "*",
 	}}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -51,7 +53,7 @@ func main() {
 		log.Fatalf("listing instance types, %s", err)
 	}
 
-	outputFileName := flag.Arg(1)
+	outputFileName := flag.Arg(0)
 	f, err := os.Create(outputFileName)
 	if err != nil {
 		log.Fatalf("error creating output file %s, %s", outputFileName, err)

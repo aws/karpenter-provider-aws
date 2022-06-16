@@ -57,6 +57,7 @@ var (
 	ResourceAWSNeuron v1.ResourceName = "aws.amazon.com/neuron"
 	ResourceAWSPodENI v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 
+	LabelInstanceHypervisor      = LabelDomain + "/instance-hypervisor"
 	LabelInstanceFamily          = LabelDomain + "/instance-family"
 	LabelInstanceSize            = LabelDomain + "/instance-size"
 	LabelInstanceCPU             = LabelDomain + "/instance-cpu"
@@ -86,6 +87,7 @@ func init() {
 	Scheme.AddKnownTypes(schema.GroupVersion{Group: v1alpha5.ExtensionsGroup, Version: "v1alpha1"}, &AWS{})
 	v1alpha5.RestrictedLabelDomains = v1alpha5.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	v1alpha5.WellKnownLabels = v1alpha5.WellKnownLabels.Insert(
+		LabelInstanceHypervisor,
 		LabelInstanceFamily,
 		LabelInstanceSize,
 		LabelInstanceCPU,
