@@ -15,6 +15,8 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/utils/injection"
+	"github.com/aws/karpenter/pkg/utils/options"
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -31,7 +33,9 @@ func main() {
 
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
 	os.Setenv("AWS_REGION", "us-east-1")
-	ctx := context.Background()
+	os.Setenv("CLUSTER_NAME", "docs-gen")
+	os.Setenv("CLUSTER_ENDPOINT", "https://docs-gen.aws")
+	ctx := injection.WithOptions(context.Background(), options.MustParse())
 
 	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{
 		ClientSet:  nil,

@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -173,9 +174,7 @@ func (i *InstanceType) cpu() resource.Quantity {
 
 func (i *InstanceType) memory() resource.Quantity {
 	return *resources.Quantity(
-		fmt.Sprintf("%dMi", int32(
-			float64(*i.MemoryInfo.SizeInMiB),
-		)),
+		fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB),
 	)
 }
 
@@ -251,7 +250,7 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 			resource.DecimalSI),
 		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
 			// vm-overhead
-			int64(float64(memory.ScaledValue(resource.Mega))*vmMemOverhead)+
+			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
 				// kube-reserved
 				((11*i.eniLimitedPods())+255)+
 				// system-reserved
