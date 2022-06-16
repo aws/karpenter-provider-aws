@@ -41,6 +41,7 @@ webhooks:
         operations:
           - CREATE
           - UPDATE
+          - DELETE
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
