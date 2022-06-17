@@ -39,7 +39,7 @@ func main() {
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
 	envVarsBlock += "|--|--|--|\n"
-	opts.Flagset.VisitAll(func(f *flag.Flag) {
+	opts.VisitAll(func(f *flag.Flag) {
 		envVarsBlock += fmt.Sprintf("| %s | %s | %s |\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage)
 	})
 

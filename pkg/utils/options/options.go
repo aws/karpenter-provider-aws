@@ -35,6 +35,7 @@ const (
 
 // Options for running this binary
 type Options struct {
+	*flag.FlagSet
 	ClusterName               string
 	ClusterEndpoint           string
 	MetricsPort               int
@@ -46,16 +47,13 @@ type Options struct {
 	AWSENILimitedPodDensity   bool
 	AWSDefaultInstanceProfile string
 	AWSEnablePodENI           bool
-
-	// Flagset is the backing flagset that is used to fill in the Options fields
-	Flagset *flag.FlagSet
 }
 
 // New creates an Options struct and registers CLI flags and environment variables to fill-in the Options struct fields
 func New() Options {
 	opts := Options{}
 	f := flag.NewFlagSet("karpenter", flag.ContinueOnError)
-	opts.Flagset = f
+	opts.FlagSet = f
 	f.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
 	f.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
 	f.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
@@ -73,7 +71,7 @@ func New() Options {
 // MustParse reads the user passed flags, environment variables, and default values.
 // Options are valided and panics if an error is returned
 func (o Options) MustParse() Options {
-	err := o.Flagset.Parse(os.Args[1:])
+	err := o.Parse(os.Args[1:])
 
 	if errors.Is(err, flag.ErrHelp) {
 		os.Exit(0)
