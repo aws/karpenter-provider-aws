@@ -6,11 +6,11 @@ description: >
   Configure Karpenter
 ---
 
-There are two main configuration mechanisms that are used to configure Karpenter: Environment Variables / CLI parameters to the controller and webhook binaries and the `karpenter-global-settings` config-map. 
+There are two main configuration mechanisms that can be used to configure Karpenter: Environment Variables / CLI parameters to the controller and webhook binaries and the `karpenter-global-settings` config-map. 
 
 ## Environment Variables / CLI Flags
 
-  [comment]: <> (the content below is generated from hack/docs/configuration_gen_docs.go)
+[comment]: <> (the content below is generated from hack/docs/configuration_gen_docs.go)
 
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
@@ -21,11 +21,9 @@ There are two main configuration mechanisms that are used to configure Karpenter
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with |
 | CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery |
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health |
-| KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate |
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver |
 | KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver |
 | METRICS_PORT | \-\-metrics-port | The port the metric endpoint binds to for operating metrics about the controller itself |
-| PORT | \-\-port | The port the webhook endpoint binds to for validation and mutation of resources |
 | VM_MEMORY_OVERHEAD | \-\-vm-memory-overhead | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types |
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)

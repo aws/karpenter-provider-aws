@@ -36,10 +36,8 @@ const (
 type Options struct {
 	ClusterName               string
 	ClusterEndpoint           string
-	KarpenterService          string
 	MetricsPort               int
 	HealthProbePort           int
-	WebhookPort               int
 	KubeClientQPS             int
 	KubeClientBurst           int
 	VMMemoryOverhead          float64
@@ -59,10 +57,8 @@ func New() Options {
 	opts.Flagset = f
 	f.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
 	f.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
-	f.StringVar(&opts.KarpenterService, "karpenter-service", env.WithDefaultString("KARPENTER_SERVICE", ""), "The Karpenter Service name for the dynamic webhook certificate")
 	f.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
 	f.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
-	f.IntVar(&opts.WebhookPort, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
 	f.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
 	f.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
 	f.Float64Var(&opts.VMMemoryOverhead, "vm-memory-overhead", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types")
@@ -79,6 +75,9 @@ func (o Options) MustParse() Options {
 	err := o.Flagset.Parse(os.Args[1:])
 	if err == flag.ErrHelp {
 		os.Exit(0)
+	}
+	if err != nil {
+		panic(err)
 	}
 	if err := o.Validate(); err != nil {
 		panic(err)

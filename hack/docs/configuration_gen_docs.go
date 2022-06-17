@@ -32,7 +32,7 @@ func main() {
 	if len(endDocSections) != 2 {
 		log.Fatalf("expected one generated comment block end but got %d", len(endDocSections)-1)
 	}
-	topDoc := fmt.Sprintf("%s %s\n\n", startDocSections[0], genStart)
+	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
 	opts := options.New()
