@@ -35,7 +35,7 @@ func main() {
 	os.Setenv("AWS_REGION", "us-east-1")
 	os.Setenv("CLUSTER_NAME", "docs-gen")
 	os.Setenv("CLUSTER_ENDPOINT", "https://docs-gen.aws")
-	ctx := injection.WithOptions(context.Background(), options.MustParse())
+	ctx := injection.WithOptions(context.Background(), options.New().MustParse())
 
 	cp := aws.NewCloudProvider(ctx, cloudprovider.Options{
 		ClientSet:  nil,

@@ -40,7 +40,7 @@ import (
 )
 
 var (
-	opts = options.MustParse()
+	opts = options.New().MustParse()
 )
 
 func main() {
