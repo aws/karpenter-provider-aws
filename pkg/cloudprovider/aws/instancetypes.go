@@ -195,6 +195,7 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 func compressInstanceType(instanceType *ec2.InstanceTypeInfo) *ec2.InstanceTypeInfo {
 	return &ec2.InstanceTypeInfo{
 		InstanceType:             instanceType.InstanceType,
+		Hypervisor:               instanceType.Hypervisor,
 		SupportedUsageClasses:    instanceType.SupportedUsageClasses,
 		VCpuInfo:                 &ec2.VCpuInfo{DefaultVCpus: instanceType.VCpuInfo.DefaultVCpus},
 		GpuInfo:                  instanceType.GpuInfo,

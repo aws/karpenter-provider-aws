@@ -49,7 +49,6 @@ type InstanceType struct {
 }
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
-	// Compress the struct for more efficient representation
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
