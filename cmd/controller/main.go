@@ -93,7 +93,9 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
-	utilruntime.Must(registerPprof(manager))
+	if opts.EnableProfiling {
+		utilruntime.Must(registerPprof(manager))
+	}
 
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient()})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
