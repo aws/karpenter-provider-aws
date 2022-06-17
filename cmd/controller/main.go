@@ -61,7 +61,7 @@ import (
 
 var (
 	scheme    = runtime.NewScheme()
-	opts      = options.MustParse()
+	opts      = options.New().MustParse()
 	component = "controller"
 )
 

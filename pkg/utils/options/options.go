@@ -15,9 +15,11 @@ limitations under the License.
 package options
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 
 	"go.uber.org/multierr"
 
@@ -31,41 +33,56 @@ const (
 	ResourceName AWSNodeNameConvention = "resource-name"
 )
 
-func MustParse() Options {
-	opts := Options{}
-	flag.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
-	flag.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
-	flag.StringVar(&opts.KarpenterService, "karpenter-service", env.WithDefaultString("KARPENTER_SERVICE", ""), "The Karpenter Service name for the dynamic webhook certificate")
-	flag.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
-	flag.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
-	flag.IntVar(&opts.WebhookPort, "port", 8443, "The port the webhook endpoint binds to for validation and mutation of resources")
-	flag.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
-	flag.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
-	flag.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
-	flag.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
-	flag.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
-	flag.BoolVar(&opts.AWSEnablePodENI, "aws-enable-pod-eni", env.WithDefaultBool("AWS_ENABLE_POD_ENI", false), "If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource")
-	flag.Parse()
-	if err := opts.Validate(); err != nil {
-		panic(err)
-	}
-	return opts
-}
-
 // Options for running this binary
 type Options struct {
+	*flag.FlagSet
 	ClusterName               string
 	ClusterEndpoint           string
-	KarpenterService          string
 	MetricsPort               int
 	HealthProbePort           int
-	WebhookPort               int
 	KubeClientQPS             int
 	KubeClientBurst           int
+	VMMemoryOverhead          float64
 	AWSNodeNameConvention     string
 	AWSENILimitedPodDensity   bool
 	AWSDefaultInstanceProfile string
 	AWSEnablePodENI           bool
+}
+
+// New creates an Options struct and registers CLI flags and environment variables to fill-in the Options struct fields
+func New() Options {
+	opts := Options{}
+	f := flag.NewFlagSet("karpenter", flag.ContinueOnError)
+	opts.FlagSet = f
+	f.StringVar(&opts.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "The kubernetes cluster name for resource discovery")
+	f.StringVar(&opts.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with")
+	f.IntVar(&opts.MetricsPort, "metrics-port", env.WithDefaultInt("METRICS_PORT", 8080), "The port the metric endpoint binds to for operating metrics about the controller itself")
+	f.IntVar(&opts.HealthProbePort, "health-probe-port", env.WithDefaultInt("HEALTH_PROBE_PORT", 8081), "The port the health probe endpoint binds to for reporting controller health")
+	f.IntVar(&opts.KubeClientQPS, "kube-client-qps", env.WithDefaultInt("KUBE_CLIENT_QPS", 200), "The smoothed rate of qps to kube-apiserver")
+	f.IntVar(&opts.KubeClientBurst, "kube-client-burst", env.WithDefaultInt("KUBE_CLIENT_BURST", 300), "The maximum allowed burst of queries to the kube-apiserver")
+	f.Float64Var(&opts.VMMemoryOverhead, "vm-memory-overhead", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types")
+	f.StringVar(&opts.AWSNodeNameConvention, "aws-node-name-convention", env.WithDefaultString("AWS_NODE_NAME_CONVENTION", string(IPName)), "The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time")
+	f.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
+	f.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
+	f.BoolVar(&opts.AWSEnablePodENI, "aws-enable-pod-eni", env.WithDefaultBool("AWS_ENABLE_POD_ENI", false), "If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource")
+	return opts
+}
+
+// MustParse reads the user passed flags, environment variables, and default values.
+// Options are valided and panics if an error is returned
+func (o Options) MustParse() Options {
+	err := o.Parse(os.Args[1:])
+
+	if errors.Is(err, flag.ErrHelp) {
+		os.Exit(0)
+	}
+	if err != nil {
+		panic(err)
+	}
+	if err := o.Validate(); err != nil {
+		panic(err)
+	}
+	return o
 }
 
 func (o Options) Validate() (err error) {

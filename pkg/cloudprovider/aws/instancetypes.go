@@ -91,7 +91,7 @@ func (p *InstanceTypeProvider) newInstanceType(ctx context.Context, info *ec2.In
 	}
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead()
+	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
 	instanceType.requirements = instanceType.computeRequirements()
 	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
 		instanceType.maxPods = ptr.Int32(110)

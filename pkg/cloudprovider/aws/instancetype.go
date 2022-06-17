@@ -16,6 +16,7 @@ package aws
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -34,9 +35,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
-
-// EC2VMAvailableMemoryFactor assumes the EC2 VM will consume <7.25% of the memory of a given machine
-const EC2VMAvailableMemoryFactor = .925
 
 type InstanceType struct {
 	*ec2.InstanceTypeInfo
@@ -176,9 +174,7 @@ func (i *InstanceType) cpu() resource.Quantity {
 
 func (i *InstanceType) memory() resource.Quantity {
 	return *resources.Quantity(
-		fmt.Sprintf("%dMi", int32(
-			float64(*i.MemoryInfo.SizeInMiB)*EC2VMAvailableMemoryFactor,
-		)),
+		fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB),
 	)
 }
 
@@ -246,14 +242,17 @@ func (i *InstanceType) awsNeurons() resource.Quantity {
 	return *resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) computeOverhead() v1.ResourceList {
+func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
+	memory := i.memory()
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
 			100, // system-reserved
 			resource.DecimalSI),
 		v1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi",
-			// kube-reserved
-			((11*i.eniLimitedPods())+255)+
+			// vm-overhead
+			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
+				// kube-reserved
+				((11*i.eniLimitedPods())+255)+
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
