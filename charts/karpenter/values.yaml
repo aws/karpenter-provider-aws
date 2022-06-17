@@ -95,13 +95,8 @@ controller:
   #   value: eu-west-1
 
   # -- Resources for the controller pod.
-  resources:
-    requests:
-      cpu: 1
-      memory: 1Gi
-    limits:
-      cpu: 1
-      memory: 1Gi
+  resources: {}
+
   # -- Controller log level, defaults to the global log level
   logLevel: ""
   # -- Controller log encoding, defaults to the global log encoding
@@ -132,13 +127,8 @@ webhook:
   #   value: eu-west-1
 
   # -- Resources for the webhook pod.
-  resources:
-    requests:
-      cpu: 100m
-      memory: 50Mi
-    limits:
-      cpu: 100m
-      memory: 50Mi
+  resources: {}
+
   # -- Webhook log level, defaults to the global log level
   logLevel: ""
   # -- Webhook log encoding, defaults to the global log encoding
