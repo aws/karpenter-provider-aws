@@ -6,6 +6,15 @@ description: >
   Configure Karpenter
 ---
 
+There are two main configuration mechanisms that are used to configure Karpenter: Environment Variables / CLI parameters to the controller and webhook binaries and the `karpenter-global-settings` config-map. 
+
+## Environment Variables / CLI Flags
+
+[comment]: <> (the code blocks below are generated from hack/docs/configuration_gen_docs.go)
+[comment]: <> (end docs generated code blocks from hack/docs/configuration_gen_docs.go)
+
+## ConfigMap
+
 Karpenter installs a default configuration via its Helm chart that should work for most.  Additional configuration can be performed by editing the `karpenter-global-settings` configmap within the namespace that Karpenter was installed in.
 
 ```yaml
