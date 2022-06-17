@@ -15,6 +15,7 @@ limitations under the License.
 package options
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -73,7 +74,8 @@ func New() Options {
 // Options are valided and panics if an error is returned
 func (o Options) MustParse() Options {
 	err := o.Flagset.Parse(os.Args[1:])
-	if err == flag.ErrHelp {
+
+	if errors.Is(err, flag.ErrHelp) {
 		os.Exit(0)
 	}
 	if err != nil {
