@@ -3,7 +3,13 @@ apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: {{ .name }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" $ | nindent 4 }}
+  {{- with $.Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   {{- toYaml .spec | nindent 2 }}
 {{ end }}
