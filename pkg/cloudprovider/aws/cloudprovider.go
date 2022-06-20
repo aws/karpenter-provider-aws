@@ -227,7 +227,7 @@ func getCABundle(ctx context.Context) *string {
 func (c *CloudProvider) getProvider(ctx context.Context, providerRefName string) (*v1alpha1.AWS, error) {
 	var ant awsv1alpha1.AWSNodeTemplate
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRefName}, &ant); err != nil {
-		return nil, fmt.Errorf("retrieving provider reference %w", err)
+		return nil, fmt.Errorf("getting providerRef, %w", err)
 	}
 	return &ant.Spec.AWS, nil
 }
