@@ -159,7 +159,8 @@ aws:
 
 # -- Provisioners definition
 provisioners: {}
-  # - name: sample-1
+  # - metadata:
+  #     name: sample-1
   #   spec:
   #     ttlSecondsUntilExpired: 2592000
   #     ttlSecondsAfterEmpty: 30
