@@ -18,10 +18,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/pricing"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -65,6 +67,7 @@ var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var instanceTypeCache *cache.Cache
 var fakeEC2API *fake.EC2API
+var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
 var cloudProvider cloudprovider.CloudProvider
 var clientSet *kubernetes.Clientset
@@ -99,6 +102,8 @@ var _ = BeforeSuite(func() {
 		amiCache = cache.New(CacheTTL, CacheCleanupInterval)
 		instanceTypeCache = cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval)
 		fakeEC2API = &fake.EC2API{}
+		fakePricingAPI = &fake.PricingAPI{}
+		pricing := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "")
 		subnetProvider := &SubnetProvider{
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
@@ -107,6 +112,7 @@ var _ = BeforeSuite(func() {
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
+			pricingProvider:      pricing,
 			unavailableOfferings: unavailableOfferingsCache,
 		}
 		securityGroupProvider := &SecurityGroupProvider{
@@ -156,6 +162,7 @@ var _ = Describe("Allocation", func() {
 		}
 		provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
 		fakeEC2API.Reset()
+		fakePricingAPI.Reset()
 		launchTemplateCache.Flush()
 		securityGroupCache.Flush()
 		subnetCache.Flush()
@@ -382,8 +389,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -1616,6 +1623,78 @@ var _ = Describe("Allocation", func() {
 				})
 			})
 		})
+	})
+})
+
+var _ = Describe("Pricing", func() {
+	BeforeEach(func() {
+		fakeEC2API.Reset()
+		fakePricingAPI.Reset()
+	})
+	It("should return static on-demand data if pricing API fails", func() {
+		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "")
+		price, err := p.OnDemandPrice("c5.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically(">", 0))
+	})
+	It("should return static spot data if EC2 describeSpotPriceHistory API fails", func() {
+		fakePricingAPI.NextError.Set(fmt.Errorf("failed"))
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "")
+		price, err := p.SpotPrice("c5.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically(">", 0))
+	})
+	It("should update on-demand pricing with response from the pricing API", func() {
+		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
+		// API provides on-demand prices, the ec2 API provides spot prices
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "")
+		price, err := p.OnDemandPrice("c98.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically("==", 1.20))
+
+		price, err = p.OnDemandPrice("c99.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically("==", 1.23))
+	})
+	It("should update spot pricing with response from the pricing API", func() {
+		now := time.Now()
+		fakeEC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.20"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "")
+		price, err := p.SpotPrice("c98.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically("==", 1.20))
+
+		price, err = p.SpotPrice("c99.large")
+		Expect(err).To(BeNil())
+		Expect(price).To(BeNumerically("==", 1.23))
 	})
 })
 

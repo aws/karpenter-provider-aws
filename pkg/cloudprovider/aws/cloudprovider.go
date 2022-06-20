@@ -88,7 +88,8 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
 	ec2api := ec2.New(sess)
 	subnetProvider := NewSubnetProvider(ec2api)
-	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider)
+	pricingProvider := NewPricingProvider(ctx, NewPricingAPI(sess, *sess.Config.Region), ec2api, *sess.Config.Region)
+	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider, pricingProvider)
 	return &CloudProvider{
 		instanceTypeProvider: instanceTypeProvider,
 		subnetProvider:       subnetProvider,

@@ -48,13 +48,15 @@ type InstanceType struct {
 	resources    v1.ResourceList
 	provider     *v1alpha1.AWS
 	maxPods      *int32
+	price        float64
 }
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, price float64, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
 	instanceType := &InstanceType{
 		InstanceTypeInfo: info,
 		provider:         provider,
 		offerings:        offerings,
+		price:            price,
 	}
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
@@ -91,41 +93,7 @@ func (i *InstanceType) Overhead() v1.ResourceList {
 }
 
 func (i *InstanceType) Price() float64 {
-	const (
-		GPUCostWeight       = 5
-		InferenceCostWeight = 5
-		CPUCostWeight       = 1
-		MemoryMBCostWeight  = 1 / 1024.0
-		LocalStorageWeight  = 1 / 100.0
-	)
-
-	gpuCount := 0.0
-	if i.GpuInfo != nil {
-		for _, gpu := range i.GpuInfo.Gpus {
-			if gpu.Count != nil {
-				gpuCount += float64(*gpu.Count)
-			}
-		}
-	}
-
-	infCount := 0.0
-	if i.InferenceAcceleratorInfo != nil {
-		for _, acc := range i.InferenceAcceleratorInfo.Accelerators {
-			if acc.Count != nil {
-				infCount += float64(*acc.Count)
-			}
-		}
-	}
-
-	localStorageGiBs := 0.0
-	if i.InstanceStorageInfo != nil {
-		localStorageGiBs += float64(*i.InstanceStorageInfo.TotalSizeInGB)
-	}
-
-	return CPUCostWeight*float64(*i.VCpuInfo.DefaultVCpus) +
-		MemoryMBCostWeight*float64(*i.MemoryInfo.SizeInMiB) +
-		GPUCostWeight*gpuCount + InferenceCostWeight*infCount +
-		localStorageGiBs*LocalStorageWeight
+	return i.price
 }
 
 func (i *InstanceType) computeRequirements() scheduling.Requirements {

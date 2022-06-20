@@ -83,7 +83,14 @@ docgen: ## Generate docs
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/configuration.md
 
-release: ## Generate release manifests and publish a versioned container image.
+release-gen: docgen ## Generate any materials which should be updated prior to release
+	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
+	hack/boilerplate.sh
+	go mod tidy
+	go mod download
+	golangci-lint run
+
+release: release-gen ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
@@ -107,4 +114,4 @@ issues: ## Run GitHub issue analysis scripts
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release licenses issues website nightly snapshot
+.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot

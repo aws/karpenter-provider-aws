@@ -70,6 +70,35 @@ func (a *AtomicPtr[T]) Reset() {
 	a.value = nil
 }
 
+type AtomicError struct {
+	mu  sync.Mutex
+	err error
+}
+
+func (e *AtomicError) Reset() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.err = nil
+}
+
+func (e *AtomicError) IsNil() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.err == nil
+}
+
+func (e *AtomicError) Get() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.err
+}
+
+func (e *AtomicError) Set(err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.err = err
+}
+
 // AtomicPtrSlice exposes a slice of a pointer type in a race-free manner. The interface is just enough to replace the
 // set.Set usage in our previous tests.
 type AtomicPtrSlice[T any] struct {
