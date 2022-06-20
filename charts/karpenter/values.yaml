@@ -157,28 +157,8 @@ aws:
   # -- The default instance profile to use when launching nodes on AWS
   defaultInstanceProfile: ""
 
-# -- Provisioners definition
+# -- Provisioners definition, please check the [latest CRD definition](https://karpenter.sh/v0.11.1/provisioner/) for the `spec` field
 provisioners: {}
   # - metadata:
   #     name: sample-1
-  #   spec:
-  #     ttlSecondsUntilExpired: 2592000
-  #     ttlSecondsAfterEmpty: 30
-  #     requirements:
-  #       - key: "node.kubernetes.io/instance-type"
-  #         operator: In
-  #         values: ["m5.large", "m5.2xlarge"]
-  #       - key: "topology.kubernetes.io/zone"
-  #         operator: In
-  #         values: ["us-west-2a", "us-west-2b"]
-  #       - key: "kubernetes.io/arch"
-  #         operator: In
-  #         values: ["arm64", "amd64"]
-  #       - key: "karpenter.sh/capacity-type"
-  #         operator: In
-  #         values: ["spot", "on-demand"]
-  #     limits:
-  #       resources:
-  #         cpu: "1000"
-  #         memory: 1000Gi
-
+  #   spec: {}
