@@ -27,12 +27,10 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/utils/functional"
-	"github.com/aws/karpenter/pkg/utils/injection"
 )
 
 const (
@@ -78,25 +76,9 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
-		result = append(result, p.newInstanceType(ctx, i, provider, p.createOfferings(i, instanceTypeZones[aws.StringValue(i.InstanceType)])))
+		result = append(result, NewInstanceType(ctx, i, provider, p.createOfferings(i, instanceTypeZones[aws.StringValue(i.InstanceType)])))
 	}
 	return result, nil
-}
-
-func (p *InstanceTypeProvider) newInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, provider *v1alpha1.AWS, offerings []cloudprovider.Offering) *InstanceType {
-	instanceType := &InstanceType{
-		InstanceTypeInfo: info,
-		provider:         provider,
-		offerings:        offerings,
-	}
-	// Precompute to minimize memory/compute overhead
-	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
-	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
-	instanceType.requirements = instanceType.computeRequirements()
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		instanceType.maxPods = ptr.Int32(110)
-	}
-	return instanceType
 }
 
 func (p *InstanceTypeProvider) createOfferings(instanceType *ec2.InstanceTypeInfo, zones sets.String) []cloudprovider.Offering {
@@ -168,7 +150,7 @@ func (p *InstanceTypeProvider) getInstanceTypes(ctx context.Context, provider *v
 	}, func(page *ec2.DescribeInstanceTypesOutput, lastPage bool) bool {
 		for _, instanceType := range page.InstanceTypes {
 			if p.filter(instanceType) {
-				instanceTypes[aws.StringValue(instanceType.InstanceType)] = instanceType
+				instanceTypes[aws.StringValue(instanceType.InstanceType)] = compressInstanceType(instanceType)
 			}
 		}
 		return true
@@ -208,6 +190,24 @@ func (p *InstanceTypeProvider) CacheUnavailable(ctx context.Context, fleetErr *e
 		UnfulfillableCapacityErrorCacheTTL)
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	p.unavailableOfferings.SetDefault(UnavailableOfferingsCacheKey(instanceType, zone, capacityType), struct{}{})
+}
+
+func compressInstanceType(instanceType *ec2.InstanceTypeInfo) *ec2.InstanceTypeInfo {
+	return &ec2.InstanceTypeInfo{
+		InstanceType:             instanceType.InstanceType,
+		Hypervisor:               instanceType.Hypervisor,
+		SupportedUsageClasses:    instanceType.SupportedUsageClasses,
+		VCpuInfo:                 &ec2.VCpuInfo{DefaultVCpus: instanceType.VCpuInfo.DefaultVCpus},
+		GpuInfo:                  instanceType.GpuInfo,
+		InferenceAcceleratorInfo: instanceType.InferenceAcceleratorInfo,
+		InstanceStorageInfo:      instanceType.InstanceStorageInfo,
+		MemoryInfo:               &ec2.MemoryInfo{SizeInMiB: instanceType.MemoryInfo.SizeInMiB},
+		ProcessorInfo:            &ec2.ProcessorInfo{SupportedArchitectures: instanceType.ProcessorInfo.SupportedArchitectures},
+		NetworkInfo: &ec2.NetworkInfo{
+			Ipv4AddressesPerInterface: instanceType.NetworkInfo.Ipv4AddressesPerInterface,
+			MaximumNetworkInterfaces:  instanceType.NetworkInfo.MaximumNetworkInterfaces,
+		},
+	}
 }
 
 func UnavailableOfferingsCacheKey(instanceType string, zone string, capacityType string) string {

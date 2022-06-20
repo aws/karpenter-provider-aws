@@ -114,3 +114,23 @@ Once you have your ECR repository provisioned, configure your Docker daemon to a
 export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/karpenter"
 aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
 ```
+
+## Profiling memory
+Karpenter exposes a pprof endpoint on its metrics port.
+
+Learn about profiling with pprof: https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
+
+### Prerequisites
+```
+brew install graphviz
+go install github.com/google/pprof@latest
+```
+
+### Get a profile
+```
+# Connect to the metrics endpoint
+kubectl port-forward service/karpenter -n karpenter 8080
+open http://localhost:8080/debug/pprof/
+# Visualize the memory
+go tool pprof -http 0.0.0.0:9000 localhost:8080/debug/pprof/heap
+```

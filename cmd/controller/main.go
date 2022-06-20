@@ -17,15 +17,8 @@ package main
 import (
 	"context"
 	"fmt"
-
-	"knative.dev/pkg/system"
-
-	"github.com/aws/karpenter/pkg/config"
-
-	"github.com/aws/karpenter/pkg/events"
-
-	"github.com/aws/karpenter/pkg/controllers/state"
-	"github.com/aws/karpenter/pkg/utils/project"
+	"net/http"
+	"net/http/pprof"
 
 	"github.com/go-logr/zapr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,12 +33,14 @@ import (
 	"knative.dev/pkg/injection/sharedmain"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/signals"
+	"knative.dev/pkg/system"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	cloudprovidermetrics "github.com/aws/karpenter/pkg/cloudprovider/metrics"
 	"github.com/aws/karpenter/pkg/cloudprovider/registry"
+	"github.com/aws/karpenter/pkg/config"
 	"github.com/aws/karpenter/pkg/controllers"
 	"github.com/aws/karpenter/pkg/controllers/counter"
 	metricsnode "github.com/aws/karpenter/pkg/controllers/metrics/node"
@@ -54,9 +49,12 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/node"
 	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/controllers/termination"
+	"github.com/aws/karpenter/pkg/events"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
+	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 var (
@@ -94,6 +92,11 @@ func main() {
 		MetricsBindAddress:     fmt.Sprintf(":%d", opts.MetricsPort),
 		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
+
+	if opts.EnableProfiling {
+		utilruntime.Must(registerPprof(manager))
+	}
+
 	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient()})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 
@@ -123,6 +126,27 @@ func main() {
 	).Start(ctx); err != nil {
 		panic(fmt.Sprintf("Unable to start manager, %s", err))
 	}
+}
+
+func registerPprof(manager controllers.Manager) error {
+	for path, handler := range map[string]http.Handler{
+		"/debug/pprof/":             http.HandlerFunc(pprof.Index),
+		"/debug/pprof/cmdline":      http.HandlerFunc(pprof.Cmdline),
+		"/debug/pprof/profile":      http.HandlerFunc(pprof.Profile),
+		"/debug/pprof/symbol":       http.HandlerFunc(pprof.Symbol),
+		"/debug/pprof/trace":        http.HandlerFunc(pprof.Trace),
+		"/debug/pprof/allocs":       pprof.Handler("allocs"),
+		"/debug/pprof/heap":         pprof.Handler("heap"),
+		"/debug/pprof/block":        pprof.Handler("block"),
+		"/debug/pprof/goroutine":    pprof.Handler("goroutine"),
+		"/debug/pprof/threadcreate": pprof.Handler("threadcreate"),
+	} {
+		err := manager.AddMetricsExtraHandler(path, handler)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // LoggingContextOrDie injects a logger into the returned context. The logger is
