@@ -28,5 +28,5 @@ func (a *AWSNodeTemplate) Validate(ctx context.Context) (errs *apis.FieldError) 
 }
 
 func (a *AWSNodeTemplateSpec) validate(ctx context.Context) (errs *apis.FieldError) {
-	return nil
+	return a.AWS.Validate()
 }

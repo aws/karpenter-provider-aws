@@ -31,6 +31,11 @@ var (
 	SupportedProvisionerOps  sets.String = sets.NewString(string(v1.NodeSelectorOpIn), string(v1.NodeSelectorOpNotIn), string(v1.NodeSelectorOpExists))
 )
 
+const (
+	providerPath    = "provider"
+	providerRefPath = "providerRef"
+)
+
 func (p *Provisioner) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
 		apis.ValidateObjectMetadata(p).ViaField("metadata"),
@@ -64,6 +69,7 @@ func (s *ProvisionerSpec) validateTTLSecondsAfterEmpty() (errs *apis.FieldError)
 // Validate the constraints
 func (s *ProvisionerSpec) Validate(ctx context.Context) (errs *apis.FieldError) {
 	return errs.Also(
+		s.validateProvider(),
 		s.validateLabels(),
 		s.validateTaints(),
 		s.validateRequirements(),
@@ -162,4 +168,11 @@ func (s *ProvisionerSpec) validateRequirements() *apis.FieldError {
 		result = result.Also(apis.ErrInvalidValue(errs, "requirements"))
 	}
 	return result
+}
+
+func (s *ProvisionerSpec) validateProvider() *apis.FieldError {
+	if s.Provider != nil && s.ProviderRef != nil {
+		return apis.ErrMultipleOneOf(providerPath, providerRefPath)
+	}
+	return nil
 }

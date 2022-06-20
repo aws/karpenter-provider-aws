@@ -13,7 +13,7 @@ rules:
     resources: ["provisioners"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["karpenter.k8s.aws"]
-    resources: ["awsnodetemplate"]
+    resources: ["awsnodetemplates"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["karpenter.sh"]
     resources: ["provisioners/status"]

@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -126,6 +127,7 @@ var _ = BeforeSuite(func() {
 					caBundle:              ptr.String("ca-bundle"),
 				},
 			},
+			kubeClient: e.Client,
 		}
 		registry.RegisterOrDie(ctx, cloudProvider)
 		cluster = state.NewCluster(ctx, e.Client, cloudProvider)
@@ -499,7 +501,7 @@ var _ = Describe("Allocation", func() {
 				}
 
 				instanceTypeCache.Flush()
-				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
 				Expect(err).To(BeNil())
 				instanceTypeNames := sets.NewString()
 				for _, it := range instanceTypes {
@@ -927,11 +929,13 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
+					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
 					Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Cardinality()).To(Equal(1))
@@ -953,10 +957,11 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
@@ -976,7 +981,7 @@ var _ = Describe("Allocation", func() {
 						Name: "doesnotexist",
 					}
 					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
@@ -991,10 +996,11 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.
@@ -1012,10 +1018,11 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
@@ -1035,10 +1042,11 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					ExpectScheduled(ctx, env.Client, pod)
@@ -1058,10 +1066,11 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-mime.sh"),
+						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
-					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 					// This will not be scheduled since userData cannot be generated for the prospective node.
@@ -1337,9 +1346,9 @@ var _ = Describe("Allocation", func() {
 		It("should validate", func() {
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-		It("should not panic if provider undefined", func() {
+		It("should succeed if provider undefined", func() {
 			provisioner.Spec.Provider = nil
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
+			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 
 		Context("SubnetSelector", func() {

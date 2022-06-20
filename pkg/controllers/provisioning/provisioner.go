@@ -189,7 +189,7 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		// Create node template
 		nodeTemplates = append(nodeTemplates, scheduling.NewNodeTemplate(provisioner))
 		// Get instance type options
-		instanceTypeOptions, err := p.cloudProvider.GetInstanceTypes(ctx, provisioner.Spec.Provider)
+		instanceTypeOptions, err := p.cloudProvider.GetInstanceTypes(ctx, provisioner)
 		if err != nil {
 			return nil, fmt.Errorf("getting instance types, %w", err)
 		}

@@ -75,8 +75,7 @@ func NewEnvironment(ctx context.Context, options ...EnvironmentOption) *Environm
 	return &Environment{
 		Environment: envtest.Environment{
 			CRDDirectoryPaths: []string{
-				project.RelativeToRoot("charts/karpenter/crds/karpenter.sh_provisioners.yaml"),
-				project.RelativeToRoot("charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplate.yaml"),
+				project.RelativeToRoot("charts/karpenter/crds"),
 			},
 		},
 		Ctx:     ctx,
