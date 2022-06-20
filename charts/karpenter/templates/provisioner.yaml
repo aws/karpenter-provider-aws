@@ -2,7 +2,7 @@
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
-  name: {{ .name }}
+  name: {{ .metadata.name }}
   labels:
     {{- include "karpenter.labels" $ | nindent 4 }}
   {{- with $.Values.additionalAnnotations }}
