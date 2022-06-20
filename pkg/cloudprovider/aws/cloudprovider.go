@@ -40,6 +40,7 @@ import (
 	k8sClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/apis"
@@ -107,34 +108,20 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 
 // Create a node given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
-	if nodeRequest.Template.ProviderRef != nil {
-		aws, err := c.getProvider(ctx, nodeRequest.Template.ProviderRef.Name)
-		if err != nil {
-			return nil, err
-		}
-		return c.instanceProvider.Create(ctx, aws, nodeRequest)
-	}
-	vendorConstraints, err := v1alpha1.Deserialize(nodeRequest.Template.Provider)
+	aws, err := c.getProvider(ctx, nodeRequest.Template.Provider, nodeRequest.Template.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
-	return c.instanceProvider.Create(ctx, vendorConstraints, nodeRequest)
+	return c.instanceProvider.Create(ctx, aws, nodeRequest)
 }
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]cloudprovider.InstanceType, error) {
-	if provisioner.Spec.ProviderRef != nil {
-		aws, err := c.getProvider(ctx, provisioner.Spec.ProviderRef.Name)
-		if err != nil {
-			return nil, err
-		}
-		return c.instanceTypeProvider.Get(ctx, aws)
-	}
-	awsprovider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+	aws, err := c.getProvider(ctx, provisioner.Spec.Provider, provisioner.Spec.ProviderRef)
 	if err != nil {
-		return nil, apis.ErrGeneric(err.Error())
+		return nil, err
 	}
-	return c.instanceTypeProvider.Get(ctx, awsprovider)
+	return c.instanceTypeProvider.Get(ctx, aws)
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, node *v1.Node) error {
@@ -224,10 +211,17 @@ func getCABundle(ctx context.Context) *string {
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData))
 }
 
-func (c *CloudProvider) getProvider(ctx context.Context, providerRefName string) (*v1alpha1.AWS, error) {
-	var ant awsv1alpha1.AWSNodeTemplate
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRefName}, &ant); err != nil {
-		return nil, fmt.Errorf("getting providerRef, %w", err)
+func (c *CloudProvider) getProvider(ctx context.Context, provider *runtime.RawExtension, providerRef *v1alpha5.ProviderRef) (*v1alpha1.AWS, error) {
+	if providerRef != nil {
+		var ant awsv1alpha1.AWSNodeTemplate
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
+			return nil, fmt.Errorf("getting providerRef, %w", err)
+		}
+		return &ant.Spec.AWS, nil
 	}
-	return &ant.Spec.AWS, nil
+	aws, err := v1alpha1.Deserialize(provider)
+	if err != nil {
+		return nil, err
+	}
+	return aws, nil
 }
