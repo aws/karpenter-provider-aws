@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	set "github.com/deckarep/golang-set"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
@@ -41,32 +40,18 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeInstancesOutput             *ec2.DescribeInstancesOutput
-	DescribeLaunchTemplatesOutput       *ec2.DescribeLaunchTemplatesOutput
-	DescribeSubnetsOutput               *ec2.DescribeSubnetsOutput
-	DescribeSecurityGroupsOutput        *ec2.DescribeSecurityGroupsOutput
-	DescribeInstanceTypesOutput         *ec2.DescribeInstanceTypesOutput
-	DescribeInstanceTypeOfferingsOutput *ec2.DescribeInstanceTypeOfferingsOutput
-	DescribeAvailabilityZonesOutput     *ec2.DescribeAvailabilityZonesOutput
-	CalledWithCreateFleetInput          set.Set
-	CalledWithCreateLaunchTemplateInput set.Set
+	DescribeInstancesOutput             AtomicPtr[ec2.DescribeInstancesOutput]
+	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
+	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
+	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
-
-	mu                        sync.Mutex
-	insufficientCapacityPools []CapacityPool
-}
-
-func (e *EC2Behavior) SetInsufficientCapacityPools(pools []CapacityPool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.insufficientCapacityPools = pools
-}
-
-func (e *EC2Behavior) InsufficientCapacityPools() []CapacityPool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return append([]CapacityPool{}, e.insufficientCapacityPools...)
+	InsufficientCapacityPools           AtomicSlice[CapacityPool]
 }
 
 type EC2API struct {
@@ -80,20 +65,18 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.DescribeInstancesOutput = nil
-	e.DescribeLaunchTemplatesOutput = nil
-	e.DescribeSubnetsOutput = nil
-	e.DescribeSecurityGroupsOutput = nil
-	e.DescribeInstanceTypesOutput = nil
-	e.DescribeInstanceTypeOfferingsOutput = nil
-	e.DescribeAvailabilityZonesOutput = nil
-	e.CalledWithCreateFleetInput = set.NewSet()
-	e.CalledWithCreateLaunchTemplateInput = set.NewSet()
+	e.DescribeInstancesOutput.Reset()
+	e.DescribeLaunchTemplatesOutput.Reset()
+	e.DescribeSubnetsOutput.Reset()
+	e.DescribeSecurityGroupsOutput.Reset()
+	e.DescribeInstanceTypesOutput.Reset()
+	e.DescribeInstanceTypeOfferingsOutput.Reset()
+	e.DescribeAvailabilityZonesOutput.Reset()
+	e.CalledWithCreateFleetInput.Reset()
+	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.Instances = sync.Map{}
 	e.LaunchTemplates = sync.Map{}
-	e.insufficientCapacityPools = nil
+	e.InsufficientCapacityPools.Reset()
 }
 
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
@@ -112,15 +95,16 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 
 	for i := 0; i < int(*input.TargetCapacitySpecification.TotalTargetCapacity); i++ {
 		skipInstance := false
-		for _, pool := range e.InsufficientCapacityPools() {
+		e.InsufficientCapacityPools.Range(func(pool CapacityPool) bool {
 			if pool.InstanceType == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].InstanceType) &&
 				pool.Zone == aws.StringValue(input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone) &&
 				pool.CapacityType == aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) {
 				skippedPools = append(skippedPools, pool)
 				skipInstance = true
-				break
+				return false
 			}
-		}
+			return true
+		})
 		if skipInstance {
 			continue
 		}
@@ -165,9 +149,10 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 }
 
 func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
-	if e.DescribeInstancesOutput != nil {
-		return e.DescribeInstancesOutput, nil
+	if !e.DescribeInstancesOutput.IsNil() {
+		return e.DescribeInstancesOutput.Clone(), nil
 	}
+
 	instances := []*ec2.Instance{}
 	for _, instanceID := range input.InstanceIds {
 		instance, _ := e.Instances.Load(*instanceID)
@@ -180,8 +165,8 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 }
 
 func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
-	if e.DescribeLaunchTemplatesOutput != nil {
-		return e.DescribeLaunchTemplatesOutput, nil
+	if !e.DescribeLaunchTemplatesOutput.IsNil() {
+		return e.DescribeLaunchTemplatesOutput.Clone(), nil
 	}
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
@@ -198,8 +183,8 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 }
 
 func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
-	if e.DescribeSubnetsOutput != nil {
-		return e.DescribeSubnetsOutput, nil
+	if !e.DescribeSubnetsOutput.IsNil() {
+		return e.DescribeSubnetsOutput.Clone(), nil
 	}
 	subnets := []*ec2.Subnet{
 		{
@@ -236,8 +221,8 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
-	if e.DescribeSecurityGroupsOutput != nil {
-		return e.DescribeSecurityGroupsOutput, nil
+	if !e.DescribeSecurityGroupsOutput.IsNil() {
+		return e.DescribeSecurityGroupsOutput.Clone(), nil
 	}
 	sgs := []*ec2.SecurityGroup{
 		{
@@ -267,8 +252,8 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 }
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
-	if e.DescribeAvailabilityZonesOutput != nil {
-		return e.DescribeAvailabilityZonesOutput, nil
+	if !e.DescribeAvailabilityZonesOutput.IsNil() {
+		return e.DescribeAvailabilityZonesOutput.Clone(), nil
 	}
 	return &ec2.DescribeAvailabilityZonesOutput{AvailabilityZones: []*ec2.AvailabilityZone{
 		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a")},
@@ -278,8 +263,8 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 }
 
 func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
-	if e.DescribeInstanceTypesOutput != nil {
-		fn(e.DescribeInstanceTypesOutput, false)
+	if !e.DescribeInstanceTypesOutput.IsNil() {
+		fn(e.DescribeInstanceTypesOutput.Clone(), false)
 		return nil
 	}
 	fn(&ec2.DescribeInstanceTypesOutput{
@@ -478,8 +463,8 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 }
 
 func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
-	if e.DescribeInstanceTypeOfferingsOutput != nil {
-		fn(e.DescribeInstanceTypeOfferingsOutput, false)
+	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
+		fn(e.DescribeInstanceTypeOfferingsOutput.Clone(), false)
 		return nil
 	}
 	fn(&ec2.DescribeInstanceTypeOfferingsOutput{
