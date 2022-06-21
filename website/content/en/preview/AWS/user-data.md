@@ -1,3 +1,11 @@
+---
+title: "User Data Configuration"
+linkTitle: "UserData"
+weight: 10
+description: >
+  Learn how to configure custom UserData with Karpenter
+---
+
 This document describes how you can customize the UserData that will be specified on your EC2 worker nodes, without using a launch template.
 
 ## Configuration
@@ -13,25 +21,17 @@ kind: AWSNodeTemplate
 metadata:
   name: bottlerocket-example
 spec:
+  amiFamily: Bottlerocket
+  instanceProfile: MyInstanceProfile
+  subnetSelector:
+    karpenter.sh/discovery: my-cluster
+  securityGroupSelector:
+    karpenter.sh/discovery: my-cluster
   userData:  |
     [settings.kubernetes]
     kube-api-qps = 30
     [settings.kubernetes.eviction-hard]
     "memory.available" = "20%"
-```
-
-The AWSNodeTemplate CRD can then be referenced within the provisioner through `providerRef` -
-```
-spec:
-  provider:
-    amiFamily: Bottlerocket
-    instanceProfile: MyInstanceProfile
-    subnetSelector:
-      karpenter.sh/discovery: my-cluster
-    securityGroupSelector:
-      karpenter.sh/discovery: my-cluster
-  providerRef:
-    name: bottlerocket-example
 ```
 
 ## UserData Content and Merge Semantics

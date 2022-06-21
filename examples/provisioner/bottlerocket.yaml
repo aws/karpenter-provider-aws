@@ -6,9 +6,16 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  provider:
-    amiFamily: Bottlerocket
-    subnetSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-    securityGroupSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  providerRef:
+    name: myProvider
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: myProvider
+spec:
+  amiFamily: Bottlerocket
+  subnetSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name

@@ -75,8 +75,15 @@ spec:
       - t4g.micro
       - t4g.nano
       - t4g.small
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-    securityGroupSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  providerRef:
+    name: myProvider
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: myProvider
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
