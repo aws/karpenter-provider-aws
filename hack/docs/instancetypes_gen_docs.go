@@ -49,10 +49,14 @@ func main() {
 	if err := enc.Encode(provider); err != nil {
 		log.Fatalf("encoding provider, %s", err)
 	}
-	instanceTypes, err := cp.GetInstanceTypes(ctx, &v1alpha5.Provider{
-		Raw:    buf.Bytes(),
-		Object: nil,
-	})
+	prov := &v1alpha5.Provisioner{
+		Spec: v1alpha5.ProvisionerSpec{
+			Provider: &v1alpha5.Provider{
+				Raw: buf.Bytes(),
+			},
+		},
+	}
+	instanceTypes, err := cp.GetInstanceTypes(ctx, prov)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
 	}
