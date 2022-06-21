@@ -39,6 +39,7 @@ var env *test.Environment
 var clientSet *kubernetes.Clientset
 var cfg config.Config
 var finished func()
+var cmw *informer.InformedWatcher
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -57,7 +58,7 @@ var _ = BeforeSuite(func() {
 		cm.Name = "karpenter-global-settings"
 		ExpectApplied(ctx, env.Client, &cm)
 
-		cmw := informer.NewInformedWatcher(clientSet, os.Getenv("SYSTEM_NAMESPACE"))
+		cmw = informer.NewInformedWatcher(clientSet, os.Getenv("SYSTEM_NAMESPACE"))
 		var err error
 		cfg, err = config.New(ctx, clientSet, cmw)
 		Expect(err).To(BeNil())
@@ -70,6 +71,9 @@ var _ = BeforeEach(func() {
 	var cm v1.ConfigMap
 	cm.Namespace = "default"
 	cm.Name = "karpenter-global-settings"
+	var err error
+	cfg, err = config.New(ctx, clientSet, cmw)
+	Expect(err).To(BeNil())
 	env.Client.Delete(ctx, &cm)
 	ExpectApplied(ctx, env.Client, &cm)
 })
