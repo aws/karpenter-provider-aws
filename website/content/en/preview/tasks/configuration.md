@@ -20,6 +20,7 @@ There are two main configuration mechanisms that can be used to configure Karpen
 | AWS_NODE_NAME_CONVENTION | \-\-aws-node-name-convention | The node naming convention used by the AWS cloud provider. DEPRECATION WARNING: this field may be deprecated at any time |
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with |
 | CLUSTER_NAME | \-\-cluster-name | The kubernetes cluster name for resource discovery |
+| ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint |
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health |
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver |
 | KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver |
