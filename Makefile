@@ -9,7 +9,7 @@ WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
+AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set clusterName=${CLUSTER_NAME} \
@@ -82,7 +82,7 @@ docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/configuration.md
-     
+
 release: ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
