@@ -75,6 +75,7 @@ type AMIFamily interface {
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
 	EphemeralBlockDeviceOverhead() resource.Quantity
+	ENILimitedMemoryOverhead() bool
 }
 
 // New constructs a new launch template Resolver

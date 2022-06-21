@@ -67,3 +67,7 @@ func (u Ubuntu) EphemeralBlockDevice() *string {
 func (u Ubuntu) EphemeralBlockDeviceOverhead() resource.Quantity {
 	return resource.MustParse("5Gi")
 }
+
+func (u Ubuntu) ENILimitedMemoryOverhead() bool {
+	return true
+}

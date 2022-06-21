@@ -232,6 +232,12 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 	memory := i.memory()
 	pods := i.pods()
+	amiFamily := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{})
+	memoryOverheadPods := pods.Value()
+	if amiFamily.ENILimitedMemoryOverhead() {
+		memoryOverheadPods = i.eniLimitedPods()
+	}
+
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
 			100, // system-reserved
@@ -240,13 +246,13 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 			// vm-overhead
 			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
 				// kube-reserved
-				((11*pods.Value())+255)+
+				((11*memoryOverheadPods)+255)+
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
 				100,
 		)),
-		v1.ResourceEphemeralStorage: amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{}).EphemeralBlockDeviceOverhead(),
+		v1.ResourceEphemeralStorage: amiFamily.EphemeralBlockDeviceOverhead(),
 	}
 	// kube-reserved Computed from
 	// https://github.com/bottlerocket-os/bottlerocket/pull/1388/files#diff-bba9e4e3e46203be2b12f22e0d654ebd270f0b478dd34f40c31d7aa695620f2fR611
