@@ -86,8 +86,6 @@ func (i *InstanceType) Resources() v1.ResourceList {
 
 // Overhead computes overhead for https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
 // using calculations copied from https://github.com/bottlerocket-os/bottlerocket#kubernetes-settings.
-// While this doesn't calculate the correct overhead for non-ENI-limited nodes, we're using this approach until further
-// analysis can be performed
 func (i *InstanceType) Overhead() v1.ResourceList {
 	return i.overhead
 }
@@ -233,6 +231,7 @@ func (i *InstanceType) awsNeurons() *resource.Quantity {
 
 func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 	memory := i.memory()
+	pods := i.pods()
 	overhead := v1.ResourceList{
 		v1.ResourceCPU: *resource.NewMilliQuantity(
 			100, // system-reserved
@@ -241,7 +240,7 @@ func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
 			// vm-overhead
 			(int64(math.Ceil(float64(memory.Value())*vmMemOverhead/1024/1024)))+
 				// kube-reserved
-				((11*i.eniLimitedPods())+255)+
+				((11*pods.Value())+255)+
 				// system-reserved
 				100+
 				// eviction threshold https://github.com/kubernetes/kubernetes/blob/ea0764452222146c47ec826977f49d7001b0ea8c/pkg/kubelet/apis/config/v1beta1/defaults_linux.go#L23
