@@ -10,25 +10,34 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
+  # Read
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch"]
   - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources: ["configmaps/status"]
-    verbs: ["get", "update", "patch"]
+    resources: ["configmaps", "namespaces", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Write
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["update"]
+    resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "update", "patch", "delete"]
+    resourceNames:
+      - karpenter-global-settings
+      - karpenter-leader-election
+      - config-logging
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create", "get", "patch", "update", "watch"]
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["create", "patch", "update"]
+    resourceNames:
+      - "karpenter-leader-election"
+      - "webhook.configmapwebhook.00-of-01"
+      - "webhook.defaultingwebhook.00-of-01"
+      - "webhook.validationwebhook.00-of-01"
+      - "webhook.webhookcertificates.00-of-01"
