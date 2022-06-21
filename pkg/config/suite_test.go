@@ -124,13 +124,7 @@ var _ = Describe("Batch Parameter", func() {
 		var changed int64
 		cfg.OnChange(func(c config.Config) {
 			defer GinkgoRecover()
-			// we can't unregister this, so just check for the one case we care about
-			if atomic.LoadInt64(&changed) == 0 {
-				atomic.StoreInt64(&changed, 1)
-				Expect(cfg.BatchIdleDuration()).To(Equal(1 * time.Second))
-				// shouldn't be changed
-				Expect(cfg.BatchMaxDuration()).To(Equal(10 * time.Second))
-			}
+			atomic.StoreInt64(&changed, 1)
 		})
 
 		// simulate user updating the config map with a bad max duration

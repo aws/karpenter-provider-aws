@@ -38,6 +38,8 @@ import (
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
+var _ cloudprovider.InstanceType = (*InstanceType)(nil)
+
 type InstanceType struct {
 	*ec2.InstanceTypeInfo
 	offerings    []cloudprovider.Offering

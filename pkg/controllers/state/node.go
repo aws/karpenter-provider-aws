@@ -53,9 +53,10 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 		}
 		return reconcile.Result{}, err
 	}
+	if err := c.cluster.updateNode(ctx, node); err != nil {
+		return reconcile.Result{}, err
+	}
 	// ensure it's aware of any nodes we discover, this is a no-op if the node is already known to our cluster state
-	c.cluster.updateNode(node)
-
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }
 

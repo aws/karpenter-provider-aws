@@ -49,6 +49,9 @@ type CloudProvider struct {
 	CreateCalls []*cloudprovider.NodeRequest
 }
 
+var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
+var _ cloudprovider.InstanceType = (*InstanceType)(nil)
+
 func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) (*v1.Node, error) {
 	c.mu.Lock()
 	c.CreateCalls = append(c.CreateCalls, nodeRequest)

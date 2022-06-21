@@ -15,6 +15,7 @@ limitations under the License.
 package scheduling
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
@@ -35,13 +36,14 @@ type InFlightNode struct {
 	requirements       scheduling.Requirements
 	available          v1.ResourceList
 	startupTolerations []v1.Toleration
-	hostPortUsage      *state.HostPortUsage
+	hostPortUsage      *scheduling.HostPortUsage
+	volumeUsage        *scheduling.VolumeLimits
+	volumeLimits       scheduling.VolumeCount
 }
 
 func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint, daemonResources v1.ResourceList) *InFlightNode {
 	// the remaining daemonResources to schedule are the total daemonResources minus what has already scheduled
 	remainingDaemonResources := resources.Subtract(daemonResources, n.DaemonSetRequested)
-
 	node := &InFlightNode{
 		Node:          n.Node,
 		available:     n.Available,
@@ -49,6 +51,8 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 		requests:      remainingDaemonResources,
 		requirements:  scheduling.NewLabelRequirements(n.Node.Labels),
 		hostPortUsage: n.HostPortUsage.Copy(),
+		volumeUsage:   n.VolumeUsage.Copy(),
+		volumeLimits:  n.VolumeLimits,
 	}
 
 	if n.Node.Labels[v1alpha5.LabelNodeInitialized] != "true" {
@@ -81,14 +85,23 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	return node
 }
 
-func (n *InFlightNode) Add(pod *v1.Pod) error {
+func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
 	// Check Taints
 	if err := scheduling.Taints(n.Node.Spec.Taints).Tolerates(pod, n.startupTolerations...); err != nil {
 		return err
 	}
 
-	if err := n.hostPortUsage.Add(pod); err != nil {
+	if err := n.hostPortUsage.Validate(pod); err != nil {
 		return err
+	}
+
+	// determine the number of volumes that will be mounted if the pod schedules
+	mountedVolumeCount, err := n.volumeUsage.Validate(ctx, pod)
+	if err != nil {
+		return err
+	}
+	if mountedVolumeCount.Exceeds(n.volumeLimits) {
+		return fmt.Errorf("would exceed node volume limits")
 	}
 
 	// check resource requests first since that's a pretty likely reason the pod won't schedule on an in-flight
@@ -122,5 +135,7 @@ func (n *InFlightNode) Add(pod *v1.Pod) error {
 	n.requests = requests
 	n.requirements = nodeRequirements
 	n.topology.Record(pod, nodeRequirements)
+	n.hostPortUsage.Add(ctx, pod)
+	n.volumeUsage.Add(ctx, pod)
 	return nil
 }
