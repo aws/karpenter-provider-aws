@@ -17,6 +17,7 @@ package config_test
 import (
 	"context"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -71,11 +72,21 @@ var _ = BeforeEach(func() {
 	var cm v1.ConfigMap
 	cm.Namespace = "default"
 	cm.Name = "karpenter-global-settings"
+	env.Client.Delete(ctx, &cm)
+
 	var err error
 	cfg, err = config.New(ctx, clientSet, cmw)
 	Expect(err).To(BeNil())
-	env.Client.Delete(ctx, &cm)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var once sync.Once
+	cfg.OnChange(func(c config.Config) {
+		once.Do(wg.Done)
+	})
 	ExpectApplied(ctx, env.Client, &cm)
+	// ensure we wait for the default config to be applied to avoid a flaky test
+	wg.Wait()
 })
 
 var _ = AfterSuite(func() {

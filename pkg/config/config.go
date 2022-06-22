@@ -109,7 +109,6 @@ func New(ctx context.Context, kubeClient *kubernetes.Clientset, iw *informer.Inf
 	}
 
 	iw.Watch(configMapName, cfg.configMapChanged)
-	cfg.configMapChanged(cm)
 	return cfg, nil
 }
 
