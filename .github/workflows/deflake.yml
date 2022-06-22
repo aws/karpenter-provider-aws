@@ -2,6 +2,7 @@ name: Deflake
 on:
   schedule:
     - cron: '0 12 * * *'
+  workflow_dispatch:
 jobs:
   deflake:
     if: github.repository == 'aws/karpenter'
