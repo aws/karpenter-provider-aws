@@ -19,9 +19,6 @@ rules:
     verbs: ["get", "list", "watch"]
   # Write
   - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create"]
-  - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["update"]
     resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
