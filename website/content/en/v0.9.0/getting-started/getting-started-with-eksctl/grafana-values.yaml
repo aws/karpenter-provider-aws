@@ -22,6 +22,6 @@ dashboardProviders:
 dashboards:
   default:
     pod-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-pod-metrics.json
+      url: https://karpenter.sh/v0.9.0/getting-started/getting-started-with-eksctl/karpenter-pod-metrics.json
     node-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/karpenter-node-metrics.json
+      url: https://karpenter.sh/v0.9.0/getting-started/getting-started-with-eksctl/karpenter-node-metrics.json
