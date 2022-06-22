@@ -30,7 +30,7 @@ The best way to improve your story telling skills is to write and review designs
 
 ## Gather Broad Feedback
 
-The bigger the change, the more likely your design will have broader implications than intended. Be vocal about design ideas as they’re explored and run them by engineering leaders in relevant systems. Surface your design ideas at the Karpenter working group, or asynchronously on the Kubernetes Slack channel for Karpenter.
+The bigger the change, the more likely your design will have broader implications than intended. Be vocal about design ideas as they’re explored and run them by engineering leaders in relevant systems. Surface your design ideas at the Karpenter working group, or asynchronously on the [Kubernetes Slack channel for Karpenter](https://kubernetes.slack.com/archives/C02SFFZSA2K).
 
 The Kubernetes community is also a valuable source of feedback from both users and Kubernetes developers. Does your design touch scoped owned by any Kubernetes SIGs? Consider discussing the design ideas at the SIG or in their slack channel. Socializing high level ideas before the review gives your audience more time to think about possible interactions with existing and future systems.
 
