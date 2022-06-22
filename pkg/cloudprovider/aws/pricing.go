@@ -317,12 +317,7 @@ func (p *PricingProvider) updateSpotPricing(ctx context.Context) error {
 
 	prices := map[string]*pricingInfo{}
 	if err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(ctx, &ec2.DescribeSpotPriceHistoryInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("product-description"),
-				Values: []*string{aws.String("Linux/UNIX")},
-			},
-		},
+		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
 		// look for spot prices for the past day
 		StartTime: aws.Time(time.Now().Add(24 * time.Hour)),
 	}, func(output *ec2.DescribeSpotPriceHistoryOutput, b bool) bool {
