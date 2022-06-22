@@ -90,7 +90,7 @@ func (t *TopologyGroup) Get(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.
 	case TopologyTypeSpread:
 		return t.nextDomainTopologySpread(pod, podDomains, nodeDomains)
 	case TopologyTypePodAffinity:
-		return t.nextDomainAffinity(pod, podDomains)
+		return t.nextDomainAffinity(pod, podDomains, nodeDomains)
 	case TopologyTypePodAntiAffinity:
 		return t.nextDomainAntiAffinity(podDomains)
 	default:
@@ -201,17 +201,31 @@ func (t *TopologyGroup) domainMinCount(domains sets.Set) int32 {
 	return min
 }
 
-func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, domains sets.Set) sets.Set {
+func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, podDomains sets.Set, nodeDomains sets.Set) sets.Set {
 	options := sets.NewSet()
 	for domain := range t.domains {
-		if domains.Has(domain) && t.domains[domain] > 0 {
+		if podDomains.Has(domain) && t.domains[domain] > 0 {
 			options.Insert(domain)
 		}
 	}
-	// If pod is self selecting and no pod has been scheduled yet, pick a domain at random to bootstrap scheduling
+
+	// If pod is self selecting and no pod has been scheduled yet, we can pick a domain at random to bootstrap scheduling
+
 	if options.Len() == 0 && t.selects(pod) {
+		// First try to find a domain that is within the intersection of pod/node domains. In the case of an in-flight node
+		// this causes us to pick the domain that the existing in-flight node is already in if possible instead of picking
+		// a random viable domain.
+		intersected := podDomains.Intersection(nodeDomains)
 		for domain := range t.domains {
-			if domains.Has(domain) {
+			if intersected.Has(domain) {
+				options.Insert(domain)
+				break
+			}
+		}
+
+		// and if there are no node domains, just return the first random domain that is viable
+		for domain := range t.domains {
+			if podDomains.Has(domain) {
 				options.Insert(domain)
 				break
 			}

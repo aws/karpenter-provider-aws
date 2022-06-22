@@ -3850,6 +3850,35 @@ var _ = Describe("No Pre-Binding", func() {
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
 		Expect(nodeList.Items).To(HaveLen(1))
 	})
+	It("should respect self pod affinity without pod binding (zone)", func() {
+		// Issue #1975
+		affLabels := map[string]string{"security": "s2"}
+
+		pods := MakePods(2, test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: affLabels,
+			},
+			PodRequirements: []v1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: affLabels,
+				},
+				TopologyKey: v1.LabelTopologyZone,
+			}},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pods[0])
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		for i := range nodeList.Items {
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodeList.Items[i]))
+		}
+		// the second pod can schedule against the in-flight node, but for that to work we need to be careful
+		// in how we fulfill the self-affinity by taking the existing node's domain as a preference over any
+		// random viable domain
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pods[1])
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
 })
 
 var _ = Describe("Volume Limits", func() {
