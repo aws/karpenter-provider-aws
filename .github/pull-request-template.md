@@ -1,3 +1,7 @@
+<!--
+Thanks for contributing to Karpenter! Before making major changes, please read karpenter.sh/docs/contributing/design-guide
+-->
+
 <!-- Please follow the guidelines at https://www.conventionalcommits.org/en/v1.0.0/ and use one of the following in your title:
 feat:            <-- New features that require a MINOR version update
 fix:             <-- Bug fixes that require at PATCH version update
