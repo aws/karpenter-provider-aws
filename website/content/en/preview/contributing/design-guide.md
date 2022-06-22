@@ -78,7 +78,7 @@ Systems often contain mechanisms that are implicitly assumed as invariant, but m
 
 ### Does your change impact performance?
 
-Customers have high expectations for performance on Kubernetes. Karpenter is especially sensitive, as it has the potential to impact application availability during traffic spikes. Think about how your solution scales, and look for opportunities to improve performance at the design level. Often, good designs don’t require trading-off a great UX for performance. Make it work, make it fast, make it pretty.
+Users have high expectations for performance on Kubernetes. Karpenter is especially sensitive, as it has the potential to impact application availability during traffic spikes. Think about how your solution scales, and look for opportunities to improve performance at the design level. Often, good designs don’t require trading-off a great UX for performance. Make it work, make it fast, make it pretty.
 
 * Beware code that scales linearly with pods or nodes. Milliseconds in testing turn into seconds at scale.
 * Cloud provider read APIs can have surprisingly high latency and low limits, use caching to minimize calls.
