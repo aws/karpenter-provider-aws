@@ -6,7 +6,7 @@ description: >
   Read this before making large changes to Karpenter
 ---
 
-Technical designs are essential to building robust, intuitive, and performant products that delight customers. Writing a design can accelerate decision making and avoid wasting time on an implementation that never lands. But what makes a good design? These guidelines were authored with the Karpenter community in mind, but apply broadly to the development of Kubernetes Operators.
+Technical designs are essential to building robust, intuitive, and performant products that delight users. Writing a design can accelerate decision making and avoid wasting time on an implementation that never lands. But what makes a good design? These guidelines were authored with the Karpenter community in mind, but apply broadly to the development of Kubernetes Operators.
 
 Designs don’t have to be long or formal, and should match the scope of the problem they’re trying to solve.
 
@@ -17,7 +17,7 @@ Designs don’t have to be long or formal, and should match the scope of the pro
 
 ## Tell a Story
 
-A design is a story that connects a customer need with a technical direction that solves the need. Designs come in all shapes and sizes, and this document intentionally avoids prescribing a one-size-fits-all template. There’s no substitute for an author thinking deeply about a problem space, and mapping that to a clear story that walks readers through the ideas and helps them reason about a solution space. Keep readers engaged with concise language and make every word count.
+A design is a story that connects a user need with a technical direction that solves the need. Designs come in all shapes and sizes, and this document intentionally avoids prescribing a one-size-fits-all template. There’s no substitute for an author thinking deeply about a problem space, and mapping that to a clear story that walks readers through the ideas and helps them reason about a solution space. Keep readers engaged with concise language and make every word count.
 
 Your story should include,
 
@@ -32,13 +32,13 @@ The best way to improve your story telling skills is to write and review designs
 
 The bigger the change, the more likely your design will have broader implications than intended. Be vocal about design ideas as they’re explored and run them by engineering leaders in relevant systems. Surface your design ideas at the Karpenter working group, or asynchronously on the Kubernetes Slack channel for Karpenter.
 
-The Kubernetes community is also a valuable source of feedback from both customers and Kubernetes developers. Does your design touch scoped owned by any Kubernetes SIGs? Consider discussing the design ideas at the SIG or in their slack channel. Socializing high level ideas before the review gives your audience more time to think about possible interactions with existing and future systems.
+The Kubernetes community is also a valuable source of feedback from both users and Kubernetes developers. Does your design touch scoped owned by any Kubernetes SIGs? Consider discussing the design ideas at the SIG or in their slack channel. Socializing high level ideas before the review gives your audience more time to think about possible interactions with existing and future systems.
 
-It can be tempting to rush to solutions that unblock customer adoption or ease customer pain, but the wrong solution can have a greater negative impact on customers than it solves. It’s impossible to know all future use cases and how your design choices may impact them, but the more thorough your investigation, the more likely your solution is to deliver long term customer value.
+It can be tempting to rush to solutions that unblock user adoption or ease user pain, but the wrong solution can have a greater negative impact on users than it solves. It’s impossible to know all future use cases and how your design choices may impact them, but the more thorough your investigation, the more likely your solution is to deliver long term value.
 
 ## Simple Solutions to Complex Problems
 
-The best solutions are invisible to customers and “Just Work™”. It’s easy to forget that customers have business problems to focus on and each parameter and behavior your design introduces increases customer cognitive load. Pragmatically, it’s not always possible to meet the broad requirements of Kubernetes without providing options, but solution spaces typically include a spectrum of configuration complexity.  Recognize that a solution for one customer segment may be directly at odds with another or create long term technical debt for the project. Often, requirements only exist to workaround bugs or missing features in related systems. Deep dive requirements until you’re certain they’re necessary and ensure each bit of complexity justifies its existence.
+The best solutions are invisible to users and “Just Work™”. It’s easy to forget that users have business problems to focus on and each parameter and behavior your design introduces increases user cognitive load. Pragmatically, it’s not always possible to meet the broad requirements of Kubernetes without providing options, but solution spaces typically include a spectrum of configuration complexity.  Recognize that a solution for one user segment may be directly at odds with another or create long term technical debt for the project. Often, requirements only exist to workaround bugs or missing features in related systems. Deep dive requirements until you’re certain they’re necessary and ensure each bit of complexity justifies its existence.
 
 ## Common Gotchas
 
@@ -46,27 +46,27 @@ The best solutions are invisible to customers and “Just Work™”. It’s eas
 
 APIs are notoriously hard to get right and even harder to change. Kubernetes defines an [api deprecation policy](https://kubernetes.io/docs/reference/using-api/deprecation-policy/) that helps systems make backwards incompatible changes to APIs before graduating to a stable API with compatibility guarantees. Once an API is stable, features are typically via [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), which allows for experimentation and deprecation.
 
-Think about how your API changes impact existing parameters and their deprecation policies. Consider how the customer interacts with the product as a whole and if the feature supersedes or overlaps with existing concepts. Weigh the costs of deprecating existing features to the benefit of simplifying the product for all future customers. The answer will change depending on the maturity of the product and breadth of adoption.
+Think about how your API changes impact existing parameters and their deprecation policies. Consider how the user interacts with the product as a whole and if the feature supersedes or overlaps with existing concepts. Weigh the costs of deprecating existing features to the benefit of simplifying the product for all future users. The answer will change depending on the maturity of the product and breadth of adoption.
 
 Build minimal and maintainable APIs by:
 
-* Push back on requirements that introduces concepts for all customers to solve problems for a few.
+* Push back on requirements that introduces concepts for all users to solve problems for a few.
 * Identify an opinionated default that solves the majority of use cases.
-* Delay introducing a parameter into your API surface until customers demand it; you can always add it later.
-* Rely on existing concepts and idioms from the Kubernetes ecosystem. Look to [Kubernetes APIs](https://pkg.go.dev/k8s.io/api/core/v1) and projects like [Tekton](https://github.com/tektoncd/cli), [Knative](https://github.com/knative/serving), and [ACK](https://github.com/aws-controllers-k8s) and find concepts that will be familiar to customers.
+* Delay introducing a parameter into your API surface until users demand it; you can always add it later.
+* Rely on existing concepts and idioms from the Kubernetes ecosystem. Look to [Kubernetes APIs](https://pkg.go.dev/k8s.io/api/core/v1) and projects like [Tekton](https://github.com/tektoncd/cli), [Knative](https://github.com/knative/serving), and [ACK](https://github.com/aws-controllers-k8s) and find concepts that will be familiar to users.
 * Take advantage of opportunities to refine APIs while the impact of backwards incompatibility is small
 
 ### Does your change behave differently with different cloud providers?
 
-Kubernetes is an open standard that customers rely on to work across vendors. Customers care deeply about this, as it minimizes the technical complexity to operate in different environments. Identify whether or not your feature varies across cloud providers or are bespoke to a specific provider. For some features, it’s possible to rely on existing vendor neutral abstractions. For others, it’s possible to define a neutral abstraction that cloud providers can implement.
+Kubernetes is an open standard that users rely on to work across vendors. Users care deeply about this, as it minimizes the technical complexity to operate in different environments. Identify whether or not your feature varies across cloud providers or are bespoke to a specific provider. For some features, it’s possible to rely on existing vendor neutral abstractions. For others, it’s possible to define a neutral abstraction that cloud providers can implement.
 
 Achieving consensus for new neutral concepts is hard. Often, the best path is to demonstrate value on a single vendor, and work to achieve neutrality as a followup effort. Be cautious about introducing or changing vendor neutral interfaces, as it will require changes from all providers. Similarly, invest heavily in getting these interfaces right in the early stages. As projects mature, these interfaces are rarely changed.
 
-### Does your change expose details customers may rely on?
+### Does your change expose details users may rely on?
 
 Kubernetes based systems often use a layered architectural pattern that exposes underlying layers of abstraction. This approach enables broad extensibility and allows other systems to integrate at multiple layers of the stack. For example, Karpenter creates EC2 instances in your AWS account. This enables you to view logs or react to their creation with other automation without requiring any features from Karpenter. However, Karpenter also applies specific EC2 tags to the EC2 instances. Are the tags an implementation detail or an interface? What can you change without breaking compatibility?
 
-Be intentional and explicit about the interface and implementation of your design and ensure that this is communicated to customers. If implementation details are exposed through other APIs, expect customers to rely on them as an interface unless told otherwise. In general, aim to minimize the project’s interface to maximize future flexibility.
+Be intentional and explicit about the interface and implementation of your design and ensure that this is communicated to users. If implementation details are exposed through other APIs, expect users to rely on them as an interface unless told otherwise. In general, aim to minimize the project’s interface to maximize future flexibility.
 
 ### Does your change have a risk of breaking an undocumented invariant?
 
