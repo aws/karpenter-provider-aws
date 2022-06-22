@@ -36,7 +36,7 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake:
-	for i in {1..10}; do make strongertests || exit 1; done
+	for i in $(shell seq 1 10); do make strongertests || exit 1; done
 	ginkgo -r -race -tags random_test_delay
 
 battletest: strongertests
