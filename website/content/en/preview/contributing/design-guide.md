@@ -3,7 +3,7 @@ title: "Design Guide"
 linkTitle: "Design Guide"
 weight: 20
 description: >
-  Learn how to make large changes to Karpenter
+  Read this before making large changes to Karpenter
 ---
 
 Technical designs are essential to building robust, intuitive, and performant products that delight customers. Writing a design can accelerate decision making and avoid wasting time on an implementation that never lands. But what makes a good design? These guidelines were authored with the Karpenter community in mind, but apply broadly to the development of Kubernetes Operators.
