@@ -90,6 +90,7 @@ The following labels are supported by Karpenter. They may be specified as provis
 | karpenter.k8s.aws/instance-size             | 8xlarge    | [AWS Specific] Instance types of similar resource quantities but different properties                                                       |
 | karpenter.k8s.aws/instance-cpu              | 32         | [AWS Specific] Number of CPUs on the instance                                                                                               |
 | karpenter.k8s.aws/instance-memory           | 249856     | [AWS Specific] Number of mebibytes of memory on the instance                                                                                |
+| karpenter.k8s.aws/instance-pods             | 110         | [AWS Specific] Number of pods the instance supports                                                                                         |
 | karpenter.k8s.aws/instance-gpu-name         | v100       | [AWS Specific] Name of the GPU on the instance, if available                                                                                |
 | karpenter.k8s.aws/instance-gpu-manufacturer | nvidia     | [AWS Specific] Name of the GPU manufacturer                                                                                                 |
 | karpenter.k8s.aws/instance-gpu-count        | 4          | [AWS Specific] Number of GPUs on the instance                                                                                               |
