@@ -140,6 +140,11 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
+				p.launchTemplateProvider.invalidate(ctx, provider, nodeRequest, map[string]string{v1alpha5.LabelCapacityType: capacityType})
+			}
+		}
 		var reqFailure awserr.RequestFailure
 		if errors.As(err, &reqFailure) {
 			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())

@@ -56,7 +56,7 @@ type LaunchTemplateProvider struct {
 	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
@@ -67,7 +67,15 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		caBundle:              caBundle,
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
-	l.hydrateCache(ctx)
+	go func() {
+		// only hydrate cache once elected leader
+		select {
+		case <-startAsync:
+		case <-ctx.Done():
+			return
+		}
+		l.hydrateCache(ctx)
+	}()
 	return l
 }
 
@@ -86,30 +94,8 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	if provider.LaunchTemplateName != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, provider)
-	if err != nil {
-		return nil, err
-	}
-	// Get constrained security groups
-	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, provider)
-	if err != nil {
-		return nil, err
-	}
-	kubeServerVersion, err := p.kubeServerVersion(ctx)
-	if err != nil {
-		return nil, err
-	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
-		ClusterName:             injection.GetOptions(ctx).ClusterName,
-		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
-		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
-		SecurityGroupsIDs:       securityGroupsIDs,
-		Tags:                    provider.Tags,
-		Labels:                  functional.UnionStringMaps(nodeRequest.Template.Labels, additionalLabels),
-		CABundle:                p.caBundle,
-		KubernetesVersion:       kubeServerVersion,
-	})
+	// If launch template is not specified then resolve the correct AMI family launch templates
+	resolvedLaunchTemplates, err := p.getResolvedLTs(ctx, provider, nodeRequest, additionalLabels)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +109,33 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
 	}
 	return launchTemplates, nil
+}
+
+func (p *LaunchTemplateProvider) getResolvedLTs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) ([]*amifamily.LaunchTemplate, error) {
+	instanceProfile, err := p.getInstanceProfile(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	// Get constrained security groups
+	securityGroupsIDs, err := p.securityGroupProvider.Get(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	kubeServerVersion, err := p.kubeServerVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
+		ClusterName:             injection.GetOptions(ctx).ClusterName,
+		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
+		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
+		InstanceProfile:         instanceProfile,
+		SecurityGroupsIDs:       securityGroupsIDs,
+		Tags:                    provider.Tags,
+		Labels:                  functional.UnionStringMaps(nodeRequest.Template.Labels, additionalLabels),
+		CABundle:                p.caBundle,
+		KubernetesVersion:       kubeServerVersion,
+	})
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
@@ -215,6 +228,21 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 		return nil
 	}
 	return aws.Int64(quantity.ScaledValue(resource.Giga))
+}
+
+func (p *LaunchTemplateProvider) invalidate(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) {
+	p.Lock()
+	defer p.Unlock()
+	resolvedLTs, err := p.getResolvedLTs(ctx, provider, nodeRequest, additionalLabels)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Resolving launch templates for the \"%s\" AMI family to invalidate in the launch template cache, clearing the whole cache instead, %v", *provider.AMIFamily, err)
+		p.cache.Flush()
+	}
+	for _, lt := range resolvedLTs {
+		ltName := launchTemplateName(lt)
+		logging.FromContext(ctx).Debugf("Invalidating launch template \"%s\" in the cache because it no longer exists, %v", ltName, err)
+		p.cache.Delete(ltName)
+	}
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
