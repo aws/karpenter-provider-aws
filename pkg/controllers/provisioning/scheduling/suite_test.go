@@ -3668,6 +3668,30 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
+		It("should not assume pod will schedule to a node with startup taints after initialization", func() {
+			startupTaint := v1.Taint{Key: "ignore-me", Value: "nothing-to-see-here", Effect: v1.TaintEffectNoSchedule}
+			provisioner.Spec.StartupTaints = []v1.Taint{startupTaint}
+			ExpectApplied(ctx, env.Client, provisioner)
+			initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+			node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+
+			// delete the pod so that the node is empty
+			ExpectDeleted(ctx, env.Client, initialPod[0])
+
+			// Mark it initialized which only occurs once the startup taint was removed and re-apply only the startup taint.
+			// We also need to add resource capacity as after initialization we assume that kubelet has recorded them.
+			node1.Labels[v1alpha5.LabelNodeInitialized] = "true"
+			node1.Spec.Taints = []v1.Taint{startupTaint}
+			node1.Status.Capacity = v1.ResourceList{v1.ResourcePods: resource.MustParse("10")}
+			ExpectApplied(ctx, env.Client, node1)
+
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+			// we should launch a new node since the startup taint is there, but was gone at some point
+			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
 	})
 	Context("Daemonsets", func() {
 		It("should track daemonset usage separately so we know how many DS resources are remaining to be scheduled", func() {
