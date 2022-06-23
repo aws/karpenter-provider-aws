@@ -169,13 +169,15 @@ var _ = Describe("Validation", func() {
 		It("should allow supported ops", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"1"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"1"}},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpNotIn},
 				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpExists},
 			}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
 		It("should fail for unsupported ops", func() {
-			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpDoesNotExist, v1.NodeSelectorOpGt, v1.NodeSelectorOpLt} {
+			for _, op := range []v1.NodeSelectorOperator{"unknown"} {
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
 				}
@@ -217,14 +219,20 @@ var _ = Describe("Validation", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{}
 			Expect(provisioner.Validate(ctx)).To(Succeed())
 		})
-		It("should fail because DoesNotExists conflicting", func() {
-			for _, op := range []v1.NodeSelectorOperator{v1.NodeSelectorOpIn, v1.NodeSelectorOpNotIn, v1.NodeSelectorOpExists} {
-				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: op, Values: []string{"test"}},
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpDoesNotExist},
-				}
+		It("should fail with invalid GT or LT values", func() {
+			for _, requirement := range []v1.NodeSelectorRequirement{
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"1", "2"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"a"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpGt, Values: []string{"-1"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"1", "2"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"a"}},
+				{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpLt, Values: []string{"-1"}},
+			} {
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{requirement}
+				Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 			}
-			Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 		})
 	})
 })

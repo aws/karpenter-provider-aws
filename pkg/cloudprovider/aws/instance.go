@@ -309,7 +309,7 @@ func (p *InstanceProvider) instanceToNode(ctx context.Context, instance *ec2.Ins
 			labels := map[string]string{}
 			for key, req := range instanceType.Requirements() {
 				if req.Len() == 1 {
-					labels[key] = req.Any()
+					labels[key] = req.Values()[0]
 				}
 			}
 			labels[v1.LabelTopologyZone] = aws.StringValue(instance.Placement.AvailabilityZone)
