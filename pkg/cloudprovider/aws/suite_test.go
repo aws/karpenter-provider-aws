@@ -207,7 +207,7 @@ var _ = Describe("Allocation", func() {
 					v1alpha1.LabelInstanceSize:            "xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
 					v1alpha1.LabelInstanceMemory:          "249856",
-					v1alpha1.LabelInstancePods:             "234",
+					v1alpha1.LabelInstancePods:             "238",
 					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
 					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
 					v1alpha1.LabelInstanceGPUCount:        "4",
