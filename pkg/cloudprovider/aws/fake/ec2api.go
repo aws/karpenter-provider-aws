@@ -16,6 +16,7 @@ package fake
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -47,11 +48,13 @@ type EC2Behavior struct {
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
 	CalledWithCreateFleetInput          AtomicPtrSlice[ec2.CreateFleetInput]
 	CalledWithCreateLaunchTemplateInput AtomicPtrSlice[ec2.CreateLaunchTemplateInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
 	InsufficientCapacityPools           AtomicSlice[CapacityPool]
+	NextError                           AtomicError
 }
 
 type EC2API struct {
@@ -74,19 +77,24 @@ func (e *EC2API) Reset() {
 	e.DescribeAvailabilityZonesOutput.Reset()
 	e.CalledWithCreateFleetInput.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
+	e.DescribeSpotPriceHistoryOutput.Reset()
 	e.Instances = sync.Map{}
 	e.LaunchTemplates = sync.Map{}
 	e.InsufficientCapacityPools.Reset()
 }
 
+// nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	e.CalledWithCreateFleetInput.Add(input)
 	if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 		return nil, fmt.Errorf("missing launch template name")
 	}
-	instances := []*ec2.Instance{}
-	instanceIds := []*string{}
-	skippedPools := []CapacityPool{}
+	var instances []*ec2.Instance
+	var instanceIds []*string
+	var skippedPools []CapacityPool
 	var spotInstanceRequestID *string
 
 	if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == v1alpha1.CapacityTypeSpot {
@@ -142,6 +150,9 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 }
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	e.CalledWithCreateLaunchTemplateInput.Add(input)
 	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
@@ -149,6 +160,9 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 }
 
 func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	if !e.DescribeInstancesOutput.IsNil() {
 		return e.DescribeInstancesOutput.Clone(), nil
 	}
@@ -165,6 +179,9 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 }
 
 func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	if !e.DescribeLaunchTemplatesOutput.IsNil() {
 		return e.DescribeLaunchTemplatesOutput.Clone(), nil
 	}
@@ -183,6 +200,9 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 }
 
 func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	if !e.DescribeSubnetsOutput.IsNil() {
 		return e.DescribeSubnetsOutput.Clone(), nil
 	}
@@ -221,6 +241,9 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 }
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	if !e.DescribeSecurityGroupsOutput.IsNil() {
 		return e.DescribeSecurityGroupsOutput.Clone(), nil
 	}
@@ -252,6 +275,9 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 }
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
+	if !e.NextError.IsNil() {
+		return nil, e.NextError.Get()
+	}
 	if !e.DescribeAvailabilityZonesOutput.IsNil() {
 		return e.DescribeAvailabilityZonesOutput.Clone(), nil
 	}
@@ -263,6 +289,9 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 }
 
 func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
+	if !e.NextError.IsNil() {
+		return e.NextError.Get()
+	}
 	if !e.DescribeInstanceTypesOutput.IsNil() {
 		fn(e.DescribeInstanceTypesOutput.Clone(), false)
 		return nil
@@ -463,6 +492,9 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 }
 
 func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
+	if !e.NextError.IsNil() {
+		return e.NextError.Get()
+	}
 	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
 		fn(e.DescribeInstanceTypeOfferingsOutput.Clone(), false)
 		return nil
@@ -544,4 +576,16 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 		},
 	}, false)
 	return nil
+}
+
+func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, _ *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
+	if !e.NextError.IsNil() {
+		return e.NextError.Get()
+	}
+	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
+		fn(e.DescribeSpotPriceHistoryOutput.Clone(), false)
+		return nil
+	}
+	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
+	return errors.New("no pricing data provided")
 }

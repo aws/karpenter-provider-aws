@@ -50,6 +50,7 @@ type Options struct {
 	AWSENILimitedPodDensity   bool
 	AWSDefaultInstanceProfile string
 	AWSEnablePodENI           bool
+	AWSIsolatedVPC            bool
 }
 
 // New creates an Options struct and registers CLI flags and environment variables to fill-in the Options struct fields
@@ -73,6 +74,7 @@ func New() Options {
 	f.BoolVar(&opts.AWSENILimitedPodDensity, "aws-eni-limited-pod-density", env.WithDefaultBool("AWS_ENI_LIMITED_POD_DENSITY", true), "Indicates whether new nodes should use ENI-based pod density")
 	f.StringVar(&opts.AWSDefaultInstanceProfile, "aws-default-instance-profile", env.WithDefaultString("AWS_DEFAULT_INSTANCE_PROFILE", ""), "The default instance profile to use when provisioning nodes in AWS")
 	f.BoolVar(&opts.AWSEnablePodENI, "aws-enable-pod-eni", env.WithDefaultBool("AWS_ENABLE_POD_ENI", false), "If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource")
+	f.BoolVar(&opts.AWSIsolatedVPC, "aws-isolated-vpc", env.WithDefaultBool("AWS_ISOLATED_VPC", false), "If true then assume we can't reach AWS services which don't have a VPC endpoint")
 
 	return opts
 }
