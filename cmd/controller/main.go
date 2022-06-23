@@ -27,6 +27,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/util/flowcontrol"
 	"knative.dev/pkg/configmap/informer"
 	knativeinjection "knative.dev/pkg/injection"
@@ -84,12 +85,13 @@ func main() {
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
 	manager := controllers.NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
-		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
-		LeaderElection:         true,
-		LeaderElectionID:       "karpenter-leader-election",
-		Scheme:                 scheme,
-		MetricsBindAddress:     fmt.Sprintf(":%d", opts.MetricsPort),
-		HealthProbeBindAddress: fmt.Sprintf(":%d", opts.HealthProbePort),
+		Logger:                     zapr.NewLogger(logging.FromContext(ctx).Desugar()),
+		LeaderElection:             true,
+		LeaderElectionID:           "karpenter-leader-election",
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
+		Scheme:                     scheme,
+		MetricsBindAddress:         fmt.Sprintf(":%d", opts.MetricsPort),
+		HealthProbeBindAddress:     fmt.Sprintf(":%d", opts.HealthProbePort),
 	})
 
 	if opts.EnableProfiling {

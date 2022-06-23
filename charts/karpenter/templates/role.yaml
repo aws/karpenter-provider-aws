@@ -27,7 +27,6 @@ rules:
     verbs: ["update", "patch", "delete"]
     resourceNames:
       - karpenter-global-settings
-      - karpenter-leader-election
       - config-logging
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
@@ -40,7 +39,7 @@ rules:
       - "webhook.webhookcertificates.00-of-01"
   # Cannot specify resourceNames on create
   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
-  - apiGroups: ["coordinations.k8s.io"]
+  - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["create"]
   - apiGroups: [""]
