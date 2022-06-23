@@ -18,12 +18,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/pricing"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/pricing"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -206,6 +207,7 @@ var _ = Describe("Allocation", func() {
 					v1alpha1.LabelInstanceSize:            "xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
 					v1alpha1.LabelInstanceMemory:          "249856",
+					v1alpha1.LabelInstancePods:             "234",
 					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
 					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
 					v1alpha1.LabelInstanceGPUCount:        "4",
