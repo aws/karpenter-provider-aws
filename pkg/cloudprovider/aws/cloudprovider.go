@@ -15,10 +15,12 @@ package aws
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -86,7 +88,11 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		*sess.Config.Region = getRegionFromIMDS(sess)
 	}
 	logging.FromContext(ctx).Debugf("Using AWS region %s", *sess.Config.Region)
+
 	ec2api := ec2.New(sess)
+	if err := checkEC2Connectivity(ec2api); err != nil {
+		logging.FromContext(ctx).Errorf("Checking EC2 API connectivity, %s", err)
+	}
 	subnetProvider := NewSubnetProvider(ec2api)
 	instanceTypeProvider := NewInstanceTypeProvider(ec2api, subnetProvider)
 	return &CloudProvider{
@@ -104,6 +110,17 @@ func NewCloudProvider(ctx context.Context, options cloudprovider.Options) *Cloud
 		},
 		kubeClient: options.KubeClient,
 	}
+}
+
+// checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
+// are having issues connecting to the EC2 API.
+func checkEC2Connectivity(api *ec2.EC2) error {
+	_, err := api.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
+	var aerr awserr.Error
+	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+		return nil
+	}
+	return err
 }
 
 // Create a node given the constraints.
