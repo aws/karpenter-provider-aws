@@ -86,7 +86,7 @@ func (a *AtomicPtrSlice[T]) Reset() {
 func (a *AtomicPtrSlice[T]) Add(input *T) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.values = append(a.values, input)
+	a.values = append(a.values, clone(input))
 }
 
 func (a *AtomicPtrSlice[T]) Len() int {
