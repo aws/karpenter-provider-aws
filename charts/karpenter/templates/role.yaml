@@ -13,7 +13,7 @@ rules:
   # Read
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create", "get", "watch"]
+    verbs: ["get", "watch"]
   - apiGroups: [""]
     resources: ["configmaps", "namespaces", "secrets"]
     verbs: ["get", "list", "watch"]
