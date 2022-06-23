@@ -24,17 +24,25 @@ rules:
     resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
   - apiGroups: [""]
     resources: ["configmaps"]
-    verbs: ["create", "update", "patch", "delete"]
+    verbs: ["update", "patch", "delete"]
     resourceNames:
       - karpenter-global-settings
       - karpenter-leader-election
       - config-logging
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create", "patch", "update"]
+    verbs: ["patch", "update"]
     resourceNames:
       - "karpenter-leader-election"
       - "webhook.configmapwebhook.00-of-01"
       - "webhook.defaultingwebhook.00-of-01"
       - "webhook.validationwebhook.00-of-01"
       - "webhook.webhookcertificates.00-of-01"
+  # Cannot specify resourceNames on create
+  # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
+  - apiGroups: ["coordinations.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]
