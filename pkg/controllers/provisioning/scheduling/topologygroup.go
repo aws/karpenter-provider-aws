@@ -15,6 +15,7 @@ limitations under the License.
 package scheduling
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -26,7 +27,6 @@ import (
 	utilsets "k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type TopologyType byte
@@ -85,7 +85,7 @@ func NewTopologyGroup(topologyType TopologyType, topologyKey string, pod *v1.Pod
 	}
 }
 
-func (t *TopologyGroup) Get(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.Set {
+func (t *TopologyGroup) Get(pod *v1.Pod, podDomains, nodeDomains *scheduling.Requirement) *scheduling.Requirement {
 	switch t.Type {
 	case TopologyTypeSpread:
 		return t.nextDomainTopologySpread(pod, podDomains, nodeDomains)
@@ -94,7 +94,7 @@ func (t *TopologyGroup) Get(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.
 	case TopologyTypePodAntiAffinity:
 		return t.nextDomainAntiAffinity(podDomains)
 	default:
-		return sets.NewSet()
+		panic(fmt.Sprintf("Unrecognized topology group type: %s", t.Type))
 	}
 }
 
@@ -154,7 +154,7 @@ func (t *TopologyGroup) Hash() uint64 {
 	return hash
 }
 
-func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDomains sets.Set) sets.Set {
+func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDomains *scheduling.Requirement) *scheduling.Requirement {
 	// min count is calculated across all domains
 	min := t.domainMinCount(podDomains)
 	selfSelecting := t.selects(pod)
@@ -178,12 +178,12 @@ func (t *TopologyGroup) nextDomainTopologySpread(pod *v1.Pod, podDomains, nodeDo
 	}
 	if minDomain == "" {
 		// avoids an error message about 'zone in [""]', preferring 'zone in []'
-		return sets.NewSet()
+		return scheduling.NewRequirement(podDomains.Key, v1.NodeSelectorOpDoesNotExist)
 	}
-	return sets.NewSet(minDomain)
+	return scheduling.NewRequirement(podDomains.Key, v1.NodeSelectorOpIn, minDomain)
 }
 
-func (t *TopologyGroup) domainMinCount(domains sets.Set) int32 {
+func (t *TopologyGroup) domainMinCount(domains *scheduling.Requirement) int32 {
 	// hostname based topologies always have a min pod count of zero since we can create one
 	if t.Key == v1.LabelHostname {
 		return 0
@@ -201,8 +201,8 @@ func (t *TopologyGroup) domainMinCount(domains sets.Set) int32 {
 	return min
 }
 
-func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, podDomains sets.Set, nodeDomains sets.Set) sets.Set {
-	options := sets.NewSet()
+func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, podDomains *scheduling.Requirement, nodeDomains *scheduling.Requirement) *scheduling.Requirement {
+	options := scheduling.NewRequirement(podDomains.Key, v1.NodeSelectorOpDoesNotExist)
 	for domain := range t.domains {
 		if podDomains.Has(domain) && t.domains[domain] > 0 {
 			options.Insert(domain)
@@ -234,8 +234,8 @@ func (t *TopologyGroup) nextDomainAffinity(pod *v1.Pod, podDomains sets.Set, nod
 	return options
 }
 
-func (t *TopologyGroup) nextDomainAntiAffinity(domains sets.Set) sets.Set {
-	options := sets.NewSet()
+func (t *TopologyGroup) nextDomainAntiAffinity(domains *scheduling.Requirement) *scheduling.Requirement {
+	options := scheduling.NewRequirement(domains.Key, v1.NodeSelectorOpDoesNotExist)
 	for domain := range t.domains {
 		if domains.Has(domain) && t.domains[domain] == 0 {
 			options.Insert(domain)

@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type Topology struct {
@@ -115,11 +114,11 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 			domains := requirements.Get(tc.Key)
 			if tc.Type == TopologyTypePodAntiAffinity {
 				// for anti-affinity topologies we need to block out all possible domains that the pod could land in
-				tc.Record(domains.Values().UnsortedList()...)
+				tc.Record(domains.Values()...)
 			} else {
 				// but for affinity & topology spread, we can only record the domain if we know the specific domain we land in
 				if domains.Len() == 1 {
-					tc.Record(domains.Values().UnsortedList()[0])
+					tc.Record(domains.Values()[0])
 				}
 			}
 		}
@@ -128,7 +127,7 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 	// requirements haven't collapsed to a single value.
 	for _, tc := range t.inverseTopologies {
 		if tc.IsOwnedBy(p.UID) {
-			tc.Record(requirements.Get(tc.Key).Values().UnsortedList()...)
+			tc.Record(requirements.Get(tc.Key).Values()...)
 		}
 	}
 }
@@ -138,21 +137,21 @@ func (t *Topology) Record(p *v1.Pod, requirements scheduling.Requirements) {
 // placing the pod on.  It returns these newly tightened requirements, or an error in the case of a set of requirements that
 // cannot be satisfied.
 func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.Requirements, p *v1.Pod) (scheduling.Requirements, error) {
-	requirements := scheduling.NewRequirements(nodeRequirements)
+	requirements := scheduling.NewRequirements(nodeRequirements.Values()...)
 	for _, topology := range t.getMatchingTopologies(p, nodeRequirements) {
-		podDomains := sets.NewComplementSet()
+		podDomains := scheduling.NewRequirement(topology.Key, v1.NodeSelectorOpExists)
 		if podRequirements.Has(topology.Key) {
 			podDomains = podRequirements.Get(topology.Key)
 		}
-		nodeDomains := sets.NewComplementSet()
+		nodeDomains := scheduling.NewRequirement(topology.Key, v1.NodeSelectorOpExists)
 		if nodeRequirements.Has(topology.Key) {
 			nodeDomains = nodeRequirements.Get(topology.Key)
 		}
 		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
-			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for %s, key=%s", topology.Type, topology.Key)
+			return nil, fmt.Errorf("unsatisfiable topology constraint for %s, key=%s", topology.Type, topology.Key)
 		}
-		requirements.Add(scheduling.Requirements{topology.Key: domains})
+		requirements.Add(domains)
 	}
 	return requirements, nil
 }

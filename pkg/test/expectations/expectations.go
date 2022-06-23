@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/karpenter/pkg/test"
-
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	prometheus "github.com/prometheus/client_model/go"
@@ -40,6 +38,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 const (

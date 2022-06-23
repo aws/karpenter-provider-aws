@@ -25,7 +25,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
 type InFlightNode struct {
@@ -82,7 +81,7 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 	if hostname == "" {
 		hostname = n.Node.Name
 	}
-	node.requirements.Add(scheduling.Requirements{v1.LabelHostname: sets.NewSet(hostname)})
+	node.requirements.Add(scheduling.NewRequirement(v1.LabelHostname, v1.NodeSelectorOpIn, hostname))
 	topology.Register(v1.LabelHostname, hostname)
 	return node
 }
@@ -114,13 +113,13 @@ func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
 		return fmt.Errorf("exceeds node resources")
 	}
 
-	nodeRequirements := scheduling.NewRequirements(n.requirements)
+	nodeRequirements := scheduling.NewRequirements(n.requirements.Values()...)
 	podRequirements := scheduling.NewPodRequirements(pod)
 	// Check Node Affinity Requirements
 	if err := nodeRequirements.Compatible(podRequirements); err != nil {
 		return err
 	}
-	nodeRequirements.Add(podRequirements)
+	nodeRequirements.Add(podRequirements.Values()...)
 
 	// Check Topology Requirements
 	topologyRequirements, err := n.topology.AddRequirements(podRequirements, nodeRequirements, pod)
@@ -130,7 +129,7 @@ func (n *InFlightNode) Add(ctx context.Context, pod *v1.Pod) error {
 	if err = nodeRequirements.Compatible(topologyRequirements); err != nil {
 		return err
 	}
-	nodeRequirements.Add(topologyRequirements)
+	nodeRequirements.Add(topologyRequirements.Values()...)
 
 	// Update node
 	n.Pods = append(n.Pods, pod)

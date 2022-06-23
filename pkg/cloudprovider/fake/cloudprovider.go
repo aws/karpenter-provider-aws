@@ -19,17 +19,15 @@ import (
 	"fmt"
 	"sync"
 
-	utilsets "k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"knative.dev/pkg/apis"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils/sets"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/aws/karpenter/pkg/cloudprovider"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -62,10 +60,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeRequest *cloudprovider.N
 	}
 	// Find Offering
 	for _, o := range instanceType.Offerings() {
-		if nodeRequest.Template.Requirements.Compatible(scheduling.Requirements{
-			v1.LabelTopologyZone:       sets.NewSet(o.Zone),
-			v1alpha5.LabelCapacityType: sets.NewSet(o.CapacityType),
-		}) == nil {
+		if nodeRequest.Template.Requirements.Compatible(scheduling.NewRequirements(
+			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, o.Zone),
+			scheduling.NewRequirement(v1alpha5.LabelCapacityType, v1.NodeSelectorOpIn, o.CapacityType),
+		)) == nil {
 			labels[v1.LabelTopologyZone] = o.Zone
 			labels[v1alpha5.LabelCapacityType] = o.CapacityType
 			break
@@ -124,17 +122,13 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, provisioner *v1alpha
 		NewInstanceType(InstanceTypeOptions{
 			Name:             "arm-instance-type",
 			Architecture:     "arm64",
-			OperatingSystems: utilsets.NewString("ios", "linux", "windows", "darwin"),
+			OperatingSystems: sets.NewString("ios", "linux", "windows", "darwin"),
 			Resources: map[v1.ResourceName]resource.Quantity{
 				v1.ResourceCPU:    resource.MustParse("16"),
 				v1.ResourceMemory: resource.MustParse("128Gi"),
 			},
 		}),
 	}, nil
-}
-
-func (c *CloudProvider) GetRequirements(ctx context.Context, provider *v1alpha5.Provider) (scheduling.Requirements, error) {
-	return scheduling.NewRequirements(), nil
 }
 
 func (c *CloudProvider) Delete(context.Context, *v1.Node) error {

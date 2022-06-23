@@ -209,12 +209,12 @@ func (p *Provisioner) schedule(ctx context.Context, pods []*v1.Pod) ([]*schedule
 		// Construct Topology Domains
 		for _, instanceType := range instanceTypeOptions {
 			for key, requirement := range instanceType.Requirements() {
-				domains[key] = domains[key].Union(requirement.Values())
+				domains[key] = domains[key].Union(sets.NewString(requirement.Values()...))
 			}
 		}
 		for key, requirement := range scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...) {
-			if requirement.Type() == v1.NodeSelectorOpIn {
-				domains[key] = domains[key].Union(requirement.Values())
+			if requirement.Operator() == v1.NodeSelectorOpIn {
+				domains[key] = domains[key].Union(sets.NewString(requirement.Values()...))
 			}
 		}
 	}
