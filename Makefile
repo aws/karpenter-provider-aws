@@ -9,7 +9,7 @@ WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 ## Extra helm options
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].cluster.server}')
-AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output text | cut -d" " -f1)
+AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set clusterName=${CLUSTER_NAME} \
@@ -36,7 +36,7 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake:
-	for i in {1..10}; do make strongertests || exit 1; done
+	for i in $(shell seq 1 10); do make strongertests || exit 1; done
 	ginkgo -r -race -tags random_test_delay
 
 battletest: strongertests
@@ -82,8 +82,15 @@ docgen: ## Generate docs
 	go run hack/docs/metrics_gen_docs.go pkg/ website/content/en/preview/tasks/metrics.md
 	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/AWS/instance-types.md
 	go run hack/docs/configuration_gen_docs.go website/content/en/preview/tasks/configuration.md
-     
-release: ## Generate release manifests and publish a versioned container image.
+
+release-gen: docgen ## Generate any materials which should be updated prior to release
+	go run hack/code/prices_gen.go -- pkg/cloudprovider/aws/zz_generated.pricing.go
+	hack/boilerplate.sh
+	go mod tidy
+	go mod download
+	golangci-lint run
+
+release: release-gen ## Generate release manifests and publish a versioned container image.
 	$(WITH_GOFLAGS) ./hack/release.sh
 
 nightly: ## Tag the latest snapshot release with timestamp
@@ -107,4 +114,4 @@ issues: ## Run GitHub issue analysis scripts
 website: ## Serve the docs website locally
 	cd website && npm install && git submodule update --init --recursive && hugo server
 
-.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release licenses issues website nightly snapshot
+.PHONY: help dev ci release test battletest verify codegen docgen apply delete toolchain release release-gen licenses issues website nightly snapshot

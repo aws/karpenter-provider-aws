@@ -15,12 +15,11 @@ limitations under the License.
 package scheduling_test
 
 import (
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/scheduling"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 )
 
 var _ = Describe("Scheduling", func() {

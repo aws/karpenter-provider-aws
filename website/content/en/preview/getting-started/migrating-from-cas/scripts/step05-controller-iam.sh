@@ -37,7 +37,9 @@ echo '{
                 "ec2:DeleteLaunchTemplate",
                 "ec2:CreateTags",
                 "ec2:CreateLaunchTemplate",
-                "ec2:CreateFleet"
+                "ec2:CreateFleet",
+                "ec2:DescribeSpotPriceHistory",
+                "pricing:GetProducts"
             ],
             "Effect": "Allow",
             "Resource": "*",

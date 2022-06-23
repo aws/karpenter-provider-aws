@@ -43,15 +43,6 @@ import (
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
-const (
-	// CreationQPS limits the number of requests per second to CreateFleet
-	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
-	CreationQPS = 2
-	// CreationBurst limits the additional burst requests.
-	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/throttling.html#throttling-limits
-	CreationBurst = 100
-)
-
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider

@@ -47,7 +47,6 @@ import (
 	metricspod "github.com/aws/karpenter/pkg/controllers/metrics/pod"
 	metricsprovisioner "github.com/aws/karpenter/pkg/controllers/metrics/provisioner"
 	"github.com/aws/karpenter/pkg/controllers/node"
-	"github.com/aws/karpenter/pkg/controllers/persistentvolumeclaim"
 	"github.com/aws/karpenter/pkg/controllers/provisioning"
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"github.com/aws/karpenter/pkg/controllers/termination"
@@ -68,10 +67,12 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 }
 
+const appName = "karpenter"
+
 func main() {
 	controllerRuntimeConfig := controllerruntime.GetConfigOrDie()
 	controllerRuntimeConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(opts.KubeClientQPS), opts.KubeClientBurst)
-	controllerRuntimeConfig.UserAgent = "karpenter"
+	controllerRuntimeConfig.UserAgent = appName
 	clientSet := kubernetes.NewForConfigOrDie(controllerRuntimeConfig)
 
 	cmw := informer.NewInformedWatcher(clientSet, system.Namespace())
@@ -82,8 +83,6 @@ func main() {
 
 	logging.FromContext(ctx).Infof("Initializing with version %s", project.Version)
 	// Set up controller runtime controller
-	var recorder events.Recorder = &events.NoOpRecorder{}
-
 	manager := controllers.NewManagerOrDie(ctx, controllerRuntimeConfig, controllerruntime.Options{
 		Logger:                 zapr.NewLogger(logging.FromContext(ctx).Desugar()),
 		LeaderElection:         true,
@@ -97,7 +96,7 @@ func main() {
 		utilruntime.Must(registerPprof(manager))
 	}
 
-	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient()})
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 
 	cfg, err := config.New(ctx, clientSet, cmw)
@@ -110,13 +109,13 @@ func main() {
 		logging.FromContext(ctx).Errorf("watching configmaps, config changes won't be applied immediately, %s", err)
 	}
 
-	cluster := state.NewCluster(ctx, manager.GetClient(), cloudProvider)
+	recorder := events.NewDedupeRecorder(events.NewRecorder(manager.GetEventRecorderFor(appName)))
+	cluster := state.NewCluster(manager.GetClient(), cloudProvider)
 
 	if err := manager.RegisterControllers(ctx,
 		provisioning.NewController(ctx, cfg, manager.GetClient(), clientSet.CoreV1(), recorder, cloudProvider, cluster),
 		state.NewNodeController(manager.GetClient(), cluster),
 		state.NewPodController(manager.GetClient(), cluster),
-		persistentvolumeclaim.NewController(manager.GetClient()),
 		termination.NewController(ctx, manager.GetClient(), clientSet.CoreV1(), cloudProvider),
 		node.NewController(manager.GetClient(), cloudProvider),
 		metricspod.NewController(manager.GetClient()),

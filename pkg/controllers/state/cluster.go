@@ -20,23 +20,25 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"go.uber.org/multierr"
 
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-
-	"knative.dev/pkg/logging"
+	"github.com/aws/aws-sdk-go/aws"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/scheduling"
 	podutils "github.com/aws/karpenter/pkg/utils/pod"
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
 // Cluster maintains cluster state that is often needed but expensive to compute.
 type Cluster struct {
-	ctx           context.Context
 	kubeClient    client.Client
 	cloudProvider cloudprovider.CloudProvider
 
@@ -49,9 +51,8 @@ type Cluster struct {
 	bindings map[types.NamespacedName]string // pod namespaced named -> node name
 }
 
-func NewCluster(ctx context.Context, client client.Client, cp cloudprovider.CloudProvider) *Cluster {
+func NewCluster(client client.Client, cp cloudprovider.CloudProvider) *Cluster {
 	c := &Cluster{
-		ctx:           ctx,
 		kubeClient:    client,
 		cloudProvider: cp,
 		nodes:         map[string]*Node{},
@@ -76,12 +77,14 @@ type Node struct {
 	// included in the calculation for Available.
 	DaemonSetRequested v1.ResourceList
 	// HostPort usage of all pods that are bound to the node
-	HostPortUsage *HostPortUsage
+	HostPortUsage *scheduling.HostPortUsage
+	VolumeUsage   *scheduling.VolumeLimits
+	VolumeLimits  scheduling.VolumeCount
+	InstanceType  cloudprovider.InstanceType
 	// Provisioner is the provisioner used to create the node.
 	Provisioner *v1alpha5.Provisioner
 
-	podRequests  map[types.NamespacedName]v1.ResourceList
-	InstanceType cloudprovider.InstanceType
+	podRequests map[types.NamespacedName]v1.ResourceList
 }
 
 // ForPodsWithAntiAffinity calls the supplied function once for each pod with required anti affinity terms that is
@@ -126,33 +129,30 @@ func (c *Cluster) ForEachNode(f func(n *Node) bool) {
 	}
 }
 
-func (c *Cluster) newNode(node *v1.Node) *Node {
+// newNode always returns a node, even if some portion of the update has failed
+func (c *Cluster) newNode(ctx context.Context, node *v1.Node) (*Node, error) {
 	n := &Node{
 		Node:          node,
-		HostPortUsage: NewHostPortUsage(),
+		HostPortUsage: scheduling.NewHostPortUsage(),
+		VolumeUsage:   scheduling.NewVolumeLimits(c.kubeClient),
+		VolumeLimits:  scheduling.VolumeCount{},
 		podRequests:   map[types.NamespacedName]v1.ResourceList{},
 	}
-
-	// store the provisioner if it exists
-	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
-		var provisioner v1alpha5.Provisioner
-		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
-			logging.FromContext(c.ctx).Errorf("getting provisioner, %s", err)
-		} else {
-			n.Provisioner = &provisioner
-		}
+	if err := multierr.Combine(
+		c.populateProvisioner(ctx, node, n),
+		c.populateInstanceType(ctx, node, n),
+		c.populateVolumeLimits(ctx, node, n),
+		c.populateResourceRequests(ctx, node, n),
+	); err != nil {
+		return nil, err
 	}
+	return n, nil
+}
 
-	var err error
-
-	n.InstanceType, err = c.getInstanceType(c.ctx, n.Provisioner, node.Labels[v1.LabelInstanceTypeStable])
-	if err != nil {
-		logging.FromContext(c.ctx).Errorf("getting instance type, %s", err)
-	}
-
+func (c *Cluster) populateResourceRequests(ctx context.Context, node *v1.Node, n *Node) error {
 	var pods v1.PodList
-	if err := c.kubeClient.List(c.ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
-		logging.FromContext(c.ctx).Errorf("listing pods, %s", err)
+	if err := c.kubeClient.List(ctx, &pods, client.MatchingFields{"spec.nodeName": node.Name}); err != nil {
+		return fmt.Errorf("listing pods, %w", err)
 	}
 	var requested []v1.ResourceList
 	var daemonsetRequested []v1.ResourceList
@@ -167,9 +167,8 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 			daemonsetRequested = append(daemonsetRequested, requests)
 		}
 		requested = append(requested, requests)
-		if err := n.HostPortUsage.Add(pod); err != nil {
-			logging.FromContext(c.ctx).Errorf("inconsistent state, error tracking host port usage on node %s, %s", n.Node.Name, err)
-		}
+		n.HostPortUsage.Add(ctx, pod)
+		n.VolumeUsage.Add(ctx, pod)
 	}
 
 	n.DaemonSetRequested = resources.Merge(daemonsetRequested...)
@@ -179,23 +178,44 @@ func (c *Cluster) newNode(node *v1.Node) *Node {
 	if len(n.Capacity) == 0 && n.InstanceType != nil {
 		n.Capacity = n.InstanceType.Resources()
 	}
-	n.Available = resources.Subtract(c.getNodeAllocatable(node, n.Provisioner), resources.Merge(requested...))
-	return n
+	n.Available = resources.Subtract(c.getNodeAllocatable(node, n), resources.Merge(requested...))
+	return nil
+}
+
+func (c *Cluster) populateVolumeLimits(ctx context.Context, node *v1.Node, n *Node) error {
+	var csiNode storagev1.CSINode
+	if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: node.Name}, &csiNode); err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("getting CSINode to determine volume limit for %s, %w", node.Name, err)
+	}
+
+	for _, driver := range csiNode.Spec.Drivers {
+		if driver.Allocatable == nil {
+			continue
+		}
+		n.VolumeLimits[driver.Name] = int(aws.Int32Value(driver.Allocatable.Count))
+	}
+	return nil
+}
+
+func (c *Cluster) populateProvisioner(ctx context.Context, node *v1.Node, n *Node) error {
+	// store the provisioner if it exists
+	if provisionerName, ok := node.Labels[v1alpha5.ProvisionerNameLabelKey]; ok {
+		var provisioner v1alpha5.Provisioner
+		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: provisionerName}, &provisioner); err != nil {
+			return fmt.Errorf("getting provisioner, %w", err)
+		}
+		n.Provisioner = &provisioner
+	}
+	return nil
 }
 
 // getNodeAllocatable gets the allocatable resources for the node.
-func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provisioner) v1.ResourceList {
-	instanceType, err := c.getInstanceType(c.ctx, provisioner, node.Labels[v1.LabelInstanceTypeStable])
-	if err != nil {
-		logging.FromContext(c.ctx).Errorf("error finding instance type, %s", err)
-		return node.Status.Allocatable
-	}
-
+func (c *Cluster) getNodeAllocatable(node *v1.Node, n *Node) v1.ResourceList {
 	// If the node is ready, don't take into consideration possible kubelet resource  zeroing.  This is to handle the
 	// case where a node comes up with a resource and the hardware fails in some way so that the device-plugin zeros
 	// out the resource.  We don't want to assume that it will always come back.  The instance type may be nil if
 	// the node was created from a provisioner that has since been deleted.
-	if instanceType == nil || node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
+	if n.InstanceType == nil || node.Labels[v1alpha5.LabelNodeInitialized] == "true" {
 		return node.Status.Allocatable
 	}
 
@@ -203,7 +223,7 @@ func (c *Cluster) getNodeAllocatable(node *v1.Node, provisioner *v1alpha5.Provis
 	for k, v := range node.Status.Allocatable {
 		allocatable[k] = v
 	}
-	for resourceName, quantity := range instanceType.Resources() {
+	for resourceName, quantity := range n.InstanceType.Resources() {
 		// kubelet will zero out both the capacity and allocatable for an extended resource on startup
 		if resources.IsZero(node.Status.Capacity[resourceName]) &&
 			resources.IsZero(node.Status.Allocatable[resourceName]) &&
@@ -221,10 +241,17 @@ func (c *Cluster) deleteNode(nodeName string) {
 }
 
 // updateNode is called for every node reconciliation
-func (c *Cluster) updateNode(node *v1.Node) {
+func (c *Cluster) updateNode(ctx context.Context, node *v1.Node) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.nodes[node.Name] = c.newNode(node)
+	n, err := c.newNode(ctx, node)
+	if err != nil {
+		// ensure that the out of date node is forgotten
+		delete(c.nodes, node.Name)
+		return err
+	}
+	c.nodes[node.Name] = n
+	return nil
 }
 
 // deletePod is called when the pod has been deleted
@@ -253,6 +280,7 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 	n.Available = resources.Merge(n.Available, n.podRequests[podKey])
 	delete(n.podRequests, podKey)
 	n.HostPortUsage.DeletePod(podKey)
+	n.VolumeUsage.DeletePod(podKey)
 
 	// We can't easily track the changes to the DaemonsetRequested here as we no longer have the pod.  We could keep up
 	// with this separately, but if a daemonset pod is being deleted, it usually means the node is going down.  In the
@@ -260,9 +288,10 @@ func (c *Cluster) updateNodeUsageFromPodDeletion(podKey types.NamespacedName) {
 }
 
 // updatePod is called every time the pod is reconciled
-func (c *Cluster) updatePod(pod *v1.Pod) {
-	c.updateNodeUsageFromPod(pod)
+func (c *Cluster) updatePod(ctx context.Context, pod *v1.Pod) error {
+	err := c.updateNodeUsageFromPod(ctx, pod)
 	c.updatePodAntiAffinities(pod)
+	return err
 }
 
 func (c *Cluster) updatePodAntiAffinities(pod *v1.Pod) {
@@ -279,10 +308,10 @@ func (c *Cluster) updatePodAntiAffinities(pod *v1.Pod) {
 
 // updateNodeUsageFromPod is called every time a reconcile event occurs for the pod. If the pods binding has changed
 // (unbound to bound), we need to update the resource requests on the node.
-func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
+func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error {
 	// nothing to do if the pod isn't bound, checking early allows avoiding unnecessary locking
 	if pod.Spec.NodeName == "" {
-		return
+		return nil
 	}
 
 	c.mu.Lock()
@@ -293,11 +322,10 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	if bindingKnown {
 		if oldNodeName == pod.Spec.NodeName {
 			// we are already tracking the pod binding, so nothing to update
-			return
+			return nil
 		}
 		// the pod has switched nodes, this can occur if a pod name was re-used and it was deleted/re-created rapidly,
 		// binding to a different node the second time
-		logging.FromContext(c.ctx).Infof("pod %s has moved from node %s to %s", podKey, oldNodeName, pod.Spec.NodeName)
 		n, ok := c.nodes[oldNodeName]
 		if ok {
 			// we were tracking the old node, so we need to reduce its capacity by the amount of the pod that has
@@ -313,14 +341,19 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	n, ok := c.nodes[pod.Spec.NodeName]
 	if !ok {
 		var node v1.Node
-		if err := c.kubeClient.Get(c.ctx, client.ObjectKey{Name: pod.Spec.NodeName}, &node); err != nil {
-			logging.FromContext(c.ctx).Errorf("getting node, %s", err)
+		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, &node); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("getting node, %w", err)
 		}
 
+		var err error
 		// node didn't exist, but creating it will pick up this newly bound pod as well
-		n = c.newNode(&node)
-		c.nodes[pod.Spec.NodeName] = n
-		return
+		n, err = c.newNode(ctx, &node)
+		if err != nil {
+			// no need to delete c.nodes[node.Name] as it wasn't stored previously
+			return err
+		}
+		c.nodes[node.Name] = n
+		return nil
 	}
 
 	// sum the newly bound pod's requests into the existing node and record the binding
@@ -331,26 +364,27 @@ func (c *Cluster) updateNodeUsageFromPod(pod *v1.Pod) {
 	if podutils.IsOwnedByDaemonSet(pod) {
 		n.DaemonSetRequested = resources.Merge(n.DaemonSetRequested, podRequests)
 	}
-	if err := n.HostPortUsage.Add(pod); err != nil {
-		logging.FromContext(c.ctx).Errorf("inconsistent state, error tracking host port usage on node %s, %s", n.Node.Name, err)
-	}
+	n.HostPortUsage.Add(ctx, pod)
+	n.VolumeUsage.Add(ctx, pod)
 	n.podRequests[podKey] = podRequests
 	c.bindings[podKey] = n.Node.Name
+	return nil
 }
 
-func (c *Cluster) getInstanceType(ctx context.Context, provisioner *v1alpha5.Provisioner, instanceTypeName string) (cloudprovider.InstanceType, error) {
-	if provisioner == nil {
-		// no provisioner means we cant lookup the instance type
-		return nil, nil
+func (c *Cluster) populateInstanceType(ctx context.Context, node *v1.Node, n *Node) error {
+	if n.Provisioner == nil || n.Provisioner.Spec.Provider == nil {
+		return nil
 	}
-	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, provisioner)
+	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, n.Provisioner)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	instanceTypeName := node.Labels[v1.LabelInstanceTypeStable]
 	for _, it := range instanceTypes {
 		if it.Name() == instanceTypeName {
-			return it, nil
+			n.InstanceType = it
+			return nil
 		}
 	}
-	return nil, fmt.Errorf("instance type '%s' not found", instanceTypeName)
+	return fmt.Errorf("instance type '%s' not found", instanceTypeName)
 }

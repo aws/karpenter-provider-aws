@@ -33,13 +33,15 @@ import (
 	"github.com/aws/karpenter/pkg/utils/resources"
 )
 
-func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
+func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alpha5.Provisioner, cluster *state.Cluster, topology *Topology, instanceTypes map[string][]cloudprovider.InstanceType, daemonOverhead map[*scheduling.NodeTemplate]v1.ResourceList, recorder events.Recorder) *Scheduler {
 	for provisioner := range instanceTypes {
 		sort.Slice(instanceTypes[provisioner], func(i, j int) bool {
 			return instanceTypes[provisioner][i].Price() < instanceTypes[provisioner][j].Price()
 		})
 	}
 	s := &Scheduler{
+		ctx:                ctx,
+		kubeClient:         kubeClient,
 		nodeTemplates:      nodeTemplates,
 		topology:           topology,
 		cluster:            cluster,
@@ -84,6 +86,7 @@ func NewScheduler(nodeTemplates []*scheduling.NodeTemplate, provisioners []v1alp
 }
 
 type Scheduler struct {
+	ctx                context.Context
 	nodes              []*Node
 	inflight           []*InFlightNode
 	nodeTemplates      []*scheduling.NodeTemplate
@@ -94,6 +97,7 @@ type Scheduler struct {
 	topology           *Topology
 	cluster            *state.Cluster
 	recorder           events.Recorder
+	kubeClient         client.Client
 }
 
 func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) {
@@ -112,7 +116,7 @@ func (s *Scheduler) Solve(ctx context.Context, pods []*v1.Pod) ([]*Node, error) 
 		}
 
 		// Schedule to existing nodes or create a new node
-		if errors[pod] = s.add(pod); errors[pod] == nil {
+		if errors[pod] = s.add(ctx, pod); errors[pod] == nil {
 			continue
 		}
 
@@ -165,10 +169,10 @@ func (s *Scheduler) recordSchedulingResults(ctx context.Context, pods []*v1.Pod,
 	logging.FromContext(ctx).Infof("Computed %d unready node(s) will fit %d pod(s)", inflightCount, existingCount)
 }
 
-func (s *Scheduler) add(pod *v1.Pod) error {
+func (s *Scheduler) add(ctx context.Context, pod *v1.Pod) error {
 	// first try to schedule against an in-flight real node
 	for _, node := range s.inflight {
-		if err := node.Add(pod); err == nil {
+		if err := node.Add(ctx, pod); err == nil {
 			return nil
 		}
 	}
@@ -178,7 +182,7 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 
 	// Pick existing node that we are about to create
 	for _, node := range s.nodes {
-		if err := node.Add(pod); err == nil {
+		if err := node.Add(ctx, pod); err == nil {
 			return nil
 		}
 	}
@@ -197,7 +201,7 @@ func (s *Scheduler) add(pod *v1.Pod) error {
 		}
 
 		node := NewNode(nodeTemplate, s.topology, s.daemonOverhead[nodeTemplate], instanceTypes)
-		if err := node.Add(pod); err != nil {
+		if err := node.Add(ctx, pod); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("incompatible with provisioner %q, %w", nodeTemplate.ProvisionerName, err))
 			continue
 		}

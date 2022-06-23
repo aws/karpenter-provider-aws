@@ -30,6 +30,9 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
+	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
+	// processing that should only occur while the cloud provider is the leader.
+	StartAsync <-chan struct{}
 }
 
 // CloudProvider interface is implemented by cloud providers to support provisioning.

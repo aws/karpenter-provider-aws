@@ -17,6 +17,7 @@ package config_test
 import (
 	"context"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -39,6 +40,7 @@ var env *test.Environment
 var clientSet *kubernetes.Clientset
 var cfg config.Config
 var finished func()
+var cmw *informer.InformedWatcher
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -57,7 +59,7 @@ var _ = BeforeSuite(func() {
 		cm.Name = "karpenter-global-settings"
 		ExpectApplied(ctx, env.Client, &cm)
 
-		cmw := informer.NewInformedWatcher(clientSet, os.Getenv("SYSTEM_NAMESPACE"))
+		cmw = informer.NewInformedWatcher(clientSet, os.Getenv("SYSTEM_NAMESPACE"))
 		var err error
 		cfg, err = config.New(ctx, clientSet, cmw)
 		Expect(err).To(BeNil())
@@ -71,7 +73,20 @@ var _ = BeforeEach(func() {
 	cm.Namespace = "default"
 	cm.Name = "karpenter-global-settings"
 	env.Client.Delete(ctx, &cm)
+
+	var err error
+	cfg, err = config.New(ctx, clientSet, cmw)
+	Expect(err).To(BeNil())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var once sync.Once
+	cfg.OnChange(func(c config.Config) {
+		once.Do(wg.Done)
+	})
 	ExpectApplied(ctx, env.Client, &cm)
+	// ensure we wait for the default config to be applied to avoid a flaky test
+	wg.Wait()
 })
 
 var _ = AfterSuite(func() {
@@ -124,13 +139,7 @@ var _ = Describe("Batch Parameter", func() {
 		var changed int64
 		cfg.OnChange(func(c config.Config) {
 			defer GinkgoRecover()
-			// we can't unregister this, so just check for the one case we care about
-			if atomic.LoadInt64(&changed) == 0 {
-				atomic.StoreInt64(&changed, 1)
-				Expect(cfg.BatchIdleDuration()).To(Equal(1 * time.Second))
-				// shouldn't be changed
-				Expect(cfg.BatchMaxDuration()).To(Equal(10 * time.Second))
-			}
+			atomic.StoreInt64(&changed, 1)
 		})
 
 		// simulate user updating the config map with a bad max duration

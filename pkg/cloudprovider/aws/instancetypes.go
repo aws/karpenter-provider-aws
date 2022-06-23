@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -42,8 +43,9 @@ const (
 
 type InstanceTypeProvider struct {
 	sync.Mutex
-	ec2api         ec2iface.EC2API
-	subnetProvider *SubnetProvider
+	ec2api          ec2iface.EC2API
+	subnetProvider  *SubnetProvider
+	pricingProvider *PricingProvider
 	// Has two entries: one for all the instance types and one for all zones; values cached *before* considering insufficient capacity errors
 	// from the unavailableOfferings cache
 	cache *cache.Cache
@@ -51,10 +53,11 @@ type InstanceTypeProvider struct {
 	unavailableOfferings *cache.Cache
 }
 
-func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider) *InstanceTypeProvider {
+func NewInstanceTypeProvider(ec2api ec2iface.EC2API, subnetProvider *SubnetProvider, pricingProvider *PricingProvider) *InstanceTypeProvider {
 	return &InstanceTypeProvider{
 		ec2api:               ec2api,
 		subnetProvider:       subnetProvider,
+		pricingProvider:      pricingProvider,
 		cache:                cache.New(InstanceTypesAndZonesCacheTTL, CacheCleanupInterval),
 		unavailableOfferings: cache.New(UnfulfillableCapacityErrorCacheTTL, CacheCleanupInterval),
 	}
@@ -76,7 +79,15 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 	}
 	var result []cloudprovider.InstanceType
 	for _, i := range instanceTypes {
-		result = append(result, NewInstanceType(ctx, i, provider, p.createOfferings(i, instanceTypeZones[aws.StringValue(i.InstanceType)])))
+		// TODO: move pricing information from the instance type down into offerings
+		instanceTypeName := aws.StringValue(i.InstanceType)
+		price, err := p.pricingProvider.OnDemandPrice(instanceTypeName)
+		if err != nil {
+			logging.FromContext(ctx).Errorf("Unable to determine price for %s, defaulting to a large price", instanceTypeName)
+			price = math.MaxFloat64
+		}
+		instanceType := NewInstanceType(ctx, i, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))
+		result = append(result, instanceType)
 	}
 	return result, nil
 }

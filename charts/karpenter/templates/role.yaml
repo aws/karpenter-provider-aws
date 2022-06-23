@@ -10,25 +10,39 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: [""]
-    resources: ["configmaps/status"]
-    verbs: ["get", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create"]
+  # Read
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create", "get", "patch", "update", "watch"]
+    verbs: ["get", "watch"]
   - apiGroups: [""]
-    resources: ["namespaces"]
+    resources: ["configmaps", "namespaces", "secrets"]
     verbs: ["get", "list", "watch"]
+  # Write
   - apiGroups: [""]
     resources: ["secrets"]
+    verbs: ["update"]
     resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
-    verbs: ["get", "list", "watch", "update"]
   - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
+    resources: ["configmaps"]
+    verbs: ["update", "patch", "delete"]
+    resourceNames:
+      - karpenter-global-settings
+      - karpenter-leader-election
+      - config-logging
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["patch", "update"]
+    resourceNames:
+      - "karpenter-leader-election"
+      - "webhook.configmapwebhook.00-of-01"
+      - "webhook.defaultingwebhook.00-of-01"
+      - "webhook.validationwebhook.00-of-01"
+      - "webhook.webhookcertificates.00-of-01"
+  # Cannot specify resourceNames on create
+  # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
+  - apiGroups: ["coordinations.k8s.io"]
+    resources: ["leases"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]

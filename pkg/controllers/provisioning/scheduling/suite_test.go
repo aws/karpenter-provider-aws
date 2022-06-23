@@ -16,6 +16,7 @@ package scheduling_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -72,7 +74,7 @@ var _ = BeforeSuite(func() {
 		instanceTypes, _ := cloudProv.GetInstanceTypes(ctx, nil)
 		// set these on the cloud provider so we can manipulate them if needed
 		cloudProv.InstanceTypes = instanceTypes
-		cluster = state.NewCluster(ctx, e.Client, cloudProv)
+		cluster = state.NewCluster(e.Client, cloudProv)
 		nodeStateController = state.NewNodeController(e.Client, cluster)
 		podStateController = state.NewPodController(e.Client, cluster)
 		recorder = test.NewEventRecorder()
@@ -2958,11 +2960,11 @@ var _ = Describe("Instance Type Compatibility", func() {
 			ExpectApplied(ctx, env.Client, provisioner)
 			pods := ExpectProvisioned(ctx, env.Client, controller,
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					fake.LabelInstanceSize:  "large",
+					fake.LabelInstanceSize:     "large",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[0].Name(),
 				}}),
 				test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{
-					fake.LabelInstanceSize:  "small",
+					fake.LabelInstanceSize:     "small",
 					v1.LabelInstanceTypeStable: cloudProv.InstanceTypes[4].Name(),
 				}}),
 			)
@@ -3470,6 +3472,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		}}
 		initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 
 		// the node will have 2000m CPU, so these two pods can't both fit on it
 		opts.ResourceRequirements.Limits[v1.ResourceCPU] = resource.MustParse("1")
@@ -3486,6 +3489,7 @@ var _ = Describe("In-Flight Nodes", func() {
 		}}
 		initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
 
 		secondPod := ExpectProvisioned(ctx, env.Client, controller,
 			test.UnschedulablePod(test.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: "arm64"}}))
@@ -3844,6 +3848,138 @@ var _ = Describe("No Pre-Binding", func() {
 		ExpectNotScheduled(ctx, env.Client, secondPod[0])
 		// shouldn't create a second node as it can bind to the inflight node
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
+})
+
+var _ = Describe("Volume Limits", func() {
+	It("should launch multiple nodes if required due to volume limits", func() {
+		const csiProvider = "fake.csi.provider"
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(
+				fake.InstanceTypeOptions{
+					Name: "instance-type",
+					Resources: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU:  resource.MustParse("1024"),
+						v1.ResourcePods: resource.MustParse("1024"),
+					},
+				}),
+		}
+
+		provisioner.Spec.Limits = nil
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, initialPods[0])
+		csiNode := &storagev1.CSINode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: node.Name,
+			},
+			Spec: storagev1.CSINodeSpec{
+				Drivers: []storagev1.CSINodeDriver{
+					{
+						Name:   csiProvider,
+						NodeID: "fake-node-id",
+						Allocatable: &storagev1.VolumeNodeResources{
+							Count: aws.Int32(10),
+						},
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, csiNode)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		sc := test.StorageClass(test.StorageClassOptions{
+			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
+			Provisioner: aws.String(csiProvider),
+			Zones:       []string{"test-zone-1"}})
+		ExpectApplied(ctx, env.Client, sc)
+
+		var pods []*v1.Pod
+		for i := 0; i < 6; i++ {
+			pvcA := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
+				StorageClassName: aws.String("my-storage-class"),
+				ObjectMeta:       metav1.ObjectMeta{Name: fmt.Sprintf("my-claim-a-%d", i)},
+			})
+			pvcB := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
+				StorageClassName: aws.String("my-storage-class"),
+				ObjectMeta:       metav1.ObjectMeta{Name: fmt.Sprintf("my-claim-b-%d", i)},
+			})
+			ExpectApplied(ctx, env.Client, pvcA, pvcB)
+			pods = append(pods, test.UnschedulablePod(test.PodOptions{
+				PersistentVolumeClaims: []string{pvcA.Name, pvcB.Name},
+			}))
+		}
+		ExpectProvisioned(ctx, env.Client, controller, pods...)
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		// we need to create a new node as the in-flight one can only contain 5 pods due to the CSINode volume limit
+		Expect(nodeList.Items).To(HaveLen(2))
+	})
+	It("should launch a single node if all pods use the same PVC", func() {
+		const csiProvider = "fake.csi.provider"
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(
+				fake.InstanceTypeOptions{
+					Name: "instance-type",
+					Resources: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU:  resource.MustParse("1024"),
+						v1.ResourcePods: resource.MustParse("1024"),
+					},
+				}),
+		}
+
+		provisioner.Spec.Limits = nil
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, initialPods[0])
+		csiNode := &storagev1.CSINode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: node.Name,
+			},
+			Spec: storagev1.CSINodeSpec{
+				Drivers: []storagev1.CSINodeDriver{
+					{
+						Name:   csiProvider,
+						NodeID: "fake-node-id",
+						Allocatable: &storagev1.VolumeNodeResources{
+							Count: aws.Int32(10),
+						},
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, csiNode)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		sc := test.StorageClass(test.StorageClassOptions{
+			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
+			Provisioner: aws.String(csiProvider),
+			Zones:       []string{"test-zone-1"}})
+		ExpectApplied(ctx, env.Client, sc)
+
+		pv := test.PersistentVolume(test.PersistentVolumeOptions{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-volume"},
+			Zones:      []string{"test-zone-1"}})
+
+		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
+			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
+			StorageClassName: aws.String("my-storage-class"),
+			VolumeName:       pv.Name,
+		})
+		ExpectApplied(ctx, env.Client, pv, pvc)
+
+		var pods []*v1.Pod
+		for i := 0; i < 100; i++ {
+			pods = append(pods, test.UnschedulablePod(test.PodOptions{
+				PersistentVolumeClaims: []string{pvc.Name, pvc.Name},
+			}))
+		}
+		ExpectApplied(ctx, env.Client, provisioner)
+		ExpectProvisioned(ctx, env.Client, controller, pods...)
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		// 100 of the same PVC should all be schedulable on the same node
 		Expect(nodeList.Items).To(HaveLen(1))
 	})
 })

@@ -205,6 +205,12 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 }
 
 func getFuncPackage(fun ast.Expr) string {
+	if pexpr, ok := fun.(*ast.ParenExpr); ok {
+		return getFuncPackage(pexpr.X)
+	}
+	if sexpr, ok := fun.(*ast.StarExpr); ok {
+		return getFuncPackage(sexpr.X)
+	}
 	if sel, ok := fun.(*ast.SelectorExpr); ok {
 		return fmt.Sprintf("%s", sel.X)
 	}
