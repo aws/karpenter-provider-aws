@@ -96,7 +96,7 @@ func main() {
 		utilruntime.Must(registerPprof(manager))
 	}
 
-	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient()})
+	cloudProvider := registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: clientSet, KubeClient: manager.GetClient(), StartAsync: manager.Elected()})
 	cloudProvider = cloudprovidermetrics.Decorate(cloudProvider)
 
 	cfg, err := config.New(ctx, clientSet, cmw)

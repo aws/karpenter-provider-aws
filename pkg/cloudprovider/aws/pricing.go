@@ -73,7 +73,7 @@ func NewPricingAPI(sess *session.Session, region string) pricingiface.PricingAPI
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *PricingProvider {
+func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string, isolatedVPC bool, startAsync <-chan struct{}) *PricingProvider {
 	p := &PricingProvider{
 		region:             region,
 		onDemandUpdateTime: initialPriceUpdate,
@@ -86,20 +86,37 @@ func NewPricingProvider(ctx context.Context, pricing pricingiface.PricingAPI, ec
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("pricing"))
 
-	// perform an initial price update at startup
-	p.updatePricing(ctx)
+	if isolatedVPC {
+		logging.FromContext(ctx).Infof("Assuming isolated VPC, pricing information will not be updated")
+	} else {
+		// perform an initial price update at startup to prevent launching initial pending pods with
+		// old pricing information
+		p.updatePricing(ctx)
 
-	go func() {
-		for {
+		go func() {
+			startup := time.Now()
+			// wait for leader election or to be signaled to exit
 			select {
+			case <-startAsync:
 			case <-ctx.Done():
-				logging.FromContext(ctx).Infof("shutting down")
 				return
-			case <-time.After(pricingUpdatePeriod):
+			}
+			// if it took many hours to be elected leader, we want to re-fetch pricing before we start our periodic
+			// polling
+			if time.Since(startup) > pricingUpdatePeriod {
 				p.updatePricing(ctx)
 			}
-		}
-	}()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(pricingUpdatePeriod):
+					p.updatePricing(ctx)
+				}
+			}
+		}()
+	}
 	return p
 }
 
