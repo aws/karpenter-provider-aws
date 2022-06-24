@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -384,6 +385,90 @@ var _ = Describe("Allocation", func() {
 					resources := it.Resources()
 					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
 				}
+			})
+			Context("AL2", func() {
+				It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
+					opts.AWSENILimitedPodDensity = true
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyAL2
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					newCtx := injection.WithOptions(ctx, opts)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+
+					instanceTypeCache.Flush()
+					instanceTypes, err := cloudProvider.GetInstanceTypes(newCtx, newProvisioner.Spec.Provider)
+					Expect(err).To(BeNil())
+					idx := slices.IndexFunc(instanceTypes, func(it cloudprovider.InstanceType) bool { return it.Name() == "m5.xlarge" })
+					overhead := instanceTypes[idx].Overhead()
+					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+				})
+				It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
+					opts.AWSENILimitedPodDensity = false
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyAL2
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					newCtx := injection.WithOptions(ctx, opts)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+
+					instanceTypeCache.Flush()
+					instanceTypes, err := cloudProvider.GetInstanceTypes(newCtx, newProvisioner.Spec.Provider)
+					Expect(err).To(BeNil())
+					idx := slices.IndexFunc(instanceTypes, func(it cloudprovider.InstanceType) bool { return it.Name() == "m5.xlarge" })
+					overhead := instanceTypes[idx].Overhead()
+					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+				})
+			})
+			Context("Bottlerocket", func() {
+				It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
+					opts.AWSENILimitedPodDensity = true
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					newCtx := injection.WithOptions(ctx, opts)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+
+					instanceTypeCache.Flush()
+					instanceTypes, err := cloudProvider.GetInstanceTypes(newCtx, newProvisioner.Spec.Provider)
+					Expect(err).To(BeNil())
+					idx := slices.IndexFunc(instanceTypes, func(it cloudprovider.InstanceType) bool { return it.Name() == "m5.xlarge" })
+					overhead := instanceTypes[idx].Overhead()
+					Expect(overhead.Memory().String()).To(Equal("3073Mi"))
+				})
+				It("should calculate memory overhead based on max pods when not ENI limited", func() {
+					opts.AWSENILimitedPodDensity = false
+					opts.VMMemoryOverhead = 0 // cutting a factor out of the equation
+					provider, _ := v1alpha1.Deserialize(provisioner.Spec.Provider)
+					provider.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+					providerRefName := strings.ToLower(randomdata.SillyName())
+					providerRef := &v1alpha5.ProviderRef{
+						Name: providerRefName,
+					}
+					newCtx := injection.WithOptions(ctx, opts)
+					newProvisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider, ProviderRef: providerRef})
+					ExpectApplied(ctx, env.Client, newProvisioner)
+
+					instanceTypeCache.Flush()
+					instanceTypes, err := cloudProvider.GetInstanceTypes(newCtx, newProvisioner.Spec.Provider)
+					Expect(err).To(BeNil())
+					idx := slices.IndexFunc(instanceTypes, func(it cloudprovider.InstanceType) bool { return it.Name() == "m5.xlarge" })
+					overhead := instanceTypes[idx].Overhead()
+					Expect(overhead.Memory().String()).To(Equal("1665Mi"))
+				})
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
