@@ -56,7 +56,7 @@ type LaunchTemplateProvider struct {
 	caBundle              *string
 }
 
-func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string) *LaunchTemplateProvider {
+func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clientSet *kubernetes.Clientset, amiFamily *amifamily.Resolver, securityGroupProvider *SecurityGroupProvider, caBundle *string, startAsync <-chan struct{}) *LaunchTemplateProvider {
 	l := &LaunchTemplateProvider{
 		ec2api:                ec2api,
 		clientSet:             clientSet,
@@ -67,7 +67,15 @@ func NewLaunchTemplateProvider(ctx context.Context, ec2api ec2iface.EC2API, clie
 		caBundle:              caBundle,
 	}
 	l.cache.OnEvicted(l.onCacheEvicted)
-	l.hydrateCache(ctx)
+	go func() {
+		// only hydrate cache once elected leader
+		select {
+		case <-startAsync:
+		case <-ctx.Done():
+			return
+		}
+		l.hydrateCache(ctx)
+	}()
 	return l
 }
 
@@ -215,6 +223,16 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 		return nil
 	}
 	return aws.Int64(quantity.ScaledValue(resource.Giga))
+}
+
+// Invalidate deletes a launch template from cache if it exists
+func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) {
+	p.Lock()
+	defer p.Unlock()
+	defer p.cache.OnEvicted(p.onCacheEvicted)
+	p.cache.OnEvicted(nil)
+	logging.FromContext(ctx).Debugf("Invalidating launch template \"%s\" in the cache because it no longer exists", ltName)
+	p.cache.Delete(ltName)
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

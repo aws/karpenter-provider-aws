@@ -17,6 +17,7 @@ package aws
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -24,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/pricing"
 
 	"github.com/Pallinder/go-randomdata"
@@ -207,7 +209,7 @@ var _ = Describe("Allocation", func() {
 					v1alpha1.LabelInstanceSize:            "xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
 					v1alpha1.LabelInstanceMemory:          "249856",
-					v1alpha1.LabelInstancePods:             "238",
+					v1alpha1.LabelInstancePods:            "238",
 					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
 					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
 					v1alpha1.LabelInstanceGPUCount:        "4",
@@ -686,6 +688,27 @@ var _ = Describe("Allocation", func() {
 				launchTemplate := input.LaunchTemplateConfigs[0].LaunchTemplateSpecification
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal("test-launch-template"))
 				Expect(*launchTemplate.Version).To(Equal("$Latest"))
+			})
+			It("should recover from an out-of-sync launch template cache", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				ltName := aws.StringValue(firstLt.LaunchTemplateName)
+				lt, ok := launchTemplateCache.Get(ltName)
+				Expect(ok).To(Equal(true))
+				// Remove expiration from cached LT
+				launchTemplateCache.Set(ltName, lt, -1)
+
+				fakeEC2API.NextError.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
+				pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				// should call fleet twice. Once will fail on invalid LT and the next will succeed
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(2))
+				fleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(aws.StringValue(fleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)).To(Equal(ltName))
+				ExpectScheduled(ctx, env.Client, pod)
 			})
 		})
 		Context("Subnets", func() {

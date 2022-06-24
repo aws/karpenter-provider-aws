@@ -81,11 +81,13 @@ func (e *EC2API) Reset() {
 	e.Instances = sync.Map{}
 	e.LaunchTemplates = sync.Map{}
 	e.InsufficientCapacityPools.Reset()
+	e.NextError.Reset()
 }
 
 // nolint: gocyclo
 func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	e.CalledWithCreateFleetInput.Add(input)
@@ -151,6 +153,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 
 func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	e.CalledWithCreateLaunchTemplateInput.Add(input)
@@ -161,6 +164,7 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 
 func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeInstancesOutput.IsNil() {
@@ -180,6 +184,7 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 
 func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeLaunchTemplatesOutput.IsNil() {
@@ -201,6 +206,7 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 
 func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.DescribeSubnetsInput, opts ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSubnetsOutput.IsNil() {
@@ -242,6 +248,7 @@ func (e *EC2API) DescribeSubnetsWithContext(ctx context.Context, input *ec2.Desc
 
 func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *ec2.DescribeSecurityGroupsInput, opts ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSecurityGroupsOutput.IsNil() {
@@ -276,6 +283,7 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(ctx context.Context, input *e
 
 func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
 	}
 	if !e.DescribeAvailabilityZonesOutput.IsNil() {
@@ -290,6 +298,7 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 
 func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return e.NextError.Get()
 	}
 	if !e.DescribeInstanceTypesOutput.IsNil() {
@@ -493,6 +502,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2
 
 func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return e.NextError.Get()
 	}
 	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
@@ -580,6 +590,7 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 
 func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, _ *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, opts ...request.Option) error {
 	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
 		return e.NextError.Get()
 	}
 	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
