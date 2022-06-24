@@ -149,7 +149,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 			for _, lt := range launchTemplateConfigs {
 				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
 			}
-			return nil, err
+			return nil, fmt.Errorf("creating fleet %w", err)
 		}
 		var reqFailure awserr.RequestFailure
 		if errors.As(err, &reqFailure) {
