@@ -40,7 +40,7 @@ spec:
   instanceProfile: MyInstanceProfile          # optional, if already set in controller args
   launchTemplate: MyLaunchTemplate            # optional, see Launch Template documentation
   tags:
-    InternalAccountingTag: 1234               # optional, add tags for your own use
+    InternalAccountingTag: "1234"             # optional, add tags for your own use
 
 ```
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
