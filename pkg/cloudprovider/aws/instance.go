@@ -70,6 +70,11 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	}
 
 	id, err := p.launchInstance(ctx, provider, nodeRequest)
+	if isLaunchTemplateNotFound(err) {
+		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
+		// cache was out-of-sync on the first try
+		id, err = p.launchInstance(ctx, provider, nodeRequest)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +145,11 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-				p.launchTemplateProvider.invalidate(ctx, provider, nodeRequest, map[string]string{v1alpha5.LabelCapacityType: capacityType})
+		if isLaunchTemplateNotFound(err) {
+			for _, lt := range launchTemplateConfigs {
+				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
 			}
+			return nil, err
 		}
 		var reqFailure awserr.RequestFailure
 		if errors.As(err, &reqFailure) {

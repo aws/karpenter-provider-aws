@@ -21,11 +21,15 @@ import (
 	"github.com/aws/karpenter/pkg/utils/functional"
 )
 
+const (
+	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
+)
+
 var (
 	// This is not an exhaustive list, add to it as needed
 	notFoundErrorCodes = []string{
 		"InvalidInstanceID.NotFound",
-		"InvalidLaunchTemplateName.NotFoundException",
+		launchTemplateNotFoundCode,
 	}
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = []string{
@@ -40,6 +44,9 @@ var (
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)
 func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
 		return functional.ContainsString(notFoundErrorCodes, awsError.Code())
@@ -52,4 +59,15 @@ func isNotFound(err error) bool {
 // This could be due to account limits, insufficient ec2 capacity, etc.
 func isUnfulfillableCapacity(err *ec2.CreateFleetError) bool {
 	return functional.ContainsString(unfulfillableCapacityErrorCodes, *err.ErrorCode)
+}
+
+func isLaunchTemplateNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	var awsError awserr.Error
+	if errors.As(err, &awsError) {
+		return awsError.Code() == launchTemplateNotFoundCode
+	}
+	return false
 }

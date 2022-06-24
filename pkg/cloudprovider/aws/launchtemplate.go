@@ -230,19 +230,14 @@ func (p *LaunchTemplateProvider) volumeSize(quantity *resource.Quantity) *int64 
 	return aws.Int64(quantity.ScaledValue(resource.Giga))
 }
 
-func (p *LaunchTemplateProvider) invalidate(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) {
+// Invalidate deletes a launch template from cache if it exists
+func (p *LaunchTemplateProvider) Invalidate(ctx context.Context, ltName string) {
 	p.Lock()
 	defer p.Unlock()
-	resolvedLTs, err := p.getResolvedLTs(ctx, provider, nodeRequest, additionalLabels)
-	if err != nil {
-		logging.FromContext(ctx).Errorf("Resolving launch templates for the \"%s\" AMI family to invalidate in the launch template cache, clearing the whole cache instead, %v", *provider.AMIFamily, err)
-		p.cache.Flush()
-	}
-	for _, lt := range resolvedLTs {
-		ltName := launchTemplateName(lt)
-		logging.FromContext(ctx).Debugf("Invalidating launch template \"%s\" in the cache because it no longer exists, %v", ltName, err)
-		p.cache.Delete(ltName)
-	}
+	defer p.cache.OnEvicted(p.onCacheEvicted)
+	p.cache.OnEvicted(nil)
+	logging.FromContext(ctx).Debugf("Invalidating launch template \"%s\" in the cache because it no longer exists", ltName)
+	p.cache.Delete(ltName)
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
