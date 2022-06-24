@@ -94,24 +94,6 @@ func (p *LaunchTemplateProvider) Get(ctx context.Context, provider *v1alpha1.AWS
 	if provider.LaunchTemplateName != nil {
 		return map[string][]cloudprovider.InstanceType{ptr.StringValue(provider.LaunchTemplateName): nodeRequest.InstanceTypeOptions}, nil
 	}
-	// If launch template is not specified then resolve the correct AMI family launch templates
-	resolvedLaunchTemplates, err := p.getResolvedLTs(ctx, provider, nodeRequest, additionalLabels)
-	if err != nil {
-		return nil, err
-	}
-	launchTemplates := map[string][]cloudprovider.InstanceType{}
-	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
-		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
-		if err != nil {
-			return nil, err
-		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
-	}
-	return launchTemplates, nil
-}
-
-func (p *LaunchTemplateProvider) getResolvedLTs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, additionalLabels map[string]string) ([]*amifamily.LaunchTemplate, error) {
 	instanceProfile, err := p.getInstanceProfile(ctx, provider)
 	if err != nil {
 		return nil, err
@@ -125,7 +107,7 @@ func (p *LaunchTemplateProvider) getResolvedLTs(ctx context.Context, provider *v
 	if err != nil {
 		return nil, err
 	}
-	return p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, provider, nodeRequest, &amifamily.Options{
 		ClusterName:             injection.GetOptions(ctx).ClusterName,
 		ClusterEndpoint:         injection.GetOptions(ctx).ClusterEndpoint,
 		AWSENILimitedPodDensity: injection.GetOptions(ctx).AWSENILimitedPodDensity,
@@ -136,6 +118,19 @@ func (p *LaunchTemplateProvider) getResolvedLTs(ctx context.Context, provider *v
 		CABundle:                p.caBundle,
 		KubernetesVersion:       kubeServerVersion,
 	})
+	if err != nil {
+		return nil, err
+	}
+	launchTemplates := map[string][]cloudprovider.InstanceType{}
+	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
+		// Ensure the launch template exists, or create it
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
+		if err != nil {
+			return nil, err
+		}
+		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
+	}
+	return launchTemplates, nil
 }
 
 func (p *LaunchTemplateProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
