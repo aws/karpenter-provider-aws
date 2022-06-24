@@ -1,0 +1,71 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: create-eks-task
+  namespace: tekton-tests
+spec:
+  description: |
+    Create an EKS cluster and MNG.
+  params:
+  - name: cluster-name
+    description: The name of the EKS cluster you want to spin up.
+  - name: k8s-version
+    description: The K8s version used for the cluster.
+  - name: aws-region
+    description: The region where the cluster will be created.
+  steps:
+  - name: create-cluster
+    image: docker.io/weaveworks/eksctl:v0.86.0
+    script: |
+      eksctl create cluster -f - << EOF
+      ---
+      apiVersion: eksctl.io/v1alpha5
+      kind: ClusterConfig
+      metadata:
+        name: $(params.cluster-name)
+        region: $(params.aws-region)
+        version: "$(params.k8s-version)"
+        tags:
+          karpenter.sh/discovery: $(params.cluster-name)
+      managedNodeGroups:
+        - instanceType: m5.large
+          amiFamily: AmazonLinux2
+          name: $(params.cluster-name)-system-pool
+          desiredCapacity: 1
+          minSize: 1
+          maxSize: 5
+      iam:
+        withOIDC: true
+      EOF
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: create-eks-pipeline
+  namespace: tekton-tests
+spec:
+  tasks:
+  - name: create-eks
+    taskRef:
+      name: create-eks-task
+    params:
+      - name: cluster-name
+        value: 'test-eks-cluster'
+      - name: k8s-version
+        value: '1.21'
+      - name: aws-region
+        value: 'us-west-2'
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: create-eks-pipelinerun
+  namespace: tekton-tests
+spec:
+  pipelineRef:
+    name: create-eks-pipeline
+  podTemplate:
+    nodeSelector:
+      kubernetes.io/arch: amd64
