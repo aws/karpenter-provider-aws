@@ -83,7 +83,7 @@ func (p *InstanceTypeProvider) Get(ctx context.Context, provider *v1alpha1.AWS) 
 		instanceTypeName := aws.StringValue(i.InstanceType)
 		price, err := p.pricingProvider.OnDemandPrice(instanceTypeName)
 		if err != nil {
-			logging.FromContext(ctx).Errorf("Unable to determine price for %s, defaulting to a large price", instanceTypeName)
+			// don't warn as this can occur extremely often
 			price = math.MaxFloat64
 		}
 		instanceType := NewInstanceType(ctx, i, price, provider, p.createOfferings(i, instanceTypeZones[instanceTypeName]))

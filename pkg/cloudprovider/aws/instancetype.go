@@ -108,6 +108,7 @@ func (i *InstanceType) computeRequirements() scheduling.Requirements {
 		// Well Known to AWS
 		v1alpha1.LabelInstanceCPU:             sets.NewSet(fmt.Sprint(aws.Int64Value(i.VCpuInfo.DefaultVCpus))),
 		v1alpha1.LabelInstanceMemory:          sets.NewSet(fmt.Sprint(aws.Int64Value(i.MemoryInfo.SizeInMiB))),
+		v1alpha1.LabelInstancePods:            sets.NewSet(fmt.Sprint(i.pods().Value())),
 		v1alpha1.LabelInstanceFamily:          sets.NewSet(),
 		v1alpha1.LabelInstanceSize:            sets.NewSet(),
 		v1alpha1.LabelInstanceGPUName:         sets.NewSet(),
@@ -145,58 +146,58 @@ func (i *InstanceType) architecture() string {
 
 func (i *InstanceType) computeResources(enablePodENI bool) v1.ResourceList {
 	return v1.ResourceList{
-		v1.ResourceCPU:              i.cpu(),
-		v1.ResourceMemory:           i.memory(),
-		v1.ResourceEphemeralStorage: i.ephemeralStorage(),
-		v1.ResourcePods:             i.pods(),
-		v1alpha1.ResourceAWSPodENI:  i.awsPodENI(enablePodENI),
-		v1alpha1.ResourceNVIDIAGPU:  i.nvidiaGPUs(),
-		v1alpha1.ResourceAMDGPU:     i.amdGPUs(),
-		v1alpha1.ResourceAWSNeuron:  i.awsNeurons(),
+		v1.ResourceCPU:              *i.cpu(),
+		v1.ResourceMemory:           *i.memory(),
+		v1.ResourceEphemeralStorage: *i.ephemeralStorage(),
+		v1.ResourcePods:             *i.pods(),
+		v1alpha1.ResourceAWSPodENI:  *i.awsPodENI(enablePodENI),
+		v1alpha1.ResourceNVIDIAGPU:  *i.nvidiaGPUs(),
+		v1alpha1.ResourceAMDGPU:     *i.amdGPUs(),
+		v1alpha1.ResourceAWSNeuron:  *i.awsNeurons(),
 	}
 }
 
-func (i *InstanceType) cpu() resource.Quantity {
-	return *resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
+func (i *InstanceType) cpu() *resource.Quantity {
+	return resources.Quantity(fmt.Sprint(*i.VCpuInfo.DefaultVCpus))
 }
 
-func (i *InstanceType) memory() resource.Quantity {
-	return *resources.Quantity(
+func (i *InstanceType) memory() *resource.Quantity {
+	return resources.Quantity(
 		fmt.Sprintf("%dMi", *i.MemoryInfo.SizeInMiB),
 	)
 }
 
 // Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
-func (i *InstanceType) ephemeralStorage() resource.Quantity {
+func (i *InstanceType) ephemeralStorage() *resource.Quantity {
 	ephemeralBlockDevice := amifamily.GetAMIFamily(i.provider.AMIFamily, &amifamily.Options{}).EphemeralBlockDevice()
 	if i.provider.BlockDeviceMappings != nil {
 		for _, blockDevice := range i.provider.BlockDeviceMappings {
 			// If a block device mapping exists in the provider for the root volume, set the volume size specified in the provider
 			if *blockDevice.DeviceName == *ephemeralBlockDevice {
-				return *blockDevice.EBS.VolumeSize
+				return blockDevice.EBS.VolumeSize
 			}
 		}
 	}
-	return *amifamily.DefaultEBS.VolumeSize
+	return amifamily.DefaultEBS.VolumeSize
 }
 
-func (i *InstanceType) pods() resource.Quantity {
+func (i *InstanceType) pods() *resource.Quantity {
 	if i.maxPods != nil {
-		return *resources.Quantity(fmt.Sprint(ptr.Int32Value(i.maxPods)))
+		return resources.Quantity(fmt.Sprint(ptr.Int32Value(i.maxPods)))
 	}
-	return *resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
+	return resources.Quantity(fmt.Sprint(i.eniLimitedPods()))
 }
 
-func (i *InstanceType) awsPodENI(enablePodENI bool) resource.Quantity {
+func (i *InstanceType) awsPodENI(enablePodENI bool) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := vpc.Limits[aws.StringValue(i.InstanceType)]
 	if enablePodENI && ok && limits.IsTrunkingCompatible {
-		return *resources.Quantity(fmt.Sprint(limits.BranchInterface))
+		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
-	return *resources.Quantity("0")
+	return resources.Quantity("0")
 }
 
-func (i *InstanceType) nvidiaGPUs() resource.Quantity {
+func (i *InstanceType) nvidiaGPUs() *resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
 		for _, gpu := range i.GpuInfo.Gpus {
@@ -205,10 +206,10 @@ func (i *InstanceType) nvidiaGPUs() resource.Quantity {
 			}
 		}
 	}
-	return *resources.Quantity(fmt.Sprint(count))
+	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) amdGPUs() resource.Quantity {
+func (i *InstanceType) amdGPUs() *resource.Quantity {
 	count := int64(0)
 	if i.GpuInfo != nil {
 		for _, gpu := range i.GpuInfo.Gpus {
@@ -217,17 +218,17 @@ func (i *InstanceType) amdGPUs() resource.Quantity {
 			}
 		}
 	}
-	return *resources.Quantity(fmt.Sprint(count))
+	return resources.Quantity(fmt.Sprint(count))
 }
 
-func (i *InstanceType) awsNeurons() resource.Quantity {
+func (i *InstanceType) awsNeurons() *resource.Quantity {
 	count := int64(0)
 	if i.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range i.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
 		}
 	}
-	return *resources.Quantity(fmt.Sprint(count))
+	return resources.Quantity(fmt.Sprint(count))
 }
 
 func (i *InstanceType) computeOverhead(vmMemOverhead float64) v1.ResourceList {
