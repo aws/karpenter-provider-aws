@@ -15,7 +15,7 @@ In order to specify custom user data, you must include it within a AWSNodeTempla
 **Examples**
 
 Your UserData can be added to `spec.userData` in the `AWSNodeTemplate` resource like this -
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
