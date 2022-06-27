@@ -43,6 +43,10 @@ import (
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
 
+var (
+	odFallbackRequiredInstanceTypes = 10
+)
+
 type InstanceProvider struct {
 	ec2api                 ec2iface.EC2API
 	instanceTypeProvider   *InstanceTypeProvider
@@ -118,7 +122,7 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
-	capacityType := p.getCapacityType(nodeRequest)
+	capacityType := p.getCapacityType(ctx, nodeRequest)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, capacityType)
 	if err != nil {
@@ -300,7 +304,7 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // getCapacityType selects spot if both constraints are flexible and there is an
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
-func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
+func (p *InstanceProvider) getCapacityType(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) string {
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range instanceType.Offerings() {
@@ -309,6 +313,11 @@ func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeReques
 				}
 			}
 		}
+	}
+	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) && len(nodeRequest.InstanceTypeOptions) < odFallbackRequiredInstanceTypes {
+		logging.FromContext(ctx).Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", odFallbackRequiredInstanceTypes, len(nodeRequest.InstanceTypeOptions))
+		return v1alpha1.CapacityTypeSpot
 	}
 	return v1alpha1.CapacityTypeOnDemand
 }

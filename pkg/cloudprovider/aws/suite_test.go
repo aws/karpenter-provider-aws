@@ -27,6 +27,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/samber/lo"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -481,19 +482,25 @@ var _ = Describe("Allocation", func() {
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
-			It("should launch on-demand capacity if flexible to both spot and on demand, but spot if unavailable", func() {
-				fakeEC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: "m5.large", Zone: "test-zone-1a"}})
+			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot if unavailable", func() {
+				odFallbackRequiredInstanceTypes = 5
+				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
+					for _, it := range dito.InstanceTypes {
+						fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
+					}
+					return true
+				})
 				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
 					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
 				}
 				// Spot Unavailable
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectNotScheduled(ctx, env.Client, pod)
+				// include deprioritized instance types
+				pod = ExpectProvisioned(ctx, env.Client, controller, pod)[0]
 				// Fallback to OD
-				pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeOnDemand))
 			})
@@ -560,6 +567,29 @@ var _ = Describe("Allocation", func() {
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				node := ExpectScheduled(ctx, env.Client, pod)
 				Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha1.CapacityTypeSpot))
+			})
+			It("should not launch spot capacity if flexible to both spot and on demand but only flexible to 1 instance types", func() {
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha1.CapacityTypeSpot, v1alpha1.CapacityTypeOnDemand}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}},
+				}
+				var m5large *ec2.InstanceTypeInfo
+				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
+					var ok bool
+					if m5large, ok = lo.Find(dito.InstanceTypes, func(it *ec2.InstanceTypeInfo) bool { return *it.InstanceType == "m5.large" }); !ok {
+						return true
+					}
+					return false
+				})
+				fakeEC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: []*ec2.InstanceTypeInfo{m5large},
+				})
+				unavailableOfferingsCache.SetDefault(UnavailableOfferingsCacheKey("m5.large", "test-zone-1a", v1alpha1.CapacityTypeSpot), struct{}{})
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				unscheduledPod := ExpectNotScheduled(ctx, env.Client, pod)
+				Expect(unscheduledPod.Name).To(Equal(pod.Name))
 			})
 		})
 		Context("LaunchTemplates", func() {

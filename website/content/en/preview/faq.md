@@ -114,7 +114,7 @@ See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWS
 
 ### What if there is no spot capacity? Will Karpenter fallback to on-demand?
 
-Karpenter will fallback to on-demand, if your provisioner specifies both spot and on-demand. 
+Karpenter will fallback to on-demand, if your provisioner specifies both spot and on-demand and you are flexible to at least 10 instance types. 
 
 More specifically, Karpenter maintains a concept of "offerings" for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option). Spot offerings are prioritized, if they're available. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress through fallback. The retry will happen immediately within milliseconds.
 
