@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/scheduling"
 	"github.com/aws/karpenter/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/utils/injection"
 	"github.com/aws/karpenter/pkg/utils/options"
@@ -122,12 +123,24 @@ func (p *InstanceProvider) Terminate(ctx context.Context, node *v1.Node) error {
 }
 
 func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest) (*string, error) {
-	capacityType := p.getCapacityType(ctx, nodeRequest)
+	capacityType := p.getCapacityType(nodeRequest)
 	// Get Launch Template Configs, which may differ due to GPU or Architecture requirements
 	launchTemplateConfigs, err := p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, capacityType)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
+
+	if err = p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
+		logging.FromContext(ctx).Errorf("preparing fleet request, %v", err)
+		// constrain capacity type requirements to only spot since required instance type diversity is not met
+		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
+		// regenerate LT configs w/ the spot capacity type if not elligible for on-demand
+		launchTemplateConfigs, err = p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, v1alpha1.CapacityTypeSpot)
+		if err != nil {
+			return nil, fmt.Errorf("getting launch template configs, %w", err)
+		}
+	}
+
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
@@ -167,6 +180,28 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
 	return createFleetOutput.Instances[0].InstanceIds[0], nil
+}
+
+func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeRequest, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
+	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
+	if p.getCapacityType(nodeRequest) != v1alpha1.CapacityTypeOnDemand || !nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
+		return nil
+	}
+
+	// loop through the LT configs for currently considered instance types to get the flexibility count
+	instanceTypes := map[string]struct{}{}
+	for _, ltc := range launchTemplateConfigs {
+		for _, override := range ltc.Overrides {
+			if override.InstanceType != nil {
+				instanceTypes[*override.InstanceType] = struct{}{}
+			}
+		}
+	}
+	if len(instanceTypes) < odFallbackRequiredInstanceTypes {
+		return fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", odFallbackRequiredInstanceTypes, len(nodeRequest.InstanceTypeOptions))
+	}
+	return nil
 }
 
 func (p *InstanceProvider) getLaunchTemplateConfigs(ctx context.Context, provider *v1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, capacityType string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
@@ -304,7 +339,7 @@ func (p *InstanceProvider) updateUnavailableOfferingsCache(ctx context.Context, 
 // getCapacityType selects spot if both constraints are flexible and there is an
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
-func (p *InstanceProvider) getCapacityType(ctx context.Context, nodeRequest *cloudprovider.NodeRequest) string {
+func (p *InstanceProvider) getCapacityType(nodeRequest *cloudprovider.NodeRequest) string {
 	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			for _, offering := range instanceType.Offerings() {
@@ -313,11 +348,6 @@ func (p *InstanceProvider) getCapacityType(ctx context.Context, nodeRequest *clo
 				}
 			}
 		}
-	}
-	if nodeRequest.Template.Requirements.Get(v1alpha5.LabelCapacityType).Has(v1alpha1.CapacityTypeSpot) && len(nodeRequest.InstanceTypeOptions) < odFallbackRequiredInstanceTypes {
-		logging.FromContext(ctx).Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", odFallbackRequiredInstanceTypes, len(nodeRequest.InstanceTypeOptions))
-		return v1alpha1.CapacityTypeSpot
 	}
 	return v1alpha1.CapacityTypeOnDemand
 }
