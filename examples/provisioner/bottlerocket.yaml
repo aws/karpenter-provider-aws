@@ -7,12 +7,12 @@ metadata:
   name: default
 spec:
   providerRef:
-    name: myProvider
+    name: my-provider
 ---
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: myProvider
+  name: my-provider
 spec:
   amiFamily: Bottlerocket
   subnetSelector:

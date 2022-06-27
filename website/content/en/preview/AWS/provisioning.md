@@ -49,7 +49,7 @@ See below for other AWS provider-specific parameters.
 ## spec.providerRef
 
 The ProviderRef is a reference to the AWSNodeTemplate resource that contains all the parameters needed by the AWS Cloud Provider.
-You can review these fields [in the code.](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go)
+You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.

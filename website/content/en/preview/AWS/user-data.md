@@ -34,6 +34,8 @@ spec:
     "memory.available" = "20%"
 ```
 
+For more examples on configuring UserData, see the examples for [AL2](https://github.com/aws/karpenter/blob/main/examples/provisioner/al2-custom-userdata.yaml) and [Bottlerocket](https://github.com/aws/karpenter/blob/main/examples/provisioner/br-custom-userdata.yaml).
+
 ## UserData Content and Merge Semantics
 
 Karpenter will evaluate and merge the UserData that you specify in the AWSNodeTemplate resources depending upon the AMIFamily that you have chosen.

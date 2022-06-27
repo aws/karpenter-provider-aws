@@ -11,12 +11,12 @@ spec:
       operator: In
       values: ["spot"]
   providerRef:
-    name: myProvider
+    name: my-provider
 ---
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: myProvider
+  name: my-provider
 spec:
   subnetSelector:
     karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
