@@ -16,7 +16,6 @@ package amifamily
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -30,7 +29,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -99,22 +97,9 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		return nil, err
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
-	amiIDs := map[string][]cloudprovider.InstanceType{}
-	amiRequirements, err := r.amiProvider.GetAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	amiIDs, err := r.amiProvider.Get(ctx, provider, nodeRequest, options, amiFamily)
 	if err != nil {
 		return nil, err
-	}
-	for _, instanceType := range nodeRequest.InstanceTypeOptions {
-		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType), amiRequirements)
-		if err != nil {
-			return nil, err
-		}
-		if amiID != "" {
-			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
-		}
-	}
-	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", Keys(amiRequirements))
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {
@@ -155,13 +140,4 @@ func (Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
-}
-
-// Keys returns a slice of all the keys in a map
-func Keys(m map[string]scheduling.Requirements) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
 }
