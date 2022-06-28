@@ -5,20 +5,21 @@ LAUNCH_TEMPLATE=$(aws eks describe-nodegroup --cluster-name ${CLUSTER_NAME} \
     --nodegroup-name ${NODEGROUP} --query 'nodegroup.launchTemplate.{id:id,version:version}' \
     --output text | tr -s "\t" ",")
 
-if [ `aws ec2 describe-launch-template-versions \
+When your EKS setup is configured to use only Cluster security group, then please use -
+
+```sh
+SECURITY_GROUPS=$(aws eks describe-cluster \
+    --name ${CLUSTER_NAME} --query "cluster.resourcesVpcConfig.clusterSecurityGroupId")
+```
+
+When your setup uses the security groups in the Launch template of a managed node group, then :
+
+```sh
+SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
     --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
-    --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds' \
-    --output text` == 'None' ]; then
-    SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
-        --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
-        --query 'LaunchTemplateVersions[0].LaunchTemplateData.NetworkInterfaces[0].Groups' \
-        --output text)
-    else
-    SECURITY_GROUPS=$(aws ec2 describe-launch-template-versions \
-        --launch-template-id ${LAUNCH_TEMPLATE%,*} --versions ${LAUNCH_TEMPLATE#*,} \
-        --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds' \
-        --output text)
-fi
+    --query 'LaunchTemplateVersions[0].LaunchTemplateData.[NetworkInterfaces[0].Groups||SecurityGroupIds]' \
+    --output text)
+```
 
 aws ec2 create-tags \
     --tags "Key=karpenter.sh/discovery,Value=${CLUSTER_NAME}" \
