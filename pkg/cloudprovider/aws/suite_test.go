@@ -1420,7 +1420,7 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 		Context("EC2 Context", func() {
-			FIt("should set context on the CreateFleet request if specified on the Provisioner", func() {
+			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
 				provisioner.SetDefaults(ctx)
 				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
@@ -1430,9 +1430,9 @@ var _ = Describe("Allocation", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
 				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
-				Expect(createFleetInput.Context).To(Equal("context-1234"))
+				Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 			})
-			FIt("should default to no EC2 Context", func() {
+			It("should default to no EC2 Context", func() {
 				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
