@@ -40,6 +40,18 @@ var (
 	}
 )
 
+type SpotFallbackError struct {
+	error
+}
+
+func (s *SpotFallbackError) Is(target error) bool {
+	switch target.(type) {
+	case SpotFallbackError:
+		return true
+	}
+	return errors.Is(s, target)
+}
+
 // isNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
 // serious or unexpected error)

@@ -45,7 +45,7 @@ import (
 )
 
 var (
-	odFallbackRequiredInstanceTypes = 10
+	safeSpotFallbackThreshold = 10 // falling back to on-demand without flexibility risks insufficient capacity errors
 )
 
 type InstanceProvider struct {
@@ -79,6 +79,13 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
+	} else if errors.Is(err, SpotFallbackError{}) {
+		// constrain capacity type requirements to only spot since required instance type diversity is not met
+		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
+		// try to launch again with spot
+		var retryErr error
+		id, retryErr = p.launchInstance(ctx, provider, nodeRequest)
+		err = multierr.Append(err, retryErr)
 	}
 	if err != nil {
 		return nil, err
@@ -129,18 +136,9 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	if err != nil {
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
-
 	if err = p.checkODFallback(nodeRequest, launchTemplateConfigs); err != nil {
-		logging.FromContext(ctx).Errorf("preparing fleet request, %v", err)
-		// constrain capacity type requirements to only spot since required instance type diversity is not met
-		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
-		// regenerate LT configs w/ the spot capacity type if not elligible for on-demand
-		launchTemplateConfigs, err = p.getLaunchTemplateConfigs(ctx, provider, nodeRequest, v1alpha1.CapacityTypeSpot)
-		if err != nil {
-			return nil, fmt.Errorf("getting launch template configs, %w", err)
-		}
+		return nil, err
 	}
-
 	// Create fleet
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
@@ -197,9 +195,9 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 			}
 		}
 	}
-	if len(instanceTypes) < odFallbackRequiredInstanceTypes {
-		return fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", odFallbackRequiredInstanceTypes, len(nodeRequest.InstanceTypeOptions))
+	if len(instanceTypes) < safeSpotFallbackThreshold {
+		return SpotFallbackError{error: fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions))}
 	}
 	return nil
 }

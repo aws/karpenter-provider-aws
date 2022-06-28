@@ -483,7 +483,7 @@ var _ = Describe("Allocation", func() {
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
 			})
 			It("should launch on-demand capacity if flexible to both spot and on-demand, but spot if unavailable", func() {
-				odFallbackRequiredInstanceTypes = 5
+				safeSpotFallbackThreshold = 5
 				fakeEC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 					for _, it := range dito.InstanceTypes {
 						fakeEC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: v1alpha1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
