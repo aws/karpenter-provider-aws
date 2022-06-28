@@ -62,4 +62,4 @@ Resources:
           - Effect: Allow
             Action:
               - iam:PassRole
-            Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
