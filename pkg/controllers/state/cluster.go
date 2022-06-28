@@ -372,7 +372,7 @@ func (c *Cluster) updateNodeUsageFromPod(ctx context.Context, pod *v1.Pod) error
 }
 
 func (c *Cluster) populateInstanceType(ctx context.Context, node *v1.Node, n *Node) error {
-	if n.Provisioner == nil || n.Provisioner.Spec.Provider == nil {
+	if n.Provisioner == nil {
 		return nil
 	}
 	instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, n.Provisioner)
