@@ -47,22 +47,25 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	if err != nil {
 		return nil, err
 	}
-	for _, instanceType := range nodeRequest.InstanceTypeOptions {
-		var amiID string
-		if len(amiRequirements) > 0 {
+	var amiID string
+	if len(amiRequirements) > 0 {
+		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			amiID = getAMIOverride(instanceType, amiRequirements)
-		} else {
+			if amiID != "" {
+				amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+			}
+		}
+		if len(amiIDs) == 0 {
+			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", Keys(amiRequirements))
+		}
+	} else {
+		for _, instanceType := range nodeRequest.InstanceTypeOptions {
 			amiID, err = p.GetDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
-		}
-		if amiID != "" {
 			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
 		}
-	}
-	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", Keys(amiRequirements))
 	}
 	return amiIDs, nil
 }
