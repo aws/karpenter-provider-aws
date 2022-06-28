@@ -40,10 +40,6 @@ var (
 		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 		return nil
 	})
-	ProvisionerNameLabelKey         = Group + "/provisioner-name"
-	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
-	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
-	TerminationFinalizer            = Group + "/termination"
 )
 
 const (

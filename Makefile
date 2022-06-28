@@ -24,20 +24,23 @@ dev: verify test ## Run all steps in the developer loop
 ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
 
 test: ## Run tests
-	ginkgo -r
+	go test -v ./pkg/...
 
 strongertests:
 	# Run randomized, racing, code coveraged, tests
 	ginkgo -r \
 			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
-			--randomizeAllSpecs --randomizeSuites -race
+			--randomizeAllSpecs --randomizeSuites -race ./pkg/...
+
+e2etests: ## Run the e2e suite against your local cluster
+	go test -v ./test/... -environment-name=${CLUSTER_NAME}
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake:
 	for i in $(shell seq 1 5); do make strongertests || exit 1; done
-	ginkgo -r -race -tags random_test_delay
+	ginkgo -r pkg -race -tags random_test_delay
 
 battletest: strongertests
 	go tool cover -html coverage.out -o coverage.html
