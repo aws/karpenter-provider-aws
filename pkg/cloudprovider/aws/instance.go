@@ -79,7 +79,7 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
 		// cache was out-of-sync on the first try
 		id, err = p.launchInstance(ctx, provider, nodeRequest)
-	} else if errors.Is(err, SpotFallbackError{}) {
+	} else if isSpotFallback(err) {
 		// constrain capacity type requirements to only spot since required instance type diversity is not met
 		nodeRequest.Template.Requirements.Add(scheduling.NewLabelRequirements(map[string]string{v1alpha5.LabelCapacityType: v1alpha1.CapacityTypeSpot}))
 		// try to launch again with spot
@@ -196,8 +196,8 @@ func (p *InstanceProvider) checkODFallback(nodeRequest *cloudprovider.NodeReques
 		}
 	}
 	if len(instanceTypes) < safeSpotFallbackThreshold {
-		return SpotFallbackError{error: fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
-			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions))}
+		return SpotFallbackError(fmt.Errorf("at least %d instance types are required to perform spot to on-demand fallback, "+
+			"the current provisioning request only has %d instance type options", safeSpotFallbackThreshold, len(nodeRequest.InstanceTypeOptions)))
 	}
 	return nil
 }

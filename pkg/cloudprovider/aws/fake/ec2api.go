@@ -58,7 +58,6 @@ type EC2Behavior struct {
 }
 
 type EC2API struct {
-	sync.Mutex
 	ec2iface.EC2API
 	EC2Behavior
 }
@@ -69,8 +68,6 @@ var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"}
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (e *EC2API) Reset() {
-	e.Lock()
-	defer e.Unlock()
 	e.DescribeInstancesOutput.Reset()
 	e.DescribeLaunchTemplatesOutput.Reset()
 	e.DescribeSubnetsOutput.Reset()
