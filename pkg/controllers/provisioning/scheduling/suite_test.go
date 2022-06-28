@@ -3803,6 +3803,28 @@ var _ = Describe("In-Flight Nodes", func() {
 		})
 		Expect(nodesWithCPUFree).To(BeNumerically("<=", 1))
 	})
+	It("should not launch a second node if there is an in-flight node that can support the pod (#2011)", func() {
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+			},
+		}}
+
+		// there was a bug in cluster state where we failed to identify the instance type resources when using a
+		// ProviderRef so modify our provisioner to use the ProviderRef and ensure that the second pod schedules
+		// to the inflight node
+		provisioner.Spec.Provider = nil
+		provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{}
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+		secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
+		node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
+		Expect(node1.Name).To(Equal(node2.Name))
+	})
 })
 
 var _ = Describe("No Pre-Binding", func() {
