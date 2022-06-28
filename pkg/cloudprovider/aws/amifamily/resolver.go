@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -83,6 +84,7 @@ func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client
 		amiProvider: &AMIProvider{
 			ssm:   ssm,
 			cache: c,
+			kubeClient: client,
 		},
 		UserDataProvider: NewUserDataProvider(client),
 	}
@@ -97,12 +99,21 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 	}
 	amiFamily := GetAMIFamily(provider.AMIFamily, options)
 	amiIDs := map[string][]cloudprovider.InstanceType{}
+	amiRequirements, err := r.amiProvider.GetAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	if err != nil {
+		return nil, err
+	}
 	for _, instanceType := range nodeRequest.InstanceTypeOptions {
-		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+		amiID, err := r.amiProvider.Get(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType), amiRequirements)
 		if err != nil {
 			return nil, err
 		}
-		amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+		if amiID != "" {
+			amiIDs[amiID] = append(amiIDs[amiID], instanceType)
+		}
+	}
+	if len(amiIDs) == 0 {
+		return nil, fmt.Errorf("no instance types satisfy ami requirements %v,", amiRequirements)
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {

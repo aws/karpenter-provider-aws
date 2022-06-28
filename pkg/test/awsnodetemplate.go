@@ -28,6 +28,7 @@ type AWSNodeTemplateOptions struct {
 	metav1.ObjectMeta
 	UserData *string
 	AWS      *aws.AWS
+	AMIs     []v1alpha1.AMI
 }
 
 func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTemplate {
@@ -42,6 +43,7 @@ func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTempl
 		Spec: v1alpha1.AWSNodeTemplateSpec{
 			UserData: options.UserData,
 			AWS:      *options.AWS,
+			AMIs:     options.AMIs,
 		},
 	}
 }

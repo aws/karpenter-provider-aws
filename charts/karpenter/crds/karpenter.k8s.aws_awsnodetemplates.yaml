@@ -42,6 +42,22 @@ spec:
               amiFamily:
                 description: AMIFamily is the AMI family that instances use.
                 type: string
+              amiIds:
+                description: AMIs is a list of custom AMIs that Karpenter will choose
+                  from.
+                items:
+                  properties:
+                    imageId:
+                      description: Id is an identifier for an AMI.
+                      type: string
+                    properties:
+                      additionalProperties:
+                        type: string
+                      description: Properties defines all the properties of an AMI
+                        like architecture, GPU compatibility and so on.
+                      type: object
+                  type: object
+                type: array
               apiVersion:
                 description: 'APIVersion defines the versioned schema of this representation
                   of an object. Servers should convert recognized schemas to the latest
