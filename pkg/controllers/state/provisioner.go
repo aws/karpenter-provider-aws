@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provisioner
+package state
 
 import (
 	"context"
@@ -20,85 +20,32 @@ import (
 	"strings"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	"knative.dev/pkg/logging"
-
+	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 )
 
-const (
-	resourceType    = "resource_type"
-	provisionerName = "provisioner"
-)
-
-var (
-	limitGaugeVec = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "provisioner",
-			Name:      "limit",
-			Help:      "The Provisioner Limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by provisioner name and resource type.",
-		},
-		labelNames(),
-	)
-	usageGaugeVec = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "provisioner",
-			Name:      "usage",
-			Help:      "The Provisioner Usage is the amount of resources that have been provisioned by a particular provisioner. Labeled by provisioner name and resource type.",
-		},
-		labelNames(),
-	)
-	usagePctGaugeVec = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "karpenter",
-			Subsystem: "provisioner",
-			Name:      "usage_pct",
-			Help:      "The Provisioner Usage Percentage is the percentage of each resource used based on the resources provisioned and the limits that have been configured in the range [0,100].  Labeled by provisioner name and resource type.",
-		},
-		labelNames(),
-	)
-)
-
-func init() {
-	crmetrics.Registry.MustRegister(limitGaugeVec)
-	crmetrics.Registry.MustRegister(usageGaugeVec)
-	crmetrics.Registry.MustRegister(usagePctGaugeVec)
+type ProvisionerController struct {
+	kubeClient client.Client
+	labelMap   sync.Map
 }
 
-func labelNames() []string {
-	return []string{
-		resourceType,
-		provisionerName,
-	}
-}
-
-type Controller struct {
-	kubeClient      client.Client
-	labelCollection sync.Map
-}
-
-// NewController constructs a controller instance
-func NewController(kubeClient client.Client) *Controller {
-	return &Controller{
+func NewProvisionerController(kubeClient client.Client) *ProvisionerController {
+	return &ProvisionerController{
 		kubeClient: kubeClient,
 	}
 }
 
 // Reconcile executes a termination control loop for the resource
-func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (c *ProvisionerController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("provisionermetrics").With("provisioner", req.Name))
 
 	// Remove the previous gauge after provisioner labels are updated
@@ -119,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
+func (c *ProvisionerController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.
 		NewControllerManagedBy(m).
 		Named("provisionermetrics").
@@ -127,25 +74,25 @@ func (c *Controller) Register(ctx context.Context, m manager.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) cleanup(provisionerName types.NamespacedName) {
-	if labelSet, ok := c.labelCollection.Load(provisionerName); ok {
+func (c *ProvisionerController) cleanup(provisionerName types.NamespacedName) {
+	if labelSet, ok := c.labelMap.Load(provisionerName); ok {
 		for _, labels := range labelSet.([]prometheus.Labels) {
 			limitGaugeVec.Delete(labels)
 			usageGaugeVec.Delete(labels)
 			usagePctGaugeVec.Delete(labels)
 		}
 	}
-	c.labelCollection.Store(provisionerName, []prometheus.Labels{})
+	c.labelMap.Store(provisionerName, []prometheus.Labels{})
 }
 
-func (c *Controller) labels(provisioner *v1alpha5.Provisioner, resourceTypeName string) prometheus.Labels {
+func (c *ProvisionerController) labels(provisioner *v1alpha5.Provisioner, resourceTypeName string) prometheus.Labels {
 	metricLabels := prometheus.Labels{}
 	metricLabels[resourceType] = resourceTypeName
 	metricLabels[provisionerName] = provisioner.Name
 	return metricLabels
 }
 
-func (c *Controller) record(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
+func (c *ProvisionerController) record(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
 	if provisioner.Spec.Limits == nil {
 		return nil
 	}
@@ -177,15 +124,15 @@ func (c *Controller) record(ctx context.Context, provisioner *v1alpha5.Provision
 }
 
 // set sets the value for the node gauge
-func (c *Controller) set(resourceList v1.ResourceList, provisioner *v1alpha5.Provisioner, gaugeVec *prometheus.GaugeVec) error {
+func (c *ProvisionerController) set(resourceList v1.ResourceList, provisioner *v1alpha5.Provisioner, gaugeVec *prometheus.GaugeVec) error {
 	for resourceName, quantity := range resourceList {
 		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
 		labels := c.labels(provisioner, resourceTypeName)
 
 		provisionerName := types.NamespacedName{Name: provisioner.Name}
-		existingLabels, _ := c.labelCollection.LoadOrStore(provisionerName, []prometheus.Labels{})
+		existingLabels, _ := c.labelMap.LoadOrStore(provisionerName, []prometheus.Labels{})
 		existingLabels = append(existingLabels.([]prometheus.Labels), labels)
-		c.labelCollection.Store(provisionerName, existingLabels)
+		c.labelMap.Store(provisionerName, existingLabels)
 
 		gauge, err := gaugeVec.GetMetricWith(labels)
 		if err != nil {
