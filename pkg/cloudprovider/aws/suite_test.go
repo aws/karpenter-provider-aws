@@ -1421,10 +1421,11 @@ var _ = Describe("Allocation", func() {
 		})
 		Context("EC2 Context", func() {
 			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
-				provisioner.SetDefaults(ctx)
 				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
 				Expect(err).ToNot(HaveOccurred())
 				provider.Context = aws.String("context-1234")
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner.SetDefaults(ctx)
 				ExpectApplied(ctx, env.Client, provisioner)
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
