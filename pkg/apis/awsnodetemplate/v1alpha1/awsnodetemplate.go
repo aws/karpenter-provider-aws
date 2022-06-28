@@ -31,12 +31,12 @@ type AWSNodeTemplateSpec struct {
 	v1alpha1.AWS `json:",inline"`
 	// AMIs is a list of custom AMIs that Karpenter will choose from.
 	// +optional
-	AMIs []AMI `json:"amiIds,omitempty"`
+	AMIs []AMI `json:"amis,omitempty"`
 }
 
 type AMI struct {
 	// Id is an identifier for an AMI.
-	Id string `json:"imageId,omitempty"`
+	ID string `json:"id,omitempty"`
 	// Properties defines all the properties of an AMI like architecture, GPU compatibility and so on.
 	Properties map[string]string `json:"properties,omitempty"`
 }

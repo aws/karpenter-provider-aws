@@ -1119,7 +1119,7 @@ var _ = Describe("Allocation", func() {
 						Name: providerRefName,
 					}
 					var amis = []awsv1alpha1.AMI{{
-						Id: "ami-123",
+						ID: "ami-123",
 						Properties: map[string]string{
 							v1.LabelInstanceTypeStable: "t3.large",
 						},
@@ -1148,13 +1148,13 @@ var _ = Describe("Allocation", func() {
 					}
 					var amis = []awsv1alpha1.AMI{
 						{
-							Id: "ami-123",
+							ID: "ami-123",
 							Properties: map[string]string{
 								v1.LabelInstanceTypeStable: "t3.large",
 							},
 						},
 						{
-							Id: "ami-456",
+							ID: "ami-456",
 							Properties: map[string]string{
 								v1.LabelInstanceTypeStable: "m5.large",
 							},
@@ -1187,7 +1187,7 @@ var _ = Describe("Allocation", func() {
 						Name: providerRefName,
 					}
 					var amis = []awsv1alpha1.AMI{{
-						Id: "ami-123",
+						ID: "ami-123",
 						Properties: map[string]string{
 							v1.LabelInstanceTypeStable: "xyz.doesnotexist",
 						},

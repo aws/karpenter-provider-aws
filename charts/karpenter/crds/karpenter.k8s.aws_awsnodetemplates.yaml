@@ -42,12 +42,12 @@ spec:
               amiFamily:
                 description: AMIFamily is the AMI family that instances use.
                 type: string
-              amiIds:
+              amis:
                 description: AMIs is a list of custom AMIs that Karpenter will choose
                   from.
                 items:
                   properties:
-                    imageId:
+                    id:
                       description: Id is an identifier for an AMI.
                       type: string
                     properties:

@@ -33,8 +33,8 @@ import (
 )
 
 type AMIProvider struct {
-	cache *cache.Cache
-	ssm   ssmiface.SSMAPI
+	cache      *cache.Cache
+	ssm        ssmiface.SSMAPI
 	kubeClient client.Client
 }
 
@@ -58,22 +58,22 @@ func (p *AMIProvider) Get(ctx context.Context, instanceType cloudprovider.Instan
 
 func (p *AMIProvider) GetAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[string]scheduling.Requirements, error) {
 	amiRequirements := make(map[string]scheduling.Requirements)
-	if (providerRef != nil ) {
+	if providerRef != nil {
 		var ant v1alpha1.AWSNodeTemplate
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
 			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
 		}
 		for _, ami := range ant.Spec.AMIs {
-			amiRequirements[ami.Id] = scheduling.NewAMIRequirements(ami)
+			amiRequirements[ami.ID] = scheduling.NewAMIRequirements(ami)
 		}
 	}
 	return amiRequirements, nil
 }
 
 func amiOverride(instanceType cloudprovider.InstanceType, amiRequirements map[string]scheduling.Requirements) string {
-	for amiId, requirements := range amiRequirements {
+	for amiID, requirements := range amiRequirements {
 		if err := instanceType.Requirements().Compatible(requirements); err == nil {
-			return amiId
+			return amiID
 		}
 	}
 	return ""

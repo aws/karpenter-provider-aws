@@ -30,6 +30,7 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/cloudprovider/aws/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/scheduling"
 )
 
 var DefaultEBS = v1alpha1.BlockDevice{
@@ -82,8 +83,8 @@ type AMIFamily interface {
 func New(ctx context.Context, ssm ssmiface.SSMAPI, c *cache.Cache, client client.Client) *Resolver {
 	return &Resolver{
 		amiProvider: &AMIProvider{
-			ssm:   ssm,
-			cache: c,
+			ssm:        ssm,
+			cache:      c,
 			kubeClient: client,
 		},
 		UserDataProvider: NewUserDataProvider(client),
@@ -113,7 +114,7 @@ func (r Resolver) Resolve(ctx context.Context, provider *v1alpha1.AWS, nodeReque
 		}
 	}
 	if len(amiIDs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy ami requirements %v,", amiRequirements)
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", Keys(amiRequirements))
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range amiIDs {
@@ -154,4 +155,13 @@ func (Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 		HTTPPutResponseHopLimit: aws.Int64(2),
 		HTTPTokens:              aws.String(ec2.LaunchTemplateHttpTokensStateRequired),
 	}
+}
+
+// Keys returns a slice of all the keys in a map
+func Keys(m map[string]scheduling.Requirements) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }
