@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefer-arm
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: prefer-arm
+  template:
+    metadata:
+      labels:
+        app: prefer-arm
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - arm64
+      containers:
+      - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+        name: prefer-arm
+        resources:
+          requests:
+            cpu: "1"
+            memory: 256M
