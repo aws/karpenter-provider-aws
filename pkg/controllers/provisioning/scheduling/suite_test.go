@@ -3817,13 +3817,19 @@ var _ = Describe("In-Flight Nodes", func() {
 		provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{}
 
 		ExpectApplied(ctx, env.Client, provisioner)
-		initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
-		node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
-		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+		pod := test.UnschedulablePod(opts)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pod)
+		var nodes v1.NodeList
+		Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+		Expect(nodes.Items).To(HaveLen(1))
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodes.Items[0]))
 
-		secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod(opts))
-		node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
-		Expect(node1.Name).To(Equal(node2.Name))
+		pod.Status.Conditions = []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}
+		ExpectApplied(ctx, env.Client, pod)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pod)
+		Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+		// shouldn't create a second node
+		Expect(nodes.Items).To(HaveLen(1))
 	})
 })
 
