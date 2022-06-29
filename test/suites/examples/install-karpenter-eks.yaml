@@ -2,11 +2,13 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: install-karpenter-eks-task
+  name: install-karpenter-eks
   namespace: karpenter-tests
 spec:
   description: |
     Install Karpenter and necessary resources onto an EKS cluster.
+  workspaces:
+  - name: config
   params:
   - name: test-cluster-name
     description: The name of the EKS cluster to install Karpenter
@@ -15,88 +17,95 @@ spec:
   - name: account-id
     description: Account ID where to deploy resources
   steps:
-  - name: karpenter-pre-install
-    image: public.ecr.aws/d2q6r4b4/minimal:latest
+  - name: get-region
+    image: alpine/curl:3.14
     script: |
-        TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-        export AWS_REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/)
+      TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+      echo $(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/placement/region) > $(workspaces.config.path)/region
 
-        aws eks update-kubeconfig --name $(params.test-cluster-name) --region ${AWS_REGION}
+  - name: curl-cloudformation
+    image: alpine/curl:3.14
+    script: |
+      curl -fsSL "https://karpenter.sh/"$(params.karpenter-version)"/getting-started/getting-started-with-eksctl/cloudformation.yaml" > $(workspaces.config.path)/cfn-template
 
-        TEMPOUT=$(mktemp)
-        curl -fsSL "https://karpenter.sh/"$(params.karpenter-version)"/getting-started/getting-started-with-eksctl/cloudformation.yaml"  > $TEMPOUT \
-        && aws cloudformation deploy \
-          --stack-name "Karpenter-$(params.test-cluster-name)" \
-          --template-file "${TEMPOUT}" \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides "ClusterName=$(params.test-cluster-name)"
+  - name: create-cfn-resources
+    image: amazon/aws-cli:2.7.11
+    script: |
+      aws cloudformation deploy \
+        --stack-name "Karpenter-$(params.test-cluster-name)" \
+        --template-file $(workspaces.config.path)/cfn-template \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --parameter-overrides "ClusterName=$(params.test-cluster-name)"
 
-        ROLE="    - rolearn: arn:aws:iam::$(params.account-id):role/KarpenterNodeRole-$(params.test-cluster-name)\n      username: system:node:{{EC2PrivateDNSName}}\n      groups:\n      - system:nodes\n      - system:bootstrappers"
-        kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
-        kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+  - name: create-iam-identity-mapping
+    image: docker.io/weaveworks/eksctl:v0.94.0
+    script: |
+      eksctl create iamidentitymapping \
+      --username system:node:{{EC2PrivateDNSName}} \
+      --cluster "$(params.test-cluster-name)" \
+      --arn "arn:aws:iam::$(params.account-id):role/KarpenterNodeRole-$(params.test-cluster-name)" \
+      --group system:bootstrappers \
+      --group system:nodes
 
   - name: irsa
-    image: docker.io/weaveworks/eksctl:v0.86.0
+    image: docker.io/weaveworks/eksctl:v0.94.0
     script: |
-        eksctl create iamserviceaccount \
-          --cluster "$(params.test-cluster-name)" --name karpenter --namespace karpenter \
-          --role-name "$(params.test-cluster-name)-karpenter" \
-          --attach-policy-arn "arn:aws:iam::$(params.account-id):policy/KarpenterControllerPolicy-$(params.test-cluster-name)" \
-          --role-only \
-          --approve
+      eksctl create iamserviceaccount \
+        --cluster "$(params.test-cluster-name)" --name karpenter --namespace karpenter \
+        --role-name "$(params.test-cluster-name)-karpenter" \
+        --attach-policy-arn "arn:aws:iam::$(params.account-id):policy/KarpenterControllerPolicy-$(params.test-cluster-name)" \
+        --role-only \
+        --approve
 
   - name: spot-slr
-    image: amazon/aws-cli
+    image: amazon/aws-cli:2.7.11
     script: |
-        aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
+      aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
+
+  - name: get-cluster-details
+    image: amazon/aws-cli:2.7.11
+    script: |
+      echo "$(aws eks describe-cluster --name $(params.test-cluster-name) --query "cluster.endpoint" --output text)" > $(workspaces.config.path)/endpoint
+      aws eks update-kubeconfig --name $(params.test-cluster-name) --region $(cat $(workspaces.config.path)/region)
+      cat /root/.kube/config > $(workspaces.config.path)/config
+      chmod 600 $(workspaces.config.path)/config
 
   - name: helm-install-karpenter
-    image: alpine/helm:latest
+    image: alpine/helm:3.9.0
     script: |
-        aws eks update-kubeconfig --name $(params.test-cluster-name) --region ${AWS_REGION}
+      export KARPENTER_IAM_ROLE_ARN="arn:aws:iam::$(params.account-id):role/$(params.test-cluster-name)-karpenter"
+      helm repo add karpenter https://charts.karpenter.sh/
+      helm repo update
 
-        export KARPENTER_IAM_ROLE_ARN="arn:aws:iam::$(params.account-id):role/$(params.test-cluster-name)-karpenter"
-        export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $(params.test-cluster-name) --query "cluster.endpoint" --output text)"
-
-        helm repo add karpenter https://charts.karpenter.sh/
-        helm repo update
-
-        helm upgrade --install --namespace karpenter --create-namespace \
-          karpenter karpenter/karpenter \
-          --version $(params.karpenter-version) \
-          --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
-          --set clusterName=$(params.test-cluster-name) \
-          --set clusterEndpoint=${CLUSTER_ENDPOINT} \
-          --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.test-cluster-name) \
-          --wait
+      helm upgrade --install --kubeconfig $(workspaces.config.path)/config --namespace karpenter --create-namespace \
+        karpenter karpenter/karpenter \
+        --version $(params.karpenter-version) \
+        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+        --set clusterName=$(params.test-cluster-name) \
+        --set clusterEndpoint=$(cat $(workspaces.config.path)/endpoint)) \
+        --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.test-cluster-name) \
+        --wait
 
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: install-karpenter-eks-pipeline
+  name: install-karpenter-eks
   namespace: karpenter-tests
 spec:
   tasks:
   - name: install-karpenter
     taskRef:
-      name: install-karpenter-eks-task
+      name: install-karpenter-eks
     params:
     - name: test-cluster-name
-      value: "testing-ci-cluster"
+      value: "test-eks-cluster"
     - name: karpenter-version
-      value: "v0.13.1"
+      value: "v0.13.2"
     - name: account-id
-      value: "" # Add your account-id
----
-apiVersion: tekton.dev/v1beta1
-kind: PipelineRun
-metadata:
-  name: install-karpenter-eks-pipelinerun
-  namespace: karpenter-tests
-spec:
-  pipelineRef:
-    name: install-karpenter-eks-pipeline
-  podTemplate:
-    nodeSelector:
-      kubernetes.io/arch: amd64
+      value: "757543820853" # Add your account-id
+    workspaces:
+    - name: config
+      workspace: ws
+  workspaces:
+  - name: ws
