@@ -320,6 +320,7 @@ var _ = Describe("Provisioning", func() {
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("2"), v1.ResourceMemory: resource.MustParse("1Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("2")},
 					},
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("2Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -339,6 +340,7 @@ var _ = Describe("Provisioning", func() {
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("1Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 					},
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
@@ -351,6 +353,7 @@ var _ = Describe("Provisioning", func() {
 		It("should not schedule if initContainer resources are too large", func() {
 			ExpectApplied(ctx, env.Client, test.Provisioner(), test.DaemonSet(
 				test.DaemonSetOptions{PodOptions: test.PodOptions{
+					InitImage: "pause",
 					InitResourceRequirements: v1.ResourceRequirements{
 						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("10000"), v1.ResourceMemory: resource.MustParse("10000Gi")},
 					},

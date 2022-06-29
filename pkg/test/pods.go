@@ -33,6 +33,7 @@ import (
 type PodOptions struct {
 	metav1.ObjectMeta
 	Image                     string
+	InitImage                 string
 	NodeName                  string
 	PriorityClassName         string
 	InitResourceRequirements  v1.ResourceRequirements
@@ -75,27 +76,22 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		}
 	}
 	if options.Image == "" {
-		options.Image = "alpine"
+		options.Image = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"
 	}
-	volumes := []v1.Volume{}
+	var volumes []v1.Volume
 	for _, pvc := range options.PersistentVolumeClaims {
 		volumes = append(volumes, v1.Volume{
 			Name:         strings.ToLower(randomdata.SillyName()),
 			VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: pvc}},
 		})
 	}
-	return &v1.Pod{
+	p := &v1.Pod{
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1.PodSpec{
 			NodeSelector:              options.NodeSelector,
 			Affinity:                  buildAffinity(options),
 			TopologySpreadConstraints: options.TopologySpreadConstraints,
 			Tolerations:               options.Tolerations,
-			InitContainers: []v1.Container{{
-				Name:      strings.ToLower(sequentialRandomName()),
-				Image:     options.Image,
-				Resources: options.InitResourceRequirements,
-			}},
 			Containers: []v1.Container{{
 				Name:      strings.ToLower(sequentialRandomName()),
 				Image:     options.Image,
@@ -110,6 +106,14 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Phase:      options.Phase,
 		},
 	}
+	if options.InitImage != "" {
+		p.Spec.InitContainers = []v1.Container{{
+			Name:      strings.ToLower(sequentialRandomName()),
+			Image:     options.InitImage,
+			Resources: options.InitResourceRequirements,
+		}}
+	}
+	return p
 }
 
 func sequentialRandomName() string {

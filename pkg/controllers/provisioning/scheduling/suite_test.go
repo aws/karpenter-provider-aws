@@ -3323,6 +3323,7 @@ var _ = Describe("Binpacking", func() {
 					v1.ResourceCPU:    resource.MustParse("1"),
 				},
 			},
+				InitImage: "pause",
 				InitResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
 						v1.ResourceMemory: resource.MustParse("1Gi"),
@@ -3342,6 +3343,7 @@ var _ = Describe("Binpacking", func() {
 					v1.ResourceCPU:    resource.MustParse("1"),
 				},
 			},
+				InitImage: "pause",
 				InitResourceRequirements: v1.ResourceRequirements{
 					Requests: map[v1.ResourceName]resource.Quantity{
 						v1.ResourceMemory: resource.MustParse("1Ti"),

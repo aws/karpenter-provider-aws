@@ -72,7 +72,7 @@ func Provisioner(overrides ...ProvisionerOptions) *v1alpha5.Provisioner {
 			StartupTaints:        options.StartupTaints,
 			Labels:               options.Labels,
 			Limits:               &v1alpha5.Limits{Resources: options.Limits},
-			TTLSecondsAfterEmpty: ptr.Int64(10),
+			TTLSecondsAfterEmpty: ptr.Int64(30),
 		},
 		Status: options.Status,
 	}

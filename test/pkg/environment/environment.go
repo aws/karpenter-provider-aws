@@ -26,6 +26,7 @@ type Environment struct {
 	context.Context
 	Options *Options
 	Client  client.Client
+	Monitor *Monitor
 }
 
 func NewEnvironment(t *testing.T) (*Environment, error) {
@@ -38,9 +39,13 @@ func NewEnvironment(t *testing.T) (*Environment, error) {
 	if err != nil {
 		return nil, err
 	}
-	gomega.SetDefaultEventuallyTimeout(10 * time.Minute)
+	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
-	return &Environment{Context: ctx, Options: options, Client: client}, nil
+	return &Environment{Context: ctx,
+		Options: options,
+		Client:  client,
+		Monitor: NewClusterMonitor(ctx, client),
+	}, nil
 }
 
 func NewLocalClient() (client.Client, error) {
