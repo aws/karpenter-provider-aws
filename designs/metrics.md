@@ -27,10 +27,10 @@ For more in-depth metrics, users will be able to:
 
 The Karpenter Capacity dashboard serves as the high-level dashboard which describes object distribution and utilization.
 
-To demonstrate object distribution, Grafana graphs / bar gauges will be utilized to demonstrate distribution of nodes and pods
-over various labels, including provisioner, zone, architecture, instance type, and capacity type. The phase of pods
-and nodes will also be demonstrated in a similar way. Finally, gauges will be used to demonstrate overall system
-resources (e.g. total memory in the cluster).
+To demonstrate object distribution, Grafana graphs / bar gauges will be used to demonstrate distribution of nodes and
+pods over various labels, including provisioner, zone, architecture, instance type, and capacity type. The phase of pods
+and nodes will also be demonstrated in a similar way. Finally, gauges and line graphs will be used to demonstrate
+overall system resources (e.g. total memory in the cluster).
 
 As for utilization, gauges will show the current resource requests and resource utilization rates. Additionally, there
 will be a line graph to show overall resource utilization over time. Finally, there will be a table showing per-node
@@ -57,9 +57,10 @@ demonstrate statistics for individual [controllers](https://github.com/aws/karpe
 scheduling, and API usage.
 
 Individual controller performance will be visualized in two ways: reconcile latency and reconcile rate. Reconcile
-latency will be visualized as a Grafana line graph which shows the p50, p90, and p99 latency over time. Similarly, reconcile
-rate, or the number of reconciliations per second, will be graphed over time. Each of these graphs will be filterable by
-controller. The metrics required to implement these are already instrumented by the controller-runtime.
+latency will be visualized as a Grafana line graph which shows the p0, p50, p90, p99, and p100 latency over time.
+Similarly, reconcile rate, or the number of reconciliations per second, will be graphed over time. Each of these graphs
+will be filterable by controller. The metrics required to implement these are already instrumented by the
+controller-runtime.
 
 | **Name**                                     | **Type**  | **Labels**   | **Description**
 |----------------------------------------------|-----------|--------------|------------------------------------------------------
