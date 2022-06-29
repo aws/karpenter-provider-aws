@@ -58,13 +58,14 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, price floa
 		offerings:        offerings,
 		price:            price,
 	}
+	// set max pods before computing resources
+	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
+		instanceType.maxPods = ptr.Int32(110)
+	}
 	// Precompute to minimize memory/compute overhead
 	instanceType.resources = instanceType.computeResources(injection.GetOptions(ctx).AWSEnablePodENI)
 	instanceType.overhead = instanceType.computeOverhead(injection.GetOptions(ctx).VMMemoryOverhead)
 	instanceType.requirements = instanceType.computeRequirements()
-	if !injection.GetOptions(ctx).AWSENILimitedPodDensity {
-		instanceType.maxPods = ptr.Int32(110)
-	}
 	return instanceType
 }
 
