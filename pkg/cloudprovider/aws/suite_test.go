@@ -69,6 +69,7 @@ var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var instanceTypeCache *cache.Cache
+var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
@@ -111,7 +112,7 @@ var _ = BeforeSuite(func() {
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
 		}
-		instanceTypeProvider := &InstanceTypeProvider{
+		instanceTypeProvider = &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
@@ -348,6 +349,26 @@ var _ = Describe("Allocation", func() {
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should set pods to 110 if not using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = false
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
+				}
+			})
+			It("should not set pods to 110 if using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = true
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
+				}
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
