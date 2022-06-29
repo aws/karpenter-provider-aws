@@ -1558,6 +1558,30 @@ var _ = Describe("Allocation", func() {
 				}
 			})
 		})
+		Context("EC2 Context", func() {
+			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				Expect(err).ToNot(HaveOccurred())
+				provider.Context = aws.String("context-1234")
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner.SetDefaults(ctx)
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+			})
+			It("should default to no EC2 Context", func() {
+				provisioner.SetDefaults(ctx)
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(createFleetInput.Context).To(BeNil())
+			})
+		})
 		Context("Labels", func() {
 			It("should not allow unrecognized labels with the aws label prefix", func() {
 				provisioner.Spec.Labels = map[string]string{v1alpha1.LabelDomain + "/" + randomdata.SillyName(): randomdata.SillyName()}

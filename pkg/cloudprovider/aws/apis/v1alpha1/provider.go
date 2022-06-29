@@ -33,6 +33,10 @@ type AWS struct {
 	// AMIFamily is the AMI family that instances use.
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty"`
+	// Context is a Reserved field in EC2 APIs
+	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
+	// +optional
+	Context *string `json:"context,omitempty"`
 	// InstanceProfile is the AWS identity that instances use.
 	// +optional
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
