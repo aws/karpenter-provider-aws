@@ -26,6 +26,8 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -43,7 +45,7 @@ type AMIProvider struct {
 // If AMI overrides are specified in the AWSNodeTemplate, then only those AMIs will be chosen.
 func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRequest *cloudprovider.NodeRequest, options *Options, amiFamily AMIFamily) (map[string][]cloudprovider.InstanceType, error) {
 	amiIDs := map[string][]cloudprovider.InstanceType{}
-	amiRequirements, err := p.GetAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
+	amiRequirements, err := p.getAMIRequirements(ctx, nodeRequest.Template.ProviderRef)
 	if err != nil {
 		return nil, err
 	}
@@ -56,11 +58,11 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 			}
 		}
 		if len(amiIDs) == 0 {
-			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", Keys(amiRequirements))
+			return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", lo.Keys(amiRequirements))
 		}
 	} else {
 		for _, instanceType := range nodeRequest.InstanceTypeOptions {
-			amiID, err = p.GetDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
+			amiID, err = p.getDefaultAMIFromSSM(ctx, instanceType, amiFamily.SSMAlias(options.KubernetesVersion, instanceType))
 			if err != nil {
 				return nil, err
 			}
@@ -70,7 +72,7 @@ func (p *AMIProvider) Get(ctx context.Context, provider *awsv1alpha1.AWS, nodeRe
 	return amiIDs, nil
 }
 
-func (p *AMIProvider) GetDefaultAMIFromSSM(ctx context.Context, instanceType cloudprovider.InstanceType, ssmQuery string) (string, error) {
+func (p *AMIProvider) getDefaultAMIFromSSM(ctx context.Context, instanceType cloudprovider.InstanceType, ssmQuery string) (string, error) {
 	if id, ok := p.cache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
@@ -84,15 +86,15 @@ func (p *AMIProvider) GetDefaultAMIFromSSM(ctx context.Context, instanceType clo
 	return ami, nil
 }
 
-func (p *AMIProvider) GetAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[string]scheduling.Requirements, error) {
-	amiRequirements := make(map[string]scheduling.Requirements)
+func (p *AMIProvider) getAMIRequirements(ctx context.Context, providerRef *v1alpha5.ProviderRef) (map[string]scheduling.Requirements, error) {
+	amiRequirements := map[string]scheduling.Requirements{}
 	if providerRef != nil {
 		var ant v1alpha1.AWSNodeTemplate
 		if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: providerRef.Name}, &ant); err != nil {
 			return amiRequirements, fmt.Errorf("retrieving provider reference, %w", err)
 		}
 		for _, ami := range ant.Spec.AMIs {
-			amiRequirements[ami.ID] = scheduling.NewAMIRequirements(ami)
+			amiRequirements[ami.ID] = ami.Requirements()
 		}
 	}
 	return amiRequirements, nil
@@ -105,13 +107,4 @@ func getAMIOverride(instanceType cloudprovider.InstanceType, amiRequirements map
 		}
 	}
 	return ""
-}
-
-// Keys returns a slice of all the keys in a map
-func Keys(m map[string]scheduling.Requirements) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
 }

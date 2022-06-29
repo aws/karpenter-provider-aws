@@ -44,7 +44,8 @@ spec:
                 type: string
               amis:
                 description: AMIs is a list of custom AMIs that Karpenter will choose
-                  from.
+                  from. If multiple AMIs satisfy your pod requirements, one will be
+                  chosen at random.
                 items:
                   properties:
                     id:

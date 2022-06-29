@@ -23,7 +23,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	stringsets "k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter/pkg/apis/awsnodetemplate/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
 	"github.com/aws/karpenter/pkg/utils/sets"
 )
@@ -96,14 +95,6 @@ func NewPodRequirements(pod *v1.Pod) Requirements {
 		requirements = append(requirements, pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
 	}
 	return NewNodeSelectorRequirements(requirements...)
-}
-
-func NewAMIRequirements(ami v1alpha1.AMI) Requirements {
-	requirements := NewRequirements()
-	for key, value := range ami.Properties {
-		requirements.Add(Requirements{key: sets.NewSet(value)})
-	}
-	return requirements
 }
 
 // Add requirements to provided requirements. Mutates existing requirements
