@@ -70,6 +70,7 @@ var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var instanceTypeCache *cache.Cache
+var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
@@ -112,7 +113,7 @@ var _ = BeforeSuite(func() {
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
 		}
-		instanceTypeProvider := &InstanceTypeProvider{
+		instanceTypeProvider = &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
@@ -349,6 +350,26 @@ var _ = Describe("Allocation", func() {
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should set pods to 110 if not using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = false
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
+				}
+			})
+			It("should not set pods to 110 if using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = true
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
+				}
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
@@ -869,7 +890,7 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -880,7 +901,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -965,7 +986,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
@@ -993,7 +1014,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1013,7 +1034,7 @@ var _ = Describe("Allocation", func() {
 					providerRef := &v1alpha5.ProviderRef{
 						Name: "doesnotexist",
 					}
-					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1032,7 +1053,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1054,7 +1075,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1078,7 +1099,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1102,7 +1123,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
