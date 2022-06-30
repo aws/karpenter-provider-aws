@@ -54,7 +54,8 @@ You can review these fields [in the code](https://github.com/aws/karpenter/blob{
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
 A default profile may be specified on the controller, allowing it to be omitted here. If not specified as either a default
-or on the controller, node provisioning will fail.
+or on the controller, node provisioning will fail. The KarpenterControllerPolicy will also need to have permissions for 
+`iam:PassRole` to the role provided here or provisioning will fail.  
 
 ```
 spec:

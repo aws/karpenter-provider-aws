@@ -46,7 +46,6 @@ Resources:
               - ec2:CreateFleet
               - ec2:RunInstances
               - ec2:CreateTags
-              - iam:PassRole
               - ec2:TerminateInstances
               - ec2:DeleteLaunchTemplate
               # Read Operations
@@ -60,3 +59,7 @@ Resources:
               - ec2:DescribeSpotPriceHistory
               - ssm:GetParameter
               - pricing:GetProducts
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
