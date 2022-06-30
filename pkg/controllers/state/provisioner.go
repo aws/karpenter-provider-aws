@@ -16,16 +16,10 @@ package state
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/aws/karpenter/pkg/apis/provisioning/v1alpha5"
-	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,77 +66,4 @@ func (c *ProvisionerController) Register(ctx context.Context, m manager.Manager)
 		Named("provisionermetrics").
 		For(&v1alpha5.Provisioner{}).
 		Complete(c)
-}
-
-func (c *ProvisionerController) cleanup(provisionerName types.NamespacedName) {
-	if labelSet, ok := c.labelMap.Load(provisionerName); ok {
-		for _, labels := range labelSet.([]prometheus.Labels) {
-			limitGaugeVec.Delete(labels)
-			usageGaugeVec.Delete(labels)
-			usagePctGaugeVec.Delete(labels)
-		}
-	}
-	c.labelMap.Store(provisionerName, []prometheus.Labels{})
-}
-
-func (c *ProvisionerController) labels(provisioner *v1alpha5.Provisioner, resourceTypeName string) prometheus.Labels {
-	metricLabels := prometheus.Labels{}
-	metricLabels[resourceType] = resourceTypeName
-	metricLabels[provisionerName] = provisioner.Name
-	return metricLabels
-}
-
-func (c *ProvisionerController) record(ctx context.Context, provisioner *v1alpha5.Provisioner) error {
-	if provisioner.Spec.Limits == nil {
-		return nil
-	}
-
-	if err := c.set(provisioner.Spec.Limits.Resources, provisioner, limitGaugeVec); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
-	}
-
-	if err := c.set(provisioner.Status.Resources, provisioner, usageGaugeVec); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
-	}
-
-	usage := v1.ResourceList{}
-	for k, v := range provisioner.Spec.Limits.Resources {
-		limitValue := v.AsApproximateFloat64()
-		usedValue := provisioner.Status.Resources[k]
-		if limitValue == 0 {
-			usage[k] = *resource.NewQuantity(100, resource.DecimalSI)
-		} else {
-			usage[k] = *resource.NewQuantity(int64(usedValue.AsApproximateFloat64()/limitValue*100), resource.DecimalSI)
-		}
-	}
-
-	if err := c.set(usage, provisioner, usagePctGaugeVec); err != nil {
-		logging.FromContext(ctx).Errorf("Failed to generate gauge: %s", err)
-	}
-
-	return nil
-}
-
-// set sets the value for the node gauge
-func (c *ProvisionerController) set(resourceList v1.ResourceList, provisioner *v1alpha5.Provisioner, gaugeVec *prometheus.GaugeVec) error {
-	for resourceName, quantity := range resourceList {
-		resourceTypeName := strings.ReplaceAll(strings.ToLower(string(resourceName)), "-", "_")
-		labels := c.labels(provisioner, resourceTypeName)
-
-		provisionerName := types.NamespacedName{Name: provisioner.Name}
-		existingLabels, _ := c.labelMap.LoadOrStore(provisionerName, []prometheus.Labels{})
-		existingLabels = append(existingLabels.([]prometheus.Labels), labels)
-		c.labelMap.Store(provisionerName, existingLabels)
-
-		gauge, err := gaugeVec.GetMetricWith(labels)
-		if err != nil {
-			return fmt.Errorf("generate new gauge: %w", err)
-		}
-		if resourceName == v1.ResourceCPU {
-			gauge.Set(float64(quantity.MilliValue()) / float64(1000))
-		} else {
-			gauge.Set(float64(quantity.Value()))
-		}
-	}
-	return nil
 }
