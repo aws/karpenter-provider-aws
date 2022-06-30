@@ -22,3 +22,4 @@ for step in "${steps[@]}"; do
 done
 
 echo "✅ Successfully setup test infrastructure"
+
