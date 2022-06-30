@@ -9,7 +9,6 @@ description: >
 Provisioner settings specific to Karpenter for the AWS cloud provider are described here.
 The following example shows optional and required settings for a Karpenter provisioner for AWS:
 
-
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
@@ -23,33 +22,40 @@ spec:
   limits:
     resources:
       cpu: 1000                               # optional, recommended to limit total provisioned CPUs
-      memory: 1000Gi                          # optional, recommended to limit total provisioned memory
-  provider:
-    subnetSelector:                           # required
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    securityGroupSelector:                    # required, when not using launchTemplate
-      karpenter.sh/discovery: ${CLUSTER_NAME}
-    instanceProfile: MyInstanceProfile        # optional, if already set in controller args
-    launchTemplate: MyLaunchTemplate          # optional, see Launch Template documentation
-    tags:
-      InternalAccountingTag: 1234             # optional, add tags for your own use
+      memory: 1000Gi
+  providerRef:                                # optional, recommended to use instead of `provider`
+    name: default
   ttlSecondsAfterEmpty: 30                    # optional, but never scales down if not set
   ttlSecondsUntilExpired: 2592000             # optional, but never expires if not set
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
+spec:
+  subnetSelector:                             # required
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  securityGroupSelector:                      # required, when not using launchTemplate
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+  instanceProfile: MyInstanceProfile          # optional, if already set in controller args
+  launchTemplate: MyLaunchTemplate            # optional, see Launch Template documentation
+  tags:
+    InternalAccountingTag: "1234"             # optional, add tags for your own use
 
 ```
 Refer to [Provisioner API]({{<ref "../provisioner.md" >}}) for settings that are not specific to AWS.
 See below for other AWS provider-specific parameters.
 
-## spec.provider
+## spec.providerRef
 
-This section covers parameters of the AWS Cloud Provider.
-
-[Review these fields in the code.](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/cloudprovider/aws/apis/v1alpha1/provider.go)
+The ProviderRef is a reference to the AWSNodeTemplate resource that contains all the parameters needed by the AWS Cloud Provider.
+You can review these fields [in the code](https://github.com/aws/karpenter/blob{{< githubRelRef >}}pkg/apis/awsnodetemplate/v1alpha1/awsnodetemplate.go).
 
 ### InstanceProfile
 An `InstanceProfile` is a way to pass a single IAM role to an EC2 instance. Karpenter will not create one automatically.
 A default profile may be specified on the controller, allowing it to be omitted here. If not specified as either a default
-or on the controller, node provisioning will fail.
+or on the controller, node provisioning will fail. The KarpenterControllerPolicy will also need to have permissions for 
+`iam:PassRole` to the role provided here or provisioning will fail.  
 
 ```
 spec:
@@ -240,6 +246,15 @@ spec:
           throughput: 125
           snapshotID: snap-0123456789
 ```
+
+### UserData
+
+You can control the UserData that needs to be applied to your worker nodes via this field. Review the [Custom UserData documentation](../user-data/) to learn the necessary steps
+If you need to specify a launch template in addition to UserData, then review the [Launch Template documentation](../launch-templates/) instead and utilize the `spec.providerRef.launchTemplate` field.
+
+## spec.provider (Deprecated)
+
+Prior to the introduction of `spec.providerRef`, parameters for the AWS Cloud Provider could be specified within the Provisioner itself through the `spec.provider` field. This field in the Provisioners has now been deprecated, and all fields previously specified through the ProvisionerSpec can now be specified in the `AWSNodeTemplate` CRD instead. See the [upgrade guide for more information](../upgrade-guide/_index.md). New parameters can only be specified in the `AWSNodeTemplate` CRD.
 
 ## Other Resources
 

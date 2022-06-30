@@ -17,13 +17,16 @@ package aws
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/pricing"
 	"io/ioutil"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/pricing"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/amazon-vpc-resource-controller-k8s/pkg/aws/vpc"
@@ -66,6 +69,7 @@ var subnetCache *cache.Cache
 var amiCache *cache.Cache
 var unavailableOfferingsCache *cache.Cache
 var instanceTypeCache *cache.Cache
+var instanceTypeProvider *InstanceTypeProvider
 var fakeEC2API *fake.EC2API
 var fakePricingAPI *fake.PricingAPI
 var controller *provisioning.Controller
@@ -108,7 +112,7 @@ var _ = BeforeSuite(func() {
 			ec2api: fakeEC2API,
 			cache:  subnetCache,
 		}
-		instanceTypeProvider := &InstanceTypeProvider{
+		instanceTypeProvider = &InstanceTypeProvider{
 			ec2api:               fakeEC2API,
 			subnetProvider:       subnetProvider,
 			cache:                instanceTypeCache,
@@ -206,6 +210,7 @@ var _ = Describe("Allocation", func() {
 					v1alpha1.LabelInstanceSize:            "xlarge",
 					v1alpha1.LabelInstanceCPU:             "32",
 					v1alpha1.LabelInstanceMemory:          "249856",
+					v1alpha1.LabelInstancePods:            "238",
 					v1alpha1.LabelInstanceGPUName:         "nvidia-v100",
 					v1alpha1.LabelInstanceGPUManufacturer: "nvidia",
 					v1alpha1.LabelInstanceGPUCount:        "4",
@@ -344,6 +349,26 @@ var _ = Describe("Allocation", func() {
 					nodeNames.Insert(node.Name)
 				}
 				Expect(nodeNames.Len()).To(Equal(2))
+			})
+			It("should set pods to 110 if not using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = false
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).To(BeNumerically("==", 110))
+				}
+			})
+			It("should not set pods to 110 if using ENI-based pod density", func() {
+				opts.AWSENILimitedPodDensity = true
+				instanceInfo, err := instanceTypeProvider.getInstanceTypes(ctx, provider)
+				Expect(err).To(BeNil())
+				for _, info := range instanceInfo {
+					it := NewInstanceType(injection.WithOptions(ctx, opts), info, 0, provider, nil)
+					resources := it.Resources()
+					Expect(resources.Pods().Value()).ToNot(BeNumerically("==", 110))
+				}
 			})
 		})
 		Context("Insufficient Capacity Error Cache", func() {
@@ -685,6 +710,27 @@ var _ = Describe("Allocation", func() {
 				Expect(*launchTemplate.LaunchTemplateName).To(Equal("test-launch-template"))
 				Expect(*launchTemplate.Version).To(Equal("$Latest"))
 			})
+			It("should recover from an out-of-sync launch template cache", func() {
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+
+				Expect(fakeEC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(1))
+				firstLt := fakeEC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				ltName := aws.StringValue(firstLt.LaunchTemplateName)
+				lt, ok := launchTemplateCache.Get(ltName)
+				Expect(ok).To(Equal(true))
+				// Remove expiration from cached LT
+				launchTemplateCache.Set(ltName, lt, -1)
+
+				fakeEC2API.NextError.Set(awserr.New("InvalidLaunchTemplateName.NotFoundException", "", errors.New("")))
+				pod = ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				// should call fleet twice. Once will fail on invalid LT and the next will succeed
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(2))
+				fleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(aws.StringValue(fleetInput.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName)).To(Equal(ltName))
+				ExpectScheduled(ctx, env.Client, pod)
+			})
 		})
 		Context("Subnets", func() {
 			It("should default to the cluster's subnets", func() {
@@ -843,7 +889,7 @@ var _ = Describe("Allocation", func() {
 		Context("User Data", func() {
 			It("should not specify --use-max-pods=false when using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = true
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
 				ExpectScheduled(ctx, env.Client, pod)
@@ -854,7 +900,7 @@ var _ = Describe("Allocation", func() {
 			})
 			It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
 				opts.AWSENILimitedPodDensity = false
-				controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+				controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 
 				ExpectApplied(ctx, env.Client, test.Provisioner(test.ProvisionerOptions{Provider: provider}))
 				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -939,7 +985,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)
@@ -967,7 +1013,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -987,7 +1033,7 @@ var _ = Describe("Allocation", func() {
 					providerRef := &v1alpha5.ProviderRef{
 						Name: "doesnotexist",
 					}
-					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1006,7 +1052,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1028,7 +1074,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1052,7 +1098,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1076,7 +1122,7 @@ var _ = Describe("Allocation", func() {
 						AWS:        provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
-					controller = provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
+					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
 					newProvisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: providerRef})
 					ExpectApplied(ctx, env.Client, newProvisioner)
 					pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
@@ -1392,6 +1438,30 @@ var _ = Describe("Allocation", func() {
 					provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				}
+			})
+		})
+		Context("EC2 Context", func() {
+			It("should set context on the CreateFleet request if specified on the Provisioner", func() {
+				provider, err := v1alpha1.Deserialize(provisioner.Spec.Provider)
+				Expect(err).ToNot(HaveOccurred())
+				provider.Context = aws.String("context-1234")
+				provisioner := test.Provisioner(test.ProvisionerOptions{Provider: provider})
+				provisioner.SetDefaults(ctx)
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+			})
+			It("should default to no EC2 Context", func() {
+				provisioner.SetDefaults(ctx)
+				ExpectApplied(ctx, env.Client, provisioner)
+				pod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())[0]
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(fakeEC2API.CalledWithCreateFleetInput.Len()).To(Equal(1))
+				createFleetInput := fakeEC2API.CalledWithCreateFleetInput.Pop()
+				Expect(createFleetInput.Context).To(BeNil())
 			})
 		})
 		Context("Labels", func() {

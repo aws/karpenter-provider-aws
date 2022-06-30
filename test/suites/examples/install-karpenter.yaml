@@ -1,0 +1,120 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: install-karpenter-task
+  namespace: tekton-tests
+spec:
+  description: |
+    Install Karpenter and necessary resources onto an EKS cluster.
+  params:
+  - name: cluster-name
+    description: The name of the cluster to install Karpenter
+  - name: karpenter-version
+    description: The version of Karpenter to install. Needs to be in vx.y.z format where x, y, and z are integers.
+  - name: account-id
+    description: Account ID where to deploy resources
+  - name: pre-install-image
+    description: Docker image for the Tekton pod to install resources. This needs minimally needs awscli, kubectl, and curl.
+  - name: aws-region
+    description: AWS Region where cluster is deployed
+  workspaces:
+  - name: config
+    description: |
+      A workspace into which a kubeconfig file called `kubeconfig` will be written that will contain the information required to access the cluster.
+  steps:
+  - name: karpenter-pre-install
+    image: $(params.pre-install-image)
+    script: |
+        aws eks update-kubeconfig --name $(params.cluster-name) --region $(params.aws-region)
+
+        TEMPOUT=$(mktemp)
+        curl -fsSL https://karpenter.sh/"$(params.karpenter-version)"/getting-started/getting-started-with-eksctl/cloudformation.yaml  > $TEMPOUT \
+        && aws cloudformation deploy \
+          --stack-name "Karpenter-$(params.cluster-name)" \
+          --template-file "${TEMPOUT}" \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameter-overrides "ClusterName=$(params.cluster-name)"
+
+        ROLE="    - rolearn: arn:aws:iam::$(params.account-id):role/KarpenterNodeRole-$(params.cluster-name)\n      username: system:node:{{EC2PrivateDNSName}}\n      groups:\n      - system:nodes\n      - system:bootstrappers"
+        kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
+        kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+
+  - name: irsa
+    image: docker.io/weaveworks/eksctl:v0.86.0
+    script: |
+        eksctl create iamserviceaccount \
+          --cluster "$(params.cluster-name)" --name karpenter --namespace karpenter \
+          --role-name "$(params.cluster-name)-karpenter" \
+          --attach-policy-arn "arn:aws:iam::$(params.account-id):policy/KarpenterControllerPolicy-$(params.cluster-name)" \
+          --role-only \
+          --approve
+
+  - name: spot-slr
+    image: amazon/aws-cli
+    script: |
+        aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
+
+  - name: helm-install-karpenter
+    image: alpine/helm:latest
+    script: |
+        aws eks update-kubeconfig --name $(params.cluster-name) --region $(params.aws-region)
+
+        export KARPENTER_IAM_ROLE_ARN="arn:aws:iam::$(params.account-id):role/$(params.cluster-name)-karpenter"
+        export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $(params.cluster-name) --query "cluster.endpoint" --output text)"
+
+        helm repo add karpenter https://charts.karpenter.sh/
+        helm repo update
+
+        helm upgrade --install --namespace karpenter --create-namespace \
+          karpenter karpenter/karpenter \
+          --version $(params.karpenter-version) \
+          --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+          --set clusterName=$(params.cluster-name) \
+          --set clusterEndpoint=${CLUSTER_ENDPOINT} \
+          --set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-$(params.cluster-name) \
+          --wait
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: install-karpenter-pipeline
+  namespace: tekton-tests
+spec:
+  tasks:
+  - name: install-karpenter
+    taskRef:
+      name: install-karpenter-task
+    workspaces:
+      - name: config
+        workspace: ws
+    params:
+    - name: cluster-name
+      value: "testing-ci-cluster"
+    - name: karpenter-version
+      value: "v0.12.0"
+    - name: account-id
+      value: "" # Add your account-id
+    - name: pre-install-image
+      value: "docker.io/njtran/scratch:latest"
+    - name: aws-region
+      value: "us-west-2"
+  workspaces:
+  - name: ws
+    description: The folder where we write the message to
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: install-karpenter-pipelinerun
+  namespace: tekton-tests
+spec:
+  pipelineRef:
+    name: install-karpenter-pipeline
+  podTemplate:
+    nodeSelector:
+      kubernetes.io/arch: amd64
+  workspaces:
+    - name: ws # this workspace name must be declared in the Pipeline
+      emptyDir: {}

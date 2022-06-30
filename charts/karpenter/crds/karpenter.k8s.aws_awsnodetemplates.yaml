@@ -118,6 +118,9 @@ spec:
                       type: object
                   type: object
                 type: array
+              context:
+                description: Context is a Reserved field in EC2 APIs https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
+                type: string
               instanceProfile:
                 description: InstanceProfile is the AWS identity that instances use.
                 type: string

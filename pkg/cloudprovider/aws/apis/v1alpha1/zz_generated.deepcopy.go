@@ -32,6 +32,11 @@ func (in *AWS) DeepCopyInto(out *AWS) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Context != nil {
+		in, out := &in.Context, &out.Context
+		*out = new(string)
+		**out = **in
+	}
 	if in.InstanceProfile != nil {
 		in, out := &in.InstanceProfile, &out.InstanceProfile
 		*out = new(string)

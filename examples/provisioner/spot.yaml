@@ -10,8 +10,15 @@ spec:
     - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot"]
-  provider:
-    subnetSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-    securityGroupSelector:
-      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  providerRef:
+    name: my-provider
+---
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: my-provider
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelector:
+    karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name

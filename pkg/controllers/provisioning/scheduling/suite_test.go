@@ -3668,6 +3668,30 @@ var _ = Describe("In-Flight Nodes", func() {
 			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
 			Expect(node1.Name).To(Equal(node2.Name))
 		})
+		It("should not assume pod will schedule to a node with startup taints after initialization", func() {
+			startupTaint := v1.Taint{Key: "ignore-me", Value: "nothing-to-see-here", Effect: v1.TaintEffectNoSchedule}
+			provisioner.Spec.StartupTaints = []v1.Taint{startupTaint}
+			ExpectApplied(ctx, env.Client, provisioner)
+			initialPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+			node1 := ExpectScheduled(ctx, env.Client, initialPod[0])
+
+			// delete the pod so that the node is empty
+			ExpectDeleted(ctx, env.Client, initialPod[0])
+
+			// Mark it initialized which only occurs once the startup taint was removed and re-apply only the startup taint.
+			// We also need to add resource capacity as after initialization we assume that kubelet has recorded them.
+			node1.Labels[v1alpha5.LabelNodeInitialized] = "true"
+			node1.Spec.Taints = []v1.Taint{startupTaint}
+			node1.Status.Capacity = v1.ResourceList{v1.ResourcePods: resource.MustParse("10")}
+			ExpectApplied(ctx, env.Client, node1)
+
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node1))
+
+			// we should launch a new node since the startup taint is there, but was gone at some point
+			secondPod := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+			node2 := ExpectScheduled(ctx, env.Client, secondPod[0])
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+		})
 	})
 	Context("Daemonsets", func() {
 		It("should track daemonset usage separately so we know how many DS resources are remaining to be scheduled", func() {
@@ -3779,6 +3803,34 @@ var _ = Describe("In-Flight Nodes", func() {
 		})
 		Expect(nodesWithCPUFree).To(BeNumerically("<=", 1))
 	})
+	It("should not launch a second node if there is an in-flight node that can support the pod (#2011)", func() {
+		opts := test.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceCPU: resource.MustParse("10m"),
+			},
+		}}
+
+		// there was a bug in cluster state where we failed to identify the instance type resources when using a
+		// ProviderRef so modify our provisioner to use the ProviderRef and ensure that the second pod schedules
+		// to the inflight node
+		provisioner.Spec.Provider = nil
+		provisioner.Spec.ProviderRef = &v1alpha5.ProviderRef{}
+
+		ExpectApplied(ctx, env.Client, provisioner)
+		pod := test.UnschedulablePod(opts)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pod)
+		var nodes v1.NodeList
+		Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+		Expect(nodes.Items).To(HaveLen(1))
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodes.Items[0]))
+
+		pod.Status.Conditions = []v1.PodCondition{{Type: v1.PodScheduled, Reason: v1.PodReasonUnschedulable, Status: v1.ConditionFalse}}
+		ExpectApplied(ctx, env.Client, pod)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pod)
+		Expect(env.Client.List(ctx, &nodes)).To(Succeed())
+		// shouldn't create a second node
+		Expect(nodes.Items).To(HaveLen(1))
+	})
 })
 
 var _ = Describe("No Pre-Binding", func() {
@@ -3847,6 +3899,35 @@ var _ = Describe("No Pre-Binding", func() {
 		secondPod := ExpectProvisionedNoBinding(ctx, env.Client, controller, test.UnschedulablePod(opts))
 		ExpectNotScheduled(ctx, env.Client, secondPod[0])
 		// shouldn't create a second node as it can bind to the inflight node
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
+	It("should respect self pod affinity without pod binding (zone)", func() {
+		// Issue #1975
+		affLabels := map[string]string{"security": "s2"}
+
+		pods := MakePods(2, test.PodOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: affLabels,
+			},
+			PodRequirements: []v1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{
+					MatchLabels: affLabels,
+				},
+				TopologyKey: v1.LabelTopologyZone,
+			}},
+		})
+		ExpectApplied(ctx, env.Client, provisioner)
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pods[0])
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		for i := range nodeList.Items {
+			ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(&nodeList.Items[i]))
+		}
+		// the second pod can schedule against the in-flight node, but for that to work we need to be careful
+		// in how we fulfill the self-affinity by taking the existing node's domain as a preference over any
+		// random viable domain
+		ExpectProvisionedNoBinding(ctx, env.Client, controller, pods[1])
 		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
 		Expect(nodeList.Items).To(HaveLen(1))
 	})

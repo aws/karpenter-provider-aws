@@ -150,7 +150,7 @@ func (t *Topology) AddRequirements(podRequirements, nodeRequirements scheduling.
 		}
 		domains := topology.Get(p, podDomains, nodeDomains)
 		if domains.Len() == 0 {
-			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for key %s", topology.Key)
+			return scheduling.NewRequirements(), fmt.Errorf("unsatisfiable topology constraint for %s, key=%s", topology.Type, topology.Key)
 		}
 		requirements.Add(scheduling.Requirements{topology.Key: domains})
 	}

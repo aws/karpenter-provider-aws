@@ -70,6 +70,11 @@ func (p *InstanceProvider) Create(ctx context.Context, provider *v1alpha1.AWS, n
 	}
 
 	id, err := p.launchInstance(ctx, provider, nodeRequest)
+	if isLaunchTemplateNotFound(err) {
+		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
+		// cache was out-of-sync on the first try
+		id, err = p.launchInstance(ctx, provider, nodeRequest)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +128,7 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	tags := v1alpha1.MergeTags(ctx, provider.Tags, map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", injection.GetOptions(ctx).ClusterName): "owned"})
 	createFleetInput := &ec2.CreateFleetInput{
 		Type:                  aws.String(ec2.FleetTypeInstant),
+		Context:               provider.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			DefaultTargetCapacityType: aws.String(capacityType),
@@ -140,6 +146,12 @@ func (p *InstanceProvider) launchInstance(ctx context.Context, provider *v1alpha
 	}
 	createFleetOutput, err := p.ec2api.CreateFleetWithContext(ctx, createFleetInput)
 	if err != nil {
+		if isLaunchTemplateNotFound(err) {
+			for _, lt := range launchTemplateConfigs {
+				p.launchTemplateProvider.Invalidate(ctx, aws.StringValue(lt.LaunchTemplateSpecification.LaunchTemplateName))
+			}
+			return nil, fmt.Errorf("creating fleet %w", err)
+		}
 		var reqFailure awserr.RequestFailure
 		if errors.As(err, &reqFailure) {
 			return nil, fmt.Errorf("creating fleet %w (%s)", err, reqFailure.RequestID())

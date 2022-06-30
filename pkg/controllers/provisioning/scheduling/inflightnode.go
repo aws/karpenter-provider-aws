@@ -68,10 +68,12 @@ func NewInFlightNode(n *state.Node, topology *Topology, startupTaints []v1.Taint
 			Operator: v1.TolerationOpExists,
 			Effect:   v1.TaintEffectNoSchedule,
 		})
-	}
-
-	for _, taint := range startupTaints {
-		node.startupTolerations = append(node.startupTolerations, scheduling.TaintToToleration(taint))
+		// Only consider startup taints until the node is initialized. Without this, if the startup taint is generic and
+		// re-appears on the node for a different reason (e.g. the node is cordoned) we will assume that pods can
+		// schedule against the node in the future incorrectly.
+		for _, taint := range startupTaints {
+			node.startupTolerations = append(node.startupTolerations, scheduling.TaintToToleration(taint))
+		}
 	}
 
 	// If the in-flight node doesn't have a hostname yet, we treat it's unique name as the hostname.  This allows toppology
