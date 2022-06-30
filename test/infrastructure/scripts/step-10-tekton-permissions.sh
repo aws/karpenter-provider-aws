@@ -16,6 +16,6 @@ ROLE="    - rolearn: arn:aws:sts::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-tekton\
 kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"${ROLE}\";next}1" > /tmp/aws-auth-patch.yml
 kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
 
-kubectl annotate serviceaccount -n tekton-tests tekton "eks.amazonaws.com/role-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-tekton"
+kubectl annotate --overwrite serviceaccount -n tekton-tests tekton "eks.amazonaws.com/role-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-tekton"
 
 echo "Installed IRSA for Tekton pods in tekton-tests namespace."

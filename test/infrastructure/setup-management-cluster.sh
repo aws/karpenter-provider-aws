@@ -17,6 +17,8 @@ declare -a steps=(
 )
 
 for step in "${steps[@]}"; do
-  echo "$step"
-  source $step
+  echo "👉 $step"
+  source "${SCRIPTPATH}/$step"
 done
+
+echo "✅ Successfully setup test infrastructure"
