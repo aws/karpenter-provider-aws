@@ -20,25 +20,25 @@ import (
 )
 
 const (
-	resourceType        = "k_resource_type"
-	nodeName            = "k_node_name"
-	nodeProvisioner     = "k_provisioner"
-	nodeZone            = "k_zone"
-	nodeArchitecture    = "k_arch"
-	nodeCapacityType    = "k_capacity_type"
-	nodeInstanceType    = "k_instance_type"
-	nodePhase           = "k_phase"
-	podName             = "k_name"
-	podNameSpace        = "k_namespace"
-	ownerSelfLink       = "k_owner"
-	podHostName         = "k_node"
-	podProvisioner      = "k_provisioner"
-	podHostZone         = "k_zone"
-	podHostArchitecture = "k_arch"
-	podHostCapacityType = "k_capacity_type"
-	podHostInstanceType = "k_instance_type"
-	podPhase            = "k_phase"
-	provisionerName     = "k_provisioner"
+	resourceType        = "resource_type"
+	nodeName            = "node_name"
+	nodeProvisioner     = "provisioner"
+	nodeZone            = "zone"
+	nodeArchitecture    = "arch"
+	nodeCapacityType    = "capacity_type"
+	nodeInstanceType    = "instance_type"
+	nodePhase           = "phase"
+	podName             = "name"
+	podNameSpace        = "namespace"
+	ownerSelfLink       = "owner"
+	podHostName         = "node"
+	podProvisioner      = "provisioner"
+	podHostZone         = "zone"
+	podHostArchitecture = "arch"
+	podHostCapacityType = "capacity_type"
+	podHostInstanceType = "instance_type"
+	podPhase            = "phase"
+	provisionerName     = "provisioner"
 )
 
 var (
@@ -139,18 +139,18 @@ var (
 )
 
 func init() {
-	// crmetrics.Registry.MustRegister(allocatableGaugeVec)
-	// crmetrics.Registry.MustRegister(podRequestsGaugeVec)
-	// crmetrics.Registry.MustRegister(podLimitsGaugeVec)
-	// crmetrics.Registry.MustRegister(daemonRequestsGaugeVec)
-	// crmetrics.Registry.MustRegister(daemonLimitsGaugeVec)
-	// crmetrics.Registry.MustRegister(overheadGaugeVec)
+	crmetrics.Registry.MustRegister(allocatableGaugeVec)
+	crmetrics.Registry.MustRegister(podRequestsGaugeVec)
+	crmetrics.Registry.MustRegister(podLimitsGaugeVec)
+	crmetrics.Registry.MustRegister(daemonRequestsGaugeVec)
+	crmetrics.Registry.MustRegister(daemonLimitsGaugeVec)
+	crmetrics.Registry.MustRegister(overheadGaugeVec)
 
 	crmetrics.Registry.MustRegister(podGaugeVec)
 
-	// crmetrics.Registry.MustRegister(limitGaugeVec)
-	// crmetrics.Registry.MustRegister(usageGaugeVec)
-	// crmetrics.Registry.MustRegister(usagePctGaugeVec)
+	crmetrics.Registry.MustRegister(limitGaugeVec)
+	crmetrics.Registry.MustRegister(usageGaugeVec)
+	crmetrics.Registry.MustRegister(usagePctGaugeVec)
 }
 
 func nodeLabelNames() []string {
@@ -185,5 +185,24 @@ func provisionerLabelNames() []string {
 	return []string{
 		resourceType,
 		provisionerName,
+	}
+}
+
+func ResetMetrics() {
+	gaugeVecs := []*prometheus.GaugeVec{
+		allocatableGaugeVec,
+		podRequestsGaugeVec,
+		podLimitsGaugeVec,
+		daemonRequestsGaugeVec,
+		daemonLimitsGaugeVec,
+		overheadGaugeVec,
+		podGaugeVec,
+		limitGaugeVec,
+		usageGaugeVec,
+		usagePctGaugeVec,
+	}
+
+	for _, vec := range gaugeVecs {
+		vec.Reset()
 	}
 }

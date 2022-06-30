@@ -67,13 +67,16 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	// fmt.Printf("Running setup...\n")
 	cloudProvider = &fake.CloudProvider{InstanceTypes: fake.InstanceTypesAssorted()}
 	cluster = state.NewCluster(cfg, env.Client, cloudProvider)
 	nodeController = state.NewNodeController(env.Client, cluster)
 	podController = state.NewPodController(env.Client, cluster)
-	provisioner = test.Provisioner(test.ProvisionerOptions{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	ExpectApplied(ctx, env.Client, provisioner)
+
+	state.ResetMetrics()
 })
+
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
