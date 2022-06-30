@@ -112,11 +112,11 @@ If the instance type is unavailable for some reason, then fleet will move on to 
 If you are using the spot capacity type, Karpenter uses the capacity-optimized-prioritized allocation strategy which tells fleet to find the instance type that EC2 has the most capacity of which will decrease the probability of a spot interruption happening in the near term.
 See [Choose the appropriate allocation strategy](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html#ec2-fleet-allocation-use-cases) for information on fleet optimization.
 
-### What if there is no spot capacity? Will Karpenter fallback to on-demand?
+### What if there is no spot capacity? Will Karpenter use on-demand?
 
-Karpenter will fallback to on-demand, if your provisioner specifies both spot and on-demand and you are flexible to at least 10 instance types. 
+Karpenter will use on-demand, if your provisioner specifies both spot and on-demand and you are flexible to at least 10 instance types. 
 
-More specifically, Karpenter maintains a concept of "offerings" for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option). Spot offerings are prioritized, if they're available. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress through fallback. The retry will happen immediately within milliseconds.
+More specifically, Karpenter maintains a concept of "offerings" for each instance type, which is a combination of zone and capacity type (equivalent in the AWS cloud provider to an EC2 purchase option). Spot offerings are prioritized, if they're available. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire provisioner) so that Karpenter can make forward progress with different options. The retry will happen immediately within milliseconds.
 
 ## Workloads
 
