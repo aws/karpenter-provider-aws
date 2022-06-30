@@ -144,37 +144,68 @@ func (v *VolumeLimits) Validate(ctx context.Context, pod *v1.Pod) (VolumeCount, 
 
 func (v *VolumeLimits) validate(ctx context.Context, pod *v1.Pod) (volumeUsage, error) {
 	podPVCs := volumeUsage{}
-
 	for _, volume := range pod.Spec.Volumes {
 		var pvcID string
 		var storageClassName *string
+		var volumeName string
+		var pvc v1.PersistentVolumeClaim
 		if volume.PersistentVolumeClaim != nil {
-			var pvc v1.PersistentVolumeClaim
 			if err := v.kubeClient.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: volume.PersistentVolumeClaim.ClaimName}, &pvc); err != nil {
 				return nil, err
 			}
-
 			pvcID = fmt.Sprintf("%s/%s", pod.Namespace, volume.PersistentVolumeClaim.ClaimName)
 			storageClassName = pvc.Spec.StorageClassName
+			volumeName = pvc.Spec.VolumeName
 		} else if volume.Ephemeral != nil {
 			// generated name per https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#persistentvolumeclaim-naming
 			pvcID = fmt.Sprintf("%s/%s-%s", pod.Namespace, pod.Name, volume.Name)
 			storageClassName = volume.Ephemeral.VolumeClaimTemplate.Spec.StorageClassName
+			volumeName = volume.Ephemeral.VolumeClaimTemplate.Spec.VolumeName
 		} else {
 			continue
 		}
 
-		provisioner := "unspecified"
-		if storageClassName != nil {
-			var sc storagev1.StorageClass
-			if err := v.kubeClient.Get(ctx, client.ObjectKey{Name: *storageClassName}, &sc); err != nil {
+		var driverName string
+		var err error
+		// We can track the volume usage by the CSI Driver name which is pulled from the storage class for dynamic
+		// volumes, or if it's bound/static we can pull the volume name
+		if volumeName != "" {
+			driverName, err = v.driverFromVolume(ctx, volumeName)
+			if err != nil {
 				return nil, err
 			}
-			provisioner = sc.Provisioner
+		} else if storageClassName != nil && *storageClassName != "" {
+			driverName, err = v.driverFromSC(ctx, storageClassName)
+			if err != nil {
+				return nil, err
+			}
 		}
-		podPVCs.Add(provisioner, pvcID)
+
+		// might be a non-CSI driver, something we don't currently handle
+		if driverName != "" {
+			podPVCs.Add(driverName, pvcID)
+		}
 	}
 	return podPVCs, nil
+}
+
+func (v *VolumeLimits) driverFromSC(ctx context.Context, storageClassName *string) (string, error) {
+	var sc storagev1.StorageClass
+	if err := v.kubeClient.Get(ctx, client.ObjectKey{Name: *storageClassName}, &sc); err != nil {
+		return "", err
+	}
+	return sc.Provisioner, nil
+}
+
+func (v *VolumeLimits) driverFromVolume(ctx context.Context, volumeName string) (string, error) {
+	var pv v1.PersistentVolume
+	if err := v.kubeClient.Get(ctx, client.ObjectKey{Name: volumeName}, &pv); err != nil {
+		return "", err
+	}
+	if pv.Spec.CSI != nil {
+		return pv.Spec.CSI.Driver, nil
+	}
+	return "", nil
 }
 
 func (v *VolumeLimits) DeletePod(key types.NamespacedName) {
