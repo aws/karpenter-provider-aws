@@ -75,7 +75,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		}
 	}
 	if options.Image == "" {
-		options.Image = "k8s.gcr.io/pause"
+		options.Image = "alpine"
 	}
 	volumes := []v1.Volume{}
 	for _, pvc := range options.PersistentVolumeClaims {

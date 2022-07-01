@@ -982,7 +982,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1010,7 +1010,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1049,7 +1049,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1071,7 +1071,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1095,7 +1095,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1119,7 +1119,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-mime.sh"),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)

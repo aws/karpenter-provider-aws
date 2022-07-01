@@ -29,6 +29,12 @@ var (
 
 	// Karpenter specific domains and labels
 	KarpenterLabelDomain = "karpenter.sh"
+
+	ProvisionerNameLabelKey         = Group + "/provisioner-name"
+	DoNotEvictPodAnnotationKey      = Group + "/do-not-evict"
+	EmptinessTimestampAnnotationKey = Group + "/emptiness-timestamp"
+	TerminationFinalizer            = Group + "/termination"
+
 	LabelCapacityType    = KarpenterLabelDomain + "/capacity-type"
 	LabelNodeInitialized = KarpenterLabelDomain + "/initialized"
 

@@ -27,7 +27,7 @@ import (
 type AWSNodeTemplateOptions struct {
 	metav1.ObjectMeta
 	UserData *string
-	AWS      *aws.AWS
+	AWS      aws.AWS
 }
 
 func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTemplate {
@@ -41,7 +41,7 @@ func AWSNodeTemplate(overrides ...AWSNodeTemplateOptions) *v1alpha1.AWSNodeTempl
 		ObjectMeta: ObjectMeta(options.ObjectMeta),
 		Spec: v1alpha1.AWSNodeTemplateSpec{
 			UserData: options.UserData,
-			AWS:      *options.AWS,
+			AWS:      options.AWS,
 		},
 	}
 }

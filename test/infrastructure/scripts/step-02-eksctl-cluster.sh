@@ -1,7 +1,7 @@
 cmd="create"
 K8S_VERSION="1.22"
 eksctl get cluster --name "${CLUSTER_NAME}" && cmd="upgrade"
-eksctl ${cmd} cluster -f - << EOF
+eksctl ${cmd} cluster -f - <<EOF
 ---
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -23,7 +23,11 @@ managedNodeGroups:
     name: ${CLUSTER_NAME}-system-pool
     desiredCapacity: 2
     minSize: 2
-    maxSize: 4
+    maxSize: 2
+    taints:
+      - key: CriticalAddonsOnly
+        value: "true"
+        effect: NoSchedule
 iam:
   withOIDC: true
 EOF
