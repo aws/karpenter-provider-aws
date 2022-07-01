@@ -75,7 +75,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 		}
 	}
 	if options.Image == "" {
-		options.Image = "public.ecr.aws/eks-distro/kubernetes/pause:3.2"
+		options.Image = "alpine"
 	}
 	volumes := []v1.Volume{}
 	for _, pvc := range options.PersistentVolumeClaims {
@@ -93,7 +93,7 @@ func Pod(overrides ...PodOptions) *v1.Pod {
 			Tolerations:               options.Tolerations,
 			InitContainers: []v1.Container{{
 				Name:      strings.ToLower(sequentialRandomName()),
-				Image:     "alpine",
+				Image:     options.Image,
 				Resources: options.InitResourceRequirements,
 			}},
 			Containers: []v1.Container{{

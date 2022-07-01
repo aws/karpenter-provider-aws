@@ -1,6 +1,7 @@
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 
-helm upgrade --install prometheus --namespace monitoring --create-namespace \
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace \
   --set tolerations[0].key="CriticalAddonsOnly" \
   --set tolerations[0].operator="Exists" \
   --set coreDns.enabled=false \
@@ -12,5 +13,4 @@ helm upgrade --install prometheus --namespace monitoring --create-namespace \
   --set kubeStateMetrics.enabled=false \
   --set kubeControllerManager.enabled=false \
   --set prometheus.serviceMonitor.selfMonitor=false \
-  --set prometheusOperator.serviceMonitor.selfMonitor=false \
-  prometheus-community/kube-prometheus-stack
+  --set prometheusOperator.serviceMonitor.selfMonitor=false

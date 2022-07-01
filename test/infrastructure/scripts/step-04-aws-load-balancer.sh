@@ -25,5 +25,4 @@ helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-contro
   --set tolerations[0].key="CriticalAddonsOnly" \
   --set tolerations[0].operator="Exists" \
   --set replicaCount=1 \
-  --set serviceAccount.name=aws-load-balancer-controller \
-  eks/aws-load-balancer-controller
+  --set serviceAccount.name=aws-load-balancer-controller
