@@ -1719,7 +1719,7 @@ var _ = Describe("Pricing", func() {
 		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
 		// API provides on-demand prices, the ec2 API provides spot prices
 		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []*string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -1752,7 +1752,7 @@ var _ = Describe("Pricing", func() {
 			},
 		})
 		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []*string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},

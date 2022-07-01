@@ -15,8 +15,12 @@ limitations under the License.
 package fake
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -50,8 +54,8 @@ func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, inp *pricing.Get
 	return errors.New("no pricing data provided")
 }
 
-func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
-	return aws.JSONValue{
+func NewOnDemandPrice(instanceType string, price float64) *string {
+	v := aws.JSONValue{
 		"product": map[string]interface{}{
 			"attributes": map[string]interface{}{
 				"instanceType": instanceType,
@@ -70,4 +74,9 @@ func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
 			},
 		},
 	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	runtime.Must(enc.Encode(v))
+	return aws.String(buf.String())
 }
