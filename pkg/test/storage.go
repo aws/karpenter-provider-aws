@@ -30,6 +30,7 @@ type PersistentVolumeOptions struct {
 	metav1.ObjectMeta
 	Zones            []string
 	StorageClassName string
+	Driver           string
 }
 
 func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume {
@@ -39,10 +40,13 @@ func PersistentVolume(overrides ...PersistentVolumeOptions) *v1.PersistentVolume
 			panic(fmt.Sprintf("Failed to merge options: %s", err))
 		}
 	}
+	if options.Driver == "" {
+		options.Driver = "test.driver"
+	}
 	return &v1.PersistentVolume{
 		ObjectMeta: ObjectMeta(metav1.ObjectMeta{}),
 		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{CSI: &v1.CSIPersistentVolumeSource{Driver: "test-driver", VolumeHandle: "test-handle"}},
+			PersistentVolumeSource: v1.PersistentVolumeSource{CSI: &v1.CSIPersistentVolumeSource{Driver: options.Driver, VolumeHandle: "test-handle"}},
 			StorageClassName:       options.StorageClassName,
 			AccessModes:            []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 			Capacity:               v1.ResourceList{v1.ResourceStorage: resource.MustParse("100Gi")},
