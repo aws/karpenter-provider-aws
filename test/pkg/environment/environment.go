@@ -78,7 +78,7 @@ func NewOptions() (*Options, error) {
 
 func (o Options) Validate() error {
 	if o.EnvironmentName == "" {
-		return fmt.Errorf("--envronment-name must be defined")
+		return fmt.Errorf("--environment-name must be defined")
 	}
 	return nil
 }
