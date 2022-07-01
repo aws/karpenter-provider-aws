@@ -82,6 +82,11 @@ func NewScheduler(ctx context.Context, kubeClient client.Client, nodeTemplates [
 		s.remainingResources[name] = resources.Subtract(s.remainingResources[name], node.Capacity)
 		return true
 	})
+
+	// we de-dupe events based on content, so we need a consistent ordering of inflight nodes to generate fewer events
+	sort.Slice(s.inflight, func(a, b int) bool {
+		return s.inflight[a].Node.UID < s.inflight[b].Node.UID
+	})
 	return s
 }
 

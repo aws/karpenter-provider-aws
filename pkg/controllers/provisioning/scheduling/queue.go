@@ -83,6 +83,8 @@ func byCPUAndMemoryDescending(pods []*v1.Pod) func(i int, j int) bool {
 		} else if memCmp > 0 {
 			return true
 		}
-		return false
+
+		// provide a consistent ordering
+		return pods[i].UID < pods[j].UID
 	}
 }
