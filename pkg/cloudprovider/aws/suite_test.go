@@ -393,8 +393,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -1647,6 +1647,21 @@ var _ = Describe("Allocation", func() {
 					Expect(provisioner.Validate(ctx)).ToNot(Succeed())
 				})
 			})
+		})
+	})
+
+	Context("Webhook", func() {
+		It("should validate when in webhook mode", func() {
+			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			// just ensures that validation doesn't depend on anything as when created for the webhook
+			// we don't fully initialize the cloud provider
+			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
+		})
+		It("should default when in webhookmode", func() {
+			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			// just ensures that validation doesn't depend on anything as when created for the webhook
+			// we don't fully initialize the cloud provider
+			cp.Default(ctx, provisioner)
 		})
 	})
 })
