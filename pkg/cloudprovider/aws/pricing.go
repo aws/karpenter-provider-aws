@@ -162,7 +162,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		if err := p.updateOnDemandPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, p.onDemandUpdateTime.Format(time.RFC822Z))
+			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, p.onDemandUpdateTime.Format(time.RFC3339))
 		}
 	}()
 
@@ -170,7 +170,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		if err := p.updateSpotPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, p.spotUpdateTime.Format(time.RFC822Z))
+			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, p.spotUpdateTime.Format(time.RFC3339))
 		}
 	}()
 
