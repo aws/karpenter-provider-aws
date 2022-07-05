@@ -60,7 +60,10 @@ func main() {
 	})
 
 	// Register the cloud provider to attach vendor specific validation logic.
-	registry.NewCloudProvider(ctx, cloudprovider.Options{ClientSet: kubernetes.NewForConfigOrDie(config)})
+	registry.NewCloudProvider(ctx, cloudprovider.Options{
+		ClientSet:   kubernetes.NewForConfigOrDie(config),
+		WebhookOnly: true,
+	})
 
 	// Controllers and webhook
 	sharedmain.MainWithConfig(ctx, "webhook", config,

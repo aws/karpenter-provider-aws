@@ -9,17 +9,19 @@ if ! aws iam get-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpe
 fi
 
 eksctl create iamserviceaccount \
-    --name=ebs-csi-controller-sa \
-    --namespace=kube-system \
-    --cluster=${CLUSTER_NAME} \
-    --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter-AmazonEBSCSIDriverServiceRolePolicy-${CLUSTER_NAME} \
-    --approve \
-    --override-existing-serviceaccounts
+  --name=ebs-csi-controller-sa \
+  --namespace=kube-system \
+  --cluster=${CLUSTER_NAME} \
+  --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/Karpenter-AmazonEBSCSIDriverServiceRolePolicy-${CLUSTER_NAME} \
+  --approve \
+  --override-existing-serviceaccounts
 
 helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
 helm upgrade --install aws-ebs-csi-driver \
-    --namespace kube-system \
-    --set controller.replicaCount=1 \
-    --set controller.serviceAccount.create=false \
-    aws-ebs-csi-driver/aws-ebs-csi-driver
+  --namespace kube-system \
+  --set controller.replicaCount=1 \
+  --set controller.serviceAccount.create=false \
+  --set tolerations[0].key="CriticalAddonsOnly" \
+  --set tolerations[0].operator="Exists" \
+  aws-ebs-csi-driver/aws-ebs-csi-driver

@@ -192,7 +192,7 @@ type BlockDevice struct {
 
 func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
 	if provider == nil {
-		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
+		return nil, fmt.Errorf("invariant violated: spec.provider is not defined. Is the validating webhook installed?")
 	}
 	a := &AWS{}
 	_, gvk, err := Codec.UniversalDeserializer().Decode(provider.Raw, nil, a)
@@ -207,7 +207,7 @@ func Deserialize(provider *v1alpha5.Provider) (*AWS, error) {
 
 func (a *AWS) Serialize(provider *v1alpha5.Provider) error {
 	if provider == nil {
-		return fmt.Errorf("invariant violated: spec.provider is not defined. Is the defaulting webhook installed?")
+		return fmt.Errorf("invariant violated: spec.provider is not defined. Is the validating webhook installed?")
 	}
 	bytes, err := json.Marshal(a)
 	if err != nil {

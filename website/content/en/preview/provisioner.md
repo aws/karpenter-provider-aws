@@ -109,12 +109,7 @@ Generally, instance types should be a list and not a single value. Leaving this 
 
 Review [AWS instance types](https://aws.amazon.com/ec2/instance-types/).
 
-The default value includes all instance types with the exclusion of metal
-(non-virtualized),
-[non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html),
-and GPU instances.
-
-View the full list of instance types with `aws ec2 describe-instance-types`.
+The default value includes most instance types with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).  The full list of supported instance types can be seen [here](../aws/instance-types/)
 
 **Example**
 

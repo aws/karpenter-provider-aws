@@ -30,6 +30,9 @@ import (
 type Options struct {
 	ClientSet  *kubernetes.Clientset
 	KubeClient client.Client
+	// WebhookOnly is true if the cloud provider is being used for its validation/defaulting only by the webhook.  In
+	// this case it may not need to perform some initialization and the StartAsync channel will not be closed.
+	WebhookOnly bool
 	// StartAsync is a channel that is closed when leader election has been won.  This is a signal to start any  async
 	// processing that should only occur while the cloud provider is the leader.
 	StartAsync <-chan struct{}

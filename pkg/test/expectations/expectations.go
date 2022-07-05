@@ -24,9 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/onsi/ginkgo"
-
-	//nolint:revive,stylecheck
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	prometheus "github.com/prometheus/client_model/go"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
