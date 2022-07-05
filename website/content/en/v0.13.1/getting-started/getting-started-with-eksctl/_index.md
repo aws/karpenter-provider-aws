@@ -46,7 +46,7 @@ After setting up the tools, set the following environment variable to the Karpen
 would like to install.
 
 ```bash
-export KARPENTER_VERSION=v0.13.1
+export KARPENTER_VERSION=0.13.1
 ```
 
 Also set the following environment variables to store commonly used values.
