@@ -52,7 +52,7 @@ spec:
       dnsConfig:
         {{- toYaml . | nindent 8}}
       {{- end }}
-      {{- if .Values.webhook.hostNetwork }}
+      {{- if .Values.hostNetwork }}
       hostNetwork: true
       {{- end }}
       containers:
