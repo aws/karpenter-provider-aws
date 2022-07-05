@@ -114,7 +114,8 @@ description: >
 ---
 `)
 	fmt.Fprintf(f, "<!-- this document is generated from hack/docs/metrics_gen_docs.go -->\n")
-	fmt.Fprintf(f, "Karpenter writes several metrics to Prometheus to allow monitoring cluster provisioning status\n")
+	fmt.Fprintf(f, "Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. "+
+		"These metrics are available on the metrics port at `/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../configuration)\n")
 	previousSubsystem := ""
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {

@@ -7,7 +7,7 @@ description: >
   Inspect Karpenter Metrics
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
-Karpenter writes several metrics to Prometheus to allow monitoring cluster provisioning status
+Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available on the metrics port at `/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../configuration)
 ## Provisioner Metrics
 
 ### `karpenter_provisioner_limit`
