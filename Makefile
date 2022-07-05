@@ -21,16 +21,17 @@ help: ## Display help
 
 dev: verify test ## Run all steps in the developer loop
 
-ci: toolchain verify licenses battletest ## Run all steps used by continuous integration
+ci: toolchain verify licenses battletest coverage ## Run all steps used by continuous integration
 
 test: ## Run tests
-	go test -v ./pkg/...
+	go test ./pkg/...
 
-strongertests:
-	# Run randomized, racing, code coveraged, tests
-	ginkgo -r \
-			-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
-			--randomizeAllSpecs --randomizeSuites -race ./pkg/...
+battletest: ## Run randomized, racing, code coveraged, tests
+	go test ./pkg/... \
+		-race \
+		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+		-ginkgo.randomizeAllSpecs \
+		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
 	go test -v ./test/... -environment-name=${CLUSTER_NAME}
@@ -39,10 +40,9 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake:
-	for i in $(shell seq 1 5); do make strongertests || exit 1; done
-	ginkgo -r pkg -race -tags random_test_delay
+	for i in $(shell seq 1 5); do make battletest || exit 1; done
 
-battletest: strongertests
+coverage:
 	go tool cover -html coverage.out -o coverage.html
 
 verify: codegen ## Verify code. Includes dependencies, linting, formatting, etc
