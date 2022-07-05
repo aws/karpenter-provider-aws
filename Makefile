@@ -16,9 +16,6 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME}
 
-## Extra ko options
-KO_WITH_LOCAL_REPO ?= KO_DOCKER_REPO=ko.local
-
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
@@ -62,9 +59,9 @@ licenses: ## Verifies dependency licenses
 	go mod download
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
 
-build: ## Build controller and webhook and publich to local docker registry
-	$(KO_WITH_LOCAL_REPO) $(WITH_GOFLAGS) ko build -P github.com/aws/karpenter/cmd/controller
-	$(KO_WITH_LOCAL_REPO) $(WITH_GOFLAGS) ko build -P github.com/aws/karpenter/cmd/webhook
+build: ## Build controller and webhook images with publishing to the KO_DOCKER_REPO env. var. docker registry
+	$(WITH_GOFLAGS) ko build -P github.com/aws/karpenter/cmd/controller
+	$(WITH_GOFLAGS) ko build -P github.com/aws/karpenter/cmd/webhook
 
 apply: ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --create-namespace --install karpenter charts/karpenter --namespace karpenter \

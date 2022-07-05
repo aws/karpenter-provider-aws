@@ -51,7 +51,7 @@ make dev # run codegen, lint, and tests
 #### Build local images
 Using following command you can build local images for testing.
 ```
-make build
+KO_DOCKER_REPO=ko.local make build
 ```
 
 It is useful when you already have running karpenter instance and need to manually update the image. Following images will be built:
