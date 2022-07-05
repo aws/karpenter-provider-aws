@@ -58,7 +58,7 @@ func (mc *MetricCollector) init(ctx context.Context) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metrics-scraper"))
 
 	// Add metric collectors
-	mc.collectors = append(mc.collectors, &podMetrics{cluster: mc.Cluster})
+	mc.collectors = append(mc.collectors, newPodCollector(mc.Cluster))
 	logging.FromContext(ctx).Infof("Starting metrics collector with %d collectors", len(mc.collectors))
 
 	// Initialize all metrics collectors

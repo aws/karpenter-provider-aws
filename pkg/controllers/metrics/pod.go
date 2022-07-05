@@ -66,33 +66,30 @@ func podLabelNames() []string {
 	}
 }
 
-type podMetrics struct {
+type podCollector struct {
 	cluster *state.Cluster
 	labels  []prometheus.Labels
 }
 
-func (pm *podMetrics) init(ctx context.Context) {
+func newPodCollector(cluster *state.Cluster) *podCollector {
+	return &podCollector{cluster: cluster}
+}
+
+func (pm *podCollector) init(ctx context.Context) {
 	logging.FromContext(ctx).Infof("Starting pod metrics collector")
 	crmetrics.Registry.Register(podGaugeVec)
 }
 
-func (pm *podMetrics) update(ctx context.Context) {
-	// logging.FromContext(ctx).Infof("Running pod metrics collector")
-	// Clear existing labels
-	// for _, l := range pm.labels {
-	// 	podGaugeVec.Delete(l)
-	// }
+func (pm *podCollector) update(ctx context.Context) {
 	podGaugeVec.Reset()
 
 	pm.labels = pm.updatePodLabels()
 	for _, l := range pm.labels {
 		podGaugeVec.With(l).Set(float64(1))
 	}
-
-	// logging.FromContext(ctx).Infof("Completed pod metrics collector")
 }
 
-func (pm *podMetrics) updatePodLabels() []prometheus.Labels {
+func (pm *podCollector) updatePodLabels() []prometheus.Labels {
 	labels := make(map[types.NamespacedName]prometheus.Labels)
 	bindings := make(map[string][]types.NamespacedName)
 
@@ -153,6 +150,6 @@ func (pm *podMetrics) updatePodLabels() []prometheus.Labels {
 	return labelList
 }
 
-func (pm *podMetrics) reset() {
+func (pm *podCollector) reset() {
 	podGaugeVec.Reset()
 }
