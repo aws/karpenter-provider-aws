@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"knative.dev/pkg/logging"
@@ -50,11 +49,6 @@ func NewPodController(kubeClient client.Client, cluster *Cluster) *PodController
 func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named(podControllerName).With("pod", req.NamespacedName))
 
-	// Remove the previous gauge after pod labels are updated
-	if labels, ok := c.labelsMap.Load(req.NamespacedName); ok {
-		podGaugeVec.Delete(labels.(prometheus.Labels))
-	}
-
 	stored := &v1.Pod{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, stored); err != nil {
 		if errors.IsNotFound(err) {
@@ -67,8 +61,6 @@ func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (r
 	if err := c.cluster.updatePod(ctx, stored); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	c.record(ctx, stored)
 
 	return reconcile.Result{Requeue: true, RequeueAfter: stateRetryPeriod}, nil
 }

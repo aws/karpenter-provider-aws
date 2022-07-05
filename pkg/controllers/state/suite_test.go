@@ -74,7 +74,7 @@ var _ = BeforeEach(func() {
 	podController = state.NewPodController(env.Client, cluster)
 	ExpectApplied(ctx, env.Client, provisioner)
 
-	state.ResetMetrics()
+	// metrics.ResetMetrics()
 })
 
 var _ = AfterEach(func() {
