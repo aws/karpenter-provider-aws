@@ -16,7 +16,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-issue-message: 'Labeled for closure due to inactivity in 10 days.'
-          exempt-issue-labels: 'roadmap,help-wanted,burning,feature,documentation,operational-excellence,good-first-issue'
+          exempt-issue-labels: 'bug,roadmap,help-wanted,burning,feature,documentation,operational-excellence,good-first-issue'
           stale-issue-label: 'lifecycle/stale'
           close-issue-label: 'lifecycle/closed'
           remove-stale-when-updated: true
