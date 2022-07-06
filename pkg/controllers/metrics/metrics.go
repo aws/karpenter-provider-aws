@@ -57,6 +57,7 @@ func (ms *MetricScraper) init(ctx context.Context) {
 
 	for _, c := range []scraper{
 		newPodCollector(ms.Cluster),
+		newNodeCollector(ms.Cluster),
 	} {
 		ms.scrapers = append(ms.scrapers, c)
 	}
