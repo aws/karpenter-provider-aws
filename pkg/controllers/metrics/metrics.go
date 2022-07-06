@@ -16,74 +16,91 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/aws/karpenter/pkg/controllers/state"
 	"knative.dev/pkg/logging"
 )
 
-type collector interface {
+const tickPeriodSeconds = 5
+
+type scraper interface {
+	getName() string
 	init(context.Context)
-	update(context.Context)
 	reset()
+	update(context.Context)
 }
 
-type MetricCollector struct {
+type MetricScraper struct {
 	Cluster *state.Cluster
 
-	terminate  chan bool
-	collectors []collector
+	scrapers []scraper
 }
 
-func NewMetricCollector(ctx context.Context, cluster *state.Cluster) *MetricCollector {
-	mc := &MetricCollector{
-		Cluster:   cluster,
-		terminate: make(chan bool),
+func NewMetricCollector(ctx context.Context, cluster *state.Cluster) *MetricScraper {
+	mc := &MetricScraper{
+		Cluster: cluster,
 	}
 	mc.init(ctx)
 	return mc
 }
 
-func (mc *MetricCollector) Terminate() {
-	mc.terminate <- true
-}
-
-func (mc *MetricCollector) Reset() {
-	for _, c := range mc.collectors {
+func (ms *MetricScraper) Reset() {
+	for _, c := range ms.scrapers {
 		c.reset()
 	}
 }
 
-func (mc *MetricCollector) init(ctx context.Context) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metrics-scraper"))
+func (ms *MetricScraper) init(ctx context.Context) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("metric-scraper"))
 
-	// Add metric collectors
-	mc.collectors = append(mc.collectors, newPodCollector(mc.Cluster))
-	logging.FromContext(ctx).Infof("Starting metrics collector with %d collectors", len(mc.collectors))
+	for _, c := range []scraper{
+		newPodCollector(ms.Cluster),
+	} {
+		ms.scrapers = append(ms.scrapers, c)
+	}
 
-	// Initialize all metrics collectors
-	for _, collector := range mc.collectors {
-		collector.init(ctx)
+	logging.FromContext(ctx).Infof("Starting metric-scraper with the following scrapers: %s", func() string {
+		var sb strings.Builder
+		for idx := range ms.scrapers {
+			sb.WriteString(ms.scrapers[idx].getName())
+			if idx < len(ms.scrapers)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		return sb.String()
+	}())
+
+	// Initialize all metrics scrapers
+	for _, scraper := range ms.scrapers {
+		scraper.init(ctx)
 	}
 
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(tickPeriodSeconds * time.Second)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case <-mc.terminate:
-				logging.FromContext(ctx).Infof("Terminating cluster-state metrics scraper")
+			case <-ctx.Done():
+				logging.FromContext(ctx).Infof("Terminating metric-scraper")
 				return
 			case <-ticker.C:
-				mc.update(ctx)
+				ms.update(ctx)
 			}
 		}
 	}()
 }
 
-func (m *MetricCollector) update(ctx context.Context) {
-	for _, c := range m.collectors {
+func (ms *MetricScraper) update(ctx context.Context) {
+	for _, c := range ms.scrapers {
 		c.update(ctx)
+	}
+}
+
+func (ms *MetricScraper) ResetScrapers() {
+	for _, c := range ms.scrapers {
+		c.reset()
 	}
 }

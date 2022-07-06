@@ -22,7 +22,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/logging"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -66,35 +65,34 @@ func podLabelNames() []string {
 	}
 }
 
-type podCollector struct {
+type podScraper struct {
 	cluster *state.Cluster
 	labels  []prometheus.Labels
 }
 
-func newPodCollector(cluster *state.Cluster) *podCollector {
-	return &podCollector{cluster: cluster}
+func newPodCollector(cluster *state.Cluster) *podScraper {
+	return &podScraper{cluster: cluster}
 }
 
-func (pm *podCollector) init(ctx context.Context) {
-	logging.FromContext(ctx).Infof("Starting pod metrics collector")
+func (ps *podScraper) init(ctx context.Context) {
 	crmetrics.Registry.Register(podGaugeVec)
 }
 
-func (pm *podCollector) update(ctx context.Context) {
+func (ps *podScraper) update(ctx context.Context) {
 	podGaugeVec.Reset()
 
-	pm.labels = pm.updatePodLabels()
-	for _, l := range pm.labels {
+	ps.labels = ps.updatePodLabels()
+	for _, l := range ps.labels {
 		podGaugeVec.With(l).Set(float64(1))
 	}
 }
 
-func (pm *podCollector) updatePodLabels() []prometheus.Labels {
+func (ps *podScraper) updatePodLabels() []prometheus.Labels {
 	labels := make(map[types.NamespacedName]prometheus.Labels)
 	bindings := make(map[string][]types.NamespacedName)
 
 	// Populate default labels and derivable labels for each pod and generate bindings map
-	pm.cluster.ForEachPod(func(p *v1.Pod) bool {
+	ps.cluster.ForEachPod(func(p *v1.Pod) bool {
 		label := prometheus.Labels{}
 		label[podName] = p.Name
 		label[podNameSpace] = p.Namespace
@@ -120,7 +118,7 @@ func (pm *podCollector) updatePodLabels() []prometheus.Labels {
 	})
 
 	// Update labels with values from cached nodes
-	pm.cluster.ForEachNode(func(n *state.Node) bool {
+	ps.cluster.ForEachNode(func(n *state.Node) bool {
 		if pods, ok := bindings[n.Node.Name]; ok {
 			for _, pod := range pods {
 				label := labels[pod]
@@ -150,6 +148,10 @@ func (pm *podCollector) updatePodLabels() []prometheus.Labels {
 	return labelList
 }
 
-func (pm *podCollector) reset() {
+func (ps *podScraper) reset() {
 	podGaugeVec.Reset()
+}
+
+func (ps *podScraper) getName() string {
+	return "pods"
 }
