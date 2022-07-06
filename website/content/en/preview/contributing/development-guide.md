@@ -49,12 +49,13 @@ make dev # run codegen, lint, and tests
 ```
 
 #### Build local images
-Using the following command you can build local images for testing.
+Using the following command you can build local images for testing (note, you should have a docker running on the machine).
 ```
-KO_DOCKER_REPO=ko.local make build
+KO_DOCKER_REPO=ko.local ko build -P github.com/aws/karpenter/cmd/controller
+KO_DOCKER_REPO=ko.local ko build -P github.com/aws/karpenter/cmd/webhook
 ```
 
-This is useful when you already have a running karpenter instance and need to manually update the image. The following images will be built:
+This is useful when you already have a running karpenter instance and want to manually update the image. The following images will be built:
 
 * `ko.local/github.com/aws/karpenter/cmd/controller:latest`
 * `ko.local/github.com/aws/karpenter/cmd/webhook:latest`
