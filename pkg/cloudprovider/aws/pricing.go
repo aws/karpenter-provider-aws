@@ -162,7 +162,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		if err := p.updateOnDemandPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, p.onDemandUpdateTime.Format(time.RFC822Z))
+			logging.FromContext(ctx).Errorf("updating on-demand pricing, %s, using existing pricing data from %s", err, p.onDemandUpdateTime.Format(time.RFC3339))
 		}
 	}()
 
@@ -170,7 +170,7 @@ func (p *PricingProvider) updatePricing(ctx context.Context) {
 	go func() {
 		defer wg.Done()
 		if err := p.updateSpotPricing(ctx); err != nil {
-			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, p.spotUpdateTime.Format(time.RFC822Z))
+			logging.FromContext(ctx).Errorf("updating spot pricing, %s, using existing pricing data from %s", err, p.spotUpdateTime.Format(time.RFC3339))
 		}
 	}()
 
@@ -299,12 +299,7 @@ func (p *PricingProvider) onDemandPage(prices map[string]float64) func(output *p
 
 	return func(output *pricing.GetProductsOutput, b bool) bool {
 		for _, outer := range output.PriceList {
-			var buf bytes.Buffer
-			enc := json.NewEncoder(&buf)
-			if err := enc.Encode(outer); err != nil {
-				logging.FromContext(context.Background()).Errorf("encoding %s", err)
-			}
-			dec := json.NewDecoder(&buf)
+			dec := json.NewDecoder(bytes.NewBufferString(aws.StringValue(outer)))
 			var pItem priceItem
 			if err := dec.Decode(&pItem); err != nil {
 				logging.FromContext(context.Background()).Errorf("decoding %s", err)

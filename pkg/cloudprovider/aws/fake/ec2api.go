@@ -78,8 +78,14 @@ func (e *EC2API) Reset() {
 	e.CalledWithCreateFleetInput.Reset()
 	e.CalledWithCreateLaunchTemplateInput.Reset()
 	e.DescribeSpotPriceHistoryOutput.Reset()
-	e.Instances = sync.Map{}
-	e.LaunchTemplates = sync.Map{}
+	e.Instances.Range(func(k, v any) bool {
+		e.Instances.Delete(k)
+		return true
+	})
+	e.LaunchTemplates.Range(func(k, v any) bool {
+		e.LaunchTemplates.Delete(k)
+		return true
+	})
 	e.InsufficientCapacityPools.Reset()
 	e.NextError.Reset()
 }

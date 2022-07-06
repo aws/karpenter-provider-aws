@@ -18,9 +18,11 @@ eksctl create iamserviceaccount \
 
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
-helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
   --set clusterName=${CLUSTER_NAME} \
   --set serviceAccount.create=false \
+  --set tolerations[0].key="CriticalAddonsOnly" \
+  --set tolerations[0].operator="Exists" \
   --set replicaCount=1 \
   --set serviceAccount.name=aws-load-balancer-controller

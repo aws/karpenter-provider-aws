@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+SCRIPTPATH="$(
+  cd "$(dirname "$0")"
+  pwd -P
+)"
 
 declare -a steps=(
   scripts/step-01-config.sh
@@ -17,6 +20,8 @@ declare -a steps=(
 )
 
 for step in "${steps[@]}"; do
-  echo "$step"
-  source $step
+  echo "👉 $step"
+  source "${SCRIPTPATH}/$step"
 done
+
+echo "✅ Successfully setup test infrastructure"

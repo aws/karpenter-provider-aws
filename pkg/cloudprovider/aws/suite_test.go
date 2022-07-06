@@ -415,8 +415,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-						}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -983,7 +983,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1011,7 +1011,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1050,7 +1050,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-toml.sh"),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(ctx, cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1072,7 +1072,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String(string(content)),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1096,7 +1096,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1120,7 +1120,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   aws.String("#/bin/bash\n ./not-mime.sh"),
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1148,7 +1148,7 @@ var _ = Describe("Allocation", func() {
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
 						AMIs:       amis,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1184,7 +1184,7 @@ var _ = Describe("Allocation", func() {
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
 						AMIs:       amis,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1216,7 +1216,7 @@ var _ = Describe("Allocation", func() {
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
 						AMIs:       amis,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1235,7 +1235,7 @@ var _ = Describe("Allocation", func() {
 					}
 					nodeTemplate := test.AWSNodeTemplate(test.AWSNodeTemplateOptions{
 						UserData:   nil,
-						AWS:        provider,
+						AWS:        *provider,
 						ObjectMeta: metav1.ObjectMeta{Name: providerRefName}})
 					ExpectApplied(ctx, env.Client, nodeTemplate)
 					controller := provisioning.NewController(injection.WithOptions(ctx, opts), cfg, env.Client, clientSet.CoreV1(), recorder, cloudProvider, cluster)
@@ -1812,6 +1812,21 @@ var _ = Describe("Allocation", func() {
 			})
 		})
 	})
+
+	Context("Webhook", func() {
+		It("should validate when in webhook mode", func() {
+			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			// just ensures that validation doesn't depend on anything as when created for the webhook
+			// we don't fully initialize the cloud provider
+			Expect(cp.Validate(ctx, provisioner)).To(Succeed())
+		})
+		It("should default when in webhookmode", func() {
+			cp := NewCloudProvider(ctx, cloudprovider.Options{WebhookOnly: true})
+			// just ensures that validation doesn't depend on anything as when created for the webhook
+			// we don't fully initialize the cloud provider
+			cp.Default(ctx, provisioner)
+		})
+	})
 })
 
 var _ = Describe("Pricing", func() {
@@ -1837,7 +1852,7 @@ var _ = Describe("Pricing", func() {
 		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
 		// API provides on-demand prices, the ec2 API provides spot prices
 		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []*string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
@@ -1870,7 +1885,7 @@ var _ = Describe("Pricing", func() {
 			},
 		})
 		fakePricingAPI.GetProductsOutput.Set(&pricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
+			PriceList: []*string{
 				fake.NewOnDemandPrice("c98.large", 1.20),
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},

@@ -5,17 +5,17 @@ Parameters:
     Type: String
     Description: "Host cluster name"
 Resources:
-  KarpenterGuestClusterNodeInstanceProfile:
+  KarpenterNodeInstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
     Properties:
-      InstanceProfileName: !Sub "KarpenterGuestClusterNodeInstanceProfile-${ClusterName}"
+      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
       Path: "/"
       Roles:
-        - Ref: "KarpenterGuestClusterNodeRole"
-  KarpenterGuestClusterNodeRole:
+        - Ref: "KarpenterNodeRole"
+  KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: !Sub "KarpenterGuestClusterNodeRole-${ClusterName}"
+      RoleName: !Sub "KarpenterNodeRole-${ClusterName}"
       Path: /
       AssumeRolePolicyDocument:
         Version: "2012-10-17"

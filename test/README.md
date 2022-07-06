@@ -13,3 +13,10 @@ Testing infrastructure will be divided up into three layers: Management Cluster,
 - `Clusters Under Test`: Rapid iteration [KIT](https://github.com/awslabs/kubernetes-iteration-toolkit) Guest Clusters and EKS Clusters where test suites will run.
 
 *Note: A more formal design discussing testing infrastructure will come soon.*
+
+## Developing
+Use the Tekton UI to manage and monitor resources and test-runs:
+```
+kubectl port-forward service/tekton-dashboard -n tekton-pipelines 9097&
+open http://localhost:9097
+```

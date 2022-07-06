@@ -2,6 +2,8 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring --create-namespace \
+  --set tolerations[0].key="CriticalAddonsOnly" \
+  --set tolerations[0].operator="Exists" \
   --set coreDns.enabled=false \
   --set kubeProxy.enabled=false \
   --set kubeEtcd.enabled=false \

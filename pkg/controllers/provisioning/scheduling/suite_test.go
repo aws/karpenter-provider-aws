@@ -4063,6 +4063,123 @@ var _ = Describe("Volume Limits", func() {
 		// 100 of the same PVC should all be schedulable on the same node
 		Expect(nodeList.Items).To(HaveLen(1))
 	})
+	It("should not fail for non-dynamic PVCs", func() {
+		const csiProvider = "fake.csi.provider"
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(
+				fake.InstanceTypeOptions{
+					Name: "instance-type",
+					Resources: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU:  resource.MustParse("1024"),
+						v1.ResourcePods: resource.MustParse("1024"),
+					},
+				}),
+		}
+
+		provisioner.Spec.Limits = nil
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, initialPods[0])
+		csiNode := &storagev1.CSINode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: node.Name,
+			},
+			Spec: storagev1.CSINodeSpec{
+				Drivers: []storagev1.CSINodeDriver{
+					{
+						Name:   csiProvider,
+						NodeID: "fake-node-id",
+						Allocatable: &storagev1.VolumeNodeResources{
+							Count: aws.Int32(10),
+						},
+					},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, csiNode)
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		sc := test.StorageClass(test.StorageClassOptions{
+			ObjectMeta:  metav1.ObjectMeta{Name: "my-storage-class"},
+			Provisioner: aws.String(csiProvider),
+			Zones:       []string{"test-zone-1"}})
+		ExpectApplied(ctx, env.Client, sc)
+
+		pv := test.PersistentVolume(test.PersistentVolumeOptions{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-volume"},
+			Driver:     csiProvider,
+			Zones:      []string{"test-zone-1"}})
+
+		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
+			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
+			VolumeName:       pv.Name,
+			StorageClassName: aws.String(""),
+		})
+		ExpectApplied(ctx, env.Client, pv, pvc)
+
+		var pods []*v1.Pod
+		for i := 0; i < 5; i++ {
+			pods = append(pods, test.UnschedulablePod(test.PodOptions{
+				PersistentVolumeClaims: []string{pvc.Name, pvc.Name},
+			}))
+		}
+		ExpectApplied(ctx, env.Client, provisioner)
+		pods = ExpectProvisioned(ctx, env.Client, controller, pods...)
+
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		// 5 of the same PVC should all be schedulable on the same node
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
+	It("should not fail for NFS volumes", func() {
+		cloudProv.InstanceTypes = []cloudprovider.InstanceType{
+			fake.NewInstanceType(
+				fake.InstanceTypeOptions{
+					Name: "instance-type",
+					Resources: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU:  resource.MustParse("1024"),
+						v1.ResourcePods: resource.MustParse("1024"),
+					},
+				}),
+		}
+
+		provisioner.Spec.Limits = nil
+		ExpectApplied(ctx, env.Client, provisioner)
+		initialPods := ExpectProvisioned(ctx, env.Client, controller, test.UnschedulablePod())
+		node := ExpectScheduled(ctx, env.Client, initialPods[0])
+		ExpectReconcileSucceeded(ctx, nodeStateController, client.ObjectKeyFromObject(node))
+
+		pv := test.PersistentVolume(test.PersistentVolumeOptions{
+			ObjectMeta:       metav1.ObjectMeta{Name: "my-volume"},
+			StorageClassName: "nfs",
+			Zones:            []string{"test-zone-1"}})
+		pv.Spec.NFS = &v1.NFSVolumeSource{
+			Server: "fake.server",
+			Path:   "/some/path",
+		}
+		pv.Spec.CSI = nil
+
+		pvc := test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
+			ObjectMeta:       metav1.ObjectMeta{Name: "my-claim"},
+			VolumeName:       pv.Name,
+			StorageClassName: aws.String(""),
+		})
+		ExpectApplied(ctx, env.Client, pv, pvc)
+
+		var pods []*v1.Pod
+		for i := 0; i < 5; i++ {
+			pods = append(pods, test.UnschedulablePod(test.PodOptions{
+				PersistentVolumeClaims: []string{pvc.Name, pvc.Name},
+			}))
+		}
+		ExpectApplied(ctx, env.Client, provisioner)
+		pods = ExpectProvisioned(ctx, env.Client, controller, pods...)
+
+		var nodeList v1.NodeList
+		Expect(env.Client.List(ctx, &nodeList)).To(Succeed())
+		// 5 of the same PVC should all be schedulable on the same node
+		Expect(nodeList.Items).To(HaveLen(1))
+	})
 })
 
 func MakePods(count int, options test.PodOptions) (pods []*v1.Pod) {
