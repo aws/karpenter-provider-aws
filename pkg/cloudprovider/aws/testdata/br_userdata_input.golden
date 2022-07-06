@@ -1,4 +1,14 @@
 [settings.kubernetes.eviction-hard]
 "memory.available" = "12%"
+
 [settings.kubernetes]
 "unknown-setting" = "unknown"
+
+[settings.network]
+hostname = "test.local"
+https-proxy = "1.2.3.4:8080"
+no-proxy = ["localhost", "127.0.0.1"]
+hosts = [["10.0.0.0", ["test.example.com", "test1.example.com"]]]
+
+[settings.ntp]
+time-servers = ["169.254.169.123"]
