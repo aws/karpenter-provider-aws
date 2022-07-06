@@ -2,3 +2,7 @@
 # More information here: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 * @aws/karpenter
+
+# API Changes
+pkg/apis/ @aws/karpenter-leads
+pkg/cloudprovider/types.go @aws/karpenter-leads
