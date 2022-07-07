@@ -9510,7 +9510,6 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-memory|512|
  |karpenter.k8s.aws/instance-pods|4|
  |karpenter.k8s.aws/instance-size|nano|
- |karpenter.sh/capacity-type|on-demand|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|t2.nano|
