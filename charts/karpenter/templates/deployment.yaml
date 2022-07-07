@@ -93,6 +93,7 @@ spec:
               containerPort: 8081
               protocol: TCP
           livenessProbe:
+            initialDelaySeconds: 30
             httpGet:
               path: /healthz
               port: http
@@ -146,6 +147,7 @@ spec:
               containerPort: {{ .Values.webhook.port }}
               protocol: TCP
           livenessProbe:
+            initialDelaySeconds: 30
             httpGet:
               port: https-webhook
               scheme: HTTPS
