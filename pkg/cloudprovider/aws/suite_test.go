@@ -414,8 +414,8 @@ var _ = Describe("Allocation", func() {
 				pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 					{
 						Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+							{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+						}},
 					},
 				}}}
 				ExpectApplied(ctx, env.Client, provisioner)
@@ -1739,7 +1739,10 @@ var _ = Describe("Pricing", func() {
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
+		updateStart := time.Now()
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.OnDemandLastUpdated().After(updateStart) }).Should(BeTrue())
+
 		price, err := p.OnDemandPrice("c98.large")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.20))
@@ -1772,7 +1775,10 @@ var _ = Describe("Pricing", func() {
 				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
+		updateStart := time.Now()
 		p := NewPricingProvider(ctx, fakePricingAPI, fakeEC2API, "", false, make(chan struct{}))
+		Eventually(func() bool { return p.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
+
 		price, err := p.SpotPrice("c98.large")
 		Expect(err).To(BeNil())
 		Expect(price).To(BeNumerically("==", 1.20))
