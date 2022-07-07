@@ -30,7 +30,6 @@ Constraints you can request include:
 
 Karpenter supports standard Kubernetes scheduling constraints.
 This allows you to define a single set of rules that apply to both existing and provisioned capacity.
-Pod affinity is a key exception to this rule.
 
 {{% alert title="Note" color="primary" %}}
 Karpenter supports specific [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) that are useful for scheduling.

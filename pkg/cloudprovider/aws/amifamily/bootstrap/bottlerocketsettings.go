@@ -29,6 +29,8 @@ type settings struct {
 	Metrics           *metrics           `toml:"metrics,omitempty"`
 	Kernel            *kernel            `toml:"kernel,omitempty"`
 	ContainerRegistry *containerRegistry `toml:"container-registry,omitempty"`
+	Network           *network           `toml:"network,omitempty"`
+	NTP               *ntp               `toml:"ntp,omitempty"`
 }
 
 // kubernetes specific configuration for bottlerocket api
@@ -44,7 +46,7 @@ type kubernetes struct {
 	EvictionHard              map[string]string    `toml:"eviction-hard,omitempty"`
 	KubeReserved              map[string]string    `toml:"kube-reserved,omitempty"`
 	SystemReserved            map[string]string    `toml:"system-reserved,omitempty"`
-	AllowedUnsafeSysctls      []*string            `toml:"allowed-unsafe-sysctls,omitempty"`
+	AllowedUnsafeSysctls      []string             `toml:"allowed-unsafe-sysctls,omitempty"`
 	ServerTLSBootstrap        *bool                `toml:"server-tls-bootstrap,omitempty"`
 	RegistryQPS               *int                 `toml:"registry-qps,omitempty"`
 	RegistryBurst             *int                 `toml:"registry-burst,omitempty"`
@@ -99,12 +101,23 @@ type control struct {
 }
 
 type metrics struct {
-	MetricsURL    *string   `toml:"metrics-url,omitempty"`
-	SendMetrics   *bool     `toml:"send-metrics,omitempty"`
-	ServiceChecks []*string `toml:"service-checks,omitempty"`
+	MetricsURL    *string  `toml:"metrics-url,omitempty"`
+	SendMetrics   *bool    `toml:"send-metrics,omitempty"`
+	ServiceChecks []string `toml:"service-checks,omitempty"`
 }
 
 type kernel struct {
 	Lockdown *string           `toml:"lockdown,omitempty"`
 	SysCtl   map[string]string `toml:"sysctl,omitempty"`
+}
+
+type network struct {
+	Hostname   *string         `toml:"hostname,omitempty"`
+	HTTPSProxy *string         `toml:"https-proxy,omitempty"`
+	NoProxy    []string        `toml:"no-proxy,omitempty"`
+	Hosts      [][]interface{} `toml:"hosts,omitempty"`
+}
+
+type ntp struct {
+	TimeServers []string `toml:"time-servers,omitempty"`
 }
